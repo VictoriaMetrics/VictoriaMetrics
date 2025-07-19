@@ -29,6 +29,7 @@ type ConnPool struct {
 	conns []connWithTimestamp
 
 	isStopped bool
+	reuseCh   chan *handshake.BufferedConn
 
 	// lastDialError contains the last error seen when dialing remote addr.
 	// When it is non-nil and conns is empty, then ConnPool.Get() return this error.
@@ -66,6 +67,7 @@ func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Fun
 	cp := &ConnPool{
 		d:                 NewTCPDialer(ms, name, addr, dialTimeout, userTimeout),
 		concurrentDialsCh: make(chan struct{}, concurrentDialLimit),
+		reuseCh:           make(chan *handshake.BufferedConn),
 
 		name:             name,
 		handshakeFunc:    handshakeFunc,
@@ -146,28 +148,42 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 }
 
 func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
-	for {
-		select {
+	// TODO: maybe adjust duration
+	timeoutT := time.NewTimer(2 * time.Second)
+	defer timeoutT.Stop()
+
+	reuseLocalCh := make(chan *handshake.BufferedConn)
+
+	go func() {
 		// Limit the number of concurrent dials.
 		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2552
-		case cp.concurrentDialsCh <- struct{}{}:
-			// Create new connection.
-			conn, err := cp.dialAndHandshake()
-			<-cp.concurrentDialsCh
-			return conn, err
-		default:
-			// Make attempt to get already established connections from the pool.
-			// It may appear there while waiting for cp.concurrentDialsCh.
-			bc, err := cp.tryGetConn()
-			if err != nil {
-				return nil, err
-			}
-			if bc == nil {
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-			return bc, nil
+		cp.concurrentDialsCh <- struct{}{}
+		// Create new connection.
+		conn, err := cp.dialAndHandshake()
+		<-cp.concurrentDialsCh
+
+		if err != nil {
+			return
 		}
+
+		select {
+		case reuseLocalCh <- conn:
+		default:
+			cp.Put(conn)
+		}
+	}()
+
+	select {
+	case bc := <-reuseLocalCh:
+		return bc, nil
+	case bc := <-cp.reuseCh:
+		return bc, nil
+	case <-timeoutT.C:
+		cp.mu.Lock()
+		err := fmt.Errorf("cannot get connection from the pool: timeout exceeded; last dial error: %s", cp.lastDialError)
+		cp.mu.Unlock()
+
+		return nil, err
 	}
 }
 
@@ -224,10 +240,14 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 	if cp.isStopped {
 		_ = bc.Close()
 	} else {
-		cp.conns = append(cp.conns, connWithTimestamp{
-			bc:             bc,
-			lastActiveTime: fasttime.UnixTimestamp(),
-		})
+		select {
+		case cp.reuseCh <- bc:
+		default:
+			cp.conns = append(cp.conns, connWithTimestamp{
+				bc:             bc,
+				lastActiveTime: fasttime.UnixTimestamp(),
+			})
+		}
 	}
 	cp.mu.Unlock()
 }
