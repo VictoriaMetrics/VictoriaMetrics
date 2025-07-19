@@ -1,4 +1,4 @@
-name: main-vmui
+name: vmui
 
 on:
   push:
@@ -7,15 +7,20 @@ on:
       - master
     paths:
       - 'app/vmui/packages/vmui/**'
+      - '.github/workflows/vmui.yml'
   pull_request:
     branches:
       - cluster
       - master
     paths:
       - 'app/vmui/packages/vmui/**'
+      - '.github/workflows/vmui.yml'
 
 permissions:
   contents: read
+  packages: read
+  pull-requests: read
+  checks: write
 
 concurrency:
   cancel-in-progress: true
@@ -56,6 +61,12 @@ jobs:
         id: typecheck
         run: make vmui-typecheck
         continue-on-error: true
+
+      - name: Annotate Code Linting Results
+        uses: ataylorme/eslint-annotate-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          report-json: app/vmui/packages/vmui/vmui-lint-report.json
 
       - name: Check overall status
         run: |
