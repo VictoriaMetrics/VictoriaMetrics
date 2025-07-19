@@ -11,6 +11,7 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Rows contains parsed Prometheus rows.
@@ -180,6 +181,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 }
 
 var rowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape"}`)
+var metadataReadScrape = metrics.NewCounter(`vm_protoparser_metadata_read_total{type="promscrape"}`)
 
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
 	dstLen := len(dst)
@@ -726,4 +728,120 @@ var numericChars = [256]bool{
 	'e': true,
 	'E': true,
 	'.': true,
+}
+
+// Metadata contains HELP or TYPE message in prometheus exposition format.
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#comments-help-text-and-type-information.
+//
+// For example:
+// # HELP alertmanager_alerts How many alerts by state.
+// # TYPE alertmanager_alerts gauge
+type Metadata struct {
+	Metric string
+	Type   uint32
+	Help   string
+}
+
+// MetadataRows contains parsed Prometheus metadata rows.
+type MetadataRows struct {
+	Rows []Metadata
+}
+
+// Unmarshal unmarshals Prometheus metadata rows from s with stdErrLogger.
+func (ms *MetadataRows) Unmarshal(s string) {
+	ms.UnmarshalWithErrLogger(s, stdErrLogger)
+}
+
+// UnmarshalWithErrLogger unmarshals Prometheus metadata rows from s.
+func (ms *MetadataRows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
+	ms.Rows = unmarshalMetadataRowsWithErrLogger(s, errLogger)
+}
+
+// Reset resets ms.
+func (ms *MetadataRows) Reset() {
+	ms.Rows = ms.Rows[:0]
+}
+
+func unmarshalMetadataRowsWithErrLogger(s string, errLogger func(s string)) []Metadata {
+	var dst []Metadata
+	for len(s) > 0 {
+		var line string
+		n := strings.IndexByte(s, '\n')
+		if n < 0 {
+			line = s
+			s = ""
+		} else {
+			line = s[:n]
+			s = s[n+1:]
+		}
+		if mr, ok := parseMetadataLine(line, errLogger); ok {
+			dst = append(dst, mr)
+		}
+	}
+	metadataReadScrape.Add(len(dst))
+	return dst
+}
+
+func parseMetadataLine(s string, errLogger func(s string)) (Metadata, bool) {
+	s = skipLeadingWhitespace(s)
+
+	if len(s) < 2 || s[0] != '#' || s[1] != ' ' {
+		// Skip non-comment
+		return Metadata{}, false
+	}
+
+	parts := strings.SplitN(s, " ", 4)
+	if len(parts) < 3 {
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q", s))
+		}
+		return Metadata{}, false
+	}
+	var mr Metadata
+	commentType := parts[1]
+	mr.Metric = parts[2]
+	var isType, isHelp bool
+	switch commentType {
+	case "HELP":
+		isHelp = true
+	case "TYPE":
+		isType = true
+	default:
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q", s))
+		}
+		return Metadata{}, false
+	}
+
+	// HELP can have null content, TYPE can't
+	if isType {
+		if len(parts) == 3 {
+			if errLogger != nil {
+				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: missing TYPE", s))
+			}
+			return Metadata{}, false
+		}
+		switch parts[3] {
+		case "counter":
+			mr.Type = uint32(prompb.MetricMetadataCOUNTER)
+		case "gauge":
+			mr.Type = uint32(prompb.MetricMetadataGAUGE)
+		case "histogram":
+			mr.Type = uint32(prompb.MetricMetadataHISTOGRAM)
+		case "summary":
+			mr.Type = uint32(prompb.MetricMetadataSUMMARY)
+		case "untyped":
+			mr.Type = uint32(prompb.MetricMetadataUNKNOWN)
+		default:
+			if errLogger != nil {
+				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: missing TYPE", s))
+			}
+			return Metadata{}, false
+		}
+
+	}
+	if isHelp && len(parts) > 3 {
+		mr.Help = skipTrailingWhitespace(parts[3])
+	}
+	return mr, true
 }
