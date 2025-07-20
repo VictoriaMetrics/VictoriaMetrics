@@ -119,6 +119,12 @@ type indexDB struct {
 	name string
 	tb   *mergeset.Table
 
+	// registerNewSeries indicates whether the indexDB receives new entries or
+	// not.
+	//
+	// Note that setting this field to false won't disable registering new
+	// index entries (should they arrive). It is solely used to decide whether
+	// the containsTimeRange() optimization can be applied to the indexDB.
 	registerNewSeries atomic.Bool
 
 	// Cache for fast TagFilters -> MetricIDs lookup.

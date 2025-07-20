@@ -69,7 +69,8 @@ type Storage struct {
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
 
-	// idbCurr contains the previous used indexdb.
+	// idbPrev contains the previously used indexdb.
+	// idbCurr becomes idbPrev after the indexDB rotation.
 	idbPrev atomic.Pointer[indexDB]
 
 	// idbCurr contains the currently used indexdb.
@@ -529,6 +530,8 @@ func (s *Storage) MustDeleteStaleSnapshots(maxAge time.Duration) {
 	}
 }
 
+// getPrevAndCurrIndexDBs increments the refcount for prev and curr indexDBs and
+// returns them.
 func (s *Storage) getPrevAndCurrIndexDBs() (prev, curr *indexDB) {
 	s.idbLock.Lock()
 	defer s.idbLock.Unlock()
@@ -539,6 +542,8 @@ func (s *Storage) getPrevAndCurrIndexDBs() (prev, curr *indexDB) {
 	return prev, curr
 }
 
+// getPrevAndCurrIndexDBs increments the refcount for all indexDBs (prev, curr,
+// and next) and returns them.
 func (s *Storage) getIndexDBs() (prev, curr, next *indexDB) {
 	s.idbLock.Lock()
 	defer s.idbLock.Unlock()
@@ -551,11 +556,14 @@ func (s *Storage) getIndexDBs() (prev, curr, next *indexDB) {
 	return prev, curr, next
 }
 
+// putPrevAndCurrIndexDBs decrements the refcount of prev and curr indexDBs.
 func (s *Storage) putPrevAndCurrIndexDBs(prev, curr *indexDB) {
 	prev.decRef()
 	curr.decRef()
 }
 
+// putPrevAndCurrIndexDBs decrements the refcount of all indexDBs (prev, curr,
+// and next).
 func (s *Storage) putIndexDBs(prev, curr, next *indexDB) {
 	prev.decRef()
 	curr.decRef()
@@ -1265,12 +1273,6 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 	var idbs = []*indexDB{idbPrev, idbCurr}
 
-	if len(idbs) == 0 {
-		qt.Printf("no indexDBs found")
-		var zeroValue T
-		return zeroValue, nil
-	}
-
 	qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
 	var wg sync.WaitGroup
 	data := make([]T, len(idbs))
@@ -1300,7 +1302,6 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	result := merge(data)
 	qtMerge.Done()
 
-	// Do not sort the results, since they must be sorted by vmselect.
 	return result, nil
 }
 
@@ -1543,7 +1544,7 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 // GetSeriesCount returns the approximate number of unique time series.
 //
 // It includes the deleted series too and may count the same series
-// up to two times - in curr and prev indexDB.
+// up to two times - in curr and prev indexDBs.
 func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 	tr := TimeRange{
 		MinTimestamp: 0,
