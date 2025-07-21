@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all the VictoriaMetrics components: support netBSD builds. See this [#9473](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9473) PR for details. Thanks to the @iamleot.
+
 ## [v1.122.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.0)
 
 Released at 2025-07-18
