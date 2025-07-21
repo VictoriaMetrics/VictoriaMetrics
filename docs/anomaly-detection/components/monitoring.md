@@ -322,6 +322,16 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
             <td>Gauge</td>
             <td>Number of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#sub-configuration) **available** (`{scope="total"}`) and **used** for particular [shard](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) (`{scope="shard"}`) {{% available_from "v1.21.0" anomaly %}}</td>
         </tr>
+<span style="white-space: nowrap;">`vmanomaly_hot_reload_enabled`</span>
+            </td>
+            <td>Gauge</td>
+            <td>Whether particular vmanomaly instance is run in [hot-reload mode](#TODO-link) {{% available_from "v1.25.0" anomaly %}}</td>
+        </tr>
+<span style="white-space: nowrap;">`vmanomaly_hot_reload_events_total`</span>
+            </td>
+            <td>Counter</td>
+            <td>How many config [hot-reloads]() were made since service started {{% available_from "v1.25.0" anomaly %}}</td>
+        </tr>
     </tbody>
 </table>
 

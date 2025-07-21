@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState, useEffect } from "preact/compat";
+import { FC, useMemo, useState, useEffect } from "preact/compat";
 import Trace from "../../../components/TraceQuery/Trace";
 import { DataAnalyzerType } from "../index";
 import classNames from "classnames";

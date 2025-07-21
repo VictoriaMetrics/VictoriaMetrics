@@ -216,3 +216,157 @@ func TestDeduplicateSamplesDuringMerge(t *testing.T) {
 	f(100*time.Millisecond, []int64{0, 100, 100, 101, 150, 180, 200, 300, 1000}, []int64{0, 100, 200, 300, 1000}, []int64{0, 2, 6, 7, 8})
 	f(10*time.Second, []int64{10e3, 13e3, 21e3, 22e3, 30e3, 33e3, 39e3, 45e3}, []int64{10e3, 13e3, 30e3, 39e3, 45e3}, []int64{0, 1, 4, 6, 7})
 }
+
+func TestDeduplicateSamples_KeepsFirstAndLast(t *testing.T) {
+	f := func(dedupInterval time.Duration, timestamps []int64, values []float64, timestampsExpected []int64, valuesExpected []float64) {
+		t.Helper()
+		tsCopy := append([]int64{}, timestamps...)
+		vCopy := append([]float64{}, values...)
+
+		tsCopy, vCopy = DeduplicateSamples(tsCopy, vCopy, dedupInterval.Milliseconds())
+
+		// Original boundary checks for clarity and safety
+		if len(tsCopy) == 0 {
+			t.Fatalf("deduplication removed all samples for timestamps %v", timestamps)
+		}
+		if tsCopy[0] != timestamps[0] || !equalWithNans([]float64{vCopy[0]}, []float64{values[0]}) {
+			t.Fatalf("first sample lost; got (%d,%v) want (%d,%v)", tsCopy[0], vCopy[0], timestamps[0], values[0])
+		}
+		if tsCopy[len(tsCopy)-1] != timestamps[len(timestamps)-1] || !equalWithNans([]float64{vCopy[len(vCopy)-1]}, []float64{values[len(values)-1]}) {
+			t.Fatalf("last sample lost; got (%d,%v) want (%d,%v)", tsCopy[len(tsCopy)-1], vCopy[len(vCopy)-1], timestamps[len(timestamps)-1], values[len(values)-1])
+		}
+
+		// Exact-set comparisons suggested for clarity
+		if !reflect.DeepEqual(tsCopy, timestampsExpected) {
+			t.Fatalf("unexpected timestamps after dedup;\ngot  %v\nwant %v", tsCopy, timestampsExpected)
+		}
+		if !equalWithNans(vCopy, valuesExpected) {
+			t.Fatalf("unexpected values after dedup;\ngot  %v\nwant %v", vCopy, valuesExpected)
+		}
+	}
+
+	// duplicates around edges
+	f(time.Second,
+		[]int64{0, 200, 400, 800, 1000, 1200, 1500, 2100, 2300, 2500, 2500},
+		[]float64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		[]int64{0, 1000, 1500, 2500},
+		[]float64{0, 4, 6, 10},
+	)
+
+	// heavy duplication in first and last intervals
+	f(time.Second,
+		[]int64{0, 100, 200, 300, 700, 1000, 1600, 1700, 1800, 2300, 2400, 2500},
+		[]float64{10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21},
+		[]int64{0, 1000, 1800, 2500},
+		[]float64{10, 15, 18, 21},
+	)
+
+	// single sample case
+	f(time.Second,
+		[]int64{1000},
+		[]float64{42},
+		[]int64{1000},
+		[]float64{42},
+	)
+
+	// two samples case (different intervals, nothing to drop)
+	f(time.Second,
+		[]int64{0, 2000},
+		[]float64{1, 2},
+		[]int64{0, 2000},
+		[]float64{1, 2},
+	)
+
+	// many duplicates at start
+	f(time.Second,
+		[]int64{0, 100, 200, 300, 400, 500, 1500, 2000},
+		[]float64{1, 2, 3, 4, 5, 6, 7, 8},
+		[]int64{0, 500, 2000},
+		[]float64{1, 6, 8},
+	)
+
+	// many duplicates at end
+	f(time.Second,
+		[]int64{0, 1000, 2000, 2100, 2200, 2300, 2400, 2500},
+		[]float64{1, 2, 3, 4, 5, 6, 7, 8},
+		[]int64{0, 1000, 2000, 2500},
+		[]float64{1, 2, 3, 8},
+	)
+}
+
+func TestDeduplicateSamplesDuringMerge_KeepsFirstAndLast(t *testing.T) {
+	f := func(dedupInterval time.Duration, timestamps []int64, values []int64, timestampsExpected []int64, valuesExpected []int64) {
+		t.Helper()
+		tsCopy := append([]int64{}, timestamps...)
+		vCopy := append([]int64{}, values...)
+
+		tsCopy, vCopy = deduplicateSamplesDuringMerge(tsCopy, vCopy, dedupInterval.Milliseconds())
+
+		// Original boundary checks
+		if len(tsCopy) == 0 {
+			t.Fatalf("deduplication removed all samples for timestamps %v", timestamps)
+		}
+		if tsCopy[0] != timestamps[0] || vCopy[0] != values[0] {
+			t.Fatalf("first sample lost; got (%d,%d) want (%d,%d)", tsCopy[0], vCopy[0], timestamps[0], values[0])
+		}
+		if tsCopy[len(tsCopy)-1] != timestamps[len(timestamps)-1] || vCopy[len(vCopy)-1] != values[len(values)-1] {
+			t.Fatalf("last sample lost; got (%d,%d) want (%d,%d)", tsCopy[len(tsCopy)-1], vCopy[len(vCopy)-1], timestamps[len(timestamps)-1], values[len(values)-1])
+		}
+
+		// Exact-set comparisons
+		if !reflect.DeepEqual(tsCopy, timestampsExpected) {
+			t.Fatalf("unexpected timestamps after dedup;\ngot  %v\nwant %v", tsCopy, timestampsExpected)
+		}
+		if !reflect.DeepEqual(vCopy, valuesExpected) {
+			t.Fatalf("unexpected values after dedup;\ngot  %v\nwant %v", vCopy, valuesExpected)
+		}
+	}
+
+	// duplicates around edges
+	f(time.Second,
+		[]int64{0, 200, 400, 800, 1000, 1300, 1500, 2100, 2400, 2500, 2500},
+		[]int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		[]int64{0, 1000, 1500, 2500},
+		[]int64{0, 4, 6, 10},
+	)
+
+	// heavy duplication in first and last intervals
+	f(time.Second,
+		[]int64{0, 100, 200, 300, 700, 1000, 1600, 1700, 1800, 2300, 2400, 2500},
+		[]int64{10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21},
+		[]int64{0, 1000, 1800, 2500},
+		[]int64{10, 15, 18, 21},
+	)
+
+	// single sample case
+	f(time.Second,
+		[]int64{1000},
+		[]int64{42},
+		[]int64{1000},
+		[]int64{42},
+	)
+
+	// two samples case
+	f(time.Second,
+		[]int64{0, 2000},
+		[]int64{1, 2},
+		[]int64{0, 2000},
+		[]int64{1, 2},
+	)
+
+	// many duplicates at start
+	f(time.Second,
+		[]int64{0, 100, 200, 300, 400, 500, 1500, 2000},
+		[]int64{1, 2, 3, 4, 5, 6, 7, 8},
+		[]int64{0, 500, 2000},
+		[]int64{1, 6, 8},
+	)
+
+	// many duplicates at end
+	f(time.Second,
+		[]int64{0, 1000, 2000, 2100, 2200, 2300, 2400, 2500},
+		[]int64{1, 2, 3, 4, 5, 6, 7, 8},
+		[]int64{0, 1000, 2000, 2500},
+		[]int64{1, 2, 3, 8},
+	)
+}

@@ -20,9 +20,9 @@ describe("utils", () => {
         "QUERY_HISTORY": [],
       }));
 
-      setQueriesToStorage("LOGS_QUERY_HISTORY", []);
+      setQueriesToStorage("METRICS_QUERY_HISTORY", []);
       expect(saveToStorageMock).toHaveBeenCalledWith(
-        "LOGS_QUERY_HISTORY",
+        "METRICS_QUERY_HISTORY",
         "{\"QUERY_HISTORY\":[[]]}"
       );
     });
@@ -34,9 +34,9 @@ describe("utils", () => {
         "QUERY_HISTORY": [["first_query"]],
       }));
 
-      setQueriesToStorage("LOGS_QUERY_HISTORY", [{ index: 0, values: ["first_query"] }]);
+      setQueriesToStorage("METRICS_QUERY_HISTORY", [{ index: 0, values: ["first_query"] }]);
       expect(saveToStorageMock).toHaveBeenCalledWith(
-        "LOGS_QUERY_HISTORY",
+        "METRICS_QUERY_HISTORY",
         "{\"QUERY_HISTORY\":[[\"first_query\"]]}"
       );
     });
@@ -48,9 +48,9 @@ describe("utils", () => {
         "QUERY_HISTORY": [["first_query"]],
       }));
 
-      setQueriesToStorage("LOGS_QUERY_HISTORY", [{ index: 0, values: ["new_query"] }]);
+      setQueriesToStorage("METRICS_QUERY_HISTORY", [{ index: 0, values: ["new_query"] }]);
       expect(saveToStorageMock).toHaveBeenCalledWith(
-        "LOGS_QUERY_HISTORY",
+        "METRICS_QUERY_HISTORY",
         "{\"QUERY_HISTORY\":[[\"new_query\",\"first_query\"]]}"
       );
     });
@@ -64,11 +64,11 @@ describe("utils", () => {
         "QUERY_HISTORY": [currentHistory],
       }));
 
-      setQueriesToStorage("LOGS_QUERY_HISTORY", [{ index: 0, values: ["extra_query"] }]);
+      setQueriesToStorage("METRICS_QUERY_HISTORY", [{ index: 0, values: ["extra_query"] }]);
 
       const calls = saveToStorageMock.mock.calls;
       const firstCallArgs = calls[0];
-      expect(firstCallArgs[0]).toStrictEqual("LOGS_QUERY_HISTORY");
+      expect(firstCallArgs[0]).toStrictEqual("METRICS_QUERY_HISTORY");
       const savedQueries = JSON.parse(firstCallArgs[1]);
       expect(savedQueries["QUERY_HISTORY"][0][0]).toStrictEqual("extra_query");
       expect(savedQueries["QUERY_HISTORY"][0].length).toStrictEqual(maxQueries);

@@ -1,0 +1,71 @@
+name: main-vmui
+
+on:
+  push:
+    branches:
+      - cluster
+      - master
+    paths:
+      - 'app/vmui/packages/vmui/**'
+  pull_request:
+    branches:
+      - cluster
+      - master
+    paths:
+      - 'app/vmui/packages/vmui/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  vmui-checks:
+    name: VMUI Checks (lint, test, typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Cache node-modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/vmui/packages/vmui/node_modules
+          key: vmui-artifacts-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: vmui-artifacts-${{ runner.os }}-
+
+      - name: Run lint
+        id: lint
+        run: make vmui-lint
+        continue-on-error: true
+
+      - name: Run tests
+        id: test
+        run: make vmui-test
+        continue-on-error: true
+
+      - name: Run typecheck
+        id: typecheck
+        run: make vmui-typecheck
+        continue-on-error: true
+
+      - name: Check overall status
+        run: |
+          echo "Lint status: ${{ steps.lint.outcome }}"
+          echo "Test status: ${{ steps.test.outcome }}"
+          echo "Typecheck status: ${{ steps.typecheck.outcome }}"
+
+          if [[ "${{ steps.lint.outcome }}" == "failure" || "${{ steps.test.outcome }}" == "failure" || "${{ steps.typecheck.outcome }}" == "failure" ]]; then
+            echo "One or more checks failed"
+            exit 1
+          else
+            echo "All checks passed"
+          fi

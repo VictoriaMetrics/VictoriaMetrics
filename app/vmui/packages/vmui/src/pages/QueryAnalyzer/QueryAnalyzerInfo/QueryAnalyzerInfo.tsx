@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { DataAnalyzerType } from "../index";
 import {
   ClockIcon,
@@ -14,7 +14,7 @@ import useBoolean from "../../../hooks/useBoolean";
 import Modal from "../../../components/Main/Modal/Modal";
 import { marked } from "marked";
 import Button from "../../../components/Main/Button/Button";
-import get from "lodash.get";
+import { getValueByPath } from "../../../utils/object";
 
 type Props = {
   data: DataAnalyzerType[];
@@ -36,7 +36,10 @@ const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
       ]))
     ].map(key => ({
       column: key.split(".").pop(),
-      values: dataWithStats.map(data => get(data, key, "-"))
+      values: dataWithStats.map(data => {
+        const value = getValueByPath(data, key);
+        return typeof value === "string" ? value : "-";
+      })
     })).filter(({ values }) => values.length && values.every(v => v !== "-"));
   }, [dataWithStats]);
 
