@@ -100,7 +100,7 @@ type Search struct {
 	// data blocks.
 	storage *Storage
 
-	// Partition indexDBs that correspond to the search time range.
+	// Partitions that correspond to the search time range.
 	// These are used for searching metric names by metricID.
 	ptws []*partitionWrapper
 
