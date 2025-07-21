@@ -1675,7 +1675,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		mr := &mrs[i]
 		date := uint64(mr.Timestamp) / msecPerDay
 
-		if ptw == nil || !ptw.HasTimestamp(mr.Timestamp) {
+		if ptw == nil || !ptw.pt.HasTimestamp(mr.Timestamp) {
 			if ptw != nil {
 				if is != nil {
 					idb.putIndexSearch(is)
@@ -1860,7 +1860,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		date := s.date(r.Timestamp)
 		hour := uint64(r.Timestamp) / msecPerHour
 
-		if ptw == nil || !ptw.HasTimestamp(r.Timestamp) {
+		if ptw == nil || !ptw.pt.HasTimestamp(r.Timestamp) {
 			if ptw != nil {
 				if is != nil {
 					idb.putIndexSearch(is)
@@ -2249,7 +2249,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 		}
 
-		if ptw == nil || !ptw.HasTimestamp(r.Timestamp) {
+		if ptw == nil || !ptw.pt.HasTimestamp(r.Timestamp) {
 			if ptw != nil {
 				s.tb.PutPartition(ptw)
 			}
@@ -2306,7 +2306,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		metricID := dmid.tsid.MetricID
 
 		timestamp := int64(date) * msecPerDay
-		if ptw == nil || !ptw.HasTimestamp(timestamp) {
+		if ptw == nil || !ptw.pt.HasTimestamp(timestamp) {
 			if ptw != nil {
 				if is != nil {
 					idb.putIndexSearch(is)

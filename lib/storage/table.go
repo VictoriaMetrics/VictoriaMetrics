@@ -81,11 +81,6 @@ func (ptw *partitionWrapper) decRef() {
 	ptw.pt = nil
 }
 
-// HasTimestamp checks if index contains given timestamp.
-func (ptw *partitionWrapper) HasTimestamp(timestamp int64) bool {
-	return timestamp >= ptw.pt.tr.MinTimestamp && timestamp <= ptw.pt.tr.MaxTimestamp
-}
-
 func (ptw *partitionWrapper) scheduleToDrop() {
 	ptw.mustDrop.Store(true)
 }
