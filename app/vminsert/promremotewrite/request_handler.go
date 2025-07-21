@@ -72,11 +72,15 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 		perTenantRows[*atLocal] += len(ts.Samples)
 	}
 
-	// todo: should we drop meta if metric was also dropped?
-	// will it be a part of the same request?
+	var atLocal *auth.Token
 	for i := range mms {
 		m := &mms[i]
-		atLocal := ctx.GetLocalAuthToken(at)
+		if atLocal == nil || m.AccountID != atLocal.AccountID || m.ProjectID != atLocal.ProjectID {
+			atLocal = &auth.Token{
+				AccountID: m.AccountID,
+				ProjectID: m.ProjectID,
+			}
+		}
 		if err := ctx.WriteMetadata(atLocal, m); err != nil {
 			return err
 		}
