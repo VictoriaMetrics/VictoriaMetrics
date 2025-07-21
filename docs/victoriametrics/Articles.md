@@ -96,12 +96,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 
 ## Third-party articles and slides about VictoriaLogs
 
-* [Grepping logs remains terrible](https://chronicles.mad-scientist.club/tales/grepping-logs-remains-terrible/)
-* [Victorialogs vs Loki - Benchmarking Results](https://www.truefoundry.com/blog/victorialogs-vs-loki)
-* [How to Extend Percona Monitoring and Management to Add Logging Functionality](https://www.percona.com/blog/how-to-extend-percona-monitoring-and-management-to-add-logging-functionality/)
-* [VictoriaLogs: an overview, run in Kubernetes, LogsQL, and Grafana](https://itnext.io/victorialogs-an-overview-run-in-kubernetes-logsql-and-grafana-88e0934a5ccd)
-* [VictoriaLogs: a Grafana dashboard for AWS VPC Flow Logs — migrating from Grafana Loki](https://itnext.io/victorialogs-a-grafana-dashboard-for-aws-vpc-flow-logs-migrating-from-grafana-loki-c0cc0f1c3186)
-* [VictoriaLogs: creating Recording Rules with VMAlert](https://itnext.io/victorialogs-creating-recording-rules-with-vmalert-f606c2b94c5e)
+Articles about VictoriaLogs have been moved at [https://docs.victoriametrics.com/victorialogs/articles/](https://docs.victoriametrics.com/victorialogs/articles/).
 
 ## Our articles
 
