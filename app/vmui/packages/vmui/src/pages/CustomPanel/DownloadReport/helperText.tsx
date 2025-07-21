@@ -1,4 +1,3 @@
-import React from "preact/compat";
 import { DATE_FILENAME_FORMAT } from "../../../constants/date";
 import router, { routerOptions } from "../../../router";
 import { Link } from "react-router-dom";

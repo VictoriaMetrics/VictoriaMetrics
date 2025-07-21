@@ -943,6 +943,14 @@ func (pt *partition) MustClose() {
 	}
 }
 
+// DebugFlush flushes pending raw data rows of this partition so they
+// become visible to search.
+//
+// This function is for debug purposes only.
+func (pt *partition) DebugFlush() {
+	pt.flushPendingRows(true)
+}
+
 func (pt *partition) startInmemoryPartsMergers() {
 	pt.partsLock.Lock()
 	for i := 0; i < cap(inmemoryPartsConcurrencyCh); i++ {
@@ -1443,7 +1451,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		mpNew.ph = *ph
 	} else {
 		// Make sure the created part directory listing is synced.
-		fs.MustSyncPath(dstPartPath)
+		fs.MustSyncPathAndParentDir(dstPartPath)
 	}
 
 	// Atomically swap the source parts with the newly created part.
