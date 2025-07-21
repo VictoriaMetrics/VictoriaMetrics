@@ -100,9 +100,9 @@ type Search struct {
 	// data blocks.
 	storage *Storage
 
-	// Partition indexDBs that correspond to the search time range.
+	// Partitions that correspond to the search time range.
 	// These are used for searching metric names by metricID.
-	idbs []*indexDB
+	ptws []*partitionWrapper
 
 	// Legacy indexDBs.
 	// These are used for searching metric names by metricID if searching
@@ -141,7 +141,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.storage = nil
-	s.idbs = nil
+	s.ptws = nil
 	s.legacyIDBPrev = nil
 	s.legacyIDBCurr = nil
 	s.retentionDeadline = 0
@@ -172,7 +172,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 
 	s.reset()
 	s.storage = storage
-	s.idbs = storage.tb.GetIndexDBs(tr)
+	s.ptws = storage.tb.GetPartitions(tr)
 	s.legacyIDBPrev, s.legacyIDBCurr = storage.getLegacyIndexDBs()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
@@ -250,7 +250,7 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
-	s.storage.tb.PutIndexDBs(s.idbs)
+	s.storage.tb.PutPartitions(s.ptws)
 	s.storage.putLegacyIndexDBs(s.legacyIDBPrev, s.legacyIDBCurr)
 	s.reset()
 }
@@ -320,7 +320,8 @@ func (s *Search) searchMetricName(metricName []byte, metricID uint64, bh *blockH
 		MinTimestamp: bh.MinTimestamp,
 		MaxTimestamp: bh.MaxTimestamp,
 	}
-	for _, idb := range s.idbs {
+	for _, ptw := range s.ptws {
+		idb := ptw.pt.idb
 		if idb.tr.overlapsWith(tr) {
 			mn, found := idb.searchMetricName(metricName, metricID, false)
 			if found {
