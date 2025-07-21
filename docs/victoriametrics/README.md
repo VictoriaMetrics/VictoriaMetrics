@@ -1805,7 +1805,7 @@ VictoriaMetrics enhances Prometheus stats with `requestsCount` and `lastRequestT
 VictoriaMetrics can track statistics of fetched [metric names](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#structure-of-a-metric) 
 during [querying](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data) {{% available_from "v1.113.0" %}}. It tracks
 only metric names, as the number of names is usually limited (thousands) compared to time series (millions or billions).
-This feature can be enabled via the flag `--storage.trackMetricNamesStats` (**disabled by default**) on a single-node 
+This feature can be disabled via the flag `--storage.trackMetricNamesStats=false` (**enabled by default**) on a single-node 
 VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview). 
 
 During querying, VictoriaMetrics tracks how many times the requested metric name was fetched from the database and 
@@ -2917,7 +2917,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
   -storage.trackMetricNamesStats
-     Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage
+     Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage (default true)
   -storageDataPath string
      Path to storage data (default "victoria-metrics-data")
   -streamAggr.config string

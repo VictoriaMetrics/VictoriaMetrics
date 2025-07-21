@@ -279,11 +279,15 @@ expr: <string>
 [ update_entries_limit: <integer> | default 0 ]
 
 # Labels to add or overwrite for each alert.
+# Labels are merged with labels received from `expr` evaluation and uniquely identify each generated alert.
 # In case of conflicts, original labels are kept with prefix `exported_`.
+# Note: do not set dynamic label values like `$value`, because each time the $value changes - the new alert will be
+# generated. It will also break `for` condition.
 labels:
   [ <labelname>: <tmpl_string> ]
 
-# Annotations to add to each alert.
+# Annotations to add to each generated alert.
+# Annotations could contain arbitrary dynamicly generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
 annotations:
   [ <labelname>: <tmpl_string> ]
 ```
@@ -902,6 +906,9 @@ a review to the dashboard.
 Try the following tips to avoid common issues:
 1. Always set [group's interval](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) to be **equal to or greater than** 
    the [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
+1. Don't set labels with dynamic values to `labels` [param](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules).
+    * 👉 Example: setting `label: {{$value}}` to the rule will break its [alert state tracking](https://docs.victoriametrics.com/victoriametrics/vmalert/#alert-state)
+      because every evaluation could change the `label` value. If you need to attach `$value` to the alert notification - add it to `annotations` instead.
 1. vmalert runs [instant queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) during rule evaluation
    using the `&step` parameter, which defaults  to `-datasource.queryStep` (default is `5m`).
    In VictoriaMetrics, `step` controls how far back the query can look for a recent datapoint.
@@ -971,21 +978,20 @@ _See more about alerting rules in [Monitoring](#monitoring)._
 
 ### Alert state
 
-Sometimes it's hard to understand why a specific alert fired or didn't fire.  
-It's important to remember:
-* Alerts with `for: 0` fire **immediately** when their expression becomes true. 
-* Alerts with `for > 0` fire **only after several evaluations in a row**, where the expression is true every time.
+Sometimes, it's hard to understand why a specific alert fired or not. Keep in mind the following:
+* Alerts with `for: 0` (or not set) fire **immediately** after the evaluation. 
+* Alerts with `for > 0` fire **only after several evaluations in a row**, if the expression is true every time.
 
 If evaluation returns error (i.e. datasource is unavailable), alert state doesn't change.
-If at least one evaluation returns no data, then alert's state resets to the inactive state.
+If at least one evaluation returns no data, then alert's `for` state resets.
 
 > Note: The alert state is tracked separately for each time series returned during evaluation.
-> For example, if the 1st evaluation returns series A and B, and the 2nd evaluation returns only B – the alert will stay active **only for B**.
+> For example, if the 1st evaluation returns series A and B, and the 2nd evaluation returns only B – the alert will remain active **only for B**.
 
 If `-remoteWrite.url` command-line flag is configured, vmalert will [persist alert's state](http://localhost:1313/victoriametrics/vmalert/#alerts-state-on-restarts)
 in form of time series `ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
 [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or Grafana to track how 
-alerts state changed in time.
+alerts state changed in time. See [query statistics dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/alert-statistics.json) as example for tracking historical alerts state.
 
 ### Data delay
 
