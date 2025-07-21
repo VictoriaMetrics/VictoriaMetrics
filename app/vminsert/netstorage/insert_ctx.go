@@ -195,6 +195,12 @@ func (ctx *InsertCtx) WriteMetadata(at *auth.Token, m *prompb.MetricMetadata) er
 	return ctx.WriteMetadataExt(storageNodeIdx, ctx.MetricNameBuf)
 }
 
+func (ctx *InsertCtx) WriteMetadataInt(m metricsmetadata.Row) error {
+	ctx.MetricNameBuf = m.MarshalTo(ctx.MetricNameBuf[:0])
+	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.MetricNameBuf)
+	return ctx.WriteMetadataExt(storageNodeIdx, ctx.MetricNameBuf)
+}
+
 func (ctx *InsertCtx) GetStorageNodeIdxForMeta(buf []byte) int {
 	if len(ctx.snb.sns) == 1 {
 		// Fast path - only a single storage node.
