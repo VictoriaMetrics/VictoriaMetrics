@@ -79,20 +79,20 @@ func TestLegacyContainsTimeRange(t *testing.T) {
 	}
 
 	// legacy previous indexDB has no data
-	f(legacyIDBs.idbPrev, globalIndexTimeRange, true)
-	f(legacyIDBs.idbPrev, tr1, false)
-	f(legacyIDBs.idbPrev, tr2, false)
-	f(legacyIDBs.idbPrev, tr3, false)
-	f(legacyIDBs.idbPrev, tr4, false)
-	f(legacyIDBs.idbPrev, tr5, false)
+	f(legacyIDBs.getIDBPrev(), globalIndexTimeRange, true)
+	f(legacyIDBs.getIDBPrev(), tr1, false)
+	f(legacyIDBs.getIDBPrev(), tr2, false)
+	f(legacyIDBs.getIDBPrev(), tr3, false)
+	f(legacyIDBs.getIDBPrev(), tr4, false)
+	f(legacyIDBs.getIDBPrev(), tr5, false)
 
 	// legacy current indexDB has some data
-	f(legacyIDBs.idbCurr, globalIndexTimeRange, true)
-	f(legacyIDBs.idbCurr, tr1, true)
-	f(legacyIDBs.idbCurr, tr2, true)
-	f(legacyIDBs.idbCurr, tr3, true)
-	f(legacyIDBs.idbCurr, tr4, true)
-	f(legacyIDBs.idbCurr, tr5, false)
+	f(legacyIDBs.getIDBCurr(), globalIndexTimeRange, true)
+	f(legacyIDBs.getIDBCurr(), tr1, true)
+	f(legacyIDBs.getIDBCurr(), tr2, true)
+	f(legacyIDBs.getIDBCurr(), tr3, true)
+	f(legacyIDBs.getIDBCurr(), tr4, true)
+	f(legacyIDBs.getIDBCurr(), tr5, false)
 
 	// partitioned indexDB return true for any time range
 	f(idb, globalIndexTimeRange, true)

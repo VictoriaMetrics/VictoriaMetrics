@@ -331,22 +331,17 @@ func (s *Search) searchMetricName(metricName []byte, metricID uint64, bh *blockH
 		}
 	}
 
-	if s.legacyIDBs == nil {
-		// No legacy indexDBs, nothing to search.
-		return metricName, false
-	}
-
 	// Fallback to legacy current indexDB if it exists.
-	if s.legacyIDBs.idbCurr != nil {
-		mn, found := s.legacyIDBs.idbCurr.searchMetricName(metricName, metricID, false)
+	if idbCurr := s.legacyIDBs.getIDBCurr(); idbCurr != nil {
+		mn, found := idbCurr.searchMetricName(metricName, metricID, false)
 		if found {
 			return mn, true
 		}
 	}
 
 	// Fallback to legacy previous indexDB if it exists.
-	if s.legacyIDBs.idbPrev != nil {
-		mn, found := s.legacyIDBs.idbPrev.searchMetricName(metricName, metricID, false)
+	if idbPrev := s.legacyIDBs.getIDBPrev(); idbPrev != nil {
+		mn, found := idbPrev.searchMetricName(metricName, metricID, false)
 		if found {
 			return mn, true
 		}

@@ -12,7 +12,7 @@ import (
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
-func mustOpenLegacyIndexDB(path string, s *Storage) *indexDB {
+func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 	name := filepath.Base(path)
 	id, err := strconv.ParseUint(name, 16, 64)
 	if err != nil {
@@ -23,5 +23,8 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *indexDB {
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	}
-	return mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, false)
+	idb := mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, false)
+	legacyIdb := &legacyIndexDB{idb: idb}
+	legacyIdb.incRef()
+	return legacyIdb
 }

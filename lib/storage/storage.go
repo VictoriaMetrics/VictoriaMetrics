@@ -262,19 +262,17 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// partition indexDB. Also add deleted metricIDs from current indexDB to the
 	// previous one, because previous may contain the same metrics that wasn't marked as deleted.
 	legacyDeletedMetricIDSet := &uint64set.Set{}
-	var legacyDeletedMetricIDs []uint64
-	if legacyIDBs != nil {
-		if legacyIDBs.idbPrev != nil {
-			legacyDeletedMetricIDSet.Union(legacyIDBs.idbPrev.getDeletedMetricIDs())
-		}
-		if legacyIDBs.idbCurr != nil {
-			legacyDeletedMetricIDSet.Union(legacyIDBs.idbCurr.getDeletedMetricIDs())
-		}
-		legacyDeletedMetricIDs = legacyDeletedMetricIDSet.AppendTo(nil)
+	idbPrev := legacyIDBs.getIDBPrev()
+	if idbPrev != nil {
+		legacyDeletedMetricIDSet.Union(idbPrev.getDeletedMetricIDs())
+	}
+	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
+		legacyDeletedMetricIDSet.Union(idbCurr.getDeletedMetricIDs())
+	}
+	legacyDeletedMetricIDs := legacyDeletedMetricIDSet.AppendTo(nil)
 
-		if legacyIDBs.idbPrev != nil {
-			legacyIDBs.idbPrev.setDeletedMetricIDs(legacyDeletedMetricIDSet)
-		}
+	if idbPrev != nil {
+		idbPrev.setDeletedMetricIDs(legacyDeletedMetricIDSet)
 	}
 
 	ptws := tb.GetAllPartitions(nil)
