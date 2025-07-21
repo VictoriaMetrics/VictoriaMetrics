@@ -73,8 +73,9 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		s := MustOpenStorage(path, OpenOptions{})
 		defer s.MustClose()
 
-		idb := s.tb.MustGetIndexDB(time.Now().UnixMilli())
-		defer s.tb.PutIndexDB(idb)
+		ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+		idb := ptw.pt.idb
+		defer s.tb.PutPartition(ptw)
 
 		key := []byte("key")
 		idb.putMetricIDsToTagFiltersCache(nil, want, key)
@@ -98,8 +99,9 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	defer fs.MustRemoveAll(path)
 	s := MustOpenStorage(path, OpenOptions{})
 	defer s.MustClose()
-	idb := s.tb.MustGetIndexDB(time.Now().UnixMilli())
-	defer s.tb.PutIndexDB(idb)
+	ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+	idb := ptw.pt.idb
+	defer s.tb.PutPartition(ptw)
 
 	key := []byte("key")
 	emptyMetricIDs := []uint64(nil)
@@ -530,7 +532,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	path := filepath.Join(t.Name(), "2025_01")
 	for i := 0; i < 5; i++ {
 		var isReadOnly atomic.Bool
-		db := mustOpenIndexDB(123, TimeRange{}, "name", path, &s, &isReadOnly)
+		db := mustOpenIndexDB(123, TimeRange{}, "name", path, &s, &isReadOnly, true)
 		db.MustClose()
 	}
 }
@@ -544,7 +546,8 @@ func TestIndexDB(t *testing.T) {
 	t.Run("serial", func(t *testing.T) {
 		const path = "TestIndexDB-serial"
 		s := MustOpenStorage(path, OpenOptions{})
-		db := s.tb.MustGetIndexDB(timestamp)
+		ptw := s.tb.MustGetPartition(timestamp)
+		db := ptw.pt.idb
 		mns, tsids, tenants, err := testIndexDBGetOrCreateTSIDByName(db, accountsCount, projectsCount, metricGroups, timestamp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -554,16 +557,17 @@ func TestIndexDB(t *testing.T) {
 		}
 
 		// Re-open the storage and verify it works as expected.
-		s.tb.PutIndexDB(db)
+		s.tb.PutPartition(ptw)
 		s.MustClose()
 		s = MustOpenStorage(path, OpenOptions{})
 
-		db = s.tb.MustGetIndexDB(timestamp)
+		ptw = s.tb.MustGetPartition(timestamp)
+		db = ptw.pt.idb
 		if err := testIndexDBCheckTSIDByName(db, mns, tsids, tenants, timestamp, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		s.tb.PutIndexDB(db)
+		s.tb.PutPartition(ptw)
 		s.MustClose()
 		fs.MustRemoveAll(path)
 	})
@@ -571,7 +575,8 @@ func TestIndexDB(t *testing.T) {
 	t.Run("concurrent", func(t *testing.T) {
 		const path = "TestIndexDB-concurrent"
 		s := MustOpenStorage(path, OpenOptions{})
-		db := s.tb.MustGetIndexDB(timestamp)
+		ptw := s.tb.MustGetPartition(timestamp)
+		db := ptw.pt.idb
 
 		ch := make(chan error, 3)
 		for i := 0; i < cap(ch); i++ {
@@ -600,7 +605,7 @@ func TestIndexDB(t *testing.T) {
 			}
 		}
 
-		s.tb.PutIndexDB(db)
+		s.tb.PutPartition(ptw)
 		s.MustClose()
 		fs.MustRemoveAll(path)
 	})
@@ -1626,9 +1631,9 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 
 	s := MustOpenStorage(path, OpenOptions{})
-	db := s.tb.MustGetIndexDB(timestamp)
+	ptw := s.tb.MustGetPartition(timestamp)
+	db := ptw.pt.idb
 	is := db.getIndexSearch(accountID, projectID, noDeadline)
-
 	for day := 0; day < days; day++ {
 		date := baseDate - uint64(day)
 		var metricIDs uint64set.Set
@@ -2075,7 +2080,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
 
-	s.tb.PutIndexDB(db)
+	s.tb.PutPartition(ptw)
 	s.MustClose()
 	fs.MustRemoveAll(path)
 }

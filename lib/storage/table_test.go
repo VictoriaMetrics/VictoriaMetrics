@@ -35,7 +35,7 @@ func TestTableOpenClose(t *testing.T) {
 	stopTestStorage(strg)
 }
 
-func TestMustGetIndexDB(t *testing.T) {
+func TestMustGetPartition(t *testing.T) {
 	defer testRemoveAll(t)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
@@ -48,8 +48,8 @@ func TestMustGetIndexDB(t *testing.T) {
 		for range 100 {
 			wg.Add(1)
 			go func() {
-				idb := s.tb.MustGetIndexDB(ts)
-				s.tb.PutIndexDB(idb)
+				ptw := s.tb.MustGetPartition(ts)
+				s.tb.PutPartition(ptw)
 				wg.Done()
 			}()
 		}

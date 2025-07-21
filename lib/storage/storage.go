@@ -292,7 +292,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		legacyIDBPrev.setDeletedMetricIDs(legacyDeletedMetricIDSet)
 	}
 
-	ptws := tb.GetPartitions(nil)
+	ptws := tb.GetAllPartitions(nil)
 	for _, ptw := range ptws {
 		ptw.pt.idb.updateDeletedMetricIDs(legacyDeletedMetricIDs)
 	}
@@ -920,8 +920,10 @@ func (s *Storage) MustClose() {
 
 func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 	ts := int64(date) * msecPerDay
-	idb := s.tb.MustGetIndexDB(ts)
-	defer s.tb.PutIndexDB(idb)
+	ptw := s.tb.MustGetPartition(ts)
+	defer s.tb.PutPartition(ptw)
+
+	idb := ptw.pt.idb
 
 	e := &byDateMetricIDEntry{
 		k: dateKey{
@@ -1219,9 +1221,11 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 
 	var idbs []*indexDB
 
-	ptIDBs := s.tb.GetIndexDBs(tr)
-	defer s.tb.PutIndexDBs(ptIDBs)
-	idbs = append(idbs, ptIDBs...)
+	ptws := s.tb.GetPartitions(tr)
+	defer s.tb.PutPartitions(ptws)
+	for _, ptw := range ptws {
+		idbs = append(idbs, ptw.pt.idb)
+	}
 
 	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
@@ -1357,14 +1361,11 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	}
 	deletedMetricIDs.AddMulti(legacyDMIs)
 
-	// Get all partition IndexDBs.
-	idbs := s.tb.GetIndexDBs(TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: math.MaxInt64,
-	})
-	defer s.tb.PutIndexDBs(idbs)
+	ptws := s.tb.GetAllPartitions(nil)
+	defer s.tb.PutPartitions(ptws)
 
-	for _, idb := range idbs {
+	for _, ptw := range ptws {
+		idb := ptw.pt.idb
 		qt.Printf("start deleting from %s partition indexDB", idb.name)
 		if len(legacyDMIs) > 0 {
 			idb.updateDeletedMetricIDs(legacyDMIs)
@@ -1515,20 +1516,20 @@ func (s *Storage) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline u
 // indexDB and legacy indexDB statuses is non-trivial and not many users use
 // this status for historical data.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	idbs := s.tb.GetIndexDBs(TimeRange{
+	ptws := s.tb.GetPartitions(TimeRange{
 		MinTimestamp: int64(date) * msecPerDay,
 		MaxTimestamp: int64(date+1)*msecPerDay - 1,
 	})
-	defer s.tb.PutIndexDBs(idbs)
+	defer s.tb.PutPartitions(ptws)
 
-	if len(idbs) == 0 {
+	if len(ptws) == 0 {
 		return &TSDBStatus{}, nil
 	}
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}
 
-	res, err := idbs[0].GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	res, err := ptws[0].pt.idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1770,6 +1771,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	var newSeriesCount uint64
 	var seriesRepopulated uint64
 
+	var ptw *partitionWrapper
 	var idb *indexDB
 	var is *indexSearch
 	var deletedMetricIDs *uint64set.Set
@@ -1778,14 +1780,15 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		mr := &mrs[i]
 		date := uint64(mr.Timestamp) / msecPerDay
 
-		if idb == nil || !idb.HasTimestamp(mr.Timestamp) {
-			if idb != nil {
+		if ptw == nil || !ptw.pt.HasTimestamp(mr.Timestamp) {
+			if ptw != nil {
 				if is != nil {
 					idb.putIndexSearch(is)
 				}
-				s.tb.PutIndexDB(idb)
+				s.tb.PutPartition(ptw)
 			}
-			idb = s.tb.MustGetIndexDB(mr.Timestamp)
+			ptw = s.tb.MustGetPartition(mr.Timestamp)
+			idb = ptw.pt.idb
 			is = idb.getIndexSearch(0, 0, noDeadline)
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
@@ -1868,11 +1871,12 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		s.storeTSIDToCaches(mr.MetricNameRaw, &lTSID, idb.id, date)
 		newSeriesCount++
 	}
-	if idb != nil {
+	if ptw != nil {
 		if is != nil {
 			idb.putIndexSearch(is)
 		}
-		s.tb.PutIndexDB(idb)
+		idb = nil
+		s.tb.PutPartition(ptw)
 	}
 
 	s.newTimeseriesCreated.Add(newSeriesCount)
@@ -1918,6 +1922,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()
 
 	var lTSID legacyTSID
+	var ptw *partitionWrapper
 	var idb *indexDB
 	var is *indexSearch
 	var deletedMetricIDs *uint64set.Set
@@ -1965,14 +1970,15 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		date := s.date(r.Timestamp)
 		hour := uint64(r.Timestamp) / msecPerHour
 
-		if idb == nil || !idb.HasTimestamp(r.Timestamp) {
-			if idb != nil {
+		if ptw == nil || !ptw.pt.HasTimestamp(r.Timestamp) {
+			if ptw != nil {
 				if is != nil {
 					idb.putIndexSearch(is)
 				}
-				s.tb.PutIndexDB(idb)
+				s.tb.PutPartition(ptw)
 			}
-			idb = s.tb.MustGetIndexDB(r.Timestamp)
+			ptw = s.tb.MustGetPartition(r.Timestamp)
+			idb = ptw.pt.idb
 			is = idb.getIndexSearch(0, 0, noDeadline)
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
@@ -2102,7 +2108,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		if is != nil {
 			idb.putIndexSearch(is)
 		}
-		s.tb.PutIndexDB(idb)
+		idb = nil
+		s.tb.PutPartition(ptw)
 	}
 
 	s.slowRowInserts.Add(slowInsertsCount)
@@ -2220,9 +2227,9 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	// Pre-populate idbNext with the increasing probability until the rotation.
 	// The probability increases from 0% to 100% proportioinally to d=[3600 .. 0].
 	pMin := float64(d) / 3600
-
-	idbNext := s.tb.MustGetIndexDB(nextMonth.UnixMilli())
-	defer s.tb.PutIndexDB(idbNext)
+	ptwNext := s.tb.MustGetPartition(nextMonth.UnixMilli())
+	idbNext := ptwNext.pt.idb
+	defer s.tb.PutPartition(ptwNext)
 	isNext := idbNext.getIndexSearch(0, 0, noDeadline)
 	defer idbNext.putIndexSearch(isNext)
 
@@ -2294,6 +2301,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		prevMetricID uint64
 	)
 
+	var ptw *partitionWrapper
 	var idb *indexDB
 
 	hmPrevDate := hmPrev.hour / 24
@@ -2353,11 +2361,12 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			}
 		}
 
-		if idb == nil || !idb.HasTimestamp(r.Timestamp) {
-			if idb != nil {
-				s.tb.PutIndexDB(idb)
+		if ptw == nil || !ptw.pt.HasTimestamp(r.Timestamp) {
+			if ptw != nil {
+				s.tb.PutPartition(ptw)
 			}
-			idb = s.tb.MustGetIndexDB(r.Timestamp)
+			ptw = s.tb.MustGetPartition(r.Timestamp)
+			idb = ptw.pt.idb
 		}
 
 		// Slower path: check global cache for (indexDB.id, date, metricID) entry.
@@ -2371,8 +2380,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			mr:   mrs[i],
 		})
 	}
-	if idb != nil {
-		s.tb.PutIndexDB(idb)
+	if ptw != nil {
+		s.tb.PutPartition(ptw)
+		ptw = nil
 		idb = nil
 	}
 
@@ -2413,14 +2423,15 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		date := dmid.date
 		metricID := dmid.tsid.MetricID
 		timestamp := int64(date) * msecPerDay
-		if idb == nil || !idb.HasTimestamp(timestamp) {
-			if idb != nil {
+		if ptw == nil || !ptw.pt.HasTimestamp(timestamp) {
+			if ptw != nil {
 				if is != nil {
 					idb.putIndexSearch(is)
 				}
-				s.tb.PutIndexDB(idb)
+				s.tb.PutPartition(ptw)
 			}
-			idb = s.tb.MustGetIndexDB(timestamp)
+			ptw = s.tb.MustGetPartition(timestamp)
+			idb = ptw.pt.idb
 			is = idb.getIndexSearch(0, 0, noDeadline)
 		}
 
@@ -2444,11 +2455,12 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			metricID: metricID,
 		})
 	}
-	if idb != nil {
+	if ptw != nil {
 		if is != nil {
 			idb.putIndexSearch(is)
 		}
-		s.tb.PutIndexDB(idb)
+		idb = nil
+		s.tb.PutPartition(ptw)
 	}
 
 	PutMetricName(mn)
@@ -2726,8 +2738,9 @@ type byDateMetricIDEntry struct {
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
 	ts := int64(date) * msecPerDay
-	idb := s.tb.MustGetIndexDB(ts)
-	defer s.tb.PutIndexDB(idb)
+	ptw := s.tb.MustGetPartition(ts)
+	idb := ptw.pt.idb
+	defer s.tb.PutPartition(ptw)
 
 	e := s.nextDayMetricIDs.Load()
 	s.pendingNextDayMetricIDsLock.Lock()

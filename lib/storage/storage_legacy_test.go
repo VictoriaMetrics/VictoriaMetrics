@@ -681,12 +681,12 @@ func testStorageConvertToLegacy(t *testing.T, accountID, projectID uint32) {
 	}
 	var isReadOnly atomic.Bool
 	isReadOnly.Store(false)
-	legacyIDBCurr := mustOpenIndexDB(2, legacyIDBTimeRange, legacyIDBCurrName, legacyIDBCurrPath, s, &isReadOnly)
+	legacyIDBCurr := mustOpenIndexDB(2, legacyIDBTimeRange, legacyIDBCurrName, legacyIDBCurrPath, s, &isReadOnly, true)
 
 	// Read index items from the partition indexDBs and write them to the legacy
 	// curr indexDB.
 
-	idbs := s.tb.GetIndexDBs(TimeRange{
+	ptws := s.tb.GetPartitions(TimeRange{
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	})
@@ -701,7 +701,8 @@ func testStorageConvertToLegacy(t *testing.T, accountID, projectID uint32) {
 		metricID uint64
 	}
 	seenPerDayIndexEntries := make(map[dateMetricID]bool)
-	for _, idb := range idbs {
+	for _, ptw := range ptws {
+		idb := ptw.pt.idb
 		for ts := idb.tr.MinTimestamp; ts < idb.tr.MaxTimestamp; ts += msecPerDay {
 			day := TimeRange{
 				MinTimestamp: ts,
@@ -747,7 +748,7 @@ func testStorageConvertToLegacy(t *testing.T, accountID, projectID uint32) {
 		}
 	}
 
-	s.tb.PutIndexDBs(idbs)
+	s.tb.PutPartitions(ptws)
 	legacyIDBCurr.MustClose()
 	s.MustClose()
 
