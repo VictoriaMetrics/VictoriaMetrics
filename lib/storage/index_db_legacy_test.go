@@ -42,8 +42,8 @@ func TestLegacyContainsTimeRange(t *testing.T) {
 	s.DebugFlush()
 	defer s.MustClose()
 
-	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
-	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
 
 	ptws := s.tb.GetPartitions(tr)
 	defer s.tb.PutPartitions(ptws)
@@ -79,20 +79,20 @@ func TestLegacyContainsTimeRange(t *testing.T) {
 	}
 
 	// legacy previous indexDB has no data
-	f(legacyIDBPrev, globalIndexTimeRange, true)
-	f(legacyIDBPrev, tr1, false)
-	f(legacyIDBPrev, tr2, false)
-	f(legacyIDBPrev, tr3, false)
-	f(legacyIDBPrev, tr4, false)
-	f(legacyIDBPrev, tr5, false)
+	f(legacyIDBs.idbPrev, globalIndexTimeRange, true)
+	f(legacyIDBs.idbPrev, tr1, false)
+	f(legacyIDBs.idbPrev, tr2, false)
+	f(legacyIDBs.idbPrev, tr3, false)
+	f(legacyIDBs.idbPrev, tr4, false)
+	f(legacyIDBs.idbPrev, tr5, false)
 
 	// legacy current indexDB has some data
-	f(legacyIDBCurr, globalIndexTimeRange, true)
-	f(legacyIDBCurr, tr1, true)
-	f(legacyIDBCurr, tr2, true)
-	f(legacyIDBCurr, tr3, true)
-	f(legacyIDBCurr, tr4, true)
-	f(legacyIDBCurr, tr5, false)
+	f(legacyIDBs.idbCurr, globalIndexTimeRange, true)
+	f(legacyIDBs.idbCurr, tr1, true)
+	f(legacyIDBs.idbCurr, tr2, true)
+	f(legacyIDBs.idbCurr, tr3, true)
+	f(legacyIDBs.idbCurr, tr4, true)
+	f(legacyIDBs.idbCurr, tr5, false)
 
 	// partitioned indexDB return true for any time range
 	f(idb, globalIndexTimeRange, true)

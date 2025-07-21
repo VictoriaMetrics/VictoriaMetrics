@@ -1,51 +1,117 @@
 package storage
 
 import (
+	"path/filepath"
 	"slices"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 )
 
-func (s *Storage) hasLegacyIndexDBs() bool {
-	return s.legacyIDBPrev.Load() != nil || s.legacyIDBCurr.Load() != nil
+type legacyIndexDBs struct {
+	idbPrev *indexDB
+	idbCurr *indexDB
 }
 
-func (s *Storage) getLegacyIndexDBs() (prev, curr *indexDB) {
-	s.legacyIDBLock.Lock()
-	defer s.legacyIDBLock.Unlock()
-	prev, curr = s.legacyIDBPrev.Load(), s.legacyIDBCurr.Load()
-	if prev != nil {
-		prev.incRef()
-	}
-	if curr != nil {
-		curr.incRef()
-	}
-	return prev, curr
-}
-
-func (s *Storage) putLegacyIndexDBs(prev, curr *indexDB) {
-	if prev != nil {
-		prev.decRef()
-	}
-	if curr != nil {
-		curr.decRef()
-	}
-}
-
-func (s *Storage) legacyMustRotateIndexDB(currentTime time.Time) {
-	idbPrev, idbCurr := s.legacyIDBPrev.Load(), s.legacyIDBCurr.Load()
-	if idbPrev == nil {
+func (lidb *legacyIndexDBs) incRef() {
+	if lidb == nil {
+		// No legacy indexDBs, nothing to increment reference count.
 		return
 	}
 
-	s.legacyIDBLock.Lock()
-	defer s.legacyIDBLock.Unlock()
+	if lidb.idbPrev != nil {
+		lidb.idbPrev.incRef()
+	}
+	if lidb.idbCurr != nil {
+		lidb.idbCurr.incRef()
+	}
+}
 
-	s.legacyIDBPrev.Store(idbCurr)
-	s.legacyIDBCurr.Store(nil)
-	idbPrev.scheduleToDrop()
-	idbPrev.decRef()
+func (lidb *legacyIndexDBs) decRef() {
+	if lidb == nil {
+		// No legacy indexDBs, nothing to decrement reference count.
+		return
+	}
+
+	if lidb.idbPrev != nil {
+		lidb.idbPrev.decRef()
+	}
+	if lidb.idbCurr != nil {
+		lidb.idbCurr.decRef()
+	}
+}
+
+func (lidb *legacyIndexDBs) appendTo(dst []*indexDB) []*indexDB {
+	if lidb == nil {
+		// No legacy indexDBs, nothing to append.
+		return dst
+	}
+
+	if lidb.idbPrev != nil {
+		dst = append(dst, lidb.idbPrev)
+	}
+	if lidb.idbCurr != nil {
+		dst = append(dst, lidb.idbCurr)
+	}
+	return dst
+}
+
+func (s *Storage) hasLegacyIndexDBs() bool {
+	return s.legacyIndexDBs.Load() != nil
+}
+
+func (s *Storage) getLegacyIndexDBs() *legacyIndexDBs {
+	legacyIDBs := s.legacyIndexDBs.Load()
+	legacyIDBs.incRef()
+	return legacyIDBs
+}
+
+func (s *Storage) putLegacyIndexDBs(legacyIDBs *legacyIndexDBs) {
+	legacyIDBs.decRef()
+}
+
+func (s *Storage) legacyCreateSnapshot(snapshotName, srcDir, dstDir string) {
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+
+	if legacyIDBs == nil {
+		return
+	}
+
+	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
+	if legacyIDBs.idbPrev != nil {
+		prevSnapshot := filepath.Join(idbSnapshot, legacyIDBs.idbPrev.name)
+		legacyIDBs.idbPrev.tb.LegacyMustCreateSnapshotAt(prevSnapshot)
+	}
+	if legacyIDBs.idbCurr != nil {
+		currSnapshot := filepath.Join(idbSnapshot, legacyIDBs.idbCurr.name)
+		legacyIDBs.idbCurr.tb.LegacyMustCreateSnapshotAt(currSnapshot)
+	}
+	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
+	fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
+}
+
+func (s *Storage) legacyMustRotateIndexDB(currentTime time.Time) {
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+
+	if legacyIDBs == nil {
+		// No legacy indexDBs, nothing to rotate.
+		return
+	}
+
+	legacyIDBs.idbPrev.scheduleToDrop()
+	legacyIDBs.idbPrev.decRef()
+
+	var rotatedLegacyIDBs *legacyIndexDBs
+
+	if legacyIDBs.idbCurr != nil {
+		rotatedLegacyIDBs = &legacyIndexDBs{
+			idbPrev: legacyIDBs.idbCurr,
+		}
+	}
+	s.legacyIndexDBs.Store(rotatedLegacyIDBs)
 
 	// Update nextRotationTimestamp
 	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
@@ -53,8 +119,13 @@ func (s *Storage) legacyMustRotateIndexDB(currentTime time.Time) {
 }
 
 func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) ([]uint64, error) {
-	idbPrev, idbCurr := s.getLegacyIndexDBs()
-	defer s.putLegacyIndexDBs(idbPrev, idbCurr)
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+
+	if legacyIDBs == nil {
+		// No legacy indexDBs, nothing to delete.
+		return nil, nil
+	}
 
 	var (
 		dmisPrev []uint64
@@ -62,18 +133,18 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 		err      error
 	)
 
-	if idbPrev != nil {
+	if legacyIDBs.idbPrev != nil {
 		qt.Printf("start deleting from previous legacy indexDB")
-		dmisPrev, err = idbPrev.DeleteSeries(qt, tfss, maxMetrics)
+		dmisPrev, err = legacyIDBs.idbPrev.DeleteSeries(qt, tfss, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
 		qt.Printf("deleted %d metricIDs from previous legacy indexDB", len(dmisPrev))
 	}
 
-	if idbCurr != nil {
+	if legacyIDBs.idbCurr != nil {
 		qt.Printf("start deleting from current legacy indexDB")
-		dmisCurr, err = idbCurr.DeleteSeries(qt, tfss, maxMetrics)
+		dmisCurr, err = legacyIDBs.idbCurr.DeleteSeries(qt, tfss, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -84,23 +155,63 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 }
 
 func (s *Storage) legacyDebugFlush() {
-	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
-	if legacyIDBPrev != nil {
-		legacyIDBPrev.tb.DebugFlush()
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+
+	if legacyIDBs == nil {
+		return
 	}
-	if legacyIDBCurr != nil {
-		legacyIDBCurr.tb.DebugFlush()
+
+	if legacyIDBs.idbPrev != nil {
+		legacyIDBs.idbPrev.tb.DebugFlush()
 	}
-	s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+	if legacyIDBs.idbCurr != nil {
+		legacyIDBs.idbCurr.tb.DebugFlush()
+	}
 }
 
 func (s *Storage) legacyNotifyReadWriteMode() {
-	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
-	if legacyIDBPrev != nil {
-		legacyIDBPrev.tb.NotifyReadWriteMode()
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+
+	if legacyIDBs == nil {
+		return
 	}
-	if legacyIDBCurr != nil {
-		legacyIDBCurr.tb.NotifyReadWriteMode()
+
+	if legacyIDBs.idbPrev != nil {
+		legacyIDBs.idbPrev.tb.NotifyReadWriteMode()
 	}
-	s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
+	if legacyIDBs.idbCurr != nil {
+		legacyIDBs.idbCurr.tb.NotifyReadWriteMode()
+	}
+}
+
+func (s *Storage) legacyUpdateMetrics(m *Metrics) {
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+
+	if legacyIDBs == nil {
+		return
+	}
+
+	if legacyIDBs.idbPrev != nil {
+		legacyIDBs.idbPrev.UpdateMetrics(&m.TableMetrics.IndexDBMetrics)
+	}
+	if legacyIDBs.idbCurr != nil {
+		legacyIDBs.idbCurr.UpdateMetrics(&m.TableMetrics.IndexDBMetrics)
+	}
+}
+
+func (s *Storage) legacyMustCloseIndexDBs() {
+	legacyIDBs := s.legacyIndexDBs.Load()
+	if legacyIDBs == nil {
+		return
+	}
+
+	if legacyIDBs.idbPrev != nil {
+		legacyIDBs.idbPrev.MustClose()
+	}
+	if legacyIDBs.idbCurr != nil {
+		legacyIDBs.idbCurr.MustClose()
+	}
 }

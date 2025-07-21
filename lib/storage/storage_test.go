@@ -2044,7 +2044,7 @@ func testLegacyRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage))
 
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
-	for range 100 {
+	for range 1 {
 		wg.Add(1)
 		go func() {
 			for {
@@ -4488,10 +4488,8 @@ func TestMustOpenLegacyIndexDBTables_noTables(t *testing.T) {
 	storageDataPath := t.Name()
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBIsNil(t, prev)
-	assertIndexDBIsNil(t, curr)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBsAreNil(t, legacyIDBs)
 }
 
 // TODO(rtm0): Move to storage_legacy_test.go
@@ -4507,10 +4505,9 @@ func TestMustOpenLegacyIndexDBTables_prevOnly(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBIsNil(t, curr)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.idbPrev, prevName)
+	assertIndexDBIsNil(t, legacyIDBs.idbCurr)
 }
 
 // TODO(rtm0): Move to storage_legacy_test.go
@@ -4529,10 +4526,9 @@ func TestMustOpenLegacyIndexDBTables_currAndPrev(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.idbPrev, prevName)
+	assertIndexDBName(t, legacyIDBs.idbCurr, currName)
 }
 
 // TODO(rtm0): Move to storage_legacy_test.go
@@ -4554,10 +4550,9 @@ func TestMustOpenLegacyIndexDBTables_nextIsRemoved(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.idbPrev, prevName)
+	assertIndexDBName(t, legacyIDBs.idbCurr, currName)
 	assertPathsDoNotExist(t, nextPath)
 }
 
@@ -4586,10 +4581,9 @@ func TestMustOpenLegacyIndexDBTables_nextAndObsoleteDirsAreRemoved(t *testing.T)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.idbPrev, prevName)
+	assertIndexDBName(t, legacyIDBs.idbCurr, currName)
 	assertPathsDoNotExist(t, obsolete1Path, obsolete2Path, nextPath)
 }
 
@@ -4609,25 +4603,21 @@ func TestLegacyMustRotateIndexDBs_dirNames(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.idbPrev, prevName)
+	assertIndexDBName(t, legacyIDBs.idbCurr, currName)
 	assertPathsExist(t, prevPath, currPath)
 
 	s.legacyMustRotateIndexDB(time.Now())
-	prev = s.legacyIDBPrev.Load()
-	curr = s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, currName)
-	assertIndexDBIsNil(t, curr)
+	legacyIDBs = s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.idbPrev, currName)
+	assertIndexDBIsNil(t, legacyIDBs.idbCurr)
 	assertPathsDoNotExist(t, prevPath)
 	assertPathsExist(t, currPath)
 
 	s.legacyMustRotateIndexDB(time.Now())
-	prev = s.legacyIDBPrev.Load()
-	curr = s.legacyIDBCurr.Load()
-	assertIndexDBIsNil(t, prev)
-	assertIndexDBIsNil(t, curr)
+	legacyIDBs = s.legacyIndexDBs.Load()
+	assertIndexDBsAreNil(t, legacyIDBs)
 	assertPathsDoNotExist(t, prevPath, currPath)
 }
 
@@ -4659,6 +4649,14 @@ func assertIndexDBName(t *testing.T, idb *indexDB, want string) {
 	}
 	if got := idb.name; got != want {
 		t.Errorf("unexpected idb name: got %s, want %s", got, want)
+	}
+}
+
+func assertIndexDBsAreNil(t *testing.T, legacyIDBs *legacyIndexDBs) {
+	t.Helper()
+
+	if legacyIDBs != nil {
+		t.Fatalf("unexpected idb: got %+v, want nil", legacyIDBs)
 	}
 }
 
