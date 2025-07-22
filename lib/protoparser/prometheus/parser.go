@@ -799,7 +799,7 @@ func parseMetadataLine(s string, errLogger func(s string)) (Metadata, bool) {
 	}
 	var mr Metadata
 	commentType := parts[1]
-	mr.Metric = parts[2]
+	mr.Metric = strings.Clone(parts[2])
 	var isType, isHelp bool
 	switch commentType {
 	case "HELP":
@@ -841,7 +841,7 @@ func parseMetadataLine(s string, errLogger func(s string)) (Metadata, bool) {
 
 	}
 	if isHelp && len(parts) > 3 {
-		mr.Help = skipTrailingWhitespace(parts[3])
+		mr.Help = strings.Clone(skipTrailingWhitespace(parts[3]))
 	}
 	return mr, true
 }
