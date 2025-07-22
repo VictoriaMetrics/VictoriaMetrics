@@ -3001,7 +3001,7 @@
               "editorMode": "code",
               "exemplar": true,
               "expr": "sum(max_over_time(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
-              "interval": "",
+              "interval": "1m",
               "legendFormat": "{{job}}",
               "range": true,
               "refId": "A"

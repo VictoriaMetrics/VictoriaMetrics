@@ -538,11 +538,6 @@ func (q *Query) AddTimeFilter(start, end int64) {
 	q.visitSubqueries(func(q *Query) {
 		q.addTimeFilterNoSubqueries(ft)
 	})
-
-	// Initialize rate functions with the step calculated from HTTP time filter
-	// This fixes the bug where rate_sum() doesn't divide by stepSeconds when
-	// time filter is specified via HTTP params instead of LogsQL expression
-	q.initStatsRateFuncsFromTimeFilter()
 }
 
 func (q *Query) addTimeFilterNoSubqueries(ft *filterTime) {
@@ -561,6 +556,11 @@ func (q *Query) addTimeFilterNoSubqueries(ft *filterTime) {
 			filters: []filter{ft, q.f},
 		}
 	}
+
+	// Initialize rate functions with the step calculated from HTTP time filter
+	// This fixes the bug where rate_sum() doesn't divide by stepSeconds when
+	// time filter is specified via HTTP params instead of LogsQL expression
+	q.initStatsRateFuncsFromTimeFilter()
 }
 
 // AddExtraFilters adds extraFilters to q

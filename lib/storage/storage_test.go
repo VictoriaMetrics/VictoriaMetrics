@@ -2979,8 +2979,8 @@ func TestStorageGetSeriesCount(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 		for _, tr := range trs {
-			for i := range mrs {
-				mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+			for j := range mrs {
+				mrs[j].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
 			}
 			s.AddRows(mrs, defaultPrecisionBits)
 		}
@@ -3005,14 +3005,17 @@ func TestStorageGetSeriesCount(t *testing.T) {
 	var want uint64
 
 	oneMonth := []TimeRange{month(1)}
+	// no index inflation since the metrics are inserted only to one indexDB
 	want = numMetrics
 	f(numMetrics, oneMonth, want)
 
 	twoMonths := []TimeRange{month(1), month(2)}
+	// index inflation since the same metrics are inserted into two partitions.
 	want = numMetrics * 2
 	f(numMetrics, twoMonths, want)
 
 	fourMonths := []TimeRange{month(1), month(2), month(3), month(4)}
+	// index inflation since the same metrics are inserted into four partitions.
 	want = numMetrics * 4
 	f(numMetrics, fourMonths, want)
 }

@@ -128,6 +128,99 @@ func (s *Set) GetOrCreateHistogram(name string) *Histogram {
 	return h
 }
 
+// NewPrometheusHistogram creates and returns new PrometheusHistogram in s
+// with the given name and PrometheusHistogramDefaultBuckets.
+//
+// name must be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
+//
+// The returned histogram is safe to use from concurrent goroutines.
+func (s *Set) NewPrometheusHistogram(name string) *PrometheusHistogram {
+	return s.NewPrometheusHistogramExt(name, PrometheusHistogramDefaultBuckets)
+}
+
+// NewPrometheusHistogramExt creates and returns new PrometheusHistogram in s
+// with the given name and upperBounds.
+//
+// name must be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
+//
+// The returned histogram is safe to use from concurrent goroutines.
+func (s *Set) NewPrometheusHistogramExt(name string, upperBounds []float64) *PrometheusHistogram {
+	h := newPrometheusHistogram(upperBounds)
+	s.registerMetric(name, h)
+	return h
+}
+
+// GetOrCreatePrometheusHistogram returns registered prometheus histogram in s
+// with the given name or creates new histogram if s doesn't contain histogram
+// with the given name.
+//
+// name must be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
+//
+// The returned histogram is safe to use from concurrent goroutines.
+//
+// Performance tip: prefer NewPrometheusHistogram instead of GetOrCreatePrometheusHistogram.
+func (s *Set) GetOrCreatePrometheusHistogram(name string) *PrometheusHistogram {
+	return s.GetOrCreatePrometheusHistogramExt(name, PrometheusHistogramDefaultBuckets)
+}
+
+// GetOrCreatePrometheusHistogramExt returns registered prometheus histogram in
+// s with the given name or creates new histogram if s doesn't contain
+// histogram with the given name.
+//
+// name must be valid Prometheus-compatible metric with possible labels.
+// For instance,
+//
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
+//
+// The returned histogram is safe to use from concurrent goroutines.
+//
+// Performance tip: prefer NewPrometheusHistogramExt instead of GetOrCreatePrometheusHistogramExt.
+func (s *Set) GetOrCreatePrometheusHistogramExt(name string, upperBounds []float64) *PrometheusHistogram {
+	s.mu.Lock()
+	nm := s.m[name]
+	s.mu.Unlock()
+	if nm == nil {
+		// Slow path - create and register missing histogram.
+		if err := ValidateMetric(name); err != nil {
+			panic(fmt.Errorf("BUG: invalid metric name %q: %s", name, err))
+		}
+		nmNew := &namedMetric{
+			name:   name,
+			metric: newPrometheusHistogram(upperBounds),
+		}
+		s.mu.Lock()
+		nm = s.m[name]
+		if nm == nil {
+			nm = nmNew
+			s.m[name] = nm
+			s.a = append(s.a, nm)
+		}
+		s.mu.Unlock()
+	}
+	h, ok := nm.metric.(*PrometheusHistogram)
+	if !ok {
+		panic(fmt.Errorf("BUG: metric %q isn't a PrometheusHistogram. It is %T", name, nm.metric))
+	}
+	return h
+}
+
 // NewCounter registers and returns new counter with the given name in the s.
 //
 // name must be valid Prometheus-compatible metric with possible labels.

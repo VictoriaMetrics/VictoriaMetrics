@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import { CloseIcon } from "../../Icons";
 import { MouseEvent } from "react";

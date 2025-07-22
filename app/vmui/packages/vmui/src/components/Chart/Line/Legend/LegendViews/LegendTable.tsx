@@ -1,12 +1,12 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useCallback, useMemo } from "preact/compat";
 import { LegendProps } from "../LegendGroup";
 import "./style.scss";
 import { LegendItemType } from "../../../../../types";
 import { MouseEvent } from "react";
 import classNames from "classnames";
-import get from "lodash.get";
 import { STATS_ORDER } from "../../../../../constants/graph";
 import { useShowStats } from "../hooks/useShowStats";
+import { getValueByPath } from "../../../../../utils/object";
 
 const statsColumns = STATS_ORDER.map(k => ({
   key: `statsFormatted.${k}`,
@@ -32,6 +32,11 @@ const LegendTable: FC<LegendProps> = ({ labels, duplicateFields, onChange }) => 
   const createHandlerClick = (legend: LegendItemType) => (e: MouseEvent<HTMLTableRowElement>) => {
     onChange && onChange(legend, e.ctrlKey || e.metaKey);
   };
+
+  const getLegendTypeField = useCallback((row: LegendItemType, path: string) => {
+    const value = getValueByPath(row, path);
+    return typeof value === "string" ? value : "";
+  }, []);
 
   return (
     <div className="vm-legend-table__wrapper">
@@ -72,7 +77,7 @@ const LegendTable: FC<LegendProps> = ({ labels, duplicateFields, onChange }) => 
                   className="vm-legend-table-col"
                 >
                   <span className="vm-legend-table-col__content">
-                    {get(row, col.key)}
+                    {getLegendTypeField(row, col.key)}
                   </span>
                 </td>
               ))}

@@ -14,6 +14,17 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.25.0
+Released: 2025-07-17
+
+- FEATURE: Added [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) support to automatically reload configurations on config files changes. It can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) and allows for configuration updates without explicit service restarts. Please refer to the [hot-reload documentation](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) for more details and examples on how to use it.
+
+- FEATURE: Added an option to reference environment variables in [configuration files](https://docs.victoriametrics.com/anomaly-detection/components/) using scalar string placeholders `%{ENV_NAME}`. See the [environment variables](https://docs.victoriametrics.com/anomaly-detection/components/#environment-variables) section for more details and examples. This feature is particularly useful for managing sensitive information like API keys or database credentials while still making it accessible to the service.
+
+- IMPROVEMENT: Added `iqr_threshold` to [OnlineQuantileModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile) to refine the prediction boundaries without the need to manually adjusting `scale` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale). Best set as >= 2 and used with smaller, robust quantiles (e.g. `(0.25, 0.5, 0.75)`) to both reduce the impact of outliers on the prediction boundaries and increase the likelyhood of having "non-anomalous" data within updated boundaries.
+
+- IMPROVEMENT: Fixed duplicated calls to VictoriaMetrics' in [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) for queries in `reader.queries` that are attached to multiple models in `models` [section](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) where previously, each model would independently fetch for the same query, leading to unnecessary load on the reader and VictoriaMetrics TSDB. Now, the reader will only be called once per unique (scheduler_alias, query_key) pair, and the results will be shared across all models that use the same query in the same scheduler.
+
 ## v1.24.1
 Released: 2025-06-20
 

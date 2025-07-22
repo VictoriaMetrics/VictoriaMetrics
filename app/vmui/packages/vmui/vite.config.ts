@@ -27,20 +27,11 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
               console.error("[proxy error]", err.message);
             });
           }
-        }
-      };
-    }
-    case "LOGS": {
-      return {
-        "^/select/.*": {
-          target: "https://play-vmlogs.victoriametrics.com",
+        },
+        "^/prometheus/api.*": {
+          target: "https://play.victoriametrics.com/select/0/",
           changeOrigin: true,
           configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq) => {
-              proxyReq.removeHeader("AccountID");
-              proxyReq.removeHeader("ProjectID");
-            });
-
             proxy.on("error", (err) => {
               console.error("[proxy error]", err.message);
             });

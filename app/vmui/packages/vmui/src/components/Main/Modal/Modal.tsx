@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, createPortal } from "preact/compat";
+import { FC, useCallback, useEffect, createPortal } from "preact/compat";
 import { CloseIcon } from "../Icons";
 import Button from "../Button/Button";
 import { ReactNode, MouseEvent } from "react";
