@@ -1154,7 +1154,7 @@ func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutil.D
 	return tenants, nil
 }
 
-func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, limit, limitPerMetric int64, metric string, deadline searchutil.Deadline) ([]metricsmetadata.Row, bool, error) {
+func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, denyPartialResponse bool, limit, limitPerMetric int64, metric string, deadline searchutil.Deadline) ([]metricsmetadata.Row, bool, error) {
 	qt = qt.NewChild("get metrics metadata: limit=%d, limitPerMetric=%d, metric=%q", limit, limitPerMetric, metric)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1165,7 +1165,7 @@ func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, limit, 
 		err      error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.metricsMetadataRequests.Inc()
 		metadata, err := sn.getMetricsMetadata(qt, tt, limit, limitPerMetric, metric, deadline)
 		if err != nil {
