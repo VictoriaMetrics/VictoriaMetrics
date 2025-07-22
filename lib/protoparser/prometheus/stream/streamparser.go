@@ -23,7 +23,7 @@ import (
 // limitConcurrency defines whether to control the number of concurrent calls to this function.
 // It is recommended setting limitConcurrency=true if the caller doesn't have concurrency limits set,
 // like /api/v1/write calls.
-func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency bool, callback func(rows []prometheus.Row, metadataList []prometheus.Metadata) error, errLogger func(string)) error {
+func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency, enableMetadata bool, callback func(rows []prometheus.Row, metadataList []prometheus.Metadata) error, errLogger func(string)) error {
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode Prometheus text exposition data: %w", err)
@@ -46,6 +46,7 @@ func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrenc
 		uw.callback = callback
 		uw.defaultTimestamp = defaultTimestamp
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
+		uw.enableMetadata = enableMetadata
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
 		if wcr != nil {
@@ -141,6 +142,8 @@ type unmarshalWork struct {
 	errLogger        func(string)
 	defaultTimestamp int64
 	reqBuf           []byte
+
+	enableMetadata bool
 }
 
 func (uw *unmarshalWork) reset() {
@@ -169,10 +172,14 @@ func (uw *unmarshalWork) runCallback(rows []prometheus.Row, metadataList []prome
 func (uw *unmarshalWork) Unmarshal() {
 	if uw.errLogger != nil {
 		uw.rows.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
-		uw.mmd.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
+		if uw.enableMetadata {
+			uw.mmd.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
+		}
 	} else {
 		uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
-		uw.mmd.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+		if uw.enableMetadata {
+			uw.mmd.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
+		}
 	}
 	rows := uw.rows.Rows
 	rowsRead.Add(len(rows))

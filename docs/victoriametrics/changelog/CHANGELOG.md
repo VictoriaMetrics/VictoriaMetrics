@@ -20,7 +20,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * SECURITY: upgrade Go builder from Go1.24.4 to Go1.24.5. See [the list of issues addressed in Go1.24.5](https://github.com/golang/go/issues?q=milestone%3AGo1.24.5+label%3ACherryPickApproved).
 
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-remoteWrite.enableMetadata` command-line flag to enable sending metadata to the configured `-remoteWrite.url`, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-enableMetadata` command-line flag to allow sending metadata to the configured `-remoteWrite.url`, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
 
 ## [v1.121.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.121.0)
 

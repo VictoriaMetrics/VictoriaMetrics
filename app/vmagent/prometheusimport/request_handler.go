@@ -35,7 +35,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	encoding := req.Header.Get("Content-Encoding")
-	return stream.Parse(req.Body, defaultTimestamp, encoding, true, func(rows []prometheus.Row, mms []prometheus.Metadata) error {
+	return stream.Parse(req.Body, defaultTimestamp, encoding, true, true, func(rows []prometheus.Row, mms []prometheus.Metadata) error {
 		return insertRows(at, rows, mms, extraLabels)
 	}, func(s string) {
 		httpserver.LogError(req, s)

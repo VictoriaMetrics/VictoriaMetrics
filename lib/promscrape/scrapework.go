@@ -522,7 +522,9 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		scrapesFailed.Inc()
 	} else {
 		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
-		wc.metadataRows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		if IsMetadataEnabled() {
+			wc.metadataRows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		}
 	}
 	samplesPostRelabeling := 0
 	samplesScraped := len(wc.rows.Rows)
@@ -614,7 +616,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
 	r := body.NewReader()
-	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row, mms []parser.Metadata) error {
+	err := stream.Parse(r, scrapeTimestamp, "", false, IsMetadataEnabled(), func(rows []parser.Row, mms []parser.Metadata) error {
 		labelsLen := maxLabelsLen.Load()
 		wc := writeRequestCtxPool.Get(int(labelsLen))
 		defer func() {
@@ -868,7 +870,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
 		br := bytes.NewBufferString(bodyString)
-		err := stream.Parse(br, timestamp, "", false, func(rows []parser.Row, _ []parser.Metadata) error {
+		err := stream.Parse(br, timestamp, "", false, false, func(rows []parser.Row, _ []parser.Metadata) error {
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 			defer writeRequestCtxPool.Put(wc)
 

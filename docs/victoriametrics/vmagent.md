@@ -598,11 +598,11 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 ## Metadata support
 
-By default, `vmagent` drops metric metadata that exposed by target in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). To enable sending metadata to configured `-remoteWrite.url`, set `-remoteWrite.enableMetadata=true`.
+By default, `vmagent` drops metric metadata that exposed by target in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). To enable sending metadata from above sources to the configured `-remoteWrite.url`, set `-enableMetadata=true`.
 
 Besides native metadata fields, vmagent also adds tenant info to metadata when `-enableMultitenantHandlers` is enabled and data is sent via the multitenant endpoints (/insert/<accountID>/<suffix>), allowing storing metadata under different tenants in VictoriaMetrics cluster. However, if `vm_account_id` or `vm_project_id labels` are added directly in metrics labels and send to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), tenant info won't be attached in the metadata, and it will be stored in the default tenant of VictoriaMetrics cluster.
 
-Please note, sending metadata requires extra memory, disk space, and network transmissions.
+Please note, enabling metadata requires extra memory, disk space, and network transmissions.
 
 ## Stream parsing mode
 
@@ -1505,6 +1505,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing
   -dryRun
      Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
+  -enableMetadata
+     Whether to send metadata to the configured remoteWrite.url, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See also remoteWrite.maxMetadataPerBlock
   -enableMultitenantHandlers
      Whether to process incoming data via multitenant insert handlers according to https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers according to https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data .See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy for details
   -enableTCP6
@@ -1943,8 +1945,6 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Empty values are set to false.
   -remoteWrite.dropSamplesOnOverload
      Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence
-  -remoteWrite.enableMetadata
-     Whether to send metadata to the configured remoteWrite.url, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See also remoteWrite.maxMetadataPerBlock
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array

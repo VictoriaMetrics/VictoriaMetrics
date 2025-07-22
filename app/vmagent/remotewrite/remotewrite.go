@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
@@ -91,9 +92,6 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
-
-	enableMetadata = flag.Bool("remoteWrite.enableMetadata", false, "Whether to send metadata to the configured remoteWrite.url, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. "+
-		"See also remoteWrite.maxMetadataPerBlock")
 )
 
 var (
@@ -393,7 +391,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	tss := wr.Timeseries
 
 	var mms []prompbmarshal.MetricMetadata
-	if *enableMetadata {
+	if promscrape.IsMetadataEnabled() {
 		mms = wr.Metadata
 	}
 

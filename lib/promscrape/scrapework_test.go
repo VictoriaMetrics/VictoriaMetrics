@@ -592,6 +592,11 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 //
 // The core parsing functionality is validated separately in TestScrapeWorkScrapeInternalSuccess.
 func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
+	oldIsmetadataEnabled := *enableMetadata
+	defer func() {
+		*enableMetadata = oldIsmetadataEnabled
+	}()
+	*enableMetadata = true
 	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected, timeseriesExpectedDelta, metadataExpected int64) {
 		t.Helper()
 
