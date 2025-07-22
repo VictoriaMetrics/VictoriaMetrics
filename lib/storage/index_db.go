@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
@@ -154,12 +153,6 @@ func (mc *metricIDCache) syncLocked() {
 
 // indexDB represents an index db.
 type indexDB struct {
-	// The number of references to indexDB struct.
-	refCount atomic.Int32
-
-	// if the mustDrop is set to true, then the indexDB must be dropped after refCount reaches zero.
-	mustDrop atomic.Bool
-
 	// The number of missing MetricID -> TSID entries.
 	// High rate for this value means corrupted indexDB.
 	missingTSIDsForMetricID atomic.Uint64
@@ -275,7 +268,6 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		metricIDCache:                  newMetricIDCache(),
 	}
 	db.tb = mergeset.MustOpenTable(path, dataFlushInterval, db.invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
-	db.incRef()
 	db.loadDeletedMetricIDs()
 
 	return db
@@ -318,10 +310,6 @@ type IndexDBMetrics struct {
 	mergeset.TableMetrics
 }
 
-func (db *indexDB) scheduleToDrop() {
-	db.mustDrop.Store(true)
-}
-
 // UpdateMetrics updates m with metrics from the db.
 func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	// global index metrics
@@ -344,8 +332,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
 	m.TagFiltersToMetricIDsCacheMisses += cs.Misses
 
-	m.IndexDBRefCount += uint64(db.refCount.Load())
-
 	// this shouldn't increase the MissingTSIDsForMetricID value,
 	// as we only count it as missingTSIDs if it can't be found in both the current and previous indexdb.
 	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
@@ -361,23 +347,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 // MustClose closes db.
 func (db *indexDB) MustClose() {
-	db.decRef()
-}
-
-func (db *indexDB) incRef() {
-	db.refCount.Add(1)
-}
-
-func (db *indexDB) decRef() {
-	n := db.refCount.Add(-1)
-	if n < 0 {
-		logger.Panicf("BUG: %q negative refCount: %d", db.name, n)
-	}
-	if n > 0 {
-		return
-	}
-
-	tbPath := db.tb.Path()
 	db.tb.MustClose()
 	db.tb = nil
 
@@ -388,14 +357,6 @@ func (db *indexDB) decRef() {
 	db.tagFiltersToMetricIDsCache = nil
 	db.s = nil
 	db.loopsPerDateTagFilterCache = nil
-
-	if !db.mustDrop.Load() {
-		return
-	}
-
-	logger.Infof("dropping indexDB %q", tbPath)
-	fs.MustRemoveDir(tbPath)
-	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
 var tagBufPool bytesutil.ByteBufferPool

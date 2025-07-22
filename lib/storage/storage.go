@@ -66,20 +66,14 @@ type Storage struct {
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
 
-	// legacyIDBPrev and legacyIDBCurr contain the legacy previous and current
-	// IndexDBs respectively if they existed on filesystem before partition
-	// index was introduced. Otherwise, these fields will contain nil pointers.
-	// The fields will also contain nil pointers once the corresponding IndexDBs
-	// will become outside the retention period.
-	//
+	// legacyIndexDBs contains the legacy previous and current
+	// IndexDBs if they existed on filesystem before partition
+	// index was introduced. The pointer is nil if there are no legacy
+	// IndexDBs on filesystem.
+
 	// The support of legacy IndexDBs is required to provide forward
 	// compatibility with partition index.
-	legacyIDBPrev atomic.Pointer[indexDB]
-	legacyIDBCurr atomic.Pointer[indexDB]
-
-	// legacyIDBLock prevents accidental removal of legacy indexDBs by
-	// retentionWatcher while they are in use by some storage operation(s).
-	legacyIDBLock sync.Mutex
+	legacyIndexDBs atomic.Pointer[legacyIndexDBs]
 
 	disablePerDayIndex bool
 
@@ -274,10 +268,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// Load legacy indexDBs
 	legacyIDBPath := filepath.Join(path, indexdbDirname)
-	legacyIDBPrev, legacyIDBCurr := s.mustOpenLegacyIndexDBTables(legacyIDBPath)
-	s.legacyIDBPrev.Store(legacyIDBPrev)
-	s.legacyIDBCurr.Store(legacyIDBCurr)
-	// Initialize nextRotationTimestamp
+	legacyIDBs := s.mustOpenLegacyIndexDBTables(legacyIDBPath)
+	s.legacyIndexDBs.Store(legacyIDBs)
 	nowSecs := int64(fasttime.UnixTimestamp())
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := legacyNextRetentionDeadlineSeconds(nowSecs, retentionSecs, legacyRetentionTimezoneOffsetSecs)
@@ -296,16 +288,17 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// partition indexDB. Also add deleted metricIDs from current indexDB to the
 	// previous one, because previous may contain the same metrics that wasn't marked as deleted.
 	legacyDeletedMetricIDSet := &uint64set.Set{}
-	if legacyIDBPrev != nil {
-		legacyDeletedMetricIDSet.Union(legacyIDBPrev.getDeletedMetricIDs())
+	idbPrev := legacyIDBs.getIDBPrev()
+	if idbPrev != nil {
+		legacyDeletedMetricIDSet.Union(idbPrev.getDeletedMetricIDs())
 	}
-	if legacyIDBCurr != nil {
-		legacyDeletedMetricIDSet.Union(legacyIDBCurr.getDeletedMetricIDs())
+	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
+		legacyDeletedMetricIDSet.Union(idbCurr.getDeletedMetricIDs())
 	}
 	legacyDeletedMetricIDs := legacyDeletedMetricIDSet.AppendTo(nil)
 
-	if legacyIDBPrev != nil {
-		legacyIDBPrev.setDeletedMetricIDs(legacyDeletedMetricIDSet)
+	if idbPrev != nil {
+		idbPrev.setDeletedMetricIDs(legacyDeletedMetricIDSet)
 	}
 
 	ptws := tb.GetAllPartitions(nil)
@@ -435,23 +428,7 @@ func (s *Storage) MustCreateSnapshot() string {
 	dstMetadataDir := filepath.Join(dstDir, metadataDirname)
 	fs.MustCopyDirectory(srcMetadataDir, dstMetadataDir)
 
-	// TODO(@rtm0): Extract into Storage.createLegacyIndexDBSnapshot() and move
-	// to storage_legacy.go.
-	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
-	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
-	if legacyIDBPrev != nil || legacyIDBCurr != nil {
-		idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
-		if legacyIDBPrev != nil {
-			prevSnapshot := filepath.Join(idbSnapshot, legacyIDBPrev.name)
-			legacyIDBPrev.tb.LegacyMustCreateSnapshotAt(prevSnapshot)
-		}
-		if legacyIDBCurr != nil {
-			currSnapshot := filepath.Join(idbSnapshot, legacyIDBCurr.name)
-			legacyIDBCurr.tb.LegacyMustCreateSnapshotAt(currSnapshot)
-		}
-		dstIdbDir := filepath.Join(dstDir, indexdbDirname)
-		fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
-	}
+	s.legacyCreateSnapshot(snapshotName, srcDir, dstDir)
 
 	fs.MustSyncPath(dstDir)
 
@@ -720,16 +697,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.NextRetentionSeconds = uint64(d)
 
 	s.tb.UpdateMetrics(&m.TableMetrics)
-
-	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
-	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
-	if legacyIDBPrev != nil {
-		legacyIDBPrev.UpdateMetrics(&m.TableMetrics.IndexDBMetrics)
-	}
-	if legacyIDBCurr != nil {
-		legacyIDBCurr.UpdateMetrics(&m.TableMetrics.IndexDBMetrics)
-	}
-
+	s.legacyUpdateMetrics(m)
 }
 
 // TODO(@rtm0): Move to storage_legacy.go
@@ -896,13 +864,7 @@ func (s *Storage) MustClose() {
 
 	s.tb.MustClose()
 
-	legacyIDBPrev, legacyIDBCurr := s.legacyIDBPrev.Load(), s.legacyIDBCurr.Load()
-	if legacyIDBPrev != nil {
-		legacyIDBPrev.MustClose()
-	}
-	if legacyIDBCurr != nil {
-		legacyIDBCurr.MustClose()
-	}
+	s.legacyMustCloseIndexDBs()
 
 	// Save caches.
 	s.mustSaveCache(s.tsidCache, "metricName_tsid")
@@ -1239,14 +1201,9 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 		idbs = append(idbs, ptw.pt.idb)
 	}
 
-	legacyIDBPrev, legacyIDBCurr := s.getLegacyIndexDBs()
-	defer s.putLegacyIndexDBs(legacyIDBPrev, legacyIDBCurr)
-	if legacyIDBPrev != nil {
-		idbs = append(idbs, legacyIDBPrev)
-	}
-	if legacyIDBCurr != nil {
-		idbs = append(idbs, legacyIDBCurr)
-	}
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+	idbs = legacyIDBs.appendTo(idbs)
 
 	if len(idbs) == 0 {
 		qt.Printf("no indexDBs found")
@@ -2881,9 +2838,9 @@ func (s *Storage) storeTSIDToCache(tsid *legacyTSID, metricName []byte) {
 }
 
 // TODO(@rtm0): Move to storage_legacy.go
-func (s *Storage) mustOpenLegacyIndexDBTables(path string) (prev, curr *indexDB) {
+func (s *Storage) mustOpenLegacyIndexDBTables(path string) *legacyIndexDBs {
 	if !fs.IsPathExist(path) {
-		return nil, nil
+		return nil
 	}
 
 	// Search for the two most recent tables: prev and curr.
@@ -2939,17 +2896,23 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) (prev, curr *indexDB)
 
 	numIDBs := len(tableNames)
 
+	legacyIDBs := &legacyIndexDBs{}
+
+	if numIDBs == 0 {
+		return nil
+	}
+
 	if numIDBs > 1 {
 		currPath := filepath.Join(path, tableNames[1])
-		curr = mustOpenLegacyIndexDB(currPath, s)
+		legacyIDBs.idbCurr = mustOpenLegacyIndexDB(currPath, s)
 	}
 
 	if numIDBs > 0 {
 		prevPath := filepath.Join(path, tableNames[0])
-		prev = mustOpenLegacyIndexDB(prevPath, s)
+		legacyIDBs.idbPrev = mustOpenLegacyIndexDB(prevPath, s)
 	}
 
-	return prev, curr
+	return legacyIDBs
 }
 
 // wasMetricIDMissingBefore checks if passed metricID was already registered as missing before.
