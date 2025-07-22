@@ -107,8 +107,7 @@ type Search struct {
 	// Legacy indexDBs.
 	// These are used for searching metric names by metricID if searching
 	// partition indexDBs returned no results.
-	legacyIDBPrev *indexDB
-	legacyIDBCurr *indexDB
+	legacyIDBs *legacyIndexDBs
 
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
@@ -142,8 +141,7 @@ func (s *Search) reset() {
 
 	s.storage = nil
 	s.ptws = nil
-	s.legacyIDBPrev = nil
-	s.legacyIDBCurr = nil
+	s.legacyIDBs = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -173,7 +171,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.reset()
 	s.storage = storage
 	s.ptws = storage.tb.GetPartitions(tr)
-	s.legacyIDBPrev, s.legacyIDBCurr = storage.getLegacyIndexDBs()
+	s.legacyIDBs = storage.getLegacyIndexDBs()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
@@ -251,7 +249,7 @@ func (s *Search) MustClose() {
 	}
 	s.ts.MustClose()
 	s.storage.tb.PutPartitions(s.ptws)
-	s.storage.putLegacyIndexDBs(s.legacyIDBPrev, s.legacyIDBCurr)
+	s.storage.putLegacyIndexDBs(s.legacyIDBs)
 	s.reset()
 }
 
@@ -334,16 +332,16 @@ func (s *Search) searchMetricName(metricName []byte, metricID uint64, bh *blockH
 	}
 
 	// Fallback to legacy current indexDB if it exists.
-	if s.legacyIDBCurr != nil {
-		mn, found := s.legacyIDBCurr.searchMetricName(metricName, metricID, false)
+	if idbCurr := s.legacyIDBs.getIDBCurr(); idbCurr != nil {
+		mn, found := idbCurr.searchMetricName(metricName, metricID, false)
 		if found {
 			return mn, true
 		}
 	}
 
 	// Fallback to legacy previous indexDB if it exists.
-	if s.legacyIDBPrev != nil {
-		mn, found := s.legacyIDBPrev.searchMetricName(metricName, metricID, false)
+	if idbPrev := s.legacyIDBs.getIDBPrev(); idbPrev != nil {
+		mn, found := idbPrev.searchMetricName(metricName, metricID, false)
 		if found {
 			return mn, true
 		}

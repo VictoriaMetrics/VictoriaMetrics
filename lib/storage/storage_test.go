@@ -4491,10 +4491,9 @@ func TestMustOpenLegacyIndexDBTables_noTables(t *testing.T) {
 	storageDataPath := t.Name()
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBIsNil(t, prev)
-	assertIndexDBIsNil(t, curr)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBIsNil(t, legacyIDBs.getIDBPrev())
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
 }
 
 // TODO(rtm0): Move to storage_legacy_test.go
@@ -4510,10 +4509,9 @@ func TestMustOpenLegacyIndexDBTables_prevOnly(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBIsNil(t, curr)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
 }
 
 // TODO(rtm0): Move to storage_legacy_test.go
@@ -4532,10 +4530,9 @@ func TestMustOpenLegacyIndexDBTables_currAndPrev(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
 }
 
 // TODO(rtm0): Move to storage_legacy_test.go
@@ -4557,10 +4554,9 @@ func TestMustOpenLegacyIndexDBTables_nextIsRemoved(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
 	assertPathsDoNotExist(t, nextPath)
 }
 
@@ -4589,10 +4585,9 @@ func TestMustOpenLegacyIndexDBTables_nextAndObsoleteDirsAreRemoved(t *testing.T)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
 	assertPathsDoNotExist(t, obsolete1Path, obsolete2Path, nextPath)
 }
 
@@ -4612,25 +4607,22 @@ func TestLegacyMustRotateIndexDBs_dirNames(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	prev := s.legacyIDBPrev.Load()
-	curr := s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
 	assertPathsExist(t, prevPath, currPath)
 
 	s.legacyMustRotateIndexDB(time.Now())
-	prev = s.legacyIDBPrev.Load()
-	curr = s.legacyIDBCurr.Load()
-	assertIndexDBName(t, prev, currName)
-	assertIndexDBIsNil(t, curr)
+	legacyIDBs = s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), currName)
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
 	assertPathsDoNotExist(t, prevPath)
 	assertPathsExist(t, currPath)
 
 	s.legacyMustRotateIndexDB(time.Now())
-	prev = s.legacyIDBPrev.Load()
-	curr = s.legacyIDBCurr.Load()
-	assertIndexDBIsNil(t, prev)
-	assertIndexDBIsNil(t, curr)
+	legacyIDBs = s.legacyIndexDBs.Load()
+	assertIndexDBIsNil(t, legacyIDBs.getIDBPrev())
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
 	assertPathsDoNotExist(t, prevPath, currPath)
 }
 
