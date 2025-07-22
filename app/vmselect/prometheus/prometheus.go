@@ -797,6 +797,9 @@ func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 
 	metadata, isPartial, err := netstorage.GetMetricsMetadata(qt, tt, denyPartialResponse, int64(limit), int64(limitPerMetric), metric, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot get metadata: %w", err)
+	}
 
 	qtL := qt.NewChild("preparing metadata response; limit=%d limit_per_metric=%d metric=%q", limit, limitPerMetric, metric)
 	qtL.Printf("received %d items from storage", len(metadata))
