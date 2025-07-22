@@ -125,7 +125,8 @@ func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *st
 
 func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit, limitPerMetric int64, metric string, deadline uint64) ([]metricsmetadata.Row, error) {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
-	meta, _, err := netstorage.GetMetricsMetadata(qt, tt, limit, limitPerMetric, metric, dl)
+	denyPartialResponse := httputil.GetDenyPartialResponse(nil)
+	meta, _, err := netstorage.GetMetricsMetadata(qt, tt, denyPartialResponse, limit, limitPerMetric, metric, dl)
 	return meta, err
 }
 
