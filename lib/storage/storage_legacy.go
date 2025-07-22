@@ -3,61 +3,11 @@ package storage
 import (
 	"path/filepath"
 	"slices"
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 )
-
-type legacyIndexDB struct {
-	// The number of references to legacyIndexDB struct.
-	refCount atomic.Int32
-
-	// if the mustDrop is set to true, then the legacyIndexDB must be dropped after refCount reaches zero.
-	mustDrop atomic.Bool
-
-	idb *indexDB
-}
-
-func (db *legacyIndexDB) incRef() {
-	db.refCount.Add(1)
-}
-
-func (db *legacyIndexDB) decRef() {
-	n := db.refCount.Add(-1)
-	if n < 0 {
-		logger.Panicf("BUG: %q negative refCount: %d", db.idb.name, n)
-	}
-	if n > 0 {
-		return
-	}
-
-	tbPath := db.idb.tb.Path()
-	db.idb.MustClose()
-
-	if !db.mustDrop.Load() {
-		return
-	}
-
-	logger.Infof("dropping indexDB %q", tbPath)
-	fs.MustRemoveDirAtomic(tbPath)
-	logger.Infof("indexDB %q has been dropped", tbPath)
-}
-
-func (db *legacyIndexDB) scheduleToDrop() {
-	db.mustDrop.Store(true)
-}
-
-func (db *legacyIndexDB) MustClose() {
-	db.decRef()
-}
-
-func (db *legacyIndexDB) UpdateMetrics(m *IndexDBMetrics) {
-	db.idb.UpdateMetrics(m)
-	m.IndexDBRefCount += uint64(db.refCount.Load())
-}
 
 type legacyIndexDBs struct {
 	idbPrev *legacyIndexDB
