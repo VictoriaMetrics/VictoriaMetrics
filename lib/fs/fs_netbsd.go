@@ -1,8 +1,8 @@
 package fs
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"golang.org/x/sys/unix"
@@ -15,12 +15,29 @@ func freeSpace(stat statfs_t) uint64 {
 }
 
 func mustRemoveDirAtomic(dir string) {
-	n := atomicDirRemoveCounter.Add(1)
-	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
-	if err := os.Rename(dir, tmpDir); err != nil {
-		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
+	sentinelPath := filepath.Join(dir, ".delete")
+	f, err := os.OpenFile(sentinelPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		if !os.IsExist(err) {
+			logger.Panicf("FATAL: cannot create delete sentinel %q: %s", sentinelPath, err)
+		}
+	} else {
+		if err := f.Sync(); err != nil {
+			logger.Panicf("FATAL: cannot sync delete sentinel %q: %s", sentinelPath, err)
+		}
+		MustClose(f)
+		MustSyncPath(dir)
 	}
-	MustRemoveAll(tmpDir)
+
+	for _, de := range MustReadDir(dir) {
+		if de.Name() == ".delete" {
+			continue
+		}
+		MustRemoveAll(filepath.Join(dir, de.Name()))
+	}
+
+	// Remove the directory together with the sentinel atomically.
+	MustRemoveAll(dir)
 }
 
 func statfs(path string, buf *statfs_t) (err error) {

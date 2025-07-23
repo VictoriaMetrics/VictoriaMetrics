@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -218,12 +217,18 @@ func mustSyncParentDirIfExists(path string) {
 //
 // It uses the following algorithm:
 //
-//  1. Atomically rename the "<dir>" to "<dir>.must-remove.<XYZ>",
-//     where <XYZ> is an unique number.
-//  2. Remove the "<dir>.must-remove.XYZ" in background.
+//  1. Create a ".delete" sentinel file in the directory
+//  2. Sync the directory to make the sentinel durable
+//  3. Remove all contents except the sentinel
+//  4. Remove the directory together with the sentinel
 //
-// If the process crashes after the step 1, then the directory must be removed
-// on the next process start by calling MustRemoveTemporaryDirs on the parent directory.
+// If the process crashes during removal, the directory may be left empty
+// with the sentinel. MustRemoveTemporaryDirs on the parent directory
+// will detect and complete the removal on the next process start.
+//
+// Note: Due to the non-atomic nature of directory removal, an empty
+// directory without the sentinel may remain if removal fails between
+// sentinel deletion and directory deletion.
 func MustRemoveDirAtomic(dir string) {
 	if !IsPathExist(dir) {
 		return
@@ -248,22 +253,36 @@ func MustReadDir(dir string) []os.DirEntry {
 	return des
 }
 
-// MustRemoveTemporaryDirs removes all the subdirectories with ".must-remove.<XYZ>" suffix.
+// MustRemoveTemporaryDirs removes subdirectories that contain the ".delete" sentinel file.
 //
-// Such directories may be left on unclean shutdown during MustRemoveDirAtomic call.
+// Directories scheduled for deletion by MustRemoveDirAtomic() are first marked by
+// creating a crash-durable ".delete" file inside them. If system exits
+// before the directory is fully removed, the sentinel and (possibly) an empty
+// directory remain on disk. Calling MustRemoveTemporaryDirs at startup scans the
+// given parent directory, detects such leftovers and completes their removal.
 func MustRemoveTemporaryDirs(dir string) {
 	des := MustReadDir(dir)
+
+	var dirsToRemove []string
 	for _, de := range des {
 		if !IsDirOrSymlink(de) {
 			// Skip non-directories
 			continue
 		}
+
 		dirName := de.Name()
-		if IsScheduledForRemoval(dirName) {
-			fullPath := filepath.Join(dir, dirName)
-			MustRemoveAll(fullPath)
+		fullPath := filepath.Join(dir, dirName)
+
+		if IsScheduledForRemoval(fullPath) {
+			dirsToRemove = append(dirsToRemove, fullPath)
 		}
 	}
+
+	// Remove the directories that were scheduled for removal.
+	for _, d := range dirsToRemove {
+		mustRemoveDirAtomic(d)
+	}
+
 	MustSyncPath(dir)
 }
 
@@ -406,9 +425,12 @@ type freeSpaceEntry struct {
 	freeSpace  uint64
 }
 
-// IsScheduledForRemoval returns true if the filename contains .must-remove. substring
-func IsScheduledForRemoval(filename string) bool {
-	return strings.Contains(filename, ".must-remove.")
+// IsScheduledForRemoval returns true if the supplied path (or name) is marked
+// for asynchronous removal. A directory is considered scheduled if
+// it contains a ".delete" sentinel file created by MustRemoveDirAtomic.
+func IsScheduledForRemoval(path string) bool {
+	sentinelPath := filepath.Join(path, ".delete")
+	return IsPathExist(sentinelPath)
 }
 
 // IsDirOrSymlink returns true if de is directory or symlink.

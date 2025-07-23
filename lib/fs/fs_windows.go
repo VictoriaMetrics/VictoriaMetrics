@@ -3,6 +3,7 @@ package fs
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"unsafe"
 
@@ -16,14 +17,41 @@ func mustSyncPath(_ string) {
 }
 
 func mustRemoveDirAtomic(dir string) {
-	n := atomicDirRemoveCounter.Add(1)
-	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
-	if err := os.Rename(dir, tmpDir); err != nil {
-		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
+	sentinelPath := filepath.Join(dir, ".delete")
+	f, err := os.OpenFile(sentinelPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		if !os.IsExist(err) {
+			logger.Panicf("FATAL: cannot create delete sentinel %q: %s", sentinelPath, err)
+		}
+	} else {
+		if err := f.Sync(); err != nil {
+			logger.Panicf("FATAL: cannot sync delete sentinel %q: %s", sentinelPath, err)
+		}
+		MustClose(f)
+		MustSyncPath(dir)
 	}
-	if err := os.RemoveAll(tmpDir); err != nil {
+
+	var hasError bool
+	for _, de := range MustReadDir(dir) {
+		if de.Name() == ".delete" {
+			continue
+		}
+		err := os.RemoveAll(filepath.Join(dir, de.Name()))
+		if err != nil {
+			logger.Warnf("cannot remove dir %q: %s; restart VictoriaMetrics to complete dir removal; "+
+				"see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70#issuecomment-1491529183", filepath.Join(dir, de.Name()), err)
+			hasError = true
+		}
+	}
+
+	if hasError {
+		return
+	}
+
+	err = os.RemoveAll(dir)
+	if err != nil {
 		logger.Warnf("cannot remove dir: %q: %s; restart VictoriaMetrics to complete dir removal; "+
-			"see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70#issuecomment-1491529183", tmpDir, err)
+			"see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70#issuecomment-1491529183", dir, err)
 	}
 }
 
