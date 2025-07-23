@@ -45,6 +45,7 @@ TSBS_QUERIES := 1000
 TSBS_WORKERS := 4
 TSBS_DATA_FILE := /tmp/tsbs-data-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).gz
 TSBS_QUERY_FILE := /tmp/tsbs-queries-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_QUERIES).gz
+TSBS_LOAD_CSV_FILE := /tmp/tsbs-load-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).csv
 # For cluster setup use http://vminsert:8480/insert/0/influx/write
 TSBS_WRITE_URLS := http://localhost:8428/write
 # For cluster setup use http://vmselect:8481/select/0/prometheus
@@ -73,7 +74,7 @@ tsbs-generate-data:
 
 # Load data into VictoriaMetrics
 tsbs-load-data:
-	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_WRITE_URLS)
+	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_WRITE_URLS) > $(TSBS_LOAD_CSV_FILE) 2>/dev/tty
 	curl -s $(TSBS_METRICS_URL) | grep \
 		-e process_cpu_seconds_user_total \
 		-e process_cpu_seconds_system_total \
