@@ -32,6 +32,7 @@ func MarshalRow(dst []byte, accountID, projectID uint32, m *prompb.MetricMetadat
 
 func (mr *Row) MarshalTo(dst []byte) []byte {
 	dstLen := len(dst)
+	// tenant information (accountID and projectID)
 	dstSize := dstLen + 8
 	// 2 bytes per string + 4 bytes for type
 	dstSize += 10
@@ -49,18 +50,16 @@ func (mr *Row) MarshalTo(dst []byte) []byte {
 }
 
 func (mr *Row) Unmarshal(data []byte) ([]byte, error) {
-	if len(data) < 8 {
-		return data, fmt.Errorf("data too short for unmarshaling metadata; got %d bytes; want at least 8 bytes", len(data))
+	// accountID + projectID + type + metricFamilyName + help + unit
+	// 4 + 4 + 4 + 2 + len(metricFamilyName) + 2 + len(help) + 2 + len(unit)
+	if len(data) < 18 {
+		return data, fmt.Errorf("data too short for unmarshaling metadata; got %d bytes; want at least 18 bytes", len(data))
 	}
 	accountID := encoding.UnmarshalUint32(data)
 	projectID := encoding.UnmarshalUint32(data[4:])
 	data = data[8:]
 	mr.AccountID = accountID
 	mr.ProjectID = projectID
-
-	if len(data) < 4 {
-		return data, fmt.Errorf("data too short for unmarshaling metadata; got %d bytes; want at least 10 bytes", len(data))
-	}
 
 	mr.Type = encoding.UnmarshalUint32(data)
 	data = data[4:]
