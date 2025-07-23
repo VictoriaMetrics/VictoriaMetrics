@@ -19,18 +19,20 @@ type TestCase struct {
 	t   *testing.T
 	cli *Client
 
-	startedApps map[string]Stopper
+	startedApps map[string]App
 }
 
-// Stopper is an interface of objects that needs to be stopped via Stop() call
-type Stopper interface {
+// App is an interface of objects that needs to be stopped via Stop() call
+// And optionally have their output flushed via FlushOutput() call.
+type App interface {
 	Stop()
+	FlushOutput()
 }
 
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
 	t.Parallel()
-	return &TestCase{t, NewClient(), make(map[string]Stopper)}
+	return &TestCase{t, NewClient(), make(map[string]App)}
 }
 
 // T returns the test state.
@@ -318,11 +320,16 @@ func (tc *TestCase) MustStartVmctl(instance string, flags []string) {
 	}
 }
 
-func (tc *TestCase) addApp(instance string, app Stopper) {
+func (tc *TestCase) addApp(instance string, app App) {
 	if _, alreadyStarted := tc.startedApps[instance]; alreadyStarted {
 		tc.t.Fatalf("%s has already been started", instance)
 	}
 	tc.startedApps[instance] = app
+	tc.t.Cleanup(func() {
+		if tc.t.Failed() {
+			app.FlushOutput()
+		}
+	})
 }
 
 // StopApp stops the app identified by the `instance` name and removes it from
