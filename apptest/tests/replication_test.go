@@ -102,7 +102,7 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 
 	getMetricsReadTotal := func(app *apptest.Vmstorage) int {
 		t.Helper()
-		got := app.GetIntMetric(t, "vm_vminsert_metrics_read_total")
+		got := app.GetIntMetric(t, "vm_vminsert_metrics_read_total{type=\"vminsert\"}")
 		if got <= 0 {
 			t.Fatalf("%s unexpected metric count: got %d, want > 0", app.Name(), got)
 		}
