@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
 
@@ -120,6 +121,12 @@ func (api *vmstorageAPI) ResetMetricNamesUsageStats(qt *querytracer.Tracer, dead
 func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, le, limit int, matchPattern string, deadline uint64) (storage.MetricNamesStatsResponse, error) {
 	dl := searchutil.DeadlineFromTimestamp(deadline)
 	return netstorage.GetMetricNamesStats(qt, tt, le, limit, matchPattern, dl)
+}
+
+func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit, limitPerMetric int64, metric string, deadline uint64) ([]metricsmetadata.Row, error) {
+	dl := searchutil.DeadlineFromTimestamp(deadline)
+	meta, _, err := netstorage.GetMetricsMetadata(qt, tt, limit, limitPerMetric, metric, dl)
+	return meta, err
 }
 
 // blockIterator implements vmselectapi.BlockIterator
