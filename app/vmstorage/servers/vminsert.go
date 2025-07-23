@@ -20,13 +20,7 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
 )
 
-// VMInsertServer processes connections from vminsert.
-type VMInsertServer struct {
-	// storage is a pointer to the underlying storage.
-	storage *storage.Storage
-}
-
-// NewVMInsertServer starts VMInsertServer at the given addr serving the given storage.
+// NewVMInsertServer starts vminsertapi.VMInsertServer at the given addr serving the given storage.
 func NewVMInsertServer(addr string, storage *storage.Storage) (*vminsertapi.VMInsertServer, error) {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		return nil, fmt.Errorf("invalid -precisionBits: %w", err)
