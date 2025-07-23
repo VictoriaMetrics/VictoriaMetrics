@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
@@ -189,7 +190,7 @@ func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte
 }
 
 func (ctx *InsertCtx) WriteMetadata(at *auth.Token, m *prompb.MetricMetadata) error {
-	ctx.MetricNameBuf = storage.MarshalMetadataRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, m)
+	ctx.MetricNameBuf = metricsmetadata.MarshalRow(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, m)
 	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.MetricNameBuf)
 	return ctx.WriteMetadataExt(storageNodeIdx, ctx.MetricNameBuf)
 }

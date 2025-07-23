@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -231,12 +232,9 @@ func (s *VMInsertServer) processWriteRows(ctx *vminsertRequestCtx) error {
 }
 
 func (s *VMInsertServer) processWriteMetadata(ctx *vminsertRequestCtx) error {
-	logger.Infof("processing writeMetadata_v1 request")
-	return stream.ParseMR(ctx.bc, func(mrs []storage.MetricMetadataRow) error {
+	return stream.ParseMR(ctx.bc, func(mrs []metricsmetadata.Row) error {
 		vminsertMetricsRead.Add(len(mrs))
-		s.storage.AddMetadataRows(mrs)
-		return nil
-
+		return s.storage.AddMetadataRows(mrs)
 	}, s.storage.IsReadOnly)
 }
 

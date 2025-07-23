@@ -12,6 +12,7 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -152,7 +153,7 @@ again:
 		return nil
 	}
 
-	if len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) <= maxBufSizePerStorageNode {
+	if sn.br.hasCapacityFor(len(buf)) {
 		// Fast path: the tsBuf contents fits sn.tsBuf.
 		sn.br.tsBuf = append(sn.br.tsBuf, buf...)
 		sn.br.tsRows += rows
@@ -197,7 +198,7 @@ again:
 		}
 		sn.brLock.Unlock()
 
-		// The vmstorage node isn't ready for data processing. Re-route tsBuf to healthy vmstorage nodes even if disableRerouting is set.
+		// The vmstorage node isn't ready for data processing. Re-route metaBuf to healthy vmstorage nodes even if disableRerouting is set.
 		rowsProcessed, err := rerouteMRToReadyStorageNodes(snb, sn, buf)
 		rows -= rowsProcessed
 		if err != nil {
@@ -206,14 +207,14 @@ again:
 		return nil
 	}
 
-	if len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) <= maxBufSizePerStorageNode {
+	if sn.br.hasCapacityFor(len(buf)) {
 		// Fast path: the metaBuf contents fits sn.metaBuf.
 		sn.br.metaBuf = append(sn.br.metaBuf, buf...)
 		sn.br.metaRows += rows
 		sn.brLock.Unlock()
 		return nil
 	}
-	// Slow path: the metaBuf contents doesn't fit sn.tsBuf, so try re-routing it to other vmstorage nodes.
+	// Slow path: the metaBuf contents doesn't fit sn.metaBuf, so try re-routing it to other vmstorage nodes.
 	if *disableRerouting || len(sns) == 1 {
 		sn.brCond.Wait()
 		goto again
@@ -687,6 +688,7 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 		})
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_buf_pending_bytes{name="vminsert", addr=%q}`, addr), func() float64 {
 			sn.brLock.Lock()
+			// todo: update metrics
 			n := len(sn.br.tsBuf)
 			sn.brLock.Unlock()
 			return float64(n)
@@ -827,9 +829,9 @@ func rerouteMRToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode
 	nodesHash := snb.nodesHash
 	sns := snb.sns
 	idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
-	var mr storage.MetricMetadataRow
+	var mr metricsmetadata.Row
 	for len(src) > 0 {
-		tail, err := mr.UnmarshalMetadataRaw(src)
+		tail, err := mr.Unmarshal(src)
 		if err != nil {
 			logger.Panicf("BUG: cannot unmarshal MetricRow: %s", err)
 		}
@@ -998,7 +1000,7 @@ func (sn *storageNode) trySendTSBuf(buf []byte, rows int) bool {
 
 	sent := false
 	sn.brLock.Lock()
-	if sn.isReady() && len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) <= maxBufSizePerStorageNode {
+	if sn.isReady() && sn.br.hasCapacityFor(len(buf)) {
 		sn.br.tsBuf = append(sn.br.tsBuf, buf...)
 		sn.br.tsRows += rows
 		sent = true
@@ -1009,7 +1011,7 @@ func (sn *storageNode) trySendTSBuf(buf []byte, rows int) bool {
 
 func (sn *storageNode) sendTSBufMayBlock(buf []byte) bool {
 	sn.brLock.Lock()
-	for len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) > maxBufSizePerStorageNode {
+	for !sn.br.hasCapacityFor(len(buf)) {
 		select {
 		case <-sn.stopCh:
 			sn.brLock.Unlock()
@@ -1032,8 +1034,7 @@ func (sn *storageNode) trySendMRBuf(buf []byte, rows int) bool {
 
 	sent := false
 	sn.brLock.Lock()
-	// todo: update conditions everywhere to check both bufs size
-	if sn.isReady() && len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) <= maxBufSizePerStorageNode {
+	if sn.isReady() && sn.br.hasCapacityFor(len(buf)) {
 		sn.br.metaBuf = append(sn.br.metaBuf, buf...)
 		sn.br.metaRows += rows
 		sent = true
@@ -1044,7 +1045,7 @@ func (sn *storageNode) trySendMRBuf(buf []byte, rows int) bool {
 
 func (sn *storageNode) sendMRBufMayBlock(buf []byte) bool {
 	sn.brLock.Lock()
-	for len(sn.br.tsBuf)+len(sn.br.metaBuf)+len(buf) > maxBufSizePerStorageNode {
+	for !sn.br.hasCapacityFor(len(buf)) {
 		select {
 		case <-sn.stopCh:
 			sn.brLock.Unlock()
