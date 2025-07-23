@@ -1208,10 +1208,7 @@ func transformDelay(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, er
 		values := s.Values
 		stepsLocal := steps
 		if stepsLocal < 0 {
-			stepsLocal = -stepsLocal
-			if stepsLocal > len(values) {
-				stepsLocal = len(values)
-			}
+			stepsLocal = min(-stepsLocal, len(values))
 			copy(values, values[stepsLocal:])
 			for i := len(values) - 1; i >= len(values)-stepsLocal; i-- {
 				values[i] = nan
@@ -4653,20 +4650,14 @@ func transformSubstr(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, e
 		if start > len(splitName) {
 			start = len(splitName)
 		} else if start < 0 {
-			start = len(splitName) + start
-			if start < 0 {
-				start = 0
-			}
+			start = max(len(splitName)+start, 0)
 		}
 		if stop == 0 {
 			stop = len(splitName)
 		} else if stop > len(splitName) {
 			stop = len(splitName)
 		} else if stop < 0 {
-			stop = len(splitName) + stop
-			if stop < 0 {
-				stop = 0
-			}
+			stop = max(len(splitName)+stop, 0)
 		}
 		if stop < start {
 			stop = start
