@@ -1,4 +1,4 @@
-package storage
+package metricsmetadata
 
 import (
 	"testing"
@@ -18,7 +18,7 @@ func BenchmarkMetadataMarshal(b *testing.B) {
 
 	dst := make([]byte, 0, 256)
 	for i := 0; i < b.N; i++ {
-		data := MarshalMetadataRaw(dst, 0, 0, m)
+		data := MarshalRow(dst, 0, 0, m)
 		if len(data) == 0 {
 			b.Fatalf("unexpected empty data after marshaling")
 		}
@@ -36,13 +36,13 @@ func BenchmarkMetadataMarshalUnmarshal(b *testing.B) {
 		Unit:             "test_unit",
 	}
 
-	data := MarshalMetadataRaw(nil, 0, 0, m)
+	data := MarshalRow(nil, 0, 0, m)
 
 	b.ResetTimer()
 
-	var mr MetricMetadataRow
+	var mr Row
 	for i := 0; i < b.N; i++ {
-		if _, err := mr.UnmarshalMetadataRaw(data); err != nil {
+		if _, err := mr.Unmarshal(data); err != nil {
 			b.Fatalf("unexpected error during unmarshaling: %s", err)
 		}
 	}

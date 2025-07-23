@@ -1,0 +1,36 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+) %}
+
+{% stripspace %}
+MetadataResponse generates response for /api/v1/metadata
+See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
+{% func MetadataResponse(isPartial bool, result metadataResult, qt *querytracer.Tracer) %}
+{
+	"status":"success",
+	"isPartial":{% if isPartial %}true{% else %}false{% endif %},
+	"data": {
+		{% code
+			mapItems := len(result)
+			currentItem := 0
+		 %}
+		{% for k, items := range result %}
+			"{%s k %}": [
+				{% for i, item := range items %}
+					{% if i > 0 && len(items) != i %}, {% endif %}
+					{
+						"type": "{%s item.Type %}",
+						"help": "{%s item.Help %}",
+						"unit": "{%s item.Unit %}"
+					}
+				{% endfor %}
+			]
+			{% if currentItem != mapItems-1 %},{% endif %}
+			{% code currentItem++ %}
+		{% endfor %}
+	}
+	{%= dumpQueryTrace(qt) %}
+}
+{% endfunc %}
+
+{% endstripspace %}
