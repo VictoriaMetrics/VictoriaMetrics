@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 type clusterWithReplication struct {
@@ -703,7 +704,7 @@ func testGroupDataIsWrittenSeveralTimes(tc *at.TestCase, opts *testGroupReplicat
 
 	getMetricsReadTotal := func(app *at.Vmstorage) int {
 		t.Helper()
-		got := app.GetIntMetric(t, "vm_vminsert_metrics_read_total")
+		got := app.GetIntMetric(t, "vm_vminsert_metrics_read_total{type=\"vminsert\"}")
 		if got <= 0 {
 			t.Fatalf("%s unexpected metric count: got %d, want > 0", app.Name(), got)
 		}
