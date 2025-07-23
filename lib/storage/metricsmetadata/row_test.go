@@ -1,4 +1,4 @@
-package storage
+package metricsmetadata
 
 import (
 	"testing"
@@ -7,20 +7,20 @@ import (
 )
 
 func TestMarshalUnmarshal(t *testing.T) {
-	m := prompb.MetricMetadata{
+	m := &prompb.MetricMetadata{
 		Type:             3,
 		MetricFamilyName: "test_family",
 		Help:             "test_help",
 		Unit:             "test_unit",
 	}
 
-	data := MarshalMetadataRaw(nil, 0, 0, m)
+	data := MarshalRow(nil, 0, 0, m)
 	if len(data) == 0 {
 		t.Fatalf("unexpected empty data after marshaling")
 	}
 
-	var mr MetricMetadataRow
-	if err := mr.UnmarshalMetadataRaw(data); err != nil {
+	var mr Row
+	if _, err := mr.Unmarshal(data); err != nil {
 		t.Fatalf("unexpected error during unmarshaling: %s", err)
 	}
 

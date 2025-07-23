@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
@@ -170,8 +171,7 @@ type Storage struct {
 
 	metricsTracker *metricnamestats.Tracker
 
-	metricsMetadataStorage    map[string][]*MetricMetadataRow
-	metricMetadataStorageLock sync.RWMutex
+	metadataStore *metricsmetadata.Store
 }
 
 type pendingHourMetricIDEntry struct {
@@ -209,6 +209,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		cachePath:      filepath.Join(path, cacheDirname),
 		retentionMsecs: retention.Milliseconds(),
 		stopCh:         make(chan struct{}),
+		metadataStore:  metricsmetadata.NewStore(),
 	}
 	fs.MustMkdirIfNotExist(path)
 
@@ -1025,6 +1026,9 @@ func (s *Storage) MustClose() {
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
 	s.metricsTracker.MustClose()
+
+	s.metadataStore.MustClose()
+
 	// Release lock file.
 	fs.MustClose(s.flockF)
 	s.flockF = nil
@@ -1655,36 +1659,6 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) {
 		s.rowsReceivedTotal.Add(uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
-}
-
-func (s *Storage) AddMetadataRows(metaRows []MetricMetadataRow) {
-	if len(metaRows) == 0 {
-		return
-	}
-	s.metricMetadataStorageLock.Lock()
-	defer s.metricMetadataStorageLock.Unlock()
-	if s.metricsMetadataStorage == nil {
-		s.metricsMetadataStorage = make(map[string][]*MetricMetadataRow, len(metaRows))
-
-	}
-	for _, mr := range metaRows {
-		if _, ok := s.metricsMetadataStorage[string(mr.MetricFamilyName)]; !ok {
-			s.metricsMetadataStorage[string(mr.MetricFamilyName)] = make([]*MetricMetadataRow, 0, 1)
-			s.metricsMetadataStorage[string(mr.MetricFamilyName)] = append(s.metricsMetadataStorage[string(mr.MetricFamilyName)], &mr)
-			continue
-		}
-		found := false
-		for _, v := range s.metricsMetadataStorage[string(mr.MetricFamilyName)] {
-			if v.Type == mr.Type && bytes.Equal(mr.Unit, v.Unit) && bytes.Equal(mr.Help, v.Help) {
-				found = true
-			}
-		}
-		if found {
-			continue
-		}
-		s.metricsMetadataStorage[string(mr.MetricFamilyName)] = append(s.metricsMetadataStorage[string(mr.MetricFamilyName)], &mr)
-	}
-	logger.Infof("Added %d metadata rows to storage", len(metaRows))
 }
 
 type metricRowsInsertCtx struct {
@@ -2899,4 +2873,21 @@ func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, tt *TenantToken, li
 // ResetMetricNamesStats resets state for metric names usage tracker
 func (s *Storage) ResetMetricNamesStats(_ *querytracer.Tracer) {
 	s.metricsTracker.Reset(s.tsidCache.Reset)
+}
+
+func (s *Storage) GetMetadataRows(qt *querytracer.Tracer, tt *TenantToken, limit, limitPerMetric int64, metric string, _ uint64) ([]metricsmetadata.Row, error) {
+	var (
+		res []metricsmetadata.Row
+	)
+	if tt != nil {
+		res = s.metadataStore.GetForTenant(tt.AccountID, tt.ProjectID, limit, limitPerMetric, metric)
+	} else {
+		res = s.metadataStore.Get(limit, limitPerMetric, metric)
+	}
+	qt.Printf("found %d metadata rows", len(res))
+	return res, nil
+}
+
+func (s *Storage) AddMetadataRows(rows []metricsmetadata.Row) error {
+	return s.metadataStore.Add(rows)
 }

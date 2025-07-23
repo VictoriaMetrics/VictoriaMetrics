@@ -1,4 +1,4 @@
-package storage
+package metricsmetadata
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
-func MarshalMetadataRaw(dst []byte, accountID, projectID uint32, m *prompb.MetricMetadata) []byte {
+func MarshalRow(dst []byte, accountID, projectID uint32, m *prompb.MetricMetadata) []byte {
 	dstLen := len(dst)
 
 	// Tenant information (accountID and projectID)
@@ -30,7 +30,25 @@ func MarshalMetadataRaw(dst []byte, accountID, projectID uint32, m *prompb.Metri
 	return dst
 }
 
-func (mr *MetricMetadataRow) UnmarshalMetadataRaw(data []byte) ([]byte, error) {
+func (mr *Row) MarshalTo(dst []byte) []byte {
+	dstLen := len(dst)
+	dstSize := dstLen + 8
+	// 2 bytes per string + 4 bytes for type
+	dstSize += 10
+	dstSize += len(mr.MetricFamilyName) + len(mr.Help) + len(mr.Unit)
+
+	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, dstSize)[:dstLen]
+
+	dst = encoding.MarshalUint32(dst, mr.AccountID)
+	dst = encoding.MarshalUint32(dst, mr.ProjectID)
+	dst = encoding.MarshalUint32(dst, mr.Type)
+	dst = marshalBytesFast(dst, mr.MetricFamilyName)
+	dst = marshalBytesFast(dst, mr.Help)
+	dst = marshalBytesFast(dst, mr.Unit)
+	return dst
+}
+
+func (mr *Row) Unmarshal(data []byte) ([]byte, error) {
 	if len(data) < 8 {
 		return data, fmt.Errorf("data too short for unmarshaling metadata; got %d bytes; want at least 8 bytes", len(data))
 	}
@@ -74,7 +92,7 @@ func (mr *MetricMetadataRow) UnmarshalMetadataRaw(data []byte) ([]byte, error) {
 	return data, nil
 }
 
-func (mr *MetricMetadataRow) Reset() {
+func (mr *Row) Reset() {
 	mr.AccountID = 0
 	mr.ProjectID = 0
 	mr.Type = 0
@@ -83,12 +101,12 @@ func (mr *MetricMetadataRow) Reset() {
 	mr.Unit = mr.Unit[:0]
 }
 
-func (mr *MetricMetadataRow) String() string {
+func (mr *Row) String() string {
 	return fmt.Sprintf("AccountID: %d, ProjectID: %d, Type: %d, MetricFamilyName: %q, Help: %q, Unit: %q",
 		mr.AccountID, mr.ProjectID, mr.Type, mr.MetricFamilyName, mr.Help, mr.Unit)
 }
 
-type MetricMetadataRow struct {
+type Row struct {
 	AccountID uint32
 	ProjectID uint32
 
@@ -98,15 +116,15 @@ type MetricMetadataRow struct {
 	Unit             []byte
 }
 
-func UnmarshalMetricMetadataRows(dst []MetricMetadataRow, src []byte, maxRows int) ([]MetricMetadataRow, []byte, error) {
+func UnmarshalRows(dst []Row, src []byte, maxRows int) ([]Row, []byte, error) {
 	for len(src) > 0 && maxRows > 0 {
 		if len(dst) < cap(dst) {
 			dst = dst[:len(dst)+1]
 		} else {
-			dst = append(dst, MetricMetadataRow{})
+			dst = append(dst, Row{})
 		}
 		mr := &dst[len(dst)-1]
-		tail, err := mr.UnmarshalMetadataRaw(src)
+		tail, err := mr.Unmarshal(src)
 		if err != nil {
 			return dst, tail, err
 		}
@@ -114,4 +132,16 @@ func UnmarshalMetricMetadataRows(dst []MetricMetadataRow, src []byte, maxRows in
 		maxRows--
 	}
 	return dst, src, nil
+}
+
+func marshalBytesFast(dst []byte, s []byte) []byte {
+	dst = encoding.MarshalUint16(dst, uint16(len(s)))
+	dst = append(dst, s...)
+	return dst
+}
+
+func marshalStringFast(dst []byte, s string) []byte {
+	dst = encoding.MarshalUint16(dst, uint16(len(s)))
+	dst = append(dst, s...)
+	return dst
 }
