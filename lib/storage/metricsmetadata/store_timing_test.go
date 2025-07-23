@@ -38,7 +38,7 @@ func BenchmarkStoreRead(b *testing.B) {
 			Type:             uint32(i % 3),
 			Help:             []byte("help"),
 		}
-		s.Add([]Row{row})
+		_ = s.Add([]Row{row})
 	}
 
 	b.ResetTimer()
