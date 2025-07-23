@@ -48,13 +48,10 @@ var (
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
-	n := cgroup.AvailableCPUs() * 2
-	if n > 16 {
-		// A single request can saturate all the CPU cores, so there is no sense
-		// in allowing higher number of concurrent requests - they will just contend
-		// for unavailable CPU time.
-		n = 16
-	}
+	// A single request can saturate all the CPU cores, so there is no sense
+	// in allowing higher number of concurrent requests - they will just contend
+	// for unavailable CPU time.
+	n := min(cgroup.AvailableCPUs()*2, 16)
 	return n
 }
 
@@ -128,10 +125,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
-		d := searchutil.GetMaxQueryDuration(r)
-		if d > *maxQueueDuration {
-			d = *maxQueueDuration
-		}
+		d := min(searchutil.GetMaxQueryDuration(r), *maxQueueDuration)
 		t := timerpool.Get(d)
 		select {
 		case concurrencyLimitCh <- struct{}{}:
