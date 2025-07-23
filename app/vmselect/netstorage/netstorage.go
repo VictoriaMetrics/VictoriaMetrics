@@ -2438,13 +2438,14 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	var er *errRemote
 	var ne net.Error
 	var le *limitExceededErr
-	if errors.As(err, &le) || errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() {
+	if errors.As(err, &le) || errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() || errors.Is(err, errCannotObtainConn) {
 		// There is no sense in repeating the query on the following errors:
 		//
 		//   - exceeded complexity limits (limitExceededErr)
 		//   - induced by vmstorage (errRemote)
 		//   - network timeout errors
 		//   - request deadline exceeded errors
+		//   - cannot obtain connection from the pool (pool exhaustion, dial or handshake errors)
 		return err
 	}
 	// Repeat the query in the hope the error was temporary.
@@ -2453,6 +2454,8 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	qtRetry.Done()
 	return err
 }
+
+var errCannotObtainConn = fmt.Errorf("cannot obtain connection from a pool")
 
 func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline) error {
 	sn.concurrentQueries.Inc()
@@ -2467,7 +2470,7 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	}
 	bc, err := sn.connPool.Get()
 	if err != nil {
-		return fmt.Errorf("cannot obtain connection from a pool: %w", err)
+		return fmt.Errorf("%w: %w", errCannotObtainConn, err)
 	}
 	// Extend the connection deadline by 2 seconds, so the remote storage could return `timeout` error
 	// without the need to break the connection.
