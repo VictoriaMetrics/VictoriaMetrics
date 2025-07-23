@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -237,12 +236,6 @@ func MustRemoveDirAtomic(dir string) {
 	parentDir := filepath.Dir(dir)
 	MustSyncPath(parentDir)
 }
-
-var atomicDirRemoveCounter = func() *atomicutil.Uint64 {
-	var x atomicutil.Uint64
-	x.Store(uint64(time.Now().UnixNano()))
-	return &x
-}()
 
 // MustReadDir reads directory entries at the given dir.
 func MustReadDir(dir string) []os.DirEntry {
