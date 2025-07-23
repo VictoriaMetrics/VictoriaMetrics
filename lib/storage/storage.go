@@ -1764,7 +1764,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 				createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 				genTSID.generation = generation
-				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+				s.storeTSIDToCaches(mr.MetricNameRaw, &genTSID, date)
 				seriesRepopulated++
 			} else if !s.dateMetricIDCache.Has(generation, date, genTSID.TSID.MetricID) {
 				if !is.hasDateMetricIDNoExtDB(date, genTSID.TSID.MetricID, genTSID.TSID.AccountID, genTSID.TSID.ProjectID) {
@@ -1812,7 +1812,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				genTSID.generation = generation
 				seriesRepopulated++
 			}
-			s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+			s.storeTSIDToCaches(mr.MetricNameRaw, &genTSID, date)
 			continue
 		}
 
@@ -1828,7 +1828,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		// This should keep stable the ingestion rate when new time series are ingested.
 		createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
-		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+		s.storeTSIDToCaches(mr.MetricNameRaw, &genTSID, date)
 		newSeriesCount++
 	}
 
@@ -1962,7 +1962,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 				createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 				genTSID.generation = generation
-				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+				s.storeTSIDToCaches(mr.MetricNameRaw, &genTSID, date)
 				seriesRepopulated++
 				slowInsertsCount++
 			}
@@ -2006,7 +2006,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				genTSID.generation = generation
 				seriesRepopulated++
 			}
-			s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+			s.storeTSIDToCaches(mr.MetricNameRaw, &genTSID, date)
 
 			r.TSID = genTSID.TSID
 			prevTSID = genTSID.TSID
@@ -2027,7 +2027,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		createAllIndexesForMetricName(idb, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
-		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+		s.storeTSIDToCaches(mr.MetricNameRaw, &genTSID, date)
 		newSeriesCount++
 
 		r.TSID = genTSID.TSID
@@ -2091,10 +2091,10 @@ func createAllIndexesForMetricName(db *indexDB, mn *MetricName, tsid *TSID, date
 	db.createPerDayIndexes(date, tsid, mn)
 }
 
-func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
+func (s *Storage) storeTSIDToCaches(metricNameRaw []byte, genTSID *generationTSID, date uint64) {
 	// Store the TSID for the current indexdb into cache,
 	// so future rows for that TSID are ingested via fast path.
-	s.putTSIDToCache(genTSID, metricNameRaw)
+	s.storeTSIDToCache(genTSID, metricNameRaw)
 
 	// Register the (generation, date, metricID) entry in the cache,
 	// so next time the entry is found there instead of searching for it in the indexdb.
@@ -2200,7 +2200,7 @@ func (s *Storage) prefillNextIndexDB(idbNext *indexDB, rows []rawRow, mrs []*Met
 		createAllIndexesForMetricName(idbNext, mn, &r.TSID, date)
 		genTSID.TSID = r.TSID
 		genTSID.generation = generation
-		s.putSeriesToCache(metricNameRaw, &genTSID, date)
+		s.storeTSIDToCaches(metricNameRaw, &genTSID, date)
 		timeseriesPreCreated++
 	}
 	s.timeseriesPreCreated.Add(timeseriesPreCreated)
@@ -2736,7 +2736,7 @@ func (s *Storage) getTSIDFromCache(dst *generationTSID, metricName []byte) bool 
 	return uintptr(len(buf)) == unsafe.Sizeof(*dst)
 }
 
-func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
+func (s *Storage) storeTSIDToCache(tsid *generationTSID, metricName []byte) {
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))[:]
 	s.tsidCache.Set(metricName, buf)
 }
