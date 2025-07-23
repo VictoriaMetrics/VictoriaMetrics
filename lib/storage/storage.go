@@ -1706,7 +1706,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				continue
 			}
 
-			s.putSeriesToCache(mr.MetricNameRaw, &lTSID, idb.id, date)
+			s.storeTSIDToCaches(mr.MetricNameRaw, &lTSID, idb.id, date)
 			continue
 		}
 
@@ -1721,7 +1721,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		// Schedule creating TSID indexes instead of creating them synchronously.
 		// This should keep stable the ingestion rate when new time series are ingested.
 		createAllIndexesForMetricName(idb, mn, &lTSID.TSID, date)
-		s.putSeriesToCache(mr.MetricNameRaw, &lTSID, idb.id, date)
+		s.storeTSIDToCaches(mr.MetricNameRaw, &lTSID, idb.id, date)
 		newSeriesCount++
 	}
 	if ptw != nil {
@@ -1917,7 +1917,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				continue
 			}
 
-			s.putSeriesToCache(mr.MetricNameRaw, &lTSID, idb.id, date)
+			s.storeTSIDToCaches(mr.MetricNameRaw, &lTSID, idb.id, date)
 
 			r.TSID = lTSID.TSID
 			prevTSID = lTSID.TSID
@@ -1937,7 +1937,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		}
 
 		createAllIndexesForMetricName(idb, mn, &lTSID.TSID, date)
-		s.putSeriesToCache(mr.MetricNameRaw, &lTSID, idb.id, date)
+		s.storeTSIDToCaches(mr.MetricNameRaw, &lTSID, idb.id, date)
 		newSeriesCount++
 
 		r.TSID = lTSID.TSID
@@ -2008,10 +2008,10 @@ func createAllIndexesForMetricName(db *indexDB, mn *MetricName, tsid *TSID, date
 	db.createPerDayIndexes(date, tsid, mn)
 }
 
-func (s *Storage) putSeriesToCache(metricNameRaw []byte, lTSID *legacyTSID, idbID, date uint64) {
-	// Store the TSID indexdb into cache, so future rows for that TSID are
-	// ingested via fast path.
-	s.putTSIDToCache(lTSID, metricNameRaw)
+func (s *Storage) storeTSIDToCaches(metricNameRaw []byte, lTSID *legacyTSID, idbID, date uint64) {
+	// Store the TSID to cache, so future rows for that TSID are ingested via
+	// fast path.
+	s.storeTSIDToCache(lTSID, metricNameRaw)
 
 	// Register the (indexDB.id, date, metricID) entry in the cache,
 	// so next time the entry is found there instead of searching for it in the
@@ -2125,7 +2125,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 
 		createAllIndexesForMetricName(idbNext, mn, &r.TSID, date)
 		lTSID.TSID = r.TSID
-		s.putSeriesToCache(metricNameRaw, &lTSID, idbNext.id, date)
+		s.storeTSIDToCaches(metricNameRaw, &lTSID, idbNext.id, date)
 		timeseriesPreCreated++
 	}
 	s.timeseriesPreCreated.Add(timeseriesPreCreated)
@@ -2674,7 +2674,7 @@ func (s *Storage) getTSIDFromCache(dst *legacyTSID, metricName []byte) bool {
 	return uintptr(len(buf)) == unsafe.Sizeof(*dst)
 }
 
-func (s *Storage) putTSIDToCache(tsid *legacyTSID, metricName []byte) {
+func (s *Storage) storeTSIDToCache(tsid *legacyTSID, metricName []byte) {
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))[:]
 	s.tsidCache.Set(metricName, buf)
 }
