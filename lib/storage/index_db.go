@@ -2744,6 +2744,12 @@ func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, 
 		return nil, nil
 	}
 
+	if len(tfss) == 1 && len(tfss[0].tfs) == 1 && getMetricNameFilter(tfss[0]) != nil {
+		// We have only single filter which is __name__
+		// Return nil set in order to delegate to inverted index search with composite key
+		return nil, nil
+	}
+
 	var tr TimeRange
 	if date == globalIndexDate {
 		tr = globalIndexTimeRange
