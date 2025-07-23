@@ -54,6 +54,8 @@ func NewVMInsertServer(addr string, connectionTimeout time.Duration, listenerNam
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %w", addr, err)
 	}
+	logger.Infof("started TCP %s server at %q", listenerName, ln.Addr())
+
 	labels := fmt.Sprintf(`{type=%q}`, listenerName)
 
 	s := &VMInsertServer{
