@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -187,7 +188,7 @@ func putTSUnmarshalWork(uw *tsUnmarhsalWork) {
 var tsUnmarshalWorkPool sync.Pool
 var mrUnmarshalWorkPool sync.Pool
 
-func ParseMR(bc *handshake.BufferedConn, callback func(rows []storage.MetricMetadataRow) error, isReadOnly func() bool) error {
+func ParseMR(bc *handshake.BufferedConn, callback func(rows []metricsmetadata.Row) error, isReadOnly func() bool) error {
 	wcr := writeconcurrencylimiter.GetReader(bc)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(wcr)
@@ -209,7 +210,7 @@ func ParseMR(bc *handshake.BufferedConn, callback func(rows []storage.MetricMeta
 	blocksRead.Inc()
 	uw := getMRUnmarshalWork()
 	uw.reqBuf = reqBuf
-	uw.callback = func(rows []storage.MetricMetadataRow) {
+	uw.callback = func(rows []metricsmetadata.Row) {
 		if err := callback(rows); err != nil {
 			processErrors.Inc()
 			callbackErrLock.Lock()
@@ -229,9 +230,9 @@ func ParseMR(bc *handshake.BufferedConn, callback func(rows []storage.MetricMeta
 
 type mrUnmarshalWork struct {
 	wg       *sync.WaitGroup
-	callback func(rows []storage.MetricMetadataRow)
+	callback func(rows []metricsmetadata.Row)
 	reqBuf   []byte
-	mrs      []storage.MetricMetadataRow
+	mrs      []metricsmetadata.Row
 }
 
 func (uw *mrUnmarshalWork) reset() {
@@ -248,7 +249,7 @@ func (uw *mrUnmarshalWork) Unmarshal() {
 	for len(reqBuf) > 0 {
 		// Limit the number of rows passed to callback in order to reduce memory usage
 		// when processing big packets of rows.
-		mrs, tail, err := storage.UnmarshalMetricMetadataRows(uw.mrs[:0], reqBuf, maxRowsPerCallback)
+		mrs, tail, err := metricsmetadata.UnmarshalRows(uw.mrs[:0], reqBuf, maxRowsPerCallback)
 		uw.mrs = mrs
 		if err != nil {
 			parseErrors.Inc()
