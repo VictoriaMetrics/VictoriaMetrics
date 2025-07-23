@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 
@@ -753,6 +754,106 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
+	return nil
+}
+
+type metadataResult map[string][]metadataItem
+type metadataItem struct {
+	Type string `json:"type"`
+	Help string `json:"help"`
+	Unit string `json:"unit"`
+}
+
+func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+	cp, err := getCommonParamsForLabelsAPI(r, startTime, false)
+	if err != nil {
+		return err
+	}
+	limit, err := httputil.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
+	if limit < 0 {
+		limit = 0
+	}
+	limitPerMetric, err := httputil.GetInt(r, "limit_per_metric")
+	if err != nil {
+		return err
+	}
+	if limitPerMetric < 0 {
+		limitPerMetric = 0
+	}
+	metric := r.FormValue("metric")
+
+	var tt *storage.TenantToken
+	if at != nil {
+		tt = &storage.TenantToken{
+			AccountID: at.AccountID,
+			ProjectID: at.ProjectID,
+		}
+	}
+
+	metadata, isPartial, err := netstorage.GetMetricsMetadata(qt, tt, int64(limit), int64(limitPerMetric), metric, cp.deadline)
+
+	qtL := qt.NewChild("preparing metadata response; limit=%d limit_per_metric=%d metric=%q", limit, limitPerMetric, metric)
+	qtL.Printf("received %d items from storage", len(metadata))
+	totalItems := 0
+	duplicatesSkipped := 0
+	var resultsPerMetric map[string]int
+	if limitPerMetric > 0 {
+		resultsPerMetric = make(map[string]int, len(metadata))
+	}
+	result := make(metadataResult)
+	for _, md := range metadata {
+		mf := bytesutil.ToUnsafeString(md.MetricFamilyName)
+		if limitPerMetric > 0 && resultsPerMetric[mf] >= limitPerMetric {
+			// Limit reached for this metric, skip the rest of metadata for it.
+			continue
+		}
+
+		// check if the same metric family name is already present
+		if _, ok := result[mf]; ok {
+			duplicate := false
+			for _, item := range result[mf] {
+				if item.Type == prompb.MetricMetadataTypeToString(md.Type) &&
+					item.Help == bytesutil.ToUnsafeString(md.Help) &&
+					item.Unit == bytesutil.ToUnsafeString(md.Unit) {
+					// The same metadata item is already present, skip it.
+					duplicate = true
+					break
+				}
+			}
+			if duplicate {
+				duplicatesSkipped++
+				continue
+			}
+		}
+		result[mf] = append(result[mf], metadataItem{
+			Type: prompb.MetricMetadataTypeToString(md.Type),
+			Help: bytesutil.ToUnsafeString(md.Help),
+			Unit: bytesutil.ToUnsafeString(md.Unit),
+		})
+
+		totalItems += 1
+		if limit > 0 && totalItems >= limit {
+			break
+		}
+		if limitPerMetric > 0 {
+			resultsPerMetric[mf]++
+		}
+	}
+	qtL.Printf("applied limits; total items=%d, duplicates=%d", totalItems, duplicatesSkipped)
+	qtL.Done()
+
+	qt.Done()
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetadataResponse(bw, isPartial, result, qt)
+	if err := bw.Flush(); err != nil {
+		return fmt.Errorf("cannot send labels response to remote client: %w", err)
+	}
+
 	return nil
 }
 
