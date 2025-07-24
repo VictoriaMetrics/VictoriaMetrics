@@ -15,6 +15,9 @@ const router = {
   rawQuery: "/raw-query",
   downsamplingDebug: "/downsampling-filters-debug",
   retentionDebug: "/retention-filters-debug",
+  alerts: "/alerts",
+  rules: "/groups",
+  notifiers: "/notifiers"
 };
 
 export interface RouterOptionsHeader {
@@ -81,6 +84,18 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   [router.dashboards]: {
     title: "Dashboards",
     ...routerOptionsDefault,
+  },
+  [router.alerts]: {
+    title: "Alerts",
+    header: {}
+  },
+  [router.rules]: {
+    title: "Rules",
+    header: {}
+  },
+  [router.notifiers]: {
+    title: "Notifiers",
+    header: {}
   },
   [router.withTemplate]: {
     title: "WITH templates",
