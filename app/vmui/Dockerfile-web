@@ -6,7 +6,7 @@ COPY web/ /build/
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o web-amd64 github.com/VictoriMetrics/vmui/ && \
     GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o web-windows github.com/VictoriMetrics/vmui/
 
-FROM alpine:3.22.0
+FROM alpine:3.22.1
 USER root
 
 COPY --from=build-web-stage /build/web-amd64 /app/web

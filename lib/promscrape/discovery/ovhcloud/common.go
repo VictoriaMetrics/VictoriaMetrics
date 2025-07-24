@@ -19,14 +19,13 @@ func getAuthHeaders(cfg *apiConfig, headers http.Header, endpoint, path string) 
 	headers.Add("X-Ovh-Consumer", cfg.consumerKey)
 
 	h := sha1.New()
-	h.Write([]byte(fmt.Sprintf("%s+%s+%s+%s+%s+%d",
+	fmt.Fprintf(h, "%s+%s+%s+%s+%s+%d",
 		cfg.applicationSecret,
 		cfg.consumerKey,
 		"GET",
 		endpoint+path,
-		"", // no body contained in any service discovery request, so it's set to empty by default
-		timestamp,
-	)))
+		"",
+		timestamp)
 	headers.Set("X-Ovh-Signature", fmt.Sprintf("$1$%x", h.Sum(nil)))
 	return headers, nil
 }

@@ -352,6 +352,6 @@ var bwPool sync.Pool
 
 type streamTracker struct {
 	fd     uintptr
-	offset uint64
-	length uint64
+	offset uint64 // nolint:unused
+	length uint64 // nolint:unused
 }

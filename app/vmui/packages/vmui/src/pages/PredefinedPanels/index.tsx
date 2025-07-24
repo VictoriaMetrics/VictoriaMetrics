@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import { FC, useMemo, useState } from "preact/compat";
 import PredefinedDashboard from "./PredefinedDashboard/PredefinedDashboard";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import Alert from "../../components/Main/Alert/Alert";

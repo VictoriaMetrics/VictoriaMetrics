@@ -25,30 +25,9 @@ func NewID(signal Signal) ID {
 	return NewIDWithName(signal, "")
 }
 
-// Deprecated: [v0.127.0] use NewIDWithName.
-func MustNewID(signal string) ID {
-	id := ID{}
-	err := id.signal.UnmarshalText([]byte(signal))
-	if err != nil {
-		panic(err)
-	}
-	return id
-}
-
 // NewIDWithName returns a new ID with the given Signal and name.
 func NewIDWithName(signal Signal, name string) ID {
 	return ID{signal: signal, name: name}
-}
-
-// Deprecated: [v0.127.0] use NewIDWithName.
-func MustNewIDWithName(signal string, name string) ID {
-	id := MustNewID(signal)
-	err := validateName(name)
-	if err != nil {
-		panic(err)
-	}
-	id.name = name
-	return id
 }
 
 // Signal returns the Signal of the ID.

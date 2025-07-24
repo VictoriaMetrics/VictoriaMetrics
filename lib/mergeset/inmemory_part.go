@@ -50,8 +50,7 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 
 	mp.ph.MustWriteMetadata(path)
 
-	fs.MustSyncPath(path)
-	// Do not sync parent directory - it must be synced by the caller.
+	fs.MustSyncPathAndParentDir(path)
 }
 
 // Init initializes mp from ib.

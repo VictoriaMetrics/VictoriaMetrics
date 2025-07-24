@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import dayjs, { Dayjs } from "dayjs";
 import classNames from "classnames";
 import Tooltip from "../../../Tooltip/Tooltip";

@@ -82,9 +82,11 @@ const getSeriesStatistics = (d: MetricResult) => {
   };
 };
 
+const getLabelForSeries = (s: uPlotSeries): string => typeof s.label === "string" ? s.label : "";
+
 export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => ({
   group,
-  label: s.label || "",
+  label: getLabelForSeries(s),
   color: s.stroke as string,
   checked: s.show || false,
   freeFormFields: s.freeFormFields,
@@ -96,7 +98,7 @@ export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => (
 export const getHideSeries = ({ hideSeries, legend, metaKey, series, isAnomalyView }: HideSeriesArgs): string[] => {
   const { label } = legend;
   const include = includesHideSeries(label, hideSeries);
-  const labels = series.map(s => s.label || "");
+  const labels = series.map(getLabelForSeries);
 
   // if anomalyView is true, always return all series except the one specified by `label`
   if (isAnomalyView) {
