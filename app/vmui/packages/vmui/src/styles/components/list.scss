@@ -27,7 +27,7 @@
         animation: vm-scale 150ms cubic-bezier(0.280, 0.840, 0.420, 1);
       }
 
-      span {
+      .vm-list-item-inner {
         grid-column: 2;
       }
 

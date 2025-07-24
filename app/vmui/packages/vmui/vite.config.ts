@@ -10,7 +10,16 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
   switch (playground) {
     case "METRICS": {
       return {
-        "^/vmalert/.*": {
+        "/api": {
+          target: "https://play.victoriametrics.com/select/0/prometheus",
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("error", (err) => {
+              console.error("[proxy error]", err.message);
+            });
+          }
+        },
+        "/flags": {
           target: "https://play.victoriametrics.com",
           changeOrigin: true,
           configure: (proxy) => {
@@ -18,18 +27,13 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
               console.error("[proxy error]", err.message);
             });
           }
-        },
-        "^/api/.*": {
-          target: "https://play.victoriametrics.com/select/0/prometheus/",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("error", (err) => {
-              console.error("[proxy error]", err.message);
-            });
-          }
-        },
-        "^/prometheus/api.*": {
-          target: "https://play.victoriametrics.com/select/0/",
+        }
+      };
+    }
+    case "ALERT": {
+      return {
+        "/api": {
+          target: "https://play.victoriametrics.com/select/0/prometheus",
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("error", (err) => {
