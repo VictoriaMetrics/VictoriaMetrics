@@ -121,7 +121,7 @@ func mustOpenTable(path string, s *Storage) *table {
 		stopCh: make(chan struct{}),
 	}
 	for _, pt := range pts {
-		tb.addPartitionNolock(pt)
+		tb.addPartitionLocked(pt)
 	}
 	tb.startRetentionWatcher()
 	tb.startHistoricalMergeWatcher()
@@ -165,7 +165,7 @@ func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	fs.MustRemoveDirAtomic(bigDir)
 }
 
-func (tb *table) addPartitionNolock(pt *partition) {
+func (tb *table) addPartitionLocked(pt *partition) {
 	ptw := &partitionWrapper{
 		pt: pt,
 	}
@@ -373,7 +373,7 @@ func (tb *table) MustAddRows(rows []rawRow) {
 
 		pt := mustCreatePartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.s)
 		pt.AddRows(missingRows[i : i+1])
-		tb.addPartitionNolock(pt)
+		tb.addPartitionLocked(pt)
 	}
 	tb.ptwsLock.Unlock()
 }
