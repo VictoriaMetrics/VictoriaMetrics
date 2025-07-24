@@ -40,7 +40,7 @@ fi
 # === Build plot dynamically ===
 gnuplot -persist <<-EOF
   set datafile separator " "
-  set title "TSBS per.metric/s Comparison"
+  set title "per.metric/s"
   set xlabel "Timestamp"
   set xdata time
   set timefmt "%s"

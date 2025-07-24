@@ -46,6 +46,9 @@ TSBS_WORKERS := 4
 TSBS_DATA_FILE := /tmp/tsbs-data-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).gz
 TSBS_QUERY_FILE := /tmp/tsbs-queries-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_QUERIES).gz
 TSBS_LOAD_CSV_FILE := /tmp/tsbs-load-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).csv
+TSBS_LOAD_CSV_FILE_COMPARE ?=
+TSBS_PLOT_SCRIPT := $(shell pwd)/benchmarks/plot-load.sh
+
 # For cluster setup use http://vminsert:8480/insert/0/influx/write
 TSBS_WRITE_URLS := http://localhost:8428/write
 # For cluster setup use http://vmselect:8481/select/0/prometheus
@@ -101,3 +104,9 @@ tsbs-generate-queries:
 # Run benchmark queries against VictoriaMetrics
 tsbs-run-queries:
 	cat $(TSBS_QUERY_FILE) | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_READ_URLS)
+
+# Build graphs from the load results
+tsbs-plot:
+	test -f $(TSBS_LOAD_CSV_FILE) || (echo "Run tsbs-load-data first" && exit 1)
+	test -x $(TSBS_PLOT_SCRIPT) || chmod +x $(TSBS_PLOT_SCRIPT) && \
+    $(TSBS_PLOT_SCRIPT) $(TSBS_LOAD_CSV_FILE)
