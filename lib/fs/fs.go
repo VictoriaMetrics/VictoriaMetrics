@@ -421,7 +421,7 @@ type freeSpaceEntry struct {
 
 // IsScheduledForRemoval returns true if the supplied path (or name) is marked
 // for removal. A directory is considered scheduled if
-// it contains a ".delete" sentinel file created by MustRemoveDirAtomic.
+// it contains a ".delete" sentinel file created by MustRemoveDirAtomic
 // or has ".must-remove." in its name (legacy).
 func IsScheduledForRemoval(path string) bool {
 	sentinelPath := filepath.Join(path, ".delete")
