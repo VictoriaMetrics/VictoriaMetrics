@@ -45,8 +45,8 @@ TSBS_QUERIES := 1000
 TSBS_WORKERS := 4
 TSBS_DATA_FILE := /tmp/tsbs-data-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).gz
 TSBS_QUERY_FILE := /tmp/tsbs-queries-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_QUERIES).gz
-TSBS_LOAD_CSV_FILE := /tmp/tsbs-load-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).csv
-TSBS_LOAD_CSV_FILE_COMPARE ?=
+TSBS_LOAD_RESULT_CSV_FILE := /tmp/tsbs-load-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).csv
+TSBS_LOAD_RESULT_CSV_FILE_COMPARE ?=
 TSBS_PLOT_SCRIPT := $(shell pwd)/benchmarks/plot-load.sh
 
 # For cluster setup use http://vminsert:8480/insert/0/influx/write
@@ -77,7 +77,7 @@ tsbs-generate-data:
 
 # Load data into VictoriaMetrics
 tsbs-load-data:
-	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_WRITE_URLS) > $(TSBS_LOAD_CSV_FILE) 2>/dev/tty
+	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_WRITE_URLS) > $(TSBS_LOAD_RESULT_CSV_FILE) 2>/dev/tty
 	curl -s $(TSBS_METRICS_URL) | grep \
 		-e process_cpu_seconds_user_total \
 		-e process_cpu_seconds_system_total \
@@ -106,7 +106,7 @@ tsbs-run-queries:
 	cat $(TSBS_QUERY_FILE) | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_READ_URLS)
 
 # Build graphs from the load results
-tsbs-plot:
-	test -f $(TSBS_LOAD_CSV_FILE) || (echo "Run tsbs-load-data first" && exit 1)
+tsbs-plot-load:
+	test -f $(TSBS_LOAD_RESULT_CSV_FILE) || (echo "Run tsbs-load-data first" && exit 1)
 	test -x $(TSBS_PLOT_SCRIPT) || chmod +x $(TSBS_PLOT_SCRIPT) && \
-    $(TSBS_PLOT_SCRIPT) $(TSBS_LOAD_CSV_FILE)
+    $(TSBS_PLOT_SCRIPT) $(TSBS_LOAD_RESULT_CSV_FILE) $(TSBS_LOAD_RESULT_CSV_FILE_COMPARE)
