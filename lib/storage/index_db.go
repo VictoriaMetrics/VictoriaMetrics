@@ -354,7 +354,7 @@ func (db *indexDB) decRef() {
 	}
 
 	logger.Infof("dropping indexDB %q", tbPath)
-	fs.MustRemoveDirAtomic(tbPath)
+	fs.MustRemoveDir(tbPath)
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 

@@ -273,6 +273,13 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	for i, de := range des {
 		fname := de.Name()
 
+		partitionDir := filepath.Join(partitionsPath, fname)
+		if fs.IsPartiallyRemovedDir(partitionDir) {
+			// Drop partially removed partition directory. This may happen when unclean shutdown happens during partition deletion.
+			fs.MustRemoveDir(partitionDir)
+			continue
+		}
+
 		wg.Add(1)
 		concurrencyLimiterCh <- struct{}{}
 		go func(idx int) {

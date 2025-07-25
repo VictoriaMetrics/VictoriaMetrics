@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -69,7 +68,7 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		t.Helper()
 
 		path := t.Name()
-		defer fs.MustRemoveAll(path)
+		defer fs.MustRemoveDir(path)
 
 		s := MustOpenStorage(path, OpenOptions{})
 		defer s.MustClose()
@@ -96,7 +95,7 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 
 func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	path := t.Name()
-	defer fs.MustRemoveAll(path)
+	defer fs.MustRemoveDir(path)
 	s := MustOpenStorage(path, OpenOptions{})
 	defer s.MustClose()
 	idb, putIndexDB := s.getCurrIndexDB()
@@ -590,9 +589,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 		db := mustOpenIndexDB(tableName, &s, &isReadOnly)
 		db.MustClose()
 	}
-	if err := os.RemoveAll(tableName); err != nil {
-		t.Fatalf("cannot remove indexDB: %s", err)
-	}
+	fs.MustRemoveDir(tableName)
 }
 
 func TestIndexDB(t *testing.T) {
@@ -625,7 +622,7 @@ func TestIndexDB(t *testing.T) {
 		}
 		putIndexDB()
 		s.MustClose()
-		fs.MustRemoveAll(path)
+		fs.MustRemoveDir(path)
 	})
 
 	t.Run("concurrent", func(t *testing.T) {
@@ -661,7 +658,7 @@ func TestIndexDB(t *testing.T) {
 
 		putIndexDB()
 		s.MustClose()
-		fs.MustRemoveAll(path)
+		fs.MustRemoveDir(path)
 	})
 }
 
@@ -1727,9 +1724,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 
 	putIndexDB()
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func TestSearchTSIDWithTimeRange(t *testing.T) {
@@ -2228,7 +2223,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	putIndexDB()
 	s.MustClose()
-	fs.MustRemoveAll(path)
+	fs.MustRemoveDir(path)
 }
 
 func toTFPointers(tfs []tagFilter) []*tagFilter {
@@ -2257,12 +2252,12 @@ func stopTestStorage(s *Storage) {
 	s.metricIDCache.Stop()
 	s.metricNameCache.Stop()
 	s.tsidCache.Stop()
-	fs.MustRemoveDirAtomic(s.cachePath)
+	fs.MustRemoveDir(s.cachePath)
 }
 
 func TestSearchContainsTimeRange(t *testing.T) {
 	path := t.Name()
-	os.RemoveAll(path)
+	fs.MustRemoveDir(path)
 	s := MustOpenStorage(path, OpenOptions{})
 	db, putIndexDB := s.getCurrIndexDB()
 
@@ -2454,5 +2449,5 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	db.extDB.putIndexSearch(isExt)
 	putIndexDB()
 	s.MustClose()
-	fs.MustRemoveAll(path)
+	fs.MustRemoveDir(path)
 }

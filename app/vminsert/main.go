@@ -33,7 +33,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutil"
 	clusternativeserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/clusternative"
@@ -188,8 +187,6 @@ func main() {
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	relabel.Stop()
-
-	fs.MustStopDirRemover()
 
 	logger.Infof("the vminsert has been stopped")
 }

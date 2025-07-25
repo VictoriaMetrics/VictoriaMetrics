@@ -2,101 +2,123 @@ package fs
 
 import (
 	"os"
-	"strings"
-	"time"
+	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
-	"github.com/VictoriaMetrics/metrics"
 )
 
-// MustRemoveAll removes path with all the contents.
+// directories with this filename are scheduled to be removed by MustRemoveDir().
+const deleteDirFilename = ".delete-this-dir"
+
+// MustRemoveDir removes the dirPath with all its contents.
 //
-// It properly fsyncs the parent directory after path removal.
-//
-// It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-func MustRemoveAll(path string) {
-	if tryRemoveAll(path) {
+// The dirPath contents may be partially deleted if unclean shutdown happens during the removal.
+// The caller must verify whether the given directory is partially removed via IsPartiallyRemovedDir() call
+// on the startup before using it. If the directory is partially removed, it must be removed again
+// via MustRemoveDir() call.
+func MustRemoveDir(dirPath string) {
+	if !IsPathExist(dirPath) {
+		// Nothing do delete.
 		return
 	}
-	select {
-	case removeDirConcurrencyCh <- struct{}{}:
-	default:
-		logger.Panicf("FATAL: cannot schedule %s for removal, since the removal queue is full (%d entries)", path, cap(removeDirConcurrencyCh))
+
+	// The code below is written in the way that partially deleted directories could be deleted
+	// on the next start after unclean shutdown, by verifying them with IsPartiallyRemovedDir() call.
+	//
+	// The code below doesn't depend on atomic renaming of directories, since it isn't supported
+	// by NFS and object storage.
+
+	// Create a deleteDirFilename file, which indicates that the dirPath must be removed.
+	deleteFilePath := filepath.Join(dirPath, deleteDirFilename)
+	f, err := os.Create(deleteFilePath)
+	if err != nil {
+		logger.Panicf("FATAL: cannot create %q while deleting %q: %s", deleteFilePath, dirPath, err)
 	}
-	dirRemoverWG.Add(1)
-	go func() {
-		defer func() {
-			dirRemoverWG.Done()
-			<-removeDirConcurrencyCh
-		}()
-		for {
-			time.Sleep(time.Second)
-			if tryRemoveAll(path) {
-				return
-			}
+	if err := f.Close(); err != nil {
+		logger.Panicf("FATAL: cannot close %q: %s", deleteFilePath, err)
+	}
+
+	// Make sure the deleteDirFilename file is visible in the dirPath.
+	MustSyncPath(dirPath)
+
+	// Remove the contents of the dirPath except of the deleteDirFilename file.
+	des := MustReadDir(dirPath)
+	for _, de := range des {
+		name := de.Name()
+		if name == deleteDirFilename {
+			continue
 		}
-	}()
+		dirEntryPath := filepath.Join(dirPath, name)
+		if err := os.RemoveAll(dirEntryPath); err != nil {
+			logger.Panicf("FATAL: cannot remove %q: %s", dirEntryPath, err)
+		}
+	}
+
+	// Make sure the deleted names are properly synced to the dirPath,
+	// so they are no longer visible after unclean shutdown.
+	MustSyncPath(dirPath)
+
+	// Remove the deleteDirFilename file
+	MustRemovePath(deleteFilePath)
+
+	// Remove the dirPath itself
+	MustRemovePath(dirPath)
+
+	// Do not sync the parent directory for the dirPath - the caller can do this if needed.
+	// It is OK if the dirPath will remain undeleted after unclean shutdown - it will be deleted
+	// on the next startup.
 }
 
-var dirRemoverWG syncwg.WaitGroup
-
-func tryRemoveAll(path string) bool {
-	err := os.RemoveAll(path)
-	if err == nil || isStaleNFSFileHandleError(err) {
-		// Make sure the parent directory doesn't contain references
-		// to the current directory.
-		mustSyncParentDirIfExists(path)
+// IsPartiallyRemovedDir returns true if dirPath is partially removed because of unclean shutdown during the MustRemoveDir() call.
+//
+// The caller must call MustRemoveDir(dirPath) on partially removed dirPath.
+func IsPartiallyRemovedDir(dirPath string) bool {
+	des := MustReadDir(dirPath)
+	if len(des) == 0 {
+		// Delete empty dirs too, since they may appear when the unclean shutdown happens after the deleteDirFilename is deleted,
+		// but before the directory is deleted istelf.
 		return true
 	}
-	if !isTemporaryNFSError(err) {
-		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
+
+	deleteFilePath := filepath.Join(dirPath, deleteDirFilename)
+	for _, de := range des {
+		if de.IsDir() {
+			continue
+		}
+		name := de.Name()
+		if name == deleteFilePath {
+			// The directory contains the deleteDirFilename. This means it is partially deleted.
+			return true
+		}
 	}
-	// NFS prevents from removing directories with open files.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-	// Schedule for later directory removal.
-	nfsDirRemoveFailedAttempts.Inc()
 	return false
 }
 
-var (
-	nfsDirRemoveFailedAttempts = metrics.NewCounter(`vm_nfs_dir_remove_failed_attempts_total`)
-	_                          = metrics.NewGauge(`vm_nfs_pending_dirs_to_remove`, func() float64 {
-		return float64(len(removeDirConcurrencyCh))
-	})
-)
-
-var removeDirConcurrencyCh = make(chan struct{}, 1024)
-
-func isStaleNFSFileHandleError(err error) bool {
-	errStr := err.Error()
-	return strings.Contains(errStr, "stale NFS file handle")
-}
-
-func isTemporaryNFSError(err error) bool {
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61
-	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6396 for details.
-	errStr := err.Error()
-	return strings.Contains(errStr, "directory not empty") ||
-		strings.Contains(errStr, "device or resource busy") ||
-		strings.Contains(errStr, "file exists")
-}
-
-// MustStopDirRemover must be called in the end of graceful shutdown
-// in order to wait for removing the remaining directories from removeDirConcurrencyCh.
+// MustRemovePath removes the given path. It must be either a file or an empty directory.
 //
-// It is expected that nobody calls MustRemoveAll when MustStopDirRemover is called.
-func MustStopDirRemover() {
-	doneCh := make(chan struct{})
-	go func() {
-		dirRemoverWG.Wait()
-		close(doneCh)
-	}()
-	const maxWaitTime = 10 * time.Second
-	select {
-	case <-doneCh:
-		return
-	case <-time.After(maxWaitTime):
-		logger.Errorf("cannot stop dirRemover in %s; the remaining empty NFS directories should be automatically removed on the next startup", maxWaitTime)
+// Use MustRemoveDir for removing non-empty directories.
+func MustRemovePath(path string) {
+	if err := os.Remove(path); err != nil {
+		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
 	}
+}
+
+// MustRemoveDirContents removes all the contents of the given dir if it exists.
+//
+// It doesn't remove the dir itself, so the dir may be mounted to a separate partition.
+func MustRemoveDirContents(dir string) {
+	if !IsPathExist(dir) {
+		// The path doesn't exist, so nothing to remove.
+		return
+	}
+
+	des := MustReadDir(dir)
+	for _, de := range des {
+		name := de.Name()
+		fullPath := filepath.Join(dir, name)
+		if err := os.RemoveAll(fullPath); err != nil {
+			logger.Panicf("FATAL: cannot remove %s: %s", fullPath, err)
+		}
+	}
+	MustSyncPath(dir)
 }

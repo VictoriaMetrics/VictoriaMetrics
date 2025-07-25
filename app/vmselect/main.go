@@ -115,7 +115,7 @@ func main() {
 
 	if len(*cacheDataPath) > 0 {
 		tmpDataPath := *cacheDataPath + "/tmp"
-		fs.RemoveDirContents(tmpDataPath)
+		fs.MustRemoveDirContents(tmpDataPath)
 		netstorage.InitTmpBlocksDir(tmpDataPath)
 		promql.InitRollupResultCache(*cacheDataPath + "/rollupResult")
 	} else {
@@ -166,8 +166,6 @@ func main() {
 		promql.StopRollupResultCache()
 	}
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
-
-	fs.MustStopDirRemover()
 
 	logger.Infof("the vmselect has been stopped")
 }
