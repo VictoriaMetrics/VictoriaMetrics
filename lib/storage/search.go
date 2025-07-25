@@ -309,14 +309,21 @@ func (s *Search) NextMetricBlock() bool {
 }
 
 func (s *Search) searchMetricName(metricName []byte, metricID uint64) ([]byte, bool) {
-	mn, found := s.idbCurr.searchMetricName(metricName, metricID, false)
+	mn := s.storage.getMetricNameFromCache(metricName, metricID)
+	if len(mn) > len(metricName) {
+		return mn, true
+	}
+
+	mn, found := s.idbCurr.searchMetricName(metricName, metricID, true)
 	if found {
+		s.storage.putMetricNameToCache(metricID, mn)
 		return mn, true
 	}
 
 	// Fallback to previous indexDB.
-	mn, found = s.idbPrev.searchMetricName(metricName, metricID, false)
+	mn, found = s.idbPrev.searchMetricName(metricName, metricID, true)
 	if found {
+		s.storage.putMetricNameToCache(metricID, mn)
 		return mn, true
 	}
 

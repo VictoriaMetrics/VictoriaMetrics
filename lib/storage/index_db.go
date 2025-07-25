@@ -357,15 +357,11 @@ func (db *indexDB) putToMetricIDCache(metricID uint64, tsid *TSID) {
 }
 
 func (db *indexDB) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
-	// There is no need in checking for deleted metricIDs here, since they
-	// must be checked by the caller.
-	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
-	return db.s.metricNameCache.Get(dst, key[:])
+	return db.s.getMetricNameFromCache(dst, metricID)
 }
 
 func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
-	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
-	db.s.metricNameCache.Set(key[:], metricName)
+	db.s.putMetricNameToCache(metricID, metricName)
 }
 
 func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versioned bool) []byte {

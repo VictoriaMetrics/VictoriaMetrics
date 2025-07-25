@@ -1258,6 +1258,18 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 	return deadline
 }
 
+func (s *Storage) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
+	// There is no need in checking for deleted metricIDs here, since they
+	// must be checked by the caller.
+	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
+	return s.metricNameCache.Get(dst, key[:])
+}
+
+func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
+	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
+	s.metricNameCache.Set(key[:], metricName)
+}
+
 // searchAndMerge concurrently performs a search operation on all IndexDBs.
 // The individual search results are then merged (merge function applied
 // only if there is more than one index).
@@ -1611,15 +1623,15 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date
 	}
 
 	qtChild := qt.NewChild("getting TSDB status in indexDB %q", idbCurr.name)
-	defer qtChild.Done()
 	res, err := idbCurr.GetTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	qtChild.Done()
 	if err != nil {
 		return nil, err
 	}
 	if !res.hasEntries() {
 		qtChild = qt.NewChild("getting TSDB status in indexDB %q", idbPrev.name)
-		defer qtChild.Done()
 		res, err = idbPrev.GetTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		qtChild.Done()
 		if err != nil {
 			return nil, err
 		}
