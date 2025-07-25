@@ -34,8 +34,7 @@ type app struct {
 	process  *os.Process
 	wait     bool
 
-	stdout     []string
-	stderr     []string
+	output     []string
 	outputLock sync.Mutex
 }
 
@@ -188,7 +187,7 @@ func (app *app) processOutput(outputName string, output io.Reader, lps ...linePr
 func (app *app) captureStdout(line string) bool {
 	app.outputLock.Lock()
 	defer app.outputLock.Unlock()
-	app.stdout = append(app.stdout, line)
+	app.output = append(app.output, line)
 	return false
 }
 
@@ -198,7 +197,7 @@ func (app *app) captureStdout(line string) bool {
 func (app *app) captureStderr(line string) bool {
 	app.outputLock.Lock()
 	defer app.outputLock.Unlock()
-	app.stderr = append(app.stderr, line)
+	app.output = append(app.output, line)
 	return false
 }
 
@@ -206,16 +205,10 @@ func (app *app) FlushOutput() {
 	app.outputLock.Lock()
 	defer app.outputLock.Unlock()
 
-	for _, line := range app.stdout {
+	for _, line := range app.output {
 		fmt.Fprintf(os.Stderr, "%s %s\n", app.instance, line)
 	}
-
-	for _, line := range app.stderr {
-		fmt.Fprintf(os.Stderr, "%s %s\n", app.instance, line)
-	}
-
-	app.stdout = nil
-	app.stderr = nil
+	app.output = nil
 }
 
 // extractREs waits until all reExtractors return the result and then returns
