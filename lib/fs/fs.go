@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
@@ -419,11 +420,12 @@ type freeSpaceEntry struct {
 }
 
 // IsScheduledForRemoval returns true if the supplied path (or name) is marked
-// for asynchronous removal. A directory is considered scheduled if
+// for removal. A directory is considered scheduled if
 // it contains a ".delete" sentinel file created by MustRemoveDirAtomic.
+// or has ".must-remove." in its name (legacy).
 func IsScheduledForRemoval(path string) bool {
 	sentinelPath := filepath.Join(path, ".delete")
-	return IsPathExist(sentinelPath)
+	return IsPathExist(sentinelPath) || strings.Contains(path, ".must-remove.")
 }
 
 // IsDirOrSymlink returns true if de is directory or symlink.
