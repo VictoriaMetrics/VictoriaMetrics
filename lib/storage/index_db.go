@@ -356,14 +356,6 @@ func (db *indexDB) putToMetricIDCache(metricID uint64, tsid *TSID) {
 	db.s.metricIDCache.Set(key[:], buf[:])
 }
 
-func (db *indexDB) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
-	return db.s.getMetricNameFromCache(dst, metricID)
-}
-
-func (db *indexDB) putMetricNameToCache(metricID uint64, metricName []byte) {
-	db.s.putMetricNameToCache(metricID, metricName)
-}
-
 func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versioned bool) []byte {
 	// There is no need in versioning the tagFilters key, since the tagFiltersToMetricIDsCache
 	// isn't persisted to disk (it is very volatile because of tagFiltersKeyGen).
@@ -1576,7 +1568,7 @@ func (th *topHeap) Pop() any {
 // and returns the result.
 func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
 	if !noCache {
-		metricName := db.getMetricNameFromCache(dst, metricID)
+		metricName := db.s.getMetricNameFromCache(dst, metricID)
 		if len(metricName) > len(dst) {
 			return metricName, true
 		}
@@ -1590,7 +1582,7 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 		// There is no need in verifying whether the given metricID is deleted,
 		// since the filtering must be performed before calling this func.
 		if !noCache {
-			db.putMetricNameToCache(metricID, dst)
+			db.s.putMetricNameToCache(metricID, dst)
 		}
 		return dst, true
 	}
@@ -1950,7 +1942,7 @@ func (is *indexSearch) getTSIDByMetricName(dst *generationTSID, metricName []byt
 }
 
 func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byte, bool) {
-	metricName := is.db.getMetricNameFromCache(dst, metricID)
+	metricName := is.db.s.getMetricNameFromCache(dst, metricID)
 	if len(metricName) > len(dst) {
 		return metricName, true
 	}
@@ -1959,7 +1951,7 @@ func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([
 	if ok {
 		// There is no need in verifying whether the given metricID is deleted,
 		// since the filtering must be performed before calling this func.
-		is.db.putMetricNameToCache(metricID, dst)
+		is.db.s.putMetricNameToCache(metricID, dst)
 		return dst, true
 	}
 	return dst, false
