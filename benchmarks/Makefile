@@ -77,7 +77,10 @@ tsbs-generate-data:
 
 # Load data into VictoriaMetrics
 tsbs-load-data:
-	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_WRITE_URLS) > $(TSBS_LOAD_RESULT_CSV_FILE) 2>/dev/tty
+	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics \
+		--workers=$(TSBS_WORKERS) \
+		--urls=$(TSBS_WRITE_URLS) \
+		2>/dev/tty | tee $(TSBS_LOAD_RESULT_CSV_FILE)
 	curl -s $(TSBS_METRICS_URL) | grep \
 		-e process_cpu_seconds_user_total \
 		-e process_cpu_seconds_system_total \
@@ -105,6 +108,15 @@ tsbs-generate-queries:
 tsbs-run-queries:
 	cat $(TSBS_QUERY_FILE) | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_READ_URLS)
 
-# Plot data of the load results
+# Plot the data load `per interval metrics/s` measurements
+#
+# To plot measurements collected during the recent benchmark, run
+# make tsbs-plot-load
+#
+# To plot the measurements from some other benchmark, run
+# make tsbs-plot-load TSBS_LOAD_RESULT_CSV_FILE=/path/to/file.csv
+#
+# To plot the measurements from two benchmarks, run
+# make tsbs-plot-load TSBS_LOAD_RESULT_CSV_FILE=/path/to/file1.csv TSBS_LOAD_RESULT_CSV_FILE_COMPARE=/path/to/file2.csv
 tsbs-plot-load:
 	$(TSBS_PLOT_SCRIPT) $(TSBS_LOAD_RESULT_CSV_FILE) $(TSBS_LOAD_RESULT_CSV_FILE_COMPARE)
