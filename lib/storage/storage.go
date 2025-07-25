@@ -1308,10 +1308,11 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 // searchAndMergeUniq is a specific searchAndMerge operation that is common for
 // most index searches. It expects each individual search to return a set of
 // strings. The results of all individual searches are then unioned and the
-// resulting set is converted into a slice.
+// resulting set is converted into a slice. If result contains more than maxResults
+// elements, it is truncated to maxResults.
 //
 // The final result is not sorted since it must be done by vmselect.
-func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error)) ([]string, error) {
+func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error), maxResults int) ([]string, error) {
 	merge := func(data []map[string]struct{}) map[string]struct{} {
 		if len(data) == 0 {
 			return nil
@@ -1322,9 +1323,16 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 			totalLen += len(d)
 		}
 
+		if totalLen > maxResults {
+			totalLen = maxResults
+		}
+
 		all := make(map[string]struct{}, totalLen)
 		for _, d := range data {
 			for v := range d {
+				if len(all) >= maxResults {
+					break
+				}
 				all[v] = struct{}{}
 			}
 		}
@@ -1361,7 +1369,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	}
-	res, err := searchAndMergeUniq(qt, s, tr, search)
+	res, err := searchAndMergeUniq(qt, s, tr, search, math.MaxInt)
 	qt.Donef("found %d metric names", len(res))
 	return res, err
 }
@@ -1434,7 +1442,7 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 	}
-	res, err := searchAndMergeUniq(qt, s, tr, search)
+	res, err := searchAndMergeUniq(qt, s, tr, search, maxLabelNames)
 	if err != nil {
 		return nil, err
 	}
@@ -1462,12 +1470,9 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	}
-	res, err := searchAndMergeUniq(qt, s, tr, search)
+	res, err := searchAndMergeUniq(qt, s, tr, search, maxLabelValues)
 	if err != nil {
 		return nil, err
-	}
-	if len(res) > maxLabelValues {
-		res = res[:maxLabelValues]
 	}
 	qt.Printf("found %d label values", len(res))
 	return res, err
@@ -1494,12 +1499,9 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 	}
-	res, err := searchAndMergeUniq(qt, s, tr, search)
+	res, err := searchAndMergeUniq(qt, s, tr, search, maxTagValueSuffixes)
 	if err != nil {
 		return nil, err
-	}
-	if len(res) > maxTagValueSuffixes {
-		res = res[:maxTagValueSuffixes]
 	}
 	qt.Printf("found %d tag value suffixes", len(res))
 	return res, err
@@ -1521,15 +1523,11 @@ func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, quer
 		return idb.SearchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
 	}
 
-	res, err := searchAndMergeUniq(qt, s, tr, search)
-
+	res, err := searchAndMergeUniq(qt, s, tr, search, maxPaths)
 	if err != nil {
 		return nil, err
 	}
-	if len(res) > maxPaths {
-		res = res[:maxPaths]
-	}
-	qt.Printf("found %d tag value suffixes", len(res))
+	qt.Printf("found %d graphite paths", len(res))
 	return res, err
 }
 
