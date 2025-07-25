@@ -1,16 +1,17 @@
 package tests
 
 import (
-	"os"
 	"testing"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestSingleExportImportNative(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -21,7 +22,7 @@ func TestSingleExportImportNative(t *testing.T) {
 }
 
 func TestClusterExportImportNative(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
