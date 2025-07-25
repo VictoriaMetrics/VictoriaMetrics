@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+**Update Note 1:** The directory-removal method now marks folders for deletion by creating a hidden `.delete` sentinel file instead of renaming them to `*.must-remove.*`. If you downgrade to a version that still expects the old `must-remove` pattern, those `.delete`-tagged folders will no longer be recognised and will persist on disk. Before running an older release, manually delete every directory that contains a `.delete` sentinel file.
+
 * FEATURE: all the VictoriaMetrics components: support netBSD builds. See this [#9473](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9473) PR for details. Thanks to the @iamleot.
 
 ## [v1.122.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.0)
