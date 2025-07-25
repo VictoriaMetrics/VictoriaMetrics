@@ -1,20 +1,21 @@
 package tests
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // TestSingleSpecialQueryRegression is used to test queries that have experienced issues for specific data sets.
 // These test cases were migrated from `app/victoria-metrics/main_test.go`.
 // Most of these cases are based on user feedback. Refer to the corresponding GitHub issue for details on each case.
 func TestSingleSpecialQueryRegression(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 

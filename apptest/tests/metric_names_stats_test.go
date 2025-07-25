@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -10,10 +9,11 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestSingleMetricNamesStats(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 	sut := tc.MustStartVmsingle("vmsingle", []string{"-storage.trackMetricNamesStats=true", "-retentionPeriod=100y"})
@@ -136,8 +136,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 }
 
 func TestClusterMetricNamesStats(t *testing.T) {
-
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()

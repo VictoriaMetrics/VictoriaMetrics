@@ -1,18 +1,18 @@
 package tests
 
 import (
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 func TestSingleIngestionProtocols(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 	sut := tc.MustStartDefaultVmsingle()
@@ -249,7 +249,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 }
 
 func TestClusterIngestionProtocols(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 	vmstorage := tc.MustStartVmstorage("vmstorage", []string{

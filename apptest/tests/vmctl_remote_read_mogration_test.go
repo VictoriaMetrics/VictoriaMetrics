@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -10,10 +9,11 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestSingleVmctlRemoteReadProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -33,7 +33,7 @@ func TestSingleVmctlRemoteReadProtocol(t *testing.T) {
 }
 
 func TestSingleVmctlRemoteReadStreamProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
@@ -54,7 +54,7 @@ func TestSingleVmctlRemoteReadStreamProtocol(t *testing.T) {
 }
 
 func TestClusterVmctlRemoteReadProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
