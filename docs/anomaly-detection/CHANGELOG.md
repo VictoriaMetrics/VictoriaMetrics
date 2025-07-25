@@ -14,6 +14,24 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.25.1
+Released: 2025-07-24
+
+- IMPROVEMENT: Introduced `train_val_ratio` and `validation_scheme` options to `optimization_params` argument in [AutoTuned](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) model wrapper to cover more corner cases, such as using `validation_scheme: leaky`, to support setting `anomaly_percentage` ~ 0.0% (e.g., belief that training data has no anomalies at all) where the most deviational part of the data distribution reside at the very beginning of the time series. This is particularly useful for datasets with very few to no anomalies, where traditional validation methods may not be effective.
+
+- IMPROVEMENT: Added [metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) for convenient alerting on [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) events:
+  - `vmanomaly_config_last_reload_success_timestamp_seconds` - timestamp of the last successful hot reload
+  - `vmanomaly_config_last_reload_successful` - gauge indicating if the last hot reload was successful (1) or not (0)
+  - also renamed `vmanomaly_hot_reload_events_total` to `vmanomaly_config_reloads_total` and `vmanomaly_hot_reload_enabled` to `vmanomaly_config_reload_enabled` [metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) to align with VictoriaMetrics' naming conventions.
+
+- BUGFIX: Prevented the `vmanomaly` service from (gracefully) shutting down when a [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) attempt fails if triggered again with erroneous config during currently processed *valid* hot reload.
+
+- BUGFIX: Return earlier with a warning and increased `vmanomaly_model_runs_skipped` in case of empty dataframe received after filtering (valid values, seen timestamps) for specific timeseries at `infer` stage - instead of propagating the empty dataframe to the deeper level (model instance internals) where it otherwise lead to increase of `vmanomaly_model_run_errors` (e.g. seeing `Dataframe has no rows` Prophet error in logs).
+
+- BUGFIX: Prevented `OneOffScheduler` and `BacktestingScheduler` [schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) from receiving no data (when [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) is enabled). Now a warning is logged and such scheduler types are implicitly used without state restoration, which is expected behavior for these one-time-job schedulers.
+
+- BUGFIX: Now the paths to artifact database (if [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#stateful-mode) is enabled) are properly resolved to absolute, preventing errors at initialization time (like `sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) unable to open database file`) or warnings (like `SAWarning: fully NULL primary key identity cannot load any object.`).
+
 ## v1.25.0
 Released: 2025-07-17
 
