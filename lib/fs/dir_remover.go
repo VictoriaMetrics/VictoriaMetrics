@@ -39,6 +39,33 @@ func MustRemoveAll(path string) {
 	}()
 }
 
+// MustRemoveAllSync removes path with all the contents similar as MustRemoveAll
+// but blocks until the removal succeeds.
+//
+// It uses the same concurrency primitives as MustRemoveAll, so MustStopDirRemover
+// waits for its completion.
+func MustRemoveAllSync(path string) {
+	if tryRemoveAll(path) {
+		return
+	}
+	select {
+	case removeDirConcurrencyCh <- struct{}{}:
+	default:
+		logger.Panicf("FATAL: cannot schedule %s for removal, since the removal queue is full (%d entries)", path, cap(removeDirConcurrencyCh))
+	}
+	dirRemoverWG.Add(1)
+	defer func() {
+		dirRemoverWG.Done()
+		<-removeDirConcurrencyCh
+	}()
+	for {
+		time.Sleep(time.Second)
+		if tryRemoveAll(path) {
+			return
+		}
+	}
+}
+
 var dirRemoverWG syncwg.WaitGroup
 
 func tryRemoveAll(path string) bool {
