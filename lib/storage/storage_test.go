@@ -1820,10 +1820,13 @@ func testCountAllMetricNamesInIndex(is *indexSearch, tr TimeRange) int {
 	}
 	metricNames := map[string]bool{}
 	var metricName []byte
-	for _, metricID := range metricIDs {
-		metricName, _ = is.searchMetricName(metricName[:0], metricID)
-		metricNames[string(metricName)] = true
-	}
+	metricIDs.ForEach(func(part []uint64) bool {
+		for _, metricID := range part {
+			metricName, _ = is.searchMetricName(metricName[:0], metricID)
+			metricNames[string(metricName)] = true
+		}
+		return true
+	})
 	return len(metricNames)
 }
 

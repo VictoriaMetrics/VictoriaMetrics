@@ -103,7 +103,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 		// As a result they cannot be searched anymore.
-		if diff := cmp.Diff([]uint64{}, searchMetricIDs()); diff != "" {
+		if diff := cmp.Diff([]uint64(nil), searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
 	})

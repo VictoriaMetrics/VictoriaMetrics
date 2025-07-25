@@ -1606,13 +1606,15 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 		// Mark the metricID as deleted, so it is created again when new sample
 		// for the given time series is ingested next time.
 		db.missingMetricNamesForMetricID.Add(1)
-		db.saveDeletedMetricIDs([]uint64{metricID})
+		dmis := &uint64set.Set{}
+		dmis.Add(metricID)
+		db.saveDeletedMetricIDs(dmis)
 	}
 
 	return dst, false
 }
 
-func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) ([]uint64, error) {
+func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
 	qt = qt.NewChild("delete series: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 	defer qt.Done()
 
@@ -1636,16 +1638,14 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 //
 // In addition, the deleted metricIDs are added to the deletedMetricIDs cache
 // and all the caches that may contain some or all of deleted metricIDs are reset.
-func (db *indexDB) saveDeletedMetricIDs(metricIDs []uint64) {
-	if len(metricIDs) == 0 {
+func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
+	if metricIDs.Len() == 0 {
 		// Nothing to delete
 		return
 	}
 
 	// atomically add deleted metricIDs to an inmemory map.
-	dmis := &uint64set.Set{}
-	dmis.AddMulti(metricIDs)
-	db.s.updateDeletedMetricIDs(dmis)
+	db.s.updateDeletedMetricIDs(metricIDs)
 
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	invalidateTagFiltersCache()
@@ -1659,11 +1659,15 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs []uint64) {
 	// remain available in the tsidCache after unclean shutdown.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	items := getIndexItems()
-	for _, metricID := range metricIDs {
-		items.B = append(items.B, nsPrefixDeletedMetricID)
-		items.B = encoding.MarshalUint64(items.B, metricID)
-		items.Next()
-	}
+	metricIDs.ForEach(func(part []uint64) bool {
+		for _, metricID := range part {
+			items.B = append(items.B, nsPrefixDeletedMetricID)
+			items.B = encoding.MarshalUint64(items.B, metricID)
+			items.Next()
+		}
+		return true
+	})
+
 	db.tb.AddItems(items.Items)
 	putIndexItems(items)
 }
@@ -1728,11 +1732,12 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 
 	// Slow path - search for metricIDs in the db
 	is := db.getIndexSearch(deadline)
-	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
+	metricIDsSet, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, fmt.Errorf("error when searching for metricIDs: %w", err)
 	}
+	metricIDs = metricIDsSet.AppendTo(nil)
 
 	// Store metricIDs in the cache.
 	db.putMetricIDsToTagFiltersCache(qt, metricIDs, tfKeyBuf.B)
@@ -1749,7 +1754,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	}
 
 	tsids := make([]TSID, len(metricIDs))
-	var metricIDsToDelete []uint64
+	metricIDsToDelete := &uint64set.Set{}
 	i := 0
 	err := func() error {
 		is := db.getIndexSearch(deadline)
@@ -1780,7 +1785,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 				// for the given time series is ingested next time.
 				if is.db.s.wasMetricIDMissingBefore(metricID) {
 					is.db.missingTSIDsForMetricID.Add(1)
-					metricIDsToDelete = append(metricIDsToDelete, metricID)
+					metricIDsToDelete.Add(metricID)
 				}
 				continue
 			}
@@ -1795,7 +1800,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	tsids = tsids[:i]
 	qt.Printf("load %d TSIDs for %d metricIDs", len(tsids), len(metricIDs))
 
-	if len(metricIDsToDelete) > 0 {
+	if metricIDsToDelete.Len() > 0 {
 		db.saveDeletedMetricIDs(metricIDsToDelete)
 	}
 	return tsids, nil
@@ -2298,7 +2303,7 @@ func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, 
 // searchMetricIDs returns metricIDs for the given tfss and tr.
 //
 // The returned metricIDs are sorted.
-func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
+func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
 	metricIDs, err := is.searchMetricIDsInternal(qt, tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, err
@@ -2308,23 +2313,11 @@ func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilter
 		return nil, nil
 	}
 
-	sortedMetricIDs := metricIDs.AppendTo(nil)
-	qt.Printf("sort %d matching metric ids", len(sortedMetricIDs))
-
 	// Filter out deleted metricIDs.
 	dmis := is.db.s.getDeletedMetricIDs()
-	if dmis.Len() > 0 {
-		metricIDsFiltered := sortedMetricIDs[:0]
-		for _, metricID := range sortedMetricIDs {
-			if !dmis.Has(metricID) {
-				metricIDsFiltered = append(metricIDsFiltered, metricID)
-			}
-		}
-		qt.Printf("left %d metric ids after removing deleted metric ids", len(metricIDsFiltered))
-		sortedMetricIDs = metricIDsFiltered
-	}
+	metricIDs.Subtract(dmis)
 
-	return sortedMetricIDs, nil
+	return metricIDs, nil
 }
 
 func errTooManyTimeseries(maxMetrics int) error {

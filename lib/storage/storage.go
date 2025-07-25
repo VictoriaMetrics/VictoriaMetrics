@@ -1397,8 +1397,8 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 	var (
-		dmisPrev []uint64
-		dmisCurr []uint64
+		dmisPrev *uint64set.Set
+		dmisCurr *uint64set.Set
 		err      error
 	)
 
@@ -1407,16 +1407,16 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	if err != nil {
 		return 0, err
 	}
-	qt.Printf("deleted %d metricIDs from previous indexDB", len(dmisPrev))
-	deletedMetricIDs.AddMulti(dmisPrev)
+	qt.Printf("deleted %d metricIDs from previous indexDB", dmisPrev.Len())
+	deletedMetricIDs.UnionMayOwn(dmisPrev)
 
 	qt.Printf("start deleting from current indexDB")
 	dmisCurr, err = idbCurr.DeleteSeries(qt, tfss, maxMetrics)
 	if err != nil {
 		return 0, err
 	}
-	qt.Printf("deleted %d metricIDs from current indexDB", len(dmisCurr))
-	deletedMetricIDs.AddMulti(dmisCurr)
+	qt.Printf("deleted %d metricIDs from current indexDB", dmisCurr.Len())
+	deletedMetricIDs.UnionMayOwn(dmisCurr)
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
