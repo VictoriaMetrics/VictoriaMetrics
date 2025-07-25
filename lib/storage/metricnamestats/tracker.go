@@ -1,6 +1,7 @@
 package metricnamestats
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -86,35 +88,41 @@ func MustLoadFrom(loadPath string, maxSizeBytes uint64) *Tracker {
 func loadFrom(loadPath string, maxSizeBytes uint64) (*Tracker, error) {
 	mt := newTracker(loadPath, maxSizeBytes)
 
-	f, err := os.Open(loadPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("cannot access file content: %w", err)
-	}
-	// fast path
-	if f == nil {
+	if !fs.IsPathExist(loadPath) {
+		// Fast path - nothing to load.
 		return mt, nil
 	}
 
-	defer f.Close()
+	data, err := os.ReadFile(loadPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read stats tracker state from %q: %w", loadPath, err)
+	}
+	bb := bytes.NewBuffer(data)
 
-	zr, err := gzip.NewReader(f)
+	zr, err := gzip.NewReader(bb)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create new gzip reader: %w", err)
 	}
-	reader := json.NewDecoder(zr)
+	defer func() {
+		if err := zr.Close(); err != nil {
+			logger.Panicf("FATAL: cannot close gzip reader: %w", err)
+		}
+	}()
+
+	jr := json.NewDecoder(zr)
 	var storedMaxSizeBytes uint64
-	if err := reader.Decode(&storedMaxSizeBytes); err != nil {
+	if err := jr.Decode(&storedMaxSizeBytes); err != nil {
 		if errors.Is(err, io.EOF) {
 			return mt, nil
 		}
 		return nil, fmt.Errorf("cannot parse maxSizeBytes: %w", err)
 	}
 	if storedMaxSizeBytes > maxSizeBytes {
-		logger.Infof("Resetting tracker state due to changed maxSizeBytes from %d to %d.", storedMaxSizeBytes, maxSizeBytes)
+		logger.Infof("resetting tracker state due to changed maxSizeBytes from %d to %d", storedMaxSizeBytes, maxSizeBytes)
 		return mt, nil
 	}
 	var creationTs uint64
-	if err := reader.Decode(&creationTs); err != nil {
+	if err := jr.Decode(&creationTs); err != nil {
 		return nil, fmt.Errorf("cannot parse creation timestamp: %w", err)
 	}
 	mt.creationTs.Store(creationTs)
@@ -122,7 +130,7 @@ func loadFrom(loadPath string, maxSizeBytes uint64) (*Tracker, error) {
 	var size uint64
 	var r recordForStore
 	for {
-		if err := reader.Decode(&r); err != nil {
+		if err := jr.Decode(&r); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
@@ -142,9 +150,6 @@ func loadFrom(loadPath string, maxSizeBytes uint64) (*Tracker, error) {
 		mt.store[key] = si
 		size += uint64(len(r.MetricName)) + storeOverhead
 		cnt++
-	}
-	if err := zr.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close gzip reader: %w", err)
 	}
 
 	mt.currentSizeBytes.Store(size)
@@ -196,48 +201,19 @@ func (mt *Tracker) MustClose() {
 	if mt == nil {
 		return
 	}
-	if err := mt.saveLocked(); err != nil {
-		logger.Panicf("cannot save tracker state at path=%q: %s", mt.cachePath, err)
-	}
+	mt.mustSaveLocked()
 }
 
-// saveLocked stores in-memory state of tracker on disk
-func (mt *Tracker) saveLocked() error {
-	// Create dir if it doesn't exist in the same manner as other caches doing
-	dir, fileName := filepath.Split(mt.cachePath)
-	if _, err := os.Stat(dir); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("cannot stat %q: %s", dir, err)
-		}
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("cannot create dir %q: %s", dir, err)
-		}
+// mustSaveLocked stores in-memory state of tracker on disk
+func (mt *Tracker) mustSaveLocked() {
+	var bb bytes.Buffer
+	zw := gzip.NewWriter(&bb)
+	jw := json.NewEncoder(zw)
+	if err := jw.Encode(mt.maxSizeBytes); err != nil {
+		logger.Panicf("BUG: cannot save encoded maxSizeBytes: %s", err)
 	}
-
-	// create temp directory in the same directory where original file located
-	// it's needed to mitigate cross block-device rename error.
-	tempDir, err := os.MkdirTemp(dir, "metricnamestats.tmp.")
-	if err != nil {
-		return fmt.Errorf("cannot create tempDir for state save: %w", err)
-	}
-	defer func() {
-		if tempDir != "" {
-			_ = os.RemoveAll(tempDir)
-		}
-	}()
-
-	f, err := os.Create(filepath.Join(tempDir, fileName))
-	if err != nil {
-		return fmt.Errorf("cannot open file for state save: %w", err)
-	}
-	defer f.Close()
-	zw := gzip.NewWriter(f)
-	writer := json.NewEncoder(zw)
-	if err := writer.Encode(mt.maxSizeBytes); err != nil {
-		return fmt.Errorf("cannot save encoded maxSizeBytes: %w", err)
-	}
-	if err := writer.Encode(mt.creationTs.Load()); err != nil {
-		return fmt.Errorf("cannot save encoded creation timestamp: %w", err)
+	if err := jw.Encode(mt.creationTs.Load()); err != nil {
+		logger.Panicf("BUG: cannot save encoded creation timestamp: %s", err)
 	}
 
 	var r recordForStore
@@ -247,18 +223,25 @@ func (mt *Tracker) saveLocked() error {
 		r.MetricName = sk.metricName
 		r.LastRequestTs = si.lastRequestTs.Load()
 		r.RequestsCount = si.requestsCount.Load()
-		if err := writer.Encode(r); err != nil {
-			return fmt.Errorf("cannot save encoded state record: %w", err)
+		if err := jw.Encode(r); err != nil {
+			logger.Panicf("BUG: cannot save encoded state record: %s", err)
 		}
 	}
 	if err := zw.Close(); err != nil {
-		return fmt.Errorf("cannot flush writer state: %w", err)
+		logger.Panicf("BUG: cannot flush writer state: %s", err)
 	}
-	// atomically save result
-	if err := os.Rename(f.Name(), mt.cachePath); err != nil {
-		return fmt.Errorf("cannot move temporary file %q to %q: %s", f.Name(), mt.cachePath, err)
+
+	// Create cachePath dir if it doesn't exist in the same manner as other caches doing
+	dir := filepath.Dir(mt.cachePath)
+	if !fs.IsPathExist(dir) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			logger.Panicf("FATAL: cannot create dir %q: %s", dir, err)
+		}
 	}
-	return nil
+
+	// Atomically store the data at mt.cachePath.
+	data := bb.Bytes()
+	fs.MustWriteAtomic(mt.cachePath, data, true)
 }
 
 // TrackerMetrics holds metrics to report
@@ -290,12 +273,10 @@ func (mt *Tracker) Reset(onReset func()) {
 	}
 	logger.Infof("resetting metric names tracker state")
 	mt.mu.Lock()
-	defer mt.mu.Unlock()
 	mt.initEmpty()
-	if err := mt.saveLocked(); err != nil {
-		logger.Panicf("during Tracker reset cannot save state: %s", err)
-	}
+	mt.mustSaveLocked()
 	onReset()
+	mt.mu.Unlock()
 }
 
 func (mt *Tracker) initEmpty() {
