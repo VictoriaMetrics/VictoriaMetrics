@@ -109,7 +109,7 @@ groups:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(f.Name()) }()
+	defer fs.MustRemovePath(f.Name())
 	writeToFile(f.Name(), rules1)
 
 	*configCheckInterval = 200 * time.Millisecond
