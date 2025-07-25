@@ -119,13 +119,13 @@ type indexDB struct {
 	name string
 	tb   *mergeset.Table
 
-	// registerNewSeries indicates whether the indexDB receives new entries or
+	// noRegisterNewSeries indicates whether the indexDB receives new entries or
 	// not.
 	//
-	// Note that setting this field to false won't disable registering new
+	// Note that setting this field to true won't disable registering new
 	// index entries (should they arrive). It is solely used to decide whether
 	// the containsTimeRange() optimization can be applied to the indexDB.
-	registerNewSeries atomic.Bool
+	noRegisterNewSeries atomic.Bool
 
 	// Cache for fast TagFilters -> MetricIDs lookup.
 	tagFiltersToMetricIDsCache *workingsetcache.Cache
@@ -158,7 +158,7 @@ func getTagFiltersCacheSize() int {
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
-func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, registerNewSeries bool) *indexDB {
+func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegisterNewSeries bool) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be non-nil")
 	}
@@ -185,7 +185,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, registerN
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}
-	db.registerNewSeries.Store(registerNewSeries)
+	db.noRegisterNewSeries.Store(noRegisterNewSeries)
 	db.incRef()
 	return db
 }
@@ -264,14 +264,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
-}
-
-func (db *indexDB) DisableNewSeriesRegistration() {
-	db.registerNewSeries.Store(false)
-}
-
-func (db *indexDB) canRegisterNewSeries() bool {
-	return db.registerNewSeries.Load()
 }
 
 // MustClose closes db.
@@ -581,7 +573,7 @@ var indexItemsPool sync.Pool
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
 func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
+	qt = qt.NewChild("search for label names in indexdb %s: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", db.name, tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
 	lns := make(map[string]struct{})
@@ -780,7 +772,8 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 
 // SearchLabelValues returns label values for the given labelName, tfss and tr.
 func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
+	qt = qt.NewChild("search for label values in indexdb %s: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", db.name, labelName, tfss, &tr, maxLabelValues, maxMetrics)
+	defer qt.Done()
 
 	key := labelName
 	if key == "__name__" {
@@ -793,7 +786,6 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 
 		lvs, err := db.searchLabelValues(qt, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
 		if err != nil {
-			qt.Donef("found %d label values", len(lvs))
 			return nil, err
 		}
 		needSlowSearch := len(lvs) == maxMetrics
@@ -809,14 +801,17 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, labelName string, t
 			needSlowSearch = false
 		}
 		if !needSlowSearch {
-			qt.Donef("found %d label values", len(lvs))
+			qt.Printf("found %d label values", len(lvs))
 			return lvs, nil
 		}
 		qt.Printf("fall back to slow search because only a subset of label values is found")
 	}
 
 	lvs, err := db.searchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
-	qt.Donef("found %d label values", len(lvs))
+	if err != nil {
+		return nil, err
+	}
+	qt.Printf("found %d label values", len(lvs))
 	return lvs, err
 }
 
@@ -838,9 +833,6 @@ func filterLabelValues(lvs map[string]struct{}, tf *tagFilter, key string) map[s
 }
 
 func (db *indexDB) searchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
-	defer qt.Done()
-
 	lvs := make(map[string]struct{})
 	is := db.getIndexSearch(deadline)
 	err := is.searchLabelValuesOnTimeRange(qt, lvs, labelName, tfss, tr, maxLabelValues, maxMetrics)
@@ -852,8 +844,6 @@ func (db *indexDB) searchLabelValues(qt *querytracer.Tracer, labelName string, t
 	// Skip empty values, since they have no any meaning.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/600
 	delete(lvs, "")
-
-	qt.Printf("found %d label values", len(lvs))
 	return lvs, nil
 }
 
@@ -1026,8 +1016,8 @@ func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs ma
 //
 // If it returns maxTagValueSuffixes suffixes, then it is likely more than maxTagValueSuffixes suffixes is found.
 func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
-		&tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	qt = qt.NewChild("search tag value suffixes in indexdb %s for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c, maxTagValueSuffixes=%d",
+		db.name, &tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	defer qt.Done()
 
 	// TODO: cache results?
@@ -1162,6 +1152,9 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{},
 }
 
 func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) (map[string]struct{}, error) {
+	qt = qt.NewChild("search for graphite paths in indexdb %s: timeRange=%s, qHead=%q, qTail=%q, maxPaths=%d", db.name, &tr, bytesutil.ToUnsafeString(qHead), bytesutil.ToUnsafeString(qTail), maxPaths)
+	defer qt.Done()
+
 	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
 		// Verify that qHead matches a metric name.
@@ -1348,9 +1341,12 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 
 // GetTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
 func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	qtChild := qt.NewChild("collect tsdb stats in the indexdb %s", db.name)
+	defer qtChild.Done()
+
 	is := db.getIndexSearch(deadline)
 	defer db.putIndexSearch(is)
-	return is.getTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics)
+	return is.getTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics)
 }
 
 // getTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
@@ -1610,34 +1606,32 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 		// Mark the metricID as deleted, so it is created again when new sample
 		// for the given time series is ingested next time.
 		db.missingMetricNamesForMetricID.Add(1)
-		db.saveDeletedMetricIDs([]uint64{metricID})
+		db.deleteMetricIDs([]uint64{metricID})
 	}
 
 	return dst, false
 }
 
 func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) ([]uint64, error) {
+	qt = qt.NewChild("delete series from indexdb %s: filters=%s, maxMetrics=%d", db.name, tfss, maxMetrics)
+	defer qt.Done()
+
 	is := db.getIndexSearch(noDeadline)
+	defer db.putIndexSearch(is)
 
 	// Unconditionally search global index since a given day in per-day
 	// index may not contain the full set of metricIDs that correspond
 	// to the tfss.
 	metricIDs, err := is.searchMetricIDs(qt, tfss, globalIndexTimeRange, maxMetrics)
-	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
 	}
 
-	db.saveDeletedMetricIDs(metricIDs)
+	db.deleteMetricIDs(metricIDs)
 	return metricIDs, nil
 }
 
-// saveDeletedMetricIDs persists the deleted metricIDs to the global index by
-// creating a separate `nsPrefixDeletedMetricID` entry for each metricID.
-//
-// In addition, the deleted metricIDs are added to the deletedMetricIDs cache
-// and all the caches that may contain some or all of deleted metricIDs are reset.
-func (db *indexDB) saveDeletedMetricIDs(metricIDs []uint64) {
+func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
 	if len(metricIDs) == 0 {
 		// Nothing to delete
 		return
@@ -1797,12 +1791,15 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	qt.Printf("load %d TSIDs for %d metricIDs", len(tsids), len(metricIDs))
 
 	if len(metricIDsToDelete) > 0 {
-		db.saveDeletedMetricIDs(metricIDsToDelete)
+		db.deleteMetricIDs(metricIDsToDelete)
 	}
 	return tsids, nil
 }
 
 func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
+	qt = qt.NewChild("search metric names in indexdb %s: filters=%s, timeRange=%s, maxMetrics=%d", db.name, tfss, &tr, maxMetrics)
+	defer qt.Done()
+
 	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1984,7 +1981,7 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 	}
 
 	db := is.db
-	if db.canRegisterNewSeries() {
+	if !db.noRegisterNewSeries.Load() {
 		// indexDB could register new time series - it is not safe to cache minMissingTimestamp
 		return true
 	}

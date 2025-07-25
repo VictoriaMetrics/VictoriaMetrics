@@ -542,7 +542,7 @@ func (s *Storage) getPrevAndCurrIndexDBs() (prev, curr *indexDB) {
 	return prev, curr
 }
 
-// getPrevAndCurrIndexDBs increments the refcount for all indexDBs (prev, curr,
+// getIndexDBs increments the refcount for all indexDBs (prev, curr,
 // and next) and returns them.
 func (s *Storage) getIndexDBs() (prev, curr, next *indexDB) {
 	s.idbLock.Lock()
@@ -914,7 +914,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	// Create new indexdb table, which will be used as idbNext
 	newTableName := nextIndexDBTableName()
 	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
-	idbNew := mustOpenIndexDB(idbNewPath, s, &s.isReadOnly, true)
+	idbNew := mustOpenIndexDB(idbNewPath, s, &s.isReadOnly, false)
 
 	// Update nextRotationTimestamp
 	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
@@ -932,7 +932,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 
 	idbPrev := s.idbPrev.Load()
 	s.idbPrev.Store(idbCurr)
-	idbCurr.DisableNewSeriesRegistration()
+	idbCurr.noRegisterNewSeries.Store(true)
 	// Schedule data removal for idbPrev
 	idbPrev.scheduleToDrop()
 	idbPrev.decRef()
@@ -1429,12 +1429,20 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
+	defer qt.Done()
+
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search)
-	qt.Donef("found %d label names", len(res))
-	return res, err
+	if err != nil {
+		return nil, err
+	}
+	if len(res) > maxLabelNames {
+		res = res[:maxLabelNames]
+	}
+	qt.Printf("found %d label names", len(res))
+	return res, nil
 }
 
 // SearchLabelValues searches for label values for the given labelName, filters
@@ -1449,11 +1457,19 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
+	defer qt.Done()
+
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	}
 	res, err := searchAndMergeUniq(qt, s, tr, search)
-	qt.Donef("found %d label values", len(res))
+	if err != nil {
+		return nil, err
+	}
+	if len(res) > maxLabelValues {
+		res = res[:maxLabelValues]
+	}
+	qt.Printf("found %d label values", len(res))
 	return res, err
 }
 
@@ -1478,7 +1494,15 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 	}
-	return searchAndMergeUniq(qt, s, tr, search)
+	res, err := searchAndMergeUniq(qt, s, tr, search)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) > maxTagValueSuffixes {
+		res = res[:maxTagValueSuffixes]
+	}
+	qt.Printf("found %d tag value suffixes", len(res))
+	return res, err
 }
 
 // SearchGraphitePaths returns all the matching paths for the given graphite
@@ -1496,7 +1520,17 @@ func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, quer
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
 	}
-	return searchAndMergeUniq(qt, s, tr, search)
+
+	res, err := searchAndMergeUniq(qt, s, tr, search)
+
+	if err != nil {
+		return nil, err
+	}
+	if len(res) > maxPaths {
+		res = res[:maxPaths]
+	}
+	qt.Printf("found %d tag value suffixes", len(res))
+	return res, err
 }
 
 // replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
@@ -2795,9 +2829,9 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 	currPath := filepath.Join(path, tableNames[1])
 	prevPath := filepath.Join(path, tableNames[0])
 
-	next = mustOpenIndexDB(nextPath, s, &s.isReadOnly, true)
-	curr = mustOpenIndexDB(currPath, s, &s.isReadOnly, true)
-	prev = mustOpenIndexDB(prevPath, s, &s.isReadOnly, false)
+	next = mustOpenIndexDB(nextPath, s, &s.isReadOnly, false)
+	curr = mustOpenIndexDB(currPath, s, &s.isReadOnly, false)
+	prev = mustOpenIndexDB(prevPath, s, &s.isReadOnly, true)
 
 	return next, curr, prev
 }
