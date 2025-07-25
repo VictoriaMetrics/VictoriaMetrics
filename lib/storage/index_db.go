@@ -573,7 +573,7 @@ var indexItemsPool sync.Pool
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
 func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
-	qt = qt.NewChild("search for label names in: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
+	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	defer qt.Done()
 
 	lns := make(map[string]struct{})
@@ -1341,12 +1341,12 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 
 // GetTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
 func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	qtChild := qt.NewChild("collect tsdb stats")
-	defer qtChild.Done()
+	qt = qt.NewChild("collect TSDB status: filters=%s, date=%d, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, date, focusLabel, topN, maxMetrics)
+	defer qt.Done()
 
 	is := db.getIndexSearch(deadline)
 	defer db.putIndexSearch(is)
-	return is.getTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics)
+	return is.getTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics)
 }
 
 // getTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.

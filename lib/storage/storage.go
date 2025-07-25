@@ -1446,9 +1446,6 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 	if err != nil {
 		return nil, err
 	}
-	if len(res) > maxLabelNames {
-		res = res[:maxLabelNames]
-	}
 	qt.Printf("found %d label names", len(res))
 	return res, nil
 }
@@ -1603,18 +1600,26 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // Otherwise, the date is ignored and the status is calculated for the entire
 // retention period, i.e. the global index are used for calculation.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	qt = qt.NewChild("getting TSDB status")
+	defer qt.Done()
+
 	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}
-	res, err := idbCurr.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+
+	qtChild := qt.NewChild("getting TSDB status in indexDB %q", idbCurr.name)
+	defer qtChild.Done()
+	res, err := idbCurr.GetTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
 	if !res.hasEntries() {
-		res, err = idbPrev.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		qtChild = qt.NewChild("getting TSDB status in indexDB %q", idbPrev.name)
+		defer qtChild.Done()
+		res, err = idbPrev.GetTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics, deadline)
 		if err != nil {
 			return nil, err
 		}
