@@ -16,6 +16,7 @@ import (
 
 var (
 	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="promremotewrite"}`)
+	metadataInserted   = metrics.NewCounter(`vmagent_metadata_inserted_total{type="promremotewrite"}`)
 	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="promremotewrite"}`)
 	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="promremotewrite"}`)
 )
@@ -27,17 +28,18 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
-	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries) error {
-		return insertRows(at, tss, extraLabels)
+	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
+		return insertRows(at, tss, mms, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.MetricMetadata, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
 	rowsTotal := 0
 	tssDst := ctx.WriteRequest.Timeseries[:0]
+	mmsDst := ctx.WriteRequest.Metadata[:0]
 	labels := ctx.Labels[:0]
 	samples := ctx.Samples[:0]
 	for i := range timeseries {
@@ -65,7 +67,25 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			Samples: samples[samplesLen:],
 		})
 	}
+	var accountID, projectID uint32
+	if at != nil {
+		accountID = at.AccountID
+		projectID = at.ProjectID
+	}
+	for i := range mms {
+		mm := &mms[i]
+		mmsDst = append(mmsDst, prompbmarshal.MetricMetadata{
+			MetricFamilyName: mm.MetricFamilyName,
+			Help:             mm.Help,
+			Type:             mm.Type,
+			Unit:             mm.Unit,
+
+			AccountID: accountID,
+			ProjectID: projectID,
+		})
+	}
 	ctx.WriteRequest.Timeseries = tssDst
+	ctx.WriteRequest.Metadata = mmsDst
 	ctx.Labels = labels
 	ctx.Samples = samples
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
@@ -75,6 +95,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)
 	}
+	metadataInserted.Add(len(mmsDst))
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil
 }

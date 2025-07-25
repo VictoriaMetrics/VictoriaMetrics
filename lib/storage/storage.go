@@ -25,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
@@ -169,6 +170,8 @@ type Storage struct {
 	isReadOnly atomic.Bool
 
 	metricsTracker *metricnamestats.Tracker
+
+	metadataStore *metricsmetadata.Store
 }
 
 type pendingHourMetricIDEntry struct {
@@ -268,6 +271,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 			s.tsidCache.Reset()
 		}
 	}
+
+	s.metadataStore = metricsmetadata.MustLoadFrom(filepath.Join(s.cachePath, "metrics_metadata"))
 
 	// Load metadata
 	metadataDir := filepath.Join(path, metadataDirname)
@@ -655,6 +660,12 @@ type Metrics struct {
 
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
+
+	MetadataStoreItemsTotal        uint64
+	MetadataStoreItemsSizeBytes    uint64
+	MetadataStoreItemsIngested     uint64
+	MetadataStoreItemsDeduplicated uint64
+	MetadataStoreItemsDeleted      uint64
 }
 
 // Reset resets m.
@@ -761,6 +772,14 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricNamesUsageTrackerSizeBytes = tm.CurrentSizeBytes
 	m.MetricNamesUsageTrackerSize = tm.CurrentItemsCount
 	m.MetricNamesUsageTrackerSizeMaxBytes = tm.MaxSizeBytes
+
+	var mr metricsmetadata.MetadataStoreMetrics
+	s.metadataStore.UpdateMetrics(&mr)
+	m.MetadataStoreItemsTotal += mr.ItemsTotal
+	m.MetadataStoreItemsIngested += mr.ItemsIngestedTotal
+	m.MetadataStoreItemsDeleted += mr.ItemsDeleted
+	m.MetadataStoreItemsDeduplicated += mr.ItemsDeduplicated
+	m.MetadataStoreItemsSizeBytes += mr.ItemsSizeBytes
 
 	d := s.nextRetentionSeconds()
 	if d < 0 {
@@ -1022,6 +1041,9 @@ func (s *Storage) MustClose() {
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
 	s.metricsTracker.MustClose()
+
+	s.metadataStore.MustClose()
+
 	// Release lock file.
 	fs.MustClose(s.flockF)
 	s.flockF = nil
@@ -2866,4 +2888,21 @@ func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, tt *TenantToken, li
 // ResetMetricNamesStats resets state for metric names usage tracker
 func (s *Storage) ResetMetricNamesStats(_ *querytracer.Tracer) {
 	s.metricsTracker.Reset(s.tsidCache.Reset)
+}
+
+func (s *Storage) GetMetadataRows(qt *querytracer.Tracer, tt *TenantToken, limit, limitPerMetric int64, metric string, _ uint64) ([]metricsmetadata.Row, error) {
+	var (
+		res []metricsmetadata.Row
+	)
+	if tt != nil {
+		res = s.metadataStore.GetForTenant(tt.AccountID, tt.ProjectID, limit, limitPerMetric, metric)
+	} else {
+		res = s.metadataStore.Get(limit, limitPerMetric, metric)
+	}
+	qt.Printf("found %d metadata rows", len(res))
+	return res, nil
+}
+
+func (s *Storage) AddMetadataRows(rows []metricsmetadata.Row) error {
+	return s.metadataStore.Add(rows)
 }
