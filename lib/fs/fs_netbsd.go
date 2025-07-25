@@ -33,7 +33,7 @@ func mustRemoveDirAtomic(dir string) {
 		if de.Name() == ".delete" {
 			continue
 		}
-		MustRemoveAll(filepath.Join(dir, de.Name()))
+		MustRemoveAllSync(filepath.Join(dir, de.Name()))
 	}
 
 	// Remove the directory together with the sentinel atomically.
