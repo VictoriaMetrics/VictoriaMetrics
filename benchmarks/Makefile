@@ -105,8 +105,6 @@ tsbs-generate-queries:
 tsbs-run-queries:
 	cat $(TSBS_QUERY_FILE) | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_READ_URLS)
 
-# Build graphs from the load results
+# Plot data of the load results
 tsbs-plot-load:
-	test -f $(TSBS_LOAD_RESULT_CSV_FILE) || (echo "Run tsbs-load-data first" && exit 1)
-	test -x $(TSBS_PLOT_SCRIPT) || chmod +x $(TSBS_PLOT_SCRIPT) && \
-    $(TSBS_PLOT_SCRIPT) $(TSBS_LOAD_RESULT_CSV_FILE) $(TSBS_LOAD_RESULT_CSV_FILE_COMPARE)
+	$(TSBS_PLOT_SCRIPT) $(TSBS_LOAD_RESULT_CSV_FILE) $(TSBS_LOAD_RESULT_CSV_FILE_COMPARE)
