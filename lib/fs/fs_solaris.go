@@ -9,15 +9,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func mustRemoveDirAtomic(dir string) {
-	n := atomicDirRemoveCounter.Add(1)
-	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
-	if err := os.Rename(dir, tmpDir); err != nil {
-		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
-	}
-	MustRemoveAll(tmpDir)
-}
-
 func mmap(fd int, length int) (data []byte, err error) {
 	return unix.Mmap(fd, 0, length, unix.PROT_READ, unix.MAP_SHARED)
 

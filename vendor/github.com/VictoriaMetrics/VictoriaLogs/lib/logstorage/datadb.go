@@ -144,7 +144,7 @@ func (pw *partWrapper) decRef() {
 	pw.p = nil
 
 	if deletePath != "" {
-		fs.MustRemoveAll(deletePath)
+		fs.MustRemoveDir(deletePath)
 	}
 }
 
@@ -570,7 +570,7 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	if needStop(stopCh) {
 		// Remove incomplete destination part
 		if dstPartType != partInmemory {
-			fs.MustRemoveAll(dstPartPath)
+			fs.MustRemoveDir(dstPartPath)
 		}
 		return
 	}
@@ -644,7 +644,7 @@ func (ddb *datadb) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *in
 	if ph.RowsCount == 0 {
 		// The created part is empty. Remove it
 		if mpNew == nil {
-			fs.MustRemoveAll(dstPartPath)
+			fs.MustRemoveDir(dstPartPath)
 		}
 		return nil
 	}
@@ -1217,7 +1217,7 @@ func mustRemoveUnusedDirs(path string, partNames []string) {
 		fn := de.Name()
 		if _, ok := m[fn]; !ok {
 			deletePath := filepath.Join(path, fn)
-			fs.MustRemoveAll(deletePath)
+			fs.MustRemoveDir(deletePath)
 			removedDirs++
 		}
 	}

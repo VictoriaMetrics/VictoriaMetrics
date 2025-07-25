@@ -106,7 +106,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	vminsert.Init()
 	vmselect.Init()
 	// storagePath will be created again when closing vmselect, so remove it again.
-	defer fs.MustRemoveAll(storagePath)
+	defer fs.MustRemoveDir(storagePath)
 	defer vminsert.Stop()
 	defer vmselect.Stop()
 	disableAlertgroupLabel = disableGroupLabel
@@ -303,7 +303,7 @@ checkCheck:
 func tearDown() {
 	vmstorage.Stop()
 	metrics.UnregisterAllMetrics()
-	fs.MustRemoveAll(storagePath)
+	fs.MustRemoveDir(storagePath)
 }
 
 func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group, externalLabels map[string]string) (checkErrs []error) {

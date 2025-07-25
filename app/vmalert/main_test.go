@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
@@ -109,7 +110,7 @@ groups:
 		t.Fatal(err)
 	}
 	defer func() { _ = os.Remove(f.Name()) }()
-	writeToFile(t, f.Name(), rules1)
+	writeToFile(f.Name(), rules1)
 
 	*configCheckInterval = 200 * time.Millisecond
 	*rulePath = []string{f.Name()}
@@ -164,7 +165,7 @@ groups:
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
 	}
 
-	writeToFile(t, f.Name(), rules2)
+	writeToFile(f.Name(), rules2)
 	time.Sleep(*configCheckInterval * 2)
 	checkCfg(nil)
 	groupsLen = lenLocked(m)
@@ -172,7 +173,7 @@ groups:
 		t.Fatalf("expected to have exactly 2 groups loaded; got %d", groupsLen)
 	}
 
-	writeToFile(t, f.Name(), rules1)
+	writeToFile(f.Name(), rules1)
 	procutil.SelfSIGHUP()
 	time.Sleep(*configCheckInterval / 2)
 	checkCfg(nil)
@@ -181,7 +182,7 @@ groups:
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
 	}
 
-	writeToFile(t, f.Name(), `corrupted`)
+	writeToFile(f.Name(), `corrupted`)
 	procutil.SelfSIGHUP()
 	time.Sleep(*configCheckInterval / 2)
 	checkCfg(fmt.Errorf("config error"))
@@ -194,10 +195,6 @@ groups:
 	<-syncCh
 }
 
-func writeToFile(t *testing.T, file, b string) {
-	t.Helper()
-	err := os.WriteFile(file, []byte(b), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
+func writeToFile(file, b string) {
+	fs.MustWriteSync(file, []byte(b))
 }

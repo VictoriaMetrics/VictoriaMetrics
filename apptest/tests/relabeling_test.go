@@ -2,13 +2,13 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -43,9 +43,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
   target_label: __name__
   `
 	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), relabelFileName)
-	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
-		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
-	}
+	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 	sut := tc.MustStartVmsingle("relabeling-ingest",
 		[]string{fmt.Sprintf(`-relabelConfig=%s`, relabelFilePath),
 			`-retentionPeriod=100y`})

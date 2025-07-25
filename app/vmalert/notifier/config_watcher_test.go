@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 )
@@ -21,7 +22,7 @@ func TestConfigWatcherReload(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(f.Name()) }()
 
-	writeToFile(t, f.Name(), `
+	writeToFile(f.Name(), `
 static_configs:
   - targets:
       - localhost:9093
@@ -43,7 +44,7 @@ static_configs:
 	}
 	defer func() { _ = os.Remove(f2.Name()) }()
 
-	writeToFile(t, f2.Name(), `
+	writeToFile(f2.Name(), `
 static_configs:
   - targets:
       - 127.0.0.1:9093
@@ -75,7 +76,7 @@ func TestConfigWatcherStart(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(consulSDFile.Name()) }()
 
-	writeToFile(t, consulSDFile.Name(), fmt.Sprintf(`
+	writeToFile(consulSDFile.Name(), fmt.Sprintf(`
 scheme: https
 path_prefix: proxy
 consul_sd_configs:
@@ -126,7 +127,7 @@ func TestConfigWatcherReloadConcurrent(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(consulSDFile.Name()) }()
 
-	writeToFile(t, consulSDFile.Name(), fmt.Sprintf(`
+	writeToFile(consulSDFile.Name(), fmt.Sprintf(`
 consul_sd_configs:
   - server: %s
     services:
@@ -142,7 +143,7 @@ consul_sd_configs:
 	}
 	defer func() { _ = os.Remove(staticAndConsulSDFile.Name()) }()
 
-	writeToFile(t, staticAndConsulSDFile.Name(), fmt.Sprintf(`
+	writeToFile(staticAndConsulSDFile.Name(), fmt.Sprintf(`
 static_configs:
   - targets:
       - localhost:9093
@@ -187,9 +188,8 @@ consul_sd_configs:
 	wg.Wait()
 }
 
-func writeToFile(t *testing.T, file, b string) {
-	t.Helper()
-	checkErr(t, os.WriteFile(file, []byte(b), 0644))
+func writeToFile(file, b string) {
+	fs.MustWriteSync(file, []byte(b))
 }
 
 func checkErr(t *testing.T, err error) {

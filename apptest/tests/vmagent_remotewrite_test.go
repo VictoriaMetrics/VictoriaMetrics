@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"sync"
 	"testing"
 
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // TestSingleVMAgentReloadConfigs verifies that vmagent reload new configurations on SIGHUP signal
@@ -23,9 +23,7 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
   target_label: label1
   `
 	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), "relabel_config.yaml")
-	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
-		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
-	}
+	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 
 	vmagent := tc.MustStartVmagent("vmagent", []string{
 		`-remoteWrite.flushInterval=50ms`,
@@ -60,9 +58,7 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
   target_label: label1
   `
 
-	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
-		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
-	}
+	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 
 	vmagent.ReloadRelabelConfigs(t)
 
