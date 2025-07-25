@@ -7,13 +7,13 @@ import (
 	"sync"
 	"testing"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // TestSingleVMAgentReloadConfigs verifies that vmagent reload new configurations on SIGHUP signal
 func TestSingleVMAgentReloadConfigs(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	vmsingle := tc.MustStartDefaultVmsingle()
@@ -35,19 +35,19 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 
 	vmsingle.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
+			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, apptest.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &apptest.PrometheusAPIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "foo_bar", "label1": "value1"}},
 		},
@@ -64,19 +64,19 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"bar_foo 1 1652169600001", // 2022-05-10T08:00:00Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 
 	vmsingle.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="bar_foo"}`, at.QueryOpts{
+			return vmsingle.PrometheusAPIV1Series(t, `{__name__="bar_foo"}`, apptest.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &apptest.PrometheusAPIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "bar_foo", "label1": "value2"}},
 		},
@@ -96,7 +96,7 @@ func TestSingleVMAgentSnappyRemoteWrite(t *testing.T) {
 }
 
 func testSingleVMAgentRemoteWrite(t *testing.T, forcePromProto bool) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	vmsingle := tc.MustStartDefaultVmsingle()
@@ -110,19 +110,19 @@ func testSingleVMAgentRemoteWrite(t *testing.T, forcePromProto bool) {
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 
 	vmsingle.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
+			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, apptest.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &apptest.PrometheusAPIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "foo_bar"}},
 		},
@@ -133,7 +133,7 @@ func testSingleVMAgentRemoteWrite(t *testing.T, forcePromProto bool) {
 // - Starts with Prometheus remote write protocol using `snappy`.
 // - Does not retry `snappy`-encoded requests if they fail; instead, they are dropped.
 func TestSingleVMAgentUnsupportedMediaTypeDropIfSnappy(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	var remoteWriteContentEncodingsMux sync.Mutex
@@ -159,13 +159,13 @@ func TestSingleVMAgentUnsupportedMediaTypeDropIfSnappy(t *testing.T) {
 
 	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 
 	vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected content encoding headers sent to remote write server; expected zstd`,
 		Got: func() any {
 			remoteWriteContentEncodingsMux.Lock()
@@ -192,7 +192,7 @@ func TestSingleVMAgentUnsupportedMediaTypeDropIfSnappy(t *testing.T) {
 // - Re-packs and retries failed requests.
 // - Sends all subsequent requests using `snappy`.
 func TestSingleVMAgentDowngradeRemoteWriteProtocol(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	var remoteWriteContentEncodings []string
@@ -223,14 +223,14 @@ func TestSingleVMAgentDowngradeRemoteWriteProtocol(t *testing.T) {
 	// Send request encoded with `zstd`; it fails, gets repacked as `snappy`, and retries successfully.
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 
 	// Send request encoded with `snappy` immediately; it succeeds without retries.
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected content encoding headers sent to remote write server`,
 		Got: func() any {
 			return remoteWriteContentEncodings
