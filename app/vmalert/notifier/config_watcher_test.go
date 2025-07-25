@@ -20,7 +20,7 @@ func TestConfigWatcherReload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(f.Name()) }()
+	defer fs.MustRemovePath(f.Name())
 
 	writeToFile(f.Name(), `
 static_configs:
@@ -42,7 +42,7 @@ static_configs:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(f2.Name()) }()
+	defer fs.MustRemovePath(f2.Name())
 
 	writeToFile(f2.Name(), `
 static_configs:
@@ -74,7 +74,7 @@ func TestConfigWatcherStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(consulSDFile.Name()) }()
+	defer fs.MustRemovePath(consulSDFile.Name())
 
 	writeToFile(consulSDFile.Name(), fmt.Sprintf(`
 scheme: https
@@ -125,7 +125,7 @@ func TestConfigWatcherReloadConcurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(consulSDFile.Name()) }()
+	defer fs.MustRemovePath(consulSDFile.Name())
 
 	writeToFile(consulSDFile.Name(), fmt.Sprintf(`
 consul_sd_configs:
@@ -141,7 +141,7 @@ consul_sd_configs:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(staticAndConsulSDFile.Name()) }()
+	defer fs.MustRemovePath(staticAndConsulSDFile.Name())
 
 	writeToFile(staticAndConsulSDFile.Name(), fmt.Sprintf(`
 static_configs:
