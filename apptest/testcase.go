@@ -326,7 +326,7 @@ func (tc *TestCase) addApp(instance string, app App) {
 	}
 	tc.startedApps[instance] = app
 	tc.t.Cleanup(func() {
-		if tc.t.Failed() {
+		if tc.t.Failed() || testing.Verbose() {
 			app.FlushOutput()
 		}
 	})
