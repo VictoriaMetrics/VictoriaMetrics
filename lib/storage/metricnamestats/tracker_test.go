@@ -59,9 +59,7 @@ func TestMetricsTracker(t *testing.T) {
 		if !cmp.Equal(expected, got, cmpOpts) {
 			t.Fatalf("unexpected GetStatsForTenant result: %s", cmp.Diff(expected, got, cmpOpts))
 		}
-		if err := mt.saveLocked(); err != nil {
-			t.Fatalf("cannot save in-memory state: %s", err)
-		}
+		mt.mustSaveLocked()
 		loadedUmt, err := loadFrom(cachePath, 100_000)
 		if err != nil {
 			t.Fatalf("cannot load restore state from disk: %s", err)
