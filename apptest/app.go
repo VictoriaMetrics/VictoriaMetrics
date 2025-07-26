@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,6 +33,9 @@ type app struct {
 	flags    []string
 	process  *os.Process
 	wait     bool
+
+	output     []string
+	outputLock sync.Mutex
 }
 
 // appOptions holds the optional configuration of an app, such as default flags
@@ -78,7 +82,7 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		wait:     opts.wait,
 	}
 
-	go app.processOutput("stdout", stdout, app.writeToStderr)
+	go app.processOutput("stdout", stdout, app.captureStdout)
 
 	lineProcessors := make([]lineProcessor, len(opts.extractREs))
 	reExtractors := make([]*reExtractor, len(opts.extractREs))
@@ -87,7 +91,7 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		reExtractors[i] = newREExtractor(re, timeout)
 		lineProcessors[i] = reExtractors[i].extractRE
 	}
-	go app.processOutput("stderr", stderr, append(lineProcessors, app.writeToStderr)...)
+	go app.processOutput("stderr", stderr, append(lineProcessors, app.captureStderr)...)
 
 	extracts, err := extractREs(reExtractors, timeout)
 	if err != nil {
@@ -177,12 +181,34 @@ func (app *app) processOutput(outputName string, output io.Reader, lps ...linePr
 	}
 }
 
-// writeToStderr is a line processor that writes the line to the stderr.
+// captureStdout is a lineProcessor that writes the line to the stderr.
 // The function always returns false to indicate its caller that each line must
 // be written to the stderr.
-func (app *app) writeToStderr(line string) bool {
-	fmt.Fprintf(os.Stderr, "%s %s\n", app.instance, line)
+func (app *app) captureStdout(line string) bool {
+	app.outputLock.Lock()
+	defer app.outputLock.Unlock()
+	app.output = append(app.output, line)
 	return false
+}
+
+// captureStderr is a lineProcessor that writes the line to the stderr.
+// The function always returns false to indicate its caller that each line must
+// be written to the stderr.
+func (app *app) captureStderr(line string) bool {
+	app.outputLock.Lock()
+	defer app.outputLock.Unlock()
+	app.output = append(app.output, line)
+	return false
+}
+
+func (app *app) FlushOutput() {
+	app.outputLock.Lock()
+	defer app.outputLock.Unlock()
+
+	for _, line := range app.output {
+		fmt.Fprintf(os.Stderr, "%s %s\n", app.instance, line)
+	}
+	app.output = nil
 }
 
 // extractREs waits until all reExtractors return the result and then returns
