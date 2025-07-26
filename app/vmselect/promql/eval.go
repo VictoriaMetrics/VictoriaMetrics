@@ -1002,10 +1002,7 @@ func getKeepMetricNames(expr metricsql.Expr) bool {
 }
 
 func doParallel(tss []*timeseries, f func(ts *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64)) {
-	workers := netstorage.MaxWorkers()
-	if workers > len(tss) {
-		workers = len(tss)
-	}
+	workers := min(netstorage.MaxWorkers(), len(tss))
 	seriesPerWorker := (len(tss) + workers - 1) / workers
 	workChs := make([]chan *timeseries, workers)
 	for i := range workChs {
@@ -1079,10 +1076,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return evalRollupFuncNoCache(qt, ecCopy, funcName, rf, expr, me, iafc, window, pointsPerSeries)
 	}
 	tooBigOffset := func(offset int64) bool {
-		maxOffset := window / 2
-		if maxOffset > 1800*1000 {
-			maxOffset = 1800 * 1000
-		}
+		maxOffset := min(window/2, 1800*1000)
 		return offset >= maxOffset
 	}
 	deleteCachedSeries := func(qt *querytracer.Tracer) {
