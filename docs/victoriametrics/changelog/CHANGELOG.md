@@ -19,6 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: all the VictoriaMetrics components: support netBSD builds. See this [#9473](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9473) PR for details. Thanks to the @iamleot.
+* FEATURE: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): disable retries for requests to `vmstorage` when handshake or dial errors occur. Retries in such cases are ineffective and can amplify the problem. See [#9345](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9345) and [#9484](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9484) for details.
 
 ## [v1.122.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.0)
 
