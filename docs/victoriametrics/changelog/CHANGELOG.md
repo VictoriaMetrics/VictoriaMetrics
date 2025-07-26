@@ -20,6 +20,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: all the VictoriaMetrics components: support netBSD builds. See this [#9473](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9473) PR for details. Thanks to the @iamleot.
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
+
 ## [v1.122.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.0)
 
 Released at 2025-07-18

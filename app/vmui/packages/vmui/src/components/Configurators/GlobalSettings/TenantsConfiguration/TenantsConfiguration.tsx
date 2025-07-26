@@ -41,7 +41,11 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
     }
   }, [search, accountIds]);
 
-  const showTenantSelector = useMemo(() => accountIds.length > 1, [accountIds]);
+  const showTenantSelector = useMemo(() => {
+    const emptyAccountIds = !accountIds.length;
+    const onlyDefaultTenant = accountIds.length === 1 && accountIds[0] === "0:0";
+    return !emptyAccountIds && !onlyDefaultTenant;
+  }, [accountIds]);
 
   const createHandlerChange = (value: string) => () => {
     const tenant = value;
