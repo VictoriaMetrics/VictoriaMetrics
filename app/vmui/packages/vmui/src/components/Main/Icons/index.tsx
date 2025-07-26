@@ -1,5 +1,23 @@
 import { getCssVariable } from "../../../utils/theme";
 
+export const AlertingRuleIcon = () => (
+  <svg
+    viewBox="-1 0 30 30"
+    fill="currentColor"
+  >
+    <path d="m3 24 3-6v-8a8 8 0 0 1 16 0v8l3 6zm11 4a2.99 2.99 0 0 1-2.816-2h5.632A2.99 2.99 0 0 1 14 28m10-10v-8c0-5.522-4.478-10-10-10S4 4.478 4 10v8l-4 8h9.101a5 5 0 0 0 9.798 0H28z"/>
+  </svg>
+);
+
+export const RecordingRuleIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M5.5 17a5.5 5.5 0 1 1 4.243-2h4.514a5.5 5.5 0 1 1 4.243 2zm-3.485-5.5a3.485 3.485 0 1 0 6.97 0 3.485 3.485 0 0 0-6.97 0m13 0a3.485 3.485 0 1 0 6.97 0 3.485 3.485 0 0 0-6.97 0"/>
+  </svg>
+);
+
 export const LogoIcon = () => (
   <svg
     viewBox="0 0 74 24"
