@@ -169,9 +169,11 @@ vmutils-windows-amd64: \
 	vmrestore-windows-amd64 \
 	vmctl-windows-amd64
 
+# When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 crossbuild:
 	$(MAKE_PARALLEL) victoria-metrics-crossbuild vmutils-crossbuild
 
+# When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 victoria-metrics-crossbuild: \
 	victoria-metrics-linux-386 \
 	victoria-metrics-linux-amd64 \
@@ -184,6 +186,7 @@ victoria-metrics-crossbuild: \
 	victoria-metrics-openbsd-amd64 \
 	victoria-metrics-windows-amd64
 
+# When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 vmutils-crossbuild: \
 	vmutils-linux-386 \
 	vmutils-linux-amd64 \
