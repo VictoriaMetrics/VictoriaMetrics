@@ -355,3 +355,25 @@ type streamTracker struct {
 	offset uint64 // nolint:unused
 	length uint64 // nolint:unused
 }
+
+// MustCloseWritersParallel closes all the wcs in parallel.
+//
+// Parallel closing reduces the time needed to flush the data to the underlying files on close
+// on high-latency storage systems such as NFS or Ceph.
+func MustCloseWritersParallel(wcs []WriteCloser) {
+	var wg sync.WaitGroup
+	concurrencyCh := make(chan struct{}, min(32, len(wcs)))
+
+	for _, wc := range wcs {
+		concurrencyCh <- struct{}{}
+		wg.Add(1)
+		go func(wc WriteCloser) {
+			defer func() {
+				wg.Done()
+				<-concurrencyCh
+			}()
+			wc.MustClose()
+		}(wc)
+	}
+	wg.Wait()
+}
