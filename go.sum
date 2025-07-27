@@ -36,8 +36,8 @@ github.com/Code-Hex/go-generics-cache v1.5.1 h1:6vhZGc5M7Y/YD8cIUcY8kcuQLB4cHR7U
 github.com/Code-Hex/go-generics-cache v1.5.1/go.mod h1:qxcC9kRVrct9rHeiYpFWSoW1vxyillCVzX13KZG8dl4=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250725215216-8de283002ba8 h1:fGtN88orLtkOa4AULJAFfqny35q0uQHUca2bXGCdtNA=
-github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250725215216-8de283002ba8/go.mod h1:owxthqh9bGf0k0juol651PUEzBpuv7ULLYcAPb3ABAg=
+github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250727175446-3ac9ad9e7935 h1:ZQy/w40wMQq0cemmguul8hFjxNx6Ipu5B2W/vnTAd1A=
+github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250727175446-3ac9ad9e7935/go.mod h1:no6id2JTO2WePm5ApFhwnVsaFJ4Lmy9u2/3hbZKHh4s=
 github.com/VictoriaMetrics/easyproto v0.1.4 h1:r8cNvo8o6sR4QShBXQd1bKw/VVLSQma/V2KhTBPf+Sc=
 github.com/VictoriaMetrics/easyproto v0.1.4/go.mod h1:QlGlzaJnDfFd8Lk6Ci/fuLxfTo3/GThPs2KH23mv710=
 github.com/VictoriaMetrics/fastcache v1.12.5 h1:966OX9JjqYmDAFdp3wEXLwzukiHIm+GVlZHv6B8KW3k=
