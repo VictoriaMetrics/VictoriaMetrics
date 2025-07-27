@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
@@ -119,22 +120,26 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 
-	fs.MustWriteStreamSync(columnNamesPath, &mp.columnNames)
-	fs.MustWriteStreamSync(columnIdxsPath, &mp.columnIdxs)
-	fs.MustWriteStreamSync(metaindexPath, &mp.metaindex)
-	fs.MustWriteStreamSync(indexPath, &mp.index)
-	fs.MustWriteStreamSync(columnsHeaderIndexPath, &mp.columnsHeaderIndex)
-	fs.MustWriteStreamSync(columnsHeaderPath, &mp.columnsHeader)
-	fs.MustWriteStreamSync(timestampsPath, &mp.timestamps)
+	var psw filestream.ParallelStreamWriter
 
-	fs.MustWriteStreamSync(messageBloomFilterPath, &mp.messageBloomValues.bloom)
-	fs.MustWriteStreamSync(messageValuesPath, &mp.messageBloomValues.values)
+	psw.Add(columnNamesPath, &mp.columnNames)
+	psw.Add(columnIdxsPath, &mp.columnIdxs)
+	psw.Add(metaindexPath, &mp.metaindex)
+	psw.Add(indexPath, &mp.index)
+	psw.Add(columnsHeaderIndexPath, &mp.columnsHeaderIndex)
+	psw.Add(columnsHeaderPath, &mp.columnsHeader)
+	psw.Add(timestampsPath, &mp.timestamps)
+
+	psw.Add(messageBloomFilterPath, &mp.messageBloomValues.bloom)
+	psw.Add(messageValuesPath, &mp.messageBloomValues.values)
 
 	bloomPath := getBloomFilePath(path, 0)
-	fs.MustWriteStreamSync(bloomPath, &mp.fieldBloomValues.bloom)
+	psw.Add(bloomPath, &mp.fieldBloomValues.bloom)
 
 	valuesPath := getValuesFilePath(path, 0)
-	fs.MustWriteStreamSync(valuesPath, &mp.fieldBloomValues.values)
+	psw.Add(valuesPath, &mp.fieldBloomValues.values)
+
+	psw.Run()
 
 	mp.ph.mustWriteMetadata(path)
 
