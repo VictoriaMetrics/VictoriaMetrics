@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -27,6 +28,13 @@ func MustSyncPathAndParentDir(path string) {
 
 // MustSyncPath syncs contents of the given path.
 func MustSyncPath(path string) {
+	if fsutil.IsFsyncDisabled() {
+		// Just check that the path exists
+		if !IsPathExist(path) {
+			logger.Panicf("FATAL: cannot fsync missing %q", path)
+		}
+		return
+	}
 	mustSyncPath(path)
 }
 
