@@ -3,6 +3,7 @@ package fs
 import (
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -42,17 +43,34 @@ func MustRemoveDir(dirPath string) {
 	MustSyncPath(dirPath)
 
 	// Remove the contents of the dirPath except of the deleteDirFilename file.
+	//
+	// Make this in parallel in order to reduce the time needed for the removal of big number of items
+	// on high-latency storage systems such as NFS.
+	// Directories for VitoriaLogs parts may contain big number of items when wide events are stored there.
+	// Also the number of parts in a partition may be quite big.
 	des := MustReadDir(dirPath)
+	var wg sync.WaitGroup
+	concurrencyCh := make(chan struct{}, min(32, len(des)-1))
 	for _, de := range des {
 		name := de.Name()
 		if name == deleteDirFilename {
 			continue
 		}
 		dirEntryPath := filepath.Join(dirPath, name)
-		if err := os.RemoveAll(dirEntryPath); err != nil {
-			logger.Panicf("FATAL: cannot remove %q: %s", dirEntryPath, err)
-		}
+
+		concurrencyCh <- struct{}{}
+		wg.Add(1)
+		go func(dirEntryPath string) {
+			defer func() {
+				wg.Done()
+				<-concurrencyCh
+			}()
+			if err := os.RemoveAll(dirEntryPath); err != nil {
+				logger.Panicf("FATAL: cannot remove %q: %s", dirEntryPath, err)
+			}
+		}(dirEntryPath)
 	}
+	wg.Wait()
 
 	// Make sure the deleted names are properly synced to the dirPath,
 	// so they are no longer visible after unclean shutdown.
