@@ -115,11 +115,15 @@ func (bsw *blockStreamWriter) MustClose() {
 	bsw.packedMetaindexBuf = encoding.CompressZSTDLevel(bsw.packedMetaindexBuf[:0], bsw.unpackedMetaindexBuf, bsw.compressLevel)
 	fs.MustWriteData(bsw.metaindexWriter, bsw.packedMetaindexBuf)
 
-	// Close all the writers.
-	bsw.metaindexWriter.MustClose()
-	bsw.indexWriter.MustClose()
-	bsw.itemsWriter.MustClose()
-	bsw.lensWriter.MustClose()
+	// Close writers in parallel in order to reduce the time needed for closing them
+	// on high-latency storage systems such as NFS or Cepth.
+	wcs := []filestream.WriteCloser{
+		bsw.metaindexWriter,
+		bsw.indexWriter,
+		bsw.itemsWriter,
+		bsw.lensWriter,
+	}
+	filestream.MustCloseWritersParallel(wcs)
 
 	bsw.reset()
 }
