@@ -130,9 +130,14 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 }
 
 func (p *part) MustClose() {
-	p.indexFile.MustClose()
-	p.itemsFile.MustClose()
-	p.lensFile.MustClose()
+	// Close files in parallel in order to speed up this process on storage systems with high latency
+	// such as NFS or Cepth.
+	cs := []fs.MustCloser{
+		p.indexFile,
+		p.itemsFile,
+		p.lensFile,
+	}
+	fs.MustCloseParallel(cs)
 
 	idxbCache.RemoveBlocksForPart(p)
 	ibCache.RemoveBlocksForPart(p)
