@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -37,16 +38,16 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	fs.MustMkdirFailIfExist(path)
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	fs.MustWriteStreamSync(metaindexPath, &mp.metaindexData)
-
 	indexPath := filepath.Join(path, indexFilename)
-	fs.MustWriteStreamSync(indexPath, &mp.indexData)
-
 	itemsPath := filepath.Join(path, itemsFilename)
-	fs.MustWriteStreamSync(itemsPath, &mp.itemsData)
-
 	lensPath := filepath.Join(path, lensFilename)
-	fs.MustWriteStreamSync(lensPath, &mp.lensData)
+
+	var psw filestream.ParallelStreamWriter
+	psw.Add(metaindexPath, &mp.metaindexData)
+	psw.Add(indexPath, &mp.indexData)
+	psw.Add(itemsPath, &mp.itemsData)
+	psw.Add(lensPath, &mp.lensData)
+	psw.Run()
 
 	mp.ph.MustWriteMetadata(path)
 
