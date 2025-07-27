@@ -317,3 +317,30 @@ type freeSpaceEntry struct {
 func IsDirOrSymlink(de os.DirEntry) bool {
 	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
+
+// MustCloser must implement MustClose() function.
+type MustCloser interface {
+	MustClose()
+}
+
+// MustCloseParallel closes all the cs in parallel.
+//
+// Parallel closing reduces the time needed to flush the data to the underlying files on close
+// on high-latency storage systems such as NFS or Ceph.
+func MustCloseParallel(cs []MustCloser) {
+	var wg sync.WaitGroup
+	concurrencyCh := make(chan struct{}, min(32, len(cs)))
+
+	for _, c := range cs {
+		concurrencyCh <- struct{}{}
+		wg.Add(1)
+		go func(c MustCloser) {
+			defer func() {
+				wg.Done()
+				<-concurrencyCh
+			}()
+			c.MustClose()
+		}(c)
+	}
+	wg.Wait()
+}

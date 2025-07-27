@@ -117,13 +117,13 @@ func (bsw *blockStreamWriter) MustClose() {
 
 	// Close writers in parallel in order to reduce the time needed for closing them
 	// on high-latency storage systems such as NFS or Cepth.
-	wcs := []filestream.WriteCloser{
+	cs := []fs.MustCloser{
 		bsw.metaindexWriter,
 		bsw.indexWriter,
 		bsw.itemsWriter,
 		bsw.lensWriter,
 	}
-	filestream.MustCloseWritersParallel(wcs)
+	fs.MustCloseParallel(cs)
 
 	bsw.reset()
 }
