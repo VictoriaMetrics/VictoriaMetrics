@@ -95,9 +95,10 @@ func (r *bloomValuesReader) totalBytesRead() uint64 {
 	return r.bloom.bytesRead + r.values.bytesRead
 }
 
-func (r *bloomValuesReader) MustClose() {
-	r.bloom.MustClose()
-	r.values.MustClose()
+func (r *bloomValuesReader) appendClosers(dst []fs.MustCloser) []fs.MustCloser {
+	dst = append(dst, &r.bloom)
+	dst = append(dst, &r.values)
+	return dst
 }
 
 type bloomValuesStreamReader struct {
@@ -178,19 +179,25 @@ func (sr *streamReaders) totalBytesRead() uint64 {
 }
 
 func (sr *streamReaders) MustClose() {
-	sr.columnNamesReader.MustClose()
-	sr.columnIdxsReader.MustClose()
-	sr.metaindexReader.MustClose()
-	sr.indexReader.MustClose()
-	sr.columnsHeaderIndexReader.MustClose()
-	sr.columnsHeaderReader.MustClose()
-	sr.timestampsReader.MustClose()
-
-	sr.messageBloomValuesReader.MustClose()
-	sr.oldBloomValuesReader.MustClose()
-	for i := range sr.bloomValuesShards {
-		sr.bloomValuesShards[i].MustClose()
+	// Close files in parallel in order to reduce the time needed for this operation
+	// on high-latency storage systems such as NFS or Ceph.
+	cs := []fs.MustCloser{
+		&sr.columnNamesReader,
+		&sr.columnIdxsReader,
+		&sr.metaindexReader,
+		&sr.indexReader,
+		&sr.columnsHeaderIndexReader,
+		&sr.columnsHeaderReader,
+		&sr.timestampsReader,
 	}
+
+	cs = sr.messageBloomValuesReader.appendClosers(cs)
+	cs = sr.oldBloomValuesReader.appendClosers(cs)
+	for i := range sr.bloomValuesShards {
+		cs = sr.bloomValuesShards[i].appendClosers(cs)
+	}
+
+	fs.MustCloseParallel(cs)
 }
 
 func (sr *streamReaders) getBloomValuesReaderForColumnName(name string) *bloomValuesReader {
