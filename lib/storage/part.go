@@ -105,9 +105,14 @@ func (p *part) String() string {
 
 // MustClose closes all the part files.
 func (p *part) MustClose() {
-	p.timestampsFile.MustClose()
-	p.valuesFile.MustClose()
-	p.indexFile.MustClose()
+	// Close files in parallel in order to speed up this process on storage systems with high latency
+	// such as NFS or Cepth.
+	cs := []fs.MustCloser{
+		p.timestampsFile,
+		p.valuesFile,
+		p.indexFile,
+	}
+	fs.MustCloseParallel(cs)
 
 	ibCache.RemoveBlocksForPart(p)
 }

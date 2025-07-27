@@ -160,9 +160,14 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 //
 // It closes *Reader files passed to Init.
 func (bsr *blockStreamReader) MustClose() {
-	bsr.timestampsReader.MustClose()
-	bsr.valuesReader.MustClose()
-	bsr.indexReader.MustClose()
+	// Close files in parallel in order to speed up this process on storage systems with high latency
+	// such as NFS or Cepth.
+	cs := []fs.MustCloser{
+		bsr.timestampsReader,
+		bsr.valuesReader,
+		bsr.indexReader,
+	}
+	fs.MustCloseParallel(cs)
 
 	bsr.reset()
 }
