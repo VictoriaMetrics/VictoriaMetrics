@@ -81,33 +81,33 @@ func (bsw *blockStreamWriter) MustInitFromInmemoryPart(mp *inmemoryPart, compres
 //
 // The bsw doesn't pollute OS page cache if nocache is set.
 func (bsw *blockStreamWriter) MustInitFromFilePart(path string, nocache bool, compressLevel int) {
+	bsw.reset()
+	bsw.compressLevel = compressLevel
+
 	path = filepath.Clean(path)
 
 	// Create the directory
 	fs.MustMkdirFailIfExist(path)
 
-	// Create part files in the directory.
+	// Create part files in the directory in parallel in order to reduce the duration
+	// of the operation on high-latency storage systems such as NFS and Ceph.
+
+	var pfc filestream.ParallelFileCreator
+
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	timestampsFile := filestream.MustCreate(timestampsPath, nocache)
-
 	valuesPath := filepath.Join(path, valuesFilename)
-	valuesFile := filestream.MustCreate(valuesPath, nocache)
-
 	indexPath := filepath.Join(path, indexFilename)
-	indexFile := filestream.MustCreate(indexPath, nocache)
+	metaindexPath := filepath.Join(path, metaindexFilename)
+
+	pfc.Add(timestampsPath, &bsw.timestampsWriter, nocache)
+	pfc.Add(valuesPath, &bsw.valuesWriter, nocache)
+	pfc.Add(indexPath, &bsw.indexWriter, nocache)
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
-	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile := filestream.MustCreate(metaindexPath, false)
+	pfc.Add(metaindexPath, &bsw.metaindexWriter, false)
 
-	bsw.reset()
-	bsw.compressLevel = compressLevel
-
-	bsw.timestampsWriter = timestampsFile
-	bsw.valuesWriter = valuesFile
-	bsw.indexWriter = indexFile
-	bsw.metaindexWriter = metaindexFile
+	pfc.Run()
 }
 
 // MustClose closes the bsw.
@@ -121,11 +121,15 @@ func (bsw *blockStreamWriter) MustClose() {
 	bsw.compressedMetaindexData = encoding.CompressZSTDLevel(bsw.compressedMetaindexData[:0], bsw.metaindexData, bsw.compressLevel)
 	fs.MustWriteData(bsw.metaindexWriter, bsw.compressedMetaindexData)
 
-	// Close writers.
-	bsw.timestampsWriter.MustClose()
-	bsw.valuesWriter.MustClose()
-	bsw.indexWriter.MustClose()
-	bsw.metaindexWriter.MustClose()
+	// Close writers in parallel in order to reduce the time needed for closing them
+	// on high-latency storage systems such as NFS or Ceph.
+	cs := []fs.MustCloser{
+		bsw.timestampsWriter,
+		bsw.valuesWriter,
+		bsw.indexWriter,
+		bsw.metaindexWriter,
+	}
+	fs.MustCloseParallel(cs)
 
 	bsw.reset()
 }

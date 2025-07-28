@@ -354,7 +354,7 @@ func (db *indexDB) decRef() {
 	}
 
 	logger.Infof("dropping indexDB %q", tbPath)
-	fs.MustRemoveDirAtomic(tbPath)
+	fs.MustRemoveDir(tbPath)
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
@@ -1775,7 +1775,7 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 		// Mark the metricID as deleted, so it is created again when new sample
 		// for the given time series is ingested next time.
 		db.missingMetricNamesForMetricID.Add(1)
-		db.deleteMetricIDs([]uint64{metricID})
+		db.saveDeletedMetricIDs([]uint64{metricID})
 	}
 
 	return dst, false
@@ -1802,7 +1802,7 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	if err != nil {
 		return 0, err
 	}
-	db.deleteMetricIDs(metricIDs)
+	db.saveDeletedMetricIDs(metricIDs)
 
 	// Delete TSIDs in the extDB.
 	deletedCount := len(metricIDs)
@@ -1819,7 +1819,12 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	return deletedCount, nil
 }
 
-func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
+// saveDeletedMetricIDs persists the deleted metricIDs to the global index by
+// creating a separate `nsPrefixDeletedMetricID` entry for each metricID.
+//
+// In addition, the deleted metricIDs are added to the deletedMetricIDs cache
+// and all the caches that may contain some or all of deleted metricIDs are reset.
+func (db *indexDB) saveDeletedMetricIDs(metricIDs []uint64) {
 	if len(metricIDs) == 0 {
 		// Nothing to delete
 		return
@@ -2075,7 +2080,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	qt.Printf("load %d tsids for %d metricIDs from both current and previous indexdb", len(tsids), len(metricIDs))
 
 	if len(metricIDsToDelete) > 0 {
-		db.deleteMetricIDs(metricIDsToDelete)
+		db.saveDeletedMetricIDs(metricIDsToDelete)
 	}
 
 	// Sort the found tsids, since they must be passed to TSID search

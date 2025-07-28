@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -39,16 +40,16 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	fs.MustMkdirFailIfExist(path)
 
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	fs.MustWriteStreamSync(timestampsPath, &mp.timestampsData)
-
 	valuesPath := filepath.Join(path, valuesFilename)
-	fs.MustWriteStreamSync(valuesPath, &mp.valuesData)
-
 	indexPath := filepath.Join(path, indexFilename)
-	fs.MustWriteStreamSync(indexPath, &mp.indexData)
-
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	fs.MustWriteStreamSync(metaindexPath, &mp.metaindexData)
+
+	var psw filestream.ParallelStreamWriter
+	psw.Add(timestampsPath, &mp.timestampsData)
+	psw.Add(valuesPath, &mp.valuesData)
+	psw.Add(indexPath, &mp.indexData)
+	psw.Add(metaindexPath, &mp.metaindexData)
+	psw.Run()
 
 	mp.ph.MustWriteMetadata(path)
 

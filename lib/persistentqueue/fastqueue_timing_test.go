@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func BenchmarkFastQueueThroughputSerial(b *testing.B) {
@@ -15,11 +16,11 @@ func BenchmarkFastQueueThroughputSerial(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-fast-queue-throughput-serial-%d", blockSize)
-			mustDeleteDir(path)
+			fs.MustRemoveDir(path)
 			fq := MustOpenFastQueue(path, "foobar", iterationsCount*2, 0, false)
 			defer func() {
 				fq.MustClose()
-				mustDeleteDir(path)
+				fs.MustRemoveDir(path)
 			}()
 			for i := 0; i < b.N; i++ {
 				writeReadIterationFastQueue(fq, block, iterationsCount)
@@ -36,11 +37,11 @@ func BenchmarkFastQueueThroughputConcurrent(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-fast-queue-throughput-concurrent-%d", blockSize)
-			mustDeleteDir(path)
+			fs.MustRemoveDir(path)
 			fq := MustOpenFastQueue(path, "foobar", iterationsCount*cgroup.AvailableCPUs()*2, 0, false)
 			defer func() {
 				fq.MustClose()
-				mustDeleteDir(path)
+				fs.MustRemoveDir(path)
 			}()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {

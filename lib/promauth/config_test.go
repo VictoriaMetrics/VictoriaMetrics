@@ -13,12 +13,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 )
 
@@ -611,11 +611,9 @@ func TestConfigHeaders(t *testing.T) {
 func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 	// Generate and save a self-signed CA certificate and a certificate signed by the CA
 	caPEM, certPEM, keyPEM := mustGenerateCertificates()
-	_ = os.WriteFile("testdata/ca.pem", caPEM, 0644)
+	fs.MustWriteSync("testdata/ca.pem", caPEM)
 
-	defer func() {
-		_ = os.Remove("testdata/ca.pem")
-	}()
+	defer fs.MustRemovePath("testdata/ca.pem")
 
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
@@ -663,7 +661,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 
 	// Update CA file with new CA and get config
 	ca2PEM, _, _ := mustGenerateCertificates()
-	_ = os.WriteFile("testdata/ca.pem", ca2PEM, 0644)
+	fs.MustWriteSync("testdata/ca.pem", ca2PEM)
 
 	// Wait for cert cache expiration
 	time.Sleep(2 * time.Second)

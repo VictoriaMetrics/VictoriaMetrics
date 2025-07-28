@@ -55,6 +55,6 @@ func tearDown() {
 	srv.Close()
 	logger.ResetOutputForTest()
 	tmpDataDir := flag.Lookup("remoteWrite.tmpDataPath").Value.String()
-	fs.MustRemoveAll(tmpDataDir)
+	fs.MustRemoveDir(tmpDataDir)
 
 }
