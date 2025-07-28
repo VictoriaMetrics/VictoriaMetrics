@@ -211,7 +211,12 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 	}
 
 	merge := func(data [][]TSID) []TSID {
-		var all []TSID
+		var n int
+		for _, d := range data {
+			n += len(d)
+		}
+		all := make([]TSID, 0, n)
+
 		seen := &uint64set.Set{}
 		for _, tsids := range data {
 			for _, tsid := range tsids {
