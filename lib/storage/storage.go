@@ -1980,6 +1980,7 @@ func SetLogNewSeries(ok bool) {
 
 var logNewSeries = false
 
+// SetLogNewSeriesUntil sets the timestamp until which new series will be logged.
 func (s *Storage) SetLogNewSeriesUntil(t uint64) {
 	s.logNewSeriesUntil.Store(t)
 }
