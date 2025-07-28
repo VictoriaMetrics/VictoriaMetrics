@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -41,7 +42,7 @@ func storageNodes(flags []string) []string {
 // StartVminsert starts an instance of vminsert with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, error) {
+func StartVminsert(instance string, flags []string, cli *Client, output io.Writer) (*Vminsert, error) {
 	extractREs := []*regexp.Regexp{
 		httpListenAddrRE,
 		vminsertClusterNativeAddrRE,
@@ -63,6 +64,7 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 			"-opentsdbListenAddr":      "127.0.0.1:0",
 		},
 		extractREs: extractREs,
+		output:     output,
 	})
 	if err != nil {
 		return nil, err

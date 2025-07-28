@@ -2,8 +2,11 @@ package apptest
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +21,7 @@ type TestCase struct {
 	t   *testing.T
 	cli *Client
 
+	output      *outputProcessor
 	startedApps map[string]Stopper
 }
 
@@ -29,7 +33,15 @@ type Stopper interface {
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
 	t.Parallel()
-	return &TestCase{t, NewClient(), make(map[string]Stopper)}
+	tc := &TestCase{t, NewClient(), &outputProcessor{make([][]byte, 0), sync.Mutex{}}, make(map[string]Stopper)}
+
+	tc.t.Cleanup(func() {
+		if tc.t.Failed() || testing.Verbose() {
+			tc.output.FlushOutput()
+		}
+	})
+
+	return tc
 }
 
 // T returns the test state.
@@ -87,7 +99,7 @@ func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle
 func (tc *TestCase) MustStartVmsingleAt(instance, binary string, flags []string) *Vmsingle {
 	tc.t.Helper()
 
-	app, err := StartVmsingleAt(instance, binary, flags, tc.cli)
+	app, err := StartVmsingleAt(instance, binary, flags, tc.cli, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -108,7 +120,7 @@ func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstora
 func (tc *TestCase) MustStartVmstorageAt(instance string, binary string, flags []string) *Vmstorage {
 	tc.t.Helper()
 
-	app, err := StartVmstorageAt(instance, binary, flags, tc.cli)
+	app, err := StartVmstorageAt(instance, binary, flags, tc.cli, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -121,7 +133,7 @@ func (tc *TestCase) MustStartVmstorageAt(instance string, binary string, flags [
 func (tc *TestCase) MustStartVmselect(instance string, flags []string) *Vmselect {
 	tc.t.Helper()
 
-	app, err := StartVmselect(instance, flags, tc.cli)
+	app, err := StartVmselect(instance, flags, tc.cli, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -134,7 +146,7 @@ func (tc *TestCase) MustStartVmselect(instance string, flags []string) *Vmselect
 func (tc *TestCase) MustStartVminsert(instance string, flags []string) *Vminsert {
 	tc.t.Helper()
 
-	app, err := StartVminsert(instance, flags, tc.cli)
+	app, err := StartVminsert(instance, flags, tc.cli, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -149,7 +161,7 @@ func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrape
 
 	promScrapeConfigFilePath := path.Join(tc.t.TempDir(), "prometheus.yml")
 	fs.MustWriteSync(promScrapeConfigFilePath, []byte(promScrapeConfigFileYAML))
-	app, err := StartVmagent(instance, flags, tc.cli, promScrapeConfigFilePath)
+	app, err := StartVmagent(instance, flags, tc.cli, promScrapeConfigFilePath, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -193,7 +205,7 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 
 	configFilePath := path.Join(tc.t.TempDir(), "config.yaml")
 	fs.MustWriteSync(configFilePath, []byte(configFileYAML))
-	app, err := StartVmauth(instance, flags, tc.cli, configFilePath)
+	app, err := StartVmauth(instance, flags, tc.cli, configFilePath, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -207,7 +219,7 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 func (tc *TestCase) MustStartVmbackup(instance, storageDataPath, snapshotCreateURL, dst string) {
 	tc.t.Helper()
 
-	if err := StartVmbackup(instance, storageDataPath, snapshotCreateURL, dst); err != nil {
+	if err := StartVmbackup(instance, storageDataPath, snapshotCreateURL, dst, tc.output); err != nil {
 		tc.t.Fatalf("vmbackup %q failed to start or exited with non-zero code: %v", instance, err)
 	}
 
@@ -222,7 +234,7 @@ func (tc *TestCase) MustStartVmbackup(instance, storageDataPath, snapshotCreateU
 func (tc *TestCase) MustStartVmrestore(instance, src, storageDataPath string) {
 	tc.t.Helper()
 
-	if err := StartVmrestore(instance, src, storageDataPath); err != nil {
+	if err := StartVmrestore(instance, src, storageDataPath, tc.output); err != nil {
 		tc.t.Fatalf("vmrestore %q failed to start or exited with non-zero code: %v", instance, err)
 	}
 
@@ -307,7 +319,7 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 func (tc *TestCase) MustStartVmctl(instance string, flags []string) {
 	tc.t.Helper()
 
-	err := StartVmctl(instance, flags)
+	err := StartVmctl(instance, flags, tc.output)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -428,4 +440,28 @@ func (tc *TestCase) Assert(opts *AssertOptions) {
 	} else {
 		tc.t.Error(msg)
 	}
+}
+
+var _ io.Writer = &outputProcessor{}
+
+type outputProcessor struct {
+	entries     [][]byte
+	entriesLock sync.Mutex
+}
+
+func (op *outputProcessor) Write(p []byte) (n int, err error) {
+	op.entriesLock.Lock()
+	defer op.entriesLock.Unlock()
+	op.entries = append(op.entries, p)
+	return len(p), nil
+}
+
+func (op *outputProcessor) FlushOutput() {
+	op.entriesLock.Lock()
+	defer op.entriesLock.Unlock()
+
+	for _, e := range op.entries {
+		_, _ = os.Stderr.Write(e)
+	}
+	op.entries = nil
 }
