@@ -301,6 +301,9 @@ func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
 
 	fs.MustMkdirFailIfExist(path)
 
+	// Open part files in parallel in order to minimze the time needed for this operation
+	// on high-latency storage systems such as NFS and Ceph.
+
 	columnNamesPath := filepath.Join(path, columnNamesFilename)
 	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
@@ -309,38 +312,49 @@ func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
 	columnsHeaderPath := filepath.Join(path, columnsHeaderFilename)
 	timestampsPath := filepath.Join(path, timestampsFilename)
 
+	var pfc filestream.ParallelFileCreator
+
 	// Always cache columnNames file, since it is re-read immediately after part creation
-	columnNamesWriter := filestream.MustCreate(columnNamesPath, false)
+	var columnNamesWriter filestream.WriteCloser
+	pfc.Add(columnNamesPath, &columnNamesWriter, false)
 
 	// Always cache columnIdxs file, since it is re-read immediately after part creation
-	columnIdxsWriter := filestream.MustCreate(columnIdxsPath, false)
+	var columnIdxsWriter filestream.WriteCloser
+	pfc.Add(columnIdxsPath, &columnIdxsWriter, false)
 
 	// Always cache metaindex file, since it is re-read immediately after part creation
-	metaindexWriter := filestream.MustCreate(metaindexPath, false)
+	var metaindexWriter filestream.WriteCloser
+	pfc.Add(metaindexPath, &metaindexWriter, false)
 
-	indexWriter := filestream.MustCreate(indexPath, nocache)
-	columnsHeaderIndexWriter := filestream.MustCreate(columnsHeaderIndexPath, nocache)
-	columnsHeaderWriter := filestream.MustCreate(columnsHeaderPath, nocache)
-	timestampsWriter := filestream.MustCreate(timestampsPath, nocache)
+	var indexWriter filestream.WriteCloser
+	pfc.Add(indexPath, &indexWriter, nocache)
+
+	var columnsHeaderIndexWriter filestream.WriteCloser
+	pfc.Add(columnsHeaderIndexPath, &columnsHeaderIndexWriter, nocache)
+
+	var columnsHeaderWriter filestream.WriteCloser
+	pfc.Add(columnsHeaderPath, &columnsHeaderWriter, nocache)
+
+	var timestampsWriter filestream.WriteCloser
+	pfc.Add(timestampsPath, &timestampsWriter, nocache)
 
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
-	messageBloomValuesWriter := bloomValuesStreamWriter{
-		bloom:  filestream.MustCreate(messageBloomFilterPath, nocache),
-		values: filestream.MustCreate(messageValuesPath, nocache),
-	}
+	var messageBloomValuesWriter bloomValuesStreamWriter
+	pfc.Add(messageBloomFilterPath, &messageBloomValuesWriter.bloom, nocache)
+	pfc.Add(messageValuesPath, &messageBloomValuesWriter.values, nocache)
+
+	pfc.Run()
 
 	createBloomValuesWriter := func(shardIdx uint64) bloomValuesStreamWriter {
 		bloomPath := getBloomFilePath(path, shardIdx)
-		bloom := filestream.MustCreate(bloomPath, nocache)
-
 		valuesPath := getValuesFilePath(path, shardIdx)
-		values := filestream.MustCreate(valuesPath, nocache)
 
-		return bloomValuesStreamWriter{
-			bloom:  bloom,
-			values: values,
-		}
+		var bvsw bloomValuesStreamWriter
+		bvsw.bloom = filestream.MustCreate(bloomPath, nocache)
+		bvsw.values = filestream.MustCreate(valuesPath, nocache)
+
+		return bvsw
 	}
 
 	bsw.streamWriters.init(columnNamesWriter, columnIdxsWriter, metaindexWriter, indexWriter,
