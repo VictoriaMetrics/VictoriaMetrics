@@ -74,34 +74,33 @@ func (bsw *blockStreamWriter) MustInitFromInmemoryPart(mp *inmemoryPart, compres
 //
 // The bsw doesn't pollute OS page cache if nocache is set.
 func (bsw *blockStreamWriter) MustInitFromFilePart(path string, nocache bool, compressLevel int) {
+	bsw.reset()
+	bsw.compressLevel = compressLevel
+
 	path = filepath.Clean(path)
 
 	// Create the directory
 	fs.MustMkdirFailIfExist(path)
 
-	// Create part files in the directory.
+	// Create part files in the directory in parallel in order to speedup the process
+	// on high-latency storage systems such as NFS or Ceph.
+
+	var pfc filestream.ParallelFileCreator
+
+	indexPath := filepath.Join(path, indexFilename)
+	itemsPath := filepath.Join(path, itemsFilename)
+	lensPath := filepath.Join(path, lensFilename)
+	metaindexPath := filepath.Join(path, metaindexFilename)
+
+	pfc.Add(indexPath, &bsw.indexWriter, nocache)
+	pfc.Add(itemsPath, &bsw.itemsWriter, nocache)
+	pfc.Add(lensPath, &bsw.lensWriter, nocache)
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
-	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile := filestream.MustCreate(metaindexPath, false)
+	pfc.Add(metaindexPath, &bsw.metaindexWriter, false)
 
-	indexPath := filepath.Join(path, indexFilename)
-	indexFile := filestream.MustCreate(indexPath, nocache)
-
-	itemsPath := filepath.Join(path, itemsFilename)
-	itemsFile := filestream.MustCreate(itemsPath, nocache)
-
-	lensPath := filepath.Join(path, lensFilename)
-	lensFile := filestream.MustCreate(lensPath, nocache)
-
-	bsw.reset()
-	bsw.compressLevel = compressLevel
-
-	bsw.metaindexWriter = metaindexFile
-	bsw.indexWriter = indexFile
-	bsw.itemsWriter = itemsFile
-	bsw.lensWriter = lensFile
+	pfc.Run()
 }
 
 // MustClose closes the bsw.
@@ -116,7 +115,7 @@ func (bsw *blockStreamWriter) MustClose() {
 	fs.MustWriteData(bsw.metaindexWriter, bsw.packedMetaindexBuf)
 
 	// Close writers in parallel in order to reduce the time needed for closing them
-	// on high-latency storage systems such as NFS or Cepth.
+	// on high-latency storage systems such as NFS or Ceph.
 	cs := []fs.MustCloser{
 		bsw.metaindexWriter,
 		bsw.indexWriter,
