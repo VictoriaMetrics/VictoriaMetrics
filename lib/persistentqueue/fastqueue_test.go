@@ -5,21 +5,23 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestFastQueueOpenClose(_ *testing.T) {
 	path := "fast-queue-open-close"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	for i := 0; i < 10; i++ {
 		fq := MustOpenFastQueue(path, "foobar", 100, 0, false)
 		fq.MustClose()
 	}
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestFastQueueWriteReadInmemory(t *testing.T) {
 	path := "fast-queue-write-read-inmemory"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 
 	capacity := 100
 	fq := MustOpenFastQueue(path, "foobar", capacity, 0, false)
@@ -47,12 +49,12 @@ func TestFastQueueWriteReadInmemory(t *testing.T) {
 		}
 	}
 	fq.MustClose()
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestFastQueueWriteReadMixed(t *testing.T) {
 	path := "fast-queue-write-read-mixed"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 
 	capacity := 100
 	fq := MustOpenFastQueue(path, "foobar", capacity, 0, false)
@@ -83,12 +85,12 @@ func TestFastQueueWriteReadMixed(t *testing.T) {
 		t.Fatalf("the number of pending bytes must be 0; got %d", n)
 	}
 	fq.MustClose()
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestFastQueueWriteReadWithCloses(t *testing.T) {
 	path := "fast-queue-write-read-with-closes"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 
 	capacity := 100
 	fq := MustOpenFastQueue(path, "foobar", capacity, 0, false)
@@ -124,12 +126,12 @@ func TestFastQueueWriteReadWithCloses(t *testing.T) {
 		t.Fatalf("the number of pending bytes must be 0; got %d", n)
 	}
 	fq.MustClose()
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestFastQueueReadUnblockByClose(t *testing.T) {
 	path := "fast-queue-read-unblock-by-close"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 
 	fq := MustOpenFastQueue(path, "foorbar", 123, 0, false)
 	resultCh := make(chan error)
@@ -154,12 +156,12 @@ func TestFastQueueReadUnblockByClose(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatalf("timeout")
 	}
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestFastQueueReadUnblockByWrite(t *testing.T) {
 	path := "fast-queue-read-unblock-by-write"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 
 	fq := MustOpenFastQueue(path, "foobar", 13, 0, false)
 	block := "foodsafdsaf sdf"
@@ -188,12 +190,12 @@ func TestFastQueueReadUnblockByWrite(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 	fq.MustClose()
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestFastQueueReadWriteConcurrent(t *testing.T) {
 	path := "fast-queue-read-write-concurrent"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 
 	fq := MustOpenFastQueue(path, "foobar", 5, 0, false)
 
@@ -287,12 +289,12 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 	fq.MustClose()
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestFastQueueWriteReadWithDisabledPQ(t *testing.T) {
 	path := "fast-queue-write-read-inmemory-disabled-pq"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 
 	capacity := 20
 	fq := MustOpenFastQueue(path, "foobar", capacity, 0, true)
@@ -323,12 +325,12 @@ func TestFastQueueWriteReadWithDisabledPQ(t *testing.T) {
 		}
 	}
 	fq.MustClose()
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestFastQueueWriteReadWithIgnoreDisabledPQ(t *testing.T) {
 	path := "fast-queue-write-read-inmemory-disabled-pq-force-write"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 
 	capacity := 20
 	fq := MustOpenFastQueue(path, "foobar", capacity, 0, true)
@@ -364,5 +366,5 @@ func TestFastQueueWriteReadWithIgnoreDisabledPQ(t *testing.T) {
 		}
 	}
 	fq.MustClose()
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }

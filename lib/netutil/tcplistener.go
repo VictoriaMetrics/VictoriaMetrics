@@ -38,7 +38,7 @@ func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Con
 		accepts:      ms.NewCounter(fmt.Sprintf(`vm_tcplistener_accepts_total{name=%q, addr=%q}`, name, addr)),
 		acceptErrors: ms.NewCounter(fmt.Sprintf(`vm_tcplistener_errors_total{name=%q, addr=%q, type="accept"}`, name, addr)),
 	}
-	tln.connMetrics.init(ms, "vm_tcplistener", name, addr)
+	tln.cm.init(ms, "vm_tcplistener", name, addr)
 	return tln, err
 }
 
@@ -81,7 +81,7 @@ type TCPListener struct {
 
 	useProxyProtocol bool
 
-	connMetrics
+	cm connMetrics
 }
 
 var proxyProtocolReadErrorLogger = logger.WithThrottler("proxyProtocolReadError", 5*time.Second)
@@ -112,10 +112,10 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			}
 			conn = pConn
 		}
-		ln.conns.Inc()
+		ln.cm.conns.Inc()
 		sc := &statConn{
 			Conn: conn,
-			cm:   &ln.connMetrics,
+			cm:   &ln.cm,
 		}
 		return sc, nil
 	}

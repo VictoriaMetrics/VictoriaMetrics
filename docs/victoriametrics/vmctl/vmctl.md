@@ -26,9 +26,9 @@ vmctl command-line tool is available as:
 
 Download and unpack vmctl:
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.120.0/vmutils-darwin-arm64-v1.120.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.122.0/vmutils-darwin-arm64-v1.122.0.tar.gz
 
-tar xzf vmutils-darwin-arm64-v1.120.0.tar.gz
+tar xzf vmutils-darwin-arm64-v1.122.0.tar.gz
 ```
 
 Once binary is unpacked, see the full list of supported modes by running the following command:

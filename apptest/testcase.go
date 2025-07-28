@@ -2,8 +2,8 @@ package apptest
 
 import (
 	"fmt"
-	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -59,7 +59,7 @@ func (tc *TestCase) Stop() {
 		app.Stop()
 	}
 	if !tc.t.Failed() {
-		fs.MustRemoveAll(tc.Dir())
+		fs.MustRemoveDir(tc.Dir())
 	}
 }
 
@@ -75,11 +75,19 @@ func (tc *TestCase) MustStartDefaultVmsingle() *Vmsingle {
 }
 
 // MustStartVmsingle is a test helper function that starts an instance of
-// vmsingle and fails the test if the app fails to start.
+// vmsingle located at ../../bin/victoria-metrics and fails the test if the app
+// fails to start.
 func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle {
 	tc.t.Helper()
+	return tc.MustStartVmsingleAt(instance, "../../bin/victoria-metrics", flags)
+}
 
-	app, err := StartVmsingle(instance, flags, tc.cli)
+// MustStartVmsingleAt is a test helper function that starts an instance of
+// vmsingle and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVmsingleAt(instance, binary string, flags []string) *Vmsingle {
+	tc.t.Helper()
+
+	app, err := StartVmsingleAt(instance, binary, flags, tc.cli)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -88,11 +96,19 @@ func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle
 }
 
 // MustStartVmstorage is a test helper function that starts an instance of
-// vmstorage and fails the test if the app fails to start.
+// vmstorage located at ../../bin/vmstorage and fails the test if the app fails
+// to start.
 func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstorage {
 	tc.t.Helper()
+	return tc.MustStartVmstorageAt(instance, "../../bin/vmstorage", flags)
+}
 
-	app, err := StartVmstorage(instance, flags, tc.cli)
+// MustStartVmstorageAt is a test helper function that starts an instance of
+// vmstorage and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVmstorageAt(instance string, binary string, flags []string) *Vmstorage {
+	tc.t.Helper()
+
+	app, err := StartVmstorageAt(instance, binary, flags, tc.cli)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -132,9 +148,7 @@ func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrape
 	tc.t.Helper()
 
 	promScrapeConfigFilePath := path.Join(tc.t.TempDir(), "prometheus.yml")
-	if err := os.WriteFile(promScrapeConfigFilePath, []byte(promScrapeConfigFileYAML), os.ModePerm); err != nil {
-		tc.t.Fatalf("cannot init vmagent: prom config file write failed: %s", err)
-	}
+	fs.MustWriteSync(promScrapeConfigFilePath, []byte(promScrapeConfigFileYAML))
 	app, err := StartVmagent(instance, flags, tc.cli, promScrapeConfigFilePath)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
@@ -178,9 +192,7 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 	tc.t.Helper()
 
 	configFilePath := path.Join(tc.t.TempDir(), "config.yaml")
-	if err := os.WriteFile(configFilePath, []byte(configFileYAML), os.ModePerm); err != nil {
-		tc.t.Fatalf("cannot init vmauth: config file write failed: %s", err)
-	}
+	fs.MustWriteSync(configFilePath, []byte(configFileYAML))
 	app, err := StartVmauth(instance, flags, tc.cli, configFilePath)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
@@ -226,9 +238,17 @@ func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {
 
 	return tc.MustStartCluster(&ClusterOptions{
 		Vmstorage1Instance: "vmstorage1",
+		Vmstorage1Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage1"),
+			"-retentionPeriod=100y",
+		},
 		Vmstorage2Instance: "vmstorage2",
-		VminsertInstance:   "vminsert",
-		VmselectInstance:   "vmselect",
+		Vmstorage2Flags: []string{
+			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage2"),
+			"-retentionPeriod=100y",
+		},
+		VminsertInstance: "vminsert",
+		VmselectInstance: "vmselect",
 	})
 }
 
@@ -245,8 +265,10 @@ func (tc *TestCase) MustStartDefaultCluster() *Vmcluster {
 // tests usually come paired with corresponding vmsingle tests.
 type ClusterOptions struct {
 	Vmstorage1Instance string
+	Vmstorage1Binary   string
 	Vmstorage1Flags    []string
 	Vmstorage2Instance string
+	Vmstorage2Binary   string
 	Vmstorage2Flags    []string
 	VminsertInstance   string
 	VminsertFlags      []string
@@ -258,17 +280,15 @@ type ClusterOptions struct {
 func (tc *TestCase) MustStartCluster(opts *ClusterOptions) *Vmcluster {
 	tc.t.Helper()
 
-	opts.Vmstorage1Flags = append(opts.Vmstorage1Flags, []string{
-		"-storageDataPath=" + tc.Dir() + "/" + opts.Vmstorage1Instance,
-		"-retentionPeriod=100y",
-	}...)
-	vmstorage1 := tc.MustStartVmstorage(opts.Vmstorage1Instance, opts.Vmstorage1Flags)
+	if opts.Vmstorage1Binary == "" {
+		opts.Vmstorage1Binary = "../../bin/vmstorage"
+	}
+	vmstorage1 := tc.MustStartVmstorageAt(opts.Vmstorage1Instance, opts.Vmstorage1Binary, opts.Vmstorage1Flags)
 
-	opts.Vmstorage2Flags = append(opts.Vmstorage2Flags, []string{
-		"-storageDataPath=" + tc.Dir() + "/" + opts.Vmstorage2Instance,
-		"-retentionPeriod=100y",
-	}...)
-	vmstorage2 := tc.MustStartVmstorage(opts.Vmstorage2Instance, opts.Vmstorage2Flags)
+	if opts.Vmstorage2Binary == "" {
+		opts.Vmstorage2Binary = "../../bin/vmstorage"
+	}
+	vmstorage2 := tc.MustStartVmstorageAt(opts.Vmstorage2Instance, opts.Vmstorage2Binary, opts.Vmstorage2Flags)
 
 	opts.VminsertFlags = append(opts.VminsertFlags, []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
@@ -408,49 +428,4 @@ func (tc *TestCase) Assert(opts *AssertOptions) {
 	} else {
 		tc.t.Error(msg)
 	}
-}
-
-// MustStartDefaultVlsingle is a test helper function that starts an instance of
-// vlsingle with defaults suitable for most tests.
-func (tc *TestCase) MustStartDefaultVlsingle() *Vlsingle {
-	tc.t.Helper()
-
-	return tc.MustStartVlsingle("vlsingle", []string{
-		"-storageDataPath=" + tc.Dir() + "/vlsingle",
-		"-retentionPeriod=100y",
-	})
-}
-
-// MustStartVlsingle is a test helper function that starts an instance of
-// vlsingle and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVlsingle(instance string, flags []string) *Vlsingle {
-	tc.t.Helper()
-
-	app, err := StartVlsingle(instance, flags, tc.cli)
-	if err != nil {
-		tc.t.Fatalf("Could not start %s: %v", instance, err)
-	}
-	tc.addApp(instance, app)
-	return app
-}
-
-// MustStartDefaultVlagent is a test helper function that starts an instance of
-// vlagent with defaults suitable for most tests.
-func (tc *TestCase) MustStartDefaultVlagent(remoteWriteURLs []string) *Vlagent {
-	tc.t.Helper()
-
-	return tc.MustStartVlagent("vlagent", remoteWriteURLs, nil)
-}
-
-// MustStartVlagent is a test helper function that starts an instance of
-// vlagent and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVlagent(instance string, remoteWriteURLs []string, flags []string) *Vlagent {
-	tc.t.Helper()
-
-	app, err := StartVlagent(instance, remoteWriteURLs, flags, tc.cli)
-	if err != nil {
-		tc.t.Fatalf("Could not start %s: %v", instance, err)
-	}
-	tc.addApp(instance, app)
-	return app
 }

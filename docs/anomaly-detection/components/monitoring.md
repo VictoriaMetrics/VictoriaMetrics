@@ -322,6 +322,36 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
             <td>Gauge</td>
             <td>Number of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#sub-configuration) **available** (`{scope="total"}`) and **used** for particular [shard](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) (`{scope="shard"}`) {{% available_from "v1.21.0" anomaly %}}</td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`vmanomaly_config_reload_enabled`</span>
+(was `vmanomaly_hot_reload_enabled` {{% deprecated_from "v1.25.1" anomaly %}})
+            </td>
+            <td>Gauge</td>
+            <td>Whether particular vmanomaly instance is run in [config hot-reload mode](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{% available_from "v1.25.0" anomaly %}}</td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`vmanomaly_config_reloads_total`</span> (was `vmanomaly_hot_reload_events_total`{{% deprecated_from "v1.25.1" anomaly %}})
+            </td>
+            <td>Counter</td>
+            <td>How many config [hot-reloads](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) were made since service started {{% available_from "v1.25.0" anomaly %}}</td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`vmanomaly_config_last_reload_successful`</span>
+            </td>
+            <td>Gauge</td>
+            <td>Whether last config [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) was successful (1) or not (0) {{% available_from "v1.25.1" anomaly %}}</td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`vmanomaly_config_last_reload_success_timestamp_seconds`</span>
+            </td>
+            <td>Gauge</td>
+            <td>Timestamp of the last successful config [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) in seconds since epoch {{% available_from "v1.25.1" anomaly %}}</td>
+        </tr>
     </tbody>
 </table>
 

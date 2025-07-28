@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import Button from "../Main/Button/Button";
 import { ClockIcon, DeleteIcon } from "../Main/Icons";
 import Tooltip from "../Main/Tooltip/Tooltip";
@@ -12,12 +12,12 @@ import { clearQueryHistoryStorage, getQueriesFromStorage, setFavoriteQueriesToSt
 import QueryHistoryItem from "./QueryHistoryItem";
 import classNames from "classnames";
 import "./style.scss";
-import { saveToStorage, StorageKeys } from "../../utils/storage";
+import { StorageKeys } from "../../utils/storage";
 import { arrayEquals } from "../../utils/array";
 
 interface Props {
   handleSelectQuery: (query: string, index: number) => void
-  historyKey: Extract<StorageKeys, "LOGS_QUERY_HISTORY" | "METRICS_QUERY_HISTORY">;
+  historyKey: Extract<StorageKeys, "METRICS_QUERY_HISTORY">;
 }
 
 export const HistoryTabTypes = {

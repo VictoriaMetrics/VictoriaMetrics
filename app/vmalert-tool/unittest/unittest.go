@@ -19,7 +19,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	vmalertconfig "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -107,12 +106,12 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	vminsert.Init()
 	vmselect.Init()
 	// storagePath will be created again when closing vmselect, so remove it again.
-	defer fs.MustRemoveAll(storagePath)
+	defer fs.MustRemoveDir(storagePath)
 	defer vminsert.Stop()
 	defer vmselect.Stop()
 	disableAlertgroupLabel = disableGroupLabel
 
-	testfiles, err := config.ReadFromFS(files)
+	testfiles, err := vmalertconfig.ReadFromFS(files)
 	if err != nil {
 		logger.Fatalf("failed to load test files %q: %v", files, err)
 	}
@@ -304,7 +303,7 @@ checkCheck:
 func tearDown() {
 	vmstorage.Stop()
 	metrics.UnregisterAllMetrics()
-	fs.MustRemoveAll(storagePath)
+	fs.MustRemoveDir(storagePath)
 }
 
 func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group, externalLabels map[string]string) (checkErrs []error) {

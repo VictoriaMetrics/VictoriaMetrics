@@ -3,11 +3,11 @@
 DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.22.0
+ROOT_IMAGE ?= alpine:3.22.1
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.22.0
+CERTS_IMAGE := alpine:3.22.1
 
-GO_BUILDER_IMAGE := golang:1.24.4-alpine
+GO_BUILDER_IMAGE := golang:1.24.5-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -235,26 +235,9 @@ docker-vm-cluster-up:
 docker-vm-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/compose-vm-cluster.yml down -v
 
-# VL single
-docker-vl-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml up -d
-
-docker-vl-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml down -v
-
-# VL cluster
-docker-vl-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml up -d
-
-docker-vl-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml down -v
-
 # Command aliases to keep backward-compatibility, as they could have been mentioned on the Internet before the rename.
 docker-single-up: docker-vm-single-up
 docker-single-down: docker-vm-single-down
 
 docker-cluster-up: docker-vm-cluster-up
 docker-cluster-down: docker-vm-cluster-down
-
-docker-victorialogs-up: docker-vl-single-up
-docker-victorialogs-down: docker-vl-single-down

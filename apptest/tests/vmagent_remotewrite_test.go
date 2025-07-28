@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"sync"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // TestSingleVMAgentReloadConfigs verifies that vmagent reload new configurations on SIGHUP signal
@@ -24,9 +23,7 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
   target_label: label1
   `
 	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), "relabel_config.yaml")
-	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
-		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
-	}
+	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 
 	vmagent := tc.MustStartVmagent("vmagent", []string{
 		`-remoteWrite.flushInterval=50ms`,
@@ -42,15 +39,15 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 
 	vmsingle.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
+			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, apptest.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &apptest.PrometheusAPIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "foo_bar", "label1": "value1"}},
 		},
@@ -61,9 +58,7 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
   target_label: label1
   `
 
-	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
-		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
-	}
+	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 
 	vmagent.ReloadRelabelConfigs(t)
 
@@ -73,15 +68,15 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 
 	vmsingle.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="bar_foo"}`, at.QueryOpts{
+			return vmsingle.PrometheusAPIV1Series(t, `{__name__="bar_foo"}`, apptest.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &apptest.PrometheusAPIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "bar_foo", "label1": "value2"}},
 		},
@@ -119,15 +114,15 @@ func testSingleVMAgentRemoteWrite(t *testing.T, forcePromProto bool) {
 
 	vmsingle.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected metrics stored on vmagent remote write`,
 		Got: func() any {
-			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, at.QueryOpts{
+			return vmsingle.PrometheusAPIV1Series(t, `{__name__="foo_bar"}`, apptest.QueryOpts{
 				Start: "2022-05-10T00:00:00Z",
 				End:   "2022-05-10T23:59:59Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &apptest.PrometheusAPIV1SeriesResponse{
 			Status: "success",
 			Data:   []map[string]string{{"__name__": "foo_bar"}},
 		},
@@ -170,7 +165,7 @@ func TestSingleVMAgentUnsupportedMediaTypeDropIfSnappy(t *testing.T) {
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
 	}, apptest.QueryOpts{})
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected content encoding headers sent to remote write server; expected zstd`,
 		Got: func() any {
 			remoteWriteContentEncodingsMux.Lock()
@@ -235,7 +230,7 @@ func TestSingleVMAgentDowngradeRemoteWriteProtocol(t *testing.T) {
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
 	}, apptest.QueryOpts{})
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: `unexpected content encoding headers sent to remote write server`,
 		Got: func() any {
 			return remoteWriteContentEncodings

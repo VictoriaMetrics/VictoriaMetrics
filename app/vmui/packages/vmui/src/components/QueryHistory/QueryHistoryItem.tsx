@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import Button from "../Main/Button/Button";
 import { CopyIcon, PlayCircleOutlineIcon, StarBorderIcon, StarIcon } from "../Main/Icons";
 import Tooltip from "../Main/Tooltip/Tooltip";
