@@ -26,6 +26,7 @@ include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
+include benchmarks/Makefile
 
 all: \
 	victoria-metrics-prod \
@@ -444,7 +445,11 @@ test-full:
 test-full-386:
 	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test: victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
+integration-test:
+	$(MAKE) apptest
+
+apptest:
+	$(MAKE) victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
 	go test ./apptest/... -skip="^TestCluster.*"
 
 benchmark:

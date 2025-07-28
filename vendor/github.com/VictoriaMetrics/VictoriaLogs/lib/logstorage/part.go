@@ -54,9 +54,10 @@ type bloomValuesReaderAt struct {
 	values fs.MustReadAtCloser
 }
 
-func (r *bloomValuesReaderAt) MustClose() {
-	r.bloom.MustClose()
-	r.values.MustClose()
+func (r *bloomValuesReaderAt) appendClosers(dst []fs.MustCloser) []fs.MustCloser {
+	dst = append(dst, r.bloom)
+	dst = append(dst, r.values)
+	return dst
 }
 
 func mustOpenInmemoryPart(pt *partition, mp *inmemoryPart) *part {
@@ -173,21 +174,27 @@ func mustOpenFilePart(pt *partition, path string) *part {
 }
 
 func mustClosePart(p *part) {
-	p.indexFile.MustClose()
+	// Close files in parallel in order to speed up this operation
+	// on high-latency storage systems such as NFS and Ceph.
+	var cs []fs.MustCloser
+
+	cs = append(cs, p.indexFile)
 	if p.ph.FormatVersion >= 1 {
-		p.columnsHeaderIndexFile.MustClose()
+		cs = append(cs, p.columnsHeaderIndexFile)
 	}
-	p.columnsHeaderFile.MustClose()
-	p.timestampsFile.MustClose()
-	p.messageBloomValues.MustClose()
+	cs = append(cs, p.columnsHeaderFile)
+	cs = append(cs, p.timestampsFile)
+	cs = p.messageBloomValues.appendClosers(cs)
 
 	if p.ph.FormatVersion < 1 {
-		p.oldBloomValues.MustClose()
+		cs = p.oldBloomValues.appendClosers(cs)
 	} else {
 		for i := range p.bloomValuesShards {
-			p.bloomValuesShards[i].MustClose()
+			cs = p.bloomValuesShards[i].appendClosers(cs)
 		}
 	}
+
+	fs.MustCloseParallel(cs)
 
 	p.pt = nil
 }

@@ -2,11 +2,12 @@ package apptest
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 var httpBuilitinListenAddrRE = regexp.MustCompile(`pprof handlers are exposed at http://(.*:\d{1,5})/debug/pprof/`)
@@ -59,9 +60,7 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 func (app *Vmauth) UpdateConfiguration(t *testing.T, configFileYAML string) {
 	t.Helper()
 	ct := int(time.Now().Unix())
-	if err := os.WriteFile(app.configFilePath, []byte(configFileYAML), os.ModePerm); err != nil {
-		t.Fatalf("unexpected error at UpdateConfiguration, cannot write configFile content: %s", err)
-	}
+	fs.MustWriteSync(app.configFilePath, []byte(configFileYAML))
 	if err := app.process.Signal(syscall.SIGHUP); err != nil {
 		t.Fatalf("unexpected signal error: %s", err)
 	}

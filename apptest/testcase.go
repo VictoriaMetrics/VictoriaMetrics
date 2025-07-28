@@ -2,7 +2,6 @@ package apptest
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"testing"
@@ -60,7 +59,7 @@ func (tc *TestCase) Stop() {
 		app.Stop()
 	}
 	if !tc.t.Failed() {
-		fs.MustRemoveAll(tc.Dir())
+		fs.MustRemoveDir(tc.Dir())
 	}
 }
 
@@ -149,9 +148,7 @@ func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrape
 	tc.t.Helper()
 
 	promScrapeConfigFilePath := path.Join(tc.t.TempDir(), "prometheus.yml")
-	if err := os.WriteFile(promScrapeConfigFilePath, []byte(promScrapeConfigFileYAML), os.ModePerm); err != nil {
-		tc.t.Fatalf("cannot init vmagent: prom config file write failed: %s", err)
-	}
+	fs.MustWriteSync(promScrapeConfigFilePath, []byte(promScrapeConfigFileYAML))
 	app, err := StartVmagent(instance, flags, tc.cli, promScrapeConfigFilePath)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
@@ -195,9 +192,7 @@ func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileY
 	tc.t.Helper()
 
 	configFilePath := path.Join(tc.t.TempDir(), "config.yaml")
-	if err := os.WriteFile(configFilePath, []byte(configFileYAML), os.ModePerm); err != nil {
-		tc.t.Fatalf("cannot init vmauth: config file write failed: %s", err)
-	}
+	fs.MustWriteSync(configFilePath, []byte(configFileYAML))
 	app, err := StartVmauth(instance, flags, tc.cli, configFilePath)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)

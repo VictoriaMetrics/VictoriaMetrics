@@ -283,7 +283,8 @@ See full list of CRD specifications [here](https://docs.victoriametrics.com/oper
 
 ### FIPS Compatibility 
 
-VictoriaMetrics Enterprise components support FIPS 140-3 compatible mode {{% available_from "v1.118.0" %}} using the BoringCrypto module (FIPS 140-3 validated by Google). Binaries and Docker images with the `-fips` suffix are built with BoringCrypto for all cryptographic operations.
+VictoriaMetrics Enterprise supports [FIPS 140-3](https://en.wikipedia.org/wiki/FIPS_140-3) compliant mode starting with version {{% available_from "v1.118.0" %}}, using the [Go FIPS 140-3 Cryptographic Module](https://go.dev/blog/fips140).
+This ensures all cryptographic operations use a validated FIPS module.
 
 Builds are available for amd64 and arm64
 
@@ -294,7 +295,7 @@ Example archive:
 Includes:
 
  * `victoria-metrics-prod` (standard)
- * `victoria-metrics-fips` (FIPS-compatible via BoringCrypto)
+ * `victoria-metrics-fips` (FIPS-compatible)
 
 Example Docker image:
 

@@ -207,10 +207,10 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
 	if fs.IsPathExist(filepath.Join(s.cachePath, resetCacheOnStartupFilename)) {
 		logger.Infof("removing cache directory at %q, since it contains `%s` file...", s.cachePath, resetCacheOnStartupFilename)
-		// Do not use fs.MustRemoveAll() here, since the cache directory may be mounted
-		// to a separate filesystem. In this case the fs.MustRemoveAll() will fail while
+		// Do not use fs.MustRemoveDir() here, since the cache directory may be mounted
+		// to a separate filesystem. In this case the fs.MustRemoveDir() will fail while
 		// trying to remove the mount root.
-		fs.RemoveDirContents(s.cachePath)
+		fs.MustRemoveDirContents(s.cachePath)
 		logger.Infof("cache directory at %q has been successfully removed", s.cachePath)
 	}
 
@@ -226,7 +226,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// Pre-create snapshots directory if it is missing.
 	snapshotsPath := filepath.Join(path, snapshotsDirname)
 	fs.MustMkdirIfNotExist(snapshotsPath)
-	fs.MustRemoveTemporaryDirs(snapshotsPath)
 
 	// Initialize series cardinality limiter.
 	if opts.MaxHourlySeries > 0 {
@@ -276,7 +275,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	idbPath := filepath.Join(path, indexdbDirname)
 	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
 	fs.MustMkdirIfNotExist(idbSnapshotsPath)
-	fs.MustRemoveTemporaryDirs(idbSnapshotsPath)
 	idbNext, idbCurr, idbPrev := s.mustOpenIndexDBTables(idbPath)
 
 	s.idbPrev.Store(idbPrev)
@@ -496,8 +494,8 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 
 	s.tb.MustDeleteSnapshot(snapshotName)
 	idbPath := filepath.Join(s.path, indexdbDirname, snapshotsDirname, snapshotName)
-	fs.MustRemoveDirAtomic(idbPath)
-	fs.MustRemoveDirAtomic(snapshotPath)
+	fs.MustRemoveDir(idbPath)
+	fs.MustRemoveDir(snapshotPath)
 
 	logger.Infof("deleted snapshot %q in %.3f seconds", snapshotPath, time.Since(startTime).Seconds())
 
@@ -1130,9 +1128,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	// Marshal e.v
 	dst = marshalUint64Set(dst, &e.v)
 
-	if err := os.WriteFile(path, dst, 0644); err != nil {
-		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
-	}
+	fs.MustWriteSync(path, dst)
 }
 
 func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
@@ -1145,9 +1141,7 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	// Marshal hm.m
 	dst = marshalUint64Set(dst, hm.m)
 
-	if err := os.WriteFile(path, dst, 0644); err != nil {
-		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
-	}
+	fs.MustWriteSync(path, dst)
 }
 
 func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
@@ -2793,7 +2787,6 @@ func (s *Storage) storeTSIDToCache(tsid *generationTSID, metricName []byte) {
 
 func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB) {
 	fs.MustMkdirIfNotExist(path)
-	fs.MustRemoveTemporaryDirs(path)
 
 	// Search for the three most recent tables - the prev, curr and next.
 	des := fs.MustReadDir(path)
@@ -2806,6 +2799,13 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 		tableName := de.Name()
 		if !indexDBTableNameRegexp.MatchString(tableName) {
 			// Skip invalid directories.
+			continue
+		}
+		tableDirPath := filepath.Join(path, tableName)
+		if fs.IsPartiallyRemovedDir(tableDirPath) {
+			// Finish the removal of partially deleted directory, which can occur
+			// when the directory was removed during unclean shutdown.
+			fs.MustRemoveDir(tableDirPath)
 			continue
 		}
 		tableNames = append(tableNames, tableName)
@@ -2831,7 +2831,7 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 		for _, tn := range tableNames[:len(tableNames)-3] {
 			pathToRemove := filepath.Join(path, tn)
 			logger.Infof("removing obsolete indexdb dir %q...", pathToRemove)
-			fs.MustRemoveAll(pathToRemove)
+			fs.MustRemoveDir(pathToRemove)
 			logger.Infof("removed obsolete indexdb dir %q", pathToRemove)
 		}
 		fs.MustSyncPath(path)
