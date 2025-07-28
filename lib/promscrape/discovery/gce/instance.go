@@ -181,11 +181,11 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, project, tagSepa
 	if len(iface.Ipv6AccessConfigs) > 0 {
 		ac := iface.Ipv6AccessConfigs[0]
 		if ac.Type == "DIRECT_IPV6" {
-			m.Add("__meta_gce_ipv6", ac.ExternalIpv6)
+			m.Add("__meta_gce_public_ipv6", ac.ExternalIpv6)
 		}
 	}
 	if iface.Ipv6Address != "" {
-		m.Add("__meta_gce_ipv6", iface.Ipv6Address)
+		m.Add("__meta_gce_internal_ipv6", iface.Ipv6Address)
 	}
 	ms = append(ms, m)
 	return ms
