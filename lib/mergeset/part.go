@@ -93,17 +93,28 @@ func mustOpenFilePart(path string) *part {
 	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
+	// Open part files in parallel in order to speed up this process
+	// on high-latency storage systems such as NFS or Ceph.
+
+	var pro fs.ParallelReaderAtOpener
+
 	indexPath := filepath.Join(path, indexFilename)
-	indexFile := fs.MustOpenReaderAt(indexPath)
-	indexSize := fs.MustFileSize(indexPath)
-
 	itemsPath := filepath.Join(path, itemsFilename)
-	itemsFile := fs.MustOpenReaderAt(itemsPath)
-	itemsSize := fs.MustFileSize(itemsPath)
-
 	lensPath := filepath.Join(path, lensFilename)
-	lensFile := fs.MustOpenReaderAt(lensPath)
-	lensSize := fs.MustFileSize(lensPath)
+
+	var indexFile fs.MustReadAtCloser
+	var indexSize uint64
+	pro.Add(indexPath, &indexFile, &indexSize)
+
+	var itemsFile fs.MustReadAtCloser
+	var itemsSize uint64
+	pro.Add(itemsPath, &itemsFile, &itemsSize)
+
+	var lensFile fs.MustReadAtCloser
+	var lensSize uint64
+	pro.Add(lensPath, &lensFile, &lensSize)
+
+	pro.Run()
 
 	size := metaindexSize + indexSize + itemsSize + lensSize
 	return newPart(&ph, path, size, metaindexFile, indexFile, itemsFile, lensFile)
@@ -131,7 +142,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 
 func (p *part) MustClose() {
 	// Close files in parallel in order to speed up this process on storage systems with high latency
-	// such as NFS or Cepth.
+	// such as NFS or Ceph.
 	cs := []fs.MustCloser{
 		p.indexFile,
 		p.itemsFile,
