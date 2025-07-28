@@ -111,7 +111,7 @@ github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/shared
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/version
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/managedidentity
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/public
-# github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250727175446-3ac9ad9e7935
+# github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250728123024-98593029b5aa
 ## explicit; go 1.24.5
 github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage
 github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter
