@@ -107,7 +107,6 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	}
 
 	resetResponseCacheIfNeeded = resetCacheIfNeeded
-	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
@@ -130,6 +129,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		MaxDailySeries:        *maxDailySeries,
 		DisablePerDayIndex:    *disablePerDayIndex,
 		TrackMetricNamesStats: *trackMetricNamesStats,
+		LogNewSeries:          *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*DataPath, opts)
 	Storage = strg

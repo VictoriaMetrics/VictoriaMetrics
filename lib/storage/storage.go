@@ -170,7 +170,10 @@ type Storage struct {
 
 	metricsTracker *metricnamestats.Tracker
 
-	// logNewSeriesUntil is used for logging the new series
+	// logNewSeries is used for logging the new series. We will log new series when logNewSeries is true or logNewSeriesUntil is greater than the current time.
+	logNewSeries atomic.Bool
+
+	// logNewSeriesUntil is the timestamp until which new series will be logged. We will log new series when logNewSeries is true or logNewSeriesUntil is greater than the current time.
 	logNewSeriesUntil atomic.Uint64
 }
 
@@ -181,6 +184,7 @@ type OpenOptions struct {
 	MaxDailySeries        int
 	DisablePerDayIndex    bool
 	TrackMetricNamesStats bool
+	LogNewSeries          bool
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -289,6 +293,9 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
 	s.nextRotationTimestamp.Store(nextRotationTimestamp)
+
+	// Initialize logNewSeries
+	s.SetLogNewSeries(opts.LogNewSeries)
 
 	// Load nextDayMetricIDs cache
 	date := fasttime.UnixDate()
@@ -1742,6 +1749,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 }
 
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) int {
+	logNewSeries := s.logNewSeries.Load() || s.logNewSeriesUntil.Load() >= fasttime.UnixTimestamp()
 	idb, idbNext, putIndexDBs := s.getCurrAndNextIndexDBs()
 	defer putIndexDBs()
 	generation := idb.generation
@@ -1930,7 +1938,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		addToPendingHourEntries(hour, genTSID.TSID.MetricID)
 
-		if logNewSeries || (s.logNewSeriesUntil.Load() >= fasttime.UnixTimestamp()) {
+		if logNewSeries {
 			logger.Infof("new series created: %s", mn.String())
 		}
 	}
@@ -1974,11 +1982,9 @@ var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
 // SetLogNewSeries updates new series logging.
 //
 // This function must be called before any calling any storage functions.
-func SetLogNewSeries(ok bool) {
-	logNewSeries = ok
+func (s *Storage) SetLogNewSeries(ok bool) {
+	s.logNewSeries.Store(ok)
 }
-
-var logNewSeries = false
 
 // SetLogNewSeriesUntil sets the timestamp until which new series will be logged.
 func (s *Storage) SetLogNewSeriesUntil(t uint64) {
