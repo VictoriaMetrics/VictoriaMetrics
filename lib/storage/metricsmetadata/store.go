@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -90,9 +91,7 @@ func (s *Store) MustClose() {
 	close(s.cleanupStopCh)
 	s.cleanupWG.Wait()
 	s.metricMetadataStorageLock.Lock()
-	if err := s.saveLocked(); err != nil {
-		logger.Panicf("cannot save metrics metadata at %q: %s", s.storagePath, err)
-	}
+	s.mustSaveLocked()
 	s.metricMetadataStorageLock.Unlock()
 }
 
@@ -294,41 +293,22 @@ func (s *Store) UpdateMetrics(dst *MetadataStoreMetrics) {
 	dst.ItemsDeleted = s.itemsDeleted
 	dst.ItemsSizeBytes = uint64(totalSize)
 }
-func (s *Store) saveLocked() error {
+func (s *Store) mustSaveLocked() {
 	if s.storagePath == "" {
-		return nil
+		return
 	}
 
-	// Create dir if it doesn't exist in the same manner as other caches doing
-	dir, fileName := filepath.Split(s.storagePath)
-	if _, err := os.Stat(dir); err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("cannot stat %q: %s", dir, err)
-		}
+	// Create cachePath dir if it doesn't exist in the same manner as other caches doing
+	dir := filepath.Dir(s.storagePath)
+	if !fs.IsPathExist(dir) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("cannot create dir %q: %s", dir, err)
+			logger.Fatalf("cannot create dir %q: %s", dir, err)
 		}
 	}
 
-	// create temp directory in the same directory where original file located
-	// it's needed to mitigate cross block-device rename error.
-	tempDir, err := os.MkdirTemp(dir, "metricsmetadata.tmp.")
-	if err != nil {
-		return fmt.Errorf("cannot create tempDir for state save: %w", err)
-	}
-	defer func() {
-		if tempDir != "" {
-			_ = os.RemoveAll(tempDir)
-		}
-	}()
-
-	f, err := os.Create(filepath.Join(tempDir, fileName))
-	if err != nil {
-		return fmt.Errorf("cannot open file for state save: %w", err)
-	}
-	defer f.Close()
-	zw := gzip.NewWriter(f)
-	writer := json.NewEncoder(zw)
+	var bb bytes.Buffer
+	zw := gzip.NewWriter(&bb)
+	je := json.NewEncoder(zw)
 
 	var r recordForStore
 	for key, rows := range s.MetricsMetadataStorage {
@@ -341,45 +321,48 @@ func (s *Store) saveLocked() error {
 		} else {
 			r.TimingInfo = metricTimingInfo{}
 		}
-		if err := writer.Encode(r); err != nil {
-			return fmt.Errorf("cannot save encoded record for %q: %w", key.metricFamilyName, err)
+		if err := je.Encode(r); err != nil {
+			logger.Fatalf("cannot save encoded record for %q: %s", key.metricFamilyName, err)
 		}
 	}
-
 	if err := zw.Close(); err != nil {
-		return fmt.Errorf("cannot flush writer state: %w", err)
-	}
-	// atomically save result
-	if err := os.Rename(f.Name(), s.storagePath); err != nil {
-		return fmt.Errorf("cannot move temporary file %q to %q: %s", f.Name(), s.storagePath, err)
+		logger.Fatalf("cannot close gzip writer: %s", err)
 	}
 
-	return nil
+	// Atomically store the data
+	data := bb.Bytes()
+	fs.MustWriteAtomic(s.storagePath, data, true)
+
 }
 
 func (s *Store) LoadFrom(path string) error {
 	s.storagePath = path
 
-	f, err := os.Open(s.storagePath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("cannot access file content: %w", err)
-	}
 	// fast path
-	if f == nil {
+	if !fs.IsPathExist(s.storagePath) {
 		return nil
 	}
 
-	defer f.Close()
+	data, err := os.ReadFile(s.storagePath)
+	if err != nil {
+		return fmt.Errorf("cannot read metrics metadata from %q: %w", s.storagePath, err)
+	}
 
-	zr, err := gzip.NewReader(f)
+	bb := bytes.NewBuffer(data)
+	zr, err := gzip.NewReader(bb)
 	if err != nil {
 		return fmt.Errorf("cannot create new gzip reader: %w", err)
 	}
-	reader := json.NewDecoder(zr)
+	defer func() {
+		if err := zr.Close(); err != nil {
+			logger.Panicf("FATAL: cannot close gzip reader: %s", err)
+		}
+	}()
+	jd := json.NewDecoder(zr)
 
 	var r recordForStore
 	for {
-		if err := reader.Decode(&r); err != nil {
+		if err := jd.Decode(&r); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
@@ -394,10 +377,6 @@ func (s *Store) LoadFrom(path string) error {
 		s.MetricTimingInfo[key] = r.TimingInfo
 		s.itemsCurrentTotal += uint64(len(r.Rows))
 	}
-
-	if err := zr.Close(); err != nil {
-		return fmt.Errorf("cannot close gzip reader: %w", err)
-	}
-
+	s.itemsIngestedTotal = s.itemsCurrentTotal
 	return nil
 }
