@@ -406,7 +406,7 @@ See also [troubleshooting slow queries](https://docs.victoriametrics.com/victori
 Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) are production-ready.
 
-See [Scalability limits of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics)).
+See [Scalability limits of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics).
 
 Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
 to cluster version of VictoriaMetrics, since it doesn't need to pass the encoded data over the network
