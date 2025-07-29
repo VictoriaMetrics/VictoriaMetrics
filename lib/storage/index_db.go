@@ -1017,9 +1017,8 @@ func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, 
 
 	// TODO: cache results?
 
-	tvss := make(map[string]struct{})
 	is := db.getIndexSearch(deadline)
-	err := is.searchTagValueSuffixesForTimeRange(tvss, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+	tvss, err := is.searchTagValueSuffixesForTimeRange(tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, err
@@ -1031,9 +1030,9 @@ func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, 
 	return tvss, nil
 }
 
-func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct{}, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) error {
+func (is *indexSearch) searchTagValueSuffixesForTimeRange(tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	if tr == globalIndexTimeRange {
-		return is.searchTagValueSuffixesAll(tvss, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+		return is.searchTagValueSuffixesAll(tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 	}
 
 	minDate, maxDate := tr.DateRange()
@@ -1041,13 +1040,13 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct
 	wg := getWaitGroup()
 	var errGlobal error
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
+	tvss := make(map[string]struct{})
 	for minDate <= maxDate {
 		wg.Add(1)
 		go func(date uint64) {
 			defer wg.Done()
-			tvssLocal := make(map[string]struct{})
 			isLocal := is.db.getIndexSearch(is.deadline)
-			err := isLocal.searchTagValueSuffixesForDate(tvssLocal, date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
+			tvssLocal, err := isLocal.searchTagValueSuffixesForDate(date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 			is.db.putIndexSearch(isLocal)
 			mu.Lock()
 			defer mu.Unlock()
@@ -1069,10 +1068,10 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tvss map[string]struct
 	}
 	wg.Wait()
 	putWaitGroup(wg)
-	return errGlobal
+	return tvss, errGlobal
 }
 
-func (is *indexSearch) searchTagValueSuffixesAll(tvss map[string]struct{}, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) error {
+func (is *indexSearch) searchTagValueSuffixesAll(tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	kb := &is.kb
 	nsPrefix := byte(nsPrefixTagToMetricIDs)
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefix)
@@ -1080,10 +1079,10 @@ func (is *indexSearch) searchTagValueSuffixesAll(tvss map[string]struct{}, tagKe
 	kb.B = marshalTagValue(kb.B, bytesutil.ToUnsafeBytes(tagValuePrefix))
 	kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar from the end of kb.B
 	prefix := append([]byte(nil), kb.B...)
-	return is.searchTagValueSuffixesForPrefix(tvss, nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
+	return is.searchTagValueSuffixesForPrefix(nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
 }
 
-func (is *indexSearch) searchTagValueSuffixesForDate(tvss map[string]struct{}, date uint64, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) error {
+func (is *indexSearch) searchTagValueSuffixesForDate(date uint64, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	nsPrefix := byte(nsPrefixDateTagToMetricIDs)
 	kb := &is.kb
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefix)
@@ -1092,20 +1091,21 @@ func (is *indexSearch) searchTagValueSuffixesForDate(tvss map[string]struct{}, d
 	kb.B = marshalTagValue(kb.B, bytesutil.ToUnsafeBytes(tagValuePrefix))
 	kb.B = kb.B[:len(kb.B)-1] // remove tagSeparatorChar from the end of kb.B
 	prefix := append([]byte(nil), kb.B...)
-	return is.searchTagValueSuffixesForPrefix(tvss, nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
+	return is.searchTagValueSuffixesForPrefix(nsPrefix, prefix, len(tagValuePrefix), delimiter, maxTagValueSuffixes)
 }
 
-func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{}, nsPrefix byte, prefix []byte, tagValuePrefixLen int, delimiter byte, maxTagValueSuffixes int) error {
+func (is *indexSearch) searchTagValueSuffixesForPrefix(nsPrefix byte, prefix []byte, tagValuePrefixLen int, delimiter byte, maxTagValueSuffixes int) (map[string]struct{}, error) {
 	kb := &is.kb
 	ts := &is.ts
 	mp := &is.mp
 	dmis := is.db.s.getDeletedMetricIDs()
 	loopsPaceLimiter := 0
 	ts.Seek(prefix)
+	tvss := make(map[string]struct{})
 	for len(tvss) < maxTagValueSuffixes && ts.NextItem() {
 		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return err
+				return nil, err
 			}
 		}
 		loopsPaceLimiter++
@@ -1114,7 +1114,7 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{},
 			break
 		}
 		if err := mp.Init(item, nsPrefix); err != nil {
-			return err
+			return nil, err
 		}
 		if mp.GetMatchingSeriesCount(nil, dmis) == 0 {
 			continue
@@ -1141,9 +1141,9 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{},
 		ts.Seek(kb.B)
 	}
 	if err := ts.Error(); err != nil {
-		return fmt.Errorf("error when searching for tag value suffixes for prefix %q: %w", prefix, err)
+		return nil, fmt.Errorf("error when searching for tag value suffixes for prefix %q: %w", prefix, err)
 	}
-	return nil
+	return tvss, nil
 }
 
 func (db *indexDB) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) (map[string]struct{}, error) {
