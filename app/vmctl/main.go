@@ -252,7 +252,8 @@ func main() {
 					}
 
 					promCfg := prometheus.Config{
-						Snapshot: c.String(promSnapshot),
+						Snapshot:     c.String(promSnapshot),
+						TemporaryDir: c.String(promTemporaryDirPath),
 						Filter: prometheus.Filter{
 							TimeMin:    c.String(promFilterTimeStart),
 							TimeMax:    c.String(promFilterTimeEnd),
