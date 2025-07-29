@@ -28,8 +28,13 @@ Enterprise binaries can be downloaded and evaluated for free from [the releases 
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ### Single node backup
-In order to perform a complete backup for VictoriaMetrics single node, refer to [full backup creation](https://docs.victoriametrics.com/victoriametrics/vmbackup/#full-backups).
-We recommend using smart backup strategy as a best practice.
+In order to perform a complete backup for VictoriaMetrics single node, the following command must be run:
+```sh
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
+```
+
+Please refer to [full backup creation](https://docs.victoriametrics.com/victoriametrics/vmbackup/#full-backups) for further details.
+We recommend using [smart backup](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) strategy as a best practice.
 
 ### Cluster backup
 
@@ -47,6 +52,8 @@ vmstorage-3$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.crea
 Note that `vmbackup` needs access to data folder of every `vmstorage` node. It is recommended to run `vmbackup` on the same machine where `vmstorage` is running.
 For Kubernetes deployments it is recommended to use [sidecar containers](https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/) for running `vmbackup` on the same pod with `vmstorage`.
 
+
+Further in this document you can find [how backup mechanism works step by step](https://docs.victoriametrics.com/victoriametrics/vmbackup/#how-does-it-work), [troubleshooting](https://docs.victoriametrics.com/victoriametrics/vmbackup/#troubleshooting) and [advanced configuration](https://docs.victoriametrics.com/victoriametrics/vmbackup/#advanced-usage) sections
 
 ## Supported storage types
 
@@ -570,3 +577,15 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ```sh
 ROOT_IMAGE=scratch make package-vmbackup
 ```
+
+---
+The following legacy links are retained for historical reference.
+
+###### Backups for victoriametrics cluster
+Moved to [Cluster backup](https://docs.victoriametrics.com/victoriametrics/vmbackup/#cluster-backup)
+
+###### Use cases
+Moved to [Backup types](https://docs.victoriametrics.com/victoriametrics/vmbackup/#backup-types)
+
+###### Regular backups with server-side copy from existing backup
+Moved to [Full backups with server-side copy from existing backup](https://docs.victoriametrics.com/victoriametrics/vmbackup/#regular-backups-with-server-side-copy-from-existing-backup)
