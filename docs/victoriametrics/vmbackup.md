@@ -28,7 +28,7 @@ Enterprise binaries can be downloaded and evaluated for free from [the releases 
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ### Single node backup
-In order to perform a complete backup for VictoriaMetrics single node, refer to [full backup creation](https://docs.victoriametrics.com/victoriametrics/vmbackup/#full-backup).
+In order to perform a complete backup for VictoriaMetrics single node, refer to [full backup creation](https://docs.victoriametrics.com/victoriametrics/vmbackup/#full-backups).
 We recommend using smart backup strategy as a best practice.
 
 ### Cluster backup
