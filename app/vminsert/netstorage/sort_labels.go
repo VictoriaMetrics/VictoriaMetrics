@@ -4,7 +4,7 @@ import (
 	"flag"
 	"sort"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 var sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for incoming samples before writing them to storage. `+
@@ -19,7 +19,7 @@ func (ctx *InsertCtx) SortLabelsIfNeeded() {
 	}
 }
 
-type sortedLabels []prompbmarshal.Label
+type sortedLabels []prompb.Label
 
 func (sl *sortedLabels) Len() int { return len(*sl) }
 func (sl *sortedLabels) Less(i, j int) bool {

@@ -10,19 +10,19 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 // Labels contains Prometheus labels.
 type Labels struct {
-	Labels []prompbmarshal.Label
+	Labels []prompb.Label
 }
 
 // NewLabels returns Labels with the given capacity.
 func NewLabels(capacity int) *Labels {
 	return &Labels{
-		Labels: make([]prompbmarshal.Label, 0, capacity),
+		Labels: make([]prompb.Label, 0, capacity),
 	}
 }
 
@@ -85,7 +85,7 @@ func (x *Labels) ToMap() map[string]string {
 }
 
 // GetLabels returns the list of labels from x.
-func (x *Labels) GetLabels() []prompbmarshal.Label {
+func (x *Labels) GetLabels() []prompb.Label {
 	if x == nil {
 		return nil
 	}
@@ -124,7 +124,7 @@ func (x *Labels) Reset() {
 // Clone returns a clone of x.
 func (x *Labels) Clone() *Labels {
 	srcLabels := x.GetLabels()
-	labels := append([]prompbmarshal.Label{}, srcLabels...)
+	labels := append([]prompb.Label{}, srcLabels...)
 	return &Labels{
 		Labels: labels,
 	}
@@ -164,7 +164,7 @@ func (x *Labels) Swap(i, j int) {
 
 // Add adds name=value label to x.
 func (x *Labels) Add(name, value string) {
-	x.Labels = append(x.Labels, prompbmarshal.Label{
+	x.Labels = append(x.Labels, prompb.Label{
 		Name:  name,
 		Value: value,
 	})

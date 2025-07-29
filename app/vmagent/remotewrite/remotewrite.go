@@ -23,7 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
@@ -372,7 +372,7 @@ func Stop() {
 // PushDropSamplesOnFailure drops wr samples if they cannot be sent to -remoteWrite.url by any reason.
 //
 // PushDropSamplesOnFailure can modify wr contents.
-func PushDropSamplesOnFailure(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+func PushDropSamplesOnFailure(at *auth.Token, wr *prompb.WriteRequest) {
 	_ = tryPush(at, wr, true)
 }
 
@@ -382,11 +382,11 @@ func PushDropSamplesOnFailure(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 // TryPush may send partial data from wr on unsuccessful attempt, so repeated call for the same wr may send the data multiple times.
 //
 // The caller must return ErrQueueFullHTTPRetry to the client, which sends wr, if TryPush returns false.
-func TryPush(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
+func TryPush(at *auth.Token, wr *prompb.WriteRequest) bool {
 	return tryPush(at, wr, dropSamplesOnFailureGlobal)
 }
 
-func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnFailure bool) bool {
+func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure bool) bool {
 	tss := wr.Timeseries
 
 	var tenantRctx *relabelCtx
@@ -492,7 +492,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 // returns only the unblocked rwctx.
 //
 // calculateHealthyRwctxIdx will rely on the order of rwctx to be in ascending order.
-func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
+func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) ([]*remoteWriteCtx, bool) {
 	if !disableOnDiskQueueAny {
 		return rwctxsGlobal, true
 	}
@@ -520,7 +520,7 @@ func getEligibleRemoteWriteCtxs(tss []prompbmarshal.TimeSeries, forceDropSamples
 	return rwctxs, true
 }
 
-func pushToRemoteStoragesTrackDropped(tss []prompbmarshal.TimeSeries) {
+func pushToRemoteStoragesTrackDropped(tss []prompb.TimeSeries) {
 	rwctxs, _ := getEligibleRemoteWriteCtxs(tss, true)
 	if len(rwctxs) == 0 {
 		return
@@ -531,7 +531,7 @@ func pushToRemoteStoragesTrackDropped(tss []prompbmarshal.TimeSeries) {
 	}
 }
 
-func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
+func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.TimeSeries, forceDropSamplesOnFailure bool) bool {
 	if len(tssBlock) == 0 {
 		// Nothing to push
 		return true
@@ -571,7 +571,7 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmar
 	return !anyPushFailed.Load()
 }
 
-func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
+func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
 	x := getTSSShards(len(rwctxs))
 	defer putTSSShards(x)
 
@@ -588,7 +588,7 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 			continue
 		}
 		wg.Add(1)
-		go func(rwctx *remoteWriteCtx, tss []prompbmarshal.TimeSeries) {
+		go func(rwctx *remoteWriteCtx, tss []prompb.TimeSeries) {
 			defer wg.Done()
 			if !rwctx.TryPush(tss, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
@@ -624,7 +624,7 @@ func calculateHealthyRwctxIdx(healthyRwctxs []*remoteWriteCtx) ([]int, []int) {
 }
 
 // shardAmountRemoteWriteCtx distribute time series to shards by consistent hashing.
-func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]prompbmarshal.TimeSeries, rwctxs []*remoteWriteCtx, replicas int) {
+func shardAmountRemoteWriteCtx(tssBlock []prompb.TimeSeries, shards [][]prompb.TimeSeries, rwctxs []*remoteWriteCtx, replicas int) {
 	tmpLabels := promutil.GetLabels()
 	defer promutil.PutLabels(tmpLabels)
 
@@ -680,7 +680,7 @@ func shardAmountRemoteWriteCtx(tssBlock []prompbmarshal.TimeSeries, shards [][]p
 }
 
 type tssShards struct {
-	shards [][]prompbmarshal.TimeSeries
+	shards [][]prompb.TimeSeries
 }
 
 func getTSSShards(n int) *tssShards {
@@ -690,7 +690,7 @@ func getTSSShards(n int) *tssShards {
 	}
 	x := v.(*tssShards)
 	if cap(x.shards) < n {
-		x.shards = make([][]prompbmarshal.TimeSeries, n)
+		x.shards = make([][]prompb.TimeSeries, n)
 	}
 	x.shards = x.shards[:n]
 	return x
@@ -708,7 +708,7 @@ func putTSSShards(x *tssShards) {
 var tssShardsPool sync.Pool
 
 // sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set.
-func sortLabelsIfNeeded(tss []prompbmarshal.TimeSeries) {
+func sortLabelsIfNeeded(tss []prompb.TimeSeries) {
 	if !*sortLabels {
 		return
 	}
@@ -717,11 +717,11 @@ func sortLabelsIfNeeded(tss []prompbmarshal.TimeSeries) {
 	}
 }
 
-func limitSeriesCardinality(tss []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
+func limitSeriesCardinality(tss []prompb.TimeSeries) []prompb.TimeSeries {
 	if hourlySeriesLimiter == nil && dailySeriesLimiter == nil {
 		return tss
 	}
-	dst := make([]prompbmarshal.TimeSeries, 0, len(tss))
+	dst := make([]prompb.TimeSeries, 0, len(tss))
 	for i := range tss {
 		labels := tss[i].Labels
 		h := getLabelsHash(labels)
@@ -748,7 +748,7 @@ var (
 	dailySeriesLimitRowsDropped  = metrics.NewCounter(`vmagent_daily_series_limit_rows_dropped_total`)
 )
 
-func getLabelsHash(labels []prompbmarshal.Label) uint64 {
+func getLabelsHash(labels []prompb.Label) uint64 {
 	bb := labelsHashBufPool.Get()
 	b := bb.B[:0]
 	for _, label := range labels {
@@ -763,12 +763,12 @@ func getLabelsHash(labels []prompbmarshal.Label) uint64 {
 
 var labelsHashBufPool bytesutil.ByteBufferPool
 
-func logSkippedSeries(labels []prompbmarshal.Label, flagName string, flagValue int) {
+func logSkippedSeries(labels []prompb.Label, flagName string, flagValue int) {
 	select {
 	case <-logSkippedSeriesTicker.C:
 		// Do not use logger.WithThrottler() here, since this will increase CPU usage
-		// because every call to logSkippedSeries will result to a call to prompbmarshal.LabelsToString.
-		logger.Warnf("skip series %s because %s=%d reached", prompbmarshal.LabelsToString(labels), flagName, flagValue)
+		// because every call to logSkippedSeries will result to a call to prompb.LabelsToString.
+		logger.Warnf("skip series %s because %s=%d reached", prompb.LabelsToString(labels), flagName, flagValue)
 	default:
 	}
 }
@@ -900,14 +900,14 @@ func (rwctx *remoteWriteCtx) MustStop() {
 // TryPush sends tss series to the configured remote write endpoint
 //
 // TryPush doesn't modify tss, so tss can be passed concurrently to TryPush across distinct rwctx instances.
-func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSamplesOnFailure bool) bool {
+func (rwctx *remoteWriteCtx) TryPush(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) bool {
 	var rctx *relabelCtx
-	var v *[]prompbmarshal.TimeSeries
+	var v *[]prompb.TimeSeries
 	defer func() {
 		if rctx == nil {
 			return
 		}
-		*v = prompbmarshal.ResetTimeSeries(tss)
+		*v = prompb.ResetTimeSeries(tss)
 		tssPool.Put(v)
 		putRelabelCtx(rctx)
 	}()
@@ -921,7 +921,7 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 		// from affecting time series for other remoteWrite.url configs.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
-		v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
 		rowsCountBeforeRelabel := getRowsCount(tss)
 		tss = rctx.applyRelabeling(tss, pcs)
@@ -940,7 +940,7 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 			if rctx == nil {
 				rctx = getRelabelCtx()
 				// Make a copy of tss before dropping aggregated series
-				v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+				v = tssPool.Get().(*[]prompb.TimeSeries)
 				tss = append(*v, tss...)
 			}
 			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
@@ -969,7 +969,7 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompbmarshal.TimeSeries, forceDropSa
 
 var matchIdxsPool bytesutil.ByteBufferPool
 
-func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, dropInput bool) []prompbmarshal.TimeSeries {
+func dropAggregatedSeries(src []prompb.TimeSeries, matchIdxs []byte, dropInput bool) []prompb.TimeSeries {
 	dst := src[:0]
 	if !dropInput {
 		for i, match := range matchIdxs {
@@ -984,7 +984,7 @@ func dropAggregatedSeries(src []prompbmarshal.TimeSeries, matchIdxs []byte, drop
 	return dst
 }
 
-func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSeries) {
+func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompb.TimeSeries) {
 	if rwctx.tryPushInternal(tss) {
 		return
 	}
@@ -996,14 +996,14 @@ func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompbmarshal.TimeSe
 	rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 }
 
-func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) bool {
+func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompb.TimeSeries) bool {
 	var rctx *relabelCtx
-	var v *[]prompbmarshal.TimeSeries
+	var v *[]prompb.TimeSeries
 	defer func() {
 		if rctx == nil {
 			return
 		}
-		*v = prompbmarshal.ResetTimeSeries(tss)
+		*v = prompb.ResetTimeSeries(tss)
 		tssPool.Put(v)
 		putRelabelCtx(rctx)
 	}()
@@ -1012,7 +1012,7 @@ func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) boo
 		// Make a copy of tss before adding extra labels in order to prevent
 		// from affecting time series for other remoteWrite.url configs.
 		rctx = getRelabelCtx()
-		v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
+		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
 		rctx.appendExtraLabels(tss, labelsGlobal)
 	}
@@ -1025,12 +1025,12 @@ func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompbmarshal.TimeSeries) boo
 
 var tssPool = &sync.Pool{
 	New: func() any {
-		a := []prompbmarshal.TimeSeries{}
+		a := []prompb.TimeSeries{}
 		return &a
 	},
 }
 
-func getRowsCount(tss []prompbmarshal.TimeSeries) int {
+func getRowsCount(tss []prompb.TimeSeries) int {
 	rowsCount := 0
 	for _, ts := range tss {
 		rowsCount += len(ts.Samples)
