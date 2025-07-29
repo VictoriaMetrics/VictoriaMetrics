@@ -14,7 +14,7 @@ aliases:
 ---
 ## Quick start
 
-`vmbackup` creates VictoriaMetrics data backups to protect from user errors such as accidental data deletion.
+`vmbackup` creates backups of VictoriaMetrics data to protect against hardware failures and accidental data loss.
 Whether you are using a single-node  or a cluster version, it is recommended to use `vmbackup` to perform periodical data backup from instant snapshots.
 More information how to work with them could be found in [instant snapshots documentation](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
