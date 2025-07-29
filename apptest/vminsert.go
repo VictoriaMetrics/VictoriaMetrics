@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang/snappy"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -198,11 +198,11 @@ func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.
-func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []prompbmarshal.TimeSeries, opts QueryOpts) {
+func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []prompb.TimeSeries, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.getTenant())
-	wr := prompbmarshal.WriteRequest{Timeseries: records}
+	wr := prompb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	app.sendBlocking(t, len(records), func() {
 		_, statusCode := app.cli.Post(t, url, "application/x-protobuf", data)

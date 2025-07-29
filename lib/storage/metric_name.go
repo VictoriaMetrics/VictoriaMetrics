@@ -10,7 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -466,7 +466,7 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 // MarshalMetricNameRaw marshals labels to dst and returns the result.
 //
 // The result must be unmarshaled with MetricName.UnmarshalRaw
-func MarshalMetricNameRaw(dst []byte, labels []prompbmarshal.Label) []byte {
+func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 	// Calculate the required space for dst.
 	dstLen := len(dst)
 	dstSize := dstLen

@@ -24,7 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -200,7 +200,7 @@ type scrapeWork struct {
 	// PushData is called for pushing collected data.
 	//
 	// The PushData must be safe for calling from multiple concurrent goroutines.
-	PushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)
+	PushData func(at *auth.Token, wr *prompb.WriteRequest)
 
 	// ScrapeGroup is name of ScrapeGroup that
 	// scrapeWork belongs to
@@ -709,7 +709,7 @@ func (sw *scrapeWork) pushAutoMetrics(am *autoMetrics, timestamp int64) {
 // pushData sends wr to the remote storage.
 //
 // sw is used as a read-only configuration source.
-func (sw *scrapeWork) pushData(wr *prompbmarshal.WriteRequest) {
+func (sw *scrapeWork) pushData(wr *prompb.WriteRequest) {
 	startTime := time.Now()
 	sw.PushData(sw.Config.AuthToken, wr)
 	pushDataDuration.UpdateDuration(startTime)
@@ -772,9 +772,9 @@ func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int)
 type writeRequestCtx struct {
 	rows parser.Rows
 
-	writeRequest prompbmarshal.WriteRequest
-	labels       []prompbmarshal.Label
-	samples      []prompbmarshal.Sample
+	writeRequest prompb.WriteRequest
+	labels       []prompb.Label
+	samples      []prompb.Sample
 }
 
 func (wc *writeRequestCtx) reset() {
@@ -893,7 +893,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	}
 }
 
-func setStaleMarkersForRows(series []prompbmarshal.TimeSeries) {
+func setStaleMarkersForRows(series []prompb.TimeSeries) {
 	for _, tss := range series {
 		samples := tss.Samples
 		for i := range samples {
@@ -907,7 +907,7 @@ var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_create
 
 var labelsHashBufferPool = &bytesutil.ByteBufferPool{}
 
-func getLabelsHash(labels []prompbmarshal.Label) uint64 {
+func getLabelsHash(labels []prompb.Label) uint64 {
 	// It is OK if there will be hash collisions for distinct sets of labels,
 	// since the accuracy for `scrape_series_added` metric may be lower than 100%.
 
@@ -1099,12 +1099,12 @@ func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int6
 	if !cfg.HonorTimestamps || sampleTimestamp == 0 {
 		sampleTimestamp = timestamp
 	}
-	wc.samples = append(wc.samples, prompbmarshal.Sample{
+	wc.samples = append(wc.samples, prompb.Sample{
 		Value:     r.Value,
 		Timestamp: sampleTimestamp,
 	})
 	wr := &wc.writeRequest
-	wr.Timeseries = append(wr.Timeseries, prompbmarshal.TimeSeries{
+	wr.Timeseries = append(wr.Timeseries, prompb.TimeSeries{
 		Labels:  wc.labels[labelsLen:],
 		Samples: wc.samples[len(wc.samples)-1:],
 	})
@@ -1113,15 +1113,15 @@ func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int6
 
 var bbPool bytesutil.ByteBufferPool
 
-func appendLabels(dst []prompbmarshal.Label, metric string, src []parser.Tag, extraLabels []prompbmarshal.Label, honorLabels bool) []prompbmarshal.Label {
+func appendLabels(dst []prompb.Label, metric string, src []parser.Tag, extraLabels []prompb.Label, honorLabels bool) []prompb.Label {
 	dstLen := len(dst)
-	dst = append(dst, prompbmarshal.Label{
+	dst = append(dst, prompb.Label{
 		Name:  "__name__",
 		Value: metric,
 	})
 	for i := range src {
 		tag := &src[i]
-		dst = append(dst, prompbmarshal.Label{
+		dst = append(dst, prompb.Label{
 			Name:  tag.Key,
 			Value: tag.Value,
 		})
@@ -1129,7 +1129,7 @@ func appendLabels(dst []prompbmarshal.Label, metric string, src []parser.Tag, ex
 	return appendExtraLabels(dst, extraLabels, dstLen, honorLabels)
 }
 
-func appendExtraLabels(dst, extraLabels []prompbmarshal.Label, offset int, honorLabels bool) []prompbmarshal.Label {
+func appendExtraLabels(dst, extraLabels []prompb.Label, offset int, honorLabels bool) []prompb.Label {
 	// Add extraLabels to labels.
 	// Handle duplicates in the same way as Prometheus does.
 	if len(dst) == offset {
