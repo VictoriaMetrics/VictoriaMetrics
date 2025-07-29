@@ -50,7 +50,6 @@ type Storage struct {
 	newTimeseriesCreated   atomic.Uint64
 	slowRowInserts         atomic.Uint64
 	slowPerDayIndexInserts atomic.Uint64
-	slowMetricNameLoads    atomic.Uint64
 
 	hourlySeriesLimitRowsDropped atomic.Uint64
 	dailySeriesLimitRowsDropped  atomic.Uint64
@@ -567,7 +566,6 @@ type Metrics struct {
 	NewTimeseriesCreated   uint64
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
-	SlowMetricNameLoads    uint64
 
 	HourlySeriesLimitRowsDropped   uint64
 	HourlySeriesLimitMaxSeries     uint64
@@ -652,7 +650,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.NewTimeseriesCreated += s.newTimeseriesCreated.Load()
 	m.SlowRowInserts += s.slowRowInserts.Load()
 	m.SlowPerDayIndexInserts += s.slowPerDayIndexInserts.Load()
-	m.SlowMetricNameLoads += s.slowMetricNameLoads.Load()
 
 	if sl := s.hourlySeriesLimiter; sl != nil {
 		m.HourlySeriesLimitRowsDropped += s.hourlySeriesLimitRowsDropped.Load()
