@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 
 	"github.com/valyala/fastjson"
 )
@@ -85,14 +85,14 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 		labels := metric.GetObject()
 
 		r := &pi.ms[i]
-		r.Labels = make([]prompbmarshal.Label, 0, labels.Len())
+		r.Labels = make([]prompb.Label, 0, labels.Len())
 		labels.Visit(func(key []byte, v *fastjson.Value) {
 			lv, errLocal := v.StringBytes()
 			if errLocal != nil {
 				err = fmt.Errorf("error when parsing label value %q: %s", v, errLocal)
 				return
 			}
-			r.Labels = append(r.Labels, prompbmarshal.Label{
+			r.Labels = append(r.Labels, prompb.Label{
 				Name:  string(key),
 				Value: string(lv),
 			})

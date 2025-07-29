@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // CompareRules is a test helper func for other tests
@@ -94,7 +94,7 @@ func metricWithLabels(t *testing.T, labels ...string) datasource.Metric {
 	}
 	m := datasource.Metric{Values: []float64{1}, Timestamps: []int64{1}}
 	for i := 0; i < len(labels); i += 2 {
-		m.Labels = append(m.Labels, prompbmarshal.Label{
+		m.Labels = append(m.Labels, prompb.Label{
 			Name:  labels[i],
 			Value: labels[i+1],
 		})
@@ -102,7 +102,7 @@ func metricWithLabels(t *testing.T, labels ...string) datasource.Metric {
 	return m
 }
 
-func compareTimeSeries(t *testing.T, a, b []prompbmarshal.TimeSeries) error {
+func compareTimeSeries(t *testing.T, a, b []prompb.TimeSeries) error {
 	t.Helper()
 	if len(a) != len(b) {
 		return fmt.Errorf("expected number of timeseries %d; got %d", len(a), len(b))

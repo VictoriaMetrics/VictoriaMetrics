@@ -13,7 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // DebugClient won't push series periodically, but will write data to remote endpoint
@@ -48,10 +48,10 @@ func NewDebugClient() (*DebugClient, error) {
 }
 
 // Push sends the given timeseries to the remote storage.
-func (c *DebugClient) Push(s prompbmarshal.TimeSeries) error {
+func (c *DebugClient) Push(s prompb.TimeSeries) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	wr := &prompbmarshal.WriteRequest{Timeseries: []prompbmarshal.TimeSeries{s}}
+	wr := &prompb.WriteRequest{Timeseries: []prompb.TimeSeries{s}}
 	data := wr.MarshalProtobuf(nil)
 
 	return c.send(data)

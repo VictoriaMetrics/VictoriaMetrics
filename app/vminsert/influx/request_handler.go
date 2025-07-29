@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -58,7 +58,7 @@ func InsertHandlerForHTTP(req *http.Request) error {
 	})
 }
 
-func insertRows(db string, rows []influx.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(db string, rows []influx.Row, extraLabels []prompb.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -157,7 +157,7 @@ type pushCtx struct {
 	Common         common.InsertCtx
 	metricNameBuf  []byte
 	metricGroupBuf []byte
-	originLabels   []prompbmarshal.Label
+	originLabels   []prompb.Label
 }
 
 func (ctx *pushCtx) reset() {
@@ -167,7 +167,7 @@ func (ctx *pushCtx) reset() {
 
 	originLabels := ctx.originLabels
 	for i := range originLabels {
-		originLabels[i] = prompbmarshal.Label{}
+		originLabels[i] = prompb.Label{}
 	}
 	ctx.originLabels = originLabels[:0]
 }
