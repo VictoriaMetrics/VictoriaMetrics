@@ -159,6 +159,10 @@ type MetricMetadata struct {
 	MetricFamilyName string
 	Help             string
 	Unit             string
+
+	// Additional fields to allow storing and querying metadata in multitenancy.
+	AccountID uint32
+	ProjectID uint32
 }
 
 func (m *MetricMetadata) marshalToSizedBuffer(dst []byte) (int, error) {
@@ -189,6 +193,16 @@ func (m *MetricMetadata) marshalToSizedBuffer(dst []byte) (int, error) {
 		i--
 		dst[i] = 0x8
 	}
+	if m.AccountID != 0 {
+		i = encodeVarint(dst, i, uint64(m.AccountID))
+		i--
+		dst[i] = 0x58
+	}
+	if m.ProjectID != 0 {
+		i = encodeVarint(dst, i, uint64(m.ProjectID))
+		i--
+		dst[i] = 0x60
+	}
 	return len(dst) - i, nil
 }
 
@@ -207,6 +221,12 @@ func (m *MetricMetadata) size() (n int) {
 	}
 	if l := len(m.Unit); l > 0 {
 		n += 1 + l + sov(uint64(l))
+	}
+	if m.AccountID != 0 {
+		n += 1 + sov(uint64(m.AccountID))
+	}
+	if m.ProjectID != 0 {
+		n += 1 + sov(uint64(m.ProjectID))
 	}
 	return n
 }
