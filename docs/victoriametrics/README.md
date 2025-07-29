@@ -2910,7 +2910,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -storage.finalDedupScheduleCheckInterval duration
      The interval for checking when final deduplication process should be started.Storage unconditionally adds 25% jitter to the interval value on each check evaluation. Changing the interval to the bigger values may delay downsampling, deduplication for historical data. See also https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication (default 1h0m0s)
   -storage.idbPrefillStart duration
-        Whether to start prefill next indexDB before it's rotation. IndexDB prefill helps to spread load and reduce resource usage spike after indexDB rotation. The maximum value is 23 hours. (default 1h0m0s)
+     Specifies how early VictoriaMetrics starts pre-filling indexDB records before indexDB rotation. Starting the pre-fill process earlier can help reduce resource usage spikes during rotation.
+     In most cases, this value should not be changed. The maximum allowed value is 23h. (default 1h0m0s)
   -storage.maxDailySeries int
      The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . See also -storage.maxHourlySeries
   -storage.maxHourlySeries int

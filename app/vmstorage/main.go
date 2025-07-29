@@ -84,9 +84,9 @@ var (
 	cacheSizeMetricNamesStats = flagutil.NewBytes("storage.cacheSizeMetricNamesStats", 0, "Overrides max size for storage/metricNamesStatsTracker cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 
-	idbPrefillStart = flag.Duration("storage.idbPrefillStart", time.Hour, "Whether to start prefill next indexDB before it's rotation. "+
-		"IndexDB prefill helps to spread load and reduce resource usage spike after indexDB rotation. "+
-		"The maximum value is 23 hours.")
+	idbPrefillStart = flag.Duration("storage.idbPrefillStart", time.Hour, "Specifies how early VictoriaMetrics starts pre-filling indexDB records before indexDB rotation. "+
+		"Starting the pre-fill process earlier can help reduce resource usage spikes during rotation. "+
+		"In most cases, this value should not be changed. The maximum allowed value is 23h.")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
