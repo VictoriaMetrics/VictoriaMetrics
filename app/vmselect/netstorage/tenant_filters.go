@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -87,14 +87,14 @@ func applyFiltersToTenants(tenants []storage.TenantToken, filters [][]storage.Ta
 	}
 
 	resultingTokens := make([]storage.TenantToken, 0, len(tenants))
-	lbs := make([][]prompbmarshal.Label, 0, len(filters))
-	lbsAux := make([]prompbmarshal.Label, 0, len(filters))
+	lbs := make([][]prompb.Label, 0, len(filters))
+	lbsAux := make([]prompb.Label, 0, len(filters))
 	for _, token := range tenants {
 		lbsAuxLen := len(lbsAux)
-		lbsAux = append(lbsAux, prompbmarshal.Label{
+		lbsAux = append(lbsAux, prompb.Label{
 			Name:  "vm_account_id",
 			Value: fmt.Sprintf("%d", token.AccountID),
-		}, prompbmarshal.Label{
+		}, prompb.Label{
 			Name:  "vm_project_id",
 			Value: fmt.Sprintf("%d", token.ProjectID),
 		})

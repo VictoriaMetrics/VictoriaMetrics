@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -28,7 +28,7 @@ type IfExpression struct {
 // Match returns true if labels match at least a single label filter inside ie.
 //
 // Match returns true for empty ie.
-func (ie *IfExpression) Match(labels []prompbmarshal.Label) bool {
+func (ie *IfExpression) Match(labels []prompb.Label) bool {
 	if ie == nil || len(ie.ies) == 0 {
 		return true
 	}
@@ -214,7 +214,7 @@ func (ie *ifExpression) MarshalYAML() (any, error) {
 }
 
 // Match returns true if ie matches the given labels.
-func (ie *ifExpression) Match(labels []prompbmarshal.Label) bool {
+func (ie *ifExpression) Match(labels []prompb.Label) bool {
 	if ie == nil {
 		return true
 	}
@@ -226,7 +226,7 @@ func (ie *ifExpression) Match(labels []prompbmarshal.Label) bool {
 	return false
 }
 
-func matchLabelFilters(lfs []*labelFilter, labels []prompbmarshal.Label) bool {
+func matchLabelFilters(lfs []*labelFilter, labels []prompb.Label) bool {
 	for _, lf := range lfs {
 		if !lf.match(labels) {
 			return false
@@ -277,7 +277,7 @@ func newLabelFilter(mlf *metricsql.LabelFilter) (*labelFilter, error) {
 	return lf, nil
 }
 
-func (lf *labelFilter) match(labels []prompbmarshal.Label) bool {
+func (lf *labelFilter) match(labels []prompb.Label) bool {
 	switch lf.op {
 	case "=":
 		return lf.equalValue(labels)
@@ -293,7 +293,7 @@ func (lf *labelFilter) match(labels []prompbmarshal.Label) bool {
 	return false
 }
 
-func (lf *labelFilter) equalNameValue(labels []prompbmarshal.Label) bool {
+func (lf *labelFilter) equalNameValue(labels []prompb.Label) bool {
 	for _, label := range labels {
 		if label.Name == "__name__" {
 			return label.Value == lf.value
@@ -302,7 +302,7 @@ func (lf *labelFilter) equalNameValue(labels []prompbmarshal.Label) bool {
 	return false
 }
 
-func (lf *labelFilter) equalValue(labels []prompbmarshal.Label) bool {
+func (lf *labelFilter) equalValue(labels []prompb.Label) bool {
 	if lf.label == "" {
 		return lf.equalNameValue(labels)
 	}
@@ -323,7 +323,7 @@ func (lf *labelFilter) equalValue(labels []prompbmarshal.Label) bool {
 	return false
 }
 
-func (lf *labelFilter) matchRegexp(labels []prompbmarshal.Label) bool {
+func (lf *labelFilter) matchRegexp(labels []prompb.Label) bool {
 	labelNameMatches := 0
 	for _, label := range labels {
 		if toCanonicalLabelName(label.Name) != lf.label {

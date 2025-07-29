@@ -21,7 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 var (
@@ -755,7 +755,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 	}
 
 	if e.Rw != nil {
-		pushToRW := func(tss []prompbmarshal.TimeSeries) error {
+		pushToRW := func(tss []prompb.TimeSeries) error {
 			var lastErr error
 			for _, ts := range tss {
 				if err := e.Rw.Push(ts); err != nil {

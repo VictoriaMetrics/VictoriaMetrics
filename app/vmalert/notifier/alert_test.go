@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -33,7 +33,7 @@ func TestAlertExecTemplate(t *testing.T) {
 		qFn := func(_ string) ([]datasource.Metric, error) {
 			return []datasource.Metric{
 				{
-					Labels: []prompbmarshal.Label{
+					Labels: []prompb.Label{
 						{Name: "foo", Value: "bar"},
 						{Name: "baz", Value: "qux"},
 					},
@@ -41,7 +41,7 @@ func TestAlertExecTemplate(t *testing.T) {
 					Timestamps: []int64{1},
 				},
 				{
-					Labels: []prompbmarshal.Label{
+					Labels: []prompb.Label{
 						{Name: "foo", Value: "garply"},
 						{Name: "baz", Value: "fred"},
 					},
@@ -213,7 +213,7 @@ func TestAlertExecTemplate(t *testing.T) {
 }
 
 func TestAlert_toPromLabels(t *testing.T) {
-	fn := func(labels map[string]string, exp []prompbmarshal.Label, relabel *promrelabel.ParsedConfigs) {
+	fn := func(labels map[string]string, exp []prompb.Label, relabel *promrelabel.ParsedConfigs) {
 		t.Helper()
 		a := Alert{Labels: labels}
 		got := a.applyRelabelingIfNeeded(relabel)
@@ -226,12 +226,12 @@ func TestAlert_toPromLabels(t *testing.T) {
 	fn(nil, nil, nil)
 	fn(
 		map[string]string{"foo": "bar", "a": "baz"}, // unsorted
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "bar"}},
+		[]prompb.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "bar"}},
 		nil,
 	)
 	fn(
 		map[string]string{"foo.bar": "baz", "service!name": "qux"},
-		[]prompbmarshal.Label{{Name: "foo_bar", Value: "baz"}, {Name: "service_name", Value: "qux"}},
+		[]prompb.Label{{Name: "foo_bar", Value: "baz"}, {Name: "service_name", Value: "qux"}},
 		nil,
 	)
 
@@ -247,17 +247,17 @@ func TestAlert_toPromLabels(t *testing.T) {
 
 	fn(
 		map[string]string{"a": "baz"},
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
+		[]prompb.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
 		pcs,
 	)
 	fn(
 		map[string]string{"foo": "bar", "a": "baz"},
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
+		[]prompb.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
 		pcs,
 	)
 	fn(
 		map[string]string{"qux": "bar", "env": "prod", "environment": "production"},
-		[]prompbmarshal.Label{{Name: "foo", Value: "aaa"}, {Name: "qux", Value: "bar"}},
+		[]prompb.Label{{Name: "foo", Value: "aaa"}, {Name: "qux", Value: "bar"}},
 		pcs,
 	)
 }
