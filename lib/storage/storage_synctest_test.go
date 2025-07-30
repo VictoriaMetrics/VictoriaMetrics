@@ -136,7 +136,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 			}
 			const numSeries = 1000
 
-			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
+			mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numSeries, "metric.", tr)
 			s.AddRows(mrs, 1)
 			s.DebugFlush()
 			createdSeries := s.newTimeseriesCreated.Load()
