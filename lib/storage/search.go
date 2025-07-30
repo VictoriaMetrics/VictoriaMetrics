@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -13,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // BlockRef references a Block.
@@ -211,34 +209,29 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 	}
 
 	merge := func(data [][]TSID) []TSID {
-		var n int
+		tsidss := make([][]TSID, 0, len(data))
 		for _, d := range data {
-			n += len(d)
-		}
-		all := make([]TSID, 0, n)
-
-		seen := &uint64set.Set{}
-		for _, tsids := range data {
-			for _, tsid := range tsids {
-				if seen.Has(tsid.MetricID) {
-					continue
-				}
-				all = append(all, tsid)
-				seen.Add(tsid.MetricID)
+			if len(d) > 0 {
+				tsidss = append(tsidss, d)
 			}
 		}
-		return all
+		if len(tsidss) == 0 {
+			return nil
+		}
+		if len(tsidss) == 1 {
+			return tsidss[0]
+		}
+		if len(tsidss) == 2 {
+			return mergeTSIDs2Way(tsidss[0], tsidss[1])
+		}
+
+		return mergeTSIDsNWay(tsidss)
 	}
 
 	tsids, err := searchAndMerge(qt, s.storage, tr, search, merge)
 	if err != nil {
 		return nil, err
 	}
-
-	// Sort the found tsids, since they must be passed to TSID search
-	// in the sorted order.
-	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
-	qt.Printf("sort %d TSIDs", len(tsids))
 
 	return tsids, nil
 }

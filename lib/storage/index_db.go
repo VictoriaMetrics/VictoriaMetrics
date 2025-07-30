@@ -855,7 +855,6 @@ func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labe
 				qtChild.Done()
 				wg.Done()
 			}()
-			lvsLocal := make(map[string]struct{})
 			isLocal := is.db.getIndexSearch(is.deadline)
 			lvsLocal, err := isLocal.searchLabelValuesOnDate(qtChild, labelName, tfss, date, maxLabelValues, maxMetrics)
 			is.db.putIndexSearch(isLocal)
@@ -1794,6 +1793,11 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	}
 	tsids = tsids[:i]
 	qt.Printf("load %d TSIDs for %d metricIDs", len(tsids), len(metricIDs))
+
+	// Sort the found tsids, since they must be passed to TSID search
+	// in the sorted order.
+	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
+	qt.Printf("sort %d TSIDs", len(tsids))
 
 	if metricIDsToDelete.Len() > 0 {
 		db.saveDeletedMetricIDs(metricIDsToDelete)
