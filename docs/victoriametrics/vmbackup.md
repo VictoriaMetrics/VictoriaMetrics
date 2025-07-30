@@ -104,7 +104,7 @@ It saves time and network bandwidth costs by performing server-side copy for the
 Typical object storage just creates new names for already existing objects when performing server-side copy,
 so this operation should be fast and inexpensive. Unfortunately, there are object storage systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
 which make full copies for the copied objects during server-side copy. This may significantly slow down server-side copy
-and make it very expensive.
+and make it more expensive.
 
 ### Incremental backups
 
@@ -136,10 +136,7 @@ when backing up large amounts of data.
 ```
 
 This command makes [server-side copy](#server-side-copy-of-the-existing-backup) of the backup from `gs://<bucket>/latest` to `gs://<bucket>/<YYYYMMDD>`,
-were `<YYYYMMDD>` is the current date like `20240125`. Server-side copy of the backup should be fast on most object storage systems,
-since it just creates new names for already existing objects. The server-side copy can be slow on some object storage systems
-such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/), since they may perform full object copy instead of creating
-new names for already existing objects. This may be slow and expensive.
+were `<YYYYMMDD>` is the current date like `20240125`.
 
 The `smart backups` approach described above saves network bandwidth costs on hourly backups (since they are incremental)
 and allows recovering data from either the last hour (the  `latest` backup) or from any day (`YYYYMMDD` backups).
@@ -163,9 +160,9 @@ from `gs://bucket/foo` to `gs://bucket/bar`:
 The `-origin` and `-dst` must point to the same object storage bucket or to the same filesystem.
 
 The server-side backup copy is usually performed at much faster speed comparing to the usual backup, since backup data isn't transferred
-between the remote storage and locally running `vmbackup` tool. Object storage systems usually just make new names for already existing
-objects during server-side copy. Unfortunately there are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
-which perform full object copy during server-side copying. This may be slow and expensive.
+between the remote storage and locally running `vmbackup` tool. Some object storage systems might just make new names for already existing
+objects during server-side copy. However, some other are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+are performing full object copy during server-side copying. This may be slow and expensive.
 
 If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
 
