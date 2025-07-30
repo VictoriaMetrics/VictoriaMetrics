@@ -83,6 +83,10 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
 	cacheSizeMetricNamesStats = flagutil.NewBytes("storage.cacheSizeMetricNamesStats", 0, "Overrides max size for storage/metricNamesStatsTracker cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
+
+	idbPrefillStart = flag.Duration("storage.idbPrefillStart", time.Hour, "Specifies how early VictoriaMetrics starts pre-filling indexDB records before indexDB rotation. "+
+		"Starting the pre-fill process earlier can help reduce resource usage spikes during rotation. "+
+		"In most cases, this value should not be changed. The maximum allowed value is 23h.")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -121,6 +125,9 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	if retentionPeriod.Duration() < 24*time.Hour {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
+	if *idbPrefillStart > 23*time.Hour {
+		logger.Panicf("-storage.idbPrefillStart cannot exceed 23 hours; got %s", idbPrefillStart)
+	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
@@ -130,6 +137,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		MaxDailySeries:        *maxDailySeries,
 		DisablePerDayIndex:    *disablePerDayIndex,
 		TrackMetricNamesStats: *trackMetricNamesStats,
+		IDBPrefillStart:       *idbPrefillStart,
 	}
 	strg := storage.MustOpenStorage(*DataPath, opts)
 	Storage = strg
