@@ -33,7 +33,7 @@ type Stopper interface {
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
 	t.Parallel()
-	tc := &TestCase{t, NewClient(), &outputProcessor{make([][]byte, 0), sync.Mutex{}}, make(map[string]Stopper)}
+	tc := &TestCase{t, NewClient(), &outputProcessor{make([]byte, 0), sync.Mutex{}}, make(map[string]Stopper)}
 
 	tc.t.Cleanup(func() {
 		if tc.t.Failed() || testing.Verbose() {
@@ -445,14 +445,14 @@ func (tc *TestCase) Assert(opts *AssertOptions) {
 var _ io.Writer = &outputProcessor{}
 
 type outputProcessor struct {
-	entries     [][]byte
+	entries     []byte
 	entriesLock sync.Mutex
 }
 
 func (op *outputProcessor) Write(p []byte) (n int, err error) {
 	op.entriesLock.Lock()
 	defer op.entriesLock.Unlock()
-	op.entries = append(op.entries, p)
+	op.entries = append(op.entries, p...)
 	return len(p), nil
 }
 
@@ -460,8 +460,6 @@ func (op *outputProcessor) FlushOutput() {
 	op.entriesLock.Lock()
 	defer op.entriesLock.Unlock()
 
-	for _, e := range op.entries {
-		_, _ = os.Stderr.Write(e)
-	}
+	os.Stderr.Write(op.entries)
 	op.entries = nil
 }
