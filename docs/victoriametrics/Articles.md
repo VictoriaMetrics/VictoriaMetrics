@@ -93,6 +93,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Harness the Power of VictoriaMetrics and Grafana Operators for Metrics Management](https://blog.ogenki.io/post/series/observability/metrics/)
 * [VictoriaMetrics: Effective alerts, from theory to practice](https://blog.ogenki.io/post/series/observability/alerts/)
 * [Reducing Inter-AZ traffic in VictoriaMetrics with Zonekeeper](https://tanmay-bhat.medium.com/reducing-inter-az-traffic-in-victoriametrics-with-zonekeeper-3bd7e1526796)
+* [Victoriametrics k8s stack setup gotchas](https://davidhernandez21.github.io/posts/Victoriametrics-k8s-stack-gotchas/)
 
 ## Third-party articles and slides about VictoriaLogs
 
