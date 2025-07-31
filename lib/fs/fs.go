@@ -301,9 +301,9 @@ func MustGetFreeSpace(path string) uint64 {
 	return e.free
 }
 
+// MustGetTotalSpace returns the total disk space for the given directory path.
 func MustGetTotalSpace(path string) uint64 {
 	// Try obtaining cached value at first.
-	diskSpaceMapLock.Lock()
 	defer diskSpaceMapLock.Unlock()
 
 	e, ok := diskSpaceMap[path]
