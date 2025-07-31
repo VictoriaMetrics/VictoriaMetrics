@@ -214,6 +214,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		stopCh:                 make(chan struct{}),
 		idbPrefillStartSeconds: idbPrefillStart.Milliseconds() / 1000,
 	}
+	s.logNewSeries.Store(opts.LogNewSeries)
+
 	fs.MustMkdirIfNotExist(path)
 
 	// Check whether the cache directory must be removed
@@ -302,9 +304,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
 	s.nextRotationTimestamp.Store(nextRotationTimestamp)
-
-	// Initialize logNewSeries
-	s.SetLogNewSeries(opts.LogNewSeries)
 
 	// Load nextDayMetricIDs cache
 	date := fasttime.UnixDate()
@@ -1983,13 +1982,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 }
 
 var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
-
-// SetLogNewSeries updates new series logging.
-//
-// This function must be called before any calling any storage functions.
-func (s *Storage) SetLogNewSeries(ok bool) {
-	s.logNewSeries.Store(ok)
-}
 
 // SetLogNewSeriesUntil sets the timestamp until which new series will be logged.
 func (s *Storage) SetLogNewSeriesUntil(t uint64) {

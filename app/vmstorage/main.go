@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -87,6 +88,8 @@ var (
 	idbPrefillStart = flag.Duration("storage.idbPrefillStart", time.Hour, "Specifies how early VictoriaMetrics starts pre-filling indexDB records before indexDB rotation. "+
 		"Starting the pre-fill process earlier can help reduce resource usage spikes during rotation. "+
 		"In most cases, this value should not be changed. The maximum allowed value is 23h.")
+
+	logNewSeriesAuthKey = flagutil.NewPassword("logNewSeriesAuthKey", "authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -329,11 +332,24 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		Storage.DebugFlush()
 		return true
 	}
-	if path == "/internal/logNewSeries" {
-		logger.Infof("enabling logging of new series for the next minute. This may increase resource usage during this period.")
-		endTime := fasttime.UnixTimestamp() + 60 // log new series for the next minute
+	if path == "/internal/log_new_series" {
+		if !httpserver.CheckAuthFlag(w, r, logNewSeriesAuthKey) {
+			return true
+		}
+		dealine := 60
+		if deadlineStr := r.FormValue("seconds"); len(deadlineStr) > 0 {
+			var err error
+			dealine, err = strconv.Atoi(deadlineStr)
+			if err != nil {
+				logger.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err)
+				jsonResponseError(w, fmt.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err))
+				return true
+			}
+		}
+		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(dealine)*time.Second)
+		endTime := fasttime.UnixTimestamp() + uint64(dealine)
 		Storage.SetLogNewSeriesUntil(endTime)
-		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%d}}`, endTime)
+		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
 	}
 	prometheusCompatibleResponse := false
