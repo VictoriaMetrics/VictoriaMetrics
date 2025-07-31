@@ -1,0 +1,10 @@
+groups:
+- name: blobby.user_disk_bytes_rules_3
+  rules:
+  - alert: BlobbyUserNearBytesQuota
+    expr: blobby:cluster_disk_bytes_usage{cluster='sha_dev_1',user='a_hail'} > 0.95
+    labels:
+      severity: info
+      service: blobby
+    annotations:
+      summary: "test summary"

@@ -173,7 +173,9 @@ func (ar *AlertingRule) registerMetrics(set *metrics.Set) {
 
 // close unregisters rule metrics
 func (ar *AlertingRule) unregisterMetrics() {
-	ar.metrics.close()
+	if ar.metrics != nil {
+		ar.metrics.close()
+	}
 }
 
 // String implements Stringer interface
@@ -407,7 +409,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 
 	defer func() {
 		ar.state.add(curState)
-		if curState.Err != nil {
+		if curState.Err != nil && ar.metrics != nil {
 			ar.metrics.errors.Inc()
 		}
 	}()
