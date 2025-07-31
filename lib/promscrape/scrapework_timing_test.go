@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
 
@@ -78,7 +78,7 @@ vm_tcplistener_read_timeouts_total{name="https", addr=":443"} 12353
 vm_tcplistener_write_calls_total{name="http", addr=":80"} 3996
 vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 `
-	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+	pushData := func(_ *auth.Token, _ *prompb.WriteRequest) {}
 	benchmarkScrapeWorkScrapeInternal(b, []byte(data), false, pushData)
 }
 
@@ -105,7 +105,7 @@ vm_tcplistener_read_timeouts_total{name="https", addr=":443"} 12353
 vm_tcplistener_write_calls_total{name="http", addr=":80"} 3996
 vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 `
-	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+	pushData := func(_ *auth.Token, _ *prompb.WriteRequest) {}
 	benchmarkScrapeWorkScrapeInternal(b, []byte(data), true, pushData)
 }
 
@@ -121,7 +121,7 @@ func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
 	}
 
 	data := generateScrape(200_000)
-	pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {
+	pushData := func(_ *auth.Token, _ *prompb.WriteRequest) {
 		// simulates a delay to highlight the difference between lock-based and lock-free algorithms.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515
 		time.Sleep(time.Millisecond)
@@ -129,7 +129,7 @@ func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
 	benchmarkScrapeWorkScrapeInternal(b, data, true, pushData)
 }
 
-func benchmarkScrapeWorkScrapeInternal(b *testing.B, data []byte, streamParse bool, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
+func benchmarkScrapeWorkScrapeInternal(b *testing.B, data []byte, streamParse bool, pushData func(at *auth.Token, wr *prompb.WriteRequest)) {
 	protoparserutil.StartUnmarshalWorkers()
 	defer protoparserutil.StopUnmarshalWorkers()
 
@@ -161,9 +161,9 @@ func benchmarkScrapeWorkScrapeInternal(b *testing.B, data []byte, streamParse bo
 }
 
 func BenchmarkScrapeWorkGetLabelsHash(b *testing.B) {
-	labels := make([]prompbmarshal.Label, 100)
+	labels := make([]prompb.Label, 100)
 	for i := range labels {
-		labels[i] = prompbmarshal.Label{
+		labels[i] = prompb.Label{
 			Name:  fmt.Sprintf("name%d", i),
 			Value: fmt.Sprintf("value%d", i),
 		}

@@ -45,7 +45,7 @@ positional arguments:
                         all `.yaml` files inside will be merged, without recursion. Default: vmanomaly.yaml is expected in the current directory.
 
 options:
-  -h                    show this help message and exit
+  -h                    Show this help message and exit
   --license STRING      License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
   --licenseFile PATH    Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
   --license.forceOffline 
@@ -53,7 +53,8 @@ options:
                         license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification.
   --loggerLevel {DEBUG,WARNING,FATAL,ERROR,INFO}
                         Minimum level to log. Possible values: DEBUG, INFO, WARNING, ERROR, FATAL.
-  --watch               [DEPRECATED SINCE v1.11.0] Watch config files for changes. This option is no longer supported and will be ignored.
+  --watch               Watch config files for changes and trigger hot reloads. Watches the specified config file or directory for modifications, deletions, or additions. Upon detecting changes,
+                        triggers config reload. If new config validation fails, continues with previous valid config and state.
   --dryRun              Validate only: parse + merge all YAML(s) and run schema checks, then exit. Does not require a license to run. Does not expose metrics, or launch vmanomaly service(s).
   --outputSpec PATH     Target location of .yaml output spec.
 ```
@@ -120,13 +121,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.24.1
+docker pull victoriametrics/vmanomaly:v1.25.2
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.24.1 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.25.2 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -139,7 +140,8 @@ docker run -it -v $YOUR_LICENSE_FILE_PATH:/license \
                -v $YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
                --licenseFile=/license \
-               --loggerLevel=INFO
+               --loggerLevel=INFO \
+               --watch
 ```
 
 In case you found `PermissionError: [Errno 13] Permission denied:` in `vmanomaly` logs, set user/user group to 1000 in the run command above / in a docker-compose file:
@@ -152,7 +154,8 @@ docker run -it --user 1000:1000 \
                -v $YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
                --licenseFile=/license \
-               --loggerLevel=INFO
+               --loggerLevel=INFO \
+               --watch
 ```
 
 ```yaml
@@ -160,7 +163,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.24.1
+    image: victoriametrics/vmanomaly:v1.25.2
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
@@ -168,6 +171,7 @@ services:
       - "/config.yml"
       - "--licenseFile=/license"
       - "--loggerLevel=INFO"
+      - "--watch"
     # ...
 ```
 
@@ -189,6 +193,11 @@ If hitting pull limits, try switching your `docker pull quay.io/victoriametrics/
 
 You can run `vmanomaly` in Kubernetes environment
 with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md).
+
+### VM Operator
+
+If you are using [VM Operator](https://docs.victoriametrics.com/operator/) to manage your Kubernetes cluster, `vmanomaly` can be deployed using the following [custom resource guide](https://docs.victoriametrics.com/operator/resources/vmanomaly/).
+
 
 ## How to configure vmanomaly
 
@@ -259,9 +268,11 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 
 - Set `settings.n_workers` {{% available_from "v1.23.0" anomaly %}} [arg](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization) > 1 to utilize more of available CPU cores for parallel workload processing. This can significantly improve performance, especially on larger datasets with a lot of `reader.queries` and longer `scheduler.fit_window` intervals. Setting it to zero or negative number will enable using all available CPU cores.
 
-- Use [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) {{% available_from "v1.13.0" anomaly %}} to reduce RAM usage, especially for larger datasets. This mode allows `vmanomaly` to keep models and the data on the host filesystem after the `fit` stage, rather than in memory.
+- Set up [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) {{% available_from "v1.13.0" anomaly %}} to reduce RAM usage, especially for larger datasets. This mode allows `vmanomaly` to keep models and the data on the host filesystem after the `fit` stage, rather than in memory.
 
-- Use **state restoration** {{% available_from "v1.24.0" anomaly %}} to resume from the last known state for long-term stability. This is controlled by the `settings.restore_state` boolean [arg](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration).
+- Set up **state restoration** {{% available_from "v1.24.0" anomaly %}} to resume from the last known state for long-term stability. This is controlled by the `settings.restore_state` boolean [arg](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration).
+
+- Set up **config hot-reloading** {{% available_from "v1.25.0" anomaly %}} to automatically reload configurations on config files changes. This can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) and allows for configuration updates without explicit service restarts.
 
 **Schedulers**:
 - Configure the **inference frequency** in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of the configuration file.  

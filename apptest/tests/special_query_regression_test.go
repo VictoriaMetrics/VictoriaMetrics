@@ -1,21 +1,22 @@
 package tests
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 // TestSingleSpecialQueryRegression is used to test queries that have experienced issues for specific data sets.
 // These test cases were migrated from `app/victoria-metrics/main_test.go`.
 // Most of these cases are based on user feedback. Refer to the corresponding GitHub issue for details on each case.
 func TestSingleSpecialQueryRegression(t *testing.T) {
-	os.RemoveAll(t.Name())
-	tc := at.NewTestCase(t)
+	fs.MustRemoveDir(t.Name())
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	sut := tc.MustStartDefaultVmsingle()
@@ -23,10 +24,10 @@ func TestSingleSpecialQueryRegression(t *testing.T) {
 }
 
 func TestClusterSpecialQueryRegression(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartCluster(&at.ClusterOptions{
+	sut := tc.MustStartCluster(&apptest.ClusterOptions{
 		Vmstorage1Instance: "vmstorage1",
 		Vmstorage1Flags: []string{
 			"-storageDataPath=" + filepath.Join(tc.Dir(), "vmstorage1"),
@@ -44,7 +45,7 @@ func TestClusterSpecialQueryRegression(t *testing.T) {
 	testSpecialQueryRegression(tc, sut)
 }
 
-func testSpecialQueryRegression(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testSpecialQueryRegression(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	// prometheus
 	testCaseSensitiveRegex(tc, sut)
 	testDuplicateLabel(tc, sut)
@@ -60,7 +61,7 @@ func testSpecialQueryRegression(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 	testSubqueryAggregation(tc, sut)
 }
 
-func testCaseSensitiveRegex(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testCaseSensitiveRegex(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// case-sensitive-regex
@@ -68,102 +69,102 @@ func testCaseSensitiveRegex(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
 		`prometheus.sensitiveRegex{label="sensitiveRegex"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 		`prometheus.sensitiveRegex{label="SensitiveRegex"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/export response",
 		Got: func() any {
-			return sut.PrometheusAPIV1Export(t, `{label=~'(?i)sensitiveregex'}`, at.QueryOpts{
+			return sut.PrometheusAPIV1Export(t, `{label=~'(?i)sensitiveregex'}`, apptest.QueryOpts{
 				Start: "2024-02-05T08:50:00.700Z",
 				End:   "2024-02-05T09:00:00.700Z",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric:  map[string]string{"__name__": "prometheus.sensitiveRegex", "label": "SensitiveRegex"},
-						Samples: []*at.Sample{{Timestamp: 1707123456700, Value: 10}},
+						Samples: []*apptest.Sample{{Timestamp: 1707123456700, Value: 10}},
 					},
 					{
 						Metric:  map[string]string{"__name__": "prometheus.sensitiveRegex", "label": "sensitiveRegex"},
-						Samples: []*at.Sample{{Timestamp: 1707123456700, Value: 10}},
+						Samples: []*apptest.Sample{{Timestamp: 1707123456700, Value: 10}},
 					},
 				},
 			},
 		},
 		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+			cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
 		},
 	})
 }
 
-func testDuplicateLabel(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testDuplicateLabel(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// duplicate_label
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/172
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
 		`prometheus.duplicate_label{label="duplicate", label="duplicate"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/export response",
 		Got: func() any {
-			return sut.PrometheusAPIV1Export(t, `{__name__='prometheus.duplicate_label'}`, at.QueryOpts{
+			return sut.PrometheusAPIV1Export(t, `{__name__='prometheus.duplicate_label'}`, apptest.QueryOpts{
 				Start: "2024-02-05T08:50:00.700Z",
 				End:   "2024-02-05T09:00:00.700Z",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric:  map[string]string{"__name__": "prometheus.duplicate_label", "label": "duplicate"},
-						Samples: []*at.Sample{{Timestamp: 1707123456700, Value: 10}},
+						Samples: []*apptest.Sample{{Timestamp: 1707123456700, Value: 10}},
 					},
 				},
 			},
 		},
 		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+			cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
 		},
 	})
 }
 
-func testTooBigLookbehindWindow(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testTooBigLookbehindWindow(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// too big look-behind window
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
 		`prometheus.too_big_lookbehind{label="foo"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/query response",
 		Got: func() any {
-			return sut.PrometheusAPIV1Query(t, `prometheus.too_big_lookbehind{label="foo"}[100y]`, at.QueryOpts{
+			return sut.PrometheusAPIV1Query(t, `prometheus.too_big_lookbehind{label="foo"}[100y]`, apptest.QueryOpts{
 				Step: "5m",
 				Time: "2024-02-05T08:57:36.700Z",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{"__name__": "prometheus.too_big_lookbehind", "label": "foo"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:57:36.700Z", 10),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:57:36.700Z", 10),
 						},
 					},
 				},
@@ -178,30 +179,30 @@ func testTooBigLookbehindWindow(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 		`prometheus.too_big_lookbehind_range{label="foo"} 12 1707123466700`, // 2024-02-05T08:57:46.700Z
 		`prometheus.too_big_lookbehind_range{label="foo"} 11 1707123436700`, // 2024-02-05T08:57:16.700Z
 		`prometheus.too_big_lookbehind_range{label="foo"} 10 1707123406700`, // 2024-02-05T08:56:46.700Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
-			return sut.PrometheusAPIV1QueryRange(t, `prometheus.too_big_lookbehind_range{label="foo"}`, at.QueryOpts{
+			return sut.PrometheusAPIV1QueryRange(t, `prometheus.too_big_lookbehind_range{label="foo"}`, apptest.QueryOpts{
 				Start: "2024-02-05T08:56:46.700Z",
 				End:   "2024-02-05T08:58:16.700Z",
 				Step:  "30s",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{"__name__": "prometheus.too_big_lookbehind_range", "label": "foo"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:56:46.700Z", 10),
-							at.NewSample(t, "2024-02-05T08:57:16.700Z", 11),
-							at.NewSample(t, "2024-02-05T08:57:46.700Z", 12),
-							at.NewSample(t, "2024-02-05T08:58:16.700Z", 13),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:56:46.700Z", 10),
+							apptest.NewSample(t, "2024-02-05T08:57:16.700Z", 11),
+							apptest.NewSample(t, "2024-02-05T08:57:46.700Z", 12),
+							apptest.NewSample(t, "2024-02-05T08:58:16.700Z", 13),
 						},
 					},
 				},
@@ -210,7 +211,7 @@ func testTooBigLookbehindWindow(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 	})
 }
 
-func testMatchSeries(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testMatchSeries(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// match_series
@@ -220,18 +221,18 @@ func testMatchSeries(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 		`GenBearTemp{db="TenMinute",Park="2",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 		`GenBearTemp{db="TenMinute",Park="3",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 		`GenBearTemp{db="TenMinute",Park="4",TurbineType="V112"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/series response",
 		Got: func() any {
-			return sut.PrometheusAPIV1Series(t, `{__name__="GenBearTemp"}`, at.QueryOpts{
+			return sut.PrometheusAPIV1Series(t, `{__name__="GenBearTemp"}`, apptest.QueryOpts{
 				Start: "2024-02-04T08:57:36.700Z",
 				End:   "2024-02-05T08:57:36.700Z",
 			}).Sort()
 		},
-		Want: &at.PrometheusAPIV1SeriesResponse{
+		Want: &apptest.PrometheusAPIV1SeriesResponse{
 			Status:    "success",
 			IsPartial: false,
 			Data: []map[string]string{
@@ -244,7 +245,7 @@ func testMatchSeries(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 }
 
-func testNegativeIncrease(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testNegativeIncrease(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// negative increase when user overrides staleness interval
@@ -255,34 +256,34 @@ func testNegativeIncrease(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 		// gap 75s
 		`foo 1 1750109333514`, // 2025-06-16 21:28:53:514
 		`foo 1 1750109348514`, // 2025-06-16 21:29:08:514
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg:        "regression for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935#issuecomment-2978728661",
 		DoNotRetry: true,
 		Got: func() any {
-			return sut.PrometheusAPIV1QueryRange(t, `increase(foo[1m])`, at.QueryOpts{
+			return sut.PrometheusAPIV1QueryRange(t, `increase(foo[1m])`, apptest.QueryOpts{
 				Start:       "2025-06-16T21:28:40.700Z",
 				End:         "2025-06-16T21:29:30.700Z",
 				Step:        "9s",
 				MaxLookback: "65s",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2025-06-16T21:28:40.700Z", 0),
-							at.NewSample(t, "2025-06-16T21:28:49.700Z", 0),
-							at.NewSample(t, "2025-06-16T21:28:58.700Z", 1),
-							at.NewSample(t, "2025-06-16T21:29:07.700Z", 1),
-							at.NewSample(t, "2025-06-16T21:29:16.700Z", 0),
-							at.NewSample(t, "2025-06-16T21:29:25.700Z", 0),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2025-06-16T21:28:40.700Z", 0),
+							apptest.NewSample(t, "2025-06-16T21:28:49.700Z", 0),
+							apptest.NewSample(t, "2025-06-16T21:28:58.700Z", 1),
+							apptest.NewSample(t, "2025-06-16T21:29:07.700Z", 1),
+							apptest.NewSample(t, "2025-06-16T21:29:16.700Z", 0),
+							apptest.NewSample(t, "2025-06-16T21:29:25.700Z", 0),
 						},
 					},
 				},
@@ -291,7 +292,7 @@ func testNegativeIncrease(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 }
 
-func testComparisonNotInfNotNan(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testComparisonNotInfNotNan(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// comparison-not-inf-not-nan
@@ -302,8 +303,8 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 		"not_nan_not_inf;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
 		"not_nan_not_inf;item=y 3 1707123456", // 2024-02-05T08:57:36.000Z
 		"not_nan_not_inf;item=y 1 1707123455", // 2024-02-05T08:57:35.000Z
-	}, at.QueryOpts{})
-	tc.Assert(&at.AssertOptions{
+	}, apptest.QueryOpts{})
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
 			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
@@ -312,24 +313,24 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 	})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
-			return sut.PrometheusAPIV1QueryRange(t, `1/(not_nan_not_inf-1)!=inf!=nan`, at.QueryOpts{
+			return sut.PrometheusAPIV1QueryRange(t, `1/(not_nan_not_inf-1)!=inf!=nan`, apptest.QueryOpts{
 				Start: "2024-02-05T06:50:36.000Z",
 				End:   "2024-02-05T09:58:37.000Z",
 				Step:  "60",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{"item": "y"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:58:00.000Z", 0.5),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:58:00.000Z", 0.5),
 						},
 					},
 				},
@@ -338,7 +339,7 @@ func testComparisonNotInfNotNan(tc *at.TestCase, sut at.PrometheusWriteQuerier) 
 	})
 }
 
-func testEmptyLabelMatch(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testEmptyLabelMatch(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// empty-label-match
@@ -348,8 +349,8 @@ func testEmptyLabelMatch(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 		"empty_label_match 1 1707123456",         // 2024-02-05T08:57:36.000Z
 		"empty_label_match;foo=bar 2 1707123456", // 2024-02-05T08:57:36.000Z
 		"empty_label_match;foo=baz 3 1707123456", // 2024-02-05T08:57:36.000Z
-	}, at.QueryOpts{})
-	tc.Assert(&at.AssertOptions{
+	}, apptest.QueryOpts{})
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
 			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 3
@@ -358,30 +359,30 @@ func testEmptyLabelMatch(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
-			return sut.PrometheusAPIV1QueryRange(t, `empty_label_match{foo=~'bar|'}`, at.QueryOpts{
+			return sut.PrometheusAPIV1QueryRange(t, `empty_label_match{foo=~'bar|'}`, apptest.QueryOpts{
 				Start: "2024-02-05T08:55:36.000Z",
 				End:   "2024-02-05T08:57:36.000Z",
 				Step:  "60s",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{"__name__": "empty_label_match"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:57:36.000Z", 1),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:57:36.000Z", 1),
 						},
 					},
 					{
 						Metric: map[string]string{"__name__": "empty_label_match", "foo": "bar"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:57:36.000Z", 2),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:57:36.000Z", 2),
 						},
 					},
 				},
@@ -390,7 +391,7 @@ func testEmptyLabelMatch(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 }
 
-func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testMaxLookbehind(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// max_lookback_set
@@ -401,8 +402,8 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 		"max_lookback_set 2 1707123396", // 2024-02-05T08:56:36.000Z
 		"max_lookback_set 3 1707123336", // 2024-02-05T08:55:36.000Z",
 		"max_lookback_set 4 1707123306", // 2024-02-05T08:55:06.000Z
-	}, at.QueryOpts{})
-	tc.Assert(&at.AssertOptions{
+	}, apptest.QueryOpts{})
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
 			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
@@ -411,28 +412,28 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
-			return sut.PrometheusAPIV1QueryRange(t, `max_lookback_set{foo=~'bar|'}`, at.QueryOpts{
+			return sut.PrometheusAPIV1QueryRange(t, `max_lookback_set{foo=~'bar|'}`, apptest.QueryOpts{
 				Start:       "2024-02-05T08:55:06.000Z",
 				End:         "2024-02-05T08:57:37.000Z",
 				Step:        "10s",
 				MaxLookback: "1s",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{"__name__": "max_lookback_set"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:55:06.000Z", 4),
-							at.NewSample(t, "2024-02-05T08:55:36.000Z", 3),
-							at.NewSample(t, "2024-02-05T08:56:36.000Z", 2),
-							at.NewSample(t, "2024-02-05T08:57:06.000Z", 1),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:55:06.000Z", 4),
+							apptest.NewSample(t, "2024-02-05T08:55:36.000Z", 3),
+							apptest.NewSample(t, "2024-02-05T08:56:36.000Z", 2),
+							apptest.NewSample(t, "2024-02-05T08:57:06.000Z", 1),
 						},
 					},
 				},
@@ -448,8 +449,8 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 		"max_lookback_unset 2 1707123396", // 2024-02-05T08:56:36.000Z
 		"max_lookback_unset 3 1707123336", // 2024-02-05T08:55:36.000Z
 		"max_lookback_unset 4 1707123306", // 2024-02-05T08:55:06.000Z
-	}, at.QueryOpts{})
-	tc.Assert(&at.AssertOptions{
+	}, apptest.QueryOpts{})
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
 			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
@@ -458,38 +459,38 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
-			return sut.PrometheusAPIV1QueryRange(t, `max_lookback_unset{foo=~'bar|'}`, at.QueryOpts{
+			return sut.PrometheusAPIV1QueryRange(t, `max_lookback_unset{foo=~'bar|'}`, apptest.QueryOpts{
 				Start: "2024-02-05T08:55:06.000Z",
 				End:   "2024-02-05T08:57:37.000Z",
 				Step:  "10s",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{"__name__": "max_lookback_unset"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:55:06.000Z", 4),
-							at.NewSample(t, "2024-02-05T08:55:16.000Z", 4),
-							at.NewSample(t, "2024-02-05T08:55:26.000Z", 4),
-							at.NewSample(t, "2024-02-05T08:55:36.000Z", 3),
-							at.NewSample(t, "2024-02-05T08:55:46.000Z", 3),
-							at.NewSample(t, "2024-02-05T08:55:56.000Z", 3),
-							at.NewSample(t, "2024-02-05T08:56:06.000Z", 3),
-							at.NewSample(t, "2024-02-05T08:56:16.000Z", 3),
-							at.NewSample(t, "2024-02-05T08:56:36.000Z", 2),
-							at.NewSample(t, "2024-02-05T08:56:46.000Z", 2),
-							at.NewSample(t, "2024-02-05T08:56:56.000Z", 2),
-							at.NewSample(t, "2024-02-05T08:57:06.000Z", 1),
-							at.NewSample(t, "2024-02-05T08:57:16.000Z", 1),
-							at.NewSample(t, "2024-02-05T08:57:26.000Z", 1),
-							at.NewSample(t, "2024-02-05T08:57:36.000Z", 1),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:55:06.000Z", 4),
+							apptest.NewSample(t, "2024-02-05T08:55:16.000Z", 4),
+							apptest.NewSample(t, "2024-02-05T08:55:26.000Z", 4),
+							apptest.NewSample(t, "2024-02-05T08:55:36.000Z", 3),
+							apptest.NewSample(t, "2024-02-05T08:55:46.000Z", 3),
+							apptest.NewSample(t, "2024-02-05T08:55:56.000Z", 3),
+							apptest.NewSample(t, "2024-02-05T08:56:06.000Z", 3),
+							apptest.NewSample(t, "2024-02-05T08:56:16.000Z", 3),
+							apptest.NewSample(t, "2024-02-05T08:56:36.000Z", 2),
+							apptest.NewSample(t, "2024-02-05T08:56:46.000Z", 2),
+							apptest.NewSample(t, "2024-02-05T08:56:56.000Z", 2),
+							apptest.NewSample(t, "2024-02-05T08:57:06.000Z", 1),
+							apptest.NewSample(t, "2024-02-05T08:57:16.000Z", 1),
+							apptest.NewSample(t, "2024-02-05T08:57:26.000Z", 1),
+							apptest.NewSample(t, "2024-02-05T08:57:36.000Z", 1),
 						},
 					},
 				},
@@ -498,7 +499,7 @@ func testMaxLookbehind(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 }
 
-func testNonNanAsMissingData(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testNonNanAsMissingData(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// not-nan-as-missing-data
@@ -509,8 +510,8 @@ func testNonNanAsMissingData(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 		"not_nan_as_missing_data;item=x 1 1707123455", // 2024-02-05T08:57:35.000Z
 		"not_nan_as_missing_data;item=y 4 1707123454", // 2024-02-05T08:57:34.000Z
 		"not_nan_as_missing_data;item=y 3 1707123455", // 2024-02-05T08:57:35.000Z
-	}, at.QueryOpts{})
-	tc.Assert(&at.AssertOptions{
+	}, apptest.QueryOpts{})
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
 			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
@@ -519,32 +520,32 @@ func testNonNanAsMissingData(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/query_range response",
 		Got: func() any {
-			return sut.PrometheusAPIV1QueryRange(t, `not_nan_as_missing_data>1`, at.QueryOpts{
+			return sut.PrometheusAPIV1QueryRange(t, `not_nan_as_missing_data>1`, apptest.QueryOpts{
 				Start: "2024-02-05T08:57:34.000Z",
 				End:   "2024-02-05T08:57:36.000Z",
 				Step:  "1s",
 			})
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "matrix",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{"__name__": "not_nan_as_missing_data", "item": "x"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:57:34.000Z", 2),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:57:34.000Z", 2),
 						},
 					},
 					{
 						Metric: map[string]string{"__name__": "not_nan_as_missing_data", "item": "y"},
-						Samples: []*at.Sample{
-							at.NewSample(t, "2024-02-05T08:57:34.000Z", 4),
-							at.NewSample(t, "2024-02-05T08:57:35.000Z", 3),
-							at.NewSample(t, "2024-02-05T08:57:36.000Z", 3),
+						Samples: []*apptest.Sample{
+							apptest.NewSample(t, "2024-02-05T08:57:34.000Z", 4),
+							apptest.NewSample(t, "2024-02-05T08:57:35.000Z", 3),
+							apptest.NewSample(t, "2024-02-05T08:57:36.000Z", 3),
 						},
 					},
 				},
@@ -553,7 +554,7 @@ func testNonNanAsMissingData(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 }
 
-func testSubqueryAggregation(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testSubqueryAggregation(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
 	t := tc.T()
 
 	// subquery-aggregation
@@ -564,8 +565,8 @@ func testSubqueryAggregation(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 		"forms_daily_count;item=x 2 1707123336", // 2024-02-05T08:55:36.000Z
 		"forms_daily_count;item=y 3 1707123396", // 2024-02-05T08:56:36.000Z
 		"forms_daily_count;item=y 4 1707123336", // 2024-02-05T08:55:36.000Z
-	}, at.QueryOpts{})
-	tc.Assert(&at.AssertOptions{
+	}, apptest.QueryOpts{})
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected row inserted metrics check",
 		Got: func() any {
 			return (getRowsInsertedTotal(t, sut) - rowInserted) >= 4
@@ -574,28 +575,28 @@ func testSubqueryAggregation(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/query response",
 		Got: func() any {
-			got := sut.PrometheusAPIV1Query(t, `min by (item) (min_over_time(forms_daily_count[10m:1m]))`, at.QueryOpts{
+			got := sut.PrometheusAPIV1Query(t, `min by (item) (min_over_time(forms_daily_count[10m:1m]))`, apptest.QueryOpts{
 				Time:          "2024-02-05T08:56:35.000Z",
 				LatencyOffset: "1ms",
 			})
 			got.Sort()
 			return got
 		},
-		Want: &at.PrometheusAPIV1QueryResponse{
+		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
-			Data: &at.QueryData{
+			Data: &apptest.QueryData{
 				ResultType: "vector",
-				Result: []*at.QueryResult{
+				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{"item": "x"},
-						Sample: at.NewSample(t, "2024-02-05T08:56:35.000Z", 2),
+						Sample: apptest.NewSample(t, "2024-02-05T08:56:35.000Z", 2),
 					},
 					{
 						Metric: map[string]string{"item": "y"},
-						Sample: at.NewSample(t, "2024-02-05T08:56:35.000Z", 4),
+						Sample: apptest.NewSample(t, "2024-02-05T08:56:35.000Z", 4),
 					},
 				},
 			},
@@ -603,14 +604,14 @@ func testSubqueryAggregation(tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	})
 }
 
-func getRowsInsertedTotal(t *testing.T, sut at.PrometheusWriteQuerier) int {
+func getRowsInsertedTotal(t *testing.T, sut apptest.PrometheusWriteQuerier) int {
 	t.Helper()
 
 	selector := `vm_rows_inserted_total{type="graphite"}`
 	switch tt := sut.(type) {
-	case *at.Vmsingle:
+	case *apptest.Vmsingle:
 		return tt.GetIntMetric(t, selector)
-	case *at.Vmcluster:
+	case *apptest.Vmcluster:
 		return tt.Vminsert.GetIntMetric(t, selector)
 	default:
 		t.Fatalf("unexpected type: got %T, want *Vmsingle or *Vminsert", sut)

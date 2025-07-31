@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -10,10 +9,11 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestSingleToSingleVmctlNativeProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
@@ -44,7 +44,7 @@ func TestSingleToSingleVmctlNativeProtocol(t *testing.T) {
 }
 
 func TestClusterTenantsToTenantsVmctlNativeProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()

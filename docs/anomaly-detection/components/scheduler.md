@@ -60,9 +60,9 @@ schedulers:
 `class`: str, default=`"scheduler.periodic.PeriodicScheduler"`,
 options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffScheduler"`, `"scheduler.backtesting.BacktestingScheduler"`}
 
--  `"scheduler.periodic.PeriodicScheduler"`: periodically runs the models on new data. Useful for consecutive re-trainings to counter [data drift](https://www.datacamp.com/tutorial/understanding-data-drift-model-drift) and model degradation over time.
--  `"scheduler.oneoff.OneoffScheduler"`: runs the process once and exits. Useful for testing.
--  `"scheduler.backtesting.BacktestingScheduler"`: imitates consecutive backtesting runs of OneoffScheduler. Runs the process once and exits. Use to get more granular control over testing on historical data.
+-  `"scheduler.periodic.PeriodicScheduler"`: Used in production. Periodically runs the models on new data to generate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). Also does consecutive re-trainings of attached [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) to counter [data drift](https://www.datacamp.com/tutorial/understanding-data-drift-model-drift) and model degradation over time. 
+-  `"scheduler.oneoff.OneoffScheduler"`: Runs the job once and exits. Useful for testing or for one-off backfilling on historical data.
+-  `"scheduler.backtesting.BacktestingScheduler"`: Imitates running PeriodicScheduler, but runs only once and exits. Used for [backtesting](https://en.wikipedia.org/wiki/Backtesting) or for consecutive backfilling on historical data. One may evaluate the model performance on past data which already contained labeled incidents, to see how well the model would have performed in the past. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/index.html#how-to-backtest-particular-configuration-on-historical-data) for the example and [BacktestingScheduler](#backtesting-scheduler) section below for the configuration details.
 
 > **Class aliases** are supported{{% available_from "v1.13.0" anomaly %}}, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
 
@@ -207,7 +207,9 @@ schedulers:
 
 This configuration specifies that `vmanomaly` will calculate a 14-day time window from the time of `fit_every` call to train the model. Starting at 20:00 Kyiv local time today (or tomorrow if launched after 20:00), the model will be retrained every hour using the most recent 14-day window, which always includes an additional hour of new data. The time window remains strictly 14 days and does not extend with subsequent retrains. Additionally, `vmanomaly` will perform model inference every minute, processing newly added data points using the most recent model.
 
-## Oneoff scheduler 
+## Oneoff scheduler
+
+> As of latest version, the Oneoff scheduler can't be explicitly used with a combination of [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration). It is designed to run once and exit, so it does not maintain state across runs. A warning will be raised in logs and internal state for such scheduler will not be saved and restored upon restart. If you need to run the scheduler periodically and/or maintain state, consider using the [Periodic scheduler](#periodic-scheduler) instead.
 
 ### Parameters
 For Oneoff scheduler timeframes can be defined in Unix time in seconds or ISO 8601 string format. 
@@ -375,6 +377,8 @@ schedulers:
 ```
 
 ## Backtesting scheduler
+
+> As of latest version, the Backtesting scheduler can't be explicitly used with a combination of [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration). It is designed to run once and exit, so it does not maintain state across runs. A warning will be raised in logs and internal state for such scheduler will not be saved and restored upon restart. If you need to run the scheduler periodically and/or maintain state, consider using the [Periodic scheduler](#periodic-scheduler) instead.
 
 > A new, more intuitive backtesting mode is available {{% available_from "v1.22.1" anomaly %}}. In **Inference only** mode, the window you specify via `[from, to]` (or `[from_iso, to_iso]`) is used *solely for inference*, and the corresponding training (“fit”) windows are determined automatically. To enable this behavior, set:
 > ```yaml

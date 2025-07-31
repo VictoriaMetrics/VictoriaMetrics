@@ -24,9 +24,9 @@ func init() {
 	if cpuQuota > 0 {
 		updateGOMAXPROCSToCPUQuota(cpuQuota)
 	}
-	cpuCoresAvailable := cpuQuota
-	if cpuCoresAvailable <= 0 {
-		cpuCoresAvailable = float64(runtime.NumCPU())
+	cpuCoresAvailable := float64(runtime.NumCPU())
+	if cpuQuota > 0 && cpuCoresAvailable > cpuQuota {
+		cpuCoresAvailable = cpuQuota
 	}
 	metrics.NewGauge(`process_cpu_cores_available`, func() float64 {
 		return cpuCoresAvailable

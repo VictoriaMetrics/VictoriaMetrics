@@ -7,28 +7,29 @@ import (
 	"testing"
 	"time"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 type clusterWithReplication struct {
-	vmstorages     []*at.Vmstorage
-	vminsert       *at.Vminsert
-	vmselect       *at.Vmselect
-	vmselectDedup  *at.Vmselect
-	vmselectRF     *at.Vmselect
-	vmselectRFSkip *at.Vmselect
+	vmstorages     []*apptest.Vmstorage
+	vminsert       *apptest.Vminsert
+	vmselect       *apptest.Vmselect
+	vmselectDedup  *apptest.Vmselect
+	vmselectRF     *apptest.Vmselect
+	vmselectRFSkip *apptest.Vmselect
 }
 
-func newClusterWithReplication(tc *at.TestCase, replicationFactor int) *clusterWithReplication {
+func newClusterWithReplication(tc *apptest.TestCase, replicationFactor int) *clusterWithReplication {
 	tc.T().Helper()
 
 	c := &clusterWithReplication{}
 
 	vmstorageCount := 2*replicationFactor + 1
 
-	c.vmstorages = make([]*at.Vmstorage, vmstorageCount)
+	c.vmstorages = make([]*apptest.Vmstorage, vmstorageCount)
 	vminsertAddrs := make([]string, vmstorageCount)
 	vmselectAddrs := make([]string, vmstorageCount)
 	for i := range vmstorageCount {
@@ -80,7 +81,7 @@ func newClusterWithReplication(tc *at.TestCase, replicationFactor int) *clusterW
 //
 // See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	const replicationFactor = 2
@@ -93,13 +94,13 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 	for i := range numRecs {
 		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, apptest.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Verify that each storage node has metrics and that total metric count across
 	// all vmstorages is replicationFactor*numRecs.
 
-	getMetricsReadTotal := func(app *at.Vmstorage) int {
+	getMetricsReadTotal := func(app *apptest.Vmstorage) int {
 		t.Helper()
 		got := app.GetIntMetric(t, "vm_vminsert_metrics_read_total")
 		if got <= 0 {
@@ -129,7 +130,7 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 //
 // See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_Deduplication(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	const replicationFactor = 2
@@ -150,7 +151,7 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			ts = ts.Add(1 * time.Minute)
 		}
 	}
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, apptest.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Check /api/v1/series response.
@@ -158,17 +159,17 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 	// vmselect is expected to return no duplicates regardless whether
 	// -dedup.minScrapeInterval is set or not.
 
-	assertSeries := func(app *at.Vmselect) {
+	assertSeries := func(app *apptest.Vmselect) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
+			Want: &apptest.PrometheusAPIV1SeriesResponse{
 				Status:    "success",
 				IsPartial: false,
 				Data: []map[string]string{
@@ -188,24 +189,24 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 	// For queries that do not return range vector, vmselect returns no
 	// duplicates regardless whether -dedup.minScrapeInterval is set or not.
 
-	assertQuery := func(app *at.Vmselect) {
+	assertQuery := func(app *apptest.Vmselect) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
+				return app.PrometheusAPIV1Query(t, "metric_1", apptest.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status: "success",
-				Data: &at.QueryData{
+				Data: &apptest.QueryData{
 					ResultType: "vector",
-					Result: []*at.QueryResult{
+					Result: []*apptest.QueryResult{
 						{
 							Metric: map[string]string{"__name__": "metric_1"},
-							Sample: at.NewSample(t, "2024-01-01T00:05:00Z", 5),
+							Sample: apptest.NewSample(t, "2024-01-01T00:05:00Z", 5),
 						},
 					},
 				},
@@ -220,8 +221,8 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 	// For queries that return range vector, vmselect is expected to
 	// return duplicates when -dedup.minScrapeInterval is not set.
 
-	duplicateNTimes := func(n int, samples []*at.Sample) []*at.Sample {
-		dupedSamples := make([]*at.Sample, len(samples)*n)
+	duplicateNTimes := func(n int, samples []*apptest.Sample) []*apptest.Sample {
+		dupedSamples := make([]*apptest.Sample, len(samples)*n)
 		for i, s := range samples {
 			for j := range n {
 				dupedSamples[n*i+j] = s
@@ -230,29 +231,29 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		return dupedSamples
 	}
 
-	assertQueryRangeVector := func(app *at.Vmselect, wantDuplicates int) {
+	assertQueryRangeVector := func(app *apptest.Vmselect, wantDuplicates int) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
+				return app.PrometheusAPIV1Query(t, "metric_1[5m]", apptest.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status: "success",
-				Data: &at.QueryData{
+				Data: &apptest.QueryData{
 					ResultType: "matrix",
-					Result: []*at.QueryResult{
+					Result: []*apptest.QueryResult{
 						{
 							Metric: map[string]string{"__name__": "metric_1"},
-							Samples: duplicateNTimes(wantDuplicates, []*at.Sample{
-								at.NewSample(t, "2024-01-01T00:01:00Z", 1),
-								at.NewSample(t, "2024-01-01T00:02:00Z", 2),
-								at.NewSample(t, "2024-01-01T00:03:00Z", 3),
-								at.NewSample(t, "2024-01-01T00:04:00Z", 4),
-								at.NewSample(t, "2024-01-01T00:05:00Z", 5),
+							Samples: duplicateNTimes(wantDuplicates, []*apptest.Sample{
+								apptest.NewSample(t, "2024-01-01T00:01:00Z", 1),
+								apptest.NewSample(t, "2024-01-01T00:02:00Z", 2),
+								apptest.NewSample(t, "2024-01-01T00:03:00Z", 3),
+								apptest.NewSample(t, "2024-01-01T00:04:00Z", 4),
+								apptest.NewSample(t, "2024-01-01T00:05:00Z", 5),
 							}),
 						},
 					},
@@ -268,27 +269,27 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 	// For range queries, vmselect is expected to return no duplicates
 	// regardless whether -dedup.minScrapeInterval is set or not.
 
-	assertQueryRange := func(app *at.Vmselect) {
-		tc.Assert(&at.AssertOptions{
+	assertQueryRange := func(app *apptest.Vmselect) {
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				return app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
+				return app.PrometheusAPIV1QueryRange(t, "metric_1", apptest.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:10:00Z",
 					Step:  "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status: "success",
-				Data: &at.QueryData{
+				Data: &apptest.QueryData{
 					ResultType: "matrix",
-					Result: []*at.QueryResult{
+					Result: []*apptest.QueryResult{
 						{
 							Metric: map[string]string{"__name__": "metric_1"},
-							Samples: []*at.Sample{
-								at.NewSample(t, "2024-01-01T00:00:00Z", 0),
-								at.NewSample(t, "2024-01-01T00:05:00Z", 5),
-								at.NewSample(t, "2024-01-01T00:10:00Z", 10),
+							Samples: []*apptest.Sample{
+								apptest.NewSample(t, "2024-01-01T00:00:00Z", 0),
+								apptest.NewSample(t, "2024-01-01T00:05:00Z", 5),
+								apptest.NewSample(t, "2024-01-01T00:10:00Z", 10),
 							},
 						},
 					},
@@ -304,27 +305,27 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 	// // vmselect is expected to return duplicates when
 	// -dedup.minScrapeInterval is not set.
 
-	assertExport := func(app *at.Vmselect, wantDuplicates int) {
-		tc.Assert(&at.AssertOptions{
+	assertExport := func(app *apptest.Vmselect, wantDuplicates int) {
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/export response",
 			Got: func() any {
-				return app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
+				return app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, apptest.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:03:00Z",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status: "success",
-				Data: &at.QueryData{
+				Data: &apptest.QueryData{
 					ResultType: "matrix",
-					Result: []*at.QueryResult{
+					Result: []*apptest.QueryResult{
 						{
 							Metric: map[string]string{"__name__": "metric_1"},
-							Samples: duplicateNTimes(wantDuplicates, []*at.Sample{
-								at.NewSample(t, "2024-01-01T00:00:00Z", 0),
-								at.NewSample(t, "2024-01-01T00:01:00Z", 1),
-								at.NewSample(t, "2024-01-01T00:02:00Z", 2),
-								at.NewSample(t, "2024-01-01T00:03:00Z", 3),
+							Samples: duplicateNTimes(wantDuplicates, []*apptest.Sample{
+								apptest.NewSample(t, "2024-01-01T00:00:00Z", 0),
+								apptest.NewSample(t, "2024-01-01T00:01:00Z", 1),
+								apptest.NewSample(t, "2024-01-01T00:02:00Z", 2),
+								apptest.NewSample(t, "2024-01-01T00:03:00Z", 3),
 							}),
 						},
 					},
@@ -346,7 +347,7 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 //
 // See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_PartialResponse(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	const replicationFactor = 2
@@ -359,24 +360,24 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 	for i := range numRecs {
 		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, apptest.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Verify partial vs full response.
 
-	assertSeries := func(app *at.Vmselect, wantPartial bool) {
+	assertSeries := func(app *apptest.Vmselect, wantPartial bool) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
+			Want: &apptest.PrometheusAPIV1SeriesResponse{
 				Status:    "success",
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(at.PrometheusAPIV1SeriesResponse{}, "Data"),
+				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
 			},
 		})
 	}
@@ -426,7 +427,7 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 //
 // See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	const replicationFactor = 2
@@ -436,7 +437,7 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 
 	const numRecs = 1000
 	recs := make([]string, numRecs)
-	wantSeries := &at.PrometheusAPIV1SeriesResponse{
+	wantSeries := &apptest.PrometheusAPIV1SeriesResponse{
 		Status: "success",
 		Data:   make([]map[string]string, numRecs),
 	}
@@ -446,23 +447,23 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 		wantSeries.Data[i] = map[string]string{"__name__": name}
 	}
 	wantSeries.Sort()
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, apptest.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Verify skipping slow replicas by counting the number of skipSlowReplicas
 	// messages in request trace.
 
-	assertSeries := func(app *at.Vmselect, want int) {
+	assertSeries := func(app *apptest.Vmselect, want int) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{}).Sort()
 			},
 			Want: wantSeries,
 		})
 
-		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
+		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{Trace: "1"})
 		got := res.Trace.Contains("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
 		if got != want {
 			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, want %d (full trace:\n%v)", got, want, res.Trace)
@@ -474,11 +475,11 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 }
 
 type storageGroup struct {
-	vmstorages []*at.Vmstorage
-	vminsert   *at.Vminsert
+	vmstorages []*apptest.Vmstorage
+	vminsert   *apptest.Vminsert
 }
 
-func (g *storageGroup) stopNodes(tc *at.TestCase, n int) {
+func (g *storageGroup) stopNodes(tc *apptest.TestCase, n int) {
 	if n > len(g.vmstorages) {
 		n = len(g.vmstorages)
 	}
@@ -490,24 +491,24 @@ func (g *storageGroup) stopNodes(tc *at.TestCase, n int) {
 
 type clusterWithGroupReplication struct {
 	storageGroups             []*storageGroup
-	vminsert                  *at.Vminsert
-	vmselect                  *at.Vmselect
-	vmselectDedup             *at.Vmselect
-	vmselectGroupRF           *at.Vmselect
-	vmselectGlobalRF          *at.Vmselect
-	vmselectGroupGlobalRF     *at.Vmselect
-	vmselectGroupRFSkip       *at.Vmselect
-	vmselectGlobalRFSkip      *at.Vmselect
-	vmselectGroupGlobalRFSkip *at.Vmselect
+	vminsert                  *apptest.Vminsert
+	vmselect                  *apptest.Vmselect
+	vmselectDedup             *apptest.Vmselect
+	vmselectGroupRF           *apptest.Vmselect
+	vmselectGlobalRF          *apptest.Vmselect
+	vmselectGroupGlobalRF     *apptest.Vmselect
+	vmselectGroupRFSkip       *apptest.Vmselect
+	vmselectGlobalRFSkip      *apptest.Vmselect
+	vmselectGroupGlobalRFSkip *apptest.Vmselect
 }
 
-func (c *clusterWithGroupReplication) forceFlush(tc *at.TestCase) {
+func (c *clusterWithGroupReplication) forceFlush(tc *apptest.TestCase) {
 	for _, g := range c.storageGroups {
 		tc.ForceFlush(g.vmstorages...)
 	}
 }
 
-func newClusterWithGroupReplication(tc *at.TestCase, groupRFs []int, globalRF int) *clusterWithGroupReplication {
+func newClusterWithGroupReplication(tc *apptest.TestCase, groupRFs []int, globalRF int) *clusterWithGroupReplication {
 	tc.T().Helper()
 
 	if len(groupRFs) < 1 {
@@ -530,7 +531,7 @@ func newClusterWithGroupReplication(tc *at.TestCase, groupRFs []int, globalRF in
 		groupName := fmt.Sprintf("group%d", g)
 		vmstorageCount := 2*rf + 1
 		c.storageGroups[g] = &storageGroup{
-			vmstorages: make([]*at.Vmstorage, vmstorageCount),
+			vmstorages: make([]*apptest.Vmstorage, vmstorageCount),
 		}
 		groupVminsertAddrs := make([]string, vmstorageCount)
 		groupVmselectAddrs := make([]string, vmstorageCount)
@@ -625,7 +626,7 @@ func newClusterWithGroupReplication(tc *at.TestCase, groupRFs []int, globalRF in
 // See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmstorage-groups-at-vmselect
 // and https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterGroupReplication(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	// Feel free to change globalRF and groupRF,
@@ -653,7 +654,7 @@ func TestClusterGroupReplication(t *testing.T) {
 		numRecs    = numMetrics * numSamples
 	)
 	var recs []string
-	wantSeries := &at.PrometheusAPIV1SeriesResponse{
+	wantSeries := &apptest.PrometheusAPIV1SeriesResponse{
 		Status: "success",
 		Data:   make([]map[string]string, numMetrics),
 	}
@@ -667,7 +668,7 @@ func TestClusterGroupReplication(t *testing.T) {
 		}
 	}
 	wantSeries.Sort()
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, apptest.QueryOpts{})
 	c.forceFlush(tc)
 
 	opts := &testGroupReplicationOpts{
@@ -693,15 +694,15 @@ type testGroupReplicationOpts struct {
 	numGroups  int
 	numNodes   int
 	numRecs    int
-	wantSeries *at.PrometheusAPIV1SeriesResponse
+	wantSeries *apptest.PrometheusAPIV1SeriesResponse
 }
 
 // testGroupDataIsWrittenSeveralTimes checks that multiple
 // copies of data is stored within the custer when the replication is enabled.
-func testGroupDataIsWrittenSeveralTimes(tc *at.TestCase, opts *testGroupReplicationOpts) {
+func testGroupDataIsWrittenSeveralTimes(tc *apptest.TestCase, opts *testGroupReplicationOpts) {
 	t := tc.T()
 
-	getMetricsReadTotal := func(app *at.Vmstorage) int {
+	getMetricsReadTotal := func(app *apptest.Vmstorage) int {
 		t.Helper()
 		got := app.GetIntMetric(t, "vm_vminsert_metrics_read_total")
 		if got <= 0 {
@@ -733,7 +734,7 @@ func testGroupDataIsWrittenSeveralTimes(tc *at.TestCase, opts *testGroupReplicat
 // Most of the API endpoints remove duplicates by default. However, some API
 // endpoints will return duplicates unless -dedup.minScrapeInterval flag is set.
 // See mergeSortBlocks() in app/vmselect/netstorage/netstorage.go.
-func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
+func testGroupDeduplication(tc *apptest.TestCase, opts *testGroupReplicationOpts) {
 	t := tc.T()
 
 	// Check /api/v1/series response.
@@ -741,12 +742,12 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 	// vmselect is expected to return no duplicates regardless whether
 	// -dedup.minScrapeInterval is set or not.
 
-	assertSeries := func(app *at.Vmselect) {
+	assertSeries := func(app *apptest.Vmselect) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
@@ -762,24 +763,24 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 	// For queries that do not return range vector, vmselect returns no
 	// duplicates regardless whether -dedup.minScrapeInterval is set or not.
 
-	assertQuery := func(app *at.Vmselect) {
+	assertQuery := func(app *apptest.Vmselect) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
+				return app.PrometheusAPIV1Query(t, "metric_1", apptest.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status: "success",
-				Data: &at.QueryData{
+				Data: &apptest.QueryData{
 					ResultType: "vector",
-					Result: []*at.QueryResult{
+					Result: []*apptest.QueryResult{
 						{
 							Metric: map[string]string{"__name__": "metric_1"},
-							Sample: at.NewSample(t, "2024-01-01T00:05:00Z", 5),
+							Sample: apptest.NewSample(t, "2024-01-01T00:05:00Z", 5),
 						},
 					},
 				},
@@ -794,8 +795,8 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 	// For queries that return range vector, vmselect is expected to
 	// return duplicates when -dedup.minScrapeInterval is not set.
 
-	duplicateNTimes := func(n int, samples []*at.Sample) []*at.Sample {
-		dupedSamples := make([]*at.Sample, len(samples)*n)
+	duplicateNTimes := func(n int, samples []*apptest.Sample) []*apptest.Sample {
+		dupedSamples := make([]*apptest.Sample, len(samples)*n)
 		for i, s := range samples {
 			for j := range n {
 				dupedSamples[n*i+j] = s
@@ -804,29 +805,29 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		return dupedSamples
 	}
 
-	assertQueryRangeVector := func(app *at.Vmselect, wantDuplicates int) {
+	assertQueryRangeVector := func(app *apptest.Vmselect, wantDuplicates int) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
+				return app.PrometheusAPIV1Query(t, "metric_1[5m]", apptest.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status: "success",
-				Data: &at.QueryData{
+				Data: &apptest.QueryData{
 					ResultType: "matrix",
-					Result: []*at.QueryResult{
+					Result: []*apptest.QueryResult{
 						{
 							Metric: map[string]string{"__name__": "metric_1"},
-							Samples: duplicateNTimes(wantDuplicates, []*at.Sample{
-								at.NewSample(t, "2024-01-01T00:01:00Z", 1),
-								at.NewSample(t, "2024-01-01T00:02:00Z", 2),
-								at.NewSample(t, "2024-01-01T00:03:00Z", 3),
-								at.NewSample(t, "2024-01-01T00:04:00Z", 4),
-								at.NewSample(t, "2024-01-01T00:05:00Z", 5),
+							Samples: duplicateNTimes(wantDuplicates, []*apptest.Sample{
+								apptest.NewSample(t, "2024-01-01T00:01:00Z", 1),
+								apptest.NewSample(t, "2024-01-01T00:02:00Z", 2),
+								apptest.NewSample(t, "2024-01-01T00:03:00Z", 3),
+								apptest.NewSample(t, "2024-01-01T00:04:00Z", 4),
+								apptest.NewSample(t, "2024-01-01T00:05:00Z", 5),
 							}),
 						},
 					},
@@ -842,27 +843,27 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 	// For range queries, vmselect is expected to return no duplicates
 	// regardless whether -dedup.minScrapeInterval is set or not.
 
-	assertQueryRange := func(app *at.Vmselect) {
-		tc.Assert(&at.AssertOptions{
+	assertQueryRange := func(app *apptest.Vmselect) {
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				return app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
+				return app.PrometheusAPIV1QueryRange(t, "metric_1", apptest.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:10:00Z",
 					Step:  "5m",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status: "success",
-				Data: &at.QueryData{
+				Data: &apptest.QueryData{
 					ResultType: "matrix",
-					Result: []*at.QueryResult{
+					Result: []*apptest.QueryResult{
 						{
 							Metric: map[string]string{"__name__": "metric_1"},
-							Samples: []*at.Sample{
-								at.NewSample(t, "2024-01-01T00:00:00Z", 0),
-								at.NewSample(t, "2024-01-01T00:05:00Z", 5),
-								at.NewSample(t, "2024-01-01T00:10:00Z", 10),
+							Samples: []*apptest.Sample{
+								apptest.NewSample(t, "2024-01-01T00:00:00Z", 0),
+								apptest.NewSample(t, "2024-01-01T00:05:00Z", 5),
+								apptest.NewSample(t, "2024-01-01T00:10:00Z", 10),
 							},
 						},
 					},
@@ -878,27 +879,27 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 	// // vmselect is expected to return duplicates when
 	// -dedup.minScrapeInterval is not set.
 
-	assertExport := func(app *at.Vmselect, wantDuplicates int) {
-		tc.Assert(&at.AssertOptions{
+	assertExport := func(app *apptest.Vmselect, wantDuplicates int) {
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/export response",
 			Got: func() any {
-				return app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
+				return app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, apptest.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:03:00Z",
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status: "success",
-				Data: &at.QueryData{
+				Data: &apptest.QueryData{
 					ResultType: "matrix",
-					Result: []*at.QueryResult{
+					Result: []*apptest.QueryResult{
 						{
 							Metric: map[string]string{"__name__": "metric_1"},
-							Samples: duplicateNTimes(wantDuplicates, []*at.Sample{
-								at.NewSample(t, "2024-01-01T00:00:00Z", 0),
-								at.NewSample(t, "2024-01-01T00:01:00Z", 1),
-								at.NewSample(t, "2024-01-01T00:02:00Z", 2),
-								at.NewSample(t, "2024-01-01T00:03:00Z", 3),
+							Samples: duplicateNTimes(wantDuplicates, []*apptest.Sample{
+								apptest.NewSample(t, "2024-01-01T00:00:00Z", 0),
+								apptest.NewSample(t, "2024-01-01T00:01:00Z", 1),
+								apptest.NewSample(t, "2024-01-01T00:02:00Z", 2),
+								apptest.NewSample(t, "2024-01-01T00:03:00Z", 3),
 							}),
 						},
 					},
@@ -918,17 +919,17 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 // -replicationFactor and -globalReplicationFactor flags) it will still wait for
 // results from all the vmstorage nodes. A vmselect can be configured to skip
 // slow replicas using -search.skipSlowReplicas flag.
-func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) {
+func testGroupSkipSlowReplicas(tc *apptest.TestCase, opts *testGroupReplicationOpts) {
 	t := tc.T()
 
-	assertSeries := func(app *at.Vmselect, wantMin, wantMax int) {
+	assertSeries := func(app *apptest.Vmselect, wantMin, wantMax int) {
 		t.Helper()
 
 		// Ensure that the response contains full dataset.
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
@@ -936,7 +937,7 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 			Want: opts.wantSeries,
 		})
 
-		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
+		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{Trace: "1"})
 		got := res.Trace.Contains("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
 		if got < wantMin || got > wantMax {
 			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, %d <= want <= %d (full trace:\n%v)", got, wantMin, wantMax, res.Trace)
@@ -1011,25 +1012,25 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 // passing -replicationFactor=N and -globalReplicationFactor command-line flag
 // to vmselect instructs it to not mark responses as partial even if less
 // vmstorage nodes are unavailable during the query.
-func testGroupPartialResponse(tc *at.TestCase, opts *testGroupReplicationOpts) {
+func testGroupPartialResponse(tc *apptest.TestCase, opts *testGroupReplicationOpts) {
 	t := tc.T()
 
-	assertSeries := func(app *at.Vmselect, wantPartial bool) {
+	assertSeries := func(app *apptest.Vmselect, wantPartial bool) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
+			Want: &apptest.PrometheusAPIV1SeriesResponse{
 				Status:    "success",
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(at.PrometheusAPIV1SeriesResponse{}, "Data"),
+				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
 			},
 		})
 	}
@@ -1113,7 +1114,7 @@ func testGroupPartialResponse(tc *at.TestCase, opts *testGroupReplicationOpts) {
 //
 // See: https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_PartialResponseMultitenant(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	const replicationFactor = 2
@@ -1127,30 +1128,30 @@ func TestClusterReplication_PartialResponseMultitenant(t *testing.T) {
 		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
 
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, apptest.QueryOpts{
 		Tenant: "0",
 	})
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, apptest.QueryOpts{
 		Tenant: "1",
 	})
 	tc.ForceFlush(c.vmstorages...)
 
 	// Verify partial vs full response.
 
-	assertSeries := func(app *at.Vmselect, wantPartial bool) {
+	assertSeries := func(app *apptest.Vmselect, wantPartial bool) {
 		t.Helper()
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				qo := at.QueryOpts{Tenant: "multitenant", Trace: "1"}
+				qo := apptest.QueryOpts{Tenant: "multitenant", Trace: "1"}
 				return app.PrometheusAPIV1Query(t, `{__name__=~"metric_.*"}`, qo)
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{
+			Want: &apptest.PrometheusAPIV1QueryResponse{
 				Status:    "success",
 				IsPartial: wantPartial,
 			},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Data"),
+				cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Data"),
 			},
 		})
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
@@ -49,7 +49,7 @@ func selfScraper(scrapeInterval time.Duration) {
 	var bb bytesutil.ByteBuffer
 	var rows prometheus.Rows
 	var mrs []storage.MetricRow
-	var labels []prompbmarshal.Label
+	var labels []prompb.Label
 	t := time.NewTicker(scrapeInterval)
 	f := func(currentTime time.Time, sendStaleMarkers bool) {
 		currentTimestamp := currentTime.UnixNano() / 1e6
@@ -104,11 +104,11 @@ func selfScraper(scrapeInterval time.Duration) {
 	}
 }
 
-func addLabel(dst []prompbmarshal.Label, key, value string) []prompbmarshal.Label {
+func addLabel(dst []prompb.Label, key, value string) []prompb.Label {
 	if len(dst) < cap(dst) {
 		dst = dst[:len(dst)+1]
 	} else {
-		dst = append(dst, prompbmarshal.Label{})
+		dst = append(dst, prompb.Label{})
 	}
 	lb := &dst[len(dst)-1]
 	lb.Name = key

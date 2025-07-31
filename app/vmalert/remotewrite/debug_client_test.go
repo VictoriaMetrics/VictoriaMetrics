@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestDebugClient_Push(t *testing.T) {
@@ -23,8 +23,8 @@ func TestDebugClient_Push(t *testing.T) {
 	const rowsN = 100
 	var sent int
 	for i := 0; i < rowsN; i++ {
-		s := prompbmarshal.TimeSeries{
-			Samples: []prompbmarshal.Sample{{
+		s := prompb.TimeSeries{
+			Samples: []prompb.Sample{{
 				Value:     float64(i),
 				Timestamp: time.Now().Unix(),
 			}},

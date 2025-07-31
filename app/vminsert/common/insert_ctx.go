@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -63,7 +63,7 @@ type InsertCtx struct {
 func (ctx *InsertCtx) Reset(rowsLen int) {
 	labels := ctx.Labels
 	for i := range labels {
-		labels[i] = prompbmarshal.Label{}
+		labels[i] = prompb.Label{}
 	}
 	ctx.Labels = labels[:0]
 
@@ -84,7 +84,7 @@ func cleanMetricRow(mr *storage.MetricRow) {
 	mr.MetricNameRaw = nil
 }
 
-func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompbmarshal.Label) []byte {
+func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompb.Label) []byte {
 	start := len(ctx.metricNamesBuf)
 	ctx.metricNamesBuf = append(ctx.metricNamesBuf, prefix...)
 	ctx.metricNamesBuf = storage.MarshalMetricNameRaw(ctx.metricNamesBuf, labels)
@@ -113,7 +113,7 @@ func (ctx *InsertCtx) TryPrepareLabels(hasRelabeling bool) bool {
 // WriteDataPoint writes (timestamp, value) with the given prefix and labels into ctx buffer.
 //
 // caller should invoke TryPrepareLabels before using this function if needed
-func (ctx *InsertCtx) WriteDataPoint(prefix []byte, labels []prompbmarshal.Label, timestamp int64, value float64) error {
+func (ctx *InsertCtx) WriteDataPoint(prefix []byte, labels []prompb.Label, timestamp int64, value float64) error {
 	metricNameRaw := ctx.marshalMetricNameRaw(prefix, labels)
 	return ctx.addRow(metricNameRaw, timestamp, value)
 }
@@ -123,7 +123,7 @@ func (ctx *InsertCtx) WriteDataPoint(prefix []byte, labels []prompbmarshal.Label
 // caller must invoke TryPrepareLabels before using this function
 //
 // It returns metricNameRaw for the given labels if len(metricNameRaw) == 0.
-func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompbmarshal.Label, timestamp int64, value float64) ([]byte, error) {
+func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompb.Label, timestamp int64, value float64) ([]byte, error) {
 	if len(metricNameRaw) == 0 {
 		metricNameRaw = ctx.marshalMetricNameRaw(nil, labels)
 	}
@@ -161,7 +161,7 @@ func (ctx *InsertCtx) AddLabelBytes(name, value []byte) {
 		// Do not skip labels with empty name, since they are equal to __name__.
 		return
 	}
-	ctx.Labels = append(ctx.Labels, prompbmarshal.Label{
+	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
 		Name:  bytesutil.ToUnsafeString(name),
@@ -179,7 +179,7 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 		// Do not skip labels with empty name, since they are equal to __name__.
 		return
 	}
-	ctx.Labels = append(ctx.Labels, prompbmarshal.Label{
+	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
 		Name:  name,

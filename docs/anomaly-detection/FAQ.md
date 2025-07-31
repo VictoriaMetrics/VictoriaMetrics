@@ -82,6 +82,7 @@ models:
 ```
 
 ## Output produced by vmanomaly
+
 `vmanomaly` models generate [metrics](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) like `anomaly_score`, `yhat`, `yhat_lower`, `yhat_upper`, and `y`. These metrics provide a comprehensive view of the detected anomalies. The service also produces [health check metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring#metrics-generated-by-vmanomaly) for monitoring its performance.
 
 ## Visualizations  
@@ -92,9 +93,21 @@ To visualize and interact with both [self-monitoring metrics](https://docs.victo
 - To monitor `vmanomaly` health, operational performance, and potential issues in real time, visit the [self-monitoring section](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
 
 ## Is vmanomaly stateful?
-By default, `vmanomaly` is **stateless**, meaning it does not retain any state between service restarts. However, it can be configured {{% available_from "v1.24.0" anomaly %}} to be **stateful** by enabling the `restore_state` setting in the [settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings). This allows the service to restore its state from a previous run (training data, trained models), ensuring that models continue to produce [anomaly scores](#what-is-anomaly-score) right after restart and without requiring a full retraining process or re-querying training data from VictoriaMetrics. This is particularly useful for long-running services that need to maintain continuity in anomaly detection without losing previously learned patterns, especially when using [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) that continuously adapt to new data and update their internal state.
+By default, `vmanomaly` is **stateless**, meaning it does not retain any state between service restarts. However, it can be configured {{% available_from "v1.24.0" anomaly %}} to be **stateful** by enabling the `restore_state` setting in the [settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings). This allows the service to restore its state from a previous run (training data, trained models), ensuring that models continue to produce [anomaly scores](#what-is-anomaly-score) right after restart and without requiring a full retraining process or re-querying training data from VictoriaMetrics. This is particularly useful for long-running services that need to maintain continuity in anomaly detection without losing previously learned patterns, especially when using [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) that continuously adapt to new data and update their internal state. Also, [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) works well with state restoration, allowing for on-the-fly configuration changes without losing the current state of the models and reusing unchanged models/data/scheduler combinations.
 
 Please refer to the [state restoration section](https://docs.victoriametrics.com/anomaly-detection/components/settings#state-restoration) for more details on how it works and how to configure it.
+
+## Config hot-reloading
+
+`vmanomaly` supports [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{% available_from "v1.25.0" anomaly %}} to automatically reload configurations on config files changes. It can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) and allows for configuration updates without explicit service restarts.
+
+## Environment variables
+
+`vmanomaly` supports {{% available_from "v1.25.0" anomaly %}} an option to reference environment variables in [configuration files](https://docs.victoriametrics.com/anomaly-detection/components/) using scalar string placeholders `%{ENV_NAME}`. This feature is particularly useful for managing sensitive information like API keys or database credentials while still making it accessible to the service. Please refer to the [environment variables section](https://docs.victoriametrics.com/anomaly-detection/components/#environment-variables) for more details and examples.
+
+## Deploying vmanomaly
+
+`vmanomaly` can be deployed in various environments, including Docker, Kubernetes, and VM Operator. For detailed deployment instructions, refer to the [QuickStart section](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly).
 
 ## Choosing the right model for vmanomaly
 Selecting the best model for `vmanomaly` depends on the data's nature and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) to detect. For instance, [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models#online-z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet).
@@ -171,7 +184,7 @@ Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 i
 
 ## How to backtest particular configuration on historical data?
 
-Anomaly scores for historical (backtesting) period can be produced and written back {{% available_from "v1.7.2" anomaly %}}  to VictoriaMetrics TSDB using `BacktestingScheduler` [component](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#backtesting-scheduler) to imitate consecutive "production runs" of `PeriodicScheduler` [component](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler). Please find an example config below:
+Anomaly scores for historical ([backtesting](https://wikipedia.org/wiki/Backtesting)) data can be produced using [`backtesting` scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#backtesting-scheduler) in `vmanomaly` config. This scheduler allows you to define a historical period for which the models will be trained and then used to produce anomaly scores, imitating the behavior of the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler) for that period. Especially useful for testing new models or configurations on historical data before deploying them in production, around labelled incidents.
 
 ```yaml
 schedulers:
@@ -230,7 +243,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.24.1
+    image: victoriametrics/vmanomaly:v1.25.2
     # ...
     ports:
       - "8490:8490"
@@ -443,7 +456,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.24.1 && docker image tag victoriametrics/vmanomaly:v1.24.1 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.25.2 && docker image tag victoriametrics/vmanomaly:v1.25.2 vmanomaly
 ```
 
 ```sh

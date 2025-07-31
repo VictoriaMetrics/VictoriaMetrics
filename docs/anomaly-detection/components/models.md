@@ -579,17 +579,42 @@ Built-in models support 2 groups of arguments:
 
 
 ### AutoTuned
-Tuning hyperparameters of a model can be tricky and often requires in-depth knowledge of Machine Learning. `AutoTunedModel` is designed specifically to take the cognitive load off the user - specify as little as `anomaly_percentage` param from `(0, 0.5)` interval and `tuned_model_class` (i.e. [`model.zscore.ZscoreModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score)) to get it working with best settings that match your data.
+Tuning [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)) of a model can be tricky and often requires in-depth knowledge of Machine Learning or underlying model specific. `AutoTunedModel` wrapper is designed specifically to take off the cognitive load from the user, allowing any of built-in models below to be re-tuned for best hyperparameters on data seen during each `fit` phase of the algorithm - specify as little as `anomaly_percentage` param from `[0, 0.5)` interval and `tuned_model_class` (i.e. [`zscore`](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score)) to get it working with best settings that match your expectations.
+
+> Using autotune on `tuned_model_class` if run on a [query](#queries) that returns more than 1 timeseries, will result in **one model per each unique labelset** with **probably different [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning))** found for each of them. This is useful for further context separation in contrast to using `tuned_model_class` directly, which will result in the same amount of models as there are timeseries returned by the query, but with **the same hyperparameters** for each of them. E.g.
+> ```yaml
+> models:
+>   # this may result in 1 model per each unique labelset with different hyperparameters, such as z_threshold
+>   autotuned_model:
+>     class: 'auto'
+>     tuned_class_name: 'zscore'
+>     optimization_params:
+>       anomaly_percentage: 0.01
+>     queries: ['your_query']
+> ```
+> will produce **one model per each unique labelset** found in `your_query` results, with different hyperparameters, such as `z_threshold`, while
+> ```yaml
+> models:
+>   # this will result in 1 model per each timeseries returned by the query,
+>   # with the same hyperparameters, such as z_threshold
+>   zscore_model:
+>     class: 'zscore'
+>     z_threshold: 3  # all models will have the same z_threshold, but different parameters, such as mean, std, etc.
+>     queries: ['your_query']
+> ```
+> will produce **one model per each timeseries** returned by `your_query`, with the same hyperparameters, such as `z_threshold`, but different parameters, such as mean, std, etc.
 
 *Parameters specific for vmanomaly*:
 
 * `class` (string) - model class name `"model.auto.AutoTunedModel"` (or `auto` with class alias support{{% available_from "v1.13.0" anomaly %}})
-* `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel` (or `zscore`with class alias support{{% available_from "v1.13.0" anomaly %}}).
-* `optimization_params` (dict) - Optimization parameters for unsupervised model tuning. Control % of found anomalies, as well as a tradeoff between time spent and the accuracy. The more `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
-  - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
-  - `optimized_business_params` (list[string]) - {{% available_from "v1.15.0" anomaly %}} this argument allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value (0.0). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** for more stable results and increased convergence (less iterations needed for a good result).
+* `tuned_class_name` (string) - [Built-in model class](#built-in-models) to wrap, i.e. `model.zscore.ZscoreModel` (or `zscore` with class alias support{{% available_from "v1.13.0" anomaly %}}).
+* `optimization_params` (dict) - Optimization parameters for *unsupervised* model tuning. Control percentage of found anomalies, as well as a tradeoff between time spent and the accuracy. The higher `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
+  - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from `[0, 0.5)` interval (i.e. 0.01 means it's expected ~ 1% of anomalies to be present in training data). This is a *required* parameter.
+  - `optimized_business_params` (list[string]) - {{% available_from "v1.15.0" anomaly %}} this argument allows particular [business-specific parameters](#common-args) such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their initial values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value of (e.g. [1, 2] if set to that value in model config). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** as this feature is still experimental and may lead to unexpected results.
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
+  - `validation_scheme` (string) - {{% available_from "v1.25.1" anomaly %}} the validation scheme to use for hyperparameter tuning, either `regular` (time-based default) or `leaky` (regular cross-validation with  `n_splits` folds, where each fold is a time-based split of the data). The `leaky` scheme is recommended for `anomaly_percentage` ~ 0%, as it allows the model to "see" all the datapoints at least once during the optimization process, which can lead to better results in such cases. Defaults to `regular`.
   - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
+  - `train_val_ratio` (float) - {{% available_from "v1.25.1" anomaly %}} the ratio of training to validation data size when constructing folds, e.g. setting it to 2 will result in 2/3 of the data being used for training and 1/3 for validation in each of the splits. Defaults to 3 (3/4 of the data for training and 1/4 for validation). Isn't used when `validation_scheme` is set to `leaky`.
   - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
   - `timeout` (float) - How many seconds in total can be spent on each model to tune hyperparameters. The higher, the longer it takes, allowing to test more trials out of defined `n_trials`, but the better the results can be.
 
@@ -605,7 +630,10 @@ models:
     optimization_params:
       anomaly_percentage: 0.004  # required. i.e. we expect <= 0.4% of anomalies to be present in training data
       seed: 42  # fix reproducibility & determinism
-      n_splits: 4  # how much folds are created for internal cross-validation
+      n_splits: 3  # how much folds are created for internal cross-validation
+      validation_scheme: 'regular'  # either 'regular' (time-based default) or 'leaky' (cross-validation with n_splits folds)
+      train_val_ratio: 3  # how much training data to use in each fold vs validation, e.g. 3 means 3/4 of the data for fit and 1/4 for infer
+
       n_trials: 128  # how many configurations to sample from search space during optimization
       timeout: 10  # how many seconds to spend on optimization for each trained model during `fit` phase call
       n_jobs: 1  # how many jobs in parallel to launch. Consider making it > 1 only if you have fit window containing > 10000 datapoints for each series
@@ -967,6 +995,7 @@ It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upp
 
 * `class` (string) - model class name `"model.online.OnlineQuantileModel"` (or `quantile_online` with class alias support{{% available_from "v1.13.0" anomaly %}})
 * `quantiles` (list[float], optional) - The quantiles to estimate. `yhat_lower`, `yhat`, `yhat_upper` are the quantile order. By default (0.01, 0.5, 0.99).
+* `iqr_threshold` (float, optional) - {{% available_from "v1.25.0" anomaly %}} The [interquartile range (IQR)](https://en.wikipedia.org/wiki/Interquartile_range) multiplier to increase the width of the prediction intervals. Defaults to 0 (no adjustment) for backward compatibility. If set > 0, the model will add IQR * `iqr_threshold` to `yhat_lower` and  `yhat_upper` (respecting `min_subseason` seasonal buckets). This is useful for data with high variance or outliers, as it helps to avoid false positives in anomaly detection. Best used with **robust** `quantiles` set to (0.25, 0.5, 0.75) or similar.
 * `seasonal_interval` (string, optional) - the interval for the seasonal adjustment. If not set, the model will equal to a simple online quantile model. By default not set.
 * `min_subseason` (str, optional) - the minimum interval to estimate quantiles for. By default not set. Note that the minimum interval should be a multiple of the seasonal interval, i.e. if seasonal_interval='2h', then min_subseason='15m' is valid, but '37m' is not.
 * `use_transform` (bool, optional) - whether to internally apply a `log1p(abs(x)) * sign(x)` transformation to the data to stabilize internal quantile estimation. Does not affect the scale of produced output (i.e. `yhat`) By default False.
@@ -984,7 +1013,8 @@ Suppose we have a data with strong intra-day (hourly) and intra-week (daily) sea
 models:
   your_desired_alias_for_a_model:
     class: "quantile_online"  # or 'model.online.OnlineQuantileModel'
-    quantiles: [0.025, 0.5, 0.975]  # lowered to exclude anomalous edges, can be compensated by `scale` param > 1
+    quantiles: [0.25, 0.5, 0.75]  # lowered to exclude anomalous edges, can be compensated by `scale` param > 1 and `iqr_threshold` > 0
+    iqr_threshold: 2.5  # to increase prediction intervals' width to avoid false positives while still keeping the model robust
     seasonal_interval: '7d'  # longest seasonality (week, day) = week, starting from `season_starts_from`
     min_subseason: '1h'  # smallest seasonality (week, day, hour) = hour, will have its own quantile estimates
     min_n_samples_seen: 288 # 1440 / 5 - at least 1 full day, ideal = 1440 / 5 * 7 - one full week (seasonal_interval)
@@ -1278,7 +1308,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.24.1
+docker pull victoriametrics/vmanomaly:v1.25.2
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1292,7 +1322,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.24.1 /config.yaml \
+victoriametrics/vmanomaly:v1.25.2 /config.yaml \
 --licenseFile=/license
 ```
 

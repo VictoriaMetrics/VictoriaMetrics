@@ -11,7 +11,7 @@ ifeq ($(PKG_TAG),)
 PKG_TAG := $(BUILDINFO_TAG)
 endif
 
-EXTRA_DOCKER_TAG_SUFFIX ?= EXTRA_DOCKER_TAG_SUFFIX
+EXTRA_DOCKER_TAG_SUFFIX ?=
 
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
@@ -26,6 +26,7 @@ include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
+include benchmarks/Makefile
 
 all: \
 	victoria-metrics-prod \
@@ -444,7 +445,11 @@ test-full:
 test-full-386:
 	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test: victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
+integration-test:
+	$(MAKE) apptest
+
+apptest:
+	$(MAKE) victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
 	go test ./apptest/... -skip="^TestCluster.*"
 
 benchmark:

@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestParseMetadataSecurityCredentialsFailure(t *testing.T) {
@@ -131,10 +132,7 @@ func TestGetAPICredentials(t *testing.T) {
 		if len(c.webTokenPath) > 0 {
 			tempDir := t.TempDir()
 			c.webTokenPath = filepath.Join(tempDir, c.webTokenPath)
-			err := os.WriteFile(c.webTokenPath, []byte("webtoken"), 0644)
-			if err != nil {
-				t.Fatalf("Failed to create webtoken file: %v", err)
-			}
+			fs.MustWriteSync(c.webTokenPath, []byte("webtoken"))
 		}
 		rt := &fakeRoundTripper{
 			responses: make(map[string]*http.Response),

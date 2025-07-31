@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
@@ -29,7 +30,10 @@ func BenchmarkSearch_VariousTimeRanges(b *testing.B) {
 			want[i].Value = float64(i)
 		}
 		s := MustOpenStorage(b.Name(), OpenOptions{})
-		s.AddRows(want, defaultPrecisionBits)
+		s.AddRows(want[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(want[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		tfss := NewTagFilters()
@@ -93,7 +97,7 @@ func BenchmarkSearch_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		fs.MustRemoveAll(b.Name())
+		fs.MustRemoveDir(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()

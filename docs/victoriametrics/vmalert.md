@@ -231,13 +231,13 @@ expression and then act according to the Rule type.
 
 There are two types of Rules:
 
-* [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) -
+* [Alerting](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) -
   Alerting rules allow defining alert conditions via `expr` field and to send notifications to
-  [Alertmanager](https://github.com/prometheus/alertmanager) if execution result is not empty.
-* [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) -
+  [Alertmanager](https://github.com/prometheus/alertmanager) if execution result is not empty ([Prometheus alerting rules docs](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules)).
+* [Recording](https://docs.victoriametrics.com/victoriametrics/vmalert/#recording-rules) -
   Recording rules allow defining `expr` which result will be then backfilled to configured
   `-remoteWrite.url`. Recording rules are used to precompute frequently needed or computationally
-  expensive expressions and save their result as a new set of time series.
+  expensive expressions and save their result as a new set of time series ([Prometheus recording rules docs](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)).
 
 `vmalert` forbids defining duplicates - rules with the same combination of name, expression, and labels
 within one group.
@@ -991,7 +991,7 @@ If at least one evaluation returns no data, then alert's `for` state resets.
 If `-remoteWrite.url` command-line flag is configured, vmalert will [persist alert's state](http://localhost:1313/victoriametrics/vmalert/#alerts-state-on-restarts)
 in form of time series `ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
 [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or Grafana to track how 
-alerts state changed in time.
+alerts state changed in time. See [query statistics dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/alert-statistics.json) as example for tracking historical alerts state.
 
 ### Data delay
 

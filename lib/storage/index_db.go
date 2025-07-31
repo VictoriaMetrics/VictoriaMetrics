@@ -30,7 +30,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
@@ -354,7 +353,7 @@ func (db *indexDB) decRef() {
 	}
 
 	logger.Infof("dropping indexDB %q", tbPath)
-	fs.MustRemoveDirAtomic(tbPath)
+	fs.MustRemoveDir(tbPath)
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
@@ -1775,7 +1774,7 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 		// Mark the metricID as deleted, so it is created again when new sample
 		// for the given time series is ingested next time.
 		db.missingMetricNamesForMetricID.Add(1)
-		db.deleteMetricIDs([]uint64{metricID})
+		db.saveDeletedMetricIDs([]uint64{metricID})
 	}
 
 	return dst, false
@@ -1802,7 +1801,7 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	if err != nil {
 		return 0, err
 	}
-	db.deleteMetricIDs(metricIDs)
+	db.saveDeletedMetricIDs(metricIDs)
 
 	// Delete TSIDs in the extDB.
 	deletedCount := len(metricIDs)
@@ -1819,7 +1818,12 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	return deletedCount, nil
 }
 
-func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
+// saveDeletedMetricIDs persists the deleted metricIDs to the global index by
+// creating a separate `nsPrefixDeletedMetricID` entry for each metricID.
+//
+// In addition, the deleted metricIDs are added to the deletedMetricIDs cache
+// and all the caches that may contain some or all of deleted metricIDs are reset.
+func (db *indexDB) saveDeletedMetricIDs(metricIDs []uint64) {
 	if len(metricIDs) == 0 {
 		// Nothing to delete
 		return
@@ -2075,7 +2079,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	qt.Printf("load %d tsids for %d metricIDs from both current and previous indexdb", len(tsids), len(metricIDs))
 
 	if len(metricIDsToDelete) > 0 {
-		db.deleteMetricIDs(metricIDsToDelete)
+		db.saveDeletedMetricIDs(metricIDsToDelete)
 	}
 
 	// Sort the found tsids, since they must be passed to TSID search
@@ -2092,9 +2096,6 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	}
 	if len(metricIDs) == 0 {
 		return nil, nil
-	}
-	if err = db.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
-		return nil, err
 	}
 	metricNames := make([]string, 0, len(metricIDs))
 	metricNamesSeen := make(map[string]struct{}, len(metricIDs))
@@ -2121,91 +2122,6 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	}
 	qt.Printf("loaded %d metric names", len(metricNames))
 	return metricNames, nil
-}
-
-// prefetchMetricNames pre-fetches metric names for the given srcMetricIDs into metricID->metricName cache.
-//
-// This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
-//
-// It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
-func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uint64, deadline uint64) error {
-	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
-	defer qt.Done()
-
-	if len(srcMetricIDs) < 500 {
-		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
-		return nil
-	}
-
-	var metricIDs []uint64
-	db.s.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := db.s.prefetchedMetricIDs
-	for _, metricID := range srcMetricIDs {
-		if prefetchedMetricIDs.Has(metricID) {
-			continue
-		}
-		metricIDs = append(metricIDs, metricID)
-	}
-	db.s.prefetchedMetricIDsLock.Unlock()
-
-	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
-	if len(metricIDs) < 500 {
-		// It is cheaper to skip pre-fetching and obtain metricNames inline.
-		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
-		return nil
-	}
-	db.s.slowMetricNameLoads.Add(uint64(len(metricIDs)))
-
-	// Pre-fetch metricIDs.
-	var missingMetricIDs []uint64
-	var metricName []byte
-	var err error
-	is := db.getIndexSearch(deadline)
-	defer db.putIndexSearch(is)
-	for loops, metricID := range metricIDs {
-		if loops&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return err
-			}
-		}
-		var ok bool
-		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
-		if !ok {
-			missingMetricIDs = append(missingMetricIDs, metricID)
-			continue
-		}
-	}
-	db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(deadline)
-		defer extDB.putIndexSearch(is)
-		for loops, metricID := range missingMetricIDs {
-			if loops&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
-					return
-				}
-			}
-			metricName, _ = is.searchMetricNameWithCache(metricName[:0], metricID)
-		}
-	})
-	if err != nil && err != io.EOF {
-		return err
-	}
-	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
-
-	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
-	db.s.prefetchedMetricIDsLock.Lock()
-	if fasttime.UnixTimestamp() > db.s.prefetchedMetricIDsDeadline.Load() {
-		// Periodically reset the prefetchedMetricIDs in order to limit its size.
-		db.s.prefetchedMetricIDs = &uint64set.Set{}
-		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
-		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
-		db.s.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
-	}
-	db.s.prefetchedMetricIDs.AddMulti(metricIDs)
-	db.s.prefetchedMetricIDsLock.Unlock()
-
-	qt.Printf("cache metric ids for pre-fetched metric names")
-	return nil
 }
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
