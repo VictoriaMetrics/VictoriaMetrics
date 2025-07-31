@@ -166,6 +166,12 @@ type Storage struct {
 	// idbPrefillStartSeconds defines the start time of the idbNext prefill.
 	// It helps to spread load in time for index records creation and reduce resource usage.
 	idbPrefillStartSeconds int64
+
+	// logNewSeries is used for logging the new series. We will log new series when logNewSeries is true or logNewSeriesUntil is greater than the current time.
+	logNewSeries atomic.Bool
+
+	// logNewSeriesUntil is the timestamp until which new series will be logged. We will log new series when logNewSeries is true or logNewSeriesUntil is greater than the current time.
+	logNewSeriesUntil atomic.Uint64
 }
 
 type pendingHourMetricIDEntry struct {
@@ -187,6 +193,7 @@ type OpenOptions struct {
 	DisablePerDayIndex    bool
 	TrackMetricNamesStats bool
 	IDBPrefillStart       time.Duration
+	LogNewSeries          bool
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -210,6 +217,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		stopCh:                 make(chan struct{}),
 		idbPrefillStartSeconds: idbPrefillStart.Milliseconds() / 1000,
 	}
+	s.logNewSeries.Store(opts.LogNewSeries)
+
 	fs.MustMkdirIfNotExist(path)
 
 	// Check whether the cache directory must be removed
@@ -1829,6 +1838,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 }
 
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) int {
+	logNewSeries := s.logNewSeries.Load() || s.logNewSeriesUntil.Load() >= fasttime.UnixTimestamp()
 	idb, idbNext, putIndexDBs := s.getCurrAndNextIndexDBs()
 	defer putIndexDBs()
 	generation := idb.generation
@@ -2062,14 +2072,10 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
 
-// SetLogNewSeries updates new series logging.
-//
-// This function must be called before any calling any storage functions.
-func SetLogNewSeries(ok bool) {
-	logNewSeries = ok
+// SetLogNewSeriesUntil sets the timestamp until which new series will be logged.
+func (s *Storage) SetLogNewSeriesUntil(t uint64) {
+	s.logNewSeriesUntil.Store(t)
 }
-
-var logNewSeries = false
 
 func createAllIndexesForMetricName(db *indexDB, mn *MetricName, tsid *TSID, date uint64) {
 	db.createGlobalIndexes(tsid, mn)

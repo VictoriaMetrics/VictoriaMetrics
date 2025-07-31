@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -100,6 +102,8 @@ var (
 	idbPrefillStart = flag.Duration("storage.idbPrefillStart", time.Hour, "Specifies how early VictoriaMetrics starts pre-filling indexDB records before indexDB rotation. "+
 		"Starting the pre-fill process earlier can help reduce resource usage spikes during rotation. "+
 		"In most cases, this value should not be changed. The maximum allowed value is 23h.")
+
+	logNewSeriesAuthKey = flagutil.NewPassword("logNewSeriesAuthKey", "authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*")
 )
 
 func main() {
@@ -121,7 +125,6 @@ func main() {
 
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
-	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
@@ -151,6 +154,7 @@ func main() {
 		DisablePerDayIndex:    *disablePerDayIndex,
 		TrackMetricNamesStats: *trackMetricNamesStats,
 		IDBPrefillStart:       *idbPrefillStart,
+		LogNewSeries:          *logNewSeries,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	initStaleSnapshotsRemover(strg)
@@ -266,6 +270,27 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
 		strg.DebugFlush()
+		return true
+	}
+
+	if path == "/internal/log_new_series" {
+		if !httpserver.CheckAuthFlag(w, r, logNewSeriesAuthKey) {
+			return true
+		}
+		dealine := 60
+		if deadlineStr := r.FormValue("seconds"); len(deadlineStr) > 0 {
+			var err error
+			dealine, err = strconv.Atoi(deadlineStr)
+			if err != nil {
+				logger.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err)
+				jsonResponseError(w, fmt.Errorf("cannot parse `seconds` arg %q: %s", deadlineStr, err))
+				return true
+			}
+		}
+		logger.Infof("enabling logging of new series for the next %s. This may increase resource usage during this period.", time.Duration(dealine)*time.Second)
+		endTime := fasttime.UnixTimestamp() + uint64(dealine)
+		strg.SetLogNewSeriesUntil(endTime)
+		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
 	}
 	if !strings.HasPrefix(path, "/snapshot") {
