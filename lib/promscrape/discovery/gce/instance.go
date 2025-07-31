@@ -94,17 +94,25 @@ type Instance struct {
 
 // NetworkInterface is network interface from https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
 type NetworkInterface struct {
-	Name          string
-	Network       string
-	Subnetwork    string
-	NetworkIP     string
-	AccessConfigs []AccessConfig
+	Name              string
+	Network           string
+	Subnetwork        string
+	NetworkIP         string
+	Ipv6Address       string
+	AccessConfigs     []AccessConfig
+	Ipv6AccessConfigs []Ipv6AccessConfig
 }
 
 // AccessConfig is access config from https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
 type AccessConfig struct {
 	Type  string
 	NatIP string
+}
+
+// Ipv6AccessConfig is access config from https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
+type Ipv6AccessConfig struct {
+	Type         string
+	ExternalIpv6 string
 }
 
 // TagList is tag list from https://cloud.google.com/compute/docs/reference/rest/v1/instances/list
@@ -168,6 +176,16 @@ func (inst *Instance) appendTargetLabels(ms []*promutil.Labels, project, tagSepa
 		if ac.Type == "ONE_TO_ONE_NAT" {
 			m.Add("__meta_gce_public_ip", ac.NatIP)
 		}
+	}
+	// GCE supports ULA as well as native IPv6
+	if len(iface.Ipv6AccessConfigs) > 0 {
+		ac := iface.Ipv6AccessConfigs[0]
+		if ac.Type == "DIRECT_IPV6" {
+			m.Add("__meta_gce_public_ipv6", ac.ExternalIpv6)
+		}
+	}
+	if iface.Ipv6Address != "" {
+		m.Add("__meta_gce_internal_ipv6", iface.Ipv6Address)
 	}
 	ms = append(ms, m)
 	return ms
