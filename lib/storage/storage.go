@@ -51,7 +51,6 @@ type Storage struct {
 	newTimeseriesCreated   atomic.Uint64
 	slowRowInserts         atomic.Uint64
 	slowPerDayIndexInserts atomic.Uint64
-	slowMetricNameLoads    atomic.Uint64
 
 	hourlySeriesLimitRowsDropped atomic.Uint64
 	dailySeriesLimitRowsDropped  atomic.Uint64
@@ -125,13 +124,6 @@ type Storage struct {
 	// Pending MetricIDs to be added to nextDayMetricIDs.
 	pendingNextDayMetricIDsLock sync.Mutex
 	pendingNextDayMetricIDs     *uint64set.Set
-
-	// prefetchedMetricIDs contains metricIDs for pre-fetched metricNames in the prefetchMetricNames function.
-	prefetchedMetricIDsLock sync.Mutex
-	prefetchedMetricIDs     *uint64set.Set
-
-	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
-	prefetchedMetricIDsDeadline atomic.Uint64
 
 	stopCh chan struct{}
 
@@ -258,7 +250,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
-	s.prefetchedMetricIDs = &uint64set.Set{}
 	if opts.TrackMetricNamesStats {
 		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_usage_tracker"), uint64(getMetricNamesStatsCacheSize()))
 		s.metricsTracker = mnt
@@ -586,7 +577,6 @@ type Metrics struct {
 	NewTimeseriesCreated   uint64
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
-	SlowMetricNameLoads    uint64
 
 	HourlySeriesLimitRowsDropped   uint64
 	HourlySeriesLimitMaxSeries     uint64
@@ -640,9 +630,6 @@ type Metrics struct {
 	NextDayMetricIDCacheSize      uint64
 	NextDayMetricIDCacheSizeBytes uint64
 
-	PrefetchedMetricIDsSize      uint64
-	PrefetchedMetricIDsSizeBytes uint64
-
 	NextRetentionSeconds uint64
 
 	MetricNamesUsageTrackerSize         uint64
@@ -674,7 +661,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.NewTimeseriesCreated += s.newTimeseriesCreated.Load()
 	m.SlowRowInserts += s.slowRowInserts.Load()
 	m.SlowPerDayIndexInserts += s.slowPerDayIndexInserts.Load()
-	m.SlowMetricNameLoads += s.slowMetricNameLoads.Load()
 
 	if sl := s.hourlySeriesLimiter; sl != nil {
 		m.HourlySeriesLimitRowsDropped += s.hourlySeriesLimitRowsDropped.Load()
@@ -745,12 +731,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().v
 	m.NextDayMetricIDCacheSize += uint64(nextDayMetricIDs.Len())
 	m.NextDayMetricIDCacheSizeBytes += nextDayMetricIDs.SizeBytes()
-
-	s.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := s.prefetchedMetricIDs
-	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
-	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
-	s.prefetchedMetricIDsLock.Unlock()
 
 	var tm metricnamestats.TrackerMetrics
 	s.metricsTracker.UpdateMetrics(&tm)

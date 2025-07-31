@@ -30,7 +30,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
@@ -2098,9 +2097,6 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	if len(metricIDs) == 0 {
 		return nil, nil
 	}
-	if err = db.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
-		return nil, err
-	}
 	metricNames := make([]string, 0, len(metricIDs))
 	metricNamesSeen := make(map[string]struct{}, len(metricIDs))
 	var metricName []byte
@@ -2126,91 +2122,6 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	}
 	qt.Printf("loaded %d metric names", len(metricNames))
 	return metricNames, nil
-}
-
-// prefetchMetricNames pre-fetches metric names for the given srcMetricIDs into metricID->metricName cache.
-//
-// This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
-//
-// It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
-func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uint64, deadline uint64) error {
-	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
-	defer qt.Done()
-
-	if len(srcMetricIDs) < 500 {
-		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
-		return nil
-	}
-
-	var metricIDs []uint64
-	db.s.prefetchedMetricIDsLock.Lock()
-	prefetchedMetricIDs := db.s.prefetchedMetricIDs
-	for _, metricID := range srcMetricIDs {
-		if prefetchedMetricIDs.Has(metricID) {
-			continue
-		}
-		metricIDs = append(metricIDs, metricID)
-	}
-	db.s.prefetchedMetricIDsLock.Unlock()
-
-	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
-	if len(metricIDs) < 500 {
-		// It is cheaper to skip pre-fetching and obtain metricNames inline.
-		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
-		return nil
-	}
-	db.s.slowMetricNameLoads.Add(uint64(len(metricIDs)))
-
-	// Pre-fetch metricIDs.
-	var missingMetricIDs []uint64
-	var metricName []byte
-	var err error
-	is := db.getIndexSearch(deadline)
-	defer db.putIndexSearch(is)
-	for loops, metricID := range metricIDs {
-		if loops&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return err
-			}
-		}
-		var ok bool
-		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
-		if !ok {
-			missingMetricIDs = append(missingMetricIDs, metricID)
-			continue
-		}
-	}
-	db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(deadline)
-		defer extDB.putIndexSearch(is)
-		for loops, metricID := range missingMetricIDs {
-			if loops&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
-					return
-				}
-			}
-			metricName, _ = is.searchMetricNameWithCache(metricName[:0], metricID)
-		}
-	})
-	if err != nil && err != io.EOF {
-		return err
-	}
-	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
-
-	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
-	db.s.prefetchedMetricIDsLock.Lock()
-	if fasttime.UnixTimestamp() > db.s.prefetchedMetricIDsDeadline.Load() {
-		// Periodically reset the prefetchedMetricIDs in order to limit its size.
-		db.s.prefetchedMetricIDs = &uint64set.Set{}
-		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
-		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
-		db.s.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
-	}
-	db.s.prefetchedMetricIDs.AddMulti(metricIDs)
-	db.s.prefetchedMetricIDsLock.Unlock()
-
-	qt.Printf("cache metric ids for pre-fetched metric names")
-	return nil
 }
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
