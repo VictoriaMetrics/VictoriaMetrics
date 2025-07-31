@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestScraperReload(t *testing.T) {
 	f := func(oldCfgData, newCfgData string, reloadExpected bool) {
-		pushData := func(_ *auth.Token, _ *prompbmarshal.WriteRequest) {}
+		pushData := func(_ *auth.Token, _ *prompb.WriteRequest) {}
 		globalStopChan = make(chan struct{})
 		defer close(globalStopChan)
 

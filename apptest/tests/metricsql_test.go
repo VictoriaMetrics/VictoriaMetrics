@@ -11,7 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func millis(s string) int64 {
@@ -47,13 +47,13 @@ func TestClusterInstantQuery(t *testing.T) {
 }
 
 func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
-	data := []prompbmarshal.TimeSeries{
+	data := []prompb.TimeSeries{
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{Name: "__name__", Value: "3fooµ¥"},
 				{Name: "3👋tfにちは", Value: "漢©®€£"},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{Value: 1, Timestamp: millis("2024-01-01T00:01:00Z")},
 			},
 		},
@@ -89,16 +89,16 @@ func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQueri
 	fn(`{"3👋tfにちは"="漢©®€£"}`)
 }
 
-var staleNaNsData = func() []prompbmarshal.TimeSeries {
-	return []prompbmarshal.TimeSeries{
+var staleNaNsData = func() []prompb.TimeSeries {
+	return []prompb.TimeSeries{
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "metric",
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     1,
 					Timestamp: millis("2024-01-01T00:01:00Z"),
@@ -185,20 +185,20 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 // However, conversion of math.NaN to int64 could behave differently depending on platform and Go version.
 // Hence, this test could succeed for some platforms even if fix is rolled back.
 func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQuerier) {
-	data := []prompbmarshal.TimeSeries{
+	data := []prompb.TimeSeries{
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{Name: "__name__", Value: "up"},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{Value: 1, Timestamp: millis("2025-01-01T00:01:00Z")},
 			},
 		},
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{Name: "__name__", Value: "metricNaN"},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{Value: decimal.StaleNaN, Timestamp: millis("2025-01-01T00:01:00Z")},
 			},
 		},

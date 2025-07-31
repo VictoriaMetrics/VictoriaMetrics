@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -80,7 +80,7 @@ func CheckStreamAggrConfigs() error {
 		return fmt.Errorf("too many -remoteWrite.streamAggr.config args: %d; it mustn't exceed the number of -remoteWrite.url args: %d", len(*streamAggrConfig), len(*remoteWriteURLs))
 	}
 
-	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
+	pushNoop := func(_ []prompb.TimeSeries) {}
 	for idx := range *streamAggrConfig {
 		sas, err := newStreamAggrConfigPerURL(idx, pushNoop)
 		if err != nil {

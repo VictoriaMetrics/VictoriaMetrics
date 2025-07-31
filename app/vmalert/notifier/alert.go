@@ -10,7 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -195,10 +195,10 @@ func templateAnnotation(dst io.Writer, text string, data tplData, tpl *textTpl.T
 	return nil
 }
 
-func (a Alert) applyRelabelingIfNeeded(relabelCfg *promrelabel.ParsedConfigs) []prompbmarshal.Label {
-	var labels []prompbmarshal.Label
+func (a Alert) applyRelabelingIfNeeded(relabelCfg *promrelabel.ParsedConfigs) []prompb.Label {
+	var labels []prompb.Label
 	for k, v := range a.Labels {
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  promrelabel.SanitizeMetricName(k),
 			Value: v,
 		})
