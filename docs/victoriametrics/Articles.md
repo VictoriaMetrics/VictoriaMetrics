@@ -96,6 +96,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Victoriametrics k8s stack setup gotchas](https://davidhernandez21.github.io/posts/Victoriametrics-k8s-stack-gotchas/)
 * [Building a Scalable and Cost-Effective Monitoring Stack on AWS with Victoria Metrics](https://medium.com/@heliodevhub/construindo-uma-stack-de-monitoramento-escal%C3%A1vel-e-econ%C3%B4mica-na-aws-com-victoria-metrics-532d535dcfb6)
 * [Optimizing Datadog Costs with VictoriaMetrics: A Practical Step-by-Step Guide](https://medium.com/p/optimizing-datadog-costs-with-victoriametrics-a-practical-step-by-step-guide-c984d32c7423)
+* [Kubernetes Monitoring — A Complete Solution](https://itnext.io/kubernetes-monitoring-a-complete-solution-part-1-architecture-eb5b998658d5)
 
 ## Third-party articles and slides about VictoriaLogs
 
