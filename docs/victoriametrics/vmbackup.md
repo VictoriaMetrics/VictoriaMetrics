@@ -100,11 +100,8 @@ with the following command:
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup> -origin=gs://<bucket>/<path/to/existing/backup>
 ```
 
-It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst`.
-Typical object storage just creates new names for already existing objects when performing server-side copy,
-so this operation should be fast and inexpensive. Unfortunately, there are object storage systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
-which make full copies for the copied objects during server-side copy. This may significantly slow down server-side copy
-and make it more expensive.
+It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst` since backup data isn't transferred
+between the remote storage and locally running `vmbackup` tool.
 
 ### Incremental backups
 
@@ -161,8 +158,8 @@ The `-origin` and `-dst` must point to the same object storage bucket or to the 
 
 The server-side backup copy is usually performed at much faster speed comparing to the usual backup, since backup data isn't transferred
 between the remote storage and locally running `vmbackup` tool. Some object storage systems might just make new names for already existing
-objects during server-side copy. However, some other are systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
-are performing full object copy during server-side copying. This may be slow and expensive.
+objects during server-side copy. However, some systems such as [S3 Glacier](https://aws.amazon.com/s3/storage-classes/glacier/),
+perform a full object copy during server-side copying, which be slow and expensive. Please verify your storage system provider's documentation for specific behavior.
 
 If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
 
