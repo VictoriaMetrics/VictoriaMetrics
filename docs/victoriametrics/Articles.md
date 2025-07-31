@@ -95,6 +95,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Reducing Inter-AZ traffic in VictoriaMetrics with Zonekeeper](https://tanmay-bhat.medium.com/reducing-inter-az-traffic-in-victoriametrics-with-zonekeeper-3bd7e1526796)
 * [Victoriametrics k8s stack setup gotchas](https://davidhernandez21.github.io/posts/Victoriametrics-k8s-stack-gotchas/)
 * [Building a Scalable and Cost-Effective Monitoring Stack on AWS with Victoria Metrics](https://medium.com/@heliodevhub/construindo-uma-stack-de-monitoramento-escal%C3%A1vel-e-econ%C3%B4mica-na-aws-com-victoria-metrics-532d535dcfb6)
+* [Optimizing Datadog Costs with VictoriaMetrics: A Practical Step-by-Step Guide](https://medium.com/p/optimizing-datadog-costs-with-victoriametrics-a-practical-step-by-step-guide-c984d32c7423)
 
 ## Third-party articles and slides about VictoriaLogs
 
