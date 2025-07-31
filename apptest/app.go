@@ -72,9 +72,9 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		return nil, nil, err
 	}
 
-	output := io.Writer(os.Stderr)
-	if opts.output != nil {
-		output = opts.output
+	output := opts.output
+	if output == nil {
+		output = os.Stderr
 	}
 
 	app := &app{
