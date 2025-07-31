@@ -22,8 +22,8 @@ func TestRollupResultCacheInitStop(t *testing.T) {
 			InitRollupResultCache(cacheFilePath)
 			StopRollupResultCache()
 		}
-		fs.MustRemoveAll(cacheFilePath)
-		fs.MustRemoveAll(cacheFilePath + ".key.prefix")
+		fs.MustRemoveDir(cacheFilePath)
+		fs.MustRemovePath(cacheFilePath + ".key.prefix")
 	})
 }
 

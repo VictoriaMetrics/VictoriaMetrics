@@ -122,7 +122,7 @@ func InitRollupResultCache(cachePath string) {
 	if len(rollupResultCachePath) > 0 {
 		if *resetRollupResultCacheOnStartup {
 			logger.Infof("removing rollupResult cache at %q because -search.resetRollupResultCacheOnStartup command-line flag is set", rollupResultCachePath)
-			fs.MustRemoveAll(rollupResultCachePath)
+			fs.MustRemoveDir(rollupResultCachePath)
 		} else {
 			logger.Infof("loading rollupResult cache from %q...", rollupResultCachePath)
 		}

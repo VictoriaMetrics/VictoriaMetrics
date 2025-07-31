@@ -6,7 +6,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -33,12 +33,12 @@ func InsertHandler(req *http.Request) error {
 			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 		}
 	}
-	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompbmarshal.TimeSeries) error {
+	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompb.TimeSeries) error {
 		return insertRows(tss, extraLabels)
 	})
 }
 
-func insertRows(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) error {
+func insertRows(tss []prompb.TimeSeries, extraLabels []prompb.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 

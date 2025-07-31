@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/urfave/cli/v2"
@@ -383,6 +384,7 @@ const (
 	promFilterTimeEnd    = "prom-filter-time-end"
 	promFilterLabel      = "prom-filter-label"
 	promFilterLabelValue = "prom-filter-label-value"
+	promTemporaryDirPath = "prom-tmp-dir-path"
 )
 
 var (
@@ -413,6 +415,11 @@ var (
 			Name:  promFilterLabelValue,
 			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", promFilterLabel),
 			Value: ".*",
+		},
+		&cli.StringFlag{
+			Name:  promTemporaryDirPath,
+			Usage: "Path to directory to be used for temporary files.",
+			Value: os.TempDir(),
 		},
 	}
 )

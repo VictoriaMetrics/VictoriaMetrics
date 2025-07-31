@@ -18,7 +18,12 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: all the VictoriaMetrics components: support netBSD builds. See this [#9473](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9473) PR for details. Thanks to the @iamleot.
+* FEATURE: all the VictoriaMetrics components: support NetBSD builds. See this [#9473](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9473) PR for details. Thanks to the @iamleot.
+* FEATURE: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): disable retries for requests to `vmstorage` when handshake or dial errors occur. Retries in such cases are ineffective and can amplify the problem. See [#9345](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9345) and [#9484](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9484) for details.
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce `-storage.idbPrefillStart` flag (default: 1h) to control how early next indexdb prefill starts before rotation. Increasing the value may reduce CPU spikes during rotation. See [#9393-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9393#issuecomment-3083841658) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improve Kubernetes service discovery performance with large amount of configured role selectors. See this [#9354](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9354) issue for details. Thanks to the @fxrlv
+* FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): add an option to change path for temporary files storage when migrating from Prometheus snapshots. See [#9505](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9505) for the details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improve Kubernetes service discovery performance with large amount of configured role selectors. See this [#9354](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9354) issue for details. Thanks to the @fxrlv
 
 ## [v1.122.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.0)
 

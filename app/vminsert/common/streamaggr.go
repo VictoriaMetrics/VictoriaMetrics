@@ -12,7 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/metrics"
@@ -59,7 +59,7 @@ func CheckStreamAggrConfig() error {
 	if *streamAggrConfig == "" {
 		return nil
 	}
-	pushNoop := func(_ []prompbmarshal.TimeSeries) {}
+	pushNoop := func(_ []prompb.TimeSeries) {}
 	opts := &streamaggr.Options{
 		DedupInterval:        *streamAggrDedupInterval,
 		DropInputLabels:      *streamAggrDropInputLabels,
@@ -170,9 +170,9 @@ func MustStopStreamAggr() {
 
 type streamAggrCtx struct {
 	mn      storage.MetricName
-	tss     []prompbmarshal.TimeSeries
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
+	tss     []prompb.TimeSeries
+	labels  []prompb.Label
+	samples []prompb.Sample
 	buf     []byte
 }
 
@@ -207,7 +207,7 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 		bufLen := len(buf)
 		buf = append(buf, mn.MetricGroup...)
 		metricGroup := bytesutil.ToUnsafeString(buf[bufLen:])
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  "__name__",
 			Value: metricGroup,
 		})
@@ -220,19 +220,19 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 			bufLen = len(buf)
 			buf = append(buf, tag.Value...)
 			value := bytesutil.ToUnsafeString(buf[bufLen:])
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  name,
 				Value: value,
 			})
 		}
 
 		samplesLen := len(samples)
-		samples = append(samples, prompbmarshal.Sample{
+		samples = append(samples, prompb.Sample{
 			Timestamp: mr.Timestamp,
 			Value:     mr.Value,
 		})
 
-		tss = append(tss, prompbmarshal.TimeSeries{
+		tss = append(tss, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],
 		})
@@ -260,7 +260,7 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 	return matchIdxs
 }
 
-func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
+func pushAggregateSeries(tss []prompb.TimeSeries) {
 	currentTimestamp := int64(fasttime.UnixTimestamp()) * 1000
 	var ctx InsertCtx
 	ctx.Reset(len(tss))

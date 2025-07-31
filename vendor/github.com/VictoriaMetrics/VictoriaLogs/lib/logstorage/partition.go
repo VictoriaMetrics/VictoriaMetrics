@@ -53,7 +53,7 @@ func mustCreatePartition(path string) {
 //
 // The partition must be closed with MustClose before deleting it.
 func mustDeletePartition(path string) {
-	fs.MustRemoveAll(path)
+	fs.MustRemoveDir(path)
 }
 
 // mustOpenPartition opens partition at the given path for the given Storage.

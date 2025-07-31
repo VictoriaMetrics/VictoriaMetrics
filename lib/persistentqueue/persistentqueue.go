@@ -84,7 +84,7 @@ func (q *queue) mustResetFiles() {
 	}
 	q.reader.MustClose()
 	q.writer.MustClose()
-	fs.MustRemoveAll(q.readerPath)
+	fs.MustRemovePath(q.readerPath)
 
 	q.writerOffset = 0
 	q.writerLocalOffset = 0
@@ -136,7 +136,7 @@ func mustOpenInternal(path, name string, chunkFileSize, maxBlockSize, maxPending
 	q, err := tryOpeningQueue(path, name, chunkFileSize, maxBlockSize, maxPendingBytes)
 	if err != nil {
 		logger.Errorf("cannot open persistent queue at %q: %s; cleaning it up and trying again", path, err)
-		fs.RemoveDirContents(path)
+		fs.MustRemoveDirContents(path)
 		q, err = tryOpeningQueue(path, name, chunkFileSize, maxBlockSize, maxPendingBytes)
 		if err != nil {
 			logger.Panicf("FATAL: %s", err)
@@ -189,7 +189,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 
 		// path contents is broken or missing. Re-create it from scratch.
 		fs.MustClose(q.flockF)
-		fs.RemoveDirContents(path)
+		fs.MustRemoveDirContents(path)
 		q.flockF = fs.MustCreateFlockFile(path)
 		mi.Reset()
 		mi.Name = q.name
@@ -229,17 +229,17 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		}
 		if offset%q.chunkFileSize != 0 {
 			logger.Errorf("unexpected offset for chunk file %q: %d; it must be multiple of %d; removing the file", filepath, offset, q.chunkFileSize)
-			fs.MustRemoveAll(filepath)
+			fs.MustRemovePath(filepath)
 			continue
 		}
 		if mi.ReaderOffset >= offset+q.chunkFileSize {
 			logger.Errorf("unexpected chunk file found from the past: %q; removing it", filepath)
-			fs.MustRemoveAll(filepath)
+			fs.MustRemovePath(filepath)
 			continue
 		}
 		if mi.WriterOffset < offset {
 			logger.Errorf("unexpected chunk file found from the future: %q; removing it", filepath)
-			fs.MustRemoveAll(filepath)
+			fs.MustRemovePath(filepath)
 			continue
 		}
 		if mi.ReaderOffset >= offset && mi.ReaderOffset < offset+q.chunkFileSize {
@@ -254,13 +254,13 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 			if fileSize := fs.MustFileSize(q.readerPath); fileSize < q.readerLocalOffset {
 				logger.Errorf("chunk file %q size is too small for the given reader offset; file size %d bytes; reader offset: %d bytes; removing the file",
 					q.readerPath, fileSize, q.readerLocalOffset)
-				fs.MustRemoveAll(q.readerPath)
+				fs.MustRemovePath(q.readerPath)
 				continue
 			}
 			r, err := filestream.OpenReaderAt(q.readerPath, int64(q.readerLocalOffset), true)
 			if err != nil {
 				logger.Errorf("cannot open %q for reading at offset %d: %s; removing this file", q.readerPath, q.readerLocalOffset, err)
-				fs.MustRemoveAll(filepath)
+				fs.MustRemovePath(filepath)
 				continue
 			}
 			q.reader = r
@@ -279,7 +279,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 				if fileSize < q.writerLocalOffset {
 					logger.Errorf("%q size (%d bytes) is smaller than the writer offset (%d bytes); removing the file",
 						q.writerPath, fileSize, q.writerLocalOffset)
-					fs.MustRemoveAll(q.writerPath)
+					fs.MustRemovePath(q.writerPath)
 					continue
 				}
 				logger.Warnf("%q size (%d bytes) is bigger than writer offset (%d bytes); "+
@@ -289,7 +289,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 			w, err := filestream.OpenWriterAt(q.writerPath, int64(q.writerLocalOffset), false)
 			if err != nil {
 				logger.Errorf("cannot open %q for writing at offset %d: %s; removing this file", q.writerPath, q.writerLocalOffset, err)
-				fs.MustRemoveAll(filepath)
+				fs.MustRemovePath(filepath)
 				continue
 			}
 			q.writer = w
@@ -528,7 +528,7 @@ var errEmptyQueue = fmt.Errorf("the queue is empty")
 func (q *queue) nextChunkFileForRead() error {
 	// Remove the current chunk and go to the next chunk.
 	q.reader.MustClose()
-	fs.MustRemoveAll(q.readerPath)
+	fs.MustRemovePath(q.readerPath)
 	if n := q.readerOffset % q.chunkFileSize; n > 0 {
 		q.readerOffset += q.chunkFileSize - n
 	}
@@ -642,9 +642,7 @@ func (mi *metainfo) WriteToFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("cannot marshal persistent queue metainfo %#v: %w", mi, err)
 	}
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("cannot write persistent queue metainfo to %q: %w", path, err)
-	}
+	fs.MustWriteSync(path, data)
 	fs.MustSyncPath(path)
 	return nil
 }

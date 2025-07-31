@@ -77,6 +77,18 @@ groups:
             Too high memory usage may result into multiple issues such as OOMs or degraded performance.
             E.g. it can be caused by high churn rate in your input data.
             Consider to either increase available memory or decrease the load on the process.
+        
+      - alert: LastConfigReloadFailed
+        expr: vmanomaly_config_last_reload_successful == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Last configuration reload failed for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
+          description: |
+            The last configuration reload attempt failed, which may indicate issues with the configuration or the service's
+            ability to apply changes. Check the logs for more details and ensure the configuration is valid.
+            See more details in the [hot-reload documentation](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload).
 
   - name: vmanomaly-issues
     rules:
