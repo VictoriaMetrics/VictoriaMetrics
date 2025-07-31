@@ -2048,7 +2048,8 @@ and [cardinality explorer docs](#cardinality-explorer).
   or [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) can be determined
   via [cardinality explorer](#cardinality-explorer) and via [/api/v1/status/tsdb](#tsdb-stats) endpoint.
 
-* New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
+* New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics or temporary enabled via `/internal/log_new_series` API call.
+  `/internal/log_new_series` API accepts query parameter `seconds`, with default value of `60`, which defines a duration for logging newly created series.
 
 * VictoriaMetrics limits the number of labels per each series, label name length and label value length
   via `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` command-line flags respectively.
@@ -2531,6 +2532,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Interval for reloading the license file specified via -licenseFile. See https://victoriametrics.com/products/enterprise/ . This flag is available only in Enterprise binaries (default 1h0m0s)
   -logNewSeries
      Whether to log new series. This option is for debug purposes only. It can lead to performance issues when big number of new series are ingested into VictoriaMetrics
+  -logNewSeriesAuthKey value
+     authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*
+     Flag value can be read from the given file when using -logNewSeriesAuthKey=file:///abs/path/to/file or -logNewSeriesAuthKey=file://./relative/path/to/file .
+     Flag value can be read from the given http/https url when using -logNewSeriesAuthKey=http://host/path or -logNewSeriesAuthKey=https://host/path
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
