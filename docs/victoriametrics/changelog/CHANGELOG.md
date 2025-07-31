@@ -25,6 +25,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): add an option to change path for temporary files storage when migrating from Prometheus snapshots. See [#9505](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9505) for the details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improve Kubernetes service discovery performance with large amount of configured role selectors. See this [#9354](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9354) issue for details. Thanks to the @fxrlv
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
+
 ## [v1.122.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.0)
 
 Released at 2025-07-18
