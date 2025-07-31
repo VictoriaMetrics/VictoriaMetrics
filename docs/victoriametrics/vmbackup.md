@@ -67,7 +67,7 @@ Further in this document you can find [how backup mechanism works step by step](
 
 ## Backup types
 
-`vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
+`vmbackup` supports [incremental](https://docs.victoriametrics.com/victoriametrics/vmbackup/#incremental-backups) and [full](https://docs.victoriametrics.com/victoriametrics/vmbackup/#full-backups) backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
 Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
 data between the existing backup and new backup. It saves time and costs on data transfer.
 
