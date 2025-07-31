@@ -43,10 +43,13 @@ func createFlockFile(flockFile string) (*os.File, error) {
 	return flockF, nil
 }
 
-func mustGetFreeSpace(path string) uint64 {
+func mustGetDiskSpace(path string) (total, free uint64) {
 	var stat statfs_t
 	if err := statfs(path, &stat); err != nil {
 		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
 	}
-	return freeSpace(stat)
+
+	total = totalSpace(stat)
+	free = freeSpace(stat)
+	return
 }
