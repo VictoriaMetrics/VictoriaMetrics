@@ -1604,7 +1604,7 @@ as their values are always increasing. Downsampling [gauges](https://docs.victor
 and [summaries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) lose some changes within the downsampling interval,
 since only the last sample on the given interval is left and the rest of samples are dropped.
 
-You can use [recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules) or [steaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)
+You can use [recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)
 to apply custom aggregation functions, like min/max/avg etc., in order to make gauges more resilient to downsampling.
 
 Downsampling can reduce disk space usage and improve query performance if it is applied to time series with big number
