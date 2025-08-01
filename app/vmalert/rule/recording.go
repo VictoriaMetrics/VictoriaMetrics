@@ -126,7 +126,9 @@ func (rr *RecordingRule) registerMetrics(set *metrics.Set) {
 
 // close unregisters rule metrics
 func (rr *RecordingRule) unregisterMetrics() {
-	rr.metrics.close()
+	if rr.metrics != nil {
+		rr.metrics.close()
+	}
 }
 
 // execRange executes recording rule on the given time range similarly to Exec.
@@ -166,7 +168,7 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 
 	defer func() {
 		rr.state.add(curState)
-		if curState.Err != nil {
+		if curState.Err != nil && rr.metrics != nil {
 			rr.metrics.errors.Inc()
 		}
 	}()
