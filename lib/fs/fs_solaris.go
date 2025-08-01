@@ -48,12 +48,19 @@ func createFlockFile(flockFile string) (*os.File, error) {
 	return flockF, nil
 }
 
-func mustGetFreeSpace(path string) uint64 {
+func mustGetDiskSpace(path string) (total, free uint64) {
 	var stat unix.Statvfs_t
 	if err := unix.Statvfs(path, &stat); err != nil {
 		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
 	}
-	return freeSpace(stat)
+	total = totalSpace(stat)
+	free = freeSpace(stat)
+	return
+}
+
+// totalSpace returns the total capacity of the filesystem in bytes.
+func totalSpace(stat unix.Statvfs_t) uint64 {
+	return uint64(stat.Blocks) * uint64(stat.Bsize)
 }
 
 func freeSpace(stat unix.Statvfs_t) uint64 {
