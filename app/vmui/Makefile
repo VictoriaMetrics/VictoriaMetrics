@@ -14,6 +14,14 @@ vmui-build: copy-metricsql-docs vmui-package-base-image
 		--entrypoint=/bin/bash \
 		vmui-builder-image -c "npm install && npm run build"
 
+vmui-alert-build: vmui-package-base-image
+	docker run --rm \
+		--user $(shell id -u):$(shell id -g) \
+		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
+		-w /build/packages/vmui \
+		--entrypoint=/bin/bash \
+		vmui-builder-image -c "npm install && npm run build:alert"
+
 vmui-anomaly-build: vmui-package-base-image
 	docker run --rm \
 		--user $(shell id -u):$(shell id -g) \
@@ -34,6 +42,9 @@ vmui-publish-release: vmui-release
 
 vmui-update: vmui-build
 	rm -rf app/vmselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vmselect/vmui
+
+vmui-alert-update: vmui-alert-build
+	rm -rf app/vmalert/vmui/* && mv app/vmui/packages/vmui/build/* app/vmalert/vmui && rm -rf app/vmalert/vmui/dashboards
 
 vmui-install-dependencies:
 	cd app/vmui/packages/vmui && npm ci
