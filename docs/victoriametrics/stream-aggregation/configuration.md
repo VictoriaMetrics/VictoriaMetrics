@@ -92,7 +92,7 @@ specified individually per each `-remoteWrite.url`:
   # - rate_sum
   # - total
   # - total_prometheus
-  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/https://docs.victoriametrics.com/victoriametrics/stream-aggregation#staleness for more details.
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness for more details.
   #
   # staleness_interval: 2m
   
@@ -111,12 +111,12 @@ specified individually per each `-remoteWrite.url`:
   # flush_on_shutdown: false
 
   # without is an optional list of labels, which must be removed from the output aggregation.
-  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/https://docs.victoriametrics.com/victoriametrics/stream-aggregation#aggregating-by-labels
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregating-by-labels
   #
   # without: [instance]
 
   # by is an optional list of labels, which must be preserved in the output aggregation.
-  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/https://docs.victoriametrics.com/victoriametrics/stream-aggregation#aggregating-by-labels
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregating-by-labels
   #
   # by: [job, vmrange]
 
@@ -129,7 +129,7 @@ specified individually per each `-remoteWrite.url`:
   # This option can't be enabled together with `-streamAggr.keepInput` or `-remoteWrite.streamAggr.keepInput`.
   # This option can be set only if outputs list contains a single output.
   # By default, a special suffix is added to original metric names in the aggregated samples.
-  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/https://docs.victoriametrics.com/victoriametrics/stream-aggregation#output-metric-names
+  # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#output-metric-names
   #
   # keep_metric_names: false
 
