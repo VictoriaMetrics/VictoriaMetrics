@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -46,7 +47,7 @@ type Vmsingle struct {
 // StartVmsingleAt starts an instance of vmsingle with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr).
-func StartVmsingleAt(instance, binary string, flags []string, cli *Client) (*Vmsingle, error) {
+func StartVmsingleAt(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmsingle, error) {
 	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
@@ -60,6 +61,7 @@ func StartVmsingleAt(instance, binary string, flags []string, cli *Client) (*Vms
 			graphiteListenAddrRE,
 			openTSDBListenAddrRE,
 		},
+		output: output,
 	})
 	if err != nil {
 		return nil, err
