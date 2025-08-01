@@ -520,11 +520,12 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		up = 0
 		scrapesFailed.Inc()
 	} else {
-		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		wc.rows, wc.metadataRows = parser.Unmarshal(wc.rows, wc.metadataRows, bodyString, IsMetadataEnabled(), sw.logError)
 	}
 	samplesPostRelabeling := 0
 	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))
+	wc.addMetadata(wc.metadataRows.Rows)
 	scrapeErr := wc.addRows(cfg, wc.rows.Rows, scrapeTimestamp, true)
 	if scrapeErr == nil {
 		samplesPostRelabeling = len(wc.writeRequest.Timeseries)
@@ -549,6 +550,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		wc.writeRequest.Reset()
 		up = 0
 	}
+
 	if up == 0 {
 		bodyString = ""
 	}
@@ -610,7 +612,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
 	r := body.NewReader()
-	err := stream.Parse(r, scrapeTimestamp, "", false, func(rows []parser.Row) error {
+	err := stream.Parse(r, scrapeTimestamp, "", false, IsMetadataEnabled(), func(rows []parser.Row, mms []parser.Metadata) error {
 		labelsLen := maxLabelsLen.Load()
 		wc := writeRequestCtxPool.Get(int(labelsLen))
 		defer func() {
@@ -642,6 +644,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 			return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 				"either reduce the sample count for the target or increase sample_limit", cfg.ScrapeURL, cfg.SampleLimit)
 		}
+		wc.addMetadata(mms)
 
 		if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
 			samplesDropped := wc.applySeriesLimit(sw)
@@ -770,7 +773,8 @@ func (lwp *leveledWriteRequestCtxPool) getPoolIDAndCapacity(size int) (int, int)
 }
 
 type writeRequestCtx struct {
-	rows parser.Rows
+	rows         parser.Rows
+	metadataRows parser.MetadataRows
 
 	writeRequest prompb.WriteRequest
 	labels       []prompb.Label
@@ -779,6 +783,7 @@ type writeRequestCtx struct {
 
 func (wc *writeRequestCtx) reset() {
 	wc.rows.Reset()
+	wc.metadataRows.Reset()
 
 	wc.writeRequest.Reset()
 
@@ -861,7 +866,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
 		br := bytes.NewBufferString(bodyString)
-		err := stream.Parse(br, timestamp, "", false, func(rows []parser.Row) error {
+		err := stream.Parse(br, timestamp, "", false, false, func(rows []parser.Row, _ []parser.Metadata) error {
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 			defer writeRequestCtxPool.Put(wc)
 
@@ -1049,6 +1054,34 @@ func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp
 }
 
 var errLabelsLimitExceeded = errors.New("label_limit exceeded")
+
+func (wc *writeRequestCtx) addMetadata(metadataRows []parser.Metadata) {
+	if len(metadataRows) == 0 {
+		return
+	}
+	uniqMetadata := make(map[string]struct{}, len(metadataRows)/2)
+	mms := wc.writeRequest.Metadata[:0]
+
+	// when there are duplicated metadata entries, use the latest entry and drop earlier ones
+	for i := len(metadataRows) - 1; i >= 0; i-- {
+		row := &metadataRows[i]
+		_, ok := uniqMetadata[row.Metric]
+		if ok {
+			continue
+		}
+		uniqMetadata[row.Metric] = struct{}{}
+		if len(mms) < cap(mms) {
+			mms = mms[:len(mms)+1]
+		} else {
+			mms = append(mms, prompb.MetricMetadata{})
+		}
+		md := &mms[len(mms)-1]
+		md.MetricFamilyName = row.Metric
+		md.Type = row.Type
+		md.Help = row.Help
+	}
+	wc.writeRequest.Metadata = mms
+}
 
 // addRow adds r with the given timestamp to wc.
 //
