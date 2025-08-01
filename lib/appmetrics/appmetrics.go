@@ -28,7 +28,7 @@ func initExposeMetadata() {
 	metrics.ExposeMetadata(*exposeMetadata)
 }
 
-var versionRe = regexp.MustCompile(`v\d+\.\d+\.\d+(?:-enterprise)?(?:-cluster)?`)
+var versionRe = regexp.MustCompile(`v\d+\.\d+\.\d+(?:-enterprise)?(?:-cluster.*)?`)
 
 // WritePrometheusMetrics writes all the registered metrics to w in Prometheus exposition format.
 func WritePrometheusMetrics(w io.Writer) {
