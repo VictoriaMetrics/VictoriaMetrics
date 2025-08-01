@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
+
+Released at 2025-08-01
+
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add ipv6 address as a metadata label to [gce_sd_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#gce_sd_configs). See [#9370](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9370) PR. Thanks to the @dstevensson.
 * FEATURE: all the VictoriaMetrics components: support NetBSD builds. See this [#9473](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9473) PR for details. Thanks to the @iamleot.
 * FEATURE: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): disable retries for requests to `vmstorage` when handshake or dial errors occur. Retries in such cases are ineffective and can amplify the problem. See [#9345](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9345) and [#9484](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9484) for details.
@@ -28,7 +32,6 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improve Kubernetes service discovery performance with large amount of configured role selectors. See this [#9354](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9354) issue for details. Thanks to the @fxrlv
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
-
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
 
 ## [v1.122.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.0)
