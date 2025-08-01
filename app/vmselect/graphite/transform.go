@@ -17,6 +17,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
+// safePathExpressionFromString truncates a pathExpression string if it exceeds
+// the maximum allowed length to prevent memory exhaustion.
+func safePathExpressionFromString(pathExpr string) string {
+	maxLen := *maxGraphitePathExpressionLen
+	if maxLen > 0 && len(pathExpr) > maxLen {
+		return pathExpr[:maxLen] + "..."
+	}
+	return pathExpr
+}
+
 // nextSeriesFunc must return the next series to process.
 //
 // nextSeriesFunc must release all the occupied resources before returning non-nil error.
@@ -319,7 +329,7 @@ func aggregateSeries(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeries
 		Tags:           tags,
 		Timestamps:     ec.newTimestamps(step),
 		Values:         as.Finalize(xFilesFactor),
-		pathExpression: name,
+		pathExpression: safePathExpressionFromString(name),
 		expr:           expr,
 		step:           step,
 	}
