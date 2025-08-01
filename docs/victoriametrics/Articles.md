@@ -100,6 +100,8 @@ Articles about VictoriaLogs have been moved at [https://docs.victoriametrics.com
 
 ## Our articles
 
+See [https://victoriametrics.com/blog](https://victoriametrics.com/blog).
+
 ### Announcements
 
 * [Open-source strategy at VictoriaMetrics](https://www.youtube.com/watch?v=-DbbIZzFHIY)
