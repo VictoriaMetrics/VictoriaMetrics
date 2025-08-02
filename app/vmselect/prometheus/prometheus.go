@@ -138,6 +138,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
 	if isPartial {
+		rss.Cancel()
 		return fmt.Errorf("cannot export federated metrics, because some of vmstorage nodes are unavailable")
 	}
 
