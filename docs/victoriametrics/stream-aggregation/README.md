@@ -598,7 +598,7 @@ the following settings:
   `-remoteWrite.streamAggr.enableWindows` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags is set, then all aggregators will be using fixed windows. In conjunction with `-remoteWrite.streamAggr.dedupInterval` or
   `-streamAggr.dedupInterval` fixed aggregation windows are enabled on deduplicator as well.
- - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+ - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-config).
   It allows enabling aggregation windows for a specific aggregator.
 
 ## Staleness

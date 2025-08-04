@@ -102,14 +102,13 @@ func mUnmap(data []byte) error {
 	return os.NewSyscallError("CloseHandle", errno)
 }
 
-func mustGetFreeSpace(path string) uint64 {
-	var freeBytes uint64
+func mustGetDiskSpace(path string) (total, free uint64) {
 	// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdiskfreespaceexw
-	err := windows.GetDiskFreeSpaceEx(windows.StringToUTF16Ptr(path), &freeBytes, nil, nil)
+	err := windows.GetDiskFreeSpaceEx(windows.StringToUTF16Ptr(path), &free, &total, nil)
 	if err != nil {
 		logger.Panicf("FATAL: cannot get free space for %q : %s", path, err)
 	}
-	return freeBytes
+	return total, free
 }
 
 // stub
