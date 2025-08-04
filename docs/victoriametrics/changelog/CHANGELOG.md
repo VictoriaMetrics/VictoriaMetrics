@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improve Kubernetes service discovery performance with large amount of configured role selectors. See this [#9354](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9354) issue for details. Thanks to the @fxrlv
 * FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): add an option to change path for temporary files storage when migrating from Prometheus snapshots. See [#9505](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9505) for the details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improve Kubernetes service discovery performance with large amount of configured role selectors. See this [#9354](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9354) issue for details. Thanks to the @fxrlv
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-enableMetadata` command-line flag to allow sending metadata to the configured `-remoteWrite.url`, metadata can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 
@@ -53,8 +54,6 @@ Released at 2025-07-18
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly release memory for `/target_response` API requests. Previously it could used after return and it may lead to data races and potential data loss during scraping. See [#9466](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9466). Thanks to the @fxrlv.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): Prevent panic when re-packing a corrupted block during protocol downgrade. See [#9417](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9417).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix handling of `/api/v1/notifiers` and `/api/v1/metadata` endpoints; previously, requests to these endpoints returned 400 Bad Request. `vmsingle` was not affected.
-
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-enableMetadata` command-line flag to allow sending metadata to the configured `-remoteWrite.url`, which can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
 
 ## [v1.121.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.121.0)
 
