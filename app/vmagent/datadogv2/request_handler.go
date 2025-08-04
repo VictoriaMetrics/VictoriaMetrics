@@ -6,7 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv2/stream"
@@ -36,7 +36,7 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	})
 }
 
-func insertRows(at *auth.Token, series []datadogv2.Series, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, series []datadogv2.Series, extraLabels []prompb.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -48,18 +48,18 @@ func insertRows(at *auth.Token, series []datadogv2.Series, extraLabels []prompbm
 		ss := &series[i]
 		rowsTotal += len(ss.Points)
 		labelsLen := len(labels)
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  "__name__",
 			Value: ss.Metric,
 		})
 		for _, rs := range ss.Resources {
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  rs.Type,
 				Value: rs.Name,
 			})
 		}
 		if ss.SourceTypeName != "" {
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  "source_type_name",
 				Value: ss.SourceTypeName,
 			})
@@ -69,7 +69,7 @@ func insertRows(at *auth.Token, series []datadogv2.Series, extraLabels []prompbm
 			if name == "host" {
 				name = "exported_host"
 			}
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  name,
 				Value: value,
 			})
@@ -77,12 +77,12 @@ func insertRows(at *auth.Token, series []datadogv2.Series, extraLabels []prompbm
 		labels = append(labels, extraLabels...)
 		samplesLen := len(samples)
 		for _, pt := range ss.Points {
-			samples = append(samples, prompbmarshal.Sample{
+			samples = append(samples, prompb.Sample{
 				Timestamp: pt.Timestamp * 1000,
 				Value:     pt.Value,
 			})
 		}
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
+		tssDst = append(tssDst, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],
 		})

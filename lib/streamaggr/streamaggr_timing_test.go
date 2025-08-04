@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
@@ -41,7 +41,7 @@ func BenchmarkAggregatorsPush(b *testing.B) {
 }
 
 func benchmarkAggregatorsPush(b *testing.B, output string) {
-	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
+	pushFunc := func(_ []prompb.TimeSeries) {}
 	a := newBenchAggregators([]string{output}, pushFunc)
 	defer a.MustStop()
 
@@ -79,7 +79,7 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
 	return a
 }
 
-func newBenchSeries(seriesCount int) []prompbmarshal.TimeSeries {
+func newBenchSeries(seriesCount int) []prompb.TimeSeries {
 	a := make([]string, 0, seriesCount)
 	for j := 0; j < seriesCount; j++ {
 		s := fmt.Sprintf(`http_requests_total{path="/foo/%d",job="foo_%d",instance="bar",pod="pod-123232312",namespace="kube-foo-bar",node="node-123-3434-443",`+

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -42,7 +42,7 @@ func TestSanitizeLabelName(t *testing.T) {
 }
 
 func TestLabelsToString(t *testing.T) {
-	f := func(labels []prompbmarshal.Label, sExpected string) {
+	f := func(labels []prompb.Label, sExpected string) {
 		t.Helper()
 		s := LabelsToString(labels)
 		if s != sExpected {
@@ -50,19 +50,19 @@ func TestLabelsToString(t *testing.T) {
 		}
 	}
 	f(nil, "{}")
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "__name__",
 			Value: "foo",
 		},
 	}, "foo")
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "foo",
 			Value: "bar",
 		},
 	}, `{foo="bar"}`)
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "foo",
 			Value: "bar",
@@ -72,7 +72,7 @@ func TestLabelsToString(t *testing.T) {
 			Value: "bc",
 		},
 	}, `{a="bc",foo="bar"}`)
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "foo",
 			Value: "bar",
@@ -1045,7 +1045,7 @@ func TestParsedRelabelConfigsApplyForMultipleSeries(t *testing.T) {
 		}
 
 		totalLabels := 0
-		var labels []prompbmarshal.Label
+		var labels []prompb.Label
 		for _, metric := range metrics {
 			labels = append(labels, promutil.MustNewLabelsFromString(metric).GetLabels()...)
 			resultLabels := pcs.Apply(labels, totalLabels)

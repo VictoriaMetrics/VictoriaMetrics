@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -34,7 +34,7 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	})
 }
 
-func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompb.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -49,22 +49,22 @@ func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompbmarshal
 		for j := range srcSamples {
 			s := &srcSamples[j]
 			labelsLen := len(labels)
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  "__name__",
 				Value: bytesutil.ToUnsafeString(s.Name),
 			})
 			for k := range tags {
 				t := &tags[k]
-				labels = append(labels, prompbmarshal.Label{
+				labels = append(labels, prompb.Label{
 					Name:  bytesutil.ToUnsafeString(t.Key),
 					Value: bytesutil.ToUnsafeString(t.Value),
 				})
 			}
-			samples = append(samples, prompbmarshal.Sample{
+			samples = append(samples, prompb.Sample{
 				Value:     s.Value,
 				Timestamp: r.Timestamp,
 			})
-			tssDst = append(tssDst, prompbmarshal.TimeSeries{
+			tssDst = append(tssDst, prompb.TimeSeries{
 				Labels:  labels[labelsLen:],
 				Samples: samples[len(samples)-1:],
 			})

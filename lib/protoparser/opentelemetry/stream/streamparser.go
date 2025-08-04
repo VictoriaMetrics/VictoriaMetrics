@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
@@ -26,7 +26,7 @@ var maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1
 // callback shouldn't hold tss items after returning.
 //
 // optional processBody can be used for pre-processing the read request body from r before parsing it in OpenTelemetry format.
-func ParseStream(r io.Reader, encoding string, processBody func(data []byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
+func ParseStream(r io.Reader, encoding string, processBody func(data []byte) ([]byte, error), callback func(tss []prompb.TimeSeries) error) error {
 	err := protoparserutil.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
 		if processBody != nil {
 			dataNew, err := processBody(data)
@@ -43,7 +43,7 @@ func ParseStream(r io.Reader, encoding string, processBody func(data []byte) ([]
 	return nil
 }
 
-func parseData(data []byte, callback func(tss []prompbmarshal.TimeSeries) error) error {
+func parseData(data []byte, callback func(tss []prompb.TimeSeries) error) error {
 	var req pb.ExportMetricsServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
 		return fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
@@ -238,14 +238,14 @@ func (wr *writeContext) appendSampleWithExtraLabel(metricName, labelName, labelV
 
 	labelsPool := wr.labelsPool
 	labelsLen := len(labelsPool)
-	labelsPool = append(labelsPool, prompbmarshal.Label{
+	labelsPool = append(labelsPool, prompb.Label{
 		Name:  "__name__",
 		Value: metricName,
 	})
 	labelsPool = append(labelsPool, wr.baseLabels...)
 	labelsPool = append(labelsPool, wr.pointLabels...)
 	if labelName != "" && labelValue != "" {
-		labelsPool = append(labelsPool, prompbmarshal.Label{
+		labelsPool = append(labelsPool, prompb.Label{
 			Name:  labelName,
 			Value: labelValue,
 		})
@@ -253,12 +253,12 @@ func (wr *writeContext) appendSampleWithExtraLabel(metricName, labelName, labelV
 
 	samplesPool := wr.samplesPool
 	samplesLen := len(samplesPool)
-	samplesPool = append(samplesPool, prompbmarshal.Sample{
+	samplesPool = append(samplesPool, prompb.Sample{
 		Timestamp: t,
 		Value:     v,
 	})
 
-	wr.tss = append(wr.tss, prompbmarshal.TimeSeries{
+	wr.tss = append(wr.tss, prompb.TimeSeries{
 		Labels:  labelsPool[labelsLen:],
 		Samples: samplesPool[samplesLen:],
 	})
@@ -270,9 +270,9 @@ func (wr *writeContext) appendSampleWithExtraLabel(metricName, labelName, labelV
 }
 
 // appendAttributesToPromLabels appends attributes to dst and returns the result.
-func appendAttributesToPromLabels(dst []prompbmarshal.Label, attributes []*pb.KeyValue) []prompbmarshal.Label {
+func appendAttributesToPromLabels(dst []prompb.Label, attributes []*pb.KeyValue) []prompb.Label {
 	for _, at := range attributes {
-		dst = append(dst, prompbmarshal.Label{
+		dst = append(dst, prompb.Label{
 			Name:  sanitizeLabelName(at.Key),
 			Value: at.Value.FormatString(true),
 		})
@@ -282,17 +282,17 @@ func appendAttributesToPromLabels(dst []prompbmarshal.Label, attributes []*pb.Ke
 
 type writeContext struct {
 	// tss holds parsed time series
-	tss []prompbmarshal.TimeSeries
+	tss []prompb.TimeSeries
 
 	// baseLabels are labels, which must be added to all the ingested samples
-	baseLabels []prompbmarshal.Label
+	baseLabels []prompb.Label
 
 	// pointLabels are labels, which must be added to the ingested OpenTelemetry points
-	pointLabels []prompbmarshal.Label
+	pointLabels []prompb.Label
 
 	// pools are used for reducing memory allocations when parsing time series
-	labelsPool  []prompbmarshal.Label
-	samplesPool []prompbmarshal.Sample
+	labelsPool  []prompb.Label
+	samplesPool []prompb.Sample
 }
 
 func (wr *writeContext) reset() {
@@ -306,7 +306,7 @@ func (wr *writeContext) reset() {
 	wr.samplesPool = wr.samplesPool[:0]
 }
 
-func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
+func resetLabels(labels []prompb.Label) []prompb.Label {
 	clear(labels)
 	return labels[:0]
 }

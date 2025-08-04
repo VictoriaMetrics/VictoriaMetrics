@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func BenchmarkSanitizeMetricName(b *testing.B) {
@@ -412,7 +412,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -435,7 +435,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -472,7 +472,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -508,7 +508,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -546,7 +546,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -584,7 +584,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -621,7 +621,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -658,7 +658,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -683,7 +683,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -708,7 +708,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -733,7 +733,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -770,7 +770,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -806,7 +806,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -842,7 +842,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -872,7 +872,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -902,7 +902,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -932,7 +932,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -956,7 +956,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -986,7 +986,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -1016,7 +1016,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -1045,7 +1045,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -1074,7 +1074,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -1109,7 +1109,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -1147,7 +1147,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(1)
 		b.RunParallel(func(pb *testing.PB) {
-			var labels []prompbmarshal.Label
+			var labels []prompb.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
 				labels = pcs.Apply(labels, 0)
@@ -1181,11 +1181,11 @@ func mustParseRelabelConfigs(config string) *ParsedConfigs {
 	return pcs
 }
 
-func labelsFromStrings(ss ...string) []prompbmarshal.Label {
+func labelsFromStrings(ss ...string) []prompb.Label {
 	labelsLen := len(ss) / 2
-	labels := make([]prompbmarshal.Label, 0, labelsLen)
+	labels := make([]prompb.Label, 0, labelsLen)
 	for i := 0; i < len(ss); i += 2 {
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  ss[i],
 			Value: ss[i+1],
 		})

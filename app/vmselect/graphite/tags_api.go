@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	graphiteparser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -94,7 +94,7 @@ func registerMetrics(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	paths := r.Form["path"]
 	var row graphiteparser.Row
-	var labels []prompbmarshal.Label
+	var labels []prompb.Label
 	var b []byte
 	var tagsPool []graphiteparser.Tag
 	mrs := make([]storage.MetricRow, len(paths))
@@ -121,12 +121,12 @@ func registerMetrics(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		canonicalPaths[i] = string(b)
 
 		// Convert parsed metric and tags to labels.
-		labels = append(labels[:0], prompbmarshal.Label{
+		labels = append(labels[:0], prompb.Label{
 			Name:  "__name__",
 			Value: row.Metric,
 		})
 		for _, tag := range row.Tags {
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  tag.Key,
 				Value: tag.Value,
 			})

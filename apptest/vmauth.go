@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"fmt"
+	"io"
 	"regexp"
 	"syscall"
 	"testing"
@@ -26,7 +27,7 @@ type Vmauth struct {
 // StartVmauth starts an instance of vmauth with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVmauth(instance string, flags []string, cli *Client, configFilePath string) (*Vmauth, error) {
+func StartVmauth(instance string, flags []string, cli *Client, configFilePath string, output io.Writer) (*Vmauth, error) {
 	extractREs := []*regexp.Regexp{
 		httpBuilitinListenAddrRE,
 	}
@@ -37,6 +38,7 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 			"-auth.config":    configFilePath,
 		},
 		extractREs: extractREs,
+		output:     output,
 	})
 	if err != nil {
 		return nil, err

@@ -14,6 +14,13 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.25.2
+Released: 2025-07-30
+
+- BUGFIX: Resolved inconsistent state between in-memory models and state database (if [stateful mode](https://docs.victoriametrics.com/anomaly-detection/components/settings/#stateful-mode) is enabled). This bug caused `Model instance not found` warnings during inference calls and prevented proper cleanup of stale models from disk. The fix also prevents state updates when operations are terminated mid-execution of scheduled fit/infer jobs.
+
+- BUGFIX: Added explicit handling for inference calls on models that were deleted from disk by the time of their usage, but still referenced in the state database, preventing `'NoneType' object has no attribute 'infer'` rows in logs. Now a warning is logged and the inference call is skipped, which is expected behavior for deleted models.
+
 ## v1.25.1
 Released: 2025-07-24
 

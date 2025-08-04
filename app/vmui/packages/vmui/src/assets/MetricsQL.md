@@ -208,7 +208,7 @@ would calculate [min_over_time](#min_over_time), [max_over_time](#max_over_time)
 ascent of [raw sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) values on the given lookbehind window `d`. The calculations are performed individually
 per each time series returned from the given [series_selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering).
 
-This function is useful for tracking height gains in GPS tracking. Metric names are stripped from the resulting rollups.
+This function is useful for tracking height gains in GPS tracking.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 

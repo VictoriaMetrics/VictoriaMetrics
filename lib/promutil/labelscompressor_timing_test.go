@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func BenchmarkLabelsCompressorCompress(b *testing.B) {
@@ -41,7 +41,7 @@ func BenchmarkLabelsCompressorDecompress(b *testing.B) {
 	b.SetBytes(int64(len(series)))
 
 	b.RunParallel(func(pb *testing.PB) {
-		var labels []prompbmarshal.Label
+		var labels []prompb.Label
 		for pb.Next() {
 			for _, data := range datas {
 				labels = lc.Decompress(labels[:0], data)

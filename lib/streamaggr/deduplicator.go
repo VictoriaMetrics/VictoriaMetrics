@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
@@ -99,7 +99,7 @@ func (d *Deduplicator) MustStop() {
 }
 
 // Push pushes tss to d.
-func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
+func (d *Deduplicator) Push(tss []prompb.TimeSeries) {
 	ctx := getDeduplicatorPushCtx()
 	labels := &ctx.labels
 	buf := ctx.buf
@@ -163,7 +163,7 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 	putDeduplicatorPushCtx(ctx)
 }
 
-func dropSeriesLabels(dst, src []prompbmarshal.Label, labelNames []string) []prompbmarshal.Label {
+func dropSeriesLabels(dst, src []prompb.Label, labelNames []string) []prompb.Label {
 	for _, label := range src {
 		if !slices.Contains(labelNames, label.Name) {
 			dst = append(dst, label)
@@ -211,12 +211,12 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 			labels = decompressLabels(labels, ps.key)
 
 			dstSamplesLen := len(dstSamples)
-			dstSamples = append(dstSamples, prompbmarshal.Sample{
+			dstSamples = append(dstSamples, prompb.Sample{
 				Value:     ps.value,
 				Timestamp: ps.timestamp,
 			})
 
-			tss = append(tss, prompbmarshal.TimeSeries{
+			tss = append(tss, prompb.TimeSeries{
 				Labels:  labels[labelsLen:],
 				Samples: dstSamples[dstSamplesLen:],
 			})
@@ -276,9 +276,9 @@ func putDeduplicatorPushCtx(ctx *deduplicatorPushCtx) {
 var deduplicatorPushCtxPool sync.Pool
 
 type deduplicatorFlushCtx struct {
-	tss     []prompbmarshal.TimeSeries
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
+	tss     []prompb.TimeSeries
+	labels  []prompb.Label
+	samples []prompb.Sample
 }
 
 func (ctx *deduplicatorFlushCtx) reset() {

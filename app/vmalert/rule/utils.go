@@ -8,19 +8,19 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 // newTimeSeries first sorts given labels, then returns new time series.
-func newTimeSeries(values []float64, timestamps []int64, labels []prompbmarshal.Label) prompbmarshal.TimeSeries {
+func newTimeSeries(values []float64, timestamps []int64, labels []prompb.Label) prompb.TimeSeries {
 	promrelabel.SortLabels(labels)
-	ts := prompbmarshal.TimeSeries{
+	ts := prompb.TimeSeries{
 		Labels:  labels,
-		Samples: make([]prompbmarshal.Sample, len(values)),
+		Samples: make([]prompb.Sample, len(values)),
 	}
 	for i := range values {
-		ts.Samples[i] = prompbmarshal.Sample{
+		ts.Samples[i] = prompb.Sample{
 			Value:     values[i],
 			Timestamp: time.Unix(timestamps[i], 0).UnixNano() / 1e6,
 		}

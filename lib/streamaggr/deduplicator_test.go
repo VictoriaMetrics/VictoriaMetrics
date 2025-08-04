@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 func TestDeduplicator(t *testing.T) {
-	var tssResult []prompbmarshal.TimeSeries
+	var tssResult []prompb.TimeSeries
 	var tssResultLock sync.Mutex
-	pushFunc := func(tss []prompbmarshal.TimeSeries) {
+	pushFunc := func(tss []prompb.TimeSeries) {
 		tssResultLock.Lock()
 		tssResult = appendClonedTimeseries(tssResult, tss)
 		tssResultLock.Unlock()

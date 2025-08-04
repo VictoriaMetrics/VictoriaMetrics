@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/cespare/xxhash/v2"
@@ -61,7 +61,7 @@ func (ctx *InsertCtx) Reset() {
 
 	labels := ctx.Labels
 	for i := range labels {
-		labels[i] = prompbmarshal.Label{}
+		labels[i] = prompb.Label{}
 	}
 	ctx.Labels = labels[:0]
 
@@ -88,7 +88,7 @@ func (ctx *InsertCtx) AddLabelBytes(name, value []byte) {
 		// Do not skip labels with empty name, since they are equal to __name__.
 		return
 	}
-	ctx.Labels = append(ctx.Labels, prompbmarshal.Label{
+	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
 		Name:  bytesutil.ToUnsafeString(name),
@@ -106,7 +106,7 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 		// Do not skip labels with empty name, since they are equal to __name__.
 		return
 	}
-	ctx.Labels = append(ctx.Labels, prompbmarshal.Label{
+	ctx.Labels = append(ctx.Labels, prompb.Label{
 		// Do not copy name and value contents for performance reasons.
 		// This reduces GC overhead on the number of objects and allocations.
 		Name:  name,
@@ -122,7 +122,7 @@ func (ctx *InsertCtx) applyRelabeling() {
 // WriteDataPoint writes (timestamp, value) data point with the given at and labels to ctx buffer.
 //
 // caller must invoke TryPrepareLabels before using this function
-func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompbmarshal.Label, timestamp int64, value float64) error {
+func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, timestamp int64, value float64) error {
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(at, labels)
 	return ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
@@ -169,7 +169,7 @@ func (ctx *InsertCtx) FlushBufs() error {
 // GetStorageNodeIdx returns storage node index for the given at and labels.
 //
 // The returned index must be passed to WriteDataPoint.
-func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompbmarshal.Label) int {
+func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) int {
 	if len(ctx.snb.sns) == 1 {
 		// Fast path - only a single storage node.
 		return 0
@@ -228,7 +228,7 @@ func (ctx *InsertCtx) GetLocalAuthToken(at *auth.Token) *auth.Token {
 	}
 	cleanLabels := ctx.Labels[len(tmpLabels):]
 	for i := range cleanLabels {
-		cleanLabels[i] = prompbmarshal.Label{}
+		cleanLabels[i] = prompb.Label{}
 	}
 	ctx.Labels = tmpLabels
 	ctx.at.Set(accountID, projectID)

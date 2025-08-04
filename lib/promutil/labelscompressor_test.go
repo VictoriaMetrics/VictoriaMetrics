@@ -5,13 +5,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestLabelsCompressorSerial(t *testing.T) {
 	var lc LabelsCompressor
 
-	f := func(labels []prompbmarshal.Label) {
+	f := func(labels []prompb.Label) {
 		t.Helper()
 
 		sExpected := labelsToString(labels)
@@ -36,10 +36,10 @@ func TestLabelsCompressorSerial(t *testing.T) {
 
 	// empty labels
 	f(nil)
-	f([]prompbmarshal.Label{})
+	f([]prompb.Label{})
 
 	// non-empty labels
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "instance",
 			Value: "12345.4342.342.3",
@@ -49,7 +49,7 @@ func TestLabelsCompressorSerial(t *testing.T) {
 			Value: "kube-pod-12323",
 		},
 	})
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "instance",
 			Value: "12345.4342.342.3",
@@ -102,19 +102,19 @@ func TestLabelsCompressorConcurrent(t *testing.T) {
 	}
 }
 
-func labelsToString(labels []prompbmarshal.Label) string {
+func labelsToString(labels []prompb.Label) string {
 	l := Labels{
 		Labels: labels,
 	}
 	return l.String()
 }
 
-func newTestSeries(seriesCount, labelsPerSeries int) [][]prompbmarshal.Label {
-	series := make([][]prompbmarshal.Label, seriesCount)
+func newTestSeries(seriesCount, labelsPerSeries int) [][]prompb.Label {
+	series := make([][]prompb.Label, seriesCount)
 	for i := 0; i < seriesCount; i++ {
-		labels := make([]prompbmarshal.Label, labelsPerSeries)
+		labels := make([]prompb.Label, labelsPerSeries)
 		for j := 0; j < labelsPerSeries; j++ {
-			labels[j] = prompbmarshal.Label{
+			labels[j] = prompb.Label{
 				Name:  fmt.Sprintf("label_%d", j),
 				Value: fmt.Sprintf("value_%d_%d", i, j),
 			}

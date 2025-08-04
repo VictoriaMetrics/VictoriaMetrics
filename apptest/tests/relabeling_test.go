@@ -9,7 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestSingleIngestionWithRelabeling(t *testing.T) {
@@ -139,9 +139,9 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 		},
 	})
 
-	pbData := []prompbmarshal.TimeSeries{
+	pbData := []prompb.TimeSeries{
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "prometheusrw_series",
@@ -151,7 +151,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 					Value: "foo2",
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     10,
 					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
@@ -160,7 +160,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 			},
 		},
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "must_drop_series",
@@ -170,7 +170,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 					Value: "foo2",
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     20,
 					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z

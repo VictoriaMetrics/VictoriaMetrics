@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -23,7 +23,7 @@ func (fr *fakeReplayQuerier) BuildWithParams(_ datasource.QuerierParams) datasou
 
 type fakeRWClient struct{}
 
-func (fc *fakeRWClient) Push(_ prompbmarshal.TimeSeries) error {
+func (fc *fakeRWClient) Push(_ prompb.TimeSeries) error {
 	return nil
 }
 

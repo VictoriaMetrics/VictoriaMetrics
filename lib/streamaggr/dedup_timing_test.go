@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func BenchmarkDedupAggr(b *testing.B) {
@@ -34,7 +34,7 @@ func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
 }
 
 func newBenchSamples(count int) []pushSample {
-	labels := []prompbmarshal.Label{
+	labels := []prompb.Label{
 		{
 			Name:  "app",
 			Value: "app-123",
@@ -61,7 +61,7 @@ func newBenchSamples(count int) []pushSample {
 	var keyBuf []byte
 	for i := range samples {
 		sample := &samples[i]
-		labels = append(labels[:labelsLen], prompbmarshal.Label{
+		labels = append(labels[:labelsLen], prompb.Label{
 			Name:  "app",
 			Value: fmt.Sprintf("instance-%d", i),
 		})

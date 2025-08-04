@@ -8,7 +8,7 @@ package notifier
 import (
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:8
@@ -25,7 +25,7 @@ var (
 )
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:8
-func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL func(Alert) string, lblss [][]prompbmarshal.Label) {
+func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL func(Alert) string, lblss [][]prompb.Label) {
 //line app/vmalert/notifier/alertmanager_request.qtpl:8
 	qw422016.N().S(`[`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:10
@@ -114,7 +114,7 @@ func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL fun
 }
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
-func writeamRequest(qq422016 qtio422016.Writer, alerts []Alert, generatorURL func(Alert) string, lblss [][]prompbmarshal.Label) {
+func writeamRequest(qq422016 qtio422016.Writer, alerts []Alert, generatorURL func(Alert) string, lblss [][]prompb.Label) {
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
@@ -125,7 +125,7 @@ func writeamRequest(qq422016 qtio422016.Writer, alerts []Alert, generatorURL fun
 }
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
-func amRequest(alerts []Alert, generatorURL func(Alert) string, lblss [][]prompbmarshal.Label) string {
+func amRequest(alerts []Alert, generatorURL func(Alert) string, lblss [][]prompb.Label) string {
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/notifier/alertmanager_request.qtpl:35

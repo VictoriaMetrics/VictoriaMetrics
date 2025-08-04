@@ -10,7 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -100,7 +100,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 
 	pushDataCalls := 0
 	var pushDataErr error
-	sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+	sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
 		if err := expectEqualTimeseries(wr.Timeseries, timeseriesExpected); err != nil {
 			pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
 		}
@@ -158,7 +158,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		var pushDataMu sync.Mutex
 		var pushDataCalls int
 		var pushDataErr error
-		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
 			pushDataMu.Lock()
 			defer pushDataMu.Unlock()
 
@@ -570,7 +570,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 
 		var pushDataCalls atomic.Int64
 		var pushedTimeseries atomic.Int64
-		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
 			pushDataCalls.Add(1)
 			pushedTimeseries.Add(int64(len(wr.Timeseries)))
 		}
@@ -889,7 +889,7 @@ func TestSendStaleSeries(t *testing.T) {
 		defer protoparserutil.StopUnmarshalWorkers()
 
 		var staleMarks atomic.Int64
-		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
 			staleMarks.Add(int64(len(wr.Timeseries)))
 		}
 		sw.sendStaleSeries(lastScrape, currScrape, 0, false)
@@ -926,11 +926,11 @@ func parsePromRow(data string) *prometheus.Row {
 	return &rows.Rows[0]
 }
 
-func parseData(data string) []prompbmarshal.TimeSeries {
+func parseData(data string) []prompb.TimeSeries {
 	return prometheus.MustParsePromMetrics(data, 0)
 }
 
-func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
+func expectEqualTimeseries(tss, tssExpected []prompb.TimeSeries) error {
 	m, err := timeseriesToMap(tss)
 	if err != nil {
 		return fmt.Errorf("invalid generated timeseries: %w", err)
@@ -951,7 +951,7 @@ func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
 	return nil
 }
 
-func timeseriesToMap(tss []prompbmarshal.TimeSeries) (map[string]string, error) {
+func timeseriesToMap(tss []prompb.TimeSeries) (map[string]string, error) {
 	m := make(map[string]string, len(tss))
 	for i := range tss {
 		ts := &tss[i]
@@ -973,7 +973,7 @@ func timeseriesToMap(tss []prompbmarshal.TimeSeries) (map[string]string, error) 
 	return m, nil
 }
 
-func timeseriesToString(ts *prompbmarshal.TimeSeries) string {
+func timeseriesToString(ts *prompb.TimeSeries) string {
 	promrelabel.SortLabels(ts.Labels)
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "{")

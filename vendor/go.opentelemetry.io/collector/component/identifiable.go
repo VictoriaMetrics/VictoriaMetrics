@@ -49,7 +49,7 @@ func (t Type) MarshalText() ([]byte, error) {
 // - start with an ASCII alphabetic character and
 // - can only contain ASCII alphanumeric characters and '_'.
 func NewType(ty string) (Type, error) {
-	if len(ty) == 0 {
+	if ty == "" {
 		return Type{}, errors.New("id must not be empty")
 	}
 	if !typeRegexp.MatchString(ty) {

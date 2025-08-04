@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"github.com/cespare/xxhash/v2"
@@ -69,7 +69,7 @@ func (prc *parsedRelabelConfig) String() string {
 // ApplyDebug applies pcs to labels in debug mode.
 //
 // It returns DebugStep list - one entry per each applied relabeling step.
-func (pcs *ParsedConfigs) ApplyDebug(labels []prompbmarshal.Label) ([]prompbmarshal.Label, []DebugStep) {
+func (pcs *ParsedConfigs) ApplyDebug(labels []prompb.Label) ([]prompb.Label, []DebugStep) {
 	// Protect from overwriting labels between len(labels) and cap(labels) by limiting labels capacity to its length.
 	labels = labels[:len(labels):len(labels)]
 
@@ -108,7 +108,7 @@ func (pcs *ParsedConfigs) ApplyDebug(labels []prompbmarshal.Label) ([]prompbmars
 //
 // This function may add additional labels after the len(labels), so make sure it doesn't corrupt in-use labels
 // stored between len(labels) and cap(labels).
-func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
+func (pcs *ParsedConfigs) Apply(labels []prompb.Label, labelsOffset int) []prompb.Label {
 	if pcs != nil {
 		for _, prc := range pcs.prcs {
 			labels = prc.apply(labels, labelsOffset)
@@ -122,7 +122,7 @@ func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) 
 	return labels
 }
 
-func removeEmptyLabels(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
+func removeEmptyLabels(labels []prompb.Label, labelsOffset int) []prompb.Label {
 	src := labels[labelsOffset:]
 	needsRemoval := false
 	for i := range src {
@@ -146,7 +146,7 @@ func removeEmptyLabels(labels []prompbmarshal.Label, labelsOffset int) []prompbm
 }
 
 // FinalizeLabels removes labels with "__" in the beginning (except of "__name__").
-func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
+func FinalizeLabels(dst, src []prompb.Label) []prompb.Label {
 	for _, label := range src {
 		name := label.Name
 		if strings.HasPrefix(name, "__") && name != "__name__" {
@@ -160,7 +160,7 @@ func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 // apply applies relabeling according to prc.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
+func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) []prompb.Label {
 	src := labels[labelsOffset:]
 	if !prc.If.Match(src) {
 		if prc.Action == "keep" {
@@ -515,7 +515,7 @@ func (prc *parsedRelabelConfig) expandCaptureGroups(template, source string, mat
 
 var relabelBufPool bytesutil.ByteBufferPool
 
-func containsAllLabelValues(labels []prompbmarshal.Label, targetLabel string, sourceLabels []string) bool {
+func containsAllLabelValues(labels []prompb.Label, targetLabel string, sourceLabels []string) bool {
 	targetLabelValue := getLabelValue(labels, targetLabel)
 	for _, sourceLabel := range sourceLabels {
 		v := getLabelValue(labels, sourceLabel)
@@ -526,7 +526,7 @@ func containsAllLabelValues(labels []prompbmarshal.Label, targetLabel string, so
 	return true
 }
 
-func areEqualLabelValues(labels []prompbmarshal.Label, labelNames []string) bool {
+func areEqualLabelValues(labels []prompb.Label, labelNames []string) bool {
 	if len(labelNames) < 2 {
 		logger.Panicf("BUG: expecting at least 2 labelNames; got %d", len(labelNames))
 		return false
@@ -541,7 +541,7 @@ func areEqualLabelValues(labels []prompbmarshal.Label, labelNames []string) bool
 	return true
 }
 
-func concatLabelValues(dst []byte, labels []prompbmarshal.Label, labelNames []string, separator string) []byte {
+func concatLabelValues(dst []byte, labels []prompb.Label, labelNames []string, separator string) []byte {
 	if len(labelNames) == 0 {
 		return dst
 	}
@@ -553,19 +553,19 @@ func concatLabelValues(dst []byte, labels []prompbmarshal.Label, labelNames []st
 	return dst[:len(dst)-len(separator)]
 }
 
-func setLabelValue(labels []prompbmarshal.Label, labelsOffset int, name, value string) []prompbmarshal.Label {
+func setLabelValue(labels []prompb.Label, labelsOffset int, name, value string) []prompb.Label {
 	if label := GetLabelByName(labels[labelsOffset:], name); label != nil {
 		label.Value = value
 		return labels
 	}
-	labels = append(labels, prompbmarshal.Label{
+	labels = append(labels, prompb.Label{
 		Name:  name,
 		Value: value,
 	})
 	return labels
 }
 
-func getLabelValue(labels []prompbmarshal.Label, name string) string {
+func getLabelValue(labels []prompb.Label, name string) string {
 	for _, label := range labels {
 		if label.Name == name {
 			return label.Value
@@ -575,7 +575,7 @@ func getLabelValue(labels []prompbmarshal.Label, name string) string {
 }
 
 // GetLabelByName returns label with the given name from labels.
-func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.Label {
+func GetLabelByName(labels []prompb.Label, name string) *prompb.Label {
 	for i := range labels {
 		label := &labels[i]
 		if label.Name == name {
@@ -588,7 +588,7 @@ func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.La
 // CleanLabels sets label.Name and label.Value to an empty string for all the labels.
 //
 // This should help GC cleaning up label.Name and label.Value strings.
-func CleanLabels(labels []prompbmarshal.Label) {
+func CleanLabels(labels []prompb.Label) {
 	clear(labels)
 }
 
@@ -596,8 +596,8 @@ func CleanLabels(labels []prompbmarshal.Label) {
 //
 // Labels in the returned string are sorted by name,
 // while the __name__ label is put in front of {} labels.
-func LabelsToString(labels []prompbmarshal.Label) string {
-	labelsCopy := append([]prompbmarshal.Label{}, labels...)
+func LabelsToString(labels []prompb.Label) string {
+	labelsCopy := append([]prompb.Label{}, labels...)
 	SortLabels(labelsCopy)
 	mname := ""
 	for i, label := range labelsCopy {
@@ -625,7 +625,7 @@ func LabelsToString(labels []prompbmarshal.Label) string {
 }
 
 // SortLabels sorts labels in alphabetical order.
-func SortLabels(labels []prompbmarshal.Label) {
+func SortLabels(labels []prompb.Label) {
 	x := promutil.GetLabels()
 	labelsOrig := x.Labels
 	x.Labels = labels
@@ -634,7 +634,7 @@ func SortLabels(labels []prompbmarshal.Label) {
 	promutil.PutLabels(x)
 }
 
-func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.Label) []byte {
+func fillLabelReferences(dst []byte, replacement string, labels []prompb.Label) []byte {
 	s := replacement
 	for len(s) > 0 {
 		n := strings.Index(s, "{{")

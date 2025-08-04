@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Querier interface wraps Query and QueryRange methods
@@ -60,7 +60,7 @@ type QuerierParams struct {
 
 // Metric is the basic entity which should be return by datasource
 type Metric struct {
-	Labels     []prompbmarshal.Label
+	Labels     []prompb.Label
 	Timestamps []int64
 	Values     []float64
 }
@@ -79,7 +79,7 @@ func (m *Metric) SetLabel(key, value string) {
 
 // AddLabel appends the given label to the label set
 func (m *Metric) AddLabel(key, value string) {
-	m.Labels = append(m.Labels, prompbmarshal.Label{Name: key, Value: value})
+	m.Labels = append(m.Labels, prompb.Label{Name: key, Value: value})
 }
 
 // DelLabel deletes the given label from the label set
@@ -103,7 +103,7 @@ func (m *Metric) Label(key string) string {
 }
 
 // Labels is collection of Label
-type Labels []prompbmarshal.Label
+type Labels []prompb.Label
 
 func (ls Labels) Len() int           { return len(ls) }
 func (ls Labels) Swap(i, j int)      { ls[i], ls[j] = ls[j], ls[i] }
@@ -158,7 +158,7 @@ func LabelCompare(a, b Labels) int {
 // ConvertToLabels convert map to Labels
 func ConvertToLabels(m map[string]string) (labelset Labels) {
 	for k, v := range m {
-		labelset = append(labelset, prompbmarshal.Label{
+		labelset = append(labelset, prompb.Label{
 			Name:  k,
 			Value: v,
 		})

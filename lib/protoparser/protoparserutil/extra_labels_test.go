@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestGetExtraLabelsSuccess(t *testing.T) {
@@ -84,7 +84,7 @@ func TestGetPushgatewayLabelsFailure(t *testing.T) {
 	f("/metrics/job/foo/bar@base64/#$%")
 }
 
-func getLabelsString(labels []prompbmarshal.Label) string {
+func getLabelsString(labels []prompb.Label) string {
 	a := make([]string, len(labels))
 	for i, label := range labels {
 		a[i] = fmt.Sprintf("%s=%q", label.Name, label.Value)

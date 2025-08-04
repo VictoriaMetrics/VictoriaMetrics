@@ -7,7 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 var (
@@ -63,40 +63,40 @@ var (
 	ignoredSeriesWithTooLongLabelValue atomicutil.Uint64
 )
 
-func trackIgnoredSeriesWithTooManyLabels(labels []prompbmarshal.Label) {
+func trackIgnoredSeriesWithTooManyLabels(labels []prompb.Label) {
 	ignoredSeriesWithTooManyLabels.Add(1)
 	select {
 	case <-ignoredSeriesWithTooManyLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
-		// because prompbmarshal.LabelsToString() will be called with each trackIgnoredSeriesWithTooManyLabels call.
+		// because prompb.LabelsToString() will be called with each trackIgnoredSeriesWithTooManyLabels call.
 		logger.Warnf("ignoring series with %d labels for %s; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d cmd-line flag value",
-			len(labels), prompbmarshal.LabelsToString(labels), maxLabelsPerTimeseries)
+			len(labels), prompb.LabelsToString(labels), maxLabelsPerTimeseries)
 	default:
 	}
 }
 
-func trackIgnoredSeriesWithTooLongLabelValue(l *prompbmarshal.Label, labels []prompbmarshal.Label) {
+func trackIgnoredSeriesWithTooLongLabelValue(l *prompb.Label, labels []prompb.Label) {
 	ignoredSeriesWithTooLongLabelValue.Add(1)
 	select {
 	case <-ignoredSeriesWithTooLongLabelValueLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
-		// because prompbmarshal.LabelsToString() will be called with each trackIgnoredSeriesWithTooLongLabelValue call.
+		// because prompb.LabelsToString() will be called with each trackIgnoredSeriesWithTooLongLabelValue call.
 		logger.Warnf("ignoring series with %s=%q label for %s; label value length=%d exceeds -maxLabelValueLen=%d; "+
 			"either reduce the label value length or increase -maxLabelValueLen command-line flag value",
-			l.Name, l.Value, prompbmarshal.LabelsToString(labels), len(l.Value), maxLabelValueLen)
+			l.Name, l.Value, prompb.LabelsToString(labels), len(l.Value), maxLabelValueLen)
 	default:
 	}
 }
 
-func trackIgnoredSeriesWithTooLongLabelName(l *prompbmarshal.Label, labels []prompbmarshal.Label) {
+func trackIgnoredSeriesWithTooLongLabelName(l *prompb.Label, labels []prompb.Label) {
 	ignoredSeriesWithTooLongLabelName.Add(1)
 	select {
 	case <-ignoredSeriesWithTooLongLabelNameLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
-		// because prompbmarshal.LabelsToString() will be called with each trackIgnoredSeriesWithTooLongLabelName call.
+		// because prompb.LabelsToString() will be called with each trackIgnoredSeriesWithTooLongLabelName call.
 		logger.Warnf("ignoring series with label %q for %s; label name length=%d exceeds max allowed %d - consider reducing label name length.",
-			l.Name, prompbmarshal.LabelsToString(labels), len(l.Name), maxLabelNameLen)
+			l.Name, prompb.LabelsToString(labels), len(l.Name), maxLabelNameLen)
 	default:
 	}
 }
@@ -112,7 +112,7 @@ func Enabled() bool {
 // * Maximum allowed label value length limit
 //
 // increments metrics and shows warning in logs
-func IsExceeding(labels []prompbmarshal.Label) bool {
+func IsExceeding(labels []prompb.Label) bool {
 	if maxLabelsPerTimeseries > 0 && len(labels) > maxLabelsPerTimeseries {
 		trackIgnoredSeriesWithTooManyLabels(labels)
 		return true

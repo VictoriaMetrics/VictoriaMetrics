@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
@@ -60,7 +60,7 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	})
 }
 
-func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prompb.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -80,13 +80,13 @@ func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prom
 			if tag.Key == *dbLabel {
 				hasDBKey = true
 			}
-			commonLabels = append(commonLabels, prompbmarshal.Label{
+			commonLabels = append(commonLabels, prompb.Label{
 				Name:  tag.Key,
 				Value: tag.Value,
 			})
 		}
 		if len(db) > 0 && !hasDBKey {
-			commonLabels = append(commonLabels, prompbmarshal.Label{
+			commonLabels = append(commonLabels, prompb.Label{
 				Name:  *dbLabel,
 				Value: db,
 			})
@@ -110,16 +110,16 @@ func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prom
 			}
 			metricGroup := bytesutil.ToUnsafeString(buf[bufLen:])
 			labelsLen := len(labels)
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  "__name__",
 				Value: metricGroup,
 			})
 			labels = append(labels, commonLabels...)
-			samples = append(samples, prompbmarshal.Sample{
+			samples = append(samples, prompb.Sample{
 				Timestamp: r.Timestamp,
 				Value:     f.Value,
 			})
-			tssDst = append(tssDst, prompbmarshal.TimeSeries{
+			tssDst = append(tssDst, prompb.TimeSeries{
 				Labels:  labels[labelsLen:],
 				Samples: samples[len(samples)-1:],
 			})
@@ -144,7 +144,7 @@ func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prom
 
 type pushCtx struct {
 	ctx            common.PushCtx
-	commonLabels   []prompbmarshal.Label
+	commonLabels   []prompb.Label
 	metricGroupBuf []byte
 	buf            []byte
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
@@ -25,14 +25,14 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 		// Distribute itemsCount hashes returned by getLabelsHash() across bucketsCount buckets.
 		itemsCount := 1_000 * bucketsCount
 		m := make([]int, bucketsCount)
-		var labels []prompbmarshal.Label
+		var labels []prompb.Label
 		for i := 0; i < itemsCount; i++ {
-			labels = append(labels[:0], prompbmarshal.Label{
+			labels = append(labels[:0], prompb.Label{
 				Name:  "__name__",
 				Value: fmt.Sprintf("some_name_%d", i),
 			})
 			for j := 0; j < 10; j++ {
-				labels = append(labels, prompbmarshal.Label{
+				labels = append(labels, prompb.Label{
 					Name:  fmt.Sprintf("label_%d", j),
 					Value: fmt.Sprintf("value_%d_%d", i, j),
 				})
@@ -88,7 +88,7 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 		}
 
 		if streamAggrConfig != "" {
-			pushNoop := func(_ []prompbmarshal.TimeSeries) {}
+			pushNoop := func(_ []prompb.TimeSeries) {}
 			opts := streamaggr.Options{
 				EnableWindows: enableWindows,
 			}
@@ -102,7 +102,7 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 
 		offsetMsecs := time.Now().UnixMilli()
 		inputTss := prometheus.MustParsePromMetrics(input, offsetMsecs)
-		expectedTss := make([]prompbmarshal.TimeSeries, len(inputTss))
+		expectedTss := make([]prompb.TimeSeries, len(inputTss))
 
 		// copy inputTss to make sure it is not mutated during TryPush call
 		copy(expectedTss, inputTss)
@@ -220,16 +220,16 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 
 		seriesCount := 100000
 		// build 1000000 series
-		tssBlock := make([]prompbmarshal.TimeSeries, 0, seriesCount)
+		tssBlock := make([]prompb.TimeSeries, 0, seriesCount)
 		for i := 0; i < seriesCount; i++ {
-			tssBlock = append(tssBlock, prompbmarshal.TimeSeries{
-				Labels: []prompbmarshal.Label{
+			tssBlock = append(tssBlock, prompb.TimeSeries{
+				Labels: []prompb.Label{
 					{
 						Name:  "label",
 						Value: strconv.Itoa(i),
 					},
 				},
-				Samples: []prompbmarshal.Sample{
+				Samples: []prompb.Sample{
 					{
 						Timestamp: 0,
 						Value:     0,
@@ -258,7 +258,7 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 		for i, nodeIdx := range healthyIdx {
 			for _, ts := range shards[i] {
 				// add it to node[nodeIdx]'s active time series
-				activeTimeSeriesByNodes[nodeIdx][prompbmarshal.LabelsToString(ts.Labels)] = struct{}{}
+				activeTimeSeriesByNodes[nodeIdx][prompb.LabelsToString(ts.Labels)] = struct{}{}
 			}
 		}
 
@@ -281,7 +281,7 @@ func TestShardAmountRemoteWriteCtx(t *testing.T) {
 		for i, nodeIdx := range healthyIdx {
 			for _, ts := range shards[i] {
 				// add it to node[nodeIdx]'s active time series
-				activeTimeSeriesByNodes[nodeIdx][prompbmarshal.LabelsToString(ts.Labels)] = struct{}{}
+				activeTimeSeriesByNodes[nodeIdx][prompb.LabelsToString(ts.Labels)] = struct{}{}
 			}
 		}
 

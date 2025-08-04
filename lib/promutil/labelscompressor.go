@@ -8,10 +8,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
-// LabelsCompressor compresses []prompbmarshal.Label into short binary strings
+// LabelsCompressor compresses []prompb.Label into short binary strings
 type LabelsCompressor struct {
 	labelToIdx sync.Map
 	idxToLabel labelsMap
@@ -34,7 +34,7 @@ func (lc *LabelsCompressor) ItemsCount() uint64 {
 // Compress compresses labels, appends the compressed labels to dst and returns the result.
 //
 // It is safe calling Compress from concurrent goroutines.
-func (lc *LabelsCompressor) Compress(dst []byte, labels []prompbmarshal.Label) []byte {
+func (lc *LabelsCompressor) Compress(dst []byte, labels []prompb.Label) []byte {
 	if len(labels) == 0 {
 		// Fast path
 		return append(dst, 0)
@@ -48,7 +48,7 @@ func (lc *LabelsCompressor) Compress(dst []byte, labels []prompbmarshal.Label) [
 	return dst
 }
 
-func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label) {
+func (lc *LabelsCompressor) compress(dst []uint64, labels []prompb.Label) {
 	if len(labels) == 0 {
 		return
 	}
@@ -82,7 +82,7 @@ func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label)
 	}
 }
 
-func cloneLabel(label prompbmarshal.Label) prompbmarshal.Label {
+func cloneLabel(label prompb.Label) prompb.Label {
 	// pre-allocate memory for label name and value
 	n := len(label.Name) + len(label.Value)
 	buf := make([]byte, 0, n)
@@ -92,16 +92,16 @@ func cloneLabel(label prompbmarshal.Label) prompbmarshal.Label {
 
 	buf = append(buf, label.Value...)
 	labelValue := bytesutil.ToUnsafeString(buf[len(labelName):])
-	return prompbmarshal.Label{
+	return prompb.Label{
 		Name:  labelName,
 		Value: labelValue,
 	}
 }
 
-// Decompress decompresses src into []prompbmarshal.Label, appends it to dst and returns the result.
+// Decompress decompresses src into []prompb.Label, appends it to dst and returns the result.
 //
 // It is safe calling Decompress from concurrent goroutines.
-func (lc *LabelsCompressor) Decompress(dst []prompbmarshal.Label, src []byte) []prompbmarshal.Label {
+func (lc *LabelsCompressor) Decompress(dst []prompb.Label, src []byte) []prompb.Label {
 	labelsLen, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
 		logger.Panicf("BUG: cannot unmarshal labels length from uvarint")
@@ -129,7 +129,7 @@ func (lc *LabelsCompressor) Decompress(dst []prompbmarshal.Label, src []byte) []
 	return dst
 }
 
-func (lc *LabelsCompressor) decompress(dst []prompbmarshal.Label, src []uint64) []prompbmarshal.Label {
+func (lc *LabelsCompressor) decompress(dst []prompb.Label, src []uint64) []prompb.Label {
 	for _, idx := range src {
 		label, ok := lc.idxToLabel.Load(idx)
 		if !ok {
@@ -140,24 +140,24 @@ func (lc *LabelsCompressor) decompress(dst []prompbmarshal.Label, src []uint64) 
 	return dst
 }
 
-// labelsMap maps uint64 key to prompbmarshal.Label
+// labelsMap maps uint64 key to prompb.Label
 //
 // uint64 keys must be packed close to 0. Otherwise the labelsMap structure will consume too much memory.
 type labelsMap struct {
-	readOnly atomic.Pointer[[]*prompbmarshal.Label]
+	readOnly atomic.Pointer[[]*prompb.Label]
 
 	mutableLock sync.Mutex
-	mutable     map[uint64]*prompbmarshal.Label
+	mutable     map[uint64]*prompb.Label
 	misses      uint64
 }
 
 // Store stores label under the given idx.
 //
 // It is safe calling Store from concurrent goroutines.
-func (lm *labelsMap) Store(idx uint64, label prompbmarshal.Label) {
+func (lm *labelsMap) Store(idx uint64, label prompb.Label) {
 	lm.mutableLock.Lock()
 	if lm.mutable == nil {
-		lm.mutable = make(map[uint64]*prompbmarshal.Label)
+		lm.mutable = make(map[uint64]*prompb.Label)
 	}
 	lm.mutable[idx] = &label
 	lm.mutableLock.Unlock()
@@ -170,7 +170,7 @@ func (lm *labelsMap) Store(idx uint64, label prompbmarshal.Label) {
 // It is safe calling Load from concurrent goroutines.
 //
 // The performance of Load() scales linearly with CPU cores.
-func (lm *labelsMap) Load(idx uint64) (prompbmarshal.Label, bool) {
+func (lm *labelsMap) Load(idx uint64) (prompb.Label, bool) {
 	if pReadOnly := lm.readOnly.Load(); pReadOnly != nil && idx < uint64(len(*pReadOnly)) {
 		if pLabel := (*pReadOnly)[idx]; pLabel != nil {
 			// Fast path - the label for the given idx has been found in lm.readOnly.
@@ -182,7 +182,7 @@ func (lm *labelsMap) Load(idx uint64) (prompbmarshal.Label, bool) {
 	return lm.loadSlow(idx)
 }
 
-func (lm *labelsMap) loadSlow(idx uint64) (prompbmarshal.Label, bool) {
+func (lm *labelsMap) loadSlow(idx uint64) (prompb.Label, bool) {
 	lm.mutableLock.Lock()
 
 	// Try loading label from readOnly, since it could be updated while acquiring mutableLock.
@@ -204,18 +204,18 @@ func (lm *labelsMap) loadSlow(idx uint64) (prompbmarshal.Label, bool) {
 	lm.mutableLock.Unlock()
 
 	if pLabel == nil {
-		return prompbmarshal.Label{}, false
+		return prompb.Label{}, false
 	}
 	return *pLabel, true
 }
 
-func (lm *labelsMap) moveMutableToReadOnlyLocked(pReadOnly *[]*prompbmarshal.Label) {
+func (lm *labelsMap) moveMutableToReadOnlyLocked(pReadOnly *[]*prompb.Label) {
 	if len(lm.mutable) == 0 {
 		// Nothing to move
 		return
 	}
 
-	var labels []*prompbmarshal.Label
+	var labels []*prompb.Label
 	if pReadOnly != nil {
 		labels = append(labels, *pReadOnly...)
 	}

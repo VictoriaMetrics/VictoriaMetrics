@@ -286,31 +286,57 @@ const FlockFilename = "flock.lock"
 // MustGetFreeSpace returns free space for the given directory path.
 func MustGetFreeSpace(path string) uint64 {
 	// Try obtaining cached value at first.
-	freeSpaceMapLock.Lock()
-	defer freeSpaceMapLock.Unlock()
+	diskSpaceMapLock.Lock()
+	defer diskSpaceMapLock.Unlock()
 
-	e, ok := freeSpaceMap[path]
+	e, ok := diskSpaceMap[path]
 	if ok && fasttime.UnixTimestamp()-e.updateTime < 2 {
 		// Fast path - the entry is fresh.
-		return e.freeSpace
+		return e.free
 	}
 
 	// Slow path.
 	// Determine the amount of free space at path.
-	e.freeSpace = mustGetFreeSpace(path)
+	e = updateDiskSpaceLocked(path)
+	return e.free
+}
+
+// MustGetTotalSpace returns the total disk space for the given directory path.
+func MustGetTotalSpace(path string) uint64 {
+	// Try obtaining cached value at first.
+	diskSpaceMapLock.Lock()
+	defer diskSpaceMapLock.Unlock()
+
+	e, ok := diskSpaceMap[path]
+	if ok && fasttime.UnixTimestamp()-e.updateTime < 2 {
+		// Fast path - the entry is fresh.
+		return e.total
+	}
+
+	// Slow path.
+	// Determine the amount of total space at path.
+	e = updateDiskSpaceLocked(path)
+	return e.total
+}
+
+func updateDiskSpaceLocked(path string) diskSpaceEntry {
+	var e diskSpaceEntry
+	e.total, e.free = mustGetDiskSpace(path)
 	e.updateTime = fasttime.UnixTimestamp()
-	freeSpaceMap[path] = e
-	return e.freeSpace
+	diskSpaceMap[path] = e
+
+	return e
 }
 
 var (
-	freeSpaceMap     = make(map[string]freeSpaceEntry)
-	freeSpaceMapLock sync.Mutex
+	diskSpaceMap     = make(map[string]diskSpaceEntry)
+	diskSpaceMapLock sync.Mutex
 )
 
-type freeSpaceEntry struct {
+type diskSpaceEntry struct {
 	updateTime uint64
-	freeSpace  uint64
+	free       uint64
+	total      uint64
 }
 
 // IsDirOrSymlink returns true if de is directory or symlink.

@@ -6,7 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -30,7 +30,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	})
 }
 
-func insertRows(at *auth.Token, rows []opentsdbhttp.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []opentsdbhttp.Row, extraLabels []prompb.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -40,23 +40,23 @@ func insertRows(at *auth.Token, rows []opentsdbhttp.Row, extraLabels []prompbmar
 	for i := range rows {
 		r := &rows[i]
 		labelsLen := len(labels)
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  "__name__",
 			Value: r.Metric,
 		})
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  tag.Key,
 				Value: tag.Value,
 			})
 		}
 		labels = append(labels, extraLabels...)
-		samples = append(samples, prompbmarshal.Sample{
+		samples = append(samples, prompb.Sample{
 			Value:     r.Value,
 			Timestamp: r.Timestamp,
 		})
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
+		tssDst = append(tssDst, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[len(samples)-1:],
 		})

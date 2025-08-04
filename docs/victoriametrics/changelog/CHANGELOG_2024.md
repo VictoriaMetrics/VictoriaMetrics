@@ -436,7 +436,7 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
   * `vm_streamaggr_matched_samples_total` - the number of input samples matched by the corresponding aggregation rule
   * `vm_streamaggr_output_samples_total` - the number of output samples produced by the corresponding aggregation rule
   * `vm_streamaggr_samples_lag_seconds` - [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) with the lag between the current time and the timestamp seen in the aggregated input samples
-* FEATURE: [steaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): add new labels to `vm_streamaggr_*` metrics:
+* FEATURE: [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): add new labels to `vm_streamaggr_*` metrics:
   * `name` - the name of the streaming aggregation rule, which can be configured via `name` option - see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config).
   * `url` - `-remoteWrite.url` for the corresponding `-remoteWrite.streamAggr.config`
   * `path` - path to the corresponding streaming aggregation config file

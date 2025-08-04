@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // PrometheusQuerier contains methods available to Prometheus-like HTTP API for Querying
@@ -40,7 +40,7 @@ type PrometheusQuerier interface {
 // Writer contains methods for writing new data
 type Writer interface {
 	// Prometheus APIs
-	PrometheusAPIV1Write(t *testing.T, records []prompbmarshal.TimeSeries, opts QueryOpts)
+	PrometheusAPIV1Write(t *testing.T, records []prompb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
 	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
 	PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts)

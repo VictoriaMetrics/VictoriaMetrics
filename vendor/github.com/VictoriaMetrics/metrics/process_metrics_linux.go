@@ -79,8 +79,13 @@ func writeProcessMetrics(w io.Writer) {
 
 	utime := float64(p.Utime) / userHZ
 	stime := float64(p.Stime) / userHZ
+
+	// Calculate totalTime by dividing the sum of p.Utime and p.Stime by userHZ.
+	// This reduces possible floating-point precision loss
+	totalTime := float64(p.Utime+p.Stime) / userHZ
+
 	WriteCounterFloat64(w, "process_cpu_seconds_system_total", stime)
-	WriteCounterFloat64(w, "process_cpu_seconds_total", utime+stime)
+	WriteCounterFloat64(w, "process_cpu_seconds_total", totalTime)
 	WriteCounterFloat64(w, "process_cpu_seconds_user_total", utime)
 	WriteCounterUint64(w, "process_major_pagefaults_total", uint64(p.Majflt))
 	WriteCounterUint64(w, "process_minor_pagefaults_total", uint64(p.Minflt))
@@ -408,5 +413,8 @@ func getCgroupV2Path() string {
 	if len(tmp) != 2 {
 		return ""
 	}
-	return "/sys/fs/cgroup" + strings.TrimSpace(tmp[1])
+	path := "/sys/fs/cgroup" + strings.TrimSpace(tmp[1])
+
+	// Drop trailing slash if it exsits. This prevents from '//' in the constructed paths by the caller.
+	return strings.TrimSuffix(path, "/")
 }

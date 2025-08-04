@@ -239,6 +239,16 @@
     "release_level": "preview",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/apps/events/subscriptions/apiv1beta": {
+    "api_shortname": "workspaceevents",
+    "distribution_name": "cloud.google.com/go/apps/events/subscriptions/apiv1beta",
+    "description": "Google Workspace Events API",
+    "language": "go",
+    "client_library_type": "generated",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/apps/latest/events/subscriptions/apiv1beta",
+    "release_level": "preview",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/apps/meet/apiv2": {
     "api_shortname": "meet",
     "distribution_name": "cloud.google.com/go/apps/meet/apiv2",
@@ -2236,6 +2246,16 @@
     "language": "go",
     "client_library_type": "manual",
     "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/pubsub/latest",
+    "release_level": "stable",
+    "library_type": "GAPIC_MANUAL"
+  },
+  "cloud.google.com/go/pubsub/v2": {
+    "api_shortname": "pubsub",
+    "distribution_name": "cloud.google.com/go/pubsub/v2",
+    "description": "Cloud Pub/Sub API",
+    "language": "go",
+    "client_library_type": "manual",
+    "client_documentation": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/pubsub/latest/v2",
     "release_level": "stable",
     "library_type": "GAPIC_MANUAL"
   },

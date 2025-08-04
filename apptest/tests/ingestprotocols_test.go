@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestSingleIngestionProtocols(t *testing.T) {
@@ -187,15 +187,15 @@ func TestSingleIngestionProtocols(t *testing.T) {
 	})
 
 	// prometheus remote write format
-	pbData := []prompbmarshal.TimeSeries{
+	pbData := []prompb.TimeSeries{
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "prometheusrw_series",
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     10,
 					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
@@ -204,7 +204,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 			},
 		},
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "prometheusrw_series2",
@@ -218,7 +218,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 					Value: "value1",
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     20,
 					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
@@ -434,15 +434,15 @@ func TestClusterIngestionProtocols(t *testing.T) {
 	})
 
 	// prometheus remote write format
-	pbData := []prompbmarshal.TimeSeries{
+	pbData := []prompb.TimeSeries{
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "prometheusrw_series",
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     10,
 					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
@@ -451,7 +451,7 @@ func TestClusterIngestionProtocols(t *testing.T) {
 			},
 		},
 		{
-			Labels: []prompbmarshal.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "prometheusrw_series2",
@@ -465,7 +465,7 @@ func TestClusterIngestionProtocols(t *testing.T) {
 					Value: "value1",
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     20,
 					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z

@@ -18,7 +18,7 @@ type Reader struct {
 
 // NewReader returns zstd reader for the given r.
 func NewReader(r io.Reader) *Reader {
-	d, err := zstd.NewReader(r)
+	d, err := zstd.NewReader(r, zstd.WithDecoderConcurrency(1))
 	if err != nil {
 		logger.Panicf("BUG: unexpected error returned when creating ZSTD reader: %s", err)
 	}

@@ -1,28 +1,36 @@
-package prompbmarshal
+package prompb
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
-	"sort"
-	"strconv"
+	"math/bits"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
-// Sample is a metric sample
-type Sample struct {
-	Value     float64
-	Timestamp int64
+// MarshalProtobuf marshals wr to dst and returns the result.
+func (wr *WriteRequest) MarshalProtobuf(dst []byte) []byte {
+	size := wr.size()
+	dstLen := len(dst)
+	dst = slicesutil.SetLength(dst, dstLen+size)
+	n, err := wr.marshalToSizedBuffer(dst[dstLen:])
+	if err != nil {
+		panic(fmt.Errorf("BUG: unexpected error when marshaling WriteRequest: %w", err))
+	}
+	return dst[:dstLen+n]
 }
 
-// TimeSeries represents samples and labels for a single time series.
-type TimeSeries struct {
-	Labels  []Label
-	Samples []Sample
+// ResetTimeSeries clears all the GC references from tss and returns an empty tss ready for further use.
+func ResetTimeSeries(tss []TimeSeries) []TimeSeries {
+	clear(tss)
+	return tss[:0]
 }
 
-// Label is a key-value label pair
-type Label struct {
-	Name  string
-	Value string
+// ResetMetadata clears all the GC references from mms and returns an empty mms ready for further use.
+func ResetMetadata(mms []MetricMetadata) []MetricMetadata {
+	clear(mms)
+	return mms[:0]
 }
 
 func (m *Sample) marshalToSizedBuffer(dst []byte) (int, error) {
@@ -126,39 +134,59 @@ func (m *Label) size() (n int) {
 	return n
 }
 
-// LabelsToString converts labels to Prometheus-compatible string
-func LabelsToString(labels []Label) string {
-	labelsCopy := append([]Label{}, labels...)
-	sort.Slice(labelsCopy, func(i, j int) bool {
-		return string(labelsCopy[i].Name) < string(labelsCopy[j].Name)
-	})
-	var b []byte
-	b = append(b, '{')
-	for i, label := range labelsCopy {
-		if len(label.Name) == 0 {
-			b = append(b, "__name__"...)
-		} else {
-			b = append(b, label.Name...)
+func (m *WriteRequest) marshalToSizedBuffer(dst []byte) (int, error) {
+	i := len(dst)
+	for j := len(m.Metadata) - 1; j >= 0; j-- {
+		size, err := m.Metadata[j].marshalToSizedBuffer(dst[:i])
+		if err != nil {
+			return 0, err
 		}
-		b = append(b, '=')
-		b = strconv.AppendQuote(b, label.Value)
-		if i < len(labels)-1 {
-			b = append(b, ',')
-		}
+		i -= size
+		i = encodeVarint(dst, i, uint64(size))
+		i--
+		dst[i] = 0x1a
 	}
-	b = append(b, '}')
-	return string(b)
+	for j := len(m.Timeseries) - 1; j >= 0; j-- {
+		size, err := m.Timeseries[j].marshalToSizedBuffer(dst[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dst, i, uint64(size))
+		i--
+		dst[i] = 0xa
+	}
+	return len(dst) - i, nil
 }
 
-// MetricMetadata represents additional meta information for specific MetricFamilyName
-// Refer to https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.proto#L21
-type MetricMetadata struct {
-	// Represents the metric type, these match the set from Prometheus.
-	// Refer to https://github.com/prometheus/common/blob/95acce133ca2c07a966a71d475fb936fc282db18/model/metadata.go for details.
-	Type             uint32
-	MetricFamilyName string
-	Help             string
-	Unit             string
+func encodeVarint(dst []byte, offset int, v uint64) int {
+	offset -= sov(v)
+	base := offset
+	for v >= 1<<7 {
+		dst[offset] = uint8(v&0x7f | 0x80)
+		v >>= 7
+		offset++
+	}
+	dst[offset] = uint8(v)
+	return base
+}
+func (m *WriteRequest) size() (n int) {
+	if m == nil {
+		return 0
+	}
+	for _, e := range m.Timeseries {
+		l := e.size()
+		n += 1 + l + sov(uint64(l))
+	}
+	for _, e := range m.Metadata {
+		l := e.size()
+		n += 1 + l + sov(uint64(l))
+	}
+	return n
+}
+
+func sov(x uint64) (n int) {
+	return (bits.Len64(x|1) + 6) / 7
 }
 
 func (m *MetricMetadata) marshalToSizedBuffer(dst []byte) (int, error) {

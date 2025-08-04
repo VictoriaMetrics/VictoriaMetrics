@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestPushWriteRequest(t *testing.T) {
@@ -49,19 +49,19 @@ func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expecte
 	f(true, expectedBlockLenVM, 15)
 }
 
-func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteRequest {
-	var wr prompbmarshal.WriteRequest
+func newTestWriteRequest(seriesCount, labelsCount int) *prompb.WriteRequest {
+	var wr prompb.WriteRequest
 	for i := 0; i < seriesCount; i++ {
-		var labels []prompbmarshal.Label
+		var labels []prompb.Label
 		for j := 0; j < labelsCount; j++ {
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  fmt.Sprintf("label_%d_%d", i, j),
 				Value: fmt.Sprintf("value_%d_%d", i, j),
 			})
 		}
-		wr.Timeseries = append(wr.Timeseries, prompbmarshal.TimeSeries{
+		wr.Timeseries = append(wr.Timeseries, prompb.TimeSeries{
 			Labels: labels,
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     float64(i),
 					Timestamp: 1000 * int64(i),
