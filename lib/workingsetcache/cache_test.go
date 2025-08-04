@@ -8,12 +8,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/fastcache"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 func TestLoadFromFileOrNewError(t *testing.T) {
-	defer os.RemoveAll(t.Name())
+	defer fs.MustRemoveDir(t.Name())
 
 	f := func(path string, expErr string) {
 		logBuffer := &bytes.Buffer{}
@@ -40,15 +42,11 @@ func TestLoadFromFileOrNewError(t *testing.T) {
 	f(path, "missing files; init new cache")
 
 	path = initCacheForTest(t, `missingMetadata`, 10000)
-	if err := os.Remove(filepath.Join(path, `metadata.bin`)); err != nil {
-		t.Fatalf("failed to remove metadata.bin file: %v", err)
-	}
+	fs.MustRemovePath(filepath.Join(path, `metadata.bin`))
 	f(path, "missing files; init new cache")
 
 	path = initCacheForTest(t, `invalidMetadata`, 10000)
-	if err := os.WriteFile(filepath.Join(path, `metadata.bin`), []byte(""), 0644); err != nil {
-		t.Fatalf("failed to write test metadata file: %v", err)
-	}
+	fs.MustWriteSync(filepath.Join(path, `metadata.bin`), nil)
 	f(path, "invalid: cannot read maxBucketChunks")
 
 	path = initCacheForTest(t, `cacheMismatch`, 87654321)
@@ -56,7 +54,7 @@ func TestLoadFromFileOrNewError(t *testing.T) {
 }
 
 func TestLoadFromFileOrNewOK(t *testing.T) {
-	defer os.RemoveAll(t.Name())
+	defer fs.MustRemoveDir(t.Name())
 
 	cachePath := initCacheForTest(t, `ok`, 10000)
 

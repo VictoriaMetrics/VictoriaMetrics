@@ -192,7 +192,8 @@ func (r *Restore) Run(ctx context.Context) error {
 	logger.Infof("restored %d bytes from backup in %.3f seconds; deleted %d bytes; downloaded %d bytes",
 		backupSize, time.Since(startTime).Seconds(), deleteSize, downloadSize)
 
-	return removeRestoreLock(r.Dst.Dir)
+	removeRestoreLock(r.Dst.Dir)
+	return nil
 }
 
 type statWriter struct {
@@ -218,10 +219,7 @@ func createRestoreLock(dstDir string) error {
 	return f.Close()
 }
 
-func removeRestoreLock(dstDir string) error {
+func removeRestoreLock(dstDir string) {
 	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
-	if err := os.Remove(lockF); err != nil {
-		return fmt.Errorf("cannot remove restore lock file %q: %w", lockF, err)
-	}
-	return nil
+	fs.MustRemovePath(lockF)
 }

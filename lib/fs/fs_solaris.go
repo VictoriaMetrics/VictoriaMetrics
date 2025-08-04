@@ -4,19 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"golang.org/x/sys/unix"
 )
-
-func mustRemoveDirAtomic(dir string) {
-	n := atomicDirRemoveCounter.Add(1)
-	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
-	if err := os.Rename(dir, tmpDir); err != nil {
-		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
-	}
-	MustRemoveAll(tmpDir)
-}
 
 func mmap(fd int, length int) (data []byte, err error) {
 	return unix.Mmap(fd, 0, length, unix.PROT_READ, unix.MAP_SHARED)
@@ -31,11 +21,9 @@ func mustSyncPath(path string) {
 	if err != nil {
 		logger.Panicf("FATAL: cannot open file for fsync: %s", err)
 	}
-	if !fsutil.IsFsyncDisabled() {
-		if err := d.Sync(); err != nil {
-			_ = d.Close()
-			logger.Panicf("FATAL: cannot flush %q to storage: %s", path, err)
-		}
+	if err := d.Sync(); err != nil {
+		_ = d.Close()
+		logger.Panicf("FATAL: cannot flush %q to storage: %s", path, err)
 	}
 	if err := d.Close(); err != nil {
 		logger.Panicf("FATAL: cannot close %q: %s", path, err)

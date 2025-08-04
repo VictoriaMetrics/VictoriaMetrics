@@ -2,20 +2,20 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/prometheus/prometheus/prompb"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestSingleVmctlRemoteReadProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	vmsingleDst := tc.MustStartDefaultVmsingle()
@@ -33,9 +33,9 @@ func TestSingleVmctlRemoteReadProtocol(t *testing.T) {
 }
 
 func TestSingleVmctlRemoteReadStreamProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	vmsingleDst := tc.MustStartDefaultVmsingle()
@@ -54,9 +54,9 @@ func TestSingleVmctlRemoteReadStreamProtocol(t *testing.T) {
 }
 
 func TestClusterVmctlRemoteReadProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	clusterDst := tc.MustStartDefaultCluster()
@@ -75,7 +75,7 @@ func TestClusterVmctlRemoteReadProtocol(t *testing.T) {
 	testRemoteReadProtocol(tc, clusterDst, newRemoteReadServer, vmctlFlags)
 }
 
-func testRemoteReadProtocol(tc *at.TestCase, sut at.PrometheusWriteQuerier, newRemoteReadServer func(t *testing.T) *RemoteReadServer, vmctlFlags []string) {
+func testRemoteReadProtocol(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier, newRemoteReadServer func(t *testing.T) *RemoteReadServer, vmctlFlags []string) {
 	t := tc.T()
 	t.Helper()
 
@@ -84,14 +84,14 @@ func testRemoteReadProtocol(tc *at.TestCase, sut at.PrometheusWriteQuerier, newR
 
 	expectedResult := transformSeriesToQueryResult(rrs.storage.store)
 
-	cmpOpt := cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
 	// test for empty data request
-	got := sut.PrometheusAPIV1Query(t, `{__name__=~".*"}`, at.QueryOpts{
+	got := sut.PrometheusAPIV1Query(t, `{__name__=~".*"}`, apptest.QueryOpts{
 		Step: "5m",
 		Time: "2025-06-02T17:14:00Z",
 	})
 
-	want := at.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
+	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -101,12 +101,12 @@ func testRemoteReadProtocol(tc *at.TestCase, sut at.PrometheusWriteQuerier, newR
 
 	sut.ForceFlush(t)
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		// For cluster version, we need to wait longer for the metrics to be stored
 		Retries: 300,
 		Msg:     `unexpected metrics stored on vmsingle via the prometheus protocol`,
 		Got: func() any {
-			expected := sut.PrometheusAPIV1Export(t, `{__name__=~".*"}`, at.QueryOpts{
+			expected := sut.PrometheusAPIV1Export(t, `{__name__=~".*"}`, apptest.QueryOpts{
 				Start: "2025-06-11T15:31:10Z",
 				End:   "2025-06-11T15:32:20Z",
 			})
@@ -115,7 +115,7 @@ func testRemoteReadProtocol(tc *at.TestCase, sut at.PrometheusWriteQuerier, newR
 		},
 		Want: expectedResult,
 		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+			cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
 		},
 	})
 }
@@ -140,18 +140,18 @@ func newRemoteReadStreamServer(t *testing.T) *RemoteReadServer {
 	return rrServer
 }
 
-func transformSeriesToQueryResult(series []*prompb.TimeSeries) []*at.QueryResult {
-	result := make([]*at.QueryResult, len(series))
+func transformSeriesToQueryResult(series []*prompb.TimeSeries) []*apptest.QueryResult {
+	result := make([]*apptest.QueryResult, len(series))
 	for i, s := range series {
 		metric := make(map[string]string, len(s.Labels))
 		for _, label := range s.Labels {
 			metric[label.Name] = label.Value
 		}
-		samples := make([]*at.Sample, len(s.Samples))
+		samples := make([]*apptest.Sample, len(s.Samples))
 		for j, sample := range s.Samples {
-			samples[j] = &at.Sample{Timestamp: sample.Timestamp, Value: sample.Value}
+			samples[j] = &apptest.Sample{Timestamp: sample.Timestamp, Value: sample.Value}
 		}
-		result[i] = &at.QueryResult{Metric: metric, Samples: samples}
+		result[i] = &apptest.QueryResult{Metric: metric, Samples: samples}
 	}
 	return result
 }

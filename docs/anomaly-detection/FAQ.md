@@ -184,7 +184,7 @@ Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 i
 
 ## How to backtest particular configuration on historical data?
 
-Anomaly scores for historical (backtesting) period can be produced and written back {{% available_from "v1.7.2" anomaly %}}  to VictoriaMetrics TSDB using `BacktestingScheduler` [component](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#backtesting-scheduler) to imitate consecutive "production runs" of `PeriodicScheduler` [component](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler). Please find an example config below:
+Anomaly scores for historical ([backtesting](https://wikipedia.org/wiki/Backtesting)) data can be produced using [`backtesting` scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#backtesting-scheduler) in `vmanomaly` config. This scheduler allows you to define a historical period for which the models will be trained and then used to produce anomaly scores, imitating the behavior of the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler) for that period. Especially useful for testing new models or configurations on historical data before deploying them in production, around labelled incidents.
 
 ```yaml
 schedulers:
@@ -243,7 +243,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.25.0
+    image: victoriametrics/vmanomaly:v1.25.2
     # ...
     ports:
       - "8490:8490"
@@ -456,7 +456,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.25.0 && docker image tag victoriametrics/vmanomaly:v1.25.0 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.25.2 && docker image tag victoriametrics/vmanomaly:v1.25.2 vmanomaly
 ```
 
 ```sh

@@ -2707,13 +2707,6 @@ func putValuesBuf(vb *valuesBuf) {
 
 var valuesBufPool sync.Pool
 
-func getCanonicalColumnName(columnName string) string {
-	if columnName == "" {
-		return "_msg"
-	}
-	return columnName
-}
-
 func tryParseNumber(s string) (float64, bool) {
 	if len(s) == 0 {
 		return 0, false

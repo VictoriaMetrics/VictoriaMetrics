@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 	"github.com/golang/snappy"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -41,7 +42,7 @@ func storageNodes(flags []string) []string {
 // StartVminsert starts an instance of vminsert with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, error) {
+func StartVminsert(instance string, flags []string, cli *Client, output io.Writer) (*Vminsert, error) {
 	extractREs := []*regexp.Regexp{
 		httpListenAddrRE,
 		vminsertClusterNativeAddrRE,
@@ -63,6 +64,7 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 			"-opentsdbListenAddr":      "127.0.0.1:0",
 		},
 		extractREs: extractREs,
+		output:     output,
 	})
 	if err != nil {
 		return nil, err
@@ -198,11 +200,11 @@ func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.
-func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts) {
+func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []prompb.TimeSeries, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.getTenant())
-	wr := pb.WriteRequest{Timeseries: records}
+	wr := prompb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	app.sendBlocking(t, len(records), func() {
 		_, statusCode := app.cli.Post(t, url, "application/x-protobuf", data)

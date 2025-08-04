@@ -148,26 +148,29 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile := filestream.MustOpen(metaindexPath, true)
 
-	var err error
-	bsr.mrs, err = unmarshalMetaindexRows(bsr.mrs[:0], metaindexFile)
+	mrs, err := unmarshalMetaindexRows(bsr.mrs[:0], metaindexFile)
 	metaindexFile.MustClose()
 	if err != nil {
 		logger.Panicf("FATAL: cannot unmarshal metaindex rows from file %q: %s", metaindexPath, err)
 	}
-
-	indexPath := filepath.Join(path, indexFilename)
-	indexFile := filestream.MustOpen(indexPath, true)
-
-	itemsPath := filepath.Join(path, itemsFilename)
-	itemsFile := filestream.MustOpen(itemsPath, true)
-
-	lensPath := filepath.Join(path, lensFilename)
-	lensFile := filestream.MustOpen(lensPath, true)
+	bsr.mrs = mrs
 
 	bsr.path = path
-	bsr.indexReader = indexFile
-	bsr.itemsReader = itemsFile
-	bsr.lensReader = lensFile
+
+	// Open part files in parallel in order to speed up this process
+	// on high-latency storage systems such as NFS or Ceph.
+
+	var pfo filestream.ParallelFileOpener
+
+	indexPath := filepath.Join(path, indexFilename)
+	itemsPath := filepath.Join(path, itemsFilename)
+	lensPath := filepath.Join(path, lensFilename)
+
+	pfo.Add(indexPath, &bsr.indexReader, true)
+	pfo.Add(itemsPath, &bsr.itemsReader, true)
+	pfo.Add(lensPath, &bsr.lensReader, true)
+
+	pfo.Run()
 }
 
 // MustClose closes the bsr.
@@ -175,9 +178,14 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 // It closes *Reader files passed to Init.
 func (bsr *blockStreamReader) MustClose() {
 	if !bsr.isInmemoryBlock {
-		bsr.indexReader.MustClose()
-		bsr.itemsReader.MustClose()
-		bsr.lensReader.MustClose()
+		// Close files in parallel in order to speed up this process on storage systems with high latency
+		// such as NFS or Ceph.
+		cs := []fs.MustCloser{
+			bsr.indexReader,
+			bsr.itemsReader,
+			bsr.lensReader,
+		}
+		fs.MustCloseParallel(cs)
 	}
 	bsr.reset()
 }

@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 func TestAggregatorsFailure(t *testing.T) {
 	f := func(config string) {
 		t.Helper()
-		pushFunc := func(_ []prompbmarshal.TimeSeries) {
+		pushFunc := func(_ []prompb.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
 		a, err := LoadFromData([]byte(config), pushFunc, nil, "some_alias")
@@ -196,7 +196,7 @@ func TestAggregatorsEqual(t *testing.T) {
 	f := func(a, b string, expectedResult bool) {
 		t.Helper()
 
-		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
+		pushFunc := func(_ []prompb.TimeSeries) {}
 		opts := Options{
 			EnableWindows: true,
 		}
@@ -251,7 +251,7 @@ func TestAggregatorsEqual(t *testing.T) {
   ignore_first_intervals: 4`, false)
 }
 
-func timeSeriessToString(tss []prompbmarshal.TimeSeries) string {
+func timeSeriessToString(tss []prompb.TimeSeries) string {
 	a := make([]string, len(tss))
 	for i, ts := range tss {
 		a[i] = timeSeriesToString(ts)
@@ -260,7 +260,7 @@ func timeSeriessToString(tss []prompbmarshal.TimeSeries) string {
 	return strings.Join(a, "")
 }
 
-func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
+func timeSeriesToString(ts prompb.TimeSeries) string {
 	labelsString := promrelabel.LabelsToString(ts.Labels)
 	if len(ts.Samples) != 1 {
 		panic(fmt.Errorf("unexpected number of samples for %s: %d; want 1", labelsString, len(ts.Samples)))
@@ -268,9 +268,9 @@ func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
 	return fmt.Sprintf("%s %v\n", labelsString, ts.Samples[0].Value)
 }
 
-func appendClonedTimeseries(dst, src []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
+func appendClonedTimeseries(dst, src []prompb.TimeSeries) []prompb.TimeSeries {
 	for _, ts := range src {
-		dst = append(dst, prompbmarshal.TimeSeries{
+		dst = append(dst, prompb.TimeSeries{
 			Labels:  append(ts.Labels[:0:0], ts.Labels...),
 			Samples: append(ts.Samples[:0:0], ts.Samples...),
 		})

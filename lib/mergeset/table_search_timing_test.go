@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
 	"sync/atomic"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func BenchmarkTableSearch(b *testing.B) {
@@ -21,12 +22,8 @@ func benchmarkTableSearch(b *testing.B, itemsCount int) {
 	r := rand.New(rand.NewSource(1))
 
 	path := fmt.Sprintf("BenchmarkTableSearch-%d", itemsCount)
-	if err := os.RemoveAll(path); err != nil {
-		b.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	tb, items, err := newTestTable(r, path, itemsCount)
 	if err != nil {
