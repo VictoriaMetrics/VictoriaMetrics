@@ -43,6 +43,13 @@ jobs:
             app/**/Makefile
           go-version: stable
 
+
+      - name: Cache golangci-lint
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-lint-${{ runner.os }}-${{ hashFiles('.golangci.yml') }}
+
       - name: Run check-all
         run: |
           make check-all
