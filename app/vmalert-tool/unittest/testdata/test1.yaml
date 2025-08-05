@@ -10,7 +10,9 @@ tests:
     input_series:
       - series: "test"
         values: "_x5 1x5 _ stale"
-
+      - series: "foo"
+        values: "1x20"
+  
     alert_rule_test:
       - eval_time: 1m
         groupname: group1
@@ -32,6 +34,14 @@ tests:
         groupname: group1
         alertname: SameAlertNameWithDifferentGroup
         exp_alerts: []
+      - eval_time: 6m
+        groupname: group1
+        alertname: AlertWithTemplate
+        exp_alerts:
+          - exp_labels:
+              cluster: prod
+            exp_annotations:
+              queryAnno: '1'
 
     metricsql_expr_test:
       - expr: test
@@ -50,6 +60,8 @@ tests:
         values: "0+0x1440"
       - series: "test"
         values: "0+1x1440"
+      - series: "foo"
+        values: "1x20"
 
     metricsql_expr_test:
       - expr: count(ALERTS) by (alertgroup, alertname, alertstate)
@@ -58,6 +70,8 @@ tests:
           - labels: '{alertgroup="group1", alertname="AlwaysFiring", alertstate="firing"}'
             value: 1
           - labels: '{alertgroup="group1", alertname="InstanceDown", alertstate="pending"}'
+            value: 1
+          - labels: '{alertgroup="group1", alertname="AlertWithTemplate", alertstate="firing"}'
             value: 1
       - expr: t1
         eval_time: 4m
