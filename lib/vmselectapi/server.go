@@ -195,7 +195,10 @@ func (s *Server) run() {
 					// c is closed inside Server.MustStop
 					return
 				}
-				if handshake.IsClientNetworkError(err) {
+				if handshake.IsTimeoutNetworkError(err) {
+					logger.Warnf("cannot complete vmselect handshake due to network timeout error with client %q: %s. "+
+						"If errors are transient and infrequent increase -rpc.handshakeTimeout and -vmstorageDialTimeout on client and server side. Check vmselect logs for errors", c.RemoteAddr(), err)
+				} else if handshake.IsClientNetworkError(err) {
 					logger.Warnf("cannot complete vmselect handshake due to network error with client %q: %s. "+
 						"Check vmselect logs for errors", c.RemoteAddr(), err)
 				} else if !handshake.IsTCPHealthcheck(err) {

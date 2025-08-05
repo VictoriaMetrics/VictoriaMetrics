@@ -2,12 +2,15 @@ package handshake
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net"
 	"strings"
 	"time"
 )
+
+var rpcHandshakeTimeout = flag.Duration("rpc.handshakeTimeout", 5*time.Second, "Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. See https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability section for more details.")
 
 const (
 	vminsertHello = "vminsert.02"
@@ -85,8 +88,7 @@ func IsClientNetworkError(err error) bool {
 		return true
 	}
 
-	var ne net.Error
-	if errors.As(err, &ne) && ne.Timeout() {
+	if IsTimeoutNetworkError(err) {
 		return true
 	}
 
@@ -97,7 +99,21 @@ func IsClientNetworkError(err error) bool {
 	return false
 }
 
+// IsTimeoutNetworkError determines whether the provided error is a network error with a timeout.
+func IsTimeoutNetworkError(err error) bool {
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
+		return true
+	}
+
+	return false
+}
+
 func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
+	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
+		return nil, fmt.Errorf("cannot set deadline: %w", err)
+	}
+
 	if err := readMessage(c, msg); err != nil {
 		if errors.Is(err, io.EOF) {
 			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
@@ -122,11 +138,20 @@ func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn,
 	if err := readMessage(c, successResponse); err != nil {
 		return nil, fmt.Errorf("cannot read success response on isCompressed: %w", err)
 	}
+
+	if err := c.SetDeadline(time.Time{}); err != nil {
+		return nil, fmt.Errorf("cannot reset deadline: %w", err)
+	}
+
 	bc := newBufferedConn(c, compressionLevel, isRemoteCompressed)
 	return bc, nil
 }
 
 func genericClient(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
+	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
+		return nil, fmt.Errorf("cannot set deadline: %w", err)
+	}
+
 	if err := writeMessage(c, msg); err != nil {
 		return nil, fmt.Errorf("cannot write hello: %w", err)
 	}
@@ -146,6 +171,11 @@ func genericClient(c net.Conn, msg string, compressionLevel int) (*BufferedConn,
 	if err := writeMessage(c, successResponse); err != nil {
 		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
 	}
+
+	if err := c.SetDeadline(time.Time{}); err != nil {
+		return nil, fmt.Errorf("cannot reset deadline: %w", err)
+	}
+
 	bc := newBufferedConn(c, compressionLevel, isRemoteCompressed)
 	return bc, nil
 }
@@ -163,14 +193,11 @@ func readIsCompressed(c net.Conn) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	isCompressed := (buf[0] != 0)
+	isCompressed := buf[0] != 0
 	return isCompressed, nil
 }
 
 func writeMessage(c net.Conn, msg string) error {
-	if err := c.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
-		return fmt.Errorf("cannot set write deadline: %w", err)
-	}
 	if _, err := io.WriteString(c, msg); err != nil {
 		return fmt.Errorf("cannot write %q to server: %w", msg, err)
 	}
@@ -178,9 +205,6 @@ func writeMessage(c net.Conn, msg string) error {
 		if err := fc.Flush(); err != nil {
 			return fmt.Errorf("cannot flush %q to server: %w", msg, err)
 		}
-	}
-	if err := c.SetWriteDeadline(time.Time{}); err != nil {
-		return fmt.Errorf("cannot reset write deadline: %w", err)
 	}
 	return nil
 }
@@ -201,15 +225,9 @@ func readMessage(c net.Conn, msg string) error {
 }
 
 func readData(c net.Conn, dataLen int) ([]byte, error) {
-	if err := c.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
-		return nil, fmt.Errorf("cannot set read deadline: %w", err)
-	}
 	data := make([]byte, dataLen)
 	if n, err := io.ReadFull(c, data); err != nil {
 		return nil, fmt.Errorf("cannot read message with size %d: %w; read only %d bytes", dataLen, err, n)
-	}
-	if err := c.SetReadDeadline(time.Time{}); err != nil {
-		return nil, fmt.Errorf("cannot reset read deadline: %w", err)
 	}
 	return data, nil
 }

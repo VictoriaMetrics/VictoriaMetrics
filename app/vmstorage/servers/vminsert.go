@@ -106,7 +106,10 @@ func (s *VMInsertServer) run() {
 					// c is stopped inside VMInsertServer.MustStop
 					return
 				}
-				if handshake.IsClientNetworkError(err) {
+				if handshake.IsTimeoutNetworkError(err) {
+					logger.Warnf("cannot complete vminsert handshake due to network timeout error with client %q: %s. "+
+						"If errors are transient and infrequent increase -rpc.handshakeTimeout and -vmstorageDialTimeout on client and server side. Check vminsert logs for errors", c.RemoteAddr(), err)
+				} else if handshake.IsClientNetworkError(err) {
 					logger.Warnf("cannot complete vminsert handshake due to network error with client %q: %s. "+
 						"Check vminsert logs for errors", c.RemoteAddr(), err)
 				} else if !handshake.IsTCPHealthcheck(err) {
