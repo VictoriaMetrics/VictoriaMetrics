@@ -30,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): fix samples rate panel not showing data in case vmagent is not scraping metrics. Previously, the panel would not display "samples in" results if vmagent only accepts metrics via push protocols.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent resource leak on partial responses for `/federate` API requests. This this PR [9536](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9536) for details. Thanks to the @fxrlv.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent performance degradation on hitting daily or hourly series cardinality limits. See this issue [9554](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9554) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix gaps in `histogram_quantile` calculation, which correlate with NaNs in a first bucket.
 
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 

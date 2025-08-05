@@ -37,6 +37,7 @@ func TestFixBrokenBuckets(t *testing.T) {
 	f([]float64{5, 1, 2, 3, nan}, []float64{5, 5, 5, 5, 5})
 	f([]float64{1, 5, 2, nan, 6, 3}, []float64{1, 5, 5, 5, 6, 6})
 	f([]float64{5, 10, 4, 3}, []float64{5, 10, 10, 10})
+	f([]float64{nan, 2, nan, 5}, []float64{0, 2, 2, 5})
 }
 
 func TestFixBrokenBucketsMultipleValues(t *testing.T) {
