@@ -18,6 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: `vmselect`, `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add rpc handshake timeout configuration via `-rpc.handshakeTimeout` flag (default 3s). Set deadline for the entire handshake process instead of per-operation timeout. See [#9345](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9345) for more details.
 * FEATURE: expose `vm_total_disk_space_bytes` metric at the [`/metrics` page](https://docs.victoriametrics.com/#monitoring), which shows the total disk space for the data directory specified via [`-storageDataPath`](https://docs.victoriametrics.com/#storage). This metric can be useful for building alerts and graphs for the percentatge of free disk space via `vm_free_disk_space_bytes / vm_total_disk_space_bytes`. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9523#issuecomment-3149459926).
 
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
