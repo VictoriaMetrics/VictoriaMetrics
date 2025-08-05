@@ -47,7 +47,9 @@ jobs:
       - name: Cache golangci-lint
         uses: actions/cache@v4
         with:
-          path: ~/.cache/golangci-lint
+          path: |
+            ~/.cache/golangci-lint
+            ~/go/bin
           key: golangci-lint-${{ runner.os }}-${{ hashFiles('.golangci.yml') }}
 
       - name: Run check-all
