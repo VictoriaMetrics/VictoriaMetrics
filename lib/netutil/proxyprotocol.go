@@ -31,7 +31,6 @@ func (ppc *proxyProtocolConn) init() {
 			if !errors.Is(err, io.EOF) {
 				proxyProtocolReadErrorLogger.Errorf("cannot read proxy proto conn for TCP addr %q: %s", ppc.Conn.RemoteAddr(), err)
 			}
-			ppc.remoteAddr = ppc.Conn.RemoteAddr()
 			ppc.readErr = err
 			return
 		}
