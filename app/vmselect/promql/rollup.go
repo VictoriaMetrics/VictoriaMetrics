@@ -2466,14 +2466,15 @@ func getIntNumber(arg any, argNum int) (int, error) {
 	return n, nil
 }
 
+// getString expects result from a string expression, which contains a single timeseries with only NaN values.
 func getString(tss []*timeseries, argNum int) (string, error) {
 	if len(tss) != 1 {
-		return "", fmt.Errorf(`arg #%d must contain a single timeseries; got %d timeseries`, argNum+1, len(tss))
+		return "", fmt.Errorf(`arg #%d must be a string`, argNum+1)
 	}
 	ts := tss[0]
 	for _, v := range ts.Values {
 		if !math.IsNaN(v) {
-			return "", fmt.Errorf(`arg #%d contains non-string timeseries`, argNum+1)
+			return "", fmt.Errorf(`arg #%d must be a string`, argNum+1)
 		}
 	}
 	return string(ts.MetricName.MetricGroup), nil
