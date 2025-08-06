@@ -20,6 +20,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: expose `vm_total_disk_space_bytes` metric at the [`/metrics` page](https://docs.victoriametrics.com/#monitoring), which shows the total disk space for the data directory specified via [`-storageDataPath`](https://docs.victoriametrics.com/#storage). This metric can be useful for building alerts and graphs for the percentatge of free disk space via `vm_free_disk_space_bytes / vm_total_disk_space_bytes`. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9523#issuecomment-3149459926).
 
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): print a proper error message when templating function fails during execution. Previously, vmalert-tool could throw a misleading panic message instead.
+* BUGFIX: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): fix samples rate panel not showing data in case vmagent is not scraping metrics. Previously, the panel would not display "samples in" results if vmagent only accepts metrics via push protocols.
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent resource leak on partial responses for `/federate` API requests. This this PR [9536](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9536) for details. Thanks to the @fxrlv.
+
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
 Released at 2025-08-01
@@ -32,6 +36,17 @@ Released at 2025-08-01
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improve Kubernetes service discovery performance with large amount of configured role selectors. See this [#9354](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9354) issue for details. Thanks to the @fxrlv
 * FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): add an option to change path for temporary files storage when migrating from Prometheus snapshots. See [#9505](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9505) for the details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improve Kubernetes service discovery performance with large amount of configured role selectors. See this [#9354](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9354) issue for details. Thanks to the @fxrlv
+
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
+
+## [v1.122.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.1)
+
+Released at 2025-08-01
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/changelog/#v11220) release**
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
@@ -159,7 +174,7 @@ Released at 2025-05-23
 
 Released at 2025-05-15
 
-**Update Note 1:** `latest` and `stable` tags for docker images will no longer be updated. It is required to use specific version tags for docker images to continue receiving updates. See [#7336](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7336) for details.
+**Update Note 1:** `stable` tag has been removed and will no longer receive updates. It is required to use specific version tags for docker images to continue receiving updates. See [#7336](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7336) for details.
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): fixed duplication in Datadog sketches aggregation metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8836) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly initialize relabel config reloading metrics for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` flags. The bug was introduced in versions [v1.117.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.0), [v1.110.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.7), [v1.102.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.20). The fix was released in [v1.117.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.117.1) and backported to [v1.110.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.8) and [v1.102.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.21).
@@ -380,6 +395,29 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+
+## [v1.110.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.15)
+
+Released at 2025-08-01
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
+
+## [v1.110.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.14)
+
+Released at 2025-07-18
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* SECURITY: upgrade Go builder from Go1.24.4 to Go1.24.5. See [the list of issues addressed in Go1.24.5](https://github.com/golang/go/issues?q=milestone%3AGo1.24.5+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.22.0 to 3.22.1. See [Alpine 3.22.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.8-3.20.7-3.21.4-3.22.1-released.html).
+
+* BUGFIX: all VictoriaMetrics components: fix `process_cpu_cores_available` metric to respect both logical CPU cores and cgroup CPU quota. Previously, it could report incorrect values in containerized environments with no cgroup limits. See [#9449](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9449).
 
 ## [v1.110.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.13)
 
