@@ -52,6 +52,7 @@ Released at 2025-08-01
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): added checksum header to S3 PutObject operations, which is required to for S3 with WORM enabled. See [#9532](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9532).
 
 ## [v1.122.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.1)
 
