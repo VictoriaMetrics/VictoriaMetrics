@@ -25,7 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
@@ -389,11 +388,7 @@ func TryPush(at *auth.Token, wr *prompb.WriteRequest) bool {
 
 func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure bool) bool {
 	tss := wr.Timeseries
-
-	var mms []prompb.MetricMetadata
-	if promscrape.IsMetadataEnabled() {
-		mms = wr.Metadata
-	}
+	mms := wr.Metadata
 
 	// Quick check whether writes to configured remote storage systems are blocked.
 	// This allows saving CPU time spent on relabeling and block compression

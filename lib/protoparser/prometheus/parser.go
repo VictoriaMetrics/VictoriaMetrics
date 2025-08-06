@@ -14,13 +14,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
-// Unmarshal unmarshals Prometheus exposition text into dstRows and dstMeta.
+// UnmarshalWithMetadata unmarshals Prometheus exposition text into dstRows and dstMeta.
 // See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#comments-help-text-and-type-information.
+//
 // s shouldn't be modified while dstRows and dstMeta are in use.
-func Unmarshal(dstRows Rows, dstMeta MetadataRows, s string, parseMetadata bool, errLogger func(s string)) (Rows, MetadataRows) {
-	rows := dstRows.Rows
-	tags := dstRows.tagsPool
-	mds := dstMeta.Rows
+func UnmarshalWithMetadata(dstRows Rows, dstMeta MetadataRows, s string, errLogger func(s string)) (Rows, MetadataRows) {
+	rows := dstRows.Rows[:0]
+	tags := dstRows.tagsPool[:0]
+	mds := dstMeta.Rows[:0]
 	rowsLen := len(rows)
 	mdLen := len(mds)
 
@@ -34,18 +35,14 @@ func Unmarshal(dstRows Rows, dstMeta MetadataRows, s string, parseMetadata bool,
 		if n < 0 {
 			// The last line.
 			if isMetadataLine(s) {
-				if parseMetadata {
-					mds = unmarshalMetadata(mds, s, errLogger)
-				}
+				mds = unmarshalMetadata(mds, s, errLogger)
 				break
 			}
 			rows, tags = unmarshalRow(rows, s, tags, noEscapes, errLogger)
 			break
 		}
 		if isMetadataLine(s[:n]) {
-			if parseMetadata {
-				mds = unmarshalMetadata(mds, s[:n], errLogger)
-			}
+			mds = unmarshalMetadata(mds, s[:n], errLogger)
 			s = s[n+1:]
 			continue
 		}
@@ -88,25 +85,19 @@ func (rs *Rows) Reset() {
 	rs.tagsPool = rs.tagsPool[:0]
 }
 
-// Unmarshal unmarshals samples from Prometheus exposition text.
-//
-// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
-//
-// s shouldn't be modified while rs is in use.
-func (rs *Rows) Unmarshal(s string) {
-	rs.UnmarshalWithErrLogger(s, stdErrLogger)
-}
-
 func stdErrLogger(s string) {
 	logger.ErrorfSkipframes(1, "%s", s)
 }
 
-// UnmarshalWithErrLogger unmarshal Prometheus exposition text rows from s.
+// Unmarshal unmarshals only samples from Prometheus exposition text.
 //
-// It calls errLogger for logging parsing errors.
+// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
 //
 // s shouldn't be modified while rs is in use.
 func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
+	if errLogger == nil {
+		errLogger = stdErrLogger
+	}
 	noEscapes := strings.IndexByte(s, '\\') < 0
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
 }

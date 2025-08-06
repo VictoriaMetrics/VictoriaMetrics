@@ -58,7 +58,7 @@ func selfScraper(scrapeInterval time.Duration) {
 		s := bytesutil.ToUnsafeString(bb.B)
 		rows.Reset()
 		// VictoriaMetrics components don't expose metadata yet, only need to parse samples
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		mrs = mrs[:0]
 		for i := range rows.Rows {
 			r := &rows.Rows[i]

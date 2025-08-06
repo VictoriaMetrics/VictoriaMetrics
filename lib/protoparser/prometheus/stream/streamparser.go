@@ -170,7 +170,11 @@ func (uw *unmarshalWork) runCallback(rows []prometheus.Row, metadataList []prome
 
 // Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	uw.rows, uw.mmd = prometheus.Unmarshal(uw.rows, uw.mmd, bytesutil.ToUnsafeString(uw.reqBuf), uw.enableMetadata, uw.errLogger)
+	if uw.enableMetadata {
+		uw.rows, uw.mmd = prometheus.UnmarshalWithMetadata(uw.rows, uw.mmd, bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
+	} else {
+		uw.rows.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
+	}
 
 	rows := uw.rows.Rows
 	rowsRead.Add(len(rows))

@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -64,30 +65,34 @@ func insertRows(at *auth.Token, tss []prompb.TimeSeries, mms []prompb.MetricMeta
 			Samples: samples[samplesLen:],
 		})
 	}
-	var accountID, projectID uint32
-	if at != nil {
-		accountID = at.AccountID
-		projectID = at.ProjectID
+	ctx.WriteRequest.Timeseries = tssDst
 
-		for i := range mms {
-			mm := &mms[i]
-			mm.AccountID = accountID
-			mm.ProjectID = projectID
+	var metadataTotal int
+	if promscrape.IsMetadataEnabled() {
+		var accountID, projectID uint32
+		if at != nil {
+			accountID = at.AccountID
+			projectID = at.ProjectID
+			for i := range mms {
+				mm := &mms[i]
+				mm.AccountID = accountID
+				mm.ProjectID = projectID
+			}
 		}
+		ctx.WriteRequest.Metadata = mms
+		metadataTotal = len(mms)
 	}
 
-	ctx.WriteRequest.Timeseries = tssDst
-	ctx.WriteRequest.Metadata = mms
 	ctx.Labels = labels
 	ctx.Samples = samples
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
 	rowsInserted.Add(rowsTotal)
-	metadataInserted.Add(len(mms))
+	metadataInserted.Add(metadataTotal)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)
-		metadataTenantInserted.Get(at).Add(len(mms))
+		metadataTenantInserted.Get(at).Add(metadataTotal)
 	}
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil

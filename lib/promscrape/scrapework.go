@@ -520,7 +520,11 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		up = 0
 		scrapesFailed.Inc()
 	} else {
-		wc.rows, wc.metadataRows = parser.Unmarshal(wc.rows, wc.metadataRows, bodyString, IsMetadataEnabled(), sw.logError)
+		if IsMetadataEnabled() {
+			wc.rows, wc.metadataRows = parser.UnmarshalWithMetadata(wc.rows, wc.metadataRows, bodyString, sw.logError)
+		} else {
+			wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		}
 	}
 	samplesPostRelabeling := 0
 	samplesScraped := len(wc.rows.Rows)

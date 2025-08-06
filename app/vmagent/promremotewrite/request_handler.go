@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -67,25 +68,31 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 			Samples: samples[samplesLen:],
 		})
 	}
-	var accountID, projectID uint32
-	if at != nil {
-		accountID = at.AccountID
-		projectID = at.ProjectID
-	}
-	for i := range mms {
-		mm := &mms[i]
-		mmsDst = append(mmsDst, prompb.MetricMetadata{
-			MetricFamilyName: mm.MetricFamilyName,
-			Help:             mm.Help,
-			Type:             mm.Type,
-			Unit:             mm.Unit,
-
-			AccountID: accountID,
-			ProjectID: projectID,
-		})
-	}
 	ctx.WriteRequest.Timeseries = tssDst
-	ctx.WriteRequest.Metadata = mmsDst
+
+	var metadataTotal int
+	if promscrape.IsMetadataEnabled() {
+		var accountID, projectID uint32
+		if at != nil {
+			accountID = at.AccountID
+			projectID = at.ProjectID
+		}
+		for i := range mms {
+			mm := &mms[i]
+			mmsDst = append(mmsDst, prompb.MetricMetadata{
+				MetricFamilyName: mm.MetricFamilyName,
+				Help:             mm.Help,
+				Type:             mm.Type,
+				Unit:             mm.Unit,
+
+				AccountID: accountID,
+				ProjectID: projectID,
+			})
+		}
+		ctx.WriteRequest.Metadata = mmsDst
+		metadataTotal = len(mms)
+	}
+
 	ctx.Labels = labels
 	ctx.Samples = samples
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
@@ -94,9 +101,9 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mms []prompb.Met
 	rowsInserted.Add(rowsTotal)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)
-		metadataTenantInserted.Get(at).Add(len(mms))
+		metadataTenantInserted.Get(at).Add(metadataTotal)
 	}
-	metadataInserted.Add(len(mms))
+	metadataInserted.Add(metadataTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil
 }

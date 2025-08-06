@@ -183,13 +183,13 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		if len(rows.Rows) != 0 {
 			t.Fatalf("unexpected number of rows parsed; got %d; want 0;\nrows:%#v", len(rows.Rows), rows.Rows)
 		}
 
 		// Try again
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		if len(rows.Rows) != 0 {
 			t.Fatalf("unexpected number of rows parsed; got %d; want 0;\nrows:%#v", len(rows.Rows), rows.Rows)
 		}
@@ -261,13 +261,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		var rows Rows
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -758,12 +758,11 @@ func TestParseMetadataLineSuccess(t *testing.T) {
 	})
 }
 
-func TestUnmarshal(t *testing.T) {
-	parseMetadata := true
+func TestUnmarshalWithMetadata(t *testing.T) {
 	f := func(s string, rowsExpected *Rows, metadataExpected *MetadataRows) {
 		t.Helper()
 
-		rows, mds := Unmarshal(Rows{}, MetadataRows{}, s, parseMetadata, nil)
+		rows, mds := UnmarshalWithMetadata(Rows{}, MetadataRows{}, s, nil)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -1170,18 +1169,5 @@ cassandra_token_ownership_ratio 78.9
 				Timestamp: 0,
 			},
 		},
-	}, &MetadataRows{})
-
-	// disable metadata parsing
-	parseMetadata = false
-	f(`
-# TYPE cassandra_token_ownership_ratio gauge
-# HELP cassandra_token_ownership_ratio The ratio of Cassandra token ownership.
-cassandra_token_ownership_ratio 78.9
-`, &Rows{
-		Rows: []Row{{
-			Metric: "cassandra_token_ownership_ratio",
-			Value:  78.9,
-		}},
 	}, &MetadataRows{})
 }
