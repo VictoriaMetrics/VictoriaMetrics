@@ -56,6 +56,9 @@ type Stats struct {
 	// MaxBytesSize is the maximum allowed size of the cache in bytes (aka capacity).
 	MaxBytesSize uint64
 
+	// EvictedBytes is the amount of bytes evicted from cache
+	EvictedBytes uint64
+
 	// BigStats contains stats for GetBig/SetBig methods.
 	BigStats
 }
@@ -217,6 +220,10 @@ func (c *Cache) UpdateStats(s *Stats) {
 type bucket struct {
 	mu sync.RWMutex
 
+	getCalls uint64
+	setCalls uint64
+	misses   uint64
+
 	// chunks is a ring buffer with encoded (k, v) pairs.
 	// It consists of 64KB chunks.
 	chunks [][]byte
@@ -224,17 +231,15 @@ type bucket struct {
 	// m maps hash(k) to idx of (k, v) pair in chunks.
 	m map[uint64]uint64
 
-	// idx points to chunks for writing the next (k, v) pair.
-	idx uint64
-
 	// gen is the generation of chunks.
 	gen uint64
 
-	getCalls    uint64
-	setCalls    uint64
-	misses      uint64
-	collisions  uint64
-	corruptions uint64
+	// idx points to chunks for writing the next (k, v) pair.
+	idx uint64
+
+	collisions   uint64
+	corruptions  uint64
+	evictedBytes uint64
 }
 
 func (b *bucket) Init(maxBytes uint64) {
@@ -265,6 +270,7 @@ func (b *bucket) Reset() {
 	atomic.StoreUint64(&b.misses, 0)
 	atomic.StoreUint64(&b.collisions, 0)
 	atomic.StoreUint64(&b.corruptions, 0)
+	atomic.StoreUint64(&b.evictedBytes, 0)
 	b.mu.Unlock()
 }
 
@@ -302,6 +308,7 @@ func (b *bucket) UpdateStats(s *Stats) {
 	s.Misses += atomic.LoadUint64(&b.misses)
 	s.Collisions += atomic.LoadUint64(&b.collisions)
 	s.Corruptions += atomic.LoadUint64(&b.corruptions)
+	s.EvictedBytes += atomic.LoadUint64(&b.evictedBytes)
 
 	b.mu.RLock()
 	s.EntriesCount += uint64(len(b.m))
@@ -333,9 +340,9 @@ func (b *bucket) Set(k, v []byte, h uint64) {
 		return
 	}
 
+	b.mu.Lock()
 	chunks := b.chunks
 	needClean := false
-	b.mu.Lock()
 	idx := b.idx
 	idxNew := idx + kvLen
 	chunkIdx := idx / chunkSize
@@ -370,15 +377,16 @@ func (b *bucket) Set(k, v []byte, h uint64) {
 	b.idx = idxNew
 	if needClean {
 		b.cleanLocked()
+		atomic.AddUint64(&b.evictedBytes, uint64(len(chunks)*chunkSize))
 	}
 	b.mu.Unlock()
 }
 
 func (b *bucket) Get(dst, k []byte, h uint64, returnDst bool) ([]byte, bool) {
+	b.mu.RLock()
 	atomic.AddUint64(&b.getCalls, 1)
 	found := false
 	chunks := b.chunks
-	b.mu.RLock()
 	v := b.m[h]
 	bGen := b.gen & ((1 << genSizeBits) - 1)
 	if v > 0 {

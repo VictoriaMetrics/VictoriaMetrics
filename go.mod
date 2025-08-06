@@ -34,7 +34,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.2
 	github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250728123024-98593029b5aa
 	github.com/VictoriaMetrics/easyproto v0.1.4
-	github.com/VictoriaMetrics/fastcache v1.12.5
+	github.com/VictoriaMetrics/fastcache v1.13.0
 	github.com/VictoriaMetrics/metrics v1.39.1
 	github.com/VictoriaMetrics/metricsql v0.84.6
 	github.com/aws/aws-sdk-go-v2 v1.37.1
