@@ -405,8 +405,8 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 		return true
 	}
 
-	// Push metadata separately from time series, since it doesn't need to be sharding,
-	// and can skip relabeling, stream aggregation, deduplication, etc.
+	// Push metadata separately from time series, since it doesn't need sharding,
+	// relabeling, stream aggregation, deduplication, etc.
 	if !tryPushMetadataToRemoteStorages(rwctxs, mms, forceDropSamplesOnFailure) {
 		return false
 	}
@@ -551,7 +551,7 @@ func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.Metr
 	// Since metadata is usually small and there is no guarantee that metadata can be sent to
 	// the same remote storage with the corresponding metrics.
 	//
-	// Push metadata to remote storage systems in parallel in order to reduce
+	// Push metadata to remote storage systems in parallel to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
@@ -596,7 +596,7 @@ func tryPushTimeSeriesToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prom
 	}
 
 	// Replicate tssBlock samples among rwctxs.
-	// Push tssBlock to remote storage systems in parallel in order to reduce
+	// Push tssBlock to remote storage systems in parallel to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
