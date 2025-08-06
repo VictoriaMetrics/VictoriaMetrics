@@ -29,7 +29,7 @@ See the full list of [Prominent Features](https://docs.victoriametrics.com/victo
 
 Yes. See [these benchmarks](https://docs.victoriametrics.com/victoriametrics/articles/#benchmarks).
 
-## How VictoriaMetrics works?
+## How Does Victoriametrics work?
 
 See the list of technical articles on VictoriaMetrics components:
 1. [How VictoriaMetrics Agent (**vmagent**) Works](https://victoriametrics.com/blog/vmagent-how-it-works)
