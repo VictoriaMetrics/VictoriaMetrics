@@ -74,14 +74,17 @@ func LabelsToString(labels []Label) string {
 	return string(b)
 }
 
-type WriteRequestUnmarshaller struct {
+// WriteRequestUnmarshaler is reusable unmarshaler for WriteRequest protobuf messages.
+// It maintains internal pools for labels and samples to reduce memory allocations.
+// See UnmarshalProtobuf for details on how to use it.
+type WriteRequestUnmarshaler struct {
 	wr WriteRequest
 
 	labelsPool  []Label
 	samplesPool []Sample
 }
 
-func (wru *WriteRequestUnmarshaller) Reset() {
+func (wru *WriteRequestUnmarshaler) Reset() {
 	wru.wr.Reset()
 
 	clear(wru.labelsPool)
@@ -99,7 +102,7 @@ func (wru *WriteRequestUnmarshaller) Reset() {
 //     as the WriteRequest retain references to it.
 //   - The returned WriteRequest is only valid until the next call to UnmarshalProtobuf,
 //     which reuses internal buffers and structs.
-func (wru *WriteRequestUnmarshaller) UnmarshalProtobuf(src []byte) (*WriteRequest, error) {
+func (wru *WriteRequestUnmarshaler) UnmarshalProtobuf(src []byte) (*WriteRequest, error) {
 	wru.Reset()
 
 	var err error
