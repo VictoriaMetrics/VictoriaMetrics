@@ -528,24 +528,19 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Monitoring
 
-All the cluster components expose various metrics in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
+All the cluster components [expose various metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-cluster.yml)
+in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag. 
 By default, the following TCP ports are used:
 
 - `vminsert` - 8480
 - `vmselect` - 8481
 - `vmstorage` - 8482
 
-It is recommended setting up [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
-or Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
-with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
-Graphs on these dashboards contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+> Prefer giving distinct scrape job names per each component type. I.e. `vmstorage`, `vminsert` and `vmselect` should have corresponding job names.
 
-If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
-command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
-See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
+Use [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
 
-It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or in Prometheus from [this list](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
-See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
+See more details on [how to monitor VictoriaMetrics components](https://docs.victoriametrics.com/#monitoring).
 
 ## Cardinality limiter
 
