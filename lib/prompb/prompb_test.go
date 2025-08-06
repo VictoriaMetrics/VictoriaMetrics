@@ -15,7 +15,7 @@ func TestWriteRequestMarshalUnmarshal(t *testing.T) {
 
 		data := wrm.MarshalProtobuf(nil)
 
-		wru := &prompb.WriteRequestUnmarshaller{}
+		wru := &prompb.WriteRequestUnmarshaler{}
 		wr, err := wru.UnmarshalProtobuf(data)
 		if err != nil {
 			t.Fatalf("cannot unmarshal protobuf: %s", err)
