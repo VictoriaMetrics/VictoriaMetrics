@@ -91,7 +91,7 @@ func stdErrLogger(s string) {
 
 // Unmarshal unmarshals only samples from Prometheus exposition text.
 //
-// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 //
 // s shouldn't be modified while rs is in use.
 func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
@@ -124,7 +124,7 @@ func skipTrailingComment(s string) string {
 
 func skipLeadingWhitespace(s string) string {
 	// Prometheus treats ' ' and '\t' as whitespace
-	// according to https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
+	// according to https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 	for len(s) > 0 && (s[0] == ' ' || s[0] == '\t') {
 		s = s[1:]
 	}
@@ -133,13 +133,16 @@ func skipLeadingWhitespace(s string) string {
 
 func skipTrailingWhitespace(s string) string {
 	// Prometheus treats ' ' and '\t' as whitespace
-	// according to https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
+	// https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 	for len(s) > 0 && (s[len(s)-1] == ' ' || s[len(s)-1] == '\t') {
 		s = s[:len(s)-1]
 	}
 	return s
 }
 
+// Within a line, tokens can be separated by any number of blanks and/or tabs,
+// and must be separated by at least one if they would otherwise merge with the previous token.
+// https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 func nextWhitespace(s string) int {
 	n := strings.IndexByte(s, ' ')
 	if n < 0 {
@@ -429,7 +432,7 @@ func unescapeValue(s string) string {
 		}
 		// label_value can be any sequence of UTF-8 characters, but the backslash (\), double-quote ("),
 		// and line feed (\n) characters have to be escaped as \\, \", and \n, respectively.
-		// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
+		// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md
 		switch s[0] {
 		case '\\':
 			b = append(b, '\\')
@@ -453,7 +456,7 @@ func unescapeValue(s string) string {
 func appendEscapedValue(dst []byte, s string) []byte {
 	// label_value can be any sequence of UTF-8 characters, but the backslash (\), double-quote ("),
 	// and line feed (\n) characters have to be escaped as \\, \", and \n, respectively.
-	// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
+	// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md
 	for {
 		n := strings.IndexAny(s, "\\\"\n")
 		if n < 0 {
@@ -818,7 +821,7 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 		return dst
 	}
 	s = s[2:]
-	idx := strings.IndexByte(s, ' ')
+	idx := nextWhitespace(s)
 	if idx < 0 {
 		if errLogger != nil {
 			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: wrong exposition format", fullLine))
@@ -841,7 +844,7 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 	}
 
 	s = s[idx+1:]
-	idx = strings.IndexByte(s, ' ')
+	idx = nextWhitespace(s)
 	if idx < 0 {
 		if errLogger != nil {
 			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: wrong exposition format", fullLine))
@@ -885,7 +888,9 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 		return dst
 	}
 	if isHelp {
-		md.Help = commentData
+		// HELP lines may contain any sequence of UTF-8 characters (after the metric name),
+		// but the backslash and the line feed characters have to be escaped as \\ and \n, respectively.
+		md.Help = unescapeValue(commentData)
 	}
 
 	return dst

@@ -739,7 +739,7 @@ func TestParseMetadataLineSuccess(t *testing.T) {
 			Help:   "This is a test metric.",
 		},
 	}, &MetadataRows{Rows: []Metadata{}})
-	f(`  # HELP cassandra_token_ownership_ratio The ratio of Cassandra token ownership.`, []Metadata{
+	f(`  # HELP cassandra_token_ownership_ratio The ratio\\ of Cassandra token ownership.`, []Metadata{
 		{
 			Metric: "foo",
 			Help:   "This is a test metric.",
@@ -752,7 +752,7 @@ func TestParseMetadataLineSuccess(t *testing.T) {
 			},
 			{
 				Metric: "cassandra_token_ownership_ratio",
-				Help:   "The ratio of Cassandra token ownership.",
+				Help:   `The ratio\ of Cassandra token ownership.`,
 			},
 		},
 	})
