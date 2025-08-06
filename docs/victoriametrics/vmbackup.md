@@ -103,6 +103,8 @@ with the following command:
 It saves time and network bandwidth costs by performing server-side copy for the shared data from the `-origin` to `-dst` since backup data isn't transferred
 between the remote storage and locally running `vmbackup` tool.
 
+Please see notes in [server-side copy of the existing backup](https://docs.victoriametrics.com/victoriametrics/vmbackup/#server-side-copy-of-the-existing-backup) for specifics depending on cloud storage provider you are using. 
+
 ### Incremental backups
 
 Incremental backups are performed if `-dst` points to an already existing backup. In this case only new data is uploaded to remote storage.
