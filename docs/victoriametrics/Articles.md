@@ -100,7 +100,7 @@ Articles about VictoriaLogs have been moved at [https://docs.victoriametrics.com
 
 ## Our articles
 
-See [https://victoriametrics.com/blog](https://victoriametrics.com/blog).
+See [our blog](https://victoriametrics.com/blog) for the latest articles written by the Victoriametrics team
 
 ### Announcements
 
