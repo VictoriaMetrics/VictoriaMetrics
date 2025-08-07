@@ -283,7 +283,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		}
 	}
 
-	s.metadataStore = metricsmetadata.MustLoadFrom(filepath.Join(s.cachePath, "metrics_metadata"))
+	s.metadataStore = metricsmetadata.NewStore()
 
 	// Load metadata
 	metadataDir := filepath.Join(path, metadataDirname)

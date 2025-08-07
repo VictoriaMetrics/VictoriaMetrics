@@ -2,21 +2,12 @@ package metricsmetadata
 
 import (
 	"bytes"
-	"compress/gzip"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type metadataKey struct {
@@ -26,17 +17,9 @@ type metadataKey struct {
 }
 
 type metricTimingInfo struct {
-	LastIngestionTime    uint64 `json:"lastIngestionTime"`
-	AvgIngestionInterval uint64 `json:"avgIngestionInterval"`
-	IngestionCount       int64  `json:"ingestionCount"`
-}
-
-type recordForStore struct {
-	AccountID        uint32
-	ProjectID        uint32
-	MetricFamilyName string
-	Rows             []Row
-	TimingInfo       metricTimingInfo
+	LastIngestionTime    uint64
+	AvgIngestionInterval uint64
+	IngestionCount       int64
 }
 
 type MetadataStoreMetrics struct {
@@ -51,8 +34,6 @@ type Store struct {
 	metricMetadataStorageLock sync.RWMutex
 	metricsMetadataStorage    map[metadataKey][]Row
 	metricTimingInfo          map[metadataKey]metricTimingInfo
-
-	storagePath string
 
 	itemsIngestedTotal uint64
 	itemsDeduplicated  uint64
@@ -78,21 +59,9 @@ func NewStore() *Store {
 	return s
 }
 
-func MustLoadFrom(path string) *Store {
-	s := NewStore()
-	err := s.loadFrom(path)
-	if err != nil {
-		logger.Panicf("cannot load metrics metadata from %q: %s", path, err)
-	}
-	return s
-}
-
 func (s *Store) MustClose() {
 	close(s.cleanupStopCh)
 	s.cleanupWG.Wait()
-	s.metricMetadataStorageLock.Lock()
-	s.mustSaveLocked()
-	s.metricMetadataStorageLock.Unlock()
 }
 
 func (s *Store) Add(rows []Row) error {
@@ -288,88 +257,4 @@ func (s *Store) UpdateMetrics(dst *MetadataStoreMetrics) {
 	dst.ItemsDeduplicated = s.itemsDeduplicated
 	dst.ItemsDeleted = s.itemsDeleted
 	dst.ItemsSizeBytes = uint64(totalSize)
-}
-func (s *Store) mustSaveLocked() {
-	if s.storagePath == "" {
-		return
-	}
-
-	// Create cachePath dir if it doesn't exist in the same manner as other caches doing
-	dir := filepath.Dir(s.storagePath)
-	if !fs.IsPathExist(dir) {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			logger.Fatalf("cannot create dir %q: %s", dir, err)
-		}
-	}
-
-	var bb bytes.Buffer
-	zw := gzip.NewWriter(&bb)
-	je := json.NewEncoder(zw)
-
-	var r recordForStore
-	for key, rows := range s.metricsMetadataStorage {
-		r.Rows = rows
-		if timingInfo, ok := s.metricTimingInfo[key]; ok {
-			r.TimingInfo = timingInfo
-		} else {
-			r.TimingInfo = metricTimingInfo{}
-		}
-		if err := je.Encode(r); err != nil {
-			logger.Fatalf("cannot save encoded record for %q: %s", key.metricFamilyName, err)
-		}
-	}
-	if err := zw.Close(); err != nil {
-		logger.Fatalf("cannot close gzip writer: %s", err)
-	}
-
-	// Atomically store the data
-	data := bb.Bytes()
-	fs.MustWriteAtomic(s.storagePath, data, true)
-
-}
-
-func (s *Store) loadFrom(path string) error {
-	s.storagePath = path
-
-	// fast path
-	if !fs.IsPathExist(s.storagePath) {
-		return nil
-	}
-
-	data, err := os.ReadFile(s.storagePath)
-	if err != nil {
-		return fmt.Errorf("cannot read metrics metadata from %q: %w", s.storagePath, err)
-	}
-
-	bb := bytes.NewBuffer(data)
-	zr, err := gzip.NewReader(bb)
-	if err != nil {
-		return fmt.Errorf("cannot create new gzip reader: %w", err)
-	}
-	defer func() {
-		if err := zr.Close(); err != nil {
-			logger.Panicf("FATAL: cannot close gzip reader: %s", err)
-		}
-	}()
-	jd := json.NewDecoder(zr)
-
-	var r recordForStore
-	for {
-		if err := jd.Decode(&r); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return fmt.Errorf("cannot parse record: %w", err)
-		}
-		key := metadataKey{
-			accountID:        r.AccountID,
-			projectID:        r.ProjectID,
-			metricFamilyName: r.MetricFamilyName,
-		}
-		s.metricsMetadataStorage[key] = r.Rows
-		s.metricTimingInfo[key] = r.TimingInfo
-		s.itemsCurrentTotal += uint64(len(r.Rows))
-	}
-	s.itemsIngestedTotal = s.itemsCurrentTotal
-	return nil
 }

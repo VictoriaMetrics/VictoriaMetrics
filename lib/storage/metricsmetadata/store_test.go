@@ -1,8 +1,6 @@
 package metricsmetadata
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -246,45 +244,4 @@ func TestStoreRead(t *testing.T) {
 	if len(result) != 0 {
 		t.Fatalf("expected 0 results for nonexistent tenant, got %d", len(result))
 	}
-}
-
-func TestLoadClose(t *testing.T) {
-	// create tmp dir
-	tmpDir := t.TempDir()
-	defer func() {
-		_ = os.RemoveAll(tmpDir)
-	}()
-	path := filepath.Join(tmpDir, "metrics_metadata_store_test.db")
-	s := MustLoadFrom(path)
-
-	rows := []Row{
-		{
-			MetricFamilyName: []byte("metric1"),
-			Type:             1,
-			Unit:             []byte("seconds"),
-			Help:             []byte("help1"),
-			AccountID:        1,
-			ProjectID:        1,
-		},
-	}
-
-	err := s.Add(rows)
-	if err != nil {
-		t.Fatalf("unexpected error on add: %v", err)
-	}
-
-	s.MustClose()
-
-	s2 := MustLoadFrom(path)
-	if len(s2.metricsMetadataStorage) != 1 {
-		t.Fatalf("expected 1 metric after load, got %d", len(s2.metricsMetadataStorage))
-	}
-	if len(s2.metricTimingInfo) != 1 {
-		t.Fatalf("expected 1 timing entry after load, got %d", len(s2.metricTimingInfo))
-	}
-	key := metadataKey{accountID: 1, projectID: 1, metricFamilyName: "metric1"}
-	if len(s2.metricsMetadataStorage[key]) != 1 {
-		t.Fatalf("expected 1 row for metric1 after load, got %d", len(s2.metricsMetadataStorage[key]))
-	}
-
 }
