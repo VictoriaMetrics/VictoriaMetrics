@@ -1210,26 +1210,88 @@ func (ctx *flushCtx) flushSeries() {
 	}
 
 	// Slow path - apply output relabeling and then push the output metrics.
-	auxLabels := promutil.GetLabels()
-	dstLabels := auxLabels.Labels[:0]
 	dst := tss[:0]
-	for _, ts := range tss {
-		dstLabelsLen := len(dstLabels)
-		dstLabels = append(dstLabels, ts.Labels...)
-		dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
-		if len(dstLabels) == dstLabelsLen {
-			// The metric has been deleted by the relabeling
-			continue
+	numCPUs := cgroup.AvailableCPUs()
+
+	// Process directly without worker pool for small batches
+	if len(tss) <= numCPUs {
+		auxLabels := promutil.GetLabels()
+		dstLabels := auxLabels.Labels[:0]
+
+		for _, ts := range tss {
+			dstLabelsLen := len(dstLabels)
+
+			dstLabels = append(dstLabels, ts.Labels...)
+			dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
+			if len(dstLabels) == dstLabelsLen {
+				// The metric has been deleted by relabeling
+				continue
+			}
+			ts.Labels = dstLabels[dstLabelsLen:]
+			dst = append(dst, ts)
 		}
-		ts.Labels = dstLabels[dstLabelsLen:]
-		dst = append(dst, ts)
+
+		if ctx.pushFunc != nil {
+			ctx.pushFunc(dst)
+			ctx.ao.outputSamples.Add(len(dst))
+		}
+		promutil.PutLabels(auxLabels)
+	} else {
+		// Use worker pool for large batches
+		wg := sync.WaitGroup{}
+		tssCh := make(chan prompb.TimeSeries, len(tss))
+		resultCh := make(chan prompb.TimeSeries, len(tss))
+		auxLabelsCh := make(chan *promutil.Labels, numCPUs)
+
+		for i := 0; i < numCPUs; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				auxLabels := promutil.GetLabels()
+				defer func() {
+					auxLabelsCh <- auxLabels
+				}()
+				dstLabels := auxLabels.Labels[:0]
+
+				for ts := range tssCh {
+					dstLabelsLen := len(dstLabels)
+
+					dstLabels = append(dstLabels, ts.Labels...)
+					dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
+					if len(dstLabels) == dstLabelsLen {
+						// The metric has been deleted by relabeling
+						continue
+					}
+					resultCh <- prompb.TimeSeries{
+						Labels:  dstLabels[dstLabelsLen:],
+						Samples: ts.Samples,
+					}
+				}
+			}()
+		}
+
+		for _, ts := range tss {
+			tssCh <- ts
+		}
+		close(tssCh)
+
+		wg.Wait()
+		close(resultCh)
+		close(auxLabelsCh)
+
+		for ts := range resultCh {
+			dst = append(dst, ts)
+		}
+
+		// Push the results first, then return auxLabels to pool
+		if ctx.pushFunc != nil {
+			ctx.pushFunc(dst)
+			ctx.ao.outputSamples.Add(len(dst))
+		}
+		for auxLabels := range auxLabelsCh {
+			promutil.PutLabels(auxLabels)
+		}
 	}
-	if ctx.pushFunc != nil {
-		ctx.pushFunc(dst)
-		ctx.ao.outputSamples.Add(len(dst))
-	}
-	auxLabels.Labels = dstLabels
-	promutil.PutLabels(auxLabels)
 }
 
 func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
