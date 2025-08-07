@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -609,7 +609,7 @@ func TestLegacyStorageSnapshots_CreateListDelete(t *testing.T) {
 
 	assertPathDoesNotExist := func(path string) {
 		t.Helper()
-		if vmfs.IsPathExist(path) {
+		if fs.IsPathExist(path) {
 			t.Fatalf("path was not expected to exist: %q", path)
 		}
 	}
@@ -661,7 +661,7 @@ func testStorageConvertToLegacy(t *testing.T, accountID, projectID uint32) {
 
 	storageDataPath := t.Name()
 	legacyIDBPath := filepath.Join(storageDataPath, indexdbDirname)
-	if vmfs.IsPathExist(legacyIDBPath) {
+	if fs.IsPathExist(legacyIDBPath) {
 		t.Fatalf("legacy indexDB already exists: %q", legacyIDBPath)
 	}
 
@@ -673,8 +673,8 @@ func testStorageConvertToLegacy(t *testing.T, accountID, projectID uint32) {
 	legacyIDBCurrName := "0000000000000002"
 	legacyIDBPrevPath := filepath.Join(storageDataPath, indexdbDirname, legacyIDBPrevName)
 	legacyIDBCurrPath := filepath.Join(storageDataPath, indexdbDirname, legacyIDBCurrName)
-	vmfs.MustMkdirFailIfExist(legacyIDBPrevPath)
-	vmfs.MustMkdirFailIfExist(legacyIDBCurrPath)
+	fs.MustMkdirFailIfExist(legacyIDBPrevPath)
+	fs.MustMkdirFailIfExist(legacyIDBCurrPath)
 	legacyIDBPrevPartsFile := filepath.Join(legacyIDBPrevPath, partsFilename)
 	legacyIDBCurrPartsFile := filepath.Join(legacyIDBCurrPath, partsFilename)
 	fs.MustWriteAtomic(legacyIDBPrevPartsFile, []byte("[]"), true)
@@ -757,5 +757,5 @@ func testStorageConvertToLegacy(t *testing.T, accountID, projectID uint32) {
 	s.MustClose()
 
 	// Remove partition indexDBs.
-	vmfs.MustRemoveAll(filepath.Join(storageDataPath, dataDirname, indexdbDirname))
+	fs.MustRemoveDir(filepath.Join(storageDataPath, dataDirname, indexdbDirname))
 }
