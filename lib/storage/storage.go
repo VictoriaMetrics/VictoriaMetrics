@@ -1372,12 +1372,32 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics: %d", tfss, &tr, maxMetrics)
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
 		return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	}
-	res, err := searchAndMergeUniq(qt, s, tr, search, math.MaxInt)
+	merge := func(data [][]string) []string {
+		var n int
+		for _, d := range data {
+			n += len(d)
+		}
+		seen := make(map[string]struct{}, n)
+		all := make([]string, 0, n)
+		for _, d := range data {
+			for _, v := range d {
+				if _, ok := seen[v]; !ok {
+					all = append(all, v)
+					seen[v] = struct{}{}
+				}
+			}
+		}
+		return all
+	}
+	res, err := searchAndMerge(qt, s, tr, search, merge)
+	if err != nil {
+		return nil, err
+	}
 	qt.Donef("found %d metric names", len(res))
-	return res, err
+	return res, nil
 }
 
 // ErrDeadlineExceeded is returned when the request times out.

@@ -1804,7 +1804,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	return tsids, nil
 }
 
-func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) (map[string]struct{}, error) {
+func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
@@ -1815,7 +1815,7 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	if len(metricIDs) == 0 {
 		return nil, nil
 	}
-	metricNames := make(map[string]struct{}, len(metricIDs))
+	metricNames := make([]string, 0, len(metricIDs))
 	var metricName []byte
 	for i, metricID := range metricIDs {
 		if i&paceLimiterSlowIterationsMask == 0 {
@@ -1830,7 +1830,7 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 			// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 			continue
 		}
-		metricNames[string(metricName)] = struct{}{}
+		metricNames = append(metricNames, string(metricName))
 	}
 	qt.Printf("loaded %d metric names", len(metricNames))
 	return metricNames, nil
