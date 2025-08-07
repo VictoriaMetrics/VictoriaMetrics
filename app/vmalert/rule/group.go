@@ -2,7 +2,6 @@ package rule
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -470,18 +469,6 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 // UpdateWith inserts new group to updateCh
 func (g *Group) UpdateWith(newGroup *Group) {
 	g.updateCh <- newGroup
-}
-
-// DeepCopy returns a deep copy of group
-func (g *Group) DeepCopy() *Group {
-	g.mu.RLock()
-	data, _ := json.Marshal(g)
-	g.mu.RUnlock()
-	newG := Group{}
-	_ = json.Unmarshal(data, &newG)
-	newG.Rules = g.Rules
-	newG.id = g.id
-	return &newG
 }
 
 // if offset is specified, delayBeforeStart returns a duration to help aligning timestamp with offset;

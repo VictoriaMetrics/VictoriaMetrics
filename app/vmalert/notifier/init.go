@@ -4,10 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
@@ -56,6 +59,39 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
 	sendTimeout = flagutil.NewArrayDuration("notifier.sendTimeout", 10*time.Second, "Timeout when sending alerts to the corresponding -notifier.url")
 )
+
+var AlertURLGeneratorFn AlertURLGenerator
+
+func InitAlertURLGeneratorFn(externalURL *url.URL, externalAlertSource string, validateTemplate bool) error {
+	if externalAlertSource == "" {
+		AlertURLGeneratorFn = func(a Alert) string {
+			gID, aID := strconv.FormatUint(a.GroupID, 10), strconv.FormatUint(a.ID, 10)
+			return fmt.Sprintf("%s/vmalert/alert?%s=%s&%s=%s", externalURL, "group_id", gID, "alert_id", aID)
+		}
+		return nil
+	}
+	if validateTemplate {
+		if err := ValidateTemplates(map[string]string{
+			"tpl": externalAlertSource,
+		}); err != nil {
+			return fmt.Errorf("error validating source template %s: %w", externalAlertSource, err)
+		}
+	}
+	m := map[string]string{
+		"tpl": externalAlertSource,
+	}
+	AlertURLGeneratorFn = func(alert Alert) string {
+		qFn := func(_ string) ([]datasource.Metric, error) {
+			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
+		}
+		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
+		if err != nil {
+			logger.Errorf("cannot template alert source: %s", err)
+		}
+		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
+	}
+	return nil
+}
 
 // cw holds a configWatcher for configPath configuration file
 // configWatcher provides a list of Notifier objects discovered

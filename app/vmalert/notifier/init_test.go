@@ -1,6 +1,8 @@
 package notifier
 
 import (
+	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -89,5 +91,32 @@ func TestBlackHole(t *testing.T) {
 	nf1 := targets[TargetStatic][0]
 	if nf1.Addr() != "blackhole" {
 		t.Fatalf("expected to get \"blackhole\"; got %q instead", nf1.Addr())
+	}
+}
+
+func TestGetAlertURLGenerator(t *testing.T) {
+	oldAlertURLGeneratorFn := AlertURLGeneratorFn
+	defer func() { AlertURLGeneratorFn = oldAlertURLGeneratorFn }()
+
+	testAlert := Alert{GroupID: 42, ID: 2, Value: 4, Labels: map[string]string{"tenant": "baz"}}
+	u, _ := url.Parse("https://victoriametrics.com/path")
+	err := InitAlertURLGeneratorFn(u, "", false)
+	if err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+	exp := fmt.Sprintf("https://victoriametrics.com/path/vmalert/alert?%s=42&%s=2", "group_id", "alert_id")
+	if exp != AlertURLGeneratorFn(testAlert) {
+		t.Fatalf("unexpected url want %s, got %s", exp, AlertURLGeneratorFn(testAlert))
+	}
+	err = InitAlertURLGeneratorFn(nil, "foo?{{invalid}}", true)
+	if err == nil {
+		t.Fatalf("expected template validation error got nil")
+	}
+	err = InitAlertURLGeneratorFn(u, "foo?query={{$value}}&ds={{ $labels.tenant }}", true)
+	if err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+	if exp := "https://victoriametrics.com/path/foo?query=4&ds=baz"; exp != AlertURLGeneratorFn(testAlert) {
+		t.Fatalf("unexpected url want %s, got %s", exp, AlertURLGeneratorFn(testAlert))
 	}
 }
