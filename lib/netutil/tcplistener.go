@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"time"
 
@@ -102,14 +101,7 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			return nil, err
 		}
 		if ln.useProxyProtocol {
-			pConn, err := newProxyProtocolConn(conn)
-			if err != nil {
-				if !errors.Is(err, io.EOF) {
-					proxyProtocolReadErrorLogger.Errorf("cannot read proxy proto conn for TCP addr %q: %s", ln.Addr(), err)
-				}
-				_ = conn.Close()
-				continue
-			}
+			pConn := newProxyProtocolConn(conn)
 			conn = pConn
 		}
 		ln.cm.conns.Inc()
