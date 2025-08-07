@@ -29,6 +29,17 @@ See the full list of [Prominent Features](https://docs.victoriametrics.com/victo
 
 Yes. See [these benchmarks](https://docs.victoriametrics.com/victoriametrics/articles/#benchmarks).
 
+## How does Victoriametrics work?
+
+See the list of technical articles on VictoriaMetrics components:
+1. [How VictoriaMetrics Agent (**vmagent**) Works](https://victoriametrics.com/blog/vmagent-how-it-works)
+1. [How **vmstorage** Handles Data Ingestion](https://victoriametrics.com/blog/vmstorage-how-it-handles-data-ingestion)
+1. [How **vmstorage** Processes Data: Retention, Merging, Deduplication,...](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication)
+1. [When Metrics Meet **vminsert**: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works)
+1. [How **vmstorage**'s IndexDB Works](https://victoriametrics.com/blog/vmstorage-how-indexdb-works)
+1. [How **vmstorage** Handles Query Requests From vmselect](https://victoriametrics.com/blog/vmstorage-how-it-handles-query-requests)
+1. [Inside **vmselect**: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works)
+
 ## How to start using VictoriaMetrics?
 
 Follow the [Quick Start guide](https://docs.victoriametrics.com/victoriametrics/quick-start/).
@@ -406,7 +417,7 @@ See also [troubleshooting slow queries](https://docs.victoriametrics.com/victori
 Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) are production-ready.
 
-See [Scalability limits of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics)).
+See [Scalability limits of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics).
 
 Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
 to cluster version of VictoriaMetrics, since it doesn't need to pass the encoded data over the network

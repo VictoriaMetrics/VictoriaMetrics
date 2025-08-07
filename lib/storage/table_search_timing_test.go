@@ -11,14 +11,13 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestMain(m *testing.M) {
 	isDebug = true
 	n := m.Run()
-	if err := os.RemoveAll("benchmarkTableSearch"); err != nil {
-		panic(fmt.Errorf("cannot remove benchmark tables: %w", err))
-	}
+	fs.MustRemoveDir("benchmarkTableSearch")
 	os.Exit(n)
 }
 

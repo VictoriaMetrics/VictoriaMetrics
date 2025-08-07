@@ -1,11 +1,11 @@
 {% import (
     "time"
 
-    "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+    "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 ) %}
 {% stripspace %}
 
-{% func amRequest(alerts []Alert, generatorURL func(Alert) string, lblss [][]prompbmarshal.Label) %}
+{% func amRequest(alerts []Alert, generatorURL func(Alert) string, lblss [][]prompb.Label) %}
 [
 {% for i, alert := range alerts %}
 {% code lbls := lblss[i] %}

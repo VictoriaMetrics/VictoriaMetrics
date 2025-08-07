@@ -327,7 +327,7 @@ func (pw *partWrapper) decRef() {
 	pw.p = nil
 
 	if deletePath != "" {
-		fs.MustRemoveAll(deletePath)
+		fs.MustRemoveDir(deletePath)
 	}
 }
 
@@ -1485,12 +1485,11 @@ func (tb *Table) nextMergeIdx() uint64 {
 func mustOpenParts(path string) []*partWrapper {
 	// The path can be missing after restoring from backup, so create it if needed.
 	fs.MustMkdirIfNotExist(path)
-	fs.MustRemoveTemporaryDirs(path)
 
 	// Remove txn and tmp directories, which may be left after the upgrade
 	// to v1.90.0 and newer versions.
-	fs.MustRemoveAll(filepath.Join(path, "txn"))
-	fs.MustRemoveAll(filepath.Join(path, "tmp"))
+	fs.MustRemoveDir(filepath.Join(path, "txn"))
+	fs.MustRemoveDir(filepath.Join(path, "tmp"))
 
 	partsFile := filepath.Join(path, partsFilename)
 	partNames := mustReadPartNames(partsFile, path)
@@ -1507,8 +1506,8 @@ func mustOpenParts(path string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
-				partPath, partsFile, partsFile, partsFile)
+				"ensure %q contents is not corrupted; remove %q from %q in order to restore access to the remaining data",
+				partPath, partsFile, partsFile, partPath, partsFile)
 		}
 
 		m[partName] = struct{}{}
@@ -1522,7 +1521,7 @@ func mustOpenParts(path string) []*partWrapper {
 		if _, ok := m[fn]; !ok {
 			deletePath := filepath.Join(path, fn)
 			logger.Infof("deleting %q because it isn't listed in %q; this is the expected case after unclean shutdown", deletePath, partsFile)
-			fs.MustRemoveAll(deletePath)
+			fs.MustRemoveDir(deletePath)
 		}
 	}
 	fs.MustSyncPath(path)
@@ -1801,5 +1800,5 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]struct{}) ([
 func isSpecialDir(name string) bool {
 	// Snapshots and cache dirs aren't used anymore.
 	// Keep them here for backwards compatibility.
-	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache" || fs.IsScheduledForRemoval(name)
+	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache"
 }

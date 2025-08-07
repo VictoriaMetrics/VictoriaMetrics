@@ -19,7 +19,7 @@ VictoriaMetrics is a fast, cost-effective and scalable time series database. It 
 It is recommended to use the [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) instead of the cluster version
 for ingestion rates lower than a million data points per second.
 The single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
-with the number of CPU cores, RAM and available storage space.
+with the number of CPU cores, RAM and available storage space and can be set up in [High Availability](https://docs.victoriametrics.com/#high-availability) mode.
 The single-node version is easier to configure and operate compared to the cluster version, so think twice before choosing the cluster version.
 See [this question](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster) for more details.
 
@@ -528,24 +528,19 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Monitoring
 
-All the cluster components expose various metrics in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
+All the cluster components [expose various metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-cluster.yml)
+in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag. 
 By default, the following TCP ports are used:
 
 - `vminsert` - 8480
 - `vmselect` - 8481
 - `vmstorage` - 8482
 
-It is recommended setting up [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
-or Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
-with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
-Graphs on these dashboards contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+> Prefer giving distinct scrape job names per each component type. I.e. `vmstorage`, `vminsert` and `vmselect` should have corresponding job names.
 
-If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
-command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
-See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
+Use [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
 
-It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or in Prometheus from [this list](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
-See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
+See more details on [how to monitor VictoriaMetrics components](https://docs.victoriametrics.com/#monitoring).
 
 ## Cardinality limiter
 
@@ -1870,6 +1865,10 @@ Below is the output for `/path/to/vmstorage -help`:
      Interval for reloading the license file specified via -licenseFile. See https://victoriametrics.com/products/enterprise/ . This flag is available only in Enterprise binaries (default 1h0m0s)
   -logNewSeries
      Whether to log new series. This option is for debug purposes only. It can lead to performance issues when big number of new series are ingested into VictoriaMetrics
+  -logNewSeriesAuthKey value
+     authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*
+     Flag value can be read from the given file when using -logNewSeriesAuthKey=file:///abs/path/to/file or -logNewSeriesAuthKey=file://./relative/path/to/file .
+     Flag value can be read from the given http/https url when using -logNewSeriesAuthKey=http://host/path or -logNewSeriesAuthKey=https://host/path
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int

@@ -97,23 +97,18 @@ func mustOpenTable(path string, s *Storage) *table {
 	// Create directories for small and big partitions if they don't exist yet.
 	smallPartitionsPath := filepath.Join(path, smallDirname)
 	fs.MustMkdirIfNotExist(smallPartitionsPath)
-	fs.MustRemoveTemporaryDirs(smallPartitionsPath)
 
 	smallSnapshotsPath := filepath.Join(smallPartitionsPath, snapshotsDirname)
 	fs.MustMkdirIfNotExist(smallSnapshotsPath)
-	fs.MustRemoveTemporaryDirs(smallSnapshotsPath)
 
 	bigPartitionsPath := filepath.Join(path, bigDirname)
 	fs.MustMkdirIfNotExist(bigPartitionsPath)
-	fs.MustRemoveTemporaryDirs(bigPartitionsPath)
 
 	bigSnapshotsPath := filepath.Join(bigPartitionsPath, snapshotsDirname)
 	fs.MustMkdirIfNotExist(bigSnapshotsPath)
-	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
 	indexDBPath := filepath.Join(path, indexdbDirname)
 	fs.MustMkdirIfNotExist(indexDBPath)
-	fs.MustRemoveTemporaryDirs(indexDBPath)
 
 	// Open partitions.
 	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath, s)
@@ -174,11 +169,11 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string, string
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
 func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	smallDir := filepath.Join(tb.path, smallDirname, snapshotsDirname, snapshotName)
-	fs.MustRemoveDirAtomic(smallDir)
+	fs.MustRemoveDir(smallDir)
 	bigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
-	fs.MustRemoveDirAtomic(bigDir)
+	fs.MustRemoveDir(bigDir)
 	indexDBDir := filepath.Join(tb.path, indexdbDirname, snapshotsDirname, snapshotName)
-	fs.MustRemoveDirAtomic(indexDBDir)
+	fs.MustRemoveDir(indexDBDir)
 }
 
 func (tb *table) addPartitionLocked(pt *partition) *partitionWrapper {
@@ -668,6 +663,14 @@ func mustPopulatePartitionNames(partitionsPath string, ptNames map[string]bool) 
 		ptName := de.Name()
 		if ptName == snapshotsDirname {
 			// Skip directory with snapshots
+			continue
+		}
+		ptDirPath := filepath.Join(partitionsPath, ptName)
+		if fs.IsPartiallyRemovedDir(ptDirPath) {
+			// Finish the removal of partially deleted partition directories.
+			// Partially deleted partition directories may occur when unclean shutdown happens
+			// in the middle of directory removal.
+			fs.MustRemoveDir(ptDirPath)
 			continue
 		}
 		ptNames[ptName] = true

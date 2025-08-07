@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"io/fs"
 	"math"
 	"math/rand"
 	"os"
@@ -18,7 +17,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
@@ -516,9 +515,7 @@ func TestStorageOpenClose(t *testing.T) {
 		s := MustOpenStorage(path, opts)
 		s.MustClose()
 	}
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func TestStorageRandTimestamps(t *testing.T) {
@@ -560,9 +557,7 @@ func TestStorageRandTimestamps(t *testing.T) {
 		}
 	})
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func testStorageRandTimestamps(s *Storage) error {
@@ -795,9 +790,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 	}
 
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func testStorageDeleteSeries(s *Storage, workerNum int) error {
@@ -1489,9 +1482,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
@@ -1514,9 +1505,7 @@ func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 		}
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func testStorageRegisterMetricNames(s *Storage) error {
@@ -1652,9 +1641,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func TestStorageAddRowsConcurrent(t *testing.T) {
@@ -1683,9 +1670,7 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 		}
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func testGenerateMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
@@ -2072,7 +2057,7 @@ func testLegacyRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage))
 func testListDirEntries(t *testing.T, root string, ignorePrefix ...string) []string {
 	t.Helper()
 	var paths []string
-	f := func(path string, _ fs.DirEntry, err error) error {
+	f := func(path string, _ os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -2175,7 +2160,7 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 
 	assertPathDoesNotExist := func(path string) {
 		t.Helper()
-		if vmfs.IsPathExist(path) {
+		if fs.IsPathExist(path) {
 			t.Fatalf("path was not expected to exist: %q", path)
 		}
 	}
@@ -2225,9 +2210,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 		t.Fatalf("expecting zero snapshots; got %q", snapshots)
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 // testRemoveAll removes all storage data produced by a test if the test hasn't
@@ -2238,7 +2221,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 func testRemoveAll(t *testing.T) {
 	defer func() {
 		if !t.Failed() {
-			vmfs.MustRemoveAll(t.Name())
+			fs.MustRemoveDir(t.Name())
 		}
 	}()
 }
@@ -4502,9 +4485,10 @@ func TestMustOpenLegacyIndexDBTables_prevOnly(t *testing.T) {
 
 	storageDataPath := t.Name()
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
 	assertPathsExist(t, prevPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
@@ -4520,12 +4504,15 @@ func TestMustOpenLegacyIndexDBTables_currAndPrev(t *testing.T) {
 
 	storageDataPath := t.Name()
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
+
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
-	vmfs.MustMkdirIfNotExist(currPath)
+	createEmptyIndexdb(currPath)
+
 	assertPathsExist(t, prevPath, currPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
@@ -4543,13 +4530,16 @@ func TestMustOpenLegacyIndexDBTables_nextIsRemoved(t *testing.T) {
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
+
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
-	vmfs.MustMkdirIfNotExist(currPath)
+	createEmptyIndexdb(currPath)
+
 	nextName := "123456789ABCDEF2"
 	nextPath := filepath.Join(idbPath, nextName)
-	vmfs.MustMkdirIfNotExist(nextPath)
+	createEmptyIndexdb(nextPath)
+
 	assertPathsExist(t, prevPath, currPath, nextPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
@@ -4566,21 +4556,27 @@ func TestMustOpenLegacyIndexDBTables_nextAndObsoleteDirsAreRemoved(t *testing.T)
 
 	storageDataPath := t.Name()
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
 	obsolete1Name := "123456789ABCDEEE"
 	obsolete1Path := filepath.Join(idbPath, obsolete1Name)
-	vmfs.MustMkdirIfNotExist(obsolete1Path)
+	createEmptyIndexdb(obsolete1Path)
+
 	obsolete2Name := "123456789ABCDEEF"
 	obsolete2Path := filepath.Join(idbPath, obsolete2Name)
-	vmfs.MustMkdirIfNotExist(obsolete2Path)
+	createEmptyIndexdb(obsolete2Path)
+
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
+
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
-	vmfs.MustMkdirIfNotExist(currPath)
+	createEmptyIndexdb(currPath)
+
 	nextName := "123456789ABCDEF2"
 	nextPath := filepath.Join(idbPath, nextName)
-	vmfs.MustMkdirIfNotExist(nextPath)
+	createEmptyIndexdb(nextPath)
+
 	assertPathsExist(t, obsolete1Path, obsolete2Path, prevPath, currPath, nextPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
@@ -4597,12 +4593,15 @@ func TestLegacyMustRotateIndexDBs_dirNames(t *testing.T) {
 
 	storageDataPath := t.Name()
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
+
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
-	vmfs.MustMkdirIfNotExist(currPath)
+	createEmptyIndexdb(currPath)
+
 	assertPathsExist(t, prevPath, currPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
@@ -4626,11 +4625,17 @@ func TestLegacyMustRotateIndexDBs_dirNames(t *testing.T) {
 	assertPathsDoNotExist(t, prevPath, currPath)
 }
 
+func createEmptyIndexdb(path string) {
+	fs.MustMkdirIfNotExist(path)
+	partsFilePath := filepath.Join(path, "parts.json")
+	fs.MustWriteAtomic(partsFilePath, []byte("[]"), false)
+}
+
 func assertPathsExist(t *testing.T, paths ...string) {
 	t.Helper()
 
 	for _, path := range paths {
-		if !vmfs.IsPathExist(path) {
+		if !fs.IsPathExist(path) {
 			t.Fatalf("path does not exist: %s", path)
 		}
 	}
@@ -4640,7 +4645,7 @@ func assertPathsDoNotExist(t *testing.T, paths ...string) {
 	t.Helper()
 
 	for _, path := range paths {
-		if vmfs.IsPathExist(path) {
+		if fs.IsPathExist(path) {
 			t.Fatalf("path exists: %s", path)
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
@@ -96,7 +97,7 @@ func (mp *inmemoryPart) mustInitFromRows(lr *logRows) {
 		fields := rows[i]
 		trs.timestamps = append(trs.timestamps, timestamps[i])
 		trs.rows = append(trs.rows, fields)
-		uncompressedBlockSizeBytes += uncompressedRowSizeBytes(fields)
+		uncompressedBlockSizeBytes += uint64(EstimatedJSONRowLen(fields))
 	}
 	bsw.MustWriteRows(sidPrev, trs.timestamps, trs.rows)
 	putTmpRows(trs)
@@ -119,27 +120,32 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 
-	fs.MustWriteStreamSync(columnNamesPath, &mp.columnNames)
-	fs.MustWriteStreamSync(columnIdxsPath, &mp.columnIdxs)
-	fs.MustWriteStreamSync(metaindexPath, &mp.metaindex)
-	fs.MustWriteStreamSync(indexPath, &mp.index)
-	fs.MustWriteStreamSync(columnsHeaderIndexPath, &mp.columnsHeaderIndex)
-	fs.MustWriteStreamSync(columnsHeaderPath, &mp.columnsHeader)
-	fs.MustWriteStreamSync(timestampsPath, &mp.timestamps)
+	var psw filestream.ParallelStreamWriter
 
-	fs.MustWriteStreamSync(messageBloomFilterPath, &mp.messageBloomValues.bloom)
-	fs.MustWriteStreamSync(messageValuesPath, &mp.messageBloomValues.values)
+	psw.Add(columnNamesPath, &mp.columnNames)
+	psw.Add(columnIdxsPath, &mp.columnIdxs)
+	psw.Add(metaindexPath, &mp.metaindex)
+	psw.Add(indexPath, &mp.index)
+	psw.Add(columnsHeaderIndexPath, &mp.columnsHeaderIndex)
+	psw.Add(columnsHeaderPath, &mp.columnsHeader)
+	psw.Add(timestampsPath, &mp.timestamps)
+
+	psw.Add(messageBloomFilterPath, &mp.messageBloomValues.bloom)
+	psw.Add(messageValuesPath, &mp.messageBloomValues.values)
 
 	bloomPath := getBloomFilePath(path, 0)
-	fs.MustWriteStreamSync(bloomPath, &mp.fieldBloomValues.bloom)
+	psw.Add(bloomPath, &mp.fieldBloomValues.bloom)
 
 	valuesPath := getValuesFilePath(path, 0)
-	fs.MustWriteStreamSync(valuesPath, &mp.fieldBloomValues.values)
+	psw.Add(valuesPath, &mp.fieldBloomValues.values)
+
+	psw.Run()
 
 	mp.ph.mustWriteMetadata(path)
 
-	fs.MustSyncPath(path)
-	// Do not sync parent directory - it must be synced by the caller.
+	// Sync the path contents and the path parent dir in order to guarantee
+	// all the path contents is visible in case of unclean shutdown.
+	fs.MustSyncPathAndParentDir(path)
 }
 
 // tmpRows is used as a helper for inmemoryPart.mustInitFromRows()

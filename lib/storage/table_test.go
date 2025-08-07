@@ -1,22 +1,19 @@
 package storage
 
 import (
-	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestTableOpenClose(t *testing.T) {
 	const path = "TestTableOpenClose"
 	const retention = 123 * retention31Days
 
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	// Create a new table
 	strg := newTestStorage()

@@ -195,7 +195,7 @@ func (pw *partWrapper) decRef() {
 	pw.p = nil
 
 	if deletePath != "" {
-		fs.MustRemoveAll(deletePath)
+		fs.MustRemoveDir(deletePath)
 	}
 }
 
@@ -246,9 +246,9 @@ func (pt *partition) startBackgroundWorkers() {
 func (pt *partition) Drop() {
 	logger.Infof("dropping partition %q at smallPartsPath=%q, bigPartsPath=%q, indexDBPartsPath=%q", pt.name, pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath)
 
-	fs.MustRemoveDirAtomic(pt.smallPartsPath)
-	fs.MustRemoveDirAtomic(pt.bigPartsPath)
-	fs.MustRemoveDirAtomic(pt.indexDBPartsPath)
+	fs.MustRemoveDir(pt.smallPartsPath)
+	fs.MustRemoveDir(pt.bigPartsPath)
+	fs.MustRemoveDir(pt.indexDBPartsPath)
 	logger.Infof("partition %q has been dropped", pt.name)
 }
 
@@ -1636,7 +1636,7 @@ func (pt *partition) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *
 	if ph.RowsCount == 0 {
 		// The created part is empty. Remove it
 		if mpNew == nil {
-			fs.MustRemoveAll(dstPartPath)
+			fs.MustRemoveDir(dstPartPath)
 		}
 		return nil
 	}
@@ -1959,12 +1959,11 @@ func getPartsSize(pws []*partWrapper) uint64 {
 func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 	// The path can be missing after restoring from backup, so create it if needed.
 	fs.MustMkdirIfNotExist(path)
-	fs.MustRemoveTemporaryDirs(path)
 
 	// Remove txn and tmp directories, which may be left after the upgrade
 	// to v1.90.0 and newer versions.
-	fs.MustRemoveAll(filepath.Join(path, "txn"))
-	fs.MustRemoveAll(filepath.Join(path, "tmp"))
+	fs.MustRemoveDir(filepath.Join(path, "txn"))
+	fs.MustRemoveDir(filepath.Join(path, "tmp"))
 
 	// Remove dirs missing in partNames. These dirs may be left after unclean shutdown
 	// or after the update from versions prior to v1.90.0.
@@ -1978,8 +1977,8 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
-				partPath, partsFile, partsFile, partsFile)
+				"ensure %q contents is not corrupted; remove %q from %q in order to restore access to the remaining data",
+				partPath, partsFile, partsFile, partPath, partsFile)
 		}
 
 		m[partName] = struct{}{}
@@ -1993,7 +1992,7 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 		if _, ok := m[fn]; !ok {
 			deletePath := filepath.Join(path, fn)
 			logger.Infof("deleting %q because it isn't listed in %q; this is the expected case after unclean shutdown", deletePath, partsFile)
-			fs.MustRemoveAll(deletePath)
+			fs.MustRemoveDir(deletePath)
 		}
 	}
 	fs.MustSyncPath(path)
@@ -2149,5 +2148,5 @@ func mustReadPartNamesFromDir(srcDir string) []string {
 }
 
 func isSpecialDir(name string) bool {
-	return name == "tmp" || name == "txn" || name == snapshotsDirname || fs.IsScheduledForRemoval(name)
+	return name == "tmp" || name == "txn" || name == snapshotsDirname
 }

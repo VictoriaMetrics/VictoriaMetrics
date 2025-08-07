@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -132,13 +132,13 @@ func (rr *RecordingRule) unregisterMetrics() {
 // execRange executes recording rule on the given time range similarly to Exec.
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
-func (rr *RecordingRule) execRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) execRange(ctx context.Context, start, end time.Time) ([]prompb.TimeSeries, error) {
 	res, err := rr.q.QueryRange(ctx, rr.Expr, start, end)
 	if err != nil {
 		return nil, err
 	}
 	duplicates := make(map[string]struct{}, len(res.Data))
-	var tss []prompbmarshal.TimeSeries
+	var tss []prompb.TimeSeries
 	for _, s := range res.Data {
 		ts := rr.toTimeSeries(s)
 		key := stringifyLabels(ts.Labels)
@@ -152,7 +152,7 @@ func (rr *RecordingRule) execRange(ctx context.Context, start, end time.Time) ([
 }
 
 // exec executes RecordingRule expression via the given Querier.
-func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
+func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]prompb.TimeSeries, error) {
 	start := time.Now()
 	res, req, err := rr.q.Query(ctx, rr.Expr, ts)
 	curState := StateEntry{
@@ -187,7 +187,7 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 
 	curEvaluation := make(map[string]struct{}, len(qMetrics))
 	lastEvaluation := rr.lastEvaluation
-	var tss []prompbmarshal.TimeSeries
+	var tss []prompb.TimeSeries
 	for _, r := range qMetrics {
 		ts := rr.toTimeSeries(r)
 		key := stringifyLabels(ts.Labels)
@@ -201,9 +201,9 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 	}
 	// check for stale time series
 	for k := range lastEvaluation {
-		tss = append(tss, prompbmarshal.TimeSeries{
+		tss = append(tss, prompb.TimeSeries{
 			Labels: stringToLabels(k),
-			Samples: []prompbmarshal.Sample{
+			Samples: []prompb.Sample{
 				{Value: decimal.StaleNaN, Timestamp: ts.UnixNano() / 1e6},
 			}})
 	}
@@ -222,12 +222,12 @@ func (rr *RecordingRule) logDebugf(at time.Time, format string, args ...any) {
 	logger.Infof("%s", prefix+msg)
 }
 
-func stringToLabels(s string) []prompbmarshal.Label {
+func stringToLabels(s string) []prompb.Label {
 	labels := strings.Split(s, ",")
-	rLabels := make([]prompbmarshal.Label, 0, len(labels))
+	rLabels := make([]prompb.Label, 0, len(labels))
 	for i := range labels {
 		if label := strings.Split(labels[i], "="); len(label) == 2 {
-			rLabels = append(rLabels, prompbmarshal.Label{
+			rLabels = append(rLabels, prompb.Label{
 				Name:  label[0],
 				Value: label[1],
 			})
@@ -236,7 +236,7 @@ func stringToLabels(s string) []prompbmarshal.Label {
 	return rLabels
 }
 
-func stringifyLabels(labels []prompbmarshal.Label) string {
+func stringifyLabels(labels []prompb.Label) string {
 	b := strings.Builder{}
 	for i, l := range labels {
 		b.WriteString(l.Name)
@@ -249,11 +249,11 @@ func stringifyLabels(labels []prompbmarshal.Label) string {
 	return b.String()
 }
 
-func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSeries {
+func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompb.TimeSeries {
 	if preN := promrelabel.GetLabelByName(m.Labels, "__name__"); preN != nil {
 		preN.Value = rr.Name
 	} else {
-		m.Labels = append(m.Labels, prompbmarshal.Label{
+		m.Labels = append(m.Labels, prompb.Label{
 			Name:  "__name__",
 			Value: rr.Name,
 		})
@@ -270,7 +270,7 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSer
 			existingLabel.Name = fmt.Sprintf("exported_%s", existingLabel.Name)
 		}
 		// add extra label
-		m.Labels = append(m.Labels, prompbmarshal.Label{
+		m.Labels = append(m.Labels, prompb.Label{
 			Name:  k,
 			Value: rr.Labels[k],
 		})

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
@@ -24,7 +24,7 @@ func BenchmarkParseStream(b *testing.B) {
 		data := pbRequest.MarshalProtobuf(nil)
 
 		for p.Next() {
-			err := ParseStream(bytes.NewBuffer(data), "", nil, func(_ []prompbmarshal.TimeSeries) error {
+			err := ParseStream(bytes.NewBuffer(data), "", nil, func(_ []prompb.TimeSeries) error {
 				return nil
 			})
 			if err != nil {

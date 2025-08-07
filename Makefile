@@ -26,6 +26,7 @@ include docs/Makefile
 include deployment/*/Makefile
 include dashboards/Makefile
 include package/release/Makefile
+include benchmarks/Makefile
 
 all: \
 	victoria-metrics-prod \
@@ -444,13 +445,17 @@ test-full:
 test-full-386:
 	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test: victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
+integration-test:
+	$(MAKE) apptest
+
+apptest:
+	$(MAKE) victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
 	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
 
 integration-test-legacy: victoria-metrics vmbackup vmrestore
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
-	VERSION=v1.121.0; \
+	VERSION=v1.123.0; \
 	VMSINGLE=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}.tar.gz; \
 	VMCLUSTER=victoria-metrics-$${OS}-$${ARCH}-$${VERSION}-cluster.tar.gz; \
 	URL=https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/$${VERSION}; \
@@ -462,7 +467,6 @@ integration-test-legacy: victoria-metrics vmbackup vmrestore
 	VM_LEGACY_VMSINGLE_PATH=$${DIR}/victoria-metrics-prod \
 	VM_LEGACY_VMSTORAGE_PATH=$${DIR}/vmstorage-prod \
 	go test ./apptest/tests -run="^TestLegacySingle.*"
-
 
 benchmark:
 	GOEXPERIMENT=synctest go test -bench=. ./lib/...

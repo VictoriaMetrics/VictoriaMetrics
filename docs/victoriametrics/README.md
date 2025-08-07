@@ -1604,7 +1604,7 @@ as their values are always increasing. Downsampling [gauges](https://docs.victor
 and [summaries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) lose some changes within the downsampling interval,
 since only the last sample on the given interval is left and the rest of samples are dropped.
 
-You can use [recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules) or [steaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)
+You can use [recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)
 to apply custom aggregation functions, like min/max/avg etc., in order to make gauges more resilient to downsampling.
 
 Downsampling can reduce disk space usage and improve query performance if it is applied to time series with big number
@@ -1754,32 +1754,29 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ## Monitoring
 
 VictoriaMetrics exports internal metrics in Prometheus exposition format at `/metrics` page.
-These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or any other Prometheus-compatible scraper.
+These metrics [can be scraped](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-single.yml)
+via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or any other Prometheus-compatible scraper.
 
-If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
-command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
-See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
+> Single-node VictoriaMetrics can self-scrape its metrics when `-selfScrapeInterval` command-line flag is
+set to duration greater than 0. For example, `-selfScrapeInterval=10s` scrapes `/metrics` page every 10 seconds.
+ 
+See the list of official [Grafana dashboards for VictoriaMetrics components](https://grafana.com/orgs/victoriametrics/dashboards).
 
-Alternatively, single-node VictoriaMetrics can self-scrape the metrics when `-selfScrapeInterval` command-line flag is 
-set to duration greater than 0. For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page 
-with 10 seconds interval.
+Please follow the monitoring recommendations below: 
 
-_Please note, never use loadbalancer address for scraping metrics. All the monitored components should be scraped directly by their address._
-
-Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229)
-and [clustered](https://grafana.com/grafana/dashboards/11176) VictoriaMetrics.
-
-Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
-
-We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
+* Prefer giving distinct scrape job names per each component type. I.e. `vmagent` and `vmalert` should have corresponding job names.
+* Never use load balancer address for scraping metrics. All the monitored components should be scraped directly by their address.
+* Set up [recommended alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
 via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via Prometheus.
-
-VictoriaMetrics exposes currently running queries and their execution times at [`active queries` page](#active-queries).
-
-VictoriaMetrics exposes queries, which take the most time to execute, at [`top queries` page](#top-queries).
+* See currently running queries and their execution times at [`active queries` page](#active-queries).
+* See queries that take the most time to execute at [`top queries` page](#top-queries).
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 and [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/).
+
+> VictoriaMetrics components do not expose metadata `TYPE` and `HELP` fields on `/metrics` page.
+> Services like Google Cloud Managed Prometheus could require metadata to be present for scraping. In this case, pass `-metrics.exposeMetadata`
+command-line to them. See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 ## TSDB stats
 
@@ -2048,7 +2045,8 @@ and [cardinality explorer docs](#cardinality-explorer).
   or [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) can be determined
   via [cardinality explorer](#cardinality-explorer) and via [/api/v1/status/tsdb](#tsdb-stats) endpoint.
 
-* New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
+* New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics or temporary enabled via `/internal/log_new_series` API call.
+  `/internal/log_new_series` API accepts query parameter `seconds`, with default value of `60`, which defines a duration for logging newly created series.
 
 * VictoriaMetrics limits the number of labels per each series, label name length and label value length
   via `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` command-line flags respectively.
@@ -2531,6 +2529,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Interval for reloading the license file specified via -licenseFile. See https://victoriametrics.com/products/enterprise/ . This flag is available only in Enterprise binaries (default 1h0m0s)
   -logNewSeries
      Whether to log new series. This option is for debug purposes only. It can lead to performance issues when big number of new series are ingested into VictoriaMetrics
+  -logNewSeriesAuthKey value
+     authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*
+     Flag value can be read from the given file when using -logNewSeriesAuthKey=file:///abs/path/to/file or -logNewSeriesAuthKey=file://./relative/path/to/file .
+     Flag value can be read from the given http/https url when using -logNewSeriesAuthKey=http://host/path or -logNewSeriesAuthKey=https://host/path
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -2909,6 +2911,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.finalDedupScheduleCheckInterval duration
      The interval for checking when final deduplication process should be started.Storage unconditionally adds 25% jitter to the interval value on each check evaluation. Changing the interval to the bigger values may delay downsampling, deduplication for historical data. See also https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication (default 1h0m0s)
+  -storage.idbPrefillStart duration
+     Specifies how early VictoriaMetrics starts pre-filling indexDB records before indexDB rotation. Starting the pre-fill process earlier can help reduce resource usage spikes during rotation.
+     In most cases, this value should not be changed. The maximum allowed value is 23h. (default 1h0m0s)
   -storage.maxDailySeries int
      The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . See also -storage.maxHourlySeries
   -storage.maxHourlySeries int

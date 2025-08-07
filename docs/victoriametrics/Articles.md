@@ -93,12 +93,18 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Harness the Power of VictoriaMetrics and Grafana Operators for Metrics Management](https://blog.ogenki.io/post/series/observability/metrics/)
 * [VictoriaMetrics: Effective alerts, from theory to practice](https://blog.ogenki.io/post/series/observability/alerts/)
 * [Reducing Inter-AZ traffic in VictoriaMetrics with Zonekeeper](https://tanmay-bhat.medium.com/reducing-inter-az-traffic-in-victoriametrics-with-zonekeeper-3bd7e1526796)
+* [Victoriametrics k8s stack setup gotchas](https://davidhernandez21.github.io/posts/Victoriametrics-k8s-stack-gotchas/)
+* [Building a Scalable and Cost-Effective Monitoring Stack on AWS with Victoria Metrics](https://medium.com/@heliodevhub/construindo-uma-stack-de-monitoramento-escal%C3%A1vel-e-econ%C3%B4mica-na-aws-com-victoria-metrics-532d535dcfb6)
+* [Optimizing Datadog Costs with VictoriaMetrics: A Practical Step-by-Step Guide](https://medium.com/p/optimizing-datadog-costs-with-victoriametrics-a-practical-step-by-step-guide-c984d32c7423)
+* [Kubernetes Monitoring — A Complete Solution](https://itnext.io/kubernetes-monitoring-a-complete-solution-part-1-architecture-eb5b998658d5)
 
 ## Third-party articles and slides about VictoriaLogs
 
 Articles about VictoriaLogs have been moved at [https://docs.victoriametrics.com/victorialogs/articles/](https://docs.victoriametrics.com/victorialogs/articles/).
 
 ## Our articles
+
+See [our blog](https://victoriametrics.com/blog) for the latest articles written by the Victoriametrics team
 
 ### Announcements
 

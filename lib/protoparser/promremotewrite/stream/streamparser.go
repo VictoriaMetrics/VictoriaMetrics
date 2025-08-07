@@ -74,9 +74,10 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 	if int64(len(bb.B)) > maxInsertRequestSize.N {
 		return fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(bb.B))
 	}
-	wr := getWriteRequest()
-	defer putWriteRequest(wr)
-	if err := wr.UnmarshalProtobuf(bb.B); err != nil {
+	wru := getWriteRequestUnmarshaler()
+	defer putWriteRequestUnmarshaler(wru)
+	wr, err := wru.UnmarshalProtobuf(bb.B)
+	if err != nil {
 		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %w", len(bb.B), err)
 	}
@@ -147,17 +148,17 @@ func putPushCtx(ctx *pushCtx) {
 
 var pushCtxPool sync.Pool
 
-func getWriteRequest() *prompb.WriteRequest {
-	v := writeRequestPool.Get()
+func getWriteRequestUnmarshaler() *prompb.WriteRequestUnmarshaler {
+	v := writeRequestUnmarshallerPool.Get()
 	if v == nil {
-		return &prompb.WriteRequest{}
+		return &prompb.WriteRequestUnmarshaler{}
 	}
-	return v.(*prompb.WriteRequest)
+	return v.(*prompb.WriteRequestUnmarshaler)
 }
 
-func putWriteRequest(wr *prompb.WriteRequest) {
-	wr.Reset()
-	writeRequestPool.Put(wr)
+func putWriteRequestUnmarshaler(wru *prompb.WriteRequestUnmarshaler) {
+	wru.Reset()
+	writeRequestUnmarshallerPool.Put(wru)
 }
 
-var writeRequestPool sync.Pool
+var writeRequestUnmarshallerPool sync.Pool

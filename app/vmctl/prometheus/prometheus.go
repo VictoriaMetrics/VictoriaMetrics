@@ -16,7 +16,8 @@ type Config struct {
 	// Path to snapshot directory
 	Snapshot string
 
-	Filter Filter
+	Filter       Filter
+	TemporaryDir string
 }
 
 // Filter contains configuration for filtering
@@ -54,7 +55,7 @@ func (f filter) inRange(minV, maxV int64) bool {
 // NewClient creates and validates new Client
 // with given Config
 func NewClient(cfg Config) (*Client, error) {
-	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, "", nil)
+	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, cfg.TemporaryDir, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
 	}

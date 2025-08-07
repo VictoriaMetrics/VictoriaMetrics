@@ -68,7 +68,7 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		t.Helper()
 
 		path := t.Name()
-		defer fs.MustRemoveAll(path)
+		defer fs.MustRemoveDir(path)
 
 		s := MustOpenStorage(path, OpenOptions{})
 		defer s.MustClose()
@@ -96,7 +96,7 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 
 func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	path := t.Name()
-	defer fs.MustRemoveAll(path)
+	defer fs.MustRemoveDir(path)
 	s := MustOpenStorage(path, OpenOptions{})
 	defer s.MustClose()
 	ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
@@ -552,7 +552,7 @@ func TestIndexDB(t *testing.T) {
 
 		s.tb.PutPartition(ptw)
 		s.MustClose()
-		fs.MustRemoveAll(path)
+		fs.MustRemoveDir(path)
 	})
 
 	t.Run("concurrent", func(t *testing.T) {
@@ -590,7 +590,7 @@ func TestIndexDB(t *testing.T) {
 
 		s.tb.PutPartition(ptw)
 		s.MustClose()
-		fs.MustRemoveAll(path)
+		fs.MustRemoveDir(path)
 	})
 }
 
@@ -1966,7 +1966,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	s.tb.PutPartition(ptw)
 	s.MustClose()
-	fs.MustRemoveAll(path)
+	fs.MustRemoveDir(path)
 }
 
 func toTFPointers(tfs []tagFilter) []*tagFilter {
@@ -1994,5 +1994,5 @@ func stopTestStorage(s *Storage) {
 	s.metricIDCache.Stop()
 	s.metricNameCache.Stop()
 	s.tsidCache.Stop()
-	fs.MustRemoveDirAtomic(s.cachePath)
+	fs.MustRemoveDir(s.cachePath)
 }

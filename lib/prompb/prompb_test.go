@@ -2,52 +2,27 @@ package prompb_test
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
-	var wr prompb.WriteRequest
-
-	f := func(data []byte) {
+func TestWriteRequestMarshalUnmarshal(t *testing.T) {
+	// Verify that the marshaled protobuf is unmarshalled properly
+	f := func(wrm *prompb.WriteRequest) {
 		t.Helper()
 
-		// Verify that the marshaled protobuf is unmarshaled properly
-		if err := wr.UnmarshalProtobuf(data); err != nil {
+		data := wrm.MarshalProtobuf(nil)
+
+		wru := &prompb.WriteRequestUnmarshaler{}
+		wr, err := wru.UnmarshalProtobuf(data)
+		if err != nil {
 			t.Fatalf("cannot unmarshal protobuf: %s", err)
 		}
 
-		// Compare the unmarshaled wr with the original wrm.
-		var wrm prompbmarshal.WriteRequest
-		for _, ts := range wr.Timeseries {
-			var labels []prompbmarshal.Label
-			for _, label := range ts.Labels {
-				labels = append(labels, prompbmarshal.Label{
-					Name:  label.Name,
-					Value: label.Value,
-				})
-			}
-			var samples []prompbmarshal.Sample
-			for _, sample := range ts.Samples {
-				samples = append(samples, prompbmarshal.Sample{
-					Value:     sample.Value,
-					Timestamp: sample.Timestamp,
-				})
-			}
-			wrm.Timeseries = append(wrm.Timeseries, prompbmarshal.TimeSeries{
-				Labels:  labels,
-				Samples: samples,
-			})
-		}
-		for _, md := range wr.Metadata {
-			wrm.Metadata = append(wrm.Metadata, prompbmarshal.MetricMetadata{
-				Type:             md.Type,
-				MetricFamilyName: md.MetricFamilyName,
-				Help:             md.Help,
-				Unit:             md.Unit,
-			})
+		if !reflect.DeepEqual(wrm, wr) {
+			t.Fatalf("unmarshaled WriteRequest is not equal to the original\nGot:\n%+v\nWant:\n%+v", wr, wrm)
 		}
 
 		dataResult := wrm.MarshalProtobuf(nil)
@@ -56,159 +31,169 @@ func TestWriteRequestUnmarshalProtobuf(t *testing.T) {
 		}
 	}
 
-	var data []byte
-	wrm := &prompbmarshal.WriteRequest{}
+	f(&prompb.WriteRequest{})
 
-	wrm.Reset()
-	data = wrm.MarshalProtobuf(data[:0])
-	f(data)
+	f(&prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "process_cpu_seconds_total",
+					},
+					{
+						Name:  "instance",
+						Value: "host-123:4567",
+					},
+					{
+						Name:  "job",
+						Value: "node-exporter",
+					},
+				},
+			},
+		},
+	})
 
-	wrm.Reset()
-	wrm.Timeseries = []prompbmarshal.TimeSeries{
-		{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__name__",
-					Value: "process_cpu_seconds_total",
-				},
-				{
-					Name:  "instance",
-					Value: "host-123:4567",
-				},
-				{
-					Name:  "job",
-					Value: "node-exporter",
+	f(&prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Samples: []prompb.Sample{
+					{
+						Value:     123.3434,
+						Timestamp: 8939432423,
+					},
+					{
+						Value:     -123.3434,
+						Timestamp: 18939432423,
+					},
 				},
 			},
 		},
-	}
-	data = wrm.MarshalProtobuf(data[:0])
-	f(data)
+	})
 
-	wrm.Reset()
-	wrm.Timeseries = []prompbmarshal.TimeSeries{
-		{
-			Samples: []prompbmarshal.Sample{
-				{
-					Value:     123.3434,
-					Timestamp: 8939432423,
+	f(&prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "process_cpu_seconds_total",
+					},
+					{
+						Name:  "instance",
+						Value: "host-123:4567",
+					},
+					{
+						Name:  "job",
+						Value: "node-exporter",
+					},
 				},
-				{
-					Value:     -123.3434,
-					Timestamp: 18939432423,
+				Samples: []prompb.Sample{
+					{
+						Value:     123.3434,
+						Timestamp: 8939432423,
+					},
+					{
+						Value:     -123.3434,
+						Timestamp: 18939432423,
+					},
 				},
 			},
 		},
-	}
-	data = wrm.MarshalProtobuf(data[:0])
-	f(data)
+		Metadata: []prompb.MetricMetadata{
+			{
+				// COUNTER = 1
+				Type:             1,
+				MetricFamilyName: "process_cpu_seconds_total",
+				Help:             "Total user and system CPU time spent in seconds",
+				Unit:             "seconds",
+			},
+		},
+	})
 
-	wrm.Reset()
-	wrm.Timeseries = []prompbmarshal.TimeSeries{
-		{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__name__",
-					Value: "process_cpu_seconds_total",
+	f(&prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "process_cpu_seconds_total",
+					},
+					{
+						Name:  "instance",
+						Value: "host-123:4567",
+					},
+					{
+						Name:  "job",
+						Value: "node-exporter",
+					},
 				},
-				{
-					Name:  "instance",
-					Value: "host-123:4567",
-				},
-				{
-					Name:  "job",
-					Value: "node-exporter",
+				Samples: []prompb.Sample{
+					{
+						Value:     123.3434,
+						Timestamp: 8939432423,
+					},
+					{
+						Value:     -123.3434,
+						Timestamp: 18939432423,
+					},
 				},
 			},
-			Samples: []prompbmarshal.Sample{
-				{
-					Value:     123.3434,
-					Timestamp: 8939432423,
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "foo",
+						Value: "bar",
+					},
 				},
-				{
-					Value:     -123.3434,
-					Timestamp: 18939432423,
+				Samples: []prompb.Sample{
+					{
+						Value: 9873,
+					},
 				},
 			},
 		},
-	}
-	wrm.Metadata = []prompbmarshal.MetricMetadata{
-		{
-			// COUNTER = 1
-			Type:             1,
-			MetricFamilyName: "process_cpu_seconds_total",
-			Help:             "Total user and system CPU time spent in seconds",
-			Unit:             "seconds",
+		Metadata: []prompb.MetricMetadata{
+			{
+				// COUNTER = 1
+				Type:             1,
+				MetricFamilyName: "process_cpu_seconds_total",
+				Help:             "Total user and system CPU time spent in seconds",
+				Unit:             "seconds",
+			},
 		},
-	}
-	data = wrm.MarshalProtobuf(data[:0])
-	f(data)
+	})
 
-	wrm.Reset()
-	wrm.Timeseries = []prompbmarshal.TimeSeries{
-		{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__name__",
-					Value: "process_cpu_seconds_total",
-				},
-				{
-					Name:  "instance",
-					Value: "host-123:4567",
-				},
-				{
-					Name:  "job",
-					Value: "node-exporter",
-				},
-			},
-			Samples: []prompbmarshal.Sample{
-				{
-					Value:     123.3434,
-					Timestamp: 8939432423,
-				},
-				{
-					Value:     -123.3434,
-					Timestamp: 18939432423,
-				},
+	// only metadata
+	f(&prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{
+				// COUNTER = 1
+				Type:             1,
+				MetricFamilyName: "process_cpu_seconds_total",
+				Help:             "Total user and system CPU time spent in seconds",
+				Unit:             "seconds",
 			},
 		},
-		{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "foo",
-					Value: "bar",
-				},
-			},
-			Samples: []prompbmarshal.Sample{
-				{
-					Value: 9873,
-				},
-			},
-		},
-	}
-	wrm.Metadata = []prompbmarshal.MetricMetadata{
-		{
-			// COUNTER = 1
-			Type:             1,
-			MetricFamilyName: "process_cpu_seconds_total",
-			Help:             "Total user and system CPU time spent in seconds",
-			Unit:             "seconds",
-		},
-	}
-	data = wrm.MarshalProtobuf(data[:0])
-	f(data)
+	})
 
-	wrm.Reset()
-	// pass only MetricMetadata, no series
-	wrm.Metadata = []prompbmarshal.MetricMetadata{
-		{
-			// COUNTER = 1
-			Type:             1,
-			MetricFamilyName: "process_cpu_seconds_total",
-			Help:             "Total user and system CPU time spent in seconds",
-			Unit:             "seconds",
+	// only metadata several
+	f(&prompb.WriteRequest{
+		Metadata: []prompb.MetricMetadata{
+			{
+				// COUNTER = 1
+				Type:             1,
+				MetricFamilyName: "process_cpu_seconds_total",
+				Help:             "Total user and system CPU time spent in seconds",
+				Unit:             "seconds",
+			},
+			{
+				// GAUGE = 2
+				Type:             2,
+				MetricFamilyName: "process_memory_bytes",
+				Help:             "Total user and system memory in bytes",
+				Unit:             "bytes",
+			},
 		},
-	}
-	data = wrm.MarshalProtobuf(data[:0])
-	f(data)
+	})
 }

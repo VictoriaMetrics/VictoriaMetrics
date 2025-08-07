@@ -6,7 +6,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
@@ -29,7 +28,7 @@ func InsertHandler(req *http.Request) error {
 	})
 }
 
-func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompbmarshal.Label) error {
+func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompb.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 

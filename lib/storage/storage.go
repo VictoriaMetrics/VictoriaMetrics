@@ -34,6 +34,7 @@ import (
 const (
 	retention31Days = 31 * 24 * time.Hour
 	retentionMax    = 100 * 12 * retention31Days
+	idbPrefilStart  = time.Hour
 )
 
 // Storage represents TSDB storage.
@@ -144,6 +145,16 @@ type Storage struct {
 	isReadOnly atomic.Bool
 
 	metricsTracker *metricnamestats.Tracker
+
+	// idbPrefillStartSeconds defines the start time of the idbNext prefill.
+	// It helps to spread load in time for index records creation and reduce resource usage.
+	idbPrefillStartSeconds int64
+
+	// logNewSeries is used for logging the new series. We will log new series when logNewSeries is true or logNewSeriesUntil is greater than the current time.
+	logNewSeries atomic.Bool
+
+	// logNewSeriesUntil is the timestamp until which new series will be logged. We will log new series when logNewSeries is true or logNewSeriesUntil is greater than the current time.
+	logNewSeriesUntil atomic.Uint64
 }
 
 // OpenOptions optional args for MustOpenStorage
@@ -153,6 +164,8 @@ type OpenOptions struct {
 	MaxDailySeries        int
 	DisablePerDayIndex    bool
 	TrackMetricNamesStats bool
+	IDBPrefillStart       time.Duration
+	LogNewSeries          bool
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -168,12 +181,19 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	if retention <= 0 || retention > retentionMax {
 		retention = retentionMax
 	}
-	s := &Storage{
-		path:           path,
-		cachePath:      filepath.Join(path, cacheDirname),
-		retentionMsecs: retention.Milliseconds(),
-		stopCh:         make(chan struct{}),
+	idbPrefillStart := opts.IDBPrefillStart
+	if idbPrefillStart <= 0 {
+		idbPrefillStart = time.Hour
 	}
+	s := &Storage{
+		path:                   path,
+		cachePath:              filepath.Join(path, cacheDirname),
+		retentionMsecs:         retention.Milliseconds(),
+		stopCh:                 make(chan struct{}),
+		idbPrefillStartSeconds: idbPrefillStart.Milliseconds() / 1000,
+	}
+	s.logNewSeries.Store(opts.LogNewSeries)
+
 	fs.MustMkdirIfNotExist(path)
 
 	// Check whether the cache directory must be removed
@@ -181,10 +201,10 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
 	if fs.IsPathExist(filepath.Join(s.cachePath, resetCacheOnStartupFilename)) {
 		logger.Infof("removing cache directory at %q, since it contains `%s` file...", s.cachePath, resetCacheOnStartupFilename)
-		// Do not use fs.MustRemoveAll() here, since the cache directory may be mounted
-		// to a separate filesystem. In this case the fs.MustRemoveAll() will fail while
+		// Do not use fs.MustRemoveDir() here, since the cache directory may be mounted
+		// to a separate filesystem. In this case the fs.MustRemoveDir() will fail while
 		// trying to remove the mount root.
-		fs.RemoveDirContents(s.cachePath)
+		fs.MustRemoveDirContents(s.cachePath)
 		logger.Infof("cache directory at %q has been successfully removed", s.cachePath)
 	}
 
@@ -200,7 +220,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// Pre-create snapshots directory if it is missing.
 	snapshotsPath := filepath.Join(path, snapshotsDirname)
 	fs.MustMkdirIfNotExist(snapshotsPath)
-	fs.MustRemoveTemporaryDirs(snapshotsPath)
 
 	// Initialize series cardinality limiter.
 	if opts.MaxHourlySeries > 0 {
@@ -237,13 +256,9 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.disablePerDayIndex = opts.DisablePerDayIndex
 
 	legacyIDBPath := filepath.Join(path, indexdbDirname)
-	// Do not create legacy IndexDB snapshots dir if it does not exist.
-	if path := filepath.Join(legacyIDBPath, snapshotsDirname); fs.IsPathExist(path) {
-		// Cleanup the legacy IndexDB snapshots dir only if it exists.
-		fs.MustRemoveTemporaryDirs(path)
-	}
 	legacyIDBs := s.mustOpenLegacyIndexDBTables(legacyIDBPath)
 	s.legacyIndexDBs.Store(legacyIDBs)
+	// Initialize nextRotationTimestamp
 	nowSecs := int64(fasttime.UnixTimestamp())
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := legacyNextRetentionDeadlineSeconds(nowSecs, retentionSecs, legacyRetentionTimezoneOffsetSecs)
@@ -450,8 +465,8 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 
 	s.tb.MustDeleteSnapshot(snapshotName)
 	idbPath := filepath.Join(s.path, indexdbDirname, snapshotsDirname, snapshotName)
-	fs.MustRemoveDirAtomic(idbPath)
-	fs.MustRemoveDirAtomic(snapshotPath)
+	fs.MustRemoveDir(idbPath)
+	fs.MustRemoveDir(snapshotPath)
 
 	logger.Infof("deleted snapshot %q in %.3f seconds", snapshotPath, time.Since(startTime).Seconds())
 
@@ -973,9 +988,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	// Marshal e.v
 	dst = marshalUint64Set(dst, &e.v)
 
-	if err := os.WriteFile(path, dst, 0644); err != nil {
-		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
-	}
+	fs.MustWriteSync(path, dst)
 }
 
 func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
@@ -988,9 +1001,7 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	// Marshal hm.m
 	dst = marshalUint64Set(dst, hm.m)
 
-	if err := os.WriteFile(path, dst, 0644); err != nil {
-		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
-	}
+	fs.MustWriteSync(path, dst)
 }
 
 func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
@@ -1744,6 +1755,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 }
 
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) int {
+	logNewSeries := s.logNewSeries.Load() || s.logNewSeriesUntil.Load() >= fasttime.UnixTimestamp()
 	hmPrev := s.prevHourMetricIDs.Load()
 	hmCurr := s.currHourMetricIDs.Load()
 	var pendingHourEntries []uint64
@@ -1994,14 +2006,10 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
 
-// SetLogNewSeries updates new series logging.
-//
-// This function must be called before any calling any storage functions.
-func SetLogNewSeries(ok bool) {
-	logNewSeries = ok
+// SetLogNewSeriesUntil sets the timestamp until which new series will be logged.
+func (s *Storage) SetLogNewSeriesUntil(t uint64) {
+	s.logNewSeriesUntil.Store(t)
 }
-
-var logNewSeries = false
 
 func createAllIndexesForMetricName(db *indexDB, mn *MetricName, tsid *TSID, date uint64) {
 	db.createGlobalIndexes(tsid, mn)
@@ -2063,16 +2071,16 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	now := time.Unix(int64(fasttime.UnixTimestamp()), 0)
 	nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 	d := nextMonth.Sub(now).Seconds()
-	if d >= 3600 {
+	if d >= float64(s.idbPrefillStartSeconds) {
 		// Fast path: nothing to pre-fill because it is too early.
 		// The pre-fill is started during the last hour before the indexdb rotation.
 		return nil
 	}
 
-	// Slower path: less than hour left for the next indexdb rotation.
+	// Slower path: less than nextPrefillStartSeconds left for the next indexdb rotation.
 	// Pre-populate idbNext with the increasing probability until the rotation.
-	// The probability increases from 0% to 100% proportionally to d=[3600 .. 0].
-	pMin := float64(d) / 3600
+	// The probability increases from 0% to 100% proportioinally to d=[nextPrefillStartSeconds .. 0].
+	pMin := d / float64(s.idbPrefillStartSeconds)
 
 	ptwNext := s.tb.MustGetPartition(nextMonth.UnixMilli())
 	idbNext := ptwNext.pt.idb
@@ -2685,8 +2693,6 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) *legacyIndexDBs {
 		return nil
 	}
 
-	fs.MustRemoveTemporaryDirs(path)
-
 	// Search for the two most recent tables: prev and curr.
 
 	// Placing the regexp inside the func in order to keep legacy code close to
@@ -2704,6 +2710,13 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) *legacyIndexDBs {
 			// Skip invalid directories.
 			continue
 		}
+		tableDirPath := filepath.Join(path, tableName)
+		if fs.IsPartiallyRemovedDir(tableDirPath) {
+			// Finish the removal of partially deleted directory, which can occur
+			// when the directory was removed during unclean shutdown.
+			fs.MustRemoveDir(tableDirPath)
+			continue
+		}
 		tableNames = append(tableNames, tableName)
 	}
 	sort.Slice(tableNames, func(i, j int) bool {
@@ -2715,7 +2728,7 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) *legacyIndexDBs {
 		for _, tn := range tableNames[:len(tableNames)-3] {
 			pathToRemove := filepath.Join(path, tn)
 			logger.Infof("removing obsolete indexdb dir %q...", pathToRemove)
-			fs.MustRemoveAll(pathToRemove)
+			fs.MustRemoveDir(pathToRemove)
 			logger.Infof("removed obsolete indexdb dir %q", pathToRemove)
 		}
 		fs.MustSyncPath(path)
@@ -2725,7 +2738,7 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) *legacyIndexDBs {
 		// Also remove next idb.
 		pathToRemove := filepath.Join(path, tableNames[2])
 		logger.Infof("removing next indexdb dir %q...", pathToRemove)
-		fs.MustRemoveAll(pathToRemove)
+		fs.MustRemoveDir(pathToRemove)
 		logger.Infof("removed next indexdb dir %q", pathToRemove)
 		fs.MustSyncPath(path)
 		tableNames = tableNames[:2]

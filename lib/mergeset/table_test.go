@@ -4,20 +4,17 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestTableOpenClose(t *testing.T) {
 	const path = "TestTableOpenClose"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	// Create a new table
 	var isReadOnly atomic.Bool
@@ -35,26 +32,20 @@ func TestTableOpenClose(t *testing.T) {
 
 func TestTableAddItemsTooLongItem(t *testing.T) {
 	const path = "TestTableAddItemsTooLongItem"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 
 	var isReadOnly atomic.Bool
 	tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 	tb.AddItems([][]byte{make([]byte, maxInmemoryBlockSize+1)})
 	tb.MustClose()
-	_ = os.RemoveAll(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestTableAddItemsSerial(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	const path = "TestTableAddItemsSerial"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	var flushes atomic.Uint64
 	flushCallback := func() {
@@ -105,9 +96,7 @@ func testAddItemsSerial(r *rand.Rand, tb *Table, itemsCount int) {
 
 func TestTableCreateSnapshotAt(t *testing.T) {
 	const path = "TestTableCreateSnapshotAt"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 
 	var isReadOnly atomic.Bool
 	tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
@@ -168,19 +157,15 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	tb1.MustClose()
 	tb.MustClose()
 
-	_ = os.RemoveAll(snapshot2)
-	_ = os.RemoveAll(snapshot1)
-	_ = os.RemoveAll(path)
+	fs.MustRemoveDir(snapshot2)
+	fs.MustRemoveDir(snapshot1)
+	fs.MustRemoveDir(path)
 }
 
 func TestTableAddItemsConcurrentStress(t *testing.T) {
 	const path = "TestTableAddItemsConcurrentStress"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	rawItemsShardsPerTableOrig := rawItemsShardsPerTable
 	maxBlocksPerShardOrig := maxBlocksPerShard
@@ -235,12 +220,8 @@ func TestTableAddItemsConcurrentStress(t *testing.T) {
 
 func TestTableAddItemsConcurrent(t *testing.T) {
 	const path = "TestTableAddItemsConcurrent"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	var flushes atomic.Uint64
 	flushCallback := func() {

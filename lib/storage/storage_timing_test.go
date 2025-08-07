@@ -2,19 +2,19 @@ package storage
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/google/go-cmp/cmp"
 )
 
 func BenchmarkStorageAddRows(b *testing.B) {
-	defer vmfs.MustRemoveAll(b.Name())
+	defer fs.MustRemoveDir(b.Name())
 
 	f := func(b *testing.B, numRows int) {
 		b.Helper()
@@ -92,7 +92,7 @@ func BenchmarkStorageAddRows_VariousTimeRanges(b *testing.B) {
 		b.StopTimer()
 
 		s.MustClose()
-		vmfs.MustRemoveAll(b.Name())
+		fs.MustRemoveDir(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -164,7 +164,7 @@ func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		vmfs.MustRemoveAll(b.Name())
+		fs.MustRemoveDir(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -229,7 +229,7 @@ func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		vmfs.MustRemoveAll(b.Name())
+		fs.MustRemoveDir(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -292,7 +292,7 @@ func BenchmarkStorageSearchLabelValues_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		vmfs.MustRemoveAll(b.Name())
+		fs.MustRemoveDir(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -347,7 +347,7 @@ func BenchmarkStorageSearchTagValueSuffixes_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		vmfs.MustRemoveAll(b.Name())
+		fs.MustRemoveDir(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -402,7 +402,7 @@ func BenchmarkStorageSearchGraphitePaths_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		vmfs.MustRemoveAll(b.Name())
+		fs.MustRemoveDir(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
@@ -549,7 +549,7 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 			dataSize = benchmarkDirSize(path + "/data")
 
 			s.MustClose()
-			vmfs.MustRemoveAll(path)
+			fs.MustRemoveDir(path)
 		}
 
 		b.ReportMetric(float64(rowsAddedTotal)/float64(b.Elapsed().Seconds()), "rows/s")
@@ -576,7 +576,7 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 // benchmarkDirSize calculates the size of a directory.
 func benchmarkDirSize(path string) int64 {
 	var size int64
-	err := fs.WalkDir(os.DirFS(path), ".", func(_ string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(path, func(_ string, d os.DirEntry, err error) error {
 		if err != nil {
 			panic(err)
 		}

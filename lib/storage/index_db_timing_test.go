@@ -75,7 +75,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 	s.tb.PutPartition(ptw)
 	s.MustClose()
-	fs.MustRemoveAll(path)
+	fs.MustRemoveDir(path)
 }
 
 func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, timestamp int64, startOffset, recordsPerLoop int) {
@@ -258,7 +258,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 
 	s.tb.PutPartition(ptw)
 	s.MustClose()
-	fs.MustRemoveAll(path)
+	fs.MustRemoveDir(path)
 }
 
 func BenchmarkIndexDBGetTSIDs(b *testing.B) {
@@ -314,7 +314,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 
 	s.tb.PutPartition(ptw)
 	s.MustClose()
-	fs.MustRemoveAll(path)
+	fs.MustRemoveDir(path)
 }
 
 func BenchmarkMarshalUnmarshalMetricIDs(b *testing.B) {

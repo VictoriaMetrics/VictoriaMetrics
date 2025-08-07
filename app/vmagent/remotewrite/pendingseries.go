@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -60,7 +60,7 @@ func (ps *pendingSeries) MustStop() {
 	ps.periodicFlusherWG.Wait()
 }
 
-func (ps *pendingSeries) TryPush(tss []prompbmarshal.TimeSeries) bool {
+func (ps *pendingSeries) TryPush(tss []prompb.TimeSeries) bool {
 	ps.mu.Lock()
 	ok := ps.wr.tryPush(tss)
 	ps.mu.Unlock()
@@ -108,11 +108,11 @@ type writeRequest struct {
 	// How many decimal digits after point must be left before sending the writeRequest to fq.
 	roundDigits int
 
-	wr prompbmarshal.WriteRequest
+	wr prompb.WriteRequest
 
-	tss     []prompbmarshal.TimeSeries
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
+	tss     []prompb.TimeSeries
+	labels  []prompb.Label
+	samples []prompb.Sample
 
 	// buf holds labels data
 	buf []byte
@@ -159,7 +159,7 @@ func (wr *writeRequest) tryFlush() bool {
 	return true
 }
 
-func adjustSampleValues(samples []prompbmarshal.Sample, significantFigures, roundDigits int) {
+func adjustSampleValues(samples []prompb.Sample, significantFigures, roundDigits int) {
 	if n := significantFigures; n > 0 {
 		for i := range samples {
 			s := &samples[i]
@@ -174,7 +174,7 @@ func adjustSampleValues(samples []prompbmarshal.Sample, significantFigures, roun
 	}
 }
 
-func (wr *writeRequest) tryPush(src []prompbmarshal.TimeSeries) bool {
+func (wr *writeRequest) tryPush(src []prompb.TimeSeries) bool {
 	tssDst := wr.tss
 	maxSamplesPerBlock := *maxRowsPerBlock
 	// Allow up to 10x of labels per each block on average.
@@ -189,7 +189,7 @@ func (wr *writeRequest) tryPush(src []prompbmarshal.TimeSeries) bool {
 		}
 		tsSrc := &src[i]
 		adjustSampleValues(tsSrc.Samples, wr.significantFigures, wr.roundDigits)
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{})
+		tssDst = append(tssDst, prompb.TimeSeries{})
 		wr.copyTimeSeries(&tssDst[len(tssDst)-1], tsSrc)
 	}
 
@@ -197,7 +197,7 @@ func (wr *writeRequest) tryPush(src []prompbmarshal.TimeSeries) bool {
 	return true
 }
 
-func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
+func (wr *writeRequest) copyTimeSeries(dst, src *prompb.TimeSeries) {
 	labelsSrc := src.Labels
 
 	// Pre-allocate memory for labels.
@@ -240,7 +240,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 // marshalConcurrency limits the maximum number of concurrent workers, which marshal and compress WriteRequest.
 var marshalConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
-func tryPushWriteRequest(wr *prompbmarshal.WriteRequest, tryPushBlock func(block []byte) bool, isVMRemoteWrite bool) bool {
+func tryPushWriteRequest(wr *prompb.WriteRequest, tryPushBlock func(block []byte) bool, isVMRemoteWrite bool) bool {
 	if len(wr.Timeseries) == 0 {
 		// Nothing to push
 		return true

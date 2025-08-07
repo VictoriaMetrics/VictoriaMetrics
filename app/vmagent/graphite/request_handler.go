@@ -6,7 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite/stream"
 	"github.com/VictoriaMetrics/metrics"
@@ -36,22 +36,22 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 	for i := range rows {
 		r := &rows[i]
 		labelsLen := len(labels)
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  "__name__",
 			Value: r.Metric,
 		})
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  tag.Key,
 				Value: tag.Value,
 			})
 		}
-		samples = append(samples, prompbmarshal.Sample{
+		samples = append(samples, prompb.Sample{
 			Value:     r.Value,
 			Timestamp: r.Timestamp,
 		})
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
+		tssDst = append(tssDst, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[len(samples)-1:],
 		})

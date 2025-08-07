@@ -15,18 +15,6 @@ import (
 func mustSyncPath(_ string) {
 }
 
-func mustRemoveDirAtomic(dir string) {
-	n := atomicDirRemoveCounter.Add(1)
-	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
-	if err := os.Rename(dir, tmpDir); err != nil {
-		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
-	}
-	if err := os.RemoveAll(tmpDir); err != nil {
-		logger.Warnf("cannot remove dir: %q: %s; restart VictoriaMetrics to complete dir removal; "+
-			"see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70#issuecomment-1491529183", tmpDir, err)
-	}
-}
-
 const (
 	lockfileExclusiveLock = 2
 	fileFlagNormal        = 0x00000080
@@ -114,14 +102,13 @@ func mUnmap(data []byte) error {
 	return os.NewSyscallError("CloseHandle", errno)
 }
 
-func mustGetFreeSpace(path string) uint64 {
-	var freeBytes uint64
+func mustGetDiskSpace(path string) (total, free uint64) {
 	// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdiskfreespaceexw
-	err := windows.GetDiskFreeSpaceEx(windows.StringToUTF16Ptr(path), &freeBytes, nil, nil)
+	err := windows.GetDiskFreeSpaceEx(windows.StringToUTF16Ptr(path), &free, &total, nil)
 	if err != nil {
 		logger.Panicf("FATAL: cannot get free space for %q : %s", path, err)
 	}
-	return freeBytes
+	return total, free
 }
 
 // stub

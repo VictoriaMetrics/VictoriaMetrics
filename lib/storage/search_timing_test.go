@@ -93,7 +93,7 @@ func BenchmarkSearch_VariousTimeRanges(b *testing.B) {
 		}
 
 		s.MustClose()
-		fs.MustRemoveAll(b.Name())
+		fs.MustRemoveDir(b.Name())
 
 		// Start timer again to conclude the benchmark correctly.
 		b.StartTimer()
