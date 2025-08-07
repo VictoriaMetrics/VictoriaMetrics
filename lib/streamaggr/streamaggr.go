@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -1210,26 +1211,35 @@ func (ctx *flushCtx) flushSeries() {
 	}
 
 	// Slow path - apply output relabeling and then push the output metrics.
-	auxLabels := promutil.GetLabels()
-	dstLabels := auxLabels.Labels[:0]
 	dst := tss[:0]
+	wg := sync.WaitGroup{}
+	dstCh := make(chan *prompb.TimeSeries, len(tss))
+	rSem := make(chan struct{}, runtime.NumCPU())
+
 	for _, ts := range tss {
-		dstLabelsLen := len(dstLabels)
-		dstLabels = append(dstLabels, ts.Labels...)
-		dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
-		if len(dstLabels) == dstLabelsLen {
-			// The metric has been deleted by the relabeling
-			continue
-		}
-		ts.Labels = dstLabels[dstLabelsLen:]
-		dst = append(dst, ts)
+		rSem <- struct{}{}
+		wg.Add(1)
+		go func(ts *prompb.TimeSeries) {
+			defer wg.Done()
+			dstLabels := outputRelabeling.Apply(ts.Labels, 0)
+			if len(dstLabels) == 0 {
+				// The metric has been deleted by the relabeling
+				return
+			}
+			ts.Labels = dstLabels
+			dstCh <- ts
+			<-rSem
+		}(&ts)
+	}
+	wg.Wait()
+	close(dstCh)
+	for ts := range dstCh {
+		dst = append(dst, *ts)
 	}
 	if ctx.pushFunc != nil {
 		ctx.pushFunc(dst)
 		ctx.ao.outputSamples.Add(len(dst))
 	}
-	auxLabels.Labels = dstLabels
-	promutil.PutLabels(auxLabels)
 }
 
 func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
