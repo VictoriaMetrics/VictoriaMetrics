@@ -48,9 +48,9 @@ type MetadataStoreMetrics struct {
 }
 
 type Store struct {
-	MetricsMetadataStorage    map[metadataKey][]Row
-	MetricTimingInfo          map[metadataKey]metricTimingInfo
 	metricMetadataStorageLock sync.RWMutex
+	metricsMetadataStorage    map[metadataKey][]Row
+	metricTimingInfo          map[metadataKey]metricTimingInfo
 
 	storagePath string
 
@@ -66,8 +66,8 @@ type Store struct {
 
 func NewStore() *Store {
 	s := &Store{
-		MetricsMetadataStorage: make(map[metadataKey][]Row),
-		MetricTimingInfo:       make(map[metadataKey]metricTimingInfo),
+		metricsMetadataStorage: make(map[metadataKey][]Row),
+		metricTimingInfo:       make(map[metadataKey]metricTimingInfo),
 		cleanupInterval:        5 * time.Minute,
 		cleanupStopCh:          make(chan struct{}),
 	}
@@ -80,7 +80,7 @@ func NewStore() *Store {
 
 func MustLoadFrom(path string) *Store {
 	s := NewStore()
-	err := s.LoadFrom(path)
+	err := s.loadFrom(path)
 	if err != nil {
 		logger.Panicf("cannot load metrics metadata from %q: %s", path, err)
 	}
@@ -112,12 +112,12 @@ func (s *Store) Add(rows []Row) error {
 			projectID:        mr.ProjectID,
 			metricFamilyName: bytesutil.ToUnsafeString(mr.MetricFamilyName),
 		}
-		s.updateMetricTimingLocked(key, now)
+		s.updateMetricTimingLocked(&key, now)
 
-		metadataRows, ok := s.MetricsMetadataStorage[key]
+		metadataRows, ok := s.metricsMetadataStorage[key]
 		if !ok {
-			s.MetricsMetadataStorage[key] = make([]Row, 0, 1)
-			s.MetricsMetadataStorage[key] = append(s.MetricsMetadataStorage[key], mr)
+			s.metricsMetadataStorage[key] = make([]Row, 0, 1)
+			s.metricsMetadataStorage[key] = append(s.metricsMetadataStorage[key], mr)
 			s.itemsIngestedTotal++
 			s.itemsCurrentTotal++
 			continue
@@ -135,7 +135,7 @@ func (s *Store) Add(rows []Row) error {
 			s.itemsDeduplicated++
 			continue
 		}
-		s.MetricsMetadataStorage[key] = append(metadataRows, mr)
+		s.metricsMetadataStorage[key] = append(metadataRows, mr)
 		s.itemsIngestedTotal++
 		s.itemsCurrentTotal++
 	}
@@ -143,10 +143,10 @@ func (s *Store) Add(rows []Row) error {
 	return nil
 }
 
-func (s *Store) updateMetricTimingLocked(key metadataKey, now uint64) {
-	timing, exists := s.MetricTimingInfo[key]
+func (s *Store) updateMetricTimingLocked(key *metadataKey, now uint64) {
+	timing, exists := s.metricTimingInfo[*key]
 	if !exists {
-		s.MetricTimingInfo[key] = metricTimingInfo{
+		s.metricTimingInfo[*key] = metricTimingInfo{
 			LastIngestionTime:    now,
 			AvgIngestionInterval: 0,
 			IngestionCount:       1,
@@ -167,7 +167,7 @@ func (s *Store) updateMetricTimingLocked(key metadataKey, now uint64) {
 	timing.LastIngestionTime = now
 	timing.IngestionCount++
 
-	s.MetricTimingInfo[key] = timing
+	s.metricTimingInfo[*key] = timing
 }
 
 func (s *Store) runCleanupScheduler() {
@@ -191,9 +191,8 @@ func (s *Store) cleanup() {
 	defer s.metricMetadataStorageLock.Unlock()
 
 	now := fasttime.UnixTimestamp()
-	var keysToDelete []metadataKey
 
-	for key, timing := range s.MetricTimingInfo {
+	for key, timing := range s.metricTimingInfo {
 		if timing.IngestionCount < 2 {
 			continue
 		}
@@ -205,25 +204,21 @@ func (s *Store) cleanup() {
 		threshold := timing.AvgIngestionInterval * 10
 
 		if timeSinceLastIngestion > threshold {
-			keysToDelete = append(keysToDelete, key)
+			if rows, ok := s.metricsMetadataStorage[key]; ok {
+				s.itemsDeleted += uint64(len(rows))
+				s.itemsCurrentTotal -= uint64(len(rows))
+			}
+			delete(s.metricsMetadataStorage, key)
+			delete(s.metricTimingInfo, key)
 		}
-	}
-
-	for _, key := range keysToDelete {
-		if rows, ok := s.MetricsMetadataStorage[key]; ok {
-			s.itemsDeleted += uint64(len(rows))
-			s.itemsCurrentTotal -= uint64(len(rows))
-		}
-		delete(s.MetricsMetadataStorage, key)
-		delete(s.MetricTimingInfo, key)
 	}
 }
 
 func (s *Store) get(limit, limitPerMetric int64, metric string, keepFilter func(k metadataKey) bool) []Row {
-	if limit <= 0 {
+	if limit < 0 {
 		limit = 0
 	}
-	if limitPerMetric <= 0 {
+	if limitPerMetric < 0 {
 		limitPerMetric = 0
 	}
 
@@ -235,12 +230,13 @@ func (s *Store) get(limit, limitPerMetric int64, metric string, keepFilter func(
 		// Using itemsCurrentTotal counter for better performance
 		prealloc = int(s.itemsCurrentTotal)
 		if limitPerMetric > 0 {
-			prealloc = len(s.MetricsMetadataStorage) * int(limitPerMetric)
+			prealloc = len(s.metricsMetadataStorage) * int(limitPerMetric)
 		}
 	}
 	res := make([]Row, 0, prealloc)
-	for k, m := range s.MetricsMetadataStorage {
-		if len(metric) > 0 && k.metricFamilyName != metric {
+	metricLen := len(metric)
+	for k, m := range s.metricsMetadataStorage {
+		if metricLen > 0 && k.metricFamilyName != metric {
 			continue
 		}
 
@@ -282,7 +278,7 @@ func (s *Store) UpdateMetrics(dst *MetadataStoreMetrics) {
 	defer s.metricMetadataStorageLock.RUnlock()
 	totalSize := 0
 	perRowOverhead := int(unsafe.Sizeof(metadataKey{})) + int(unsafe.Sizeof(Row{})) + 24 // 24 bytes for map overhead
-	for _, rows := range s.MetricsMetadataStorage {
+	for _, rows := range s.metricsMetadataStorage {
 		for _, row := range rows {
 			totalSize += len(row.MetricFamilyName) + len(row.Help) + len(row.Unit) + perRowOverhead
 		}
@@ -311,12 +307,9 @@ func (s *Store) mustSaveLocked() {
 	je := json.NewEncoder(zw)
 
 	var r recordForStore
-	for key, rows := range s.MetricsMetadataStorage {
-		r.AccountID = key.accountID
-		r.ProjectID = key.projectID
-		r.MetricFamilyName = key.metricFamilyName
+	for key, rows := range s.metricsMetadataStorage {
 		r.Rows = rows
-		if timingInfo, ok := s.MetricTimingInfo[key]; ok {
+		if timingInfo, ok := s.metricTimingInfo[key]; ok {
 			r.TimingInfo = timingInfo
 		} else {
 			r.TimingInfo = metricTimingInfo{}
@@ -335,7 +328,7 @@ func (s *Store) mustSaveLocked() {
 
 }
 
-func (s *Store) LoadFrom(path string) error {
+func (s *Store) loadFrom(path string) error {
 	s.storagePath = path
 
 	// fast path
@@ -373,8 +366,8 @@ func (s *Store) LoadFrom(path string) error {
 			projectID:        r.ProjectID,
 			metricFamilyName: r.MetricFamilyName,
 		}
-		s.MetricsMetadataStorage[key] = r.Rows
-		s.MetricTimingInfo[key] = r.TimingInfo
+		s.metricsMetadataStorage[key] = r.Rows
+		s.metricTimingInfo[key] = r.TimingInfo
 		s.itemsCurrentTotal += uint64(len(r.Rows))
 	}
 	s.itemsIngestedTotal = s.itemsCurrentTotal
