@@ -7962,7 +7962,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of the number of time series read per query.",
+          "description": "Shows the max 99th percentile of time series read per query across all vmselects.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8051,7 +8051,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(histogram_quantile(0.99, sum(rate(vm_series_read_per_query_bucket{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
+              "expr": "max(histogram_quantile(0.99, sum(rate(vm_series_read_per_query_bucket{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -8068,7 +8068,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per queried time series.",
+          "description": "Shows the max 99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per time series.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8157,7 +8157,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(histogram_quantile(0.99, sum(rate(vm_rows_read_per_series_bucket{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
+              "expr": "max(histogram_quantile(0.99, sum(rate(vm_rows_read_per_series_bucket{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -8174,7 +8174,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per query.",
+          "description": "Shows the max 99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per query.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8263,7 +8263,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(histogram_quantile(0.99, sum(rate(vm_rows_read_per_query_bucket{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
+              "expr": "max(histogram_quantile(0.99, sum(rate(vm_rows_read_per_query_bucket{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -8280,7 +8280,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "description": "Shows the max 99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8369,7 +8369,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(histogram_quantile(0.99, sum(rate(vm_rows_scanned_per_query_bucket{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
+              "expr": "max(histogram_quantile(0.99, sum(rate(vm_rows_scanned_per_query_bucket{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange)))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,

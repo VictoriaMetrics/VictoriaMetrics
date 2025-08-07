@@ -22,6 +22,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): print a proper error message when templating function fails during execution. Previously, vmalert-tool could throw a misleading panic message instead.
 * BUGFIX: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): fix samples rate panel not showing data in case vmagent is not scraping metrics. Previously, the panel would not display "samples in" results if vmagent only accepts metrics via push protocols.
+* BUGFIX: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): fix panels showing 99th percentile of series or samples read per query or per series. Before, panels were showing the summarized value across all vmselect instances, which didn't make much sense. Now, panels show the max value across the vmselect instances, making it easier to understand complexity of the heaviest queries served.
 
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
