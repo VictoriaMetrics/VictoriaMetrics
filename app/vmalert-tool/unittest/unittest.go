@@ -366,6 +366,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 			mergedExternalLabels[k] = v
 		}
 		ng := rule.NewGroup(group, q, time.Minute, mergedExternalLabels)
+		ng.Init()
 		groups = append(groups, ng)
 	}
 
