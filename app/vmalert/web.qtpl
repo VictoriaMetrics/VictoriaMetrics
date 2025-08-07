@@ -8,6 +8,7 @@
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+    "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 ) %}
 
 {% func Controls(prefix, currentIcon, currentText string, icons, filters map[string]string, search bool) %}
@@ -93,7 +94,7 @@
     {%= tpl.Footer(r) %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, groups []*apiGroup, filter string) %}
+{% func ListGroups(r *http.Request, groups []*rule.ApiGroup, filter string) %}
     {%code
         prefix := vmalertutil.Prefix(r.URL.Path)
         filters := map[string]string{
@@ -222,7 +223,7 @@
 {% endfunc %}
 
 
-{% func ListAlerts(r *http.Request, groupAlerts []groupAlerts) %}
+{% func ListAlerts(r *http.Request, groupAlerts []rule.GroupAlerts) %}
     {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Alerts", getLastConfigError()) %}
     {%= Controls(prefix, "", "", nil, nil, true) %}
@@ -231,7 +232,7 @@
              {%code
                  g := ga.Group
                  var keys []string
-                 alertsByRule := make(map[string][]*apiAlert)
+                 alertsByRule := make(map[string][]*rule.ApiAlert)
                  for _, alert := range ga.Alerts {
                      if len(alertsByRule[alert.RuleID]) < 1 {
                          keys = append(keys, alert.RuleID)
@@ -378,7 +379,7 @@
     {%= tpl.Footer(r) %}
 {% endfunc %}
 
-{% func Alert(r *http.Request, alert *apiAlert) %}
+{% func Alert(r *http.Request, alert *rule.ApiAlert) %}
     {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
@@ -464,7 +465,7 @@
 {% endfunc %}
 
 
-{% func RuleDetails(r *http.Request, rule apiRule) %}
+{% func RuleDetails(r *http.Request, rule rule.ApiRule) %}
     {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
@@ -649,7 +650,7 @@
 <span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
 {% endfunc %}
 
-{% func seriesFetchedWarn(prefix string, r apiRule) %}
+{% func seriesFetchedWarn(prefix string, r rule.ApiRule) %}
 {% if isNoMatch(r) %}
 <svg
     data-bs-toggle="tooltip"
@@ -663,7 +664,7 @@
 {% endfunc %}
 
 {%code
-  func isNoMatch (r apiRule) bool {
+  func isNoMatch (r rule.ApiRule) bool {
     return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
   }
 %}
