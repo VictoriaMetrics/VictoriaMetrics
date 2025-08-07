@@ -376,13 +376,15 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			}
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
 
-			// save alert's state on last iteration, so it can be used on the next execRange call
-			if at.Equal(end) {
+			// if for>0, save alert's state on last iteration, so it can be used on the next execRange call
+			if ar.For > 0 && at.Equal(end) {
 				holdAlertState[alertID] = a
 			}
 		}
 	}
-	ar.alerts = holdAlertState
+	if len(holdAlertState) > 0 {
+		ar.alerts = holdAlertState
+	}
 	return result, nil
 }
 
