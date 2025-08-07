@@ -171,10 +171,6 @@ type indexDB struct {
 	// The db must be automatically recovered after that.
 	missingMetricNamesForMetricID atomic.Uint64
 
-	// The number of metricNames that have been loaded using
-	// prefetchMetricNames() func. Prefetching this way is considered slow.
-	slowMetricNameLoads atomic.Uint64
-
 	// legacyMinMissingTimestampByKey holds the minimum timestamps by index search key,
 	// which is missing in the given indexDB.
 	// Key must be formed with marshalCommonPrefix function.
@@ -302,8 +298,6 @@ type IndexDBMetrics struct {
 
 	MissingMetricNamesForMetricID uint64
 
-	SlowMetricNameLoads uint64
-
 	IndexBlocksWithMetricIDsProcessed      uint64
 	IndexBlocksWithMetricIDsIncorrectOrder uint64
 
@@ -345,8 +339,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.GlobalSearchCalls += db.globalSearchCalls.Load()
 
 	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
-
-	m.SlowMetricNameLoads += db.slowMetricNameLoads.Load()
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
 }
