@@ -34,6 +34,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -84,7 +85,8 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 		defer server.Close()
 	} else {
 		httpListenAddr = httpListenPort
-		ln, err := net.Listen("tcp", fmt.Sprintf(":%s", httpListenPort))
+
+		ln, err := net.Listen(netutil.GetTCPNetwork(), fmt.Sprintf(":%s", httpListenPort))
 		if err != nil {
 			logger.Fatalf("cannot listen on port %s: %v", httpListenPort, err)
 		}
