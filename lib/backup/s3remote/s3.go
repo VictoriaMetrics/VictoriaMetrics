@@ -340,12 +340,13 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		r: r,
 	}
 	input := &s3.PutObjectInput{
-		Bucket:       aws.String(fs.Bucket),
-		Key:          aws.String(path),
-		Body:         sr,
-		StorageClass: fs.StorageClass,
-		Metadata:     fs.Metadata,
-		Tagging:      fs.tags,
+		Bucket:            aws.String(fs.Bucket),
+		Key:               aws.String(path),
+		Body:              sr,
+		StorageClass:      fs.StorageClass,
+		Metadata:          fs.Metadata,
+		Tagging:           fs.tags,
+		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 	}
 
 	_, err := fs.uploader.Upload(fs.ctx, input)
@@ -432,12 +433,13 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 		r: bytes.NewReader(data),
 	}
 	input := &s3.PutObjectInput{
-		Bucket:       aws.String(fs.Bucket),
-		Key:          aws.String(path),
-		Body:         sr,
-		StorageClass: fs.StorageClass,
-		Metadata:     fs.Metadata,
-		Tagging:      fs.tags,
+		Bucket:            aws.String(fs.Bucket),
+		Key:               aws.String(path),
+		Body:              sr,
+		StorageClass:      fs.StorageClass,
+		Metadata:          fs.Metadata,
+		Tagging:           fs.tags,
+		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 	}
 	_, err := fs.uploader.Upload(fs.ctx, input)
 	if err != nil {
