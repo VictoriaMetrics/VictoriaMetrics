@@ -246,24 +246,33 @@ func TestReplay(t *testing.T) {
 
 	// multiple rules + rule concurrency + group concurrency
 	f("2021-01-01T12:00:00.000Z", "2021-01-01T12:02:30.000Z", 1, 3, 0, []config.Group{
-		{Rules: []config.Rule{{Alert: "foo-group-single-concurrent", Expr: "sum(up) > 1"}, {Alert: "bar-group-single-concurrent", Expr: "max(up) < 1"}}, Concurrency: 2}}, &fakeReplayQuerier{
+		{Rules: []config.Rule{{Alert: "foo-group-single-concurrent", For: promutil.NewDuration(30 * time.Second), Expr: "sum(up) > 1"}, {Alert: "bar-group-single-concurrent", Expr: "max(up) < 1"}}, Concurrency: 2}}, &fakeReplayQuerier{
 		registry: map[string]map[string][]datasource.Metric{
 			"sum(up) > 1": {
-				"12:00:00+12:01:00": {},
-				"12:01:00+12:02:00": {{
-					Timestamps: []int64{1},
+				"12:00:00+12:01:00": {{
+					Timestamps: []int64{1609502460},
 					Values:     []float64{1},
 				}},
-				"12:02:00+12:02:30": {},
+				"12:01:00+12:02:00": {{
+					Timestamps: []int64{1609502520},
+					Values:     []float64{1},
+				}},
+				"12:02:00+12:02:30": {{
+					Timestamps: []int64{1609502580},
+					Values:     []float64{1},
+				}},
 			},
 			"max(up) < 1": {
-				"12:00:00+12:01:00": {},
+				"12:00:00+12:01:00": {{
+					Timestamps: []int64{1609502460},
+					Values:     []float64{1},
+				}},
 				"12:01:00+12:02:00": {{
-					Timestamps: []int64{1},
+					Timestamps: []int64{1609502520},
 					Values:     []float64{1},
 				}},
 				"12:02:00+12:02:30": {},
 			},
 		},
-	}, 4)
+	}, 10)
 }
