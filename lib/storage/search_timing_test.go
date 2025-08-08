@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -29,12 +30,19 @@ func BenchmarkSearch_VariousTimeRanges(b *testing.B) {
 			want[i].Timestamp = tr.MinTimestamp + int64(i)*step
 			want[i].Value = float64(i)
 		}
+		rng := rand.New(rand.NewSource(1))
+		mrsToDelete := testGenerateMetricRowsWithPrefix(rng, numRows, "deleteme", tr)
+
 		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(want[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.AddRows(mrsToDelete[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both
+		// current and prev indexDBs.
 		s.mustRotateIndexDB(time.Now())
 		s.AddRows(want[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrsToDelete[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
+		testDeleteSeries(b, s, "deleteme.*", numRows)
 
 		tfss := NewTagFilters()
 		if err := tfss.Add(nil, []byte("metric_.*"), false, true); err != nil {
