@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"container/heap"
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -98,4 +99,112 @@ func (t *TSID) Less(b *TSID) bool {
 		return t.InstanceID < b.InstanceID
 	}
 	return t.MetricID < b.MetricID
+}
+
+// mergeTSIDs2Way merges two sorted TSID slices into one. Dublicates are
+// removed.
+func mergeTSIDs2Way(a, b []TSID) []TSID {
+	all := make([]TSID, 0, len(a)+len(b))
+	i, j := 0, 0
+	var tsid TSID
+	for i < len(a) || j < len(b) {
+		if i == len(a) {
+			tsid = b[j]
+			j++
+		} else if j == len(b) {
+			tsid = a[i]
+			i++
+		} else if a[i].Less(&b[j]) {
+			tsid = a[i]
+			i++
+		} else {
+			tsid = b[j]
+			j++
+		}
+		if len(all) == 0 || all[len(all)-1] != tsid {
+			all = append(all, tsid)
+		}
+	}
+	return all
+}
+
+// mergeTSIDsNWay merges N sorted TSID slices into one. Duplicates are
+// removed.
+func mergeTSIDsNWay(tsidss [][]TSID) []TSID {
+	items := make([]tsidItem, len(tsidss))
+	h := make(tsidHeap, 0)
+	heap.Init(&h)
+	var n int
+	for i, d := range tsidss {
+		if len(d) > 0 {
+			item := &items[i]
+			item.tsid = &d[0]
+			item.sliceIdx = i
+			item.elementIdx = 0
+			heap.Push(&h, item)
+			n += len(d)
+		}
+	}
+	all := make([]TSID, 0, n)
+	var lastAdded *TSID
+	for h.Len() > 0 {
+		item := heap.Pop(&h).(*tsidItem)
+
+		if len(all) == 0 || *item.tsid != *lastAdded {
+			all = append(all, *item.tsid)
+			lastAdded = item.tsid
+		}
+
+		if item.elementIdx+1 < len(tsidss[item.sliceIdx]) {
+			item.tsid = &tsidss[item.sliceIdx][item.elementIdx+1]
+			item.elementIdx++
+			heap.Push(&h, item)
+		}
+	}
+	return all
+}
+
+// tsidItem represents a single element in tsidHeap used for implementing N-way
+// merge of N sorted TSID slices. See mergeTSIDsNWay().
+//
+// Given the slice of TSID slices [][]TSID, tsidItem holds the pointer to a TSID
+// that is stored in sliceIdx slice at elementIdx index.
+type tsidItem struct {
+	tsid       *TSID
+	sliceIdx   int
+	elementIdx int
+}
+
+// tsidHeap is a slice of tsidItems that implements methods that allow to use it
+// as a heap. It is used for implementing N-way merge of N sorted TSID slices.
+// See mergeTSIDsNWay().
+type tsidHeap []*tsidItem
+
+// Len returns the length of the heap.
+func (h tsidHeap) Len() int {
+	return len(h)
+}
+
+// Less compares two TSIDs.
+func (h tsidHeap) Less(i, j int) bool {
+	return h[i].tsid.Less(h[j].tsid)
+}
+
+// Swap swaps to heap items.
+func (h tsidHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+// Push adds a new item to the heap.
+func (h *tsidHeap) Push(v any) {
+	item := v.(*tsidItem)
+	*h = append(*h, item)
+}
+
+// Pop removes the smallest item from the heap and returns it to the caller.
+func (h *tsidHeap) Pop() any {
+	old := *h
+	item := old[len(old)-1]
+	*h = old[0 : len(old)-1]
+	return item
 }
