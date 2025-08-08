@@ -35,11 +35,13 @@
 tsbs: tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries tsbs-run-queries
 
 TSBS_SCALE := 100000
-# If GNU date is available, use it; otherwise, fall back to the standard date command
-# User can install GNU date on macOS via `brew install coreutils`
-DATE_CMD := $(shell which gdate 2>/dev/null || echo date)
-TSBS_START := $(shell $(DATE_CMD) -u -d "1 day ago 00:00:00" +"%Y-%m-%dT%H:%M:%SZ")
-TSBS_END   := $(shell $(DATE_CMD) -u -d "00:00:00" +"%Y-%m-%dT%H:%M:%SZ")
+TSBS_END := $(shell date -u +%Y-%m-%dT00:00:00Z)
+TSBS_START := $(shell \
+  NOW=$$(date -u +%s); \
+  START=$$((NOW - 86400)); \
+  date -u -d "@$$START" +%Y-%m-%dT00:00:00Z 2>/dev/null || \
+  date -u -r $$START +%Y-%m-%dT00:00:00Z 2>/dev/null \
+)
 TSBS_STEP := 80s
 TSBS_QUERIES := 1000
 TSBS_WORKERS := 4
