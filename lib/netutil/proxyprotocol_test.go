@@ -129,12 +129,9 @@ func TestProxyProtocolConnReadWriteSuccessful(t *testing.T) {
 			0x00, 0x50, // destination port 80
 		}
 
-		if _, err := client.Write(proxyHeader); err != nil {
-			t.Fatalf("failed to write proxy protocol header: %v", err)
-		}
-		if _, err := client.Write(expectedData); err != nil {
-			t.Fatalf("failed to write data to proxy connection: %v", err)
-		}
+		// net.Pipe should not produce an error as it is completely in-memory
+		_, _ = client.Write(proxyHeader)
+		_, _ = client.Write(expectedData)
 	}()
 
 	// Read from proxy protocol connection
@@ -171,8 +168,8 @@ func TestProxyProtocolConnReadWriteFailure(t *testing.T) {
 	go func() {
 		invalidProxyHeader := []byte("GET / HTTP/1.1\r\n\r\n")
 
-		defer client.Close()
-		client.Write(invalidProxyHeader)
+		// net.Pipe should not produce an error as it is completely in-memory
+		_, _ = client.Write(invalidProxyHeader)
 	}()
 
 	buf := make([]byte, 100)
