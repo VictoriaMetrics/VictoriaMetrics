@@ -8,6 +8,7 @@ menu:
     weight: 100
 tags:
   - metrics
+canonical: /victoriametrics/changelog/changelog_2025/
 aliases:
   - /CHANGELOG.html
   - /changelog/index.html

@@ -131,7 +131,7 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
 
         counter++;
       }
-      const limitText = `Showing ${tempData.length} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
+      const limitText = `Showing ${tempData.length} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns fewer series`;
       setWarning(totalLength > seriesLimit ? limitText : "");
       setData(tempData as MetricResult[]);
       setIsLoading(false);

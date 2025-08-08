@@ -2,46 +2,58 @@ package netutil
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
-	"time"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 type proxyProtocolConn struct {
 	net.Conn
+	once       sync.Once
 	remoteAddr net.Addr
+	readErr    error
 }
 
-func newProxyProtocolConn(c net.Conn) (net.Conn, error) {
-	// Limit the time needed for reading the proxy protocol header.
-	d := time.Now().Add(5 * time.Second)
-	if err := c.SetReadDeadline(d); err != nil {
-		return nil, fmt.Errorf("cannot set deadline for reading proxy protocol header: %w", err)
-	}
-
-	remoteAddr, err := readProxyProto(c)
-	if err != nil {
-		return nil, fmt.Errorf("proxy protocol error: %w", err)
-	}
-	if remoteAddr == nil {
-		remoteAddr = c.RemoteAddr()
-	}
-
-	// Reset the read deadline.
-	if err := c.SetReadDeadline(time.Time{}); err != nil {
-		return nil, fmt.Errorf("cannot reset deadline after reading proxy protocol header: %w", err)
-	}
-
+func newProxyProtocolConn(c net.Conn) net.Conn {
 	return &proxyProtocolConn{
-		Conn:       c,
-		remoteAddr: remoteAddr,
-	}, nil
+		Conn: c,
+	}
+}
+
+func (ppc *proxyProtocolConn) init() {
+	ppc.once.Do(func() {
+		addr, err := readProxyProto(ppc.Conn)
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				proxyProtocolReadErrorLogger.Errorf("cannot read proxy proto conn for TCP addr %q: %s", ppc.Conn.RemoteAddr(), err)
+			}
+			ppc.readErr = err
+			return
+		}
+		if addr == nil {
+			addr = ppc.Conn.RemoteAddr()
+		}
+		ppc.remoteAddr = addr
+	})
+}
+
+func (ppc *proxyProtocolConn) Read(p []byte) (int, error) {
+	ppc.init()
+	if ppc.readErr != nil {
+		return 0, ppc.readErr
+	}
+	return ppc.Conn.Read(p)
 }
 
 func (ppc *proxyProtocolConn) RemoteAddr() net.Addr {
+	ppc.init()
+	if ppc.readErr != nil {
+		return ppc.Conn.RemoteAddr()
+	}
 	return ppc.remoteAddr
 }
 

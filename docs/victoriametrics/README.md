@@ -1754,32 +1754,29 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 ## Monitoring
 
 VictoriaMetrics exports internal metrics in Prometheus exposition format at `/metrics` page.
-These metrics can be scraped via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or any other Prometheus-compatible scraper.
+These metrics [can be scraped](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-single.yml)
+via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or any other Prometheus-compatible scraper.
 
-If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
-command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
-See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
+> Single-node VictoriaMetrics can self-scrape its metrics when `-selfScrapeInterval` command-line flag is
+set to duration greater than 0. For example, `-selfScrapeInterval=10s` scrapes `/metrics` page every 10 seconds.
+ 
+See the list of official [Grafana dashboards for VictoriaMetrics components](https://grafana.com/orgs/victoriametrics/dashboards).
 
-Alternatively, single-node VictoriaMetrics can self-scrape the metrics when `-selfScrapeInterval` command-line flag is 
-set to duration greater than 0. For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page 
-with 10 seconds interval.
+Please follow the monitoring recommendations below: 
 
-_Please note, never use loadbalancer address for scraping metrics. All the monitored components should be scraped directly by their address._
-
-Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229)
-and [clustered](https://grafana.com/grafana/dashboards/11176) VictoriaMetrics.
-
-Graphs on the dashboards contain useful hints - hover the `i` icon in the top left corner of each graph to read it.
-
-We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
+* Prefer giving distinct scrape job names per each component type. I.e. `vmagent` and `vmalert` should have corresponding job names.
+* Never use load balancer address for scraping metrics. All the monitored components should be scraped directly by their address.
+* Set up [recommended alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)
 via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via Prometheus.
-
-VictoriaMetrics exposes currently running queries and their execution times at [`active queries` page](#active-queries).
-
-VictoriaMetrics exposes queries, which take the most time to execute, at [`top queries` page](#top-queries).
+* See currently running queries and their execution times at [`active queries` page](#active-queries).
+* See queries that take the most time to execute at [`top queries` page](#top-queries).
 
 See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 and [troubleshooting docs](https://docs.victoriametrics.com/victoriametrics/troubleshooting/).
+
+> VictoriaMetrics components do not expose metadata `TYPE` and `HELP` fields on `/metrics` page.
+> Services like Google Cloud Managed Prometheus could require metadata to be present for scraping. In this case, pass `-metrics.exposeMetadata`
+command-line to them. See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
 ## TSDB stats
 

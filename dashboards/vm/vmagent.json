@@ -7966,7 +7966,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_promscrape_scraped_samples_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)\n+ sum(rate(vmagent_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)",
+              "expr": "sum(rate({__name__=~\"vm_promscrape_scraped_samples_sum|vmagent_rows_inserted_total\",job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)",
               "hide": false,
               "interval": "",
               "legendFormat": "in {{instance}} {{job}}",

@@ -182,7 +182,7 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 		rw.err(w, fmt.Errorf("decode err: %w", err))
 		return
 	}
-	wru := &prompb.WriteRequestUnmarshaller{}
+	wru := &prompb.WriteRequestUnmarshaler{}
 	wr, err := wru.UnmarshalProtobuf(b)
 	if err != nil {
 		rw.err(w, fmt.Errorf("unmarhsal err: %w", err))

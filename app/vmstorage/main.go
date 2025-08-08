@@ -416,6 +416,7 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetFreeSpace(*storageDataPath))
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *storageDataPath), uint64(minFreeDiskSpaceBytes.N))
+	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_total_disk_space_bytes{path=%q}`, *storageDataPath), fs.MustGetTotalSpace(*storageDataPath))
 
 	isReadOnly := 0
 	if strg.IsReadOnly() {
