@@ -127,10 +127,10 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 			s := MustOpenStorage(t.Name(), opts)
 			defer s.MustClose()
 
-			rng := rand.New(rand.NewSource(1))
 			const numSeries = 1000
 			addRows := func() {
 				t.Helper()
+				rng := rand.New(rand.NewSource(1))
 				ct := time.Now().UTC()
 				tr := TimeRange{
 					MinTimestamp: ct.Add(-prefillStart).UnixMilli(),
@@ -139,7 +139,6 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 				mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
 				s.AddRows(mrs, 1)
 				s.DebugFlush()
-				time.Sleep(time.Nanosecond)
 			}
 
 			// Insert metrics into the empty storage right before the prefill
