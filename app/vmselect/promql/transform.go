@@ -903,7 +903,6 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 
 	// Convert buckets with `vmrange` labels to buckets with `le` labels.
 	tss := vmrangeBucketsToLE(args[1])
-
 	// Parse boundsLabel. See https://github.com/prometheus/prometheus/issues/5706 for details.
 	var boundsLabel string
 	if len(args) > 2 {
@@ -1050,9 +1049,15 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 		return
 	}
 
+	vNext := xss[0].ts.Values[i]
+	// Set the lowest bucket to 0 if its value is NaN, so it can be properly
+	// compared with upper buckets in the loop below.
+	if math.IsNaN(vNext) {
+		vNext = 0
+		xss[0].ts.Values[i] = vNext
+	}
 	// Substitute upper bucket values with lower bucket values if the upper values are NaN
 	// or are bigger than the lower bucket values.
-	vNext := xss[0].ts.Values[i]
 	for j := 1; j < len(xss); j++ {
 		v := xss[j].ts.Values[i]
 		if math.IsNaN(v) || vNext > v {
