@@ -19,7 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: expose `vm_total_disk_space_bytes` metric at the [`/metrics` page](https://docs.victoriametrics.com/#monitoring), which shows the total disk space for the data directory specified via [`-storageDataPath`](https://docs.victoriametrics.com/#storage). This metric can be useful for building alerts and graphs for the percentatge of free disk space via `vm_free_disk_space_bytes / vm_total_disk_space_bytes`. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9523#issuecomment-3149459926).
-* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix gaps in `histogram_quantile` calculation, which correlate with NaNs in a first bucket.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): gracefully handle `histogram_quantile` calculation for histograms where buckets are created on demand. This change isn't needed for users who use native instrumentation SDKs for metrics from [VictoriaMetrics](https://github.com/VictoriaMetrics/metrics), [Prometheus](https://prometheus.io/docs/instrumenting/clientlibs/) or [OpenTelemetry](https://opentelemetry.io/docs/languages/). 
 
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
