@@ -112,97 +112,98 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 }
 
 func TestStorageRotateIndexDBPrefill(t *testing.T) {
-	t.Skip("TODO(@rtm0): adjust for pt index")
-	f := func(opts OpenOptions, prefillStart time.Duration) {
-		defer testRemoveAll(t)
+	defer testRemoveAll(t)
+	f := func(t *testing.T, opts OpenOptions, prefillStart time.Duration) {
 		t.Helper()
 
 		synctest.Run(func() {
-			// Align start time to 05:00 in order to have 23h before the next rotation cycle at 04:00 next morning.
-			time.Sleep(time.Hour * 5)
-
-			nextRotationTime := time.Now().Add(time.Hour * 23).Truncate(time.Hour)
+			// Prefill of the next partition indexDB happens during the
+			// (nextMonth-prefillStart, nextMonth] time interval.
+			// Advance current time right before the the beginning of that interval.
+			ct := time.Now().UTC()
+			nextMonth := time.Date(ct.Year(), ct.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+			time.Sleep(nextMonth.Sub(ct.Add(prefillStart)))
 
 			s := MustOpenStorage(t.Name(), opts)
 			defer s.MustClose()
-			// first rotation cycle in 4 hours due to synctest start time of 00:00:00
+
 			rng := rand.New(rand.NewSource(1))
-			ct := time.Now()
-			tr := TimeRange{
-				MinTimestamp: ct.Add(time.Hour).UnixMilli(),
-				MaxTimestamp: ct.Add(time.Hour * 24).UnixMilli(),
-			}
 			const numSeries = 1000
-
-			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			createdSeries := s.newTimeseriesCreated.Load()
-			if createdSeries != numSeries {
-				t.Fatalf("unexpected number of created series (-%d;+%d)", numSeries, createdSeries)
+			addRows := func() {
+				t.Helper()
+				ct := time.Now().UTC()
+				tr := TimeRange{
+					MinTimestamp: ct.Add(-prefillStart).UnixMilli(),
+					MaxTimestamp: ct.UnixMilli(),
+				}
+				mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
+				s.AddRows(mrs, 1)
+				s.DebugFlush()
+				time.Sleep(time.Nanosecond)
 			}
 
-			// Sleep until a minute before the prefill start time,
-			// then verify that no timeseries have been pre-created yet.
-			time.Sleep(time.Hour*23 - prefillStart - 1*time.Minute)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			preCreated := s.timeseriesPreCreated.Load()
-			if preCreated != 0 {
-				t.Fatalf("expected no timeseries to be re-created, got: %d", preCreated)
+			// Insert metrics into the empty storage right before the prefill
+			// interval starts.
+			addRows()
+			if got, want := s.newTimeseriesCreated.Load(), uint64(numSeries); got != want {
+				t.Fatalf("unexpected number of new timeseries: got %d, want %d", got, want)
+			}
+			if got, want := s.timeseriesPreCreated.Load(), uint64(0); got != want {
+				t.Fatalf("unexpected number of pre-created timeseries: got %d, want %d", got, want)
 			}
 
-			// Sleep until half of the prefill rotation interval has elapsed,
+			// Sleep until half of the prefill interval has elapsed,
 			// then verify that some time series have been pre-created.
 			time.Sleep(prefillStart / 2)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			preCreated = s.timeseriesPreCreated.Load()
-			if preCreated == 0 {
-				t.Fatalf("expected some timeseries to be re-created, got: %d", preCreated)
+			addRows()
+			if got, want := s.timeseriesPreCreated.Load(), uint64(0); got <= want {
+				t.Fatalf("unexpected number of pre-created timeseries: got %d, want > %d", got, want)
 			}
 
-			// Sleep until a minute before the index rotation,
-			// verify that almost all time series have been pre-created.
-			time.Sleep(nextRotationTime.Sub(time.Now().Add(time.Minute)))
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			preCreated = s.timeseriesPreCreated.Load()
-			if preCreated == 0 || preCreated < numSeries/2 {
-				t.Fatalf("expected more than 50 percent of timeseries to be re-created, got: %d", preCreated)
+			// Sleep until a minute before the next partition transition, verify
+			// that almost all time series have been pre-created.
+			ct = time.Now().UTC()
+			time.Sleep(nextMonth.Sub(ct.Add(time.Minute)))
+			addRows()
+			if got, want := s.timeseriesPreCreated.Load(), uint64(numSeries/2); got <= want {
+				t.Fatalf("unexpected number of pre-created timeseries: got %d, want > %d", got, want)
 			}
 
-			// Sleep until the rotation is over, verify that the rest of time series have been re-created
-			time.Sleep(time.Hour)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			createdSeries, reCreated, rePopulated := s.newTimeseriesCreated.Load(), s.timeseriesPreCreated.Load(), s.timeseriesRepopulated.Load()
-			if createdSeries != numSeries {
-				t.Fatalf("unexpected number of created series (-%d;+%d)", numSeries, createdSeries)
-			}
-			if reCreated+rePopulated != numSeries {
-				t.Fatalf("unexpected number of re-created=%d and re-populated=%d series, want sum to be equal to %d", numSeries, createdSeries, numSeries)
+			// Align the time with the start of the next month.
+			time.Sleep(time.Minute)
+			// Sleep until the transition to the next partition is over, verify
+			// that the rest of time series have been re-created
+			time.Sleep(prefillStart)
+			newCreated := s.newTimeseriesCreated.Load()
+			addRows()
+			newCreated = s.newTimeseriesCreated.Load() - newCreated
+			// If jump in time is bigger than 1h, the tsidCache will be cleared
+			// and therefore the metrics will not be repopulated. Instead, new
+			// metrics will be created.
+			preCreated, repopulated := s.timeseriesPreCreated.Load(), s.timeseriesRepopulated.Load()
+			if preCreated+repopulated+newCreated != numSeries {
+				t.Fatalf("unexpected number of pre-populated, repopulated, and new timeseries: got %d + %d + %d, want %d", preCreated, repopulated, newCreated, numSeries)
 			}
 		})
 	}
 
-	// Test the default prefill start duration, see -storage.idbPrefillStart flag:
-	// VictoriaMetrics starts prefill indexDB at 3 A.M UTC, while indexDB rotates at 4 A.M UTC.
-	f(
-		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: time.Hour},
-		time.Hour,
-	)
-
-	// Zero IDBPrefillStart option should fallback to 1 hour prefill start:
-	f(
-		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 0},
-		time.Hour,
-	)
-
-	// Test a custom prefill duration: 2h:
-	// VictoriaMetrics starts prefill indexDB at 2 A.M UTC, while indexDB rotates at 4 A.M UTC.
-	f(
-		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 2 * time.Hour},
-		2*time.Hour,
-	)
+	// Verify an interval that is shorter than one hour.
+	t.Run("30m", func(t *testing.T) {
+		f(t, OpenOptions{IDBPrefillStart: 30 * time.Minute}, 30*time.Minute)
+	})
+	// Verify 1h inteval (which is also the default).
+	// tsidCache will be cleared because it will have two cache rotations (one
+	// every 30 mins). This means that once the new month starts the timeseries
+	// that waren't pre-populated will be re-created instead of being
+	// re-populated.
+	t.Run("default", func(t *testing.T) {
+		f(t, OpenOptions{IDBPrefillStart: 0}, time.Hour)
+	})
+	t.Run("1h", func(t *testing.T) {
+		f(t, OpenOptions{IDBPrefillStart: time.Hour}, time.Hour)
+	})
+	// Vefiry 2h interval. Same here, the tsidCache will be cleared.
+	t.Run("2h", func(t *testing.T) {
+		f(t, OpenOptions{IDBPrefillStart: 2 * time.Hour}, 2*time.Hour)
+	})
 }

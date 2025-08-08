@@ -258,7 +258,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	legacyIDBPath := filepath.Join(path, indexdbDirname)
 	legacyIDBs := s.mustOpenLegacyIndexDBTables(legacyIDBPath)
 	s.legacyIndexDBs.Store(legacyIDBs)
-	// Initialize nextRotationTimestamp
+	// Initialize legacyNextRotationTimestamp
 	nowSecs := int64(fasttime.UnixTimestamp())
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := legacyNextRetentionDeadlineSeconds(nowSecs, retentionSecs, legacyRetentionTimezoneOffsetSecs)
@@ -818,11 +818,11 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stopCh:
-			date := fasttime.UnixDate()
+			date := fasttime.UnixDate() + 1
 			s.updateNextDayMetricIDs(date)
 			return
 		case <-ticker.C:
-			date := fasttime.UnixDate()
+			date := fasttime.UnixDate() + 1
 			s.updateNextDayMetricIDs(date)
 		}
 	}
@@ -1877,8 +1877,12 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				j--
 				continue
 			}
+			r.TSID = lTSID.TSID
+			prevTSID = r.TSID
+			prevMetricNameRaw = mr.MetricNameRaw
 
 			if !is.hasMetricID(lTSID.TSID.MetricID) {
+				// The found TSID is from the another partition indexdb. Create it in the current partition indexdb.
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
@@ -1888,13 +1892,15 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 					continue
 				}
 				mn.sortTags()
+
+				// Only create an entry to the global index.
+				// Do not add to tsidCache because it is already there.
+				// Do not create an entry in per-day index and do not add to
+				// dateMetricIDCache because this will be done in updatePerDateData().
 				idb.createGlobalIndexes(&lTSID.TSID, mn)
+				seriesRepopulated++
+				slowInsertsCount++
 			}
-
-			r.TSID = lTSID.TSID
-			prevTSID = r.TSID
-			prevMetricNameRaw = mr.MetricNameRaw
-
 			addToPendingHourEntries(hour, lTSID.TSID.MetricID)
 			continue
 		}
@@ -2068,7 +2074,7 @@ func getUserReadableMetricName(metricNameRaw []byte) string {
 // needed in order to reduce spikes in CPU and disk IO usage just after the
 // switch. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401.
 func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
-	now := time.Unix(int64(fasttime.UnixTimestamp()), 0)
+	now := time.Unix(int64(fasttime.UnixTimestamp()), 0).UTC()
 	nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 	d := nextMonth.Sub(now).Seconds()
 	if d >= float64(s.idbPrefillStartSeconds) {
@@ -2093,9 +2099,23 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	mn := GetMetricName()
 	defer PutMetricName(mn)
 
+	// Only prefill index for samples whose timestamp falls within the last
+	// idbPrefillStartSeconds of the current month.
+	tr := TimeRange{
+		MinTimestamp: nextMonth.UnixMilli() - s.idbPrefillStartSeconds*1000,
+		MaxTimestamp: nextMonth.UnixMilli() - 1,
+	}
+	// Use the first date of the next month for prefilling the index.
+	date := s.date(nextMonth.UnixMilli())
+
 	timeseriesPreCreated := uint64(0)
 	for i := range rows {
 		r := &rows[i]
+
+		if r.Timestamp < tr.MinTimestamp || r.Timestamp > tr.MaxTimestamp {
+			continue
+		}
+
 		p := float64(uint32(fastHashUint64(r.TSID.MetricID))) / (1 << 32)
 		if p < pMin {
 			// Fast path: it is too early to pre-fill indexes for the given MetricID.
@@ -2103,7 +2123,6 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 		}
 
 		// Check whether the given MetricID is already present in dateMetricIDCache.
-		date := s.date(r.Timestamp)
 		metricID := r.TSID.MetricID
 		if s.dateMetricIDCache.Has(idbNext.id, date, metricID) {
 			// Indexes are already pre-filled.
@@ -2160,7 +2179,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	var idb *indexDB
 
 	hmPrevDate := hmPrev.hour / 24
-	nextDayMetricIDs := &s.nextDayMetricIDs.Load().v
+	nextDayMetricIDsCache := s.nextDayMetricIDs.Load()
+	nextDayIDBID := nextDayMetricIDsCache.k.idbID
+	nextDayMetricIDs := &nextDayMetricIDsCache.v
 	ts := fasttime.UnixTimestamp()
 	// Start pre-populating the next per-day inverted index during the last hour of the current day.
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
@@ -2195,8 +2216,13 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 				// Gradually pre-populate per-day inverted index for the next day during the last hour of the current day.
 				// This should reduce CPU usage spike and slowdown at the beginning of the next day
 				// when entries for all the active time series must be added to the index.
-				// This should address https://github.com/VictoriaMetrics/VictoriaMetrics/issues/430 .
-				if pMin > 0 {
+				// This should address https://github.com/VictoriaMetrics/VictoriaMetrics/issues/430.
+				//
+				// Do this only if the next day is in the same partition indexDB.
+				// If next day is in another partition indexDB, the prefill is
+				// handled separately in prefillNextIndexDB.
+				// TODO(@rtm0): See if prefillNextIndexDB() logic can be moved here.
+				if hmCurr.idbID == nextDayIDBID && pMin > 0 {
 					p := float64(uint32(fastHashUint64(metricID))) / (1 << 32)
 					if p < pMin && !nextDayMetricIDs.Has(metricID) {
 						pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
