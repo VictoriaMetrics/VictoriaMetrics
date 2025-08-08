@@ -18,7 +18,7 @@ const useFetchFlags = () => {
       setIsLoading(true);
 
       try {
-        const url = getUrlWithoutTenant(serverUrl).replace(/\/prometheus\/?$/, "");
+        const url = getUrlWithoutTenant(serverUrl);
         const response = await fetch(`${url}/flags`);
         const data = await response.text();
         const flags = data.split("\n").filter(flag => flag.trim() !== "")

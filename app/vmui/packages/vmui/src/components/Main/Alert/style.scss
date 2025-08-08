@@ -1,13 +1,14 @@
 @use "src/styles/variables" as *;
 
 .vm-alert {
-  position: relative;
+  z-index: 20;
+  position: sticky;
+  top: $padding-global;
   display: grid;
   grid-template-columns: 20px 1fr;
   align-items: center;
   gap: $padding-small;
   padding: $padding-global;
-  background-color: $color-background-block;
   border-radius: $border-radius-medium;
   box-shadow: $box-shadow;
   font-size: $font-size;
@@ -17,22 +18,6 @@
 
   &_mobile {
     align-items: flex-start;
-    border-radius: 0;
-  }
-
-  &:after {
-    position: absolute;
-    content: '';
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: $border-radius-medium;
-    z-index: 1;
-    opacity: 0.1;
-  }
-
-  &_mobile:after {
     border-radius: 0;
   }
 
@@ -51,7 +36,6 @@
   }
 
   &__content {
-    filter: brightness(0.6);
     white-space: pre-line;
     text-wrap: balance;
     overflow-wrap: anywhere;
@@ -59,40 +43,26 @@
 
   &_success {
     color: $color-success;
-
-    &:after {
-      background-color: $color-success;
-    }
+    background-color: $color-background-success;
+    border: 0.5px solid $color-success;
   }
 
   &_error {
     color: $color-error;
-
-    &:after {
-      background-color: $color-error;
-    }
+    background-color: $color-background-error;
+    border: 0.5px solid $color-error;
   }
 
   &_info {
     color: $color-info;
-
-    &:after {
-      background-color: $color-info;
-    }
+    background-color: $color-background-info;
+    border: 0.5px solid $color-info;
   }
 
   &_warning {
     color: $color-warning;
-
-    &:after {
-      background-color: $color-warning;
-    }
-  }
-
-  &_dark {
-    &:after {
-      opacity: 0.1;
-    }
+    background-color: $color-background-warning;
+    border: 0.5px solid $color-warning;
   }
 
   &_dark &__content {

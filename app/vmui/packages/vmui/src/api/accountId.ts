@@ -1,2 +1,2 @@
-export const getAccountIds = (server: string) =>
-  `${server.replace(/^(.+)(\/select.+)/, "$1")}/admin/tenants`;
+import { getUrlWithoutTenant } from "../utils/tenants";
+export const getAccountIds = (server: string) => `${getUrlWithoutTenant(server)}/admin/tenants`;
