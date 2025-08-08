@@ -27,12 +27,12 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
-	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries) error {
-		return insertRows(at, tss, extraLabels)
+	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, mss []prompb.MetricMetadata) error {
+		return insertRows(at, tss, mss, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []prompb.Label) error {
+func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, mss []prompb.MetricMetadata, extraLabels []prompb.Label) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
@@ -70,6 +70,20 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			}
 		}
 		perTenantRows[*atLocal] += len(ts.Samples)
+	}
+
+	var atLocal *auth.Token
+	for i := range mss {
+		m := &mss[i]
+		if atLocal == nil || m.AccountID != atLocal.AccountID || m.ProjectID != atLocal.ProjectID {
+			atLocal = &auth.Token{
+				AccountID: m.AccountID,
+				ProjectID: m.ProjectID,
+			}
+		}
+		if err := ctx.WriteMetadata(atLocal, m); err != nil {
+			return err
+		}
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsTenantInserted.MultiAdd(perTenantRows)
