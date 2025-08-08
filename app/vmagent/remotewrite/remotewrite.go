@@ -209,7 +209,7 @@ func Init() {
 	// In this case it is impossible to prevent from sending many duplicates of samples passed to TryPush() to all the configured -remoteWrite.url
 	// if these samples couldn't be sent to the -remoteWrite.url with the disabled persistent queue. So it is better sending samples
 	// to the remaining -remoteWrite.url and dropping them on the blocked queue.
-	dropSamplesOnFailureGlobal = *dropSamplesOnOverload || disableOnDiskQueueAny && len(disableOnDiskQueues) > 1
+	dropSamplesOnFailureGlobal = *dropSamplesOnOverload || disableOnDiskQueueAny && len(*remoteWriteURLs) > 1
 
 	dropDanglingQueues()
 
