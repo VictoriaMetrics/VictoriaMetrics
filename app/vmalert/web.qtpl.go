@@ -1434,7 +1434,7 @@ func Alert(r *http.Request, alert *apiAlert) string {
 }
 
 //line app/vmalert/web.qtpl:467
-func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule apiRule) {
+func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule *apiRule) {
 //line app/vmalert/web.qtpl:467
 	qw422016.N().S(`
     `)
@@ -1831,7 +1831,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule apiRule)
 }
 
 //line app/vmalert/web.qtpl:630
-func WriteRuleDetails(qq422016 qtio422016.Writer, r *http.Request, rule apiRule) {
+func WriteRuleDetails(qq422016 qtio422016.Writer, r *http.Request, rule *apiRule) {
 //line app/vmalert/web.qtpl:630
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:630
@@ -1842,7 +1842,7 @@ func WriteRuleDetails(qq422016 qtio422016.Writer, r *http.Request, rule apiRule)
 }
 
 //line app/vmalert/web.qtpl:630
-func RuleDetails(r *http.Request, rule apiRule) string {
+func RuleDetails(r *http.Request, rule *apiRule) string {
 //line app/vmalert/web.qtpl:630
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:630
@@ -1987,7 +1987,7 @@ func badgeStabilizing() string {
 }
 
 //line app/vmalert/web.qtpl:652
-func streamseriesFetchedWarn(qw422016 *qt422016.Writer, prefix string, r apiRule) {
+func streamseriesFetchedWarn(qw422016 *qt422016.Writer, prefix string, r *apiRule) {
 //line app/vmalert/web.qtpl:652
 	qw422016.N().S(`
 `)
@@ -2017,7 +2017,7 @@ func streamseriesFetchedWarn(qw422016 *qt422016.Writer, prefix string, r apiRule
 }
 
 //line app/vmalert/web.qtpl:663
-func writeseriesFetchedWarn(qq422016 qtio422016.Writer, prefix string, r apiRule) {
+func writeseriesFetchedWarn(qq422016 qtio422016.Writer, prefix string, r *apiRule) {
 //line app/vmalert/web.qtpl:663
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:663
@@ -2028,7 +2028,7 @@ func writeseriesFetchedWarn(qq422016 qtio422016.Writer, prefix string, r apiRule
 }
 
 //line app/vmalert/web.qtpl:663
-func seriesFetchedWarn(prefix string, r apiRule) string {
+func seriesFetchedWarn(prefix string, r *apiRule) string {
 //line app/vmalert/web.qtpl:663
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:663
@@ -2043,6 +2043,6 @@ func seriesFetchedWarn(prefix string, r apiRule) string {
 }
 
 //line app/vmalert/web.qtpl:666
-func isNoMatch(r apiRule) bool {
+func isNoMatch(r *apiRule) bool {
 	return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
 }

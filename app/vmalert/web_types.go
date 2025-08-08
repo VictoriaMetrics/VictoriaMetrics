@@ -80,7 +80,7 @@ type apiGroup struct {
 	// Name is the group name as present in the config
 	Name string `json:"name"`
 	// Rules contains both recording and alerting rules
-	Rules []apiRule `json:"rules"`
+	Rules []*apiRule `json:"rules"`
 	// Interval is the Group's evaluation interval in float seconds as present in the file.
 	Interval float64 `json:"interval"`
 	// LastEvaluation is the timestamp of the last time the Group was executed
@@ -182,7 +182,7 @@ type apiRule struct {
 
 // apiRuleWithUpdates represents apiRule but with extra fields for marshalling
 type apiRuleWithUpdates struct {
-	apiRule
+	*apiRule
 	// Updates contains the ordered list of recorded ruleStateEntry objects
 	StateUpdates []rule.StateEntry `json:"updates,omitempty"`
 }
@@ -199,14 +199,14 @@ func (ar apiRule) WebLink() string {
 		paramGroupID, ar.GroupID, paramRuleID, ar.ID)
 }
 
-func ruleToAPI(r any) apiRule {
+func ruleToAPI(r any) *apiRule {
 	if ar, ok := r.(*rule.AlertingRule); ok {
 		return alertingToAPI(ar)
 	}
 	if rr, ok := r.(*rule.RecordingRule); ok {
 		return recordingToAPI(rr)
 	}
-	return apiRule{}
+	return nil
 }
 
 const (
@@ -214,9 +214,9 @@ const (
 	ruleTypeAlerting  = "alerting"
 )
 
-func recordingToAPI(rr *rule.RecordingRule) apiRule {
+func recordingToAPI(rr *rule.RecordingRule) *apiRule {
 	lastState := rule.GetLastEntry(rr)
-	r := apiRule{
+	r := &apiRule{
 		Type:              ruleTypeRecording,
 		DatasourceType:    rr.Type.String(),
 		Name:              rr.Name,
@@ -244,9 +244,9 @@ func recordingToAPI(rr *rule.RecordingRule) apiRule {
 }
 
 // alertingToAPI returns Rule representation in form of apiRule
-func alertingToAPI(ar *rule.AlertingRule) apiRule {
+func alertingToAPI(ar *rule.AlertingRule) *apiRule {
 	lastState := rule.GetLastEntry(ar)
-	r := apiRule{
+	r := &apiRule{
 		Type:              ruleTypeAlerting,
 		DatasourceType:    ar.Type.String(),
 		Name:              ar.Name,
@@ -359,7 +359,7 @@ func groupToAPI(g *rule.Group) *apiGroup {
 	if g.EvalDelay != nil {
 		ag.EvalDelay = g.EvalDelay.Seconds()
 	}
-	ag.Rules = make([]apiRule, 0)
+	ag.Rules = make([]*apiRule, 0)
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, ruleToAPI(r))
 	}

@@ -464,7 +464,7 @@
 {% endfunc %}
 
 
-{% func RuleDetails(r *http.Request, rule apiRule) %}
+{% func RuleDetails(r *http.Request, rule *apiRule) %}
     {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
@@ -649,7 +649,7 @@
 <span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
 {% endfunc %}
 
-{% func seriesFetchedWarn(prefix string, r apiRule) %}
+{% func seriesFetchedWarn(prefix string, r *apiRule) %}
 {% if isNoMatch(r) %}
 <svg
     data-bs-toggle="tooltip"
@@ -663,7 +663,7 @@
 {% endfunc %}
 
 {%code
-  func isNoMatch (r apiRule) bool {
+  func isNoMatch (r *apiRule) bool {
     return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
   }
 %}

@@ -15,20 +15,28 @@ const router = {
   rawQuery: "/raw-query",
   downsamplingDebug: "/downsampling-filters-debug",
   retentionDebug: "/retention-filters-debug",
+  alerts: "/alerts",
+  rules: "/rules",
+  notifiers: "/notifiers",
 };
 
 export interface RouterOptionsHeader {
-  tenant?: boolean,
-  stepControl?: boolean,
-  timeSelector?: boolean,
-  executionControls?: boolean,
-  globalSettings?: boolean,
-  cardinalityDatePicker?: boolean
+  tenant?: boolean;
+  stepControl?: boolean;
+  timeSelector?: boolean;
+  executionControls?: ExecutionControlsProps;
+  globalSettings?: boolean;
+  cardinalityDatePicker?: boolean;
 }
 
 export interface RouterOptions {
-  title?: string,
-  header: RouterOptionsHeader
+  title?: string;
+  header: RouterOptionsHeader;
+}
+
+interface ExecutionControlsProps {
+  tooltip: string;
+  useAutorefresh: boolean;
 }
 
 const routerOptionsDefault = {
@@ -36,18 +44,21 @@ const routerOptionsDefault = {
     tenant: true,
     stepControl: true,
     timeSelector: true,
-    executionControls: true,
-  }
+    executionControls: {
+      tooltip: "Refresh dashboard",
+      useAutorefresh: true,
+    }
+  },
 };
 
 export const routerOptions: { [key: string]: RouterOptions } = {
   [router.home]: {
     title: "Query",
-    ...routerOptionsDefault
+    ...routerOptionsDefault,
   },
   [router.rawQuery]: {
     title: "Raw query",
-    ...routerOptionsDefault
+    ...routerOptionsDefault,
   },
   [router.metrics]: {
     title: "Explore Prometheus metrics",
@@ -55,65 +66,83 @@ export const routerOptions: { [key: string]: RouterOptions } = {
       tenant: true,
       stepControl: true,
       timeSelector: true,
-    }
+    },
   },
   [router.cardinality]: {
     title: "Explore cardinality",
     header: {
       tenant: true,
       cardinalityDatePicker: true,
-    }
+    },
   },
   [router.topQueries]: {
     title: "Top queries",
     header: {
       tenant: true,
-    }
+    },
   },
   [router.trace]: {
     title: "Trace analyzer",
-    header: {}
+    header: {},
   },
   [router.queryAnalyzer]: {
     title: "Query analyzer",
-    header: {}
+    header: {},
   },
   [router.dashboards]: {
     title: "Dashboards",
     ...routerOptionsDefault,
   },
+  [router.rules]: {
+    title: "Rules",
+    header: {
+      executionControls: {
+        tooltip: "Refresh alerts",
+        useAutorefresh: false,
+      }
+    },
+  },
+  [router.notifiers]: {
+    title: "Notifiers",
+    header: {
+      executionControls: {
+        tooltip: "Refresh notifiers",
+        useAutorefresh: false,
+      },
+    },
+  },
   [router.withTemplate]: {
     title: "WITH templates",
-    header: {}
+    header: {},
   },
   [router.relabel]: {
     title: "Metric relabel debug",
-    header: {}
+    header: {},
   },
   [router.activeQueries]: {
     title: "Active Queries",
-    header: {}
+    header: {},
   },
   [router.icons]: {
     title: "Icons",
-    header: {}
+    header: {},
   },
   [router.anomaly]: {
     title: "Anomaly exploration",
-    ...routerOptionsDefault
+    ...routerOptionsDefault,
   },
   [router.query]: {
     title: "Query",
-    ...routerOptionsDefault
+    ...routerOptionsDefault,
   },
   [router.downsamplingDebug]: {
     title: "Downsampling filters debug",
-    header: {}
+    header: {},
   },
   [router.retentionDebug]: {
     title: "Retention filters debug",
-    header: {}
-  }
+    header: {},
+  },
 };
 
 export default router;
