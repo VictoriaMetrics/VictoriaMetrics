@@ -145,21 +145,81 @@ container_ulimits_soft{container="kube-scheduler",id="/kubelet/kubepods/burstabl
 	})
 }
 
-func BenchmarkRowsUnmarshal(b *testing.B) {
-	s := `cpu_usage{mode="user"} 1.23
-cpu_usage{mode="system"} 23.344
-cpu_usage{mode="iowait"} 3.3443
-cpu_usage{mode="irq"} 0.34432
-`
+func BenchmarkMetadataUnmarshal(b *testing.B) {
+	s := `# HELP aggregator_unavailable_apiservice_total [ALPHA] Counter of APIServices which are marked as unavailable broken down by APIService name and reason.`
 	b.SetBytes(int64(len(s)))
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		var rows Rows
+		dst := []Metadata{
+			{
+				Metric: "aggregator_unavailable_apiservice_total",
+				Type:   1,
+			},
+		}
 		for pb.Next() {
-			rows.Unmarshal(s)
-			if len(rows.Rows) != 4 {
-				panic(fmt.Errorf("unexpected number of rows unmarshaled: got %d; want 4", len(rows.Rows)))
+			dst = unmarshalMetadata(dst, s, nil)
+			if len(dst) != 1 {
+				panic(fmt.Errorf("unexpected number of metadata unmarshaled: got %d; want 1", len(dst)))
+			}
+			if dst[0].Type != 1 || dst[0].Help == "" {
+				panic(fmt.Errorf("unexpected metadata: got %v; want type 1 with non-empty help", dst[0]))
 			}
 		}
+	})
+}
+
+func BenchmarkPromScrapeUnmarshal(b *testing.B) {
+	s := `
+# HELP machine_cpu_cores Number of logical CPU cores.
+# TYPE machine_cpu_cores gauge
+machine_cpu_cores{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="857143c2dbea4a179223627cf9f47d06",system_uuid="03a75ec7-5105-421a-8b8a-3d7190f6e890"} 4
+# HELP machine_cpu_physical_cores Number of physical CPU cores.
+# TYPE machine_cpu_physical_cores gauge
+machine_cpu_physical_cores{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="857143c2dbea4a179223627cf9f47d06",system_uuid="03a75ec7-5105-421a-8b8a-3d7190f6e890"} 2
+# HELP machine_cpu_sockets Number of CPU sockets.
+# TYPE machine_cpu_sockets gauge
+machine_cpu_sockets{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="857143c2dbea4a179223627cf9f47d06",system_uuid="03a75ec7-5105-421a-8b8a-3d7190f6e890"} 1
+# HELP machine_memory_bytes Amount of memory installed on the machine.
+# TYPE machine_memory_bytes gauge
+machine_memory_bytes{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="857143c2dbea4a179223627cf9f47d06",system_uuid="03a75ec7-5105-421a-8b8a-3d7190f6e890"} 1.6706146304e+10
+# HELP machine_nvm_avg_power_budget_watts NVM power budget.
+# TYPE machine_nvm_avg_power_budget_watts gauge
+machine_nvm_avg_power_budget_watts{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="857143c2dbea4a179223627cf9f47d06",system_uuid="03a75ec7-5105-421a-8b8a-3d7190f6e890"} 0
+# HELP machine_nvm_capacity NVM capacity value labeled by NVM mode (memory mode or app direct mode).
+# TYPE machine_nvm_capacity gauge
+machine_nvm_capacity{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="857143c2dbea4a179223627cf9f47d06",mode="app_direct_mode",system_uuid="03a75ec7-5105-421a-8b8a-3d7190f6e890"} 0
+machine_nvm_capacity{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="857143c2dbea4a179223627cf9f47d06",mode="memory_mode",system_uuid="03a75ec7-5105-421a-8b8a-3d7190f6e890"} 0
+# HELP machine_scrape_error 1 if there was an error while getting machine metrics, 0 otherwise.
+# TYPE machine_scrape_error gauge
+machine_scrape_error 0
+`
+	b.SetBytes(int64(len(s)))
+	b.Run("UnmarshalWithMetadata", func(b *testing.B) {
+		b.ReportAllocs()
+		b.RunParallel(func(pb *testing.PB) {
+			var rows Rows
+			var mds MetadataRows
+			for pb.Next() {
+				rows, mds = UnmarshalWithMetadata(rows, mds, s, nil)
+				if len(rows.Rows) != 8 {
+					panic(fmt.Errorf("unexpected number of rows unmarshaled: got %d; want 8", len(rows.Rows)))
+				}
+				if len(mds.Rows) != 7 {
+					panic(fmt.Errorf("unexpected number of metadata unmarshaled: got %v; want 7", len(mds.Rows)))
+				}
+			}
+		})
+	})
+	b.Run("UnmarshalWithoutMetadata", func(b *testing.B) {
+		b.ReportAllocs()
+		b.RunParallel(func(pb *testing.PB) {
+			var rows Rows
+			for pb.Next() {
+				rows.UnmarshalWithErrLogger(s, nil)
+				if len(rows.Rows) != 8 {
+					panic(fmt.Errorf("unexpected number of rows unmarshaled: got %d; want 8", len(rows.Rows)))
+				}
+			}
+		})
 	})
 }

@@ -57,7 +57,8 @@ func selfScraper(scrapeInterval time.Duration) {
 		appmetrics.WritePrometheusMetrics(&bb)
 		s := bytesutil.ToUnsafeString(bb.B)
 		rows.Reset()
-		rows.Unmarshal(s)
+		// VictoriaMetrics components don't expose metadata yet, only need to parse samples
+		rows.UnmarshalWithErrLogger(s, nil)
 		mrs = mrs[:0]
 		for i := range rows.Rows {
 			r := &rows.Rows[i]

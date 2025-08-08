@@ -183,13 +183,13 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		if len(rows.Rows) != 0 {
 			t.Fatalf("unexpected number of rows parsed; got %d; want 0;\nrows:%#v", len(rows.Rows), rows.Rows)
 		}
 
 		// Try again
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		if len(rows.Rows) != 0 {
 			t.Fatalf("unexpected number of rows parsed; got %d; want 0;\nrows:%#v", len(rows.Rows), rows.Rows)
 		}
@@ -261,13 +261,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		var rows Rows
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
-		rows.Unmarshal(s)
+		rows.UnmarshalWithErrLogger(s, nil)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -657,4 +657,517 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 			},
 		},
 	})
+}
+
+func TestParseMetadataLineFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		mms := unmarshalMetadata(nil, s, nil)
+		if len(mms) != 0 {
+			t.Fatalf("unexpected number of metadata rows parsed; got %d; want 0;\nrows:%#v", len(mms), mms)
+		}
+	}
+
+	// Empty lines and comments
+	f("")
+	f(" ")
+	f("\t")
+	f("\t  \r")
+	f("\t\t  \n\n  # foobar")
+	f("#foobar")
+	f("#TYPE foobar gauge")
+	f("#HELP foobar It's a test metric.")
+	f("# TYPE ")
+	f("#  TYPE foobar gauge")
+	f("## HELP foobar It's a test metric.")
+	f("## TYPE foobar gauge")
+	f("# TYPE foobar")
+	f("# TYPE foobar ")
+	f("# TYPE foobar badType")
+	f("# TEST foobar counter")
+}
+
+func TestParseMetadataLineSuccess(t *testing.T) {
+	f := func(s string, dst []Metadata, rowsExpected *MetadataRows) {
+		t.Helper()
+		mms := unmarshalMetadata(dst, s, nil)
+		if !reflect.DeepEqual(mms, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", mms, rowsExpected.Rows)
+		}
+	}
+
+	// Empty line or comment
+	f("", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
+	f("\r", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
+	f("\n\n", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
+	f("\n\r\n", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
+	f("\t  \t\n\r\n#foobar\n  # baz", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
+	f("# TYPE cassandra_token_ownership_ratio", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
+
+	f(`# TYPE cassandra_token_ownership_ratio counter`, []Metadata{
+		{
+			Metric: "cassandra_token_ownership_ratio",
+			Help:   "The ratio of Cassandra token ownership.",
+		},
+	}, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "cassandra_token_ownership_ratio",
+				Type:   1,
+				Help:   "The ratio of Cassandra token ownership.",
+			},
+		},
+	})
+	// override the type
+	f(`# TYPE cassandra_token_ownership_ratio counter`, []Metadata{
+		{
+			Metric: "cassandra_token_ownership_ratio",
+			Type:   2,
+		},
+	}, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "cassandra_token_ownership_ratio",
+				Type:   1,
+			},
+		},
+	})
+	// bad type
+	f(`# TYPE cassandra_token_ownership_ratio `, []Metadata{
+		{
+			Metric: "cassandra_token_ownership_ratio",
+			Help:   "This is a test metric.",
+		},
+	}, &MetadataRows{Rows: []Metadata{}})
+	f(`  # HELP cassandra_token_ownership_ratio The ratio\\ of Cassandra token ownership.`, []Metadata{
+		{
+			Metric: "foo",
+			Help:   "This is a test metric.",
+		},
+	}, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "foo",
+				Help:   "This is a test metric.",
+			},
+			{
+				Metric: "cassandra_token_ownership_ratio",
+				Help:   `The ratio\ of Cassandra token ownership.`,
+			},
+		},
+	})
+}
+
+func TestUnmarshalWithMetadata(t *testing.T) {
+	f := func(s string, rowsExpected *Rows, metadataExpected *MetadataRows) {
+		t.Helper()
+
+		rows, mds := UnmarshalWithMetadata(Rows{}, MetadataRows{}, s, nil)
+		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
+		}
+
+		if !reflect.DeepEqual(mds.Rows, metadataExpected.Rows) {
+			t.Fatalf("unexpected metadata rows;\ngot\n%+v;\nwant\n%+v", mds.Rows, metadataExpected.Rows)
+		}
+
+		rows.Reset()
+		if len(rows.Rows) != 0 {
+			t.Fatalf("non-empty rows after reset: %+v", rows.Rows)
+		}
+		mds.Reset()
+		if len(mds.Rows) != 0 {
+			t.Fatalf("non-empty metadata rows after reset: %+v", mds.Rows)
+		}
+	}
+
+	// Empty line or comment
+	f("", &Rows{}, &MetadataRows{})
+	f("\r", &Rows{}, &MetadataRows{})
+	f("\n\n", &Rows{}, &MetadataRows{})
+	f("\n\r\n", &Rows{}, &MetadataRows{})
+	f("\t  \t\n\r\n#foobar\n  # baz", &Rows{}, &MetadataRows{})
+
+	// Single line
+	f("foobar 78.9", &Rows{
+		Rows: []Row{{
+			Metric: "foobar",
+			Value:  78.9,
+		}},
+	}, &MetadataRows{})
+	f("foobar 123.456 789\n", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     123.456,
+			Timestamp: 789000,
+		}},
+	}, &MetadataRows{})
+	f("foobar{} 123.456 789.4354\n", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     123.456,
+			Timestamp: 789435,
+		}},
+	}, &MetadataRows{})
+	f(`#                                    _                                            _
+#   ___ __ _ ___ ___  __ _ _ __   __| |_ __ __ _        _____  ___ __   ___  _ __| |_ ___ _ __
+`+"#  / __/ _` / __/ __|/ _` | '_ \\ / _` | '__/ _` |_____ / _ \\ \\/ / '_ \\ / _ \\| '__| __/ _ \\ '__|\n"+`
+# | (_| (_| \__ \__ \ (_| | | | | (_| | | | (_| |_____|  __/>  <| |_) | (_) | |  | ||  __/ |
+#  \___\__,_|___/___/\__,_|_| |_|\__,_|_|  \__,_|      \___/_/\_\ .__/ \___/|_|   \__\___|_|
+#                                                               |_|
+#
+# TYPE cassandra_token_ownership_ratio gauge
+# HELP cassandra_token_ownership_ratio The ratio of Cassandra token ownership.
+cassandra_token_ownership_ratio 78.9
+`, &Rows{
+		Rows: []Row{{
+			Metric: "cassandra_token_ownership_ratio",
+			Value:  78.9,
+		}},
+	}, &MetadataRows{
+		Rows: []Metadata{
+			{
+				Metric: "cassandra_token_ownership_ratio",
+				Type:   2,
+				Help:   "The ratio of Cassandra token ownership.",
+			},
+		},
+	})
+
+	// `#` char in label value
+	f(`foo{bar="#1 az"} 24`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "#1 az",
+			}},
+			Value: 24,
+		}},
+	}, &MetadataRows{})
+
+	// `#` char in label name and label value
+	f(`foo{bar#2="#1 az"} 24 456`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar#2",
+				Value: "#1 az",
+			}},
+			Value:     24,
+			Timestamp: 456000,
+		}},
+	}, &MetadataRows{})
+
+	// `#` char in metric name, label name and label value
+	f(`foo#qw{bar#2="#1 az"} 24 456 # foobar {baz="x"}`, &Rows{
+		Rows: []Row{{
+			Metric: "foo#qw",
+			Tags: []Tag{{
+				Key:   "bar#2",
+				Value: "#1 az",
+			}},
+			Value:     24,
+			Timestamp: 456000,
+		}},
+	}, &MetadataRows{})
+
+	// Incorrectly escaped backlash. This is real-world case, which must be supported.
+	f(`mssql_sql_server_active_transactions_sec{loginname="domain\somelogin",env="develop"} 56`, &Rows{
+		Rows: []Row{{
+			Metric: "mssql_sql_server_active_transactions_sec",
+			Tags: []Tag{
+				{
+					Key:   "loginname",
+					Value: "domain\\somelogin",
+				},
+				{
+					Key:   "env",
+					Value: "develop",
+				},
+			},
+			Value: 56,
+		}},
+	}, &MetadataRows{})
+
+	// Exemplars - see https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md#exemplars-1
+	f(`foo_bucket{le="10",a="#b"} 17 # {trace_id="oHg5SJ#YRHA0"} 9.8 1520879607.789
+	   abc 123 456 # foobar
+	   foo   344#bar`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo_bucket",
+				Tags: []Tag{
+					{
+						Key:   "le",
+						Value: "10",
+					},
+					{
+						Key:   "a",
+						Value: "#b",
+					},
+				},
+				Value: 17,
+			},
+			{
+				Metric:    "abc",
+				Value:     123,
+				Timestamp: 456000,
+			},
+			{
+				Metric: "foo",
+				Value:  344,
+			},
+		},
+	}, &MetadataRows{})
+
+	// "Infinity" word - this has been added in OpenMetrics.
+	// See https://github.com/OpenObservability/OpenMetrics/blob/master/OpenMetrics.md
+	// Checks for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/924
+	inf := math.Inf(1)
+	f(`
+		foo Infinity
+		bar +Infinity
+		baz -infinity
+		aaa +inf
+		bbb -INF
+		ccc INF
+	`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "foo",
+				Value:  inf,
+			},
+			{
+				Metric: "bar",
+				Value:  inf,
+			},
+			{
+				Metric: "baz",
+				Value:  -inf,
+			},
+			{
+				Metric: "aaa",
+				Value:  inf,
+			},
+			{
+				Metric: "bbb",
+				Value:  -inf,
+			},
+			{
+				Metric: "ccc",
+				Value:  inf,
+			},
+		},
+	}, &MetadataRows{})
+
+	// Timestamp bigger than 1<<31.
+	// It should be parsed in milliseconds.
+	f("aaa 1123 429496729600", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: 429496729600,
+		}},
+	}, &MetadataRows{})
+
+	// Floating-point timestamps in OpenMetric format.
+	f("aaa 1123 42949.567", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     1123,
+			Timestamp: 42949567,
+		}},
+	}, &MetadataRows{})
+
+	// Tags
+	f(`foo{bar="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+	// UTF8 Quoted tags
+	f(`foo{"bar"="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+	f(`{"foo", "bar"="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+	f(`{"foo", "bar"="baf\"y"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: `baf"y`,
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+	f(`{bar="baz", "foo"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+	f(`{"foo"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric:    "foo",
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+	// Special character quoted UTF8 tests
+	f(`{"温度{房间"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric:    "温度{房间",
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+	f(`{"foo", "温度{房间=\"水电费"="baz"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   `温度{房间="水电费`,
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+	f(`foo{bar="b\"a\\z"} -1.2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "b\"a\\z",
+			}},
+			Value: -1.2,
+		}},
+	}, &MetadataRows{})
+	// Empty tags
+	f(`foo {bar="baz",aa="",x="y",="z"} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{
+				{
+					Key:   "bar",
+					Value: "baz",
+				},
+				{
+					Key:   "aa",
+					Value: "",
+				},
+				{
+					Key:   "x",
+					Value: "y",
+				},
+			},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+
+	// Trailing comma after tag
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/350
+	f(`foo{bar="baz",} 1 2`, &Rows{
+		Rows: []Row{{
+			Metric: "foo",
+			Tags: []Tag{{
+				Key:   "bar",
+				Value: "baz",
+			}},
+			Value:     1,
+			Timestamp: 2000,
+		}},
+	}, &MetadataRows{})
+
+	// Multi lines
+	f("# foo\n # bar ba zzz\nfoo 0.3 2\naaa 3\nbar.baz 0.34 43\n", &Rows{
+		Rows: []Row{
+			{
+				Metric:    "foo",
+				Value:     0.3,
+				Timestamp: 2000,
+			},
+			{
+				Metric: "aaa",
+				Value:  3,
+			},
+			{
+				Metric:    "bar.baz",
+				Value:     0.34,
+				Timestamp: 43000,
+			},
+		},
+	}, &MetadataRows{})
+
+	// Multi lines with invalid line
+	f("\t foo\t {  } 0.3\t 2\naaa\n  bar.baz 0.34 43\n", &Rows{
+		Rows: []Row{
+			{
+				Metric:    "foo",
+				Value:     0.3,
+				Timestamp: 2000,
+			},
+			{
+				Metric:    "bar.baz",
+				Value:     0.34,
+				Timestamp: 43000,
+			},
+		},
+	}, &MetadataRows{})
+
+	// Spaces around tags
+	f(`vm_accounting	{   name="vminsertRows", accountID = "1" , projectID=	"1"   } 277779100`, &Rows{
+		Rows: []Row{
+			{
+				Metric: "vm_accounting",
+				Tags: []Tag{
+					{
+						Key:   "name",
+						Value: "vminsertRows",
+					},
+					{
+						Key:   "accountID",
+						Value: "1",
+					},
+					{
+						Key:   "projectID",
+						Value: "1",
+					},
+				},
+				Value:     277779100,
+				Timestamp: 0,
+			},
+		},
+	}, &MetadataRows{})
 }
