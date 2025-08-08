@@ -1,5 +1,4 @@
 import router, { routerOptions } from "./index";
-import { getTenantIdFromUrl } from "../utils/tenants";
 
 export enum NavigationItemType {
   internalLink,
@@ -20,21 +19,6 @@ interface NavigationConfig {
   showPredefinedDashboards: boolean,
   showAlertLink: boolean,
 }
-
-/**
- * Special case for alert link
- */
-const getAlertLink = (url: string, showAlertLink: boolean) => {
-  // see more https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert
-  const isCluster = !!getTenantIdFromUrl(url);
-  const value = isCluster ? `${url}/vmalert` : url.replace(/\/prometheus$/, "/vmalert");
-  return {
-    label: "Alerts",
-    value,
-    type: NavigationItemType.externalLink,
-    hide: !showAlertLink,
-  };
-};
 
 /**
  * Submenu for Tools tab
@@ -59,10 +43,18 @@ const getExploreNav = () => [
 ];
 
 /**
+ * Submenu for Alerts tab
+ */
+
+const getAlertingNav = () => [
+  { value: router.rules },
+  { value: router.notifiers },
+];
+
+/**
  * Default navigation menu
  */
 export const getDefaultNavigation = ({
-  serverUrl,
   isEnterpriseLicense,
   showPredefinedDashboards,
   showAlertLink,
@@ -72,7 +64,7 @@ export const getDefaultNavigation = ({
   { label: "Explore", submenu: getExploreNav() },
   { label: "Tools", submenu: getToolsNav(isEnterpriseLicense) },
   { value: router.dashboards, hide: !showPredefinedDashboards },
-  getAlertLink(serverUrl, showAlertLink),
+  { value: "Alerting", submenu: getAlertingNav(), hide: !showAlertLink },
 ];
 
 /**

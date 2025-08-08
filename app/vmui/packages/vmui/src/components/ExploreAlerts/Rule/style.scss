@@ -1,0 +1,42 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-rule {
+  padding: $padding-global;
+  padding-right: 0;
+  display: flex;
+  row-gap: $padding-global;
+  flex-direction: column;
+  position: relative;
+  border-radius: $border-radius-small;
+  &:is(.firing) {
+    border-left: $border-radius-small $color-error solid;
+  }
+
+  &:is(.inactive) {
+    border-left: $border-radius-small $color-success solid;
+  }
+
+  &:is(.pending) {
+    border-left: $border-radius-small $color-warning solid;
+  }
+
+  &:is(.no-match) {
+    border-left: $border-radius-small $color-notice solid;
+  }
+
+  &:is(.unhealthy) {
+    border-left: $border-radius-small $color-broken solid;
+  }
+
+  &:is(.ok) {
+    border-left: $border-radius-small $color-info solid;
+  }
+
+  &:has(>details[open]) {
+    background-color: $color-background-item;
+  }
+
+  &:hover {
+    background-color: $color-background-item;
+  }
+}
