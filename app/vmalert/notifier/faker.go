@@ -18,6 +18,11 @@ type FakeNotifier struct {
 // Close does nothing
 func (*FakeNotifier) Close() {}
 
+// LastError returns last error message
+func (*FakeNotifier) LastError() string {
+	return ""
+}
+
 // Addr returns ""
 func (*FakeNotifier) Addr() string { return "" }
 

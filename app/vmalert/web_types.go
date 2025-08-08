@@ -28,6 +28,8 @@ type apiNotifier struct {
 type apiTarget struct {
 	Address string            `json:"address"`
 	Labels  map[string]string `json:"labels"`
+	// LastError contains the error faced while sending to notifier.
+	LastError string `json:"lastError"`
 }
 
 // apiAlert represents a notifier.AlertingRule state
@@ -114,6 +116,11 @@ type apiGroup struct {
 	Healthy int
 	// NoMatch not matching rules count
 	NoMatch int
+}
+
+// APILink returns a link to the group's JSON representation.
+func (ag *apiGroup) APILink() string {
+	return fmt.Sprintf("api/v1/group?%s=%s", paramGroupID, ag.ID)
 }
 
 // groupAlerts represents a group of alerts for WEB view

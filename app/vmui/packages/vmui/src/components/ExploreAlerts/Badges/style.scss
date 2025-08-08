@@ -1,0 +1,69 @@
+@use "src/styles/variables" as *;
+
+$badge-colors: (
+  "firing": $color-error,
+  "inactive": $color-success,
+  "pending": $color-warning,
+  "no-match": $color-notice,
+  "unhealthy": $color-broken,
+  "ok": $color-info,
+  "passive": $color-passive,
+  "all": $color-passive,
+);
+
+.vm-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $padding-small;
+  &.align-center {
+    justify-content: center;
+  }
+  .vm-badge {
+    padding: 0 $padding-tiny;
+    width: fit-content;
+    @each $class, $color in $badge-colors {
+      &.#{$class} {
+        border: 1px solid $color;
+        color: $color;
+      }
+    }
+  }
+}
+
+.vm-badge-base {
+  font-weight: 400;
+  border-radius: $border-radius-small;
+}
+
+.vm-badge-menu-item {
+  @extend .vm-badge-base;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 22px;
+  @each $class, $color in $badge-colors {
+    &.#{$class} {
+      border-right: $border-radius-small solid $color;
+    }
+  }
+}
+
+.vm-badge-item {
+  @extend .vm-badge-base;
+  @each $class, $color in $badge-colors {
+    &.#{$class} {
+      border-left: $border-radius-small solid $color;
+    }
+  }
+}
+
+.vm-badge {
+  @extend .vm-badge-base;
+  background-color: transparent;
+  padding: 0 $padding-tiny;
+  line-height: 22px;
+  max-width: 300px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

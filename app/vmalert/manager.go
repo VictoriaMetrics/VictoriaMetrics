@@ -29,6 +29,18 @@ type manager struct {
 	groups   map[uint64]*rule.Group
 }
 
+// groupAPI generates apiGroup object from group by its ID(hash)
+func (m *manager) groupAPI(gID uint64) (*apiGroup, error) {
+	m.groupsMu.RLock()
+	defer m.groupsMu.RUnlock()
+
+	g, ok := m.groups[gID]
+	if !ok {
+		return nil, fmt.Errorf("can't find group with id %d", gID)
+	}
+	return groupToAPI(g), nil
+}
+
 // ruleAPI generates apiRule object from alert by its ID(hash)
 func (m *manager) ruleAPI(gID, rID uint64) (apiRule, error) {
 	m.groupsMu.RLock()
