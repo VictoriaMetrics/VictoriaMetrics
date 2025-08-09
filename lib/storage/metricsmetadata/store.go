@@ -3,11 +3,26 @@ package metricsmetadata
 import (
 	"bytes"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+)
+
+const (
+	// storeBucketsCount is the number of bucketsLock for the store.
+	storeBucketsCount = 512
+	// size of buffer to be used for cloning metric names
+	metricNameBufSize = 2 * 1024
+	// Metadata items which were not ingested for storeMetadataTTL are deleted from the store.
+	storeMetadataTTL = 10 * time.Minute
+	// storeRotationInterval is the interval for swapping current and prev bucketsLock.
+	storeRotationInterval = 15 * time.Minute
 )
 
 type metadataKey struct {
@@ -16,171 +31,327 @@ type metadataKey struct {
 	metricFamilyName string
 }
 
-type metricTimingInfo struct {
-	LastIngestionTime    uint64
-	AvgIngestionInterval uint64
-	IngestionCount       int64
+func (k metadataKey) hash(tmp []byte) ([]byte, uint64) {
+	tmp = encoding.MarshalUint32(tmp, k.accountID)
+	tmp = encoding.MarshalUint32(tmp, k.projectID)
+	tmp = append(tmp, k.metricFamilyName...)
+	return tmp, xxhash.Sum64(tmp)
 }
 
+// MetadataStoreMetrics contains metrics for the store.
 type MetadataStoreMetrics struct {
-	ItemsTotal         uint64
-	ItemsIngestedTotal uint64
-	ItemsDeduplicated  uint64
-	ItemsDeleted       uint64
-	ItemsSizeBytes     uint64
+	ItemsCurrent     int64
+	CurrentSizeBytes uint64
+	MaxSizeBytes     uint64
 }
 
-type Store struct {
-	metricMetadataStorageLock sync.RWMutex
-	metricsMetadataStorage    map[metadataKey][]Row
-	metricTimingInfo          map[metadataKey]metricTimingInfo
+type bucket struct {
+	mu                     sync.RWMutex
+	metricsMetadataStorage map[metadataKey][]Row
+	timingInfo             map[metadataKey]uint64
 
-	itemsIngestedTotal uint64
-	itemsDeduplicated  uint64
-	itemsDeleted       uint64
-	itemsCurrentTotal  uint64
+	metricNamesBuf []byte
 
-	cleanupInterval time.Duration
-	cleanupStopCh   chan struct{}
-	cleanupWG       sync.WaitGroup
+	itemsCurrent   *atomic.Int64
+	itemsTotalSize *atomic.Int64
 }
 
-func NewStore() *Store {
-	s := &Store{
-		metricsMetadataStorage: make(map[metadataKey][]Row),
-		metricTimingInfo:       make(map[metadataKey]metricTimingInfo),
-		cleanupInterval:        5 * time.Minute,
-		cleanupStopCh:          make(chan struct{}),
+func (b *bucket) resetLocked() {
+	clear(b.timingInfo)
+	clear(b.metricsMetadataStorage)
+}
+
+// cloneMetricNameLocked uses the same idea as strings.Clone.
+// But instead of direct []byte allocation for each cloned string,
+// it allocates metricNamesBuf, copies provided metricName into it
+// and uses string *byte references for it via subslice.
+func (b *bucket) cloneMetricNameLocked(metricName []byte) string {
+	if len(metricName) > metricNameBufSize {
+		// metricName is too large for default buffer
+		// directly allocate it on heap as strings.Clone does
+		b := make([]byte, len(metricName))
+		copy(b, metricName)
+		return bytesutil.ToUnsafeString(b)
+	}
+	idx := len(b.metricNamesBuf)
+	n := len(metricName) + len(b.metricNamesBuf)
+	if n > cap(b.metricNamesBuf) {
+		// allocate a new slice instead of reallocting exist
+		// it saves memory and reduces GC pressure
+		b.metricNamesBuf = make([]byte, 0, metricNameBufSize)
+		idx = 0
+	}
+	b.metricNamesBuf = append(b.metricNamesBuf, metricName...)
+	return bytesutil.ToUnsafeString(b.metricNamesBuf[idx:])
+}
+
+func (b *bucket) get(dst []Row, limit, limitPerMetric int64, metric string, keepFilter func(k metadataKey) bool) []Row {
+	if limit < 0 {
+		limit = 0
+	}
+	if limitPerMetric < 0 {
+		limitPerMetric = 0
 	}
 
-	s.cleanupWG.Add(1)
-	go s.runCleanupScheduler()
+	metricLen := len(metric)
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	for k, rows := range b.metricsMetadataStorage {
+		if metricLen > 0 && k.metricFamilyName != metric {
+			continue
+		}
+
+		perMetric := int64(0)
+		for _, r := range rows {
+			if keepFilter != nil && !keepFilter(k) {
+				continue
+			}
+
+			if limit > 0 && len(dst) >= int(limit) {
+				return dst
+			}
+
+			dst = append(dst, r)
+			perMetric++
+
+			if limitPerMetric > 0 && perMetric >= limitPerMetric {
+				break
+			}
+		}
+	}
+
+	return dst
+}
+
+func (b *bucket) add(key metadataKey, mr Row, lastIngestion uint64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	key.metricFamilyName = b.cloneMetricNameLocked(mr.MetricFamilyName)
+	b.timingInfo[key] = lastIngestion
+	trackRowIngested := func(newItem bool) {
+		b.itemsCurrent.Add(1)
+		totalAdd := rowSize(mr)
+		if newItem {
+			// storage and timing info entries
+			totalAdd += 2 * keySize(key)
+		}
+		b.itemsTotalSize.Add(totalAdd)
+	}
+
+	metadataRows, ok := b.metricsMetadataStorage[key]
+	if !ok {
+		b.metricsMetadataStorage[key] = make([]Row, 0, 1)
+		b.metricsMetadataStorage[key] = append(b.metricsMetadataStorage[key], mr)
+		trackRowIngested(true)
+		return
+	}
+
+	found := false
+	for _, v := range metadataRows {
+		if v.Type == mr.Type && bytes.Equal(mr.Unit, v.Unit) && bytes.Equal(mr.Help, v.Help) {
+			found = true
+			break
+		}
+	}
+
+	if found {
+		return
+	}
+	b.metricsMetadataStorage[key] = append(metadataRows, mr)
+	trackRowIngested(false)
+}
+
+// Store for metrics metadata
+type Store struct {
+	currentBuckets atomic.Pointer[[]*bucket]
+	prevBuckets    atomic.Pointer[[]*bucket]
+
+	itemsCurrent   atomic.Int64
+	itemsTotalSize atomic.Int64
+
+	rotationInterval time.Duration
+	rotationStopCh   chan struct{}
+
+	maxSizeBytes         int
+	maxSizeWatcherStopCh chan struct{}
+
+	backgroundTasks sync.WaitGroup
+}
+
+// NewStore returns new initialized Store.
+func NewStore(maxSizeBytes int) *Store {
+	s := &Store{
+		rotationInterval:     storeRotationInterval,
+		rotationStopCh:       make(chan struct{}),
+		maxSizeWatcherStopCh: make(chan struct{}),
+		maxSizeBytes:         maxSizeBytes,
+	}
+
+	var (
+		current = make([]*bucket, storeBucketsCount)
+		prev    = make([]*bucket, storeBucketsCount)
+	)
+	for i := range storeBucketsCount {
+		current[i] = &bucket{
+			metricsMetadataStorage: make(map[metadataKey][]Row),
+			timingInfo:             make(map[metadataKey]uint64),
+
+			itemsCurrent:   &s.itemsCurrent,
+			itemsTotalSize: &s.itemsTotalSize,
+		}
+		prev[i] = &bucket{
+			metricsMetadataStorage: make(map[metadataKey][]Row),
+			timingInfo:             make(map[metadataKey]uint64),
+
+			itemsCurrent:   &s.itemsCurrent,
+			itemsTotalSize: &s.itemsTotalSize,
+		}
+	}
+	s.currentBuckets.Store(&current)
+	s.prevBuckets.Store(&prev)
+
+	s.backgroundTasks.Add(2)
+	go s.runRotationScheduler()
+	go s.runMaxSizeWatcher()
 
 	return s
 }
 
+// MustClose closes the store and waits for all background tasks to finish.
 func (s *Store) MustClose() {
-	close(s.cleanupStopCh)
-	s.cleanupWG.Wait()
+	close(s.rotationStopCh)
+	close(s.maxSizeWatcherStopCh)
+	s.backgroundTasks.Wait()
 }
 
+// Add adds rows to the store.
 func (s *Store) Add(rows []Row) error {
 	if len(rows) == 0 {
 		return nil
 	}
 
-	s.metricMetadataStorageLock.Lock()
-	defer s.metricMetadataStorageLock.Unlock()
-
-	// Update timing for all metrics that were touched
 	now := fasttime.UnixTimestamp()
-
+	bb := bbPool.Get()
 	for _, mr := range rows {
 		key := metadataKey{
 			accountID:        mr.AccountID,
 			projectID:        mr.ProjectID,
 			metricFamilyName: bytesutil.ToUnsafeString(mr.MetricFamilyName),
 		}
-		s.updateMetricTimingLocked(&key, now)
-
-		metadataRows, ok := s.metricsMetadataStorage[key]
-		if !ok {
-			s.metricsMetadataStorage[key] = make([]Row, 0, 1)
-			s.metricsMetadataStorage[key] = append(s.metricsMetadataStorage[key], mr)
-			s.itemsIngestedTotal++
-			s.itemsCurrentTotal++
-			continue
-		}
-
-		found := false
-		for _, v := range metadataRows {
-			if v.Type == mr.Type && bytes.Equal(mr.Unit, v.Unit) && bytes.Equal(mr.Help, v.Help) {
-				found = true
-				break
-			}
-		}
-
-		if found {
-			s.itemsDeduplicated++
-			continue
-		}
-		s.metricsMetadataStorage[key] = append(metadataRows, mr)
-		s.itemsIngestedTotal++
-		s.itemsCurrentTotal++
+		var bucketIDx uint64
+		bb.B, bucketIDx = key.hash(bb.B[:0])
+		buckets := *s.currentBuckets.Load()
+		bucketIDx %= uint64(len(buckets))
+		buckets[bucketIDx].add(key, mr, now)
 	}
+	bbPool.Put(bb)
 
 	return nil
 }
 
-func (s *Store) updateMetricTimingLocked(key *metadataKey, now uint64) {
-	timing, exists := s.metricTimingInfo[*key]
-	if !exists {
-		s.metricTimingInfo[*key] = metricTimingInfo{
-			LastIngestionTime:    now,
-			AvgIngestionInterval: 0,
-			IngestionCount:       1,
-		}
-		return
-	}
+var bbPool bytesutil.ByteBufferPool
 
-	timeSinceLastIngestion := now - timing.LastIngestionTime
+func (s *Store) runMaxSizeWatcher() {
+	defer s.backgroundTasks.Done()
 
-	// Update running average using exponential moving average
-	if timing.IngestionCount == 1 {
-		timing.AvgIngestionInterval = timeSinceLastIngestion
-	} else {
-		alpha := 0.2
-		timing.AvgIngestionInterval = uint64(float64(timing.AvgIngestionInterval)*(1-alpha) + float64(timeSinceLastIngestion)*alpha)
-	}
+	t := time.NewTicker(10 * time.Second)
+	defer t.Stop()
 
-	timing.LastIngestionTime = now
-	timing.IngestionCount++
+	usageThreshold := 0.9
+	maxUsage := int64(float64(s.maxSizeBytes) * usageThreshold)
 
-	s.metricTimingInfo[*key] = timing
-}
-
-func (s *Store) runCleanupScheduler() {
-	defer s.cleanupWG.Done()
-
-	ticker := time.NewTicker(s.cleanupInterval)
-	defer ticker.Stop()
+	defaultTTL := uint64(storeMetadataTTL.Seconds())
 
 	for {
 		select {
-		case <-ticker.C:
-			s.cleanup()
-		case <-s.cleanupStopCh:
+		case <-t.C:
+			currentSize := s.itemsTotalSize.Load()
+			if currentSize > maxUsage {
+				now := fasttime.UnixTimestamp()
+				threshold := now - defaultTTL
+				s.evict(threshold)
+			}
+
+			// check if force rotation helped to reclaim memory
+			// if not - delete items for half of the TTL
+			currentSize = s.itemsTotalSize.Load()
+			if currentSize > maxUsage {
+				now := fasttime.UnixTimestamp()
+				threshold := now - defaultTTL/2
+				s.evict(threshold)
+			}
+
+			// last resort, delete everything
+			currentSize = s.itemsTotalSize.Load()
+			if currentSize > maxUsage {
+				s.evict(fasttime.UnixTimestamp())
+			}
+		case <-s.maxSizeWatcherStopCh:
 			return
 		}
 	}
 }
 
-func (s *Store) cleanup() {
-	s.metricMetadataStorageLock.Lock()
-	defer s.metricMetadataStorageLock.Unlock()
+func (s *Store) runRotationScheduler() {
+	defer s.backgroundTasks.Done()
 
-	now := fasttime.UnixTimestamp()
+	ticker := time.NewTicker(s.rotationInterval)
+	defer ticker.Stop()
 
-	for key, timing := range s.metricTimingInfo {
-		if timing.IngestionCount < 2 {
-			continue
-		}
-
-		// Check if it's been more than 10x the average interval since last ingestion
-		// Prometheus keeps metadata for 10 scrapes after the last ingestion
-		// https://github.com/prometheus/prometheus/blob/5a5424cbc1422ddfd94651122845fdc4a2e8b5c7/scrape/scrape.go#L1041
-		timeSinceLastIngestion := now - timing.LastIngestionTime
-		threshold := timing.AvgIngestionInterval * 10
-
-		if timeSinceLastIngestion > threshold {
-			if rows, ok := s.metricsMetadataStorage[key]; ok {
-				s.itemsDeleted += uint64(len(rows))
-				s.itemsCurrentTotal -= uint64(len(rows))
-			}
-			delete(s.metricsMetadataStorage, key)
-			delete(s.metricTimingInfo, key)
+	for {
+		select {
+		case <-ticker.C:
+			now := fasttime.UnixTimestamp()
+			threshold := now - uint64(storeMetadataTTL.Seconds())
+			s.evict(threshold)
+		case <-s.rotationStopCh:
+			return
 		}
 	}
+}
+
+// evict deletes items which are were not ingested after threshold.
+func (s *Store) evict(threshold uint64) {
+	// Moves items from src to dst if they are not expired yet.
+	move := func(src, dst []*bucket) {
+		for i := range src {
+			b := src[i]
+			b.mu.Lock()
+			for key, lastIngestion := range b.timingInfo {
+				itemsToDelete := uint64(len(b.metricsMetadataStorage[key]))
+				s.itemsCurrent.Add(-int64(itemsToDelete))
+				sizeDiff := -2 * keySize(key)
+				for _, row := range b.metricsMetadataStorage[key] {
+					rs := rowSize(row)
+					sizeDiff -= rs
+				}
+				s.itemsTotalSize.Add(sizeDiff)
+
+				if lastIngestion < threshold {
+					continue
+				}
+				for _, row := range b.metricsMetadataStorage[key] {
+					dst[i].add(key, row, lastIngestion)
+				}
+			}
+			b.resetLocked()
+			b.mu.Unlock()
+		}
+	}
+
+	// Pre-fill prevBuckets with current items which are not expired yet
+	// And store as current items to direct new writes to these items
+	currentBuckets := *s.currentBuckets.Load()
+	prevBuckets := *s.prevBuckets.Load()
+	move(currentBuckets, prevBuckets)
+	s.currentBuckets.Store(&prevBuckets)
+	s.prevBuckets.Store(&currentBuckets)
+
+	// Move items which might have been written to currentBuckets before swap once again
+	// And reset currentBuckets to empty
+	move(currentBuckets, prevBuckets)
 }
 
 func (s *Store) get(limit, limitPerMetric int64, metric string, keepFilter func(k metadataKey) bool) []Row {
@@ -191,46 +362,21 @@ func (s *Store) get(limit, limitPerMetric int64, metric string, keepFilter func(
 		limitPerMetric = 0
 	}
 
-	s.metricMetadataStorageLock.RLock()
-	defer s.metricMetadataStorageLock.RUnlock()
 	prealloc := int(limit)
 	if limit == 0 {
 		// assume that we will return all entries
-		// Using itemsCurrentTotal counter for better performance
-		prealloc = int(s.itemsCurrentTotal)
-		if limitPerMetric > 0 {
-			prealloc = len(s.metricsMetadataStorage) * int(limitPerMetric)
-		}
+		prealloc = int(s.itemsCurrent.Load())
 	}
 	res := make([]Row, 0, prealloc)
-	metricLen := len(metric)
-	for k, m := range s.metricsMetadataStorage {
-		if metricLen > 0 && k.metricFamilyName != metric {
-			continue
-		}
-
-		perMetric := int64(0)
-		for _, r := range m {
-			if keepFilter != nil && !keepFilter(k) {
-				continue
-			}
-
-			res = append(res, r)
-			perMetric++
-
-			if limitPerMetric > 0 && perMetric >= limitPerMetric {
-				break
-			}
-
-			if limit > 0 && len(res) >= int(limit) {
-				return res
-			}
-		}
+	buckets := *s.currentBuckets.Load()
+	for i := range buckets {
+		res = buckets[i].get(res, limit, limitPerMetric, metric, keepFilter)
 	}
 
 	return res
 }
 
+// GetForTenant returns rows for the given tenant, metric and limits.
 func (s *Store) GetForTenant(accountID, projectID uint32, limit, limitPerMetric int64, metric string) []Row {
 	keepFilter := func(k metadataKey) bool {
 		return k.accountID == accountID && k.projectID == projectID
@@ -238,23 +384,26 @@ func (s *Store) GetForTenant(accountID, projectID uint32, limit, limitPerMetric 
 	return s.get(limit, limitPerMetric, metric, keepFilter)
 }
 
+// Get returns rows for the given metric and limits.
 func (s *Store) Get(limit, limitPerMetric int64, metric string) []Row {
 	return s.get(limit, limitPerMetric, metric, nil)
 }
 
+// UpdateMetrics updates dst with metrics store metrics.
 func (s *Store) UpdateMetrics(dst *MetadataStoreMetrics) {
-	s.metricMetadataStorageLock.RLock()
-	defer s.metricMetadataStorageLock.RUnlock()
-	totalSize := 0
-	perRowOverhead := int(unsafe.Sizeof(metadataKey{})) + int(unsafe.Sizeof(Row{})) + 24 // 24 bytes for map overhead
-	for _, rows := range s.metricsMetadataStorage {
-		for _, row := range rows {
-			totalSize += len(row.MetricFamilyName) + len(row.Help) + len(row.Unit) + perRowOverhead
-		}
-	}
-	dst.ItemsTotal = s.itemsCurrentTotal
-	dst.ItemsIngestedTotal = s.itemsIngestedTotal
-	dst.ItemsDeduplicated = s.itemsDeduplicated
-	dst.ItemsDeleted = s.itemsDeleted
-	dst.ItemsSizeBytes = uint64(totalSize)
+	dst.ItemsCurrent = s.itemsCurrent.Load()
+	dst.CurrentSizeBytes = uint64(s.itemsTotalSize.Load())
+	dst.MaxSizeBytes = uint64(s.maxSizeBytes)
+}
+
+const (
+	perItemOverhead = int64(int(unsafe.Sizeof(Row{})) + 24) // 24 bytes for map overhead
+)
+
+func rowSize(r Row) int64 {
+	return perItemOverhead + int64(len(r.MetricFamilyName)+len(r.Help)+len(r.Unit))
+}
+
+func keySize(k metadataKey) int64 {
+	return int64(unsafe.Sizeof(k)) + int64(len(k.metricFamilyName))
 }

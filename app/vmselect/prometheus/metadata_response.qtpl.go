@@ -61,19 +61,19 @@ func StreamMetadataResponse(qw422016 *qt422016.Writer, isPartial bool, result me
 //line app/vmselect/prometheus/metadata_response.qtpl:20
 			}
 //line app/vmselect/prometheus/metadata_response.qtpl:20
-			qw422016.N().S(`{"type": "`)
+			qw422016.N().S(`{"type":`)
 //line app/vmselect/prometheus/metadata_response.qtpl:22
-			qw422016.E().S(item.Type)
+			qw422016.N().Q(item.Type)
 //line app/vmselect/prometheus/metadata_response.qtpl:22
-			qw422016.N().S(`","help": "`)
+			qw422016.N().S(`,"help":`)
 //line app/vmselect/prometheus/metadata_response.qtpl:23
-			qw422016.E().S(item.Help)
+			qw422016.N().Q(item.Help)
 //line app/vmselect/prometheus/metadata_response.qtpl:23
-			qw422016.N().S(`","unit": "`)
+			qw422016.N().S(`,"unit":`)
 //line app/vmselect/prometheus/metadata_response.qtpl:24
-			qw422016.E().S(item.Unit)
+			qw422016.N().Q(item.Unit)
 //line app/vmselect/prometheus/metadata_response.qtpl:24
-			qw422016.N().S(`"}`)
+			qw422016.N().S(`}`)
 //line app/vmselect/prometheus/metadata_response.qtpl:26
 		}
 //line app/vmselect/prometheus/metadata_response.qtpl:26
@@ -123,3 +123,5 @@ func MetadataResponse(isPartial bool, result metadataResult, qt *querytracer.Tra
 	return qs422016
 //line app/vmselect/prometheus/metadata_response.qtpl:34
 }
+
+// 184817

@@ -104,6 +104,8 @@ var (
 		"In most cases, this value should not be changed. The maximum allowed value is 23h.")
 
 	logNewSeriesAuthKey = flagutil.NewPassword("logNewSeriesAuthKey", "authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*")
+
+	metadataStoreSize = flagutil.NewBytes("storage.maxMetadataStoreSize", 0, "Overrides max size for metadata entries storage. ")
 )
 
 func main() {
@@ -135,6 +137,7 @@ func main() {
 	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
 	storage.SetMetricNamesStatsCacheSize(cacheSizeMetricNamesStats.IntN())
 	storage.SetMetricNameCacheSize(cacheSizeStorageMetricName.IntN())
+	storage.SetMetadataStoreSize(metadataStoreSize.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
@@ -631,11 +634,9 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 
 	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(servers.GetMaxUniqueTimeSeries()))
 
-	metrics.WriteGaugeUint64(w, `vm_metadata_rows_count`, m.MetadataStoreItemsTotal)
-	metrics.WriteCounterUint64(w, `vm_metadata_rows_added_total`, m.MetadataStoreItemsIngested)
-	metrics.WriteCounterUint64(w, `vm_metadata_rows_deleted_total`, m.MetadataStoreItemsDeleted)
-	metrics.WriteCounterUint64(w, `vm_metadata_rows_deduplicated_total`, m.MetadataStoreItemsDeduplicated)
-	metrics.WriteCounterUint64(w, `vm_metadata_rows_size_bytes`, m.MetadataStoreItemsSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_metadata_rows`, m.MetadataStoreItemsCurrent)
+	metrics.WriteCounterUint64(w, `vm_metadata_current_size_bytes`, m.MetadataStoreCurrentSizeBytes)
+	metrics.WriteCounterUint64(w, `vm_metadata_max_size_bytes`, m.MetadataStoreMaxSizeBytes)
 
 }
 
