@@ -19,9 +19,9 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-m
 				{% for i, item := range items %}
 					{% if i > 0 && len(items) != i %}, {% endif %}
 					{
-						"type": "{%s item.Type %}",
-						"help": "{%s item.Help %}",
-						"unit": "{%s item.Unit %}"
+						"type": {%q= item.Type %},
+						"help": {%q= item.Help %},
+						"unit": {%q= item.Unit %}
 					}
 				{% endfor %}
 			]
@@ -34,3 +34,4 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-m
 {% endfunc %}
 
 {% endstripspace %}
+184817
