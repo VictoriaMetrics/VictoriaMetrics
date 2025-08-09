@@ -465,20 +465,7 @@ The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with 
 
 ### Environment variables
 
-All the VictoriaMetrics components allow referring environment variables in command-line flags via `%{ENV_VAR}` syntax.
-For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
-if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
-This expansion is performed by VictoriaMetrics itself.
-
-VictoriaMetrics recursively expands `%{ENV_VAR}` references in environment variables on startup.
-For example, `FOO=%{BAR}` environment variable is expanded to `FOO=abc` if `BAR=a%{BAZ}` and `BAZ=bc`.
-
-Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
-
-- The `-envflag.enable` flag must be set
-- Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
-- For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
-- It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables).
 
 ## Security
 
