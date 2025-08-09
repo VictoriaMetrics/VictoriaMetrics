@@ -101,7 +101,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		data := rh.groups(rf)
+		data, _ := rh.groups(rf)
 		WriteListGroups(w, r, data, rf.filter)
 		return true
 	case "/vmalert/notifiers":
@@ -119,7 +119,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		data = rh.groups(rf)
+		data, _ = rh.groups(rf)
 		WriteListGroups(w, r, data, rf.filter)
 		return true
 
@@ -246,7 +246,7 @@ type listGroupsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
 		Groups         []*apiGroup `json:"groups"`
-		GroupNextToken string     `json:"groupNextToken,omitempty"`
+		GroupNextToken string      `json:"groupNextToken,omitempty"`
 	} `json:"data"`
 }
 
