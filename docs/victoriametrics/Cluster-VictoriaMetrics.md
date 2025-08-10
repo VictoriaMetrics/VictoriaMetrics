@@ -462,6 +462,15 @@ for sending data from `vminsert` to `vmstorage` node according to `-vminsertAddr
 
 The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
 
+The discovered addresses preserve [vmstorage group](#vmstorage-groups-at-vmselect) prefix:
+
+```bash
+/path/to/vmselect \
+ -globalReplicationFactor=2 \
+ -storageNode=g1/file:/path/to/file-with-vmstorage-list/ \
+ -storageNode=g2/srv+vmstorage-autodiscovery \
+ -storageNode=g3/host7,g3/host8,g3/host9
+```
 
 ### Environment variables
 
