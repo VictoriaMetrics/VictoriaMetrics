@@ -112,17 +112,20 @@ func mergeSortedTSIDs(tsidss [][]TSID) []TSID {
 		}
 	}
 	all := make([]TSID, 0, n)
-	var lastAdded *TSID
 
 	heap.Init(&h)
 	for h.Len() > 0 {
-		tsid := &h[0][0]
-		if len(all) == 0 || *tsid != *lastAdded {
-			all = append(all, *tsid)
-			lastAdded = tsid
+		top := h[0]
+		tsid := top[0]
+		if len(all) == 0 || tsid != all[len(all)-1] {
+			all = append(all, tsid)
 		}
-		h.push()
-		heap.Fix(&h, 0)
+		if len(top) == 1 {
+			heap.Pop(&h)
+		} else {
+			h[0] = top[1:]
+			heap.Fix(&h, 0)
+		}
 	}
 
 	return all
@@ -147,18 +150,13 @@ func (h tsidHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
 
-func (h *tsidHeap) push() {
-	s := *h
-	s[0] = s[0][1:len(s[0])]
-	if len(s[0]) == 0 {
-		*h = s[1:]
-	}
-}
-
 func (h *tsidHeap) Push(_ any) {
 	panic(fmt.Errorf("BUG: Push shouldn't be called"))
 }
 
 func (h *tsidHeap) Pop() any {
-	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
+	a := *h
+	x := a[len(a)-1]
+	*h = a[:len(a)-1]
+	return x
 }
