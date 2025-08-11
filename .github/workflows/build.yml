@@ -31,24 +31,33 @@ concurrency:
 
 jobs:
   build:
-    name: Build
+    name: ${{ matrix.os }}-${{ matrix.arch }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: 386
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: linux
+            arch: arm
+          - os: linux
+            arch: ppc64le
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: freebsd
+            arch: amd64
+          - os: openbsd
+            arch: amd64
+          - os: windows
+            arch: amd64
     steps:
-      - name: Free space
-        run: |
-          # cleanup up space to free additional ~20GiB of memory
-          # which are lacking for multiplaform images build
-          formatByteCount() { echo $(numfmt --to=iec-i --suffix=B --padding=7 $1'000'); }
-          getAvailableSpace() { echo $(df -a $1 | awk 'NR > 1 {avail+=$4} END {print avail}'); }
-          BEFORE=$(getAvailableSpace)
-          sudo rm -rf /usr/local/lib/android || true
-          sudo rm -rf /usr/share/dotnet || true
-          sudo rm -rf /opt/ghc || true
-          sudo rm -rf /usr/local/.ghcup || true
-          AFTER=$(getAvailableSpace)
-          SAVED=$((AFTER-BEFORE))
-          echo "Saved $(formatByteCount $SAVED)"
-
       - name: Code checkout
         uses: actions/checkout@v4
 
@@ -56,18 +65,14 @@ jobs:
         id: go
         uses: actions/setup-go@v5
         with:
+          cache-dependency-path: |
+            go.sum
+            Makefile
+            app/**/Makefile
           go-version: stable
-          cache: false
 
-      - name: Cache Go artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/bin
-            ~/go/pkg/mod
-          key: go-artifacts-${{ runner.os }}-crossbuild-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-          restore-keys: go-artifacts-${{ runner.os }}-crossbuild-
+      - name: Build victoria-metrics for ${{ matrix.os }}-${{ matrix.arch }}
+        run: make victoria-metrics-${{ matrix.os }}-${{ matrix.arch }}
 
-      - name: Run crossbuild
-        run: make crossbuild
+      - name: Build vmutils for ${{ matrix.os }}-${{ matrix.arch }}
+        run: make vmutils-${{ matrix.os }}-${{ matrix.arch }}

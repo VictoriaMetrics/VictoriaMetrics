@@ -373,6 +373,8 @@ The multi-level cluster setup for `vminsert` nodes has the following shortcoming
 These issues are addressed by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
 `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
 
+See the [cluster instability troubleshooting guide](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability) for details on diagnosing and mitigating networking problems.
+
 ### vmstorage groups at vmselect
 
 `vmselect` can be configured to query multiple distinct groups of `vmstorage` nodes with individual `-replicationFactor` per each group.
@@ -1321,6 +1323,8 @@ Below is the output for `/path/to/vminsert -help`:
      Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. Higher values for -dedup.minScrapeInterval at vmselect is OK (default 1)
   -rpc.disableCompression
      Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage
+  -rpc.handshakeTimeout duration
+     Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. (default 5s)
   -search.denyPartialResponse
      Whether to deny partial responses if a part of -storageNode instances fail to perform queries; this trades availability over consistency; see also -search.maxQueryDuration
   -sortLabels
@@ -1562,6 +1566,8 @@ Below is the output for `/path/to/vmselect -help`:
   -replicationFactor array
      How many copies of every ingested sample is available across -storageNode nodes. vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable. See also -globalReplicationFactor and -search.skipSlowReplicas (default 1)
      Supports an array of `key:value` entries separated by comma or specified via multiple flags.
+  -rpc.handshakeTimeout duration
+     Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. (default 5s)
   -search.cacheTimestampOffset duration
      The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources (default 5m0s)
   -search.denyPartialResponse
@@ -1930,6 +1936,8 @@ Below is the output for `/path/to/vmstorage -help`:
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -rpc.disableCompression
      Whether to disable compression of the data sent from vmstorage to vmselect. This reduces CPU usage at the cost of higher network bandwidth usage
+  -rpc.handshakeTimeout duration
+     Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. (default 5s)
   -search.maxConcurrentRequests int
      The maximum number of concurrent vmselect requests the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration
   -search.maxQueueDuration duration
