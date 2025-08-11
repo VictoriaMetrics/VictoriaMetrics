@@ -77,10 +77,7 @@ func LoadFromFile(path string, pushFunc PushFunc, opts *Options, alias string) (
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
 	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 
 	as, err := loadFromData(data, path, pushFunc, opts, alias)
 	if err != nil {
