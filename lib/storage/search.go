@@ -217,11 +217,7 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 		if len(tsidss) == 1 {
 			return tsidss[0]
 		}
-		if len(tsidss) == 2 {
-			return mergeTSIDs2Way(tsidss[0], tsidss[1])
-		}
-
-		return mergeTSIDsNWay(tsidss)
+		return mergeSortedTSIDs(tsidss)
 	}
 
 	tsids, err := searchAndMerge(qt, s.storage, tr, search, merge)

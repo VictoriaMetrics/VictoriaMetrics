@@ -101,36 +101,8 @@ func (t *TSID) Less(b *TSID) bool {
 	return t.MetricID < b.MetricID
 }
 
-// mergeTSIDs2Way merges two sorted TSID slices into one. Dublicates are
-// removed.
-func mergeTSIDs2Way(a, b []TSID) []TSID {
-	all := make([]TSID, 0, len(a)+len(b))
-	i, j := 0, 0
-	var tsid TSID
-	for i < len(a) || j < len(b) {
-		if i == len(a) {
-			tsid = b[j]
-			j++
-		} else if j == len(b) {
-			tsid = a[i]
-			i++
-		} else if a[i].Less(&b[j]) {
-			tsid = a[i]
-			i++
-		} else {
-			tsid = b[j]
-			j++
-		}
-		if len(all) == 0 || all[len(all)-1] != tsid {
-			all = append(all, tsid)
-		}
-	}
-	return all
-}
-
-// mergeTSIDsNWay merges N sorted TSID slices into one. Duplicates are
-// removed.
-func mergeTSIDsNWay(tsidss [][]TSID) []TSID {
+// mergeTSIDsNWay merges sorted TSID slices into one. Duplicates are removed.
+func mergeSortedTSIDs(tsidss [][]TSID) []TSID {
 	items := make([]tsidItem, len(tsidss))
 	h := make(tsidHeap, 0)
 	heap.Init(&h)
