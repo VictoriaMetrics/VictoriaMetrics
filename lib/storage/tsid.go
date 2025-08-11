@@ -101,82 +101,64 @@ func (t *TSID) Less(b *TSID) bool {
 	return t.MetricID < b.MetricID
 }
 
-// mergeTSIDsNWay merges sorted TSID slices into one. Duplicates are removed.
+// mergeSortedTSIDs merges sorted TSID slices into one. Duplicates are removed.
 func mergeSortedTSIDs(tsidss [][]TSID) []TSID {
-	items := make([]tsidItem, len(tsidss))
-	h := make(tsidHeap, 0)
-	heap.Init(&h)
+	var h tsidHeap
 	var n int
-	for i, d := range tsidss {
-		if len(d) > 0 {
-			item := &items[i]
-			item.tsid = &d[0]
-			item.sliceIdx = i
-			item.elementIdx = 0
-			heap.Push(&h, item)
-			n += len(d)
+	for _, tsids := range tsidss {
+		if len(tsids) > 0 {
+			h = append(h, tsids)
+			n += len(tsids)
 		}
 	}
 	all := make([]TSID, 0, n)
 	var lastAdded *TSID
+
+	heap.Init(&h)
 	for h.Len() > 0 {
-		item := heap.Pop(&h).(*tsidItem)
-
-		if len(all) == 0 || *item.tsid != *lastAdded {
-			all = append(all, *item.tsid)
-			lastAdded = item.tsid
+		tsid := &h[0][0]
+		if len(all) == 0 || *tsid != *lastAdded {
+			all = append(all, *tsid)
+			lastAdded = tsid
 		}
-
-		if item.elementIdx+1 < len(tsidss[item.sliceIdx]) {
-			item.tsid = &tsidss[item.sliceIdx][item.elementIdx+1]
-			item.elementIdx++
-			heap.Push(&h, item)
-		}
+		h.push()
+		heap.Fix(&h, 0)
 	}
-	return all
-}
 
-// tsidItem represents a single element in tsidHeap used for implementing N-way
-// merge of N sorted TSID slices. See mergeTSIDsNWay().
-//
-// Given the slice of TSID slices [][]TSID, tsidItem holds the pointer to a TSID
-// that is stored in sliceIdx slice at elementIdx index.
-type tsidItem struct {
-	tsid       *TSID
-	sliceIdx   int
-	elementIdx int
+	return all
 }
 
 // tsidHeap is a slice of tsidItems that implements methods that allow to use it
 // as a heap. It is used for implementing N-way merge of N sorted TSID slices.
-// See mergeTSIDsNWay().
-type tsidHeap []*tsidItem
+// See mergeSortedTSIDs().
+//
+// Slice elements initially must not be empty.
+type tsidHeap [][]TSID
 
-// Len returns the length of the heap.
 func (h tsidHeap) Len() int {
 	return len(h)
 }
 
-// Less compares two TSIDs.
 func (h tsidHeap) Less(i, j int) bool {
-	return h[i].tsid.Less(h[j].tsid)
+	return h[i][0].Less(&h[j][0])
 }
 
-// Swap swaps to heap items.
 func (h tsidHeap) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
 
-// Push adds a new item to the heap.
-func (h *tsidHeap) Push(v any) {
-	item := v.(*tsidItem)
-	*h = append(*h, item)
+func (h *tsidHeap) push() {
+	s := *h
+	s[0] = s[0][1:len(s[0])]
+	if len(s[0]) == 0 {
+		*h = s[1:]
+	}
 }
 
-// Pop removes the smallest item from the heap and returns it to the caller.
+func (h *tsidHeap) Push(_ any) {
+	panic(fmt.Errorf("BUG: Push shouldn't be called"))
+}
+
 func (h *tsidHeap) Pop() any {
-	old := *h
-	item := old[len(old)-1]
-	*h = old[0 : len(old)-1]
-	return item
+	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
