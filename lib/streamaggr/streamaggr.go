@@ -1221,7 +1221,9 @@ func (ctx *flushCtx) flushSeries() {
 		wg.Add(1)
 		go func(ts *prompb.TimeSeries) {
 			defer wg.Done()
-			dstLabels := outputRelabeling.Apply(ts.Labels, 0)
+			dstLabels := make([]prompb.Label, 0, len(ts.Labels))
+			dstLabels = append(dstLabels, ts.Labels...)
+			dstLabels = outputRelabeling.Apply(dstLabels, 0)
 			if len(dstLabels) == 0 {
 				// The metric has been deleted by the relabeling
 				return
