@@ -1337,7 +1337,7 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 		for _, d := range data {
 			for v := range d {
 				if len(all) >= maxResults {
-					break
+					return all
 				}
 				all[v] = struct{}{}
 			}
