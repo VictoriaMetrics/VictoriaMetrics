@@ -91,8 +91,10 @@ vmcluster-darwin-arm64: \
 	vmselect-darwin-arm64 \
 	vmstorage-darwin-arm64
 
+# When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 crossbuild: vmcluster-crossbuild
 
+# When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 vmcluster-crossbuild:
 	$(MAKE_PARALLEL) vmcluster-linux-amd64 \
 		vmcluster-linux-arm64 \

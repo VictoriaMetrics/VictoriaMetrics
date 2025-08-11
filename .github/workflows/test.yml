@@ -1,4 +1,4 @@
-name: main
+name: test
 
 on:
   push:
@@ -25,6 +25,7 @@ concurrency:
   cancel-in-progress: true
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
+
 jobs:
   lint:
     name: lint
@@ -37,27 +38,28 @@ jobs:
         id: go
         uses: actions/setup-go@v5
         with:
-          cache: false
+          cache-dependency-path: |
+            go.sum
+            Makefile
+            app/**/Makefile
           go-version: stable
 
-      - name: Cache Go artifacts
+
+      - name: Cache golangci-lint
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/go-build
+            ~/.cache/golangci-lint
             ~/go/bin
-            ~/go/pkg/mod
-          key: go-artifacts-${{ runner.os }}-check-all-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-          restore-keys: go-artifacts-${{ runner.os }}-check-all-
+          key: golangci-lint-${{ runner.os }}-${{ hashFiles('.golangci.yml') }}
 
       - name: Run check-all
         run: |
           make check-all
           git diff --exit-code
 
-  test:
-    name: test
-    needs: lint
+  unit:
+    name: unit
     runs-on: ubuntu-latest
 
     strategy:
@@ -75,18 +77,11 @@ jobs:
         id: go
         uses: actions/setup-go@v5
         with:
-          cache: false
+          cache-dependency-path: |
+            go.sum
+            Makefile
+            app/**/Makefile
           go-version: stable
-
-      - name: Cache Go artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/bin
-            ~/go/pkg/mod
-          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-          restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
 
       - name: Run tests
         run: GOGC=10 make ${{ matrix.scenario}}
@@ -96,9 +91,8 @@ jobs:
         with:
           files: ./coverage.txt
 
-  integration-test:
-    name: integration-test
-    needs: [lint, test]
+  integration:
+    name: integration
     runs-on: ubuntu-latest
 
     steps:
@@ -109,18 +103,11 @@ jobs:
         id: go
         uses: actions/setup-go@v5
         with:
-          cache: false
+          cache-dependency-path: |
+            go.sum
+            Makefile
+            app/**/Makefile
           go-version: stable
-
-      - name: Cache Go artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/bin
-            ~/go/pkg/mod
-          key: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-          restore-keys: go-artifacts-${{ runner.os }}-${{ matrix.scenario }}-
 
       - name: Run integration tests
         run: make integration-test
