@@ -99,37 +99,39 @@ func testDeduplication(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier,
 	ts3 := start.Add(3 * time.Second).UnixMilli()
 	ts5 := start.Add(5 * time.Second).UnixMilli()
 	ts10 := start.Add(10 * time.Second).UnixMilli()
-	data := []prompb.TimeSeries{
-		{
-			Labels: []prompb.Label{{Name: "__name__", Value: "metric1"}},
-			Samples: []prompb.Sample{
-				{Timestamp: ts1, Value: 3},
-				{Timestamp: ts3, Value: 10},
-				{Timestamp: ts5, Value: 5},
+	data := prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{{Name: "__name__", Value: "metric1"}},
+				Samples: []prompb.Sample{
+					{Timestamp: ts1, Value: 3},
+					{Timestamp: ts3, Value: 10},
+					{Timestamp: ts5, Value: 5},
+				},
 			},
-		},
-		{
-			Labels: []prompb.Label{{Name: "__name__", Value: "metric2"}},
-			Samples: []prompb.Sample{
-				{Timestamp: ts1, Value: 3},
-				{Timestamp: ts3, Value: decimal.StaleNaN},
-				{Timestamp: ts5, Value: 5},
+			{
+				Labels: []prompb.Label{{Name: "__name__", Value: "metric2"}},
+				Samples: []prompb.Sample{
+					{Timestamp: ts1, Value: 3},
+					{Timestamp: ts3, Value: decimal.StaleNaN},
+					{Timestamp: ts5, Value: 5},
+				},
 			},
-		},
-		{
-			Labels: []prompb.Label{{Name: "__name__", Value: "metric3"}},
-			Samples: []prompb.Sample{
-				{Timestamp: ts10, Value: 30},
-				{Timestamp: ts10, Value: 100},
-				{Timestamp: ts10, Value: 50},
+			{
+				Labels: []prompb.Label{{Name: "__name__", Value: "metric3"}},
+				Samples: []prompb.Sample{
+					{Timestamp: ts10, Value: 30},
+					{Timestamp: ts10, Value: 100},
+					{Timestamp: ts10, Value: 50},
+				},
 			},
-		},
-		{
-			Labels: []prompb.Label{{Name: "__name__", Value: "metric4"}},
-			Samples: []prompb.Sample{
-				{Timestamp: ts10, Value: 30},
-				{Timestamp: ts10, Value: decimal.StaleNaN},
-				{Timestamp: ts10, Value: 50},
+			{
+				Labels: []prompb.Label{{Name: "__name__", Value: "metric4"}},
+				Samples: []prompb.Sample{
+					{Timestamp: ts10, Value: 30},
+					{Timestamp: ts10, Value: decimal.StaleNaN},
+					{Timestamp: ts10, Value: 50},
+				},
 			},
 		},
 	}
