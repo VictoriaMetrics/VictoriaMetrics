@@ -827,7 +827,6 @@ func filterLabelValues(lvs map[string]struct{}, tf *tagFilter, key string) {
 }
 
 func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
-
 	if tr == globalIndexTimeRange {
 		qtChild := qt.NewChild("search for label values in global index: labelName=%q, filters=%s", labelName, tfss)
 		lvs, err := is.searchLabelValuesOnDate(qtChild, labelName, tfss, globalIndexDate, maxLabelValues, maxMetrics)
@@ -885,8 +884,7 @@ func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labe
 	return lvs, errGlobal
 }
 
-func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName string, tfss []*TagFilters,
-	date uint64, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
+func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, date uint64, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
 	filter, err := is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
 	if err != nil {
 		return nil, err

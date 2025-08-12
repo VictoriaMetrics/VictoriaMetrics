@@ -1677,15 +1677,6 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelNames(timeRange=%s): %s", &tr, err)
 	}
-	sortedSlice := func(m map[string]struct{}) []string {
-		t.Helper()
-		s := make([]string, 0, len(m))
-		for k := range m {
-			s = append(s, k)
-		}
-		slices.Sort(s)
-		return s
-	}
 	got := sortedSlice(lns)
 	if !reflect.DeepEqual(got, labelNames) {
 		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
@@ -2210,4 +2201,13 @@ func TestSearchContainsTimeRange(t *testing.T) {
 	s.putPrevAndCurrIndexDBs(idbPrev, idbNext)
 	s.MustClose()
 	fs.MustRemoveDir(path)
+}
+
+func sortedSlice(m map[string]struct{}) []string {
+	s := make([]string, 0, len(m))
+	for k := range m {
+		s = append(s, k)
+	}
+	slices.Sort(s)
+	return s
 }
