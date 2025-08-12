@@ -1064,9 +1064,7 @@ func (wc *writeRequestCtx) addMetadata(metadataRows []parser.Metadata) {
 		return
 	}
 	mms := wc.writeRequest.Metadata[:0]
-
-	// when there are duplicated metadata entries, use the latest entry and drop earlier ones
-	for i := len(metadataRows) - 1; i >= 0; i-- {
+	for i := range metadataRows {
 		row := &metadataRows[i]
 		if len(mms) < cap(mms) {
 			mms = mms[:len(mms)+1]
