@@ -1630,12 +1630,11 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	var firstWarn error
 	for i := range mrs {
 		mr := &mrs[i]
-		date := s.date(mr.Timestamp)
 		if !s.registerSeriesCardinality(mr.MetricNameRaw) {
 			// Skip row, since it exceeds cardinality limit
 			continue
 		}
-
+		date := s.date(mr.Timestamp)
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
 			if genTSID.generation < generation {
