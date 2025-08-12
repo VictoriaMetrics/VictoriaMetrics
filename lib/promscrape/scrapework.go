@@ -1063,17 +1063,11 @@ func (wc *writeRequestCtx) addMetadata(metadataRows []parser.Metadata) {
 	if len(metadataRows) == 0 {
 		return
 	}
-	uniqMetadata := make(map[string]struct{}, len(metadataRows)/2)
 	mms := wc.writeRequest.Metadata[:0]
 
 	// when there are duplicated metadata entries, use the latest entry and drop earlier ones
 	for i := len(metadataRows) - 1; i >= 0; i-- {
 		row := &metadataRows[i]
-		_, ok := uniqMetadata[row.Metric]
-		if ok {
-			continue
-		}
-		uniqMetadata[row.Metric] = struct{}{}
 		if len(mms) < cap(mms) {
 			mms = mms[:len(mms)+1]
 		} else {

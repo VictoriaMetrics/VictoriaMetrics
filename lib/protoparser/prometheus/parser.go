@@ -89,7 +89,7 @@ func stdErrLogger(s string) {
 	logger.ErrorfSkipframes(1, "%s", s)
 }
 
-// Unmarshal unmarshals only samples from Prometheus exposition text.
+// UnmarshalWithErrLogger unmarshals only samples from Prometheus exposition text.
 //
 // See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 //
