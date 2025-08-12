@@ -1221,14 +1221,21 @@ func (ctx *flushCtx) flushSeries() {
 		wg.Add(1)
 		go func(ts *prompb.TimeSeries) {
 			defer wg.Done()
-			dstLabels := make([]prompb.Label, 0, len(ts.Labels))
+
+			auxLabels := promutil.GetLabels()
+			dstLabels := auxLabels.Labels[:0]
+			dstLabelsLen := len(dstLabels)
+
 			dstLabels = append(dstLabels, ts.Labels...)
-			dstLabels = outputRelabeling.Apply(dstLabels, 0)
-			if len(dstLabels) == 0 {
+			dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
+			if len(dstLabels) == dstLabelsLen {
 				// The metric has been deleted by the relabeling
 				return
 			}
-			ts.Labels = dstLabels
+
+			ts.Labels = append([]prompb.Label(nil), dstLabels[dstLabelsLen:]...)
+			auxLabels.Labels = dstLabels
+			promutil.PutLabels(auxLabels)
 			dstCh <- ts
 			<-rSem
 		}(&ts)
