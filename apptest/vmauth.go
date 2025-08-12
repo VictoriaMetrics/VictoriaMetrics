@@ -57,22 +57,28 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 }
 
 // UpdateConfiguration performs configuration file reload for app and waits for configuration apply
-//
-// Due to second prescision of config reload metric, config cannot be reloaded more than 1 time in a second
 func (app *Vmauth) UpdateConfiguration(t *testing.T, configFileYAML string) {
 	t.Helper()
-	ct := int(time.Now().Unix())
+
+	// Since the metric vmauth_config_last_reload_success_timestamp_seconds has second precision,
+	// we need to wait for at least 1 second before reloading the config to see the change.
+	time.Sleep(time.Millisecond * 1100)
+
+	ct := app.GetIntMetric(t, "vmauth_config_last_reload_success_timestamp_seconds")
 	fs.MustWriteSync(app.configFilePath, []byte(configFileYAML))
 	if err := app.process.Signal(syscall.SIGHUP); err != nil {
 		t.Fatalf("unexpected signal error: %s", err)
 	}
-	for range 10 {
+
+	// Since the metric vmauth_config_last_reload_success_timestamp_seconds has second precision,
+	// we have to wait longer than 1 second to account for the worst case scenario.
+	for range 15 {
 		ts := app.GetIntMetric(t, "vmauth_config_last_reload_success_timestamp_seconds")
-		if ts < ct {
-			time.Sleep(time.Millisecond * 100)
-			continue
+		if ts > ct {
+			return
 		}
-		return
+
+		time.Sleep(time.Millisecond * 100)
 	}
 	t.Fatalf("timeout waiting for config reload success")
 }
