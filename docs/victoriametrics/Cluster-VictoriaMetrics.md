@@ -464,9 +464,6 @@ The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with 
 
 Discovery mechanism could be also used together with [vmstorage group](#vmstorage-groups-at-vmselect). Consider the following example:
 
-Each `-storageNode` parameter assigns one or more storage nodes to a specific group (e.g., `g1`, `g2`, `g3`).
-The automatically discovered nodes retain the [vmstorage group](#vmstorage-groups-at-vmselect) prefix to maintain consistent group mapping.
-
 ```bash
 /path/to/vmselect \
   -globalReplicationFactor=2 \
@@ -474,6 +471,9 @@ The automatically discovered nodes retain the [vmstorage group](#vmstorage-group
   -storageNode=g2/srv+vmstorage-autodiscovery \                  # Group g2: nodes discovered dynamically via SRV records
   -storageNode=g3/host7,g3/host8,g3/host9                        # Group g3: statically defined hostnames
 ```
+
+Each `-storageNode` parameter assigns one or more storage nodes to a specific group (e.g., `g1`, `g2`, `g3`).
+The automatically discovered nodes retain the [vmstorage group](#vmstorage-groups-at-vmselect) prefix to maintain consistent group mapping.
 
 ### Environment variables
 
