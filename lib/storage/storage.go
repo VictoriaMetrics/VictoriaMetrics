@@ -29,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
+	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -1845,13 +1846,13 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	var firstWarn error
 	for i := range mrs {
 		mr := &mrs[i]
+		if !s.registerSeriesCardinality(mr.MetricNameRaw) {
+			// Skip row, since it exceeds cardinality limit
+			continue
+		}
 		date := s.date(mr.Timestamp)
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
-			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip row, since it exceeds cardinality limit
-				continue
-			}
 			if genTSID.generation < generation {
 				// The found TSID is from the previous indexdb. Create it in the current indexdb.
 
@@ -1906,11 +1907,6 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		if isCurr.getTSIDByMetricName(&genTSID, metricNameBuf, date) || isPrev.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
-			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip the row, since it exceeds the configured cardinality limit.
-				continue
-			}
-
 			if genTSID.generation < generation {
 				// The found TSID is from the previous indexdb. Create it in the current indexdb.
 				createAllIndexesForMetricName(idbCurr, mn, &genTSID.TSID, date)
@@ -1923,11 +1919,6 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 		// Slowest path - there isCurr no TSID in indexdb for the given mr.MetricNameRaw. Create it.
 		generateTSID(&genTSID.TSID, mn)
-
-		if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
-			// Skip the row, since it exceeds the configured cardinality limit.
-			continue
-		}
 
 		// Schedule creating TSID indexes instead of creating them synchronously.
 		// This should keep stable the ingestion rate when new time series are ingested.
@@ -2035,6 +2026,11 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = prevTSID
 			continue
 		}
+		if !s.registerSeriesCardinality(mr.MetricNameRaw) {
+			// Skip row, since it exceeds cardinality limit
+			j--
+			continue
+		}
 
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
@@ -2042,11 +2038,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			// contain MetricName->TSID entries for deleted time series.
 			// See Storage.DeleteSeries code for details.
 
-			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip row, since it exceeds cardinality limit
-				j--
-				continue
-			}
 			r.TSID = genTSID.TSID
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
@@ -2097,12 +2088,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		if isCurr.getTSIDByMetricName(&genTSID, metricNameBuf, date) || isPrev.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
-			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip the row, since it exceeds the configured cardinality limit.
-				j--
-				continue
-			}
-
 			if genTSID.generation < generation {
 				// The found TSID is from the previous indexdb. Create it in the current indexdb.
 				createAllIndexesForMetricName(idbCurr, mn, &genTSID.TSID, date)
@@ -2122,12 +2107,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		// Slowest path - the TSID for the given mr.MetricNameRaw isn't found in indexdb. Create it.
 		generateTSID(&genTSID.TSID, mn)
-
-		if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
-			// Skip the row, since it exceeds the configured cardinality limit.
-			j--
-			continue
-		}
 
 		createAllIndexesForMetricName(idbCurr, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
@@ -2201,7 +2180,12 @@ func (s *Storage) storeTSIDToCaches(metricNameRaw []byte, genTSID *generationTSI
 	s.dateMetricIDCache.Set(genTSID.generation, date, genTSID.TSID.MetricID)
 }
 
-func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) bool {
+func (s *Storage) registerSeriesCardinality(metricNameRaw []byte) bool {
+	if s.hourlySeriesLimiter == nil && s.dailySeriesLimiter == nil {
+		return true
+	}
+
+	metricID := xxhash.Sum64(metricNameRaw)
 	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {
 		s.hourlySeriesLimitRowsDropped.Add(1)
 		logSkippedSeries(metricNameRaw, "-storage.maxHourlySeries", sl.MaxItems())
