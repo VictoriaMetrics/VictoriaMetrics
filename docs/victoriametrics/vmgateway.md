@@ -88,7 +88,7 @@ Start the single version of VictoriaMetrics
 Start vmgateway
 
 ```sh
-./bin/vmgateway -eula -enable.auth -read.url http://localhost:8428 --write.url http://localhost:8428
+./bin/vmgateway -licenseFile=/path/to/vm-license -enable.auth -read.url http://localhost:8428 --write.url http://localhost:8428
 ```
 
 Retrieve data from the database
@@ -163,9 +163,9 @@ EOF
 # start cluster
 
 # start vmstorage, vmselect and vminsert
-./bin/vmstorage -eula
-./bin/vmselect -eula -storageNode 127.0.0.1:8401
-./bin/vminsert -eula -storageNode 127.0.0.1:8400
+./bin/vmstorage -licenseFile=/path/to/vm-license
+./bin/vmselect -licenseFile=/path/to/vm-license -storageNode 127.0.0.1:8401
+./bin/vminsert -licenseFile=/path/to/vm-license -storageNode 127.0.0.1:8400
 
 # create base rate limiting config:
 cat << EOF > limit.yaml
@@ -184,7 +184,7 @@ limits:
 EOF
 
 # start gateway with `-clusterMode`
-./bin/vmgateway -eula -enable.rateLimit -ratelimit.config limit.yaml -datasource.url http://localhost:8428 -enable.auth -clusterMode -write.url=http://localhost:8480 --read.url=http://localhost:8481
+./bin/vmgateway -licenseFile=/path/to/vm-license -enable.rateLimit -ratelimit.config limit.yaml -datasource.url http://localhost:8428 -enable.auth -clusterMode -write.url=http://localhost:8480 --read.url=http://localhost:8481
 
 # ingest simple metric to tenant 1:5
 curl 'http://localhost:8431/api/v1/import/prometheus' -X POST  -d 'foo{bar="baz1"} 123' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MjAxNjIwMDAwMDAsInZtX2FjY2VzcyI6eyJ0ZW5hbnRfaWQiOnsiYWNjb3VudF9pZCI6MTV9fX0.PB1_KXDKPUp-40pxOGk6lt_jt9Yq80PIMpWVJqSForQ'
@@ -210,7 +210,7 @@ Note that both flags support passing multiple keys and also can be used together
 
 Example usage:
 ```sh
-./bin/vmgateway -eula \
+./bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
   -write.url=http://localhost:8480 \
   -read.url=http://localhost:8481 \
@@ -238,7 +238,7 @@ When `auth.oidcDiscoveryEndpoints` is specified `vmgateway` will fetch JWKS keys
 
 Example usage for tokens issued by Azure Active Directory:
 ```sh
-/bin/vmgateway -eula \
+/bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
   -write.url=http://localhost:8480 \
   -read.url=http://localhost:8481 \
@@ -247,7 +247,7 @@ Example usage for tokens issued by Azure Active Directory:
 
 Example usage for tokens issued by Google:
 ```sh
-/bin/vmgateway -eula \
+/bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
   -write.url=http://localhost:8480 \
   -read.url=http://localhost:8481 \
@@ -263,7 +263,7 @@ When `auth.jwksEndpoints` is specified `vmgateway` will fetch public keys from t
 
 Example usage for tokens issued by Azure Active Directory:
 ```sh
-/bin/vmgateway -eula \
+/bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
   -write.url=http://localhost:8480 \
   -read.url=http://localhost:8481 \
@@ -272,7 +272,7 @@ Example usage for tokens issued by Azure Active Directory:
 
 Example usage for tokens issued by Google:
 ```sh
-/bin/vmgateway -eula \
+/bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
   -write.url=http://localhost:8480 \
   -read.url=http://localhost:8481 \
