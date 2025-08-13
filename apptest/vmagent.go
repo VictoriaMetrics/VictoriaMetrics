@@ -123,9 +123,7 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	if currTotal <= prevTotal {
-		t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
-	}
+	t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
 }
 
 // sendBlocking sends the data to vmstorage by executing `send` function and
