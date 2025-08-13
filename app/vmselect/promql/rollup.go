@@ -2443,13 +2443,14 @@ func rollupFake(_ *rollupFuncArg) float64 {
 	return 0
 }
 
+// getScalar expects result from a [scalar](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types).
 func getScalar(arg any, argNum int) ([]float64, error) {
 	ts, ok := arg.([]*timeseries)
 	if !ok {
-		return nil, fmt.Errorf(`unexpected type for arg #%d; got %T; want %T`, argNum+1, arg, ts)
+		return nil, fmt.Errorf(`arg #%d must be a scalar`, argNum+1)
 	}
 	if len(ts) != 1 {
-		return nil, fmt.Errorf(`arg #%d must contain a single timeseries; got %d timeseries`, argNum+1, len(ts))
+		return nil, fmt.Errorf(`arg #%d must be a scalar`, argNum+1)
 	}
 	return ts[0].Values, nil
 }
