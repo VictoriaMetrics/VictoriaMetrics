@@ -1015,7 +1015,6 @@ func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labe
 	return lvs, errGlobal
 }
 
-
 func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, date uint64, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
 	if labelName == "__name__" {
 		// __name__ label is encoded as empty string in indexdb.

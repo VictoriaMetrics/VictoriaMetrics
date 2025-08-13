@@ -1871,13 +1871,13 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 
 	// Check SearchLabelNames with filters on composite key and time range.
-	lns, err = db.SearchLabelNames(nil, accountID, projectID, []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
+	lns, err = idbCurr.SearchLabelNames(nil, accountID, projectID, []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelNames(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}
-	sort.Strings(lns)
-	if !reflect.DeepEqual(lns, labelNames) {
-		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", lns, labelNames)
+	got = sortedSlice(lns)
+	if !reflect.DeepEqual(got, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
 	}
 
 	// Check SearchLabelValues with the specified filter.
@@ -1911,14 +1911,14 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 
 	// Check SearchLabelValues with filters on composite key and time range.
-	lvs, err = db.SearchLabelValues(nil, accountID, projectID, "constant", []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
+	lvs, err = idbCurr.SearchLabelValues(nil, accountID, projectID, "constant", []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}
-	sort.Strings(lvs)
+	got = sortedSlice(lvs)
 	labelValues = []string{"const"}
-	if !reflect.DeepEqual(lvs, labelValues) {
-		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", lvs, labelValues)
+	if !reflect.DeepEqual(got, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}
 
 	// Perform a search across all the days, should match all metrics
