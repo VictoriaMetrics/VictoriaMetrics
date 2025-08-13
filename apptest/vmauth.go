@@ -56,31 +56,32 @@ func StartVmauth(instance string, flags []string, cli *Client, configFilePath st
 	}, nil
 }
 
-// UpdateConfiguration performs configuration file reload for app and waits for configuration apply
+// UpdateConfiguration updates the vmauth configuration file with the provided YAML content,
+// sends SIGHUP to trigger config reload
+// and waits until vmauth_config_last_reload_total increases.
+// Fails the test if no reload is detected within 2 seconds.
 func (app *Vmauth) UpdateConfiguration(t *testing.T, configFileYAML string) {
 	t.Helper()
 
-	// Since the metric vmauth_config_last_reload_success_timestamp_seconds has second precision,
-	// we need to wait for at least 1 second before reloading the config to see the change.
-	time.Sleep(time.Millisecond * 1100)
-
-	ct := app.GetIntMetric(t, "vmauth_config_last_reload_success_timestamp_seconds")
 	fs.MustWriteSync(app.configFilePath, []byte(configFileYAML))
+
+	prevTotal := app.GetIntMetric(t, "vmauth_config_last_reload_total")
+
 	if err := app.process.Signal(syscall.SIGHUP); err != nil {
 		t.Fatalf("unexpected signal error: %s", err)
 	}
 
-	// Since the metric vmauth_config_last_reload_success_timestamp_seconds has second precision,
-	// we have to wait longer than 1 second to account for the worst case scenario.
-	for range 15 {
-		ts := app.GetIntMetric(t, "vmauth_config_last_reload_success_timestamp_seconds")
-		if ts > ct {
+	var currTotal int
+	for range 20 {
+		currTotal = app.GetIntMetric(t, "vmauth_config_last_reload_total")
+		if currTotal > prevTotal {
 			return
 		}
 
 		time.Sleep(time.Millisecond * 100)
 	}
-	t.Fatalf("timeout waiting for config reload success")
+
+	t.Fatalf("config were not reloaded after SIGHUP signal; previous total: %d, current total: %d", prevTotal, currTotal)
 }
 
 // GetHTTPListenAddr returns listen http addr
