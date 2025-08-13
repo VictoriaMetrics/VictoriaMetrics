@@ -43,7 +43,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	const path = "BenchmarkIndexDBAddTSIDs"
 	timestamp := time.Date(2025, 3, 17, 0, 0, 0, 0, time.UTC).UnixMilli()
 	s := MustOpenStorage(path, OpenOptions{})
-	db, putIndexDB := s.getCurrIndexDB()
+	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 
 	const recordsPerLoop = 1e3
 
@@ -66,13 +66,13 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 		startOffset := 0
 		for pb.Next() {
-			benchmarkIndexDBAddTSIDs(db, &genTSID, &mn, timestamp, startOffset, recordsPerLoop)
+			benchmarkIndexDBAddTSIDs(idbCurr, &genTSID, &mn, timestamp, startOffset, recordsPerLoop)
 			startOffset += recordsPerLoop
 		}
 	})
 	b.StopTimer()
 
-	putIndexDB()
+	s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 	s.MustClose()
 	fs.MustRemoveDir(path)
 }
@@ -97,7 +97,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	const path = "BenchmarkHeadPostingForMatchers"
 	timestamp := int64(0)
 	s := MustOpenStorage(path, OpenOptions{})
-	db, putIndexDB := s.getCurrIndexDB()
+	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
 	var mn MetricName
@@ -110,7 +110,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		}
 		mn.sortTags()
 		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(idbCurr, &mn, &genTSID.TSID, date)
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
@@ -126,7 +126,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	}
 
 	// Make sure all the items can be searched.
-	db.s.DebugFlush()
+	s.DebugFlush()
 	b.ResetTimer()
 
 	benchSearch := func(b *testing.B, tfs *TagFilters, expectedMetricIDs int) {
@@ -135,14 +135,14 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		// index instead of per-day index.
 		tr := globalIndexTimeRange
 		for i := 0; i < b.N; i++ {
-			is := db.getIndexSearch(noDeadline)
+			is := idbCurr.getIndexSearch(noDeadline)
 			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
-			db.putIndexSearch(is)
+			idbCurr.putIndexSearch(is)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}
-			if len(metricIDs) != expectedMetricIDs {
-				b.Fatalf("unexpected metricIDs found; got %d; want %d", len(metricIDs), expectedMetricIDs)
+			if metricIDs.Len() != expectedMetricIDs {
+				b.Fatalf("unexpected metricIDs found; got %d; want %d", metricIDs.Len(), expectedMetricIDs)
 			}
 		}
 	}
@@ -254,7 +254,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		benchSearch(b, tfs, 88889)
 	})
 
-	putIndexDB()
+	s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 	s.MustClose()
 	fs.MustRemoveDir(path)
 }
@@ -263,7 +263,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	const path = "BenchmarkIndexDBGetTSIDs"
 	timestamp := time.Date(2025, 3, 17, 0, 0, 0, 0, time.UTC).UnixMilli()
 	s := MustOpenStorage(path, OpenOptions{})
-	db, putIndexDB := s.getCurrIndexDB()
+	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 
 	const recordsPerLoop = 1000
 	const recordsCount = 1e5
@@ -283,9 +283,9 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 
 	for i := 0; i < recordsCount; i++ {
 		generateTSID(&genTSID.TSID, &mn)
-		createAllIndexesForMetricName(db, &mn, &genTSID.TSID, date)
+		createAllIndexesForMetricName(idbCurr, &mn, &genTSID.TSID, date)
 	}
-	db.s.DebugFlush()
+	idbCurr.s.DebugFlush()
 
 	b.SetBytes(recordsPerLoop)
 	b.ReportAllocs()
@@ -297,19 +297,19 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		mnLocal.CopyFrom(&mn)
 		mnLocal.sortTags()
 		for pb.Next() {
-			is := db.getIndexSearch(noDeadline)
+			is := idbCurr.getIndexSearch(noDeadline)
 			for i := 0; i < recordsPerLoop; i++ {
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
 				if !is.getTSIDByMetricName(&genTSIDLocal, metricNameLocal, date) {
 					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
 				}
 			}
-			db.putIndexSearch(is)
+			idbCurr.putIndexSearch(is)
 		}
 	})
 	b.StopTimer()
 
-	putIndexDB()
+	s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 	s.MustClose()
 	fs.MustRemoveDir(path)
 }
