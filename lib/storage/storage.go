@@ -332,6 +332,11 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	return s
 }
 
+// RetentionMsecs returns retentionMsecs for s.
+func (s *Storage) RetentionMsecs() int64 {
+	return s.retentionMsecs
+}
+
 var maxTSIDCacheSize int
 
 // SetTSIDCacheSize overrides the default size of storage/tsid cache

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -23,10 +25,6 @@ import (
 )
 
 var (
-	maxTagKeysPerSearch = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned from /api/v1/labels . "+
-		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
-	maxTagValuesPerSearch = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned from /api/v1/label/<label_name>/values . "+
-		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
 	maxSamplesPerSeries = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. This option allows limiting memory usage")
 	maxSamplesPerQuery  = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. "+
 		"This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
@@ -57,8 +55,9 @@ func (r *Result) reset() {
 
 // Results holds results returned from ProcessSearchQuery.
 type Results struct {
-	tr       storage.TimeRange
-	deadline searchutil.Deadline
+	shouldConvertTenantToLabels bool
+	tr                          storage.TimeRange
+	deadline                    searchutil.Deadline
 
 	packedTimeseries []packedTimeseries
 	sr               *storage.Search
@@ -240,11 +239,22 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		return 0, nil
 	}
 
+	cb := f
+	if rss.shouldConvertTenantToLabels {
+		cb = func(rs *Result, workerID uint) error {
+			// TODO: (@f41gh7) if labels duplicates will be fixed
+			// query will return Duplicate Output Series error
+			// in this case, TenantToTags must be moved into RegisterAndWriteBlock method
+			metricNameTenantToTags(&rs.MetricName, servers.GetAccountID(), servers.GetProjectID())
+			return f(rs, workerID)
+		}
+	}
+
 	var mustStop atomic.Bool
 	initTimeseriesWork := func(tsw *timeseriesWork, pts *packedTimeseries) {
 		tsw.rss = rss
 		tsw.pts = pts
-		tsw.f = f
+		tsw.f = cb
 		tsw.mustStop = &mustStop
 	}
 	maxWorkers := MaxWorkers()
@@ -783,8 +793,9 @@ func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames i
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	if maxLabelNames > *maxTagKeysPerSearch || maxLabelNames <= 0 {
-		maxLabelNames = *maxTagKeysPerSearch
+	maxTagKeys := servers.GetMaxTagKeys()
+	if maxLabelNames > maxTagKeys || maxLabelNames <= 0 {
+		maxLabelNames = maxTagKeys
 	}
 	tr := sq.GetTimeRange()
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
@@ -794,6 +805,9 @@ func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames i
 	labels, err := vmstorage.SearchLabelNames(qt, tfss, tr, maxLabelNames, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search on time range: %w", err)
+	}
+	if sq.IsMultiTenant {
+		labels = append(labels, []string{"vm_account_id", "vm_project_id"}...)
 	}
 	// Sort labels like Prometheus does
 	sort.Strings(labels)
@@ -856,8 +870,25 @@ func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQue
 	if deadline.Exceeded() {
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	if maxLabelValues > *maxTagValuesPerSearch || maxLabelValues <= 0 {
-		maxLabelValues = *maxTagValuesPerSearch
+	if sq.IsMultiTenant {
+		switch labelName {
+		case "vm_account_id":
+			var accountID uint64
+			if len(sq.TenantTokens) > 0 {
+				accountID = uint64(sq.TenantTokens[0].AccountID)
+			}
+			return []string{strconv.FormatUint(accountID, 10)}, nil
+		case "vm_project_id":
+			var projectID uint64
+			if len(sq.TenantTokens) > 0 {
+				projectID = uint64(sq.TenantTokens[0].ProjectID)
+			}
+			return []string{strconv.FormatUint(projectID, 10)}, nil
+		}
+	}
+	maxTagValues := servers.GetMaxTagValues()
+	if maxLabelValues > maxTagValues || maxLabelValues <= 0 {
+		maxLabelValues = maxTagValues
 	}
 	tr := sq.GetTimeRange()
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
@@ -988,7 +1019,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		return fmt.Errorf("timeout exceeded before starting data export: %s", deadline.String())
 	}
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
+	if err := servers.CheckTimeRange(vmstorage.Storage, tr); err != nil {
 		return err
 	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
@@ -1045,6 +1076,11 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		if err := xw.mn.Unmarshal(sr.MetricBlockRef.MetricName); err != nil {
 			return fmt.Errorf("cannot unmarshal metricName for block #%d: %w", blocksRead, err)
 		}
+		if sq.IsMultiTenant {
+			// there is no need to add tenant labels if export is happening for one tenant
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9016
+			metricNameTenantToTags(&xw.mn, servers.GetAccountID(), servers.GetProjectID())
+		}
 		br := sr.MetricBlockRef.BlockRef
 		br.MustReadBlock(&xw.b)
 		samples += br.RowsCount()
@@ -1098,7 +1134,7 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 
 	// Setup search.
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
+	if err := servers.CheckTimeRange(vmstorage.Storage, tr); err != nil {
 		return nil, err
 	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
@@ -1127,7 +1163,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 
 	// Setup search.
 	tr := sq.GetTimeRange()
-	if err := vmstorage.CheckTimeRange(tr); err != nil {
+	if err := servers.CheckTimeRange(vmstorage.Storage, tr); err != nil {
 		return nil, err
 	}
 	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
@@ -1285,6 +1321,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			brs:        brssPool[m[metricName]].brs,
 		}
 	}
+	rss.shouldConvertTenantToLabels = sq.IsMultiTenant
 	rss.packedTimeseries = pts
 	rss.sr = sr
 	rss.tbf = tbf
@@ -1367,6 +1404,19 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 //
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
 const maxFastAllocBlockSize = 32 * 1024
+
+// TenantToTags moves AccountID:ProjectID to corresponding tenant tags
+// Erases values from AccountID:ProjectID
+// TODO: @f41gh7 this function could produce duplicates
+// if original metric name have tenant labels
+func metricNameTenantToTags(mn *storage.MetricName, accountID, projectID uint32) {
+
+	buf := make([]byte, 0, 8)
+	buf = strconv.AppendUint(buf, uint64(accountID), 10)
+	mn.AddTagBytes([]byte(`vm_account_id`), buf)
+	buf = strconv.AppendUint(buf[:0], uint64(projectID), 10)
+	mn.AddTagBytes([]byte(`vm_project_id`), buf)
+}
 
 // GetMetricNamesStats returns statistic for timeseries metric names usage.
 func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {

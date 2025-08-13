@@ -89,6 +89,34 @@ type MetricBlockRef struct {
 	BlockRef *BlockRef
 }
 
+// MetricBlock is a time series block for a single metric.
+type MetricBlock struct {
+	// MetricName is metric name for the given Block.
+	MetricName []byte
+
+	// Block is a block for the given MetricName
+	Block Block
+}
+
+// MarshalWithTenant marshals MetricBlock to dst with custom tenant
+func (mb *MetricBlock) MarshalWithTenant(dst []byte, accountID, projectID uint32) []byte {
+	metricName := make([]byte, 0, 8)
+	metricName = encoding.MarshalUint32(metricName, accountID)
+	metricName = encoding.MarshalUint32(metricName, projectID)
+	dst = encoding.MarshalBytes(dst, append(metricName, mb.MetricName...))
+	return MarshalBlockWithTenant(dst, &mb.Block, accountID, projectID)
+}
+
+// MarshalBlockWithTenant marshals b to dst with custom tenant to be compatible with cluster communication protocol.
+//
+// b.MarshalData must be called on b before calling MarshalBlock.
+func MarshalBlockWithTenant(dst []byte, b *Block, accountID, projectID uint32) []byte {
+	dst = b.bh.MarshalWithTenant(dst, accountID, projectID)
+	dst = encoding.MarshalBytes(dst, b.timestampsData)
+	dst = encoding.MarshalBytes(dst, b.valuesData)
+	return dst
+}
+
 // Search is a search for time series.
 type Search struct {
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
@@ -322,12 +350,15 @@ func (s *Search) searchMetricName(metricName []byte, metricID uint64) ([]byte, b
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.
 type SearchQuery struct {
+	TenantTokens []TenantToken
+
 	// The time range for searching time series
 	MinTimestamp int64
 	MaxTimestamp int64
 
 	// Tag filters for the search query
-	TagFilterss [][]TagFilter
+	TagFilterss   [][]TagFilter
+	IsMultiTenant bool
 
 	// The maximum number of time series the search query can return.
 	MaxMetrics int
@@ -356,6 +387,24 @@ func NewSearchQuery(start, end int64, tagFilterss [][]TagFilter, maxMetrics int)
 		TagFilterss:  tagFilterss,
 		MaxMetrics:   maxMetrics,
 	}
+}
+
+// TenantToken represents a tenant (accountID, projectID) pair.
+type TenantToken struct {
+	AccountID uint32
+	ProjectID uint32
+}
+
+// String returns string representation of t.
+func (t *TenantToken) String() string {
+	return fmt.Sprintf("{accountID=%d, projectID=%d}", t.AccountID, t.ProjectID)
+}
+
+// Marshal appends marshaled t to dst and returns the result.
+func (t *TenantToken) Marshal(dst []byte) []byte {
+	dst = encoding.MarshalUint32(dst, t.AccountID)
+	dst = encoding.MarshalUint32(dst, t.ProjectID)
+	return dst
 }
 
 // TagFilter represents a single tag filter from SearchQuery.
@@ -468,6 +517,11 @@ func tagFiltersToString(tfs []TagFilter) string {
 
 // Marshal appends marshaled sq to dst and returns the result.
 func (sq *SearchQuery) Marshal(dst []byte) []byte {
+	var t TenantToken
+	if len(sq.TenantTokens) > 0 {
+		t = sq.TenantTokens[0]
+	}
+	dst = t.Marshal(dst)
 	dst = encoding.MarshalVarInt64(dst, sq.MinTimestamp)
 	dst = encoding.MarshalVarInt64(dst, sq.MaxTimestamp)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(sq.TagFilterss)))
@@ -482,6 +536,20 @@ func (sq *SearchQuery) Marshal(dst []byte) []byte {
 
 // Unmarshal unmarshals sq from src and returns the tail.
 func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
+	var tt TenantToken
+	if len(src) < 4 {
+		return src, fmt.Errorf("cannot unmarshal AccountID: too short src len: %d; must be at least %d bytes", len(src), 4)
+	}
+	tt.AccountID = encoding.UnmarshalUint32(src)
+	src = src[4:]
+
+	if len(src) < 4 {
+		return src, fmt.Errorf("cannot unmarshal ProjectID: too short src len: %d; must be at least %d bytes", len(src), 4)
+	}
+	tt.ProjectID = encoding.UnmarshalUint32(src)
+	src = src[4:]
+	sq.TenantTokens = append(sq.TenantTokens, tt)
+
 	minTs, nSize := encoding.UnmarshalVarInt64(src)
 	if nSize <= 0 {
 		return src, fmt.Errorf("cannot unmarshal MinTimestamp from varint")

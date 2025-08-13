@@ -20,6 +20,9 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	// vmisert writes data into vmstorage.
 	// vmselect (L2) reads that data via vmselect (L1).
 
+	vmsingle := tc.MustStartVmsingle("vmsingle", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmsingle",
+	})
 	vmstorage := tc.MustStartVmstorage("vmstorage", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage",
 	})
@@ -28,6 +31,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	})
 	vmselectL1 := tc.MustStartVmselect("vmselect-level1", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
+		"-storageNode=" + vmsingle.VmselectAddr(),
 	})
 	vmselectL2 := tc.MustStartVmselect("vmselect-level2", []string{
 		"-storageNode=" + vmselectL1.ClusternativeListenAddr(),
@@ -49,8 +53,10 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	}
 	want.Sort()
 	qopts := apptest.QueryOpts{Tenant: "0"}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, records, qopts)
+	vminsert.PrometheusAPIV1ImportPrometheus(t, records[:numMetrics/2], qopts)
+	vmsingle.PrometheusAPIV1ImportPrometheus(t, records[numMetrics/2:], qopts)
 	vmstorage.ForceFlush(t)
+	vmsingle.ForceFlush(t)
 
 	// Retrieve all time series and verify that both vmselect (L1) and
 	// vmselect (L2) serve the complete set of time series.
