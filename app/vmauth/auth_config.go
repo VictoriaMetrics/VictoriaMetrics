@@ -627,8 +627,8 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 	}
 
 	updateFn := func() {
-		configReloads.Inc()
 		updated, err := reloadAuthConfig()
+		configReloads.Inc()
 		if err != nil {
 			logger.Errorf("failed to load auth config; using the last successfully loaded config; error: %s", err)
 			configSuccess.Set(0)
