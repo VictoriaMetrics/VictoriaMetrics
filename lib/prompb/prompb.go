@@ -270,6 +270,30 @@ func (s *Sample) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
+// MetricMetadataType represents the Prometheus type of a metric.
+// https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.pb.go#L28C1-L39C2
+// https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#metric-types
+type MetricMetadataType int32
+
+const (
+	// MetricMetadataUNKNOWN represents a Prometheus Unknown-typed metric
+	MetricMetadataUNKNOWN MetricMetadataType = 0
+	// MetricMetadataCOUNTER represents a Prometheus Counter
+	MetricMetadataCOUNTER MetricMetadataType = 1
+	// MetricMetadataGAUGE represents a Prometheus Gauge
+	MetricMetadataGAUGE MetricMetadataType = 2
+	// MetricMetadataHISTOGRAM represents a Prometheus Histogram
+	MetricMetadataHISTOGRAM MetricMetadataType = 3
+	// MetricMetadataGAUGEHISTOGRAM represents a Prometheus GaugeHistogram
+	MetricMetadataGAUGEHISTOGRAM MetricMetadataType = 4
+	// MetricMetadataSUMMARY represents a Prometheus Summary
+	MetricMetadataSUMMARY MetricMetadataType = 5
+	// MetricMetadataINFO represents a Prometheus Info metric
+	MetricMetadataINFO MetricMetadataType = 6
+	// MetricMetadataSTATESET represents a Prometheus StateSet metric
+	MetricMetadataSTATESET MetricMetadataType = 7
+)
+
 // MetricMetadata represents additional meta information for specific MetricFamilyName
 // Refer to https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.proto#L21
 type MetricMetadata struct {
@@ -279,6 +303,10 @@ type MetricMetadata struct {
 	MetricFamilyName string
 	Help             string
 	Unit             string
+
+	// Additional fields to allow storing and querying metadata in multitenancy.
+	AccountID uint32
+	ProjectID uint32
 }
 
 func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
@@ -298,6 +326,9 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 	//   string metric_family_name = 2;
 	//   string help = 4;
 	//   string unit = 5;
+	//
+	//   uint32 AccountID = 11;
+	//   uint32 ProjectID = 12;
 	// }
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -330,7 +361,24 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read unit")
 			}
 			mm.Unit = value
+		case 11:
+			value, ok := fc.Uint32()
+			if !ok {
+				return fmt.Errorf("cannot read AccountID")
+			}
+			mm.AccountID = value
+		case 12:
+			value, ok := fc.Uint32()
+			if !ok {
+				return fmt.Errorf("cannot read ProjectID")
+			}
+			mm.ProjectID = value
 		}
 	}
 	return nil
+}
+
+// IsEmpty checks if the WriteRequest has data to push.
+func (m *WriteRequest) IsEmpty() bool {
+	return m == nil || (len(m.Timeseries) == 0 && len(m.Metadata) == 0)
 }

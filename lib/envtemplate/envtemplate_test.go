@@ -57,40 +57,25 @@ func TestReplaceSuccess(t *testing.T) {
 	}
 	f := func(s, resultExpected string) {
 		t.Helper()
-		result, err := ReplaceBytes([]byte(s))
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+		result := ReplaceBytes([]byte(s))
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result for ReplaceBytes(%q);\ngot\n%q\nwant\n%q", s, result, resultExpected)
 		}
-		resultS, err := ReplaceString(s)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+		resultS := ReplaceString(s)
 		if resultS != resultExpected {
 			t.Fatalf("unexpected result for ReplaceString(%q);\ngot\n%q\nwant\n%q", s, result, resultExpected)
 		}
 	}
+
+	// Zero placeholders
 	f("", "")
 	f("foo", "foo")
+
+	// Matching placeholders
 	f("a %{foo}-x", "a bar-x")
 	f("%{foo.bar_1}", "baz")
 	f("qq.%{foo-bar_2}.ww", "qq.test.ww")
-}
 
-func TestReplaceFailure(t *testing.T) {
-	f := func(s string) {
-		t.Helper()
-		if _, err := ReplaceBytes([]byte(s)); err == nil {
-			t.Fatalf("expecting non-nil error for ReplaceBytes(%q)", s)
-		}
-		if _, err := ReplaceString(s); err == nil {
-			t.Fatalf("expecting non-nil error for ReplaceString(%q)", s)
-		}
-	}
-	f("foo %{bar} %{baz}")
-	f("%{Foo_Foo_1}")
-	f("%{Foo-Bar-2}")
-	f("%{Foo.Baz.3}")
+	// Missing placeholders
+	f("foo %{bar} %{baz} %{foo}", "foo %{bar} %{baz} bar")
 }

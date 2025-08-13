@@ -26,7 +26,7 @@ var maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1
 // callback shouldn't hold tss items after returning.
 //
 // optional processBody can be used for pre-processing the read request body from r before parsing it in OpenTelemetry format.
-func ParseStream(r io.Reader, encoding string, processBody func(data []byte) ([]byte, error), callback func(tss []prompb.TimeSeries) error) error {
+func ParseStream(r io.Reader, encoding string, processBody func(data []byte) ([]byte, error), callback func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error) error {
 	err := protoparserutil.ReadUncompressedData(r, encoding, maxRequestSize, func(data []byte) error {
 		if processBody != nil {
 			dataNew, err := processBody(data)
@@ -43,7 +43,7 @@ func ParseStream(r io.Reader, encoding string, processBody func(data []byte) ([]
 	return nil
 }
 
-func parseData(data []byte, callback func(tss []prompb.TimeSeries) error) error {
+func parseData(data []byte, callback func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error) error {
 	var req pb.ExportMetricsServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
 		return fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
@@ -52,10 +52,10 @@ func parseData(data []byte, callback func(tss []prompb.TimeSeries) error) error 
 	wr := getWriteContext()
 	defer putWriteContext(wr)
 
-	wr.parseRequestToTss(&req)
+	wr.parseRequest(&req)
 
-	if err := callback(wr.tss); err != nil {
-		return fmt.Errorf("error when processing OpenTelemetry samples: %w", err)
+	if err := callback(wr.tss, wr.mms); err != nil {
+		return fmt.Errorf("error when processing OpenTelemetry data: %w", err)
 	}
 
 	return nil
@@ -63,17 +63,29 @@ func parseData(data []byte, callback func(tss []prompb.TimeSeries) error) error 
 
 var skippedSampleLogger = logger.WithThrottler("otlp_skipped_sample", 5*time.Second)
 
-func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
+func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList map[string]struct{}) {
 	for _, m := range sc.Metrics {
 		if len(m.Name) == 0 {
 			// skip metrics without names
 			continue
 		}
 		metricName := sanitizeMetricName(m)
+		metadata := prompb.MetricMetadata{
+			MetricFamilyName: metricName,
+			Help:             m.Description,
+			Unit:             m.Unit,
+		}
+		// the metadata type conversion from OTLP to Prometheus follows rules in:
+		// https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/#instrumentation-scope-1
 		switch {
 		case m.Gauge != nil:
 			for _, p := range m.Gauge.DataPoints {
 				wr.appendSampleFromNumericPoint(metricName, p)
+			}
+			if getTypeKeyFromMetadata(m) == "unknown" {
+				metadata.Type = uint32(prompb.MetricMetadataUNKNOWN)
+			} else {
+				metadata.Type = uint32(prompb.MetricMetadataGAUGE)
 			}
 		case m.Sum != nil:
 			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
@@ -84,10 +96,24 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 			for _, p := range m.Sum.DataPoints {
 				wr.appendSampleFromNumericPoint(metricName, p)
 			}
+			if m.Sum.IsMonotonic {
+				metadata.Type = uint32(prompb.MetricMetadataCOUNTER)
+			} else {
+				switch getTypeKeyFromMetadata(m) {
+				case "info":
+					metadata.Type = uint32(prompb.MetricMetadataINFO)
+				case "stateset":
+					metadata.Type = uint32(prompb.MetricMetadataSTATESET)
+				default:
+					metadata.Type = uint32(prompb.MetricMetadataGAUGE)
+				}
+			}
+
 		case m.Summary != nil:
 			for _, p := range m.Summary.DataPoints {
 				wr.appendSamplesFromSummary(metricName, p)
 			}
+			metadata.Type = uint32(prompb.MetricMetadataSUMMARY)
 		case m.Histogram != nil:
 			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedHistogram.Inc()
@@ -97,6 +123,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 			for _, p := range m.Histogram.DataPoints {
 				wr.appendSamplesFromHistogram(metricName, p)
 			}
+			metadata.Type = uint32(prompb.MetricMetadataHISTOGRAM)
 		case m.ExponentialHistogram != nil:
 			if m.ExponentialHistogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedExponentialHistogram.Inc()
@@ -106,11 +133,26 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 			for _, p := range m.ExponentialHistogram.DataPoints {
 				wr.appendSamplesFromExponentialHistogram(metricName, p)
 			}
+			metadata.Type = uint32(prompb.MetricMetadataHISTOGRAM)
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
 			skippedSampleLogger.Warnf("unsupported type for metric %q", metricName)
+			continue
+		}
+		if _, ok := metadataList[metadata.MetricFamilyName]; !ok {
+			wr.mms = append(wr.mms, metadata)
+			metadataList[metadata.MetricFamilyName] = struct{}{}
 		}
 	}
+}
+
+func getTypeKeyFromMetadata(otelMetric *pb.Metric) string {
+	for _, md := range otelMetric.Metadata {
+		if md.Key == "prometheus.type" {
+			return *md.Value.StringValue
+		}
+	}
+	return ""
 }
 
 // appendSampleFromNumericPoint appends p to wr.tss
@@ -284,6 +326,8 @@ type writeContext struct {
 	// tss holds parsed time series
 	tss []prompb.TimeSeries
 
+	mms []prompb.MetricMetadata
+
 	// baseLabels are labels, which must be added to all the ingested samples
 	baseLabels []prompb.Label
 
@@ -298,6 +342,7 @@ type writeContext struct {
 func (wr *writeContext) reset() {
 	clear(wr.tss)
 	wr.tss = wr.tss[:0]
+	wr.mms = wr.mms[:0]
 
 	wr.baseLabels = resetLabels(wr.baseLabels)
 	wr.pointLabels = resetLabels(wr.pointLabels)
@@ -311,7 +356,8 @@ func resetLabels(labels []prompb.Label) []prompb.Label {
 	return labels[:0]
 }
 
-func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
+func (wr *writeContext) parseRequest(req *pb.ExportMetricsServiceRequest) {
+	metadataList := make(map[string]struct{})
 	for _, rm := range req.ResourceMetrics {
 		var attributes []*pb.KeyValue
 		if rm.Resource != nil {
@@ -319,7 +365,7 @@ func (wr *writeContext) parseRequestToTss(req *pb.ExportMetricsServiceRequest) {
 		}
 		wr.baseLabels = appendAttributesToPromLabels(wr.baseLabels[:0], attributes)
 		for _, sc := range rm.ScopeMetrics {
-			wr.appendSamplesFromScopeMetrics(sc)
+			wr.appendFromScopeMetrics(sc, metadataList)
 		}
 	}
 }

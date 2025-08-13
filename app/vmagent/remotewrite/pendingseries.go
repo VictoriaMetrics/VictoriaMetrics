@@ -24,9 +24,10 @@ import (
 
 var (
 	flushInterval = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
-		"This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url")
+		"This option takes effect only when less than -remoteWrite.maxRowsPerBlock data points per -remoteWrite.flushInterval are pushed to -remoteWrite.url")
 	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 8*1024*1024, "The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxRowsPerBlock")
 	maxRowsPerBlock      = flag.Int("remoteWrite.maxRowsPerBlock", 10000, "The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize")
+	maxMetadataPerBlock  = flag.Int("remoteWrite.maxMetadataPerBlock", 5000, "The maximum number of metadata to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize")
 	vmProtoCompressLevel = flag.Int("remoteWrite.vmProtoCompressLevel", 0, "The compression level for VictoriaMetrics remote write protocol. "+
 		"Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol")
@@ -60,9 +61,16 @@ func (ps *pendingSeries) MustStop() {
 	ps.periodicFlusherWG.Wait()
 }
 
-func (ps *pendingSeries) TryPush(tss []prompb.TimeSeries) bool {
+func (ps *pendingSeries) TryPushTimeSeries(tss []prompb.TimeSeries) bool {
 	ps.mu.Lock()
-	ok := ps.wr.tryPush(tss)
+	ok := ps.wr.tryPushTimeSeries(tss)
+	ps.mu.Unlock()
+	return ok
+}
+
+func (ps *pendingSeries) TryPushMetadata(mms []prompb.MetricMetadata) bool {
+	ps.mu.Lock()
+	ok := ps.wr.tryPushMetadata(mms)
 	ps.mu.Unlock()
 	return ok
 }
@@ -111,26 +119,34 @@ type writeRequest struct {
 	wr prompb.WriteRequest
 
 	tss     []prompb.TimeSeries
+	mms     []prompb.MetricMetadata
 	labels  []prompb.Label
 	samples []prompb.Sample
 
 	// buf holds labels data
 	buf []byte
+	// metadatabuf holds metadata data
+	metadatabuf []byte
 }
 
 func (wr *writeRequest) reset() {
 	// Do not reset lastFlushTime, fq, isVMRemoteWrite, significantFigures and roundDigits, since they are reused.
 
 	wr.wr.Timeseries = nil
+	wr.wr.Metadata = nil
 
 	clear(wr.tss)
 	wr.tss = wr.tss[:0]
+
+	clear(wr.mms)
+	wr.mms = wr.mms[:0]
 
 	promrelabel.CleanLabels(wr.labels)
 	wr.labels = wr.labels[:0]
 
 	wr.samples = wr.samples[:0]
 	wr.buf = wr.buf[:0]
+	wr.metadatabuf = wr.metadatabuf[:0]
 }
 
 // mustFlushOnStop force pushes wr data into wr.fq
@@ -138,6 +154,7 @@ func (wr *writeRequest) reset() {
 // This is needed in order to properly save in-memory data to persistent queue on graceful shutdown.
 func (wr *writeRequest) mustFlushOnStop() {
 	wr.wr.Timeseries = wr.tss
+	wr.wr.Metadata = wr.mms
 	if !tryPushWriteRequest(&wr.wr, wr.mustWriteBlock, wr.isVMRemoteWrite.Load()) {
 		logger.Panicf("BUG: final flush must always return true")
 	}
@@ -151,6 +168,7 @@ func (wr *writeRequest) mustWriteBlock(block []byte) bool {
 
 func (wr *writeRequest) tryFlush() bool {
 	wr.wr.Timeseries = wr.tss
+	wr.wr.Metadata = wr.mms
 	wr.lastFlushTime.Store(fasttime.UnixTimestamp())
 	if !tryPushWriteRequest(&wr.wr, wr.fq.TryWriteBlock, wr.isVMRemoteWrite.Load()) {
 		return false
@@ -174,7 +192,49 @@ func adjustSampleValues(samples []prompb.Sample, significantFigures, roundDigits
 	}
 }
 
-func (wr *writeRequest) tryPush(src []prompb.TimeSeries) bool {
+func (wr *writeRequest) tryPushMetadata(mms []prompb.MetricMetadata) bool {
+	mmdDst := wr.mms
+	maxMetadataPerBlock := *maxMetadataPerBlock
+	for i := range mms {
+		if len(wr.mms) >= maxMetadataPerBlock {
+			if !wr.tryFlush() {
+				return false
+			}
+			mmdDst = wr.mms
+		}
+		mmSrc := &mms[i]
+		mmdDst = append(mmdDst, prompb.MetricMetadata{})
+		wr.copyMetadata(&mmdDst[len(mmdDst)-1], mmSrc)
+	}
+	wr.mms = mmdDst
+	return true
+}
+
+func (wr *writeRequest) copyMetadata(dst, src *prompb.MetricMetadata) {
+	// Direct copy for non-string fields, which are safe by value.
+	dst.Type = src.Type
+	dst.Unit = src.Unit
+
+	// Pre-allocate memory for all string fields.
+	neededBufLen := len(src.MetricFamilyName) + len(src.Help)
+	bufLen := len(wr.metadatabuf)
+	wr.metadatabuf = slicesutil.SetLength(wr.metadatabuf, bufLen+neededBufLen)
+	buf := wr.metadatabuf[:bufLen]
+
+	// Copy MetricFamilyName
+	bufLen = len(buf)
+	buf = append(buf, src.MetricFamilyName...)
+	dst.MetricFamilyName = bytesutil.ToUnsafeString(buf[bufLen:])
+
+	// Copy Help
+	bufLen = len(buf)
+	buf = append(buf, src.Help...)
+	dst.Help = bytesutil.ToUnsafeString(buf[bufLen:])
+
+	wr.metadatabuf = buf
+}
+
+func (wr *writeRequest) tryPushTimeSeries(src []prompb.TimeSeries) bool {
 	tssDst := wr.tss
 	maxSamplesPerBlock := *maxRowsPerBlock
 	// Allow up to 10x of labels per each block on average.
@@ -241,7 +301,7 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompb.TimeSeries) {
 var marshalConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
 func tryPushWriteRequest(wr *prompb.WriteRequest, tryPushBlock func(block []byte) bool, isVMRemoteWrite bool) bool {
-	if len(wr.Timeseries) == 0 {
+	if wr.IsEmpty() {
 		// Nothing to push
 		return true
 	}
@@ -267,6 +327,7 @@ func tryPushWriteRequest(wr *prompb.WriteRequest, tryPushBlock func(block []byte
 			compressBufPool.Put(zb)
 			if ok {
 				blockSizeRows.Update(float64(len(wr.Timeseries)))
+				blockMetadataRows.Update(float64(len(wr.Metadata)))
 				blockSizeBytes.Update(float64(zbLen))
 			}
 			return ok
@@ -278,47 +339,86 @@ func tryPushWriteRequest(wr *prompb.WriteRequest, tryPushBlock func(block []byte
 		<-marshalConcurrencyCh
 	}
 
-	// Too big block. Recursively split it into smaller parts if possible.
-	if len(wr.Timeseries) == 1 {
-		// A single time series left. Recursively split its samples into smaller parts if possible.
+	// Split timeseries or metadata into two smaller blocks
+	switch len(wr.Timeseries) {
+	case 0:
+		if len(wr.Metadata) == 1 {
+			logger.Warnf("dropping a metadata exceeding -remoteWrite.maxBlockSize=%d bytes", maxUnpackedBlockSize.N)
+			return true
+		}
+		metadata := wr.Metadata
+		n := len(metadata) / 2
+		wr.Metadata = metadata[:n]
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+			wr.Metadata = metadata
+			return false
+		}
+		wr.Metadata = metadata[n:]
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+			wr.Metadata = metadata
+			return false
+		}
+		wr.Metadata = metadata
+		return true
+
+	case 1:
+		// A single time series left. Recursively split its samples and metadata into smaller parts if possible.
 		samples := wr.Timeseries[0].Samples
-		if len(samples) == 1 {
-			logger.Warnf("dropping a sample for metric with too long labels exceeding -remoteWrite.maxBlockSize=%d bytes", maxUnpackedBlockSize.N)
+		metaData := wr.Metadata
+		if len(samples) == 1 && len(metaData) <= 1 {
+			logger.Warnf("dropping a sample for metric and %d metadata which are exceeding -remoteWrite.maxBlockSize=%d bytes", len(metaData), maxUnpackedBlockSize.N)
 			return true
 		}
 		n := len(samples) / 2
+		m := len(metaData) / 2
 		wr.Timeseries[0].Samples = samples[:n]
+		wr.Metadata = metaData[:m]
 		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
 			wr.Timeseries[0].Samples = samples
+			wr.Metadata = metaData
 			return false
 		}
 		wr.Timeseries[0].Samples = samples[n:]
+		wr.Metadata = metaData[m:]
 		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
 			wr.Timeseries[0].Samples = samples
+			wr.Metadata = metaData
 			return false
 		}
 		wr.Timeseries[0].Samples = samples
+		wr.Metadata = metaData
+		return true
+
+	default:
+		// Split both timeseries and metadata.
+		timeseries := wr.Timeseries
+		metaData := wr.Metadata
+		n := len(timeseries) / 2
+		m := len(metaData) / 2
+		wr.Timeseries = timeseries[:n]
+		wr.Metadata = metaData[:m]
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+			wr.Timeseries = timeseries
+			wr.Metadata = metaData
+			return false
+		}
+		wr.Timeseries = timeseries[n:]
+		wr.Metadata = metaData[m:]
+		if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
+			wr.Timeseries = timeseries
+			wr.Metadata = metaData
+			return false
+		}
+		wr.Timeseries = timeseries
+		wr.Metadata = metaData
 		return true
 	}
-	timeseries := wr.Timeseries
-	n := len(timeseries) / 2
-	wr.Timeseries = timeseries[:n]
-	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
-		wr.Timeseries = timeseries
-		return false
-	}
-	wr.Timeseries = timeseries[n:]
-	if !tryPushWriteRequest(wr, tryPushBlock, isVMRemoteWrite) {
-		wr.Timeseries = timeseries
-		return false
-	}
-	wr.Timeseries = timeseries
-	return true
 }
 
 var (
-	blockSizeBytes = metrics.NewHistogram(`vmagent_remotewrite_block_size_bytes`)
-	blockSizeRows  = metrics.NewHistogram(`vmagent_remotewrite_block_size_rows`)
+	blockSizeBytes    = metrics.NewHistogram(`vmagent_remotewrite_block_size_bytes`)
+	blockSizeRows     = metrics.NewHistogram(`vmagent_remotewrite_block_size_rows`)
+	blockMetadataRows = metrics.NewHistogram(`vmagent_remotewrite_block_metadata_rows`)
 )
 
 var (

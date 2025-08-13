@@ -3,34 +3,21 @@ package envtemplate
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/valyala/fasttemplate"
 )
 
 // ReplaceBytes replaces `%{ENV_VAR}` placeholders in b with the corresponding ENV_VAR values.
-//
-// Error is returned if ENV_VAR isn't set for some `%{ENV_VAR}` placeholder.
-func ReplaceBytes(b []byte) ([]byte, error) {
-	result, err := expand(envVars, string(b))
-	if err != nil {
-		return nil, err
-	}
-	return []byte(result), nil
+func ReplaceBytes(b []byte) []byte {
+	result := expand(envVars, string(b))
+	return []byte(result)
 }
 
 // ReplaceString replaces `%{ENV_VAR}` placeholders in b with the corresponding ENV_VAR values.
-//
-// Error is returned if ENV_VAR isn't set for some `%{ENV_VAR}` placeholder.
-func ReplaceString(s string) (string, error) {
-	result, err := expand(envVars, s)
-	if err != nil {
-		return "", err
-	}
-	return result, nil
+func ReplaceString(s string) string {
+	return expand(envVars, s)
 }
 
 // LookupEnv returns the expanded environment variable value for the given name.
@@ -70,11 +57,7 @@ func expandTemplates(m map[string]string) map[string]string {
 		mExpanded := make(map[string]string, len(m))
 		expands := 0
 		for name, value := range m {
-			valueExpanded, err := expand(m, value)
-			if err != nil {
-				// Do not use lib/logger here, since it is uninitialized yet.
-				log.Fatalf("cannot expand %q env var value %q: %s", name, value, err)
-			}
+			valueExpanded := expand(m, value)
 			mExpanded[name] = valueExpanded
 			if valueExpanded != value {
 				expands++
@@ -88,32 +71,13 @@ func expandTemplates(m map[string]string) map[string]string {
 	return m
 }
 
-func expand(m map[string]string, s string) (string, error) {
-	if !strings.Contains(s, "%{") {
-		// Fast path - nothing to expand
-		return s, nil
-	}
-	result, err := fasttemplate.ExecuteFuncStringWithErr(s, "%{", "}", func(w io.Writer, tag string) (int, error) {
-		if !isValidEnvVarName(tag) {
-			return fmt.Fprintf(w, "%%{%s}", tag)
-		}
+func expand(m map[string]string, s string) string {
+	return fasttemplate.ExecuteFuncString(s, "%{", "}", func(w io.Writer, tag string) (int, error) {
 		v, ok := m[tag]
 		if !ok {
-			return 0, fmt.Errorf("missing %q env var", tag)
+			// Cannot find the tag in m. Leave it as is.
+			return fmt.Fprintf(w, "%%{%s}", tag)
 		}
 		return fmt.Fprintf(w, "%s", v)
 	})
-	if err != nil {
-		return "", err
-	}
-	return result, nil
 }
-
-func isValidEnvVarName(s string) bool {
-	return envVarNameRegex.MatchString(s)
-}
-
-// envVarNameRegex is used for validating environment variable names.
-//
-// Allow dashes and dots in env var names - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3999
-var envVarNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_\-.]*$`)

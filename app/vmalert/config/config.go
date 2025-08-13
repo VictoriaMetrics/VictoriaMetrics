@@ -295,10 +295,7 @@ func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpress
 }
 
 func parseConfig(data []byte) ([]Group, error) {
-	data, err := envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 
 	var result []Group
 	type cfgFile struct {
@@ -310,13 +307,13 @@ func parseConfig(data []byte) ([]Group, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	for {
 		var cf cfgFile
-		if err = decoder.Decode(&cf); err != nil {
+		if err := decoder.Decode(&cf); err != nil {
 			if err == io.EOF { // EOF indicates no more documents to read
 				break
 			}
 			return nil, err
 		}
-		if err = checkOverflow(cf.XXX, "config"); err != nil {
+		if err := checkOverflow(cf.XXX, "config"); err != nil {
 			return nil, err
 		}
 		result = append(result, cf.Groups...)

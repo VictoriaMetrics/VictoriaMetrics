@@ -160,10 +160,7 @@ func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars at %q: %w", path, err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 	pcs, err := ParseRelabelConfigsData(data)
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `relabel_configs` from %q: %w", path, err)
