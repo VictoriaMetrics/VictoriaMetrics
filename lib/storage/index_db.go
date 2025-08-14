@@ -1695,44 +1695,6 @@ func (th *topHeap) Pop() any {
 	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
 
-// searchMetricName appends metric name for the given metricID to dst
-// and returns the result.
-func (db *indexDB) searchMetricName(dst []byte, metricID uint64, accountID, projectID uint32, noCache bool) ([]byte, bool) {
-	if !noCache {
-		metricName := db.s.getMetricNameFromCache(dst, metricID)
-		if len(metricName) > len(dst) {
-			return metricName, true
-		}
-	}
-
-	is := db.getIndexSearchInternal(accountID, projectID, noDeadline, noCache)
-	var ok bool
-	dst, ok = is.searchMetricName(dst, metricID)
-	db.putIndexSearch(is)
-	if ok {
-		// There is no need in verifying whether the given metricID is deleted,
-		// since the filtering must be performed before calling this func.
-		if !noCache {
-			db.s.putMetricNameToCache(metricID, dst)
-		}
-		return dst, true
-	}
-
-	if db.s.wasMetricIDMissingBefore(metricID) {
-		// Cannot find the MetricName for the given metricID for the last 60 seconds.
-		// It is likely the indexDB contains incomplete set of metricID -> metricName entries
-		// after unclean shutdown or after restoring from a snapshot.
-		// Mark the metricID as deleted, so it is created again when new sample
-		// for the given time series is ingested next time.
-		db.missingMetricNamesForMetricID.Add(1)
-		dmis := &uint64set.Set{}
-		dmis.Add(metricID)
-		db.saveDeletedMetricIDs(dmis)
-	}
-
-	return dst, false
-}
-
 func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
 	qt = qt.NewChild("delete series: filters=%s, maxMetrics=%d", tfss, maxMetrics)
 	defer qt.Done()
@@ -1932,6 +1894,14 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, proj
 	return tsids, nil
 }
 
+// searchMetricName appends metric name for the given metricID to dst
+// and returns the result.
+func (db *indexDB) searchMetricName(dst []byte, metricID uint64, accountID, projectID uint32, noCache bool) ([]byte, bool) {
+	is := db.getIndexSearchInternal(accountID, projectID, noDeadline, noCache)
+	defer db.putIndexSearch(is)
+	return is.searchMetricName(dst, metricID)
+}
+
 func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search metric names: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
@@ -1943,25 +1913,39 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	if len(metricIDs) == 0 || len(tfss) == 0 {
 		return nil, nil
 	}
-	accountID := tfss[0].accountID
-	projectID := tfss[0].projectID
+	is := db.getIndexSearch(tfss[0].accountID, tfss[0].projectID, noDeadline)
+	defer db.putIndexSearch(is)
 	metricNames := make([]string, 0, len(metricIDs))
+	metricIDsToDelete := &uint64set.Set{}
 	var metricName []byte
+	var ok bool
 	for i, metricID := range metricIDs {
 		if i&paceLimiterSlowIterationsMask == 0 {
 			if err := checkSearchDeadlineAndPace(deadline); err != nil {
 				return nil, err
 			}
 		}
-		var ok bool
-		metricName, ok = db.searchMetricName(metricName[:0], metricID, accountID, projectID, false)
+
+		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
 		if !ok {
-			// Skip missing metricName for metricID.
-			// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
+			// Cannot find TSID for the given metricID.
+			// This may be the case on incomplete indexDB
+			// due to snapshot or due to un-flushed entries.
+			// Mark the metricID as deleted, so it is created again when new sample
+			// for the given time series is ingested next time.
+			if db.s.wasMetricIDMissingBefore(metricID) {
+				db.missingTSIDsForMetricID.Add(1)
+				metricIDsToDelete.Add(metricID)
+			}
 			continue
 		}
 		metricNames = append(metricNames, string(metricName))
 	}
+
+	if metricIDsToDelete.Len() > 0 {
+		db.saveDeletedMetricIDs(metricIDsToDelete)
+	}
+
 	qt.Printf("loaded %d metric names", len(metricNames))
 	return metricNames, nil
 }
