@@ -805,8 +805,8 @@ In this case `-remoteWrite.disableOnDiskQueue` command-line flag can be passed t
 and the `-remoteWrite.disableOnDiskQueue` command-line flag is set:
 
 - It returns `429 Too Many Requests` HTTP error to clients, which send data to `vmagent` via [supported HTTP endpoints](#how-to-push-data-to-vmagent).
-  If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.disableOnDiskQueue` command-line flags are set
-  for different `-remoteWrite.url` options, then the ingested samples are silently dropped instead of returning the error to clients.
+  If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.url` command-line flags are set, 
+  then the ingested samples are silently dropped instead of returning the error to clients.
 - It suspends consuming data from [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#google-pubsub-integration) until the remote storage becomes available.
   If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.disableOnDiskQueue` command-line flags are set
   for different `-remoteWrite.url` options, then the fetched samples are silently dropped instead of suspending data consumption from Kafka or Google PubSub.
