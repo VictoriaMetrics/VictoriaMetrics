@@ -266,7 +266,7 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
+			s.MetricBlockRef.MetricName, ok = s.storage.searchMetricName(s.idbPrev, s.idbCurr, s.MetricBlockRef.MetricName[:0], tsid.MetricID, false)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
@@ -296,28 +296,6 @@ func (s *Search) NextMetricBlock() bool {
 
 	s.err = io.EOF
 	return false
-}
-
-func (s *Search) searchMetricName(metricName []byte, metricID uint64) ([]byte, bool) {
-	mn := s.storage.getMetricNameFromCache(metricName, metricID)
-	if len(mn) > len(metricName) {
-		return mn, true
-	}
-
-	mn, found := s.idbCurr.searchMetricName(metricName, metricID, true)
-	if found {
-		s.storage.putMetricNameToCache(metricID, mn)
-		return mn, true
-	}
-
-	// Fallback to previous indexDB.
-	mn, found = s.idbPrev.searchMetricName(metricName, metricID, true)
-	if found {
-		s.storage.putMetricNameToCache(metricID, mn)
-		return mn, true
-	}
-
-	return metricName, false
 }
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.
