@@ -45,6 +45,11 @@ type Cache struct {
 	MissEvictionBytes   atomic.Uint64
 	SizeEvictionBytes   atomic.Uint64
 
+	getCalls       atomic.Uint64
+	setCalls       atomic.Uint64
+	misses         atomic.Uint64
+	copiedFromPrev atomic.Uint64
+
 	// mode indicates whether to use only curr and skip prev.
 	//
 	// This flag is set to switching if curr is filled for more than 50% space.
@@ -187,6 +192,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		c.ExpireEvictionBytes.Add(cs.BytesSize)
 		prev.Reset()
 		c.curr.Store(prev)
+		c.copiedFromPrev.Store(0)
 		c.mu.Unlock()
 	}
 }
@@ -351,6 +357,7 @@ func (c *Cache) Reset() {
 	curr.Reset()
 	// Reset the mode to `split` in the hope the working set size becomes smaller after the reset.
 	c.mode.Store(split)
+	c.copiedFromPrev.Store(0)
 }
 
 // UpdateStats updates fcs with cache stats.
@@ -366,12 +373,14 @@ func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
 	cs.Reset()
 	prev.UpdateStats(&cs)
 	updateCacheStats(fcs, &cs)
+
+	fcs.GetCalls += c.getCalls.Load()
+	fcs.SetCalls += c.setCalls.Load()
+	fcs.Misses += c.misses.Load()
+	fcs.EntriesCount -= c.copiedFromPrev.Load()
 }
 
 func updateCacheStats(dst, src *fastcache.Stats) {
-	dst.GetCalls += src.GetCalls
-	dst.SetCalls += src.SetCalls
-	dst.Misses += src.Misses
 	dst.Collisions += src.Collisions
 	dst.Corruptions += src.Corruptions
 	dst.EntriesCount += src.EntriesCount
@@ -380,9 +389,6 @@ func updateCacheStats(dst, src *fastcache.Stats) {
 }
 
 func updateCacheStatsHistory(dst, src *fastcache.Stats) {
-	atomic.AddUint64(&dst.GetCalls, atomic.LoadUint64(&src.GetCalls))
-	atomic.AddUint64(&dst.SetCalls, atomic.LoadUint64(&src.SetCalls))
-	atomic.AddUint64(&dst.Misses, atomic.LoadUint64(&src.Misses))
 	atomic.AddUint64(&dst.Collisions, atomic.LoadUint64(&src.Collisions))
 	atomic.AddUint64(&dst.Corruptions, atomic.LoadUint64(&src.Corruptions))
 
@@ -392,6 +398,8 @@ func updateCacheStatsHistory(dst, src *fastcache.Stats) {
 
 // Get appends the found value for the given key to dst and returns the result.
 func (c *Cache) Get(dst, key []byte) []byte {
+	c.getCalls.Add(1)
+
 	curr := c.curr.Load()
 	result := curr.Get(dst, key)
 	if len(result) > len(dst) {
@@ -400,6 +408,7 @@ func (c *Cache) Get(dst, key []byte) []byte {
 	}
 	if c.mode.Load() == whole {
 		// Nothing found.
+		c.misses.Add(1)
 		return result
 	}
 
@@ -408,10 +417,12 @@ func (c *Cache) Get(dst, key []byte) []byte {
 	result = prev.Get(dst, key)
 	if len(result) <= len(dst) {
 		// Nothing found.
+		c.misses.Add(1)
 		return result
 	}
 	// Cache the found entry in the current cache.
 	curr.Set(key, result[len(dst):])
+	c.copiedFromPrev.Add(1)
 	return result
 }
 
@@ -440,6 +451,7 @@ var tmpBufPool bytesutil.ByteBufferPool
 
 // Set sets the given value for the given key.
 func (c *Cache) Set(key, value []byte) {
+	c.setCalls.Add(1)
 	curr := c.curr.Load()
 	curr.Set(key, value)
 }
