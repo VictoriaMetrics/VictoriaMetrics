@@ -57,8 +57,8 @@ func TestStats(t *testing.T) {
 		assertStats(c, fastcache.Stats{
 			EntriesCount: 2,
 			SetCalls:     2,
-			GetCalls:     3, // should be 2
-			Misses:       2, // should be 1
+			GetCalls:     2,
+			Misses:       1,
 		})
 
 		// Wait until prev and curr cache are rotated.
@@ -68,44 +68,44 @@ func TestStats(t *testing.T) {
 
 		c.Get(dst[:0], k1)
 		assertStats(c, fastcache.Stats{
-			EntriesCount: 3, // should be 2
-			SetCalls:     3, // should be 2
-			GetCalls:     5, // should be 3
-			Misses:       3, // should be 1
+			EntriesCount: 2,
+			SetCalls:     2,
+			GetCalls:     3,
+			Misses:       1,
 		})
 
 		c.Get(dst[:0], k1)
 		assertStats(c, fastcache.Stats{
-			EntriesCount: 3, // should be 2
-			SetCalls:     3, // should be 2
-			GetCalls:     6, // should be 4
-			Misses:       3, // should be 1
+			EntriesCount: 2,
+			SetCalls:     2,
+			GetCalls:     4,
+			Misses:       1,
 		})
 
-		// Wait until prev and curr cache are rotated.
-		// k1 is now in prev, k2 is gone, curr is empty
+		// Wait until prev and curr caches are rotated. k1 is now in prev, k2 is
+		// gone, curr is empty
 		time.Sleep(*cacheExpireDuration + time.Minute)
 		synctest.Wait()
 
 		c.Get(dst[:0], k2)
 		assertStats(c, fastcache.Stats{
 			EntriesCount: 1,
-			SetCalls:     3, // should be 2
-			GetCalls:     8, // should be 5
-			Misses:       5, // should be 2
+			SetCalls:     2,
+			GetCalls:     5,
+			Misses:       2,
 		})
 
-		// Wait until prev and curr cache are rotated twice, i.e. the cache
-		// should become empty.
-		time.Sleep(2**cacheExpireDuration + time.Minute)
+		// Wait until prev and curr caches are rotated. The both caches should
+		// become empty.
+		time.Sleep(*cacheExpireDuration + time.Minute)
 		synctest.Wait()
 
 		c.Get(dst[:0], k1)
 		assertStats(c, fastcache.Stats{
 			EntriesCount: 0,
-			SetCalls:     3,  // should be 1
-			GetCalls:     10, // should be 6
-			Misses:       7,  // should be 3
+			SetCalls:     2,
+			GetCalls:     6,
+			Misses:       3,
 		})
 	})
 }
