@@ -36,6 +36,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): fix panels showing 99th percentile of series or samples read per query or per series. Before, panels were showing the summarized value across all vmselect instances, which didn't make much sense. Now, panels show the max value across the vmselect instances, making it easier to understand complexity of the heaviest queries served.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix potential data race and missing firing states when replaying alerting rule with `-replay.ruleEvaluationConcurrency>1`.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix the `{{ $activeAt }}` variable value in annotation templating when the alert has already triggered. See this issue [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543) for details.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): allow enabling checksum calculation for PUT requests by using `-s3ChecksumAlgorithm` command-line flag. This is required for S3 configurations with WORM being enabled. See [#9532](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9532).
 
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
