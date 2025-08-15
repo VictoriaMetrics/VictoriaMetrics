@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"slices"
@@ -124,12 +125,19 @@ func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
 			want[i] = name
 		}
 		slices.Sort(want)
+		rng := rand.New(rand.NewSource(1))
+		mrsToDelete := testGenerateMetricRowsWithPrefix(rng, numRows, "deleteme", tr)
+
 		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.AddRows(mrsToDelete[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both
+		// current and prev indexDBs.
 		s.mustRotateIndexDB(time.Now())
 		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrsToDelete[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
+		testDeleteSeries(b, s, "deleteme.*", numRows)
 
 		tfss := NewTagFilters()
 		if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
@@ -203,12 +211,19 @@ func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
 		}
 		want = append(want, "__name__")
 		slices.Sort(want)
+		rng := rand.New(rand.NewSource(1))
+		mrsToDelete := testGenerateMetricRowsWithPrefix(rng, numRows, "deleteme", tr)
+
 		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.AddRows(mrsToDelete[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both
+		// current and prev indexDBs.
 		s.mustRotateIndexDB(time.Now())
 		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrsToDelete[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
+		testDeleteSeries(b, s, "deleteme.*", numRows)
 
 		// Reset timer to exclude expensive initialization from measurement.
 		b.ResetTimer()
@@ -217,7 +232,6 @@ func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
 			got []string
 			err error
 		)
-
 		for range b.N {
 			got, err = s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
 			if err != nil {
@@ -270,12 +284,19 @@ func BenchmarkStorageSearchLabelValues_VariousTimeRanges(b *testing.B) {
 			want[i] = labelValue
 		}
 		slices.Sort(want)
+		rng := rand.New(rand.NewSource(1))
+		mrsToDelete := testGenerateMetricRowsWithPrefix(rng, numRows, "deleteme", tr)
+
 		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.AddRows(mrsToDelete[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both
+		// current and prev indexDBs.
 		s.mustRotateIndexDB(time.Now())
 		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrsToDelete[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
+		testDeleteSeries(b, s, "deleteme.*", numRows)
 
 		// Reset timer to exclude expensive initialization from measurement.
 		b.ResetTimer()
@@ -327,13 +348,19 @@ func BenchmarkStorageSearchTagValueSuffixes_VariousTimeRanges(b *testing.B) {
 			want[i] = fmt.Sprintf("metric%04d", i)
 		}
 		slices.Sort(want)
+		rng := rand.New(rand.NewSource(1))
+		mrsToDelete := testGenerateMetricRowsWithPrefix(rng, numMetrics, "deleteme", tr)
 
 		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.AddRows(mrsToDelete[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both
+		// current and prev indexDBs.
 		s.mustRotateIndexDB(time.Now())
 		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		s.AddRows(mrsToDelete[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
+		testDeleteSeries(b, s, "deleteme.*", numMetrics)
 
 		// Reset timer to exclude expensive initialization from measurement.
 		b.ResetTimer()
@@ -385,13 +412,19 @@ func BenchmarkStorageSearchGraphitePaths_VariousTimeRanges(b *testing.B) {
 			want[i] = name
 		}
 		slices.Sort(want)
+		rng := rand.New(rand.NewSource(1))
+		mrsToDelete := testGenerateMetricRowsWithPrefix(rng, numMetrics, "deleteme", tr)
 
 		s := MustOpenStorage(b.Name(), OpenOptions{})
 		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.AddRows(mrsToDelete[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both
+		// current and prev indexDBs.
 		s.mustRotateIndexDB(time.Now())
 		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		s.AddRows(mrsToDelete[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
+		testDeleteSeries(b, s, "deleteme.*", numMetrics)
 
 		// Reset timer to exclude expensive initialization from measurement.
 		b.ResetTimer()
@@ -611,4 +644,20 @@ func benchmarkDirSize(path string) int64 {
 		panic(err)
 	}
 	return size
+}
+
+func testDeleteSeries(b *testing.B, s *Storage, metricNameRE string, wantCount int) {
+	b.Helper()
+	tfss := NewTagFilters()
+	if err := tfss.Add(nil, []byte(metricNameRE), false, true); err != nil {
+		b.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	gotCount, err := s.DeleteSeries(nil, []*TagFilters{tfss}, 1e9)
+	if gotCount != wantCount {
+		b.Fatalf("unexpected deleted series count: got %d, want %d", gotCount, wantCount)
+	}
+	if err != nil {
+		b.Fatalf("DeleteSeries(%v) unexpected error: %v", tfss, err)
+	}
+	s.DebugFlush()
 }
