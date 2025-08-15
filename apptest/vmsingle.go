@@ -24,6 +24,7 @@ type Vmsingle struct {
 
 	storageDataPath string
 	httpListenAddr  string
+	vmselectAddr    string
 
 	// vmstorage URLs.
 	forceFlushURL string
@@ -54,12 +55,14 @@ func StartVmsingleAt(instance, binary string, flags []string, cli *Client, outpu
 			"-httpListenAddr":     "127.0.0.1:0",
 			"-graphiteListenAddr": ":0",
 			"-opentsdbListenAddr": "127.0.0.1:0",
+			"-vmselectAddr":       "127.0.0.1:0",
 		},
 		extractREs: []*regexp.Regexp{
 			storageDataPathRE,
 			httpListenAddrRE,
 			graphiteListenAddrRE,
 			openTSDBListenAddrRE,
+			vmselectAddrRE,
 		},
 		output: output,
 	})
@@ -75,6 +78,7 @@ func StartVmsingleAt(instance, binary string, flags []string, cli *Client, outpu
 		},
 		storageDataPath: stderrExtracts[0],
 		httpListenAddr:  stderrExtracts[1],
+		vmselectAddr:    stderrExtracts[4],
 
 		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
 		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
@@ -583,10 +587,16 @@ func (app *Vmsingle) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	return status
 }
 
-// HTTPAddr returns the address at which the vmstorage process is listening
+// HTTPAddr returns the address at which the vmsingle process is listening
 // for http connections.
 func (app *Vmsingle) HTTPAddr() string {
 	return app.httpListenAddr
+}
+
+// VmselectAddr returns the address at which the vmsingle process is listening
+// for vmselect http connections.
+func (app *Vmsingle) VmselectAddr() string {
+	return app.vmselectAddr
 }
 
 // String returns the string representation of the vmsingle app state.

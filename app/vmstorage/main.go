@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -25,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 )
 
 var (
@@ -40,6 +42,8 @@ var (
 	// DataPath is a path to storage data.
 	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
 
+	vmselectAddr = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
+
 	_ = flag.Duration("finalMergeDelay", 0, "Deprecated: this flag does nothing")
 	_ = flag.Int("bigMergeConcurrency", 0, "Deprecated: this flag does nothing")
 	_ = flag.Int("smallMergeConcurrency", 0, "Deprecated: this flag does nothing")
@@ -50,9 +54,6 @@ var (
 
 	logNewSeries = flag.Bool("logNewSeries", false, "Whether to log new series. This option is for debug purposes only. It can lead to performance issues "+
 		"when big number of new series are ingested into VictoriaMetrics")
-	denyQueriesOutsideRetention = flag.Bool("denyQueriesOutsideRetention", false, "Whether to deny queries outside the configured -retentionPeriod. "+
-		"When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. "+
-		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
 	maxHourlySeries = flag.Int("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
 		"See also -storage.maxDailySeries")
@@ -91,21 +92,6 @@ var (
 
 	logNewSeriesAuthKey = flagutil.NewPassword("logNewSeriesAuthKey", "authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*")
 )
-
-// CheckTimeRange returns true if the given tr is denied for querying.
-func CheckTimeRange(tr storage.TimeRange) error {
-	if !*denyQueriesOutsideRetention {
-		return nil
-	}
-	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionPeriod.Milliseconds()
-	if tr.MinTimestamp > minAllowedTimestamp {
-		return nil
-	}
-	return &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("the given time range %s is outside the allowed -retentionPeriod=%s according to -denyQueriesOutsideRetention", &tr, retentionPeriod),
-		StatusCode: http.StatusServiceUnavailable,
-	}
-}
 
 // Init initializes vmstorage.
 func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
@@ -162,6 +148,11 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 		writeStorageMetrics(w, strg)
 	})
 	metrics.RegisterSet(storageMetrics)
+	selectAPI, err := servers.NewVMSelectServer(*vmselectAddr, strg)
+	if err != nil {
+		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
+	}
+	SelectAPI = selectAPI
 }
 
 var storageMetrics *metrics.Set
@@ -171,6 +162,9 @@ var storageMetrics *metrics.Set
 // Every storage call must be wrapped into WG.Add(1) ... WG.Done()
 // for proper graceful shutdown when Stop is called.
 var Storage *storage.Storage
+
+// SelectAPI is VMSelect API
+var SelectAPI *vmselectapi.Server
 
 // WG must be incremented before Storage call.
 //
@@ -297,6 +291,7 @@ func Stop() {
 	startTime := time.Now()
 	WG.WaitAndBlock()
 	stopStaleSnapshotsRemover()
+	SelectAPI.MustStop()
 	Storage.MustClose()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
