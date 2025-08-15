@@ -139,41 +139,43 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 		},
 	})
 
-	pbData := []prompb.TimeSeries{
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series",
+	pbData := prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series",
+					},
+					{
+						Name:  "label",
+						Value: "foo2",
+					},
 				},
-				{
-					Name:  "label",
-					Value: "foo2",
-				},
-			},
-			Samples: []prompb.Sample{
-				{
-					Value:     10,
-					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
+				Samples: []prompb.Sample{
+					{
+						Value:     10,
+						Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
 
+					},
 				},
 			},
-		},
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "must_drop_series",
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "must_drop_series",
+					},
+					{
+						Name:  "label",
+						Value: "foo2",
+					},
 				},
-				{
-					Name:  "label",
-					Value: "foo2",
-				},
-			},
-			Samples: []prompb.Sample{
-				{
-					Value:     20,
-					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
+				Samples: []prompb.Sample{
+					{
+						Value:     20,
+						Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
+					},
 				},
 			},
 		},
