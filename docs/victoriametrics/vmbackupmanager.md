@@ -110,7 +110,7 @@ Backup manager launched with the following configuration:
 ```sh
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
-./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -eula
+./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -licenseFile=/path/to/vm-license
 ```
 
 Expected logs in vmbackupmanager:
@@ -170,7 +170,7 @@ We enable backup retention policy for backup manager by using following configur
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 ./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create
--keepLastDaily=3 -eula
+-keepLastDaily=3 -licenseFile=/path/to/vm-license
 ```
 
 Expected logs in backup manager on start:
@@ -196,14 +196,14 @@ You can protect any backup against deletion by retention policy with the `vmback
 For instance:
 
 ```sh
-./vmbackupmanager backup lock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+./vmbackupmanager backup lock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data
 ```
 
 After that the backup won't be deleted by retention policy.
 You can view the `locked` attribute in backup list:
 
 ```sh
-./vmbackupmanager backup list -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+./vmbackupmanager backup list -dst=<DST_PATH> -storageDataPath=/vmstorage-data
 ```
 
 To remove protection, you can use the command `vmbackupmanager backups unlock`.
@@ -211,7 +211,7 @@ To remove protection, you can use the command `vmbackupmanager backups unlock`.
 For example:
 
 ```sh
-./vmbackupmanager backup unlock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+./vmbackupmanager backup unlock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data
 ```
 
 ## API methods

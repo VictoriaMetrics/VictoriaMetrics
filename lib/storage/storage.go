@@ -1358,6 +1358,50 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 	return res, nil
 }
 
+// searchMetricName searches the name of a metric by id in curr and prev
+// indexDBs. If cache is enabled (noCache is false), the name is first
+// searched in metricNameCache and also stored in that cache when found in one
+// of the indexDBs.
+//
+// Unlike other index search methods, this one requires getting the prev and
+// curr indexDBs before calling it. This is because this method is supposed to
+// be called multiple times quickly and on the same indexDBs. While getting the
+// indexDBs everytime the method is called 1) may be much slower because of the
+// locks and 2) the set of indexDBs may change between the calls due to indexDB
+// rotation.
+func (s *Storage) searchMetricName(idbPrev, idbCurr *indexDB, dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
+	if !noCache {
+		metricName := s.getMetricNameFromCache(dst, metricID)
+		if len(metricName) > len(dst) {
+			return metricName, true
+		}
+	}
+
+	dst, found := idbCurr.searchMetricName(dst, metricID, noCache)
+	if found {
+		if !noCache {
+			s.putMetricNameToCache(metricID, dst)
+		}
+		return dst, true
+	}
+
+	// Fallback to previous indexDB.
+	dst, found = idbPrev.searchMetricName(dst, metricID, noCache)
+	if found {
+		if !noCache {
+			s.putMetricNameToCache(metricID, dst)
+		}
+		return dst, true
+	}
+
+	// Not deleting metricID if no corresponding metricName has been found
+	// because it is not known which indexDB metricID belongs to.
+	// For cases when this does happen see indexDB.SearchMetricNames() and
+	// indexDB.getTSIDsFromMetricIDs()).
+
+	return dst, false
+}
+
 // SearchMetricNames returns marshaled metric names matching the given tfss on
 // the given tr.
 //

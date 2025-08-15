@@ -59,7 +59,7 @@ jobs:
             arch: amd64
     steps:
       - name: Code checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go
         id: go
