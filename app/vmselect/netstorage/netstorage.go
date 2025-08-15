@@ -203,10 +203,7 @@ var defaultMaxWorkersPerQuery = func() int {
 	// for processing an average query, without significant impact on inter-CPU communications.
 	const maxWorkersLimit = 32
 
-	n := gomaxprocs
-	if n > maxWorkersLimit {
-		n = maxWorkersLimit
-	}
+	n := min(gomaxprocs, maxWorkersLimit)
 	return n
 }()
 
@@ -279,10 +276,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	}
 
 	// Prepare worker channels.
-	workers := len(tsws)
-	if workers > maxWorkers {
-		workers = maxWorkers
-	}
+	workers := min(len(tsws), maxWorkers)
 	itemsPerWorker := (len(tsws) + workers - 1) / workers
 	workChs := make([]chan *timeseriesWork, workers)
 	for i := range workChs {
@@ -497,10 +491,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 	}
 
 	// Prepare worker channels.
-	workers := len(upws)
-	if workers > gomaxprocs {
-		workers = gomaxprocs
-	}
+	workers := min(len(upws), gomaxprocs)
 	if workers < 1 {
 		workers = 1
 	}
@@ -1153,10 +1144,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	// metricNamesBuf is used for holding all the loaded unique metric names at m and orderedMetricNames.
 	// It should reduce pressure on Go GC by reducing the number of string allocations
 	// when constructing metricName string from byte slice.
-	metricNamesBufCap := maxSeriesCount * 100
-	if metricNamesBufCap > maxFastAllocBlockSize {
-		metricNamesBufCap = maxFastAllocBlockSize
-	}
+	metricNamesBufCap := min(maxSeriesCount*100, maxFastAllocBlockSize)
 	metricNamesBuf := make([]byte, 0, metricNamesBufCap)
 
 	// brssPool is used for holding all the blockRefs objects across all the loaded time series.
@@ -1165,10 +1153,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 
 	// brsPool is used for holding the most of blockRefs.brs slices across all the loaded time series.
 	// It should reduce pressure on Go GC by reducing the number of allocations for blockRefs.brs slices.
-	brsPoolCap := uintptr(maxSeriesCount)
-	if brsPoolCap > maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}) {
-		brsPoolCap = maxFastAllocBlockSize / unsafe.Sizeof(blockRef{})
-	}
+	brsPoolCap := min(uintptr(maxSeriesCount), maxFastAllocBlockSize/unsafe.Sizeof(blockRef{}))
 	brsPool := make([]blockRef, 0, brsPoolCap)
 
 	// m maps from metricName to the index of blockRefs inside brssPool
