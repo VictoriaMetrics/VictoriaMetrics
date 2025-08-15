@@ -442,12 +442,12 @@ The most common sources of cluster instability are:
   If the graphs show high CPU usage, then the cluster is likely overloaded and requires more resources.
   Note that short-lived 100% CPU spikes may not be visible in metrics with typical 10–30s scrape intervals, 
   but can still cause transient network failures. In such cases, check CPU usage at the OS level with higher-resolution tools. 
-  Consider increasing `-vmstorageDialTimeout` and `-rpc.handshakeTimeout`{{% available_from "#" %}} to mitigate the effects of CPU spikes.
+  Consider increasing `-vmstorageDialTimeout` and `-rpc.handshakeTimeout`{{% available_from "v1.124.0" %}} to mitigate the effects of CPU spikes.
   
   If resource usage looks normal but networking issues still occur, then the root cause is likely outside VictoriaMetrics.
   This may be caused by unreliable or congested network links, especially across availability zones or regions. 
   In multi-AZ setups, consider [a multi-level cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup) with region-local load balancers to reduce cross-zone connections. 
-  If the network cannot be improved, increasing timeouts such as `-vmstorageDialTimeout`, `-rpc.handshakeTimeout`{{% available_from "#" %}}, or `-search.maxQueueDuration` may help, but should be done cautiously, as higher timeouts can impact cluster stability in other ways.
+  If the network cannot be improved, increasing timeouts such as `-vmstorageDialTimeout`, `-rpc.handshakeTimeout`{{% available_from "v1.124.0" %}}, or `-search.maxQueueDuration` may help, but should be done cautiously, as higher timeouts can impact cluster stability in other ways.
   Keep in mind that VictoriaMetrics assumes reliable networking between components. If the network is unstable, the overall cluster stability may degrade regardless of resource availability. 
 
 The obvious solution against VictoriaMetrics cluster instability is to make sure cluster components
