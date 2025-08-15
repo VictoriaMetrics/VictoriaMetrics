@@ -49,30 +49,6 @@ func TestGetExternalURL(t *testing.T) {
 	}
 }
 
-func TestGetAlertURLGenerator(t *testing.T) {
-	testAlert := notifier.Alert{GroupID: 42, ID: 2, Value: 4, Labels: map[string]string{"tenant": "baz"}}
-	u, _ := url.Parse("https://victoriametrics.com/path")
-	fn, err := getAlertURLGenerator(u, "", false)
-	if err != nil {
-		t.Fatalf("unexpected error %s", err)
-	}
-	exp := fmt.Sprintf("https://victoriametrics.com/path/vmalert/alert?%s=42&%s=2", paramGroupID, paramAlertID)
-	if exp != fn(testAlert) {
-		t.Fatalf("unexpected url want %s, got %s", exp, fn(testAlert))
-	}
-	_, err = getAlertURLGenerator(nil, "foo?{{invalid}}", true)
-	if err == nil {
-		t.Fatalf("expected template validation error got nil")
-	}
-	fn, err = getAlertURLGenerator(u, "foo?query={{$value}}&ds={{ $labels.tenant }}", true)
-	if err != nil {
-		t.Fatalf("unexpected error %s", err)
-	}
-	if exp := "https://victoriametrics.com/path/foo?query=4&ds=baz"; exp != fn(testAlert) {
-		t.Fatalf("unexpected url want %s, got %s", exp, fn(testAlert))
-	}
-}
-
 func TestConfigReload(t *testing.T) {
 	originalRulePath := *rulePath
 	originalExternalURL := extURL
