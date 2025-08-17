@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.124.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.124.0)
+
+Released at 2025-08-15
+
 * SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): protect graphite `/render` API endpoint with new flag `-search.maxGraphitePathExpressionLen`. See this PR [#9534](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9534) for details.
@@ -26,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: `vmselect`, `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): add rpc handshake timeout configuration via `-rpc.handshakeTimeout` flag (default 5s). Set deadline for the entire handshake process instead of per-operation timeout. See [#9345](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9345) for more details.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-enableMetadata` command-line flag to allow sending metadata to the configured `-remoteWrite.url`, metadata can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): treat single `remoteWrite.disableOnDiskQueue` flag the same way as if it is explicitly specified for each remote write url. See [#9565](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9565) for details.
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): print a proper error message when templating function fails during execution. Previously, vmalert-tool could throw a misleading panic message instead.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly read proxy-protocol header. See this PR [#9546](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9546) for details.
 * BUGFIX: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): fix samples rate panel not showing data in case vmagent is not scraping metrics. Previously, the panel would not display "samples in" results if vmagent only accepts metrics via push protocols.
@@ -36,6 +41,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): fix panels showing 99th percentile of series or samples read per query or per series. Before, panels were showing the summarized value across all vmselect instances, which didn't make much sense. Now, panels show the max value across the vmselect instances, making it easier to understand complexity of the heaviest queries served.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix potential data race and missing firing states when replaying alerting rule with `-replay.ruleEvaluationConcurrency>1`.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix the `{{ $activeAt }}` variable value in annotation templating when the alert has already triggered. See this issue [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543) for details.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): allow enabling checksum calculation for PUT requests by using `-s3ChecksumAlgorithm` command-line flag. This is required for S3 configurations with WORM being enabled. See [#9532](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9532).
 
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
