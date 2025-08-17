@@ -720,7 +720,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		}
 	}
 
-	// Check timerseriesCounters only for serial test.
+	// Check timeseriesCounters only for serial test.
 	// Concurrent test may create duplicate timeseries, so GetSeriesCount
 	// would return more timeseries than needed.
 	if !isConcurrent {
@@ -837,7 +837,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		}
 		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
-			return fmt.Errorf("cannot search with multipel filters matching empty tags: %w", err)
+			return fmt.Errorf("cannot search with multiple filters matching empty tags: %w", err)
 		}
 		if !testHasTSID(tsidsFound, tsid) {
 			return fmt.Errorf("tsids is missing when matching multiple filters with empty tags tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)

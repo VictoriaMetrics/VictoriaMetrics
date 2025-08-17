@@ -269,7 +269,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	}
 
 	// Slow path - spin up multiple local workers for parallel data processing.
-	// Do not use global workers pool, since it increases inter-CPU memory ping-poing,
+	// Do not use global workers pool, since it increases inter-CPU memory ping-pong,
 	// which reduces the scalability on systems with many CPU cores.
 
 	// Prepare the work for workers.
@@ -485,7 +485,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 	}
 
 	// Slow path - spin up multiple local workers for parallel data unpacking.
-	// Do not use global workers pool, since it increases inter-CPU memory ping-poing,
+	// Do not use global workers pool, since it increases inter-CPU memory ping-pong,
 	// which reduces the scalability on systems with many CPU cores.
 
 	// Prepare the work for workers.

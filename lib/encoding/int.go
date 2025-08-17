@@ -83,7 +83,7 @@ func UnmarshalInt64(src []byte) int64 {
 	return v
 }
 
-// MarshalVarInt64 appends marshalsed v to dst and returns the result.
+// MarshalVarInt64 appends marshaled v to dst and returns the result.
 func MarshalVarInt64(dst []byte, v int64) []byte {
 	u := uint64((v << 1) ^ (v >> 63))
 
@@ -578,7 +578,7 @@ type Uint64s struct {
 var uint64sPool sync.Pool
 
 // GetUint32s returns an uint32 slice with the given size.
-// The slize contents isn't initialized - it may contain garbage.
+// The slice contents isn't initialized - it may contain garbage.
 func GetUint32s(size int) *Uint32s {
 	v := uint32sPool.Get()
 	if v == nil {
