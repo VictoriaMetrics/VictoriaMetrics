@@ -16,7 +16,7 @@ import (
 func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 	defer testRemoveAll(t)
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 
@@ -119,7 +119,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 		defer testRemoveAll(t)
 		t.Helper()
 
-		synctest.Run(func() {
+		synctest.Test(t, func(t *testing.T) {
 			// Align start time to 05:00 in order to have 23h before the next rotation cycle at 04:00 next morning.
 			time.Sleep(time.Hour * 5)
 
