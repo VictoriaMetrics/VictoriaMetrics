@@ -24,7 +24,7 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 		return keys
 	}
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 		ptw := s.tb.MustGetPartition(time.Now().UnixMilli())

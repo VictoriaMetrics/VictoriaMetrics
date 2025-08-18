@@ -16,7 +16,7 @@ import (
 func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 	defer testRemoveAll(t)
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 

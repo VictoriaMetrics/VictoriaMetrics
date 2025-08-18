@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: upgrade Go builder from Go1.24.6 to Go1.25. See [Go1.25 release notes](https://tip.golang.org/doc/go1.25).
+
 ## [v1.124.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.124.0)
 
 Released at 2025-08-15
@@ -58,6 +60,27 @@ Released at 2025-08-01
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
+
+## [v1.122.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.2)
+
+Released at 2025-08-15
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): treat single `remoteWrite.disableOnDiskQueue` flag the same way as if it is explicitly specified for each remote write url. See [#9565](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9565) for details.
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): print a proper error message when templating function fails during execution. Previously, vmalert-tool could throw a misleading panic message instead.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly read proxy-protocol header. See this PR [#9546](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9546) for details.
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent resource leak on partial responses for `/federate` API requests. This this PR [9536](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9536) for details. Thanks to the @fxrlv.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent performance degradation on hitting daily or hourly series cardinality limits. See this issue [9554](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9554) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): gracefully handle `histogram_quantile` calculation for histograms where buckets are created on demand. This change isn't needed for users who use native instrumentation SDKs for metrics from [VictoriaMetrics](https://github.com/VictoriaMetrics/metrics), [Prometheus](https://prometheus.io/docs/instrumenting/clientlibs/) or [OpenTelemetry](https://opentelemetry.io/docs/languages/).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): return a proper error message when the function argument is expected to be a string or scalar.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix potential data race and missing firing states when replaying alerting rule with `-replay.ruleEvaluationConcurrency>1`.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix the `{{ $activeAt }}` variable value in annotation templating when the alert has already triggered. See this issue [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543) for details.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): allow enabling checksum calculation for PUT requests by using `-s3ChecksumAlgorithm` command-line flag. This is required for S3 configurations with WORM being enabled. See [#9532](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9532).
 
 ## [v1.122.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.1)
 
@@ -414,6 +437,25 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+
+## [v1.110.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.16)
+
+Released at 2025-08-15
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): treat single `remoteWrite.disableOnDiskQueue` flag the same way as if it is explicitly specified for each remote write url. See [#9565](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9565) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly read proxy-protocol header. See this PR [#9546](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9546) for details.
+* BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent resource leak on partial responses for `/federate` API requests. This this PR [9536](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9536) for details. Thanks to the @fxrlv.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent performance degradation on hitting daily or hourly series cardinality limits. See this issue [9554](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9554) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): gracefully handle `histogram_quantile` calculation for histograms where buckets are created on demand. This change isn't needed for users who use native instrumentation SDKs for metrics from [VictoriaMetrics](https://github.com/VictoriaMetrics/metrics), [Prometheus](https://prometheus.io/docs/instrumenting/clientlibs/) or [OpenTelemetry](https://opentelemetry.io/docs/languages/).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): return a proper error message when the function argument is expected to be a string or scalar.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix the `{{ $activeAt }}` variable value in annotation templating when the alert has already triggered. See this issue [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543) for details.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): allow enabling checksum calculation for PUT requests by using `-s3ChecksumAlgorithm` command-line flag. This is required for S3 configurations with WORM being enabled. See [#9532](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9532).
 
 ## [v1.110.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.15)
 
