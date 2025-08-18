@@ -17,7 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -34,11 +34,6 @@ var (
 	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage")
 
-	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
-		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
-		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
-	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
-		"limit is reached; see also -search.maxQueryDuration")
 	resetCacheAuthKey    = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
@@ -47,26 +42,14 @@ var (
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
-func getDefaultMaxConcurrentRequests() int {
-	n := cgroup.AvailableCPUs() * 2
-	if n > 16 {
-		// A single request can saturate all the CPU cores, so there is no sense
-		// in allowing higher number of concurrent requests - they will just contend
-		// for unavailable CPU time.
-		n = 16
-	}
-	return n
-}
-
 // Init initializes vmselect
 func Init() {
 	tmpDirPath := *vmstorage.DataPath + "/tmp"
 	fs.MustRemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
-	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
 
-	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+	concurrencyLimitCh = make(chan struct{}, servers.GetMaxConcurrentRequests())
 	initVMAlertProxy()
 }
 
@@ -88,7 +71,7 @@ var (
 		return float64(len(concurrencyLimitCh))
 	})
 	_ = metrics.NewGauge(`vm_search_max_unique_timeseries`, func() float64 {
-		return float64(prometheus.GetMaxUniqueTimeSeries())
+		return float64(servers.GetMaxUniqueTimeSeries())
 	})
 )
 
@@ -129,14 +112,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
 		d := searchutil.GetMaxQueryDuration(r)
-		if d > *maxQueueDuration {
-			d = *maxQueueDuration
+		maxQueueDuration := servers.GetMaxQueueDuration()
+		if d > maxQueueDuration {
+			d = maxQueueDuration
 		}
 		t := timerpool.Get(d)
 		select {
 		case concurrencyLimitCh <- struct{}{}:
 			timerpool.Put(t)
-			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
+			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", servers.GetMaxConcurrentRequests())
 			defer func() { <-concurrencyLimitCh }()
 		case <-r.Context().Done():
 			timerpool.Put(t)
@@ -152,7 +136,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 				Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
 					"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
 					"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
-					d.Seconds(), *maxConcurrentRequests, maxQueueDuration),
+					d.Seconds(), servers.GetMaxConcurrentRequests(), maxQueueDuration),
 				StatusCode: http.StatusTooManyRequests,
 			}
 			w.Header().Add("Retry-After", "10")
