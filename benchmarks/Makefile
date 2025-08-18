@@ -34,28 +34,28 @@
 # for details
 tsbs: tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries tsbs-run-queries
 
-TSBS_SCALE := 100000
-TSBS_END := $(shell date -u +%Y-%m-%dT00:00:00Z)
-TSBS_START := $(shell \
+TSBS_SCALE ?= 100000
+TSBS_END ?= $(shell date -u +%Y-%m-%dT00:00:00Z)
+TSBS_START ?= $(shell \
   NOW=$$(date -u +%s); \
   START=$$((NOW - 86400)); \
   date -u -d "@$$START" +%Y-%m-%dT00:00:00Z 2>/dev/null || \
   date -u -r $$START +%Y-%m-%dT00:00:00Z 2>/dev/null \
 )
-TSBS_STEP := 80s
-TSBS_QUERIES := 1000
-TSBS_WORKERS := 4
+TSBS_STEP ?= 80s
+TSBS_QUERIES ?= 1000
+TSBS_WORKERS ?= 4
 TSBS_DATA_FILE := /tmp/tsbs-data-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).gz
 TSBS_QUERY_FILE := /tmp/tsbs-queries-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_QUERIES).gz
 # For cluster setup use http://vminsert:8480/insert/0/influx/write
-TSBS_WRITE_URLS := http://localhost:8428/write
+TSBS_WRITE_URLS ?= http://localhost:8428/write
 # For cluster setup use http://vmselect:8481/select/0/prometheus
-TSBS_READ_URLS := http://localhost:8428
-TSBS_METRICS_URL := http://localhost:8428/metrics
+TSBS_READ_URLS ?= http://localhost:8428
+TSBS_METRICS_URL ?= http://localhost:8428/metrics
 
 # Build TSBS tools
 tsbs-build:
-	test -d /tmp/tsbs || (git clone https://github.com/timescale/tsbs.git /tmp/tsbs && \
+	test -d /tmp/tsbs/cmd/tsbs_run_queries_victoriametrics || (git clone https://github.com/timescale/tsbs.git /tmp/tsbs && \
 		cd /tmp/tsbs/cmd/tsbs_generate_data && GOBIN=/tmp/tsbs/bin go install && \
 		cd /tmp/tsbs/cmd/tsbs_generate_queries && GOBIN=/tmp/tsbs/bin go install && \
 		cd /tmp/tsbs/cmd/tsbs_load_victoriametrics && GOBIN=/tmp/tsbs/bin go install && \
