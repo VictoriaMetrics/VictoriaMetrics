@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"cmp"
 	"fmt"
 	"math"
 	"os"
@@ -29,6 +28,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
+	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -70,7 +70,7 @@ type Storage struct {
 	// IndexDBs if they existed on filesystem before partition
 	// index was introduced. The pointer is nil if there are no legacy
 	// IndexDBs on filesystem.
-
+	//
 	// The support of legacy IndexDBs is required to provide forward
 	// compatibility with partition index.
 	legacyIndexDBs atomic.Pointer[legacyIndexDBs]
@@ -255,6 +255,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	s.disablePerDayIndex = opts.DisablePerDayIndex
 
+	// Load legacy indexDBs.
 	legacyIDBPath := filepath.Join(path, indexdbDirname)
 	legacyIDBs := s.mustOpenLegacyIndexDBTables(legacyIDBPath)
 	s.legacyIndexDBs.Store(legacyIDBs)
@@ -276,20 +277,17 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// Add deleted metricIDs from legacy previous and current indexDBs to every
 	// partition indexDB. Also add deleted metricIDs from current indexDB to the
 	// previous one, because previous may contain the same metrics that wasn't marked as deleted.
-	legacyDeletedMetricIDSet := &uint64set.Set{}
+	legacyDeletedMetricIDs := &uint64set.Set{}
 	idbPrev := legacyIDBs.getIDBPrev()
 	if idbPrev != nil {
-		legacyDeletedMetricIDSet.Union(idbPrev.getDeletedMetricIDs())
+		legacyDeletedMetricIDs.Union(idbPrev.getDeletedMetricIDs())
 	}
 	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
-		legacyDeletedMetricIDSet.Union(idbCurr.getDeletedMetricIDs())
+		legacyDeletedMetricIDs.Union(idbCurr.getDeletedMetricIDs())
 	}
-	legacyDeletedMetricIDs := legacyDeletedMetricIDSet.AppendTo(nil)
-
 	if idbPrev != nil {
-		idbPrev.setDeletedMetricIDs(legacyDeletedMetricIDSet)
+		idbPrev.setDeletedMetricIDs(legacyDeletedMetricIDs)
 	}
-
 	ptws := tb.GetAllPartitions(nil)
 	for _, ptw := range ptws {
 		ptw.pt.idb.updateDeletedMetricIDs(legacyDeletedMetricIDs)
@@ -1118,10 +1116,21 @@ func legacyNextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64)
 	return deadline
 }
 
+func (s *Storage) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
+	// There is no need in checking for deleted metricIDs here, since they
+	// must be checked by the caller.
+	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
+	return s.metricNameCache.Get(dst, key[:])
+}
+
+func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
+	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
+	s.metricNameCache.Set(key[:], metricName)
+}
+
 // searchAndMerge concurrently performs a search operation on all partition
 // IndexDBs that overlap with the given time range and optionally legacy current
-// and previous IndexDBs. The individual search results are then merged (merge function applied
-// only if search covers more than one index partition).
+// and previous IndexDBs. The individual search results are then merged.
 //
 // The function creates a child query tracer for each search function call and
 // closes it once the search() returns. Thus, implementations of search func
@@ -1148,37 +1157,32 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 		return zeroValue, nil
 	}
 
-	// It is faster to process one indexDB without spawning goroutines.
+	data := make([]T, len(idbs))
+	errs := make([]error, len(idbs))
+
 	if len(idbs) == 1 {
+		// It is faster to process one indexDB without spawning goroutines.
 		idb := idbs[0]
 		searchTR := s.adjustTimeRange(tr, idb.tr)
 		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-		defer qtChild.Done()
-		data, err := search(qtChild, idb, searchTR)
-		if err != nil {
-			var zeroValue T
-			return zeroValue, err
+		data[0], errs[0] = search(qtChild, idb, searchTR)
+		qtChild.Done()
+	} else {
+		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
+		var wg sync.WaitGroup
+		for i, idb := range idbs {
+			searchTR := s.adjustTimeRange(tr, idb.tr)
+			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
+			wg.Add(1)
+			go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
+				defer wg.Done()
+				defer qt.Done()
+				data[i], errs[i] = search(qt, idb, tr)
+			}(qtChild, i, idb, searchTR)
 		}
-		return data, nil
+		wg.Wait()
+		qtSearch.Done()
 	}
-
-	qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
-	var wg sync.WaitGroup
-	data := make([]T, len(idbs))
-	errs := make([]error, len(idbs))
-	for i, idb := range idbs {
-		searchTR := s.adjustTimeRange(tr, idb.tr)
-		qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-		wg.Add(1)
-		go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
-			defer wg.Done()
-			defer qt.Done()
-
-			data[i], errs[i] = search(qt, idb, tr)
-		}(qtChild, i, idb, searchTR)
-	}
-	wg.Wait()
-	qtSearch.Done()
 
 	for _, err := range errs {
 		if err != nil {
@@ -1194,31 +1198,110 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	return result, nil
 }
 
-// mergeUniq combines the values of several slices into once slice, duplicate
-// values are ignored.
-func mergeUniq[T cmp.Ordered](data [][]T) []T {
-	maxLength := 0
-	for _, s := range data {
-		if len(s) > maxLength {
-			maxLength += len(s)
+// searchAndMergeUniq is a specific searchAndMerge operation that is common for
+// most index searches. It expects each individual search to return a set of
+// strings. The results of all individual searches are then unioned and the
+// resulting set is converted into a slice. If result contains more than
+// maxResults elements, it is truncated to maxResults.
+//
+// The final result is not sorted since it must be done by vmselect.
+func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error), maxResults int) ([]string, error) {
+	merge := func(data []map[string]struct{}) map[string]struct{} {
+		if len(data) == 0 {
+			return nil
 		}
-	}
-	if maxLength == 0 {
-		return []T{}
+
+		totalLen := 0
+		for _, d := range data {
+			totalLen += len(d)
+		}
+
+		if totalLen > maxResults {
+			totalLen = maxResults
+		}
+
+		all := make(map[string]struct{}, totalLen)
+		for _, d := range data {
+			for v := range d {
+				if len(all) >= maxResults {
+					return all
+				}
+				all[v] = struct{}{}
+			}
+		}
+		return all
 	}
 
-	all := make([]T, 0, maxLength)
-	seen := make(map[T]struct{}, maxLength)
-	for _, s := range data {
-		for _, v := range s {
-			if _, ok := seen[v]; ok {
-				continue
-			}
-			all = append(all, v)
-			seen[v] = struct{}{}
+	m, err := searchAndMerge(qt, s, tr, search, merge)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]string, 0, len(m))
+	for k := range m {
+		res = append(res, k)
+	}
+	return res, nil
+}
+
+// searchMetricName searches the name of a metric by id in curr and prev
+// indexDBs. If cache is enabled (noCache is false), the name is first
+// searched in metricNameCache and also stored in that cache when found in one
+// of the indexDBs.
+//
+// Unlike other index search methods, this one requires getting the prev and
+// curr indexDBs before calling it. This is because this method is supposed to
+// be called multiple times quickly and on the same indexDBs. While getting the
+// indexDBs everytime the method is called 1) may be much slower because of the
+// locks and 2) the set of indexDBs may change between the calls due to indexDB
+// rotation.
+func (s *Storage) searchMetricName(idb *indexDB, legacyIDBs *legacyIndexDBs, dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
+	if !noCache {
+		metricName := s.getMetricNameFromCache(dst, metricID)
+		if len(metricName) > len(dst) {
+			return metricName, true
 		}
 	}
-	return all
+
+	var found bool
+	if idb != nil {
+		dst, found = idb.searchMetricName(dst, metricID, noCache)
+		if found {
+			if !noCache {
+				s.putMetricNameToCache(metricID, dst)
+			}
+			return dst, true
+		}
+	}
+
+	// Fallback to current legacy indexDB.
+	if idb := legacyIDBs.getIDBCurr(); idb != nil {
+		dst, found = idb.searchMetricName(dst, metricID, noCache)
+		if found {
+			if !noCache {
+				s.putMetricNameToCache(metricID, dst)
+			}
+			return dst, true
+		}
+	}
+
+	// Fallback to previous legacy indexDB.
+	if idb := legacyIDBs.getIDBPrev(); idb != nil {
+		dst, found = idb.searchMetricName(dst, metricID, noCache)
+		if found {
+			if !noCache {
+				s.putMetricNameToCache(metricID, dst)
+			}
+			return dst, true
+		}
+	}
+
+	// Not deleting metricID if no corresponding metricName has been found
+	// because it is not known which indexDB metricID belongs to.
+	// For cases when this does happen see indexDB.SearchMetricNames() and
+	// indexDB.getTSIDsFromMetricIDs()).
+
+	return dst, false
 }
 
 // SearchMetricNames returns marshaled metric names matching the given tfss on
@@ -1231,10 +1314,30 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
 		return idb.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 	}
-	metricNames, err := searchAndMerge(qt, s, tr, search, mergeUniq)
 
-	qt.Donef("found %d metric names", len(metricNames))
-	return metricNames, err
+	merge := func(data [][]string) []string {
+		var n int
+		for _, d := range data {
+			n += len(d)
+		}
+		seen := make(map[string]struct{}, n)
+		all := make([]string, 0, n)
+		for _, d := range data {
+			for _, v := range d {
+				if _, ok := seen[v]; !ok {
+					all = append(all, v)
+					seen[v] = struct{}{}
+				}
+			}
+		}
+		return all
+	}
+	res, err := searchAndMerge(qt, s, tr, search, merge)
+	if err != nil {
+		return nil, err
+	}
+	qt.Donef("found %d metric names", len(res))
+	return res, nil
 }
 
 // ErrDeadlineExceeded is returned when the request times out.
@@ -1260,12 +1363,12 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 
 	// Not deleting in parallel because the deletion operation is rare.
 
-	deletedMetricIDs := &uint64set.Set{}
+	all := &uint64set.Set{}
 	legacyDMIs, err := s.legacyDeleteSeries(qt, tfss, maxMetrics)
 	if err != nil {
 		return 0, err
 	}
-	deletedMetricIDs.AddMulti(legacyDMIs)
+	all.UnionMayOwn(legacyDMIs)
 
 	ptws := s.tb.GetAllPartitions(nil)
 	defer s.tb.PutPartitions(ptws)
@@ -1273,21 +1376,22 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	for _, ptw := range ptws {
 		idb := ptw.pt.idb
 		qt.Printf("start deleting from %s partition indexDB", idb.name)
-		if len(legacyDMIs) > 0 {
+		if legacyDMIs.Len() > 0 {
 			idb.updateDeletedMetricIDs(legacyDMIs)
 		}
 		dmis, err := idb.DeleteSeries(qt, tfss, maxMetrics)
 		if err != nil {
 			return 0, err
 		}
-		deletedMetricIDs.AddMulti(dmis)
-		qt.Printf("deleted %d metricIDs from %s partition indexDB", len(dmis), idb.name)
+		n := dmis.Len()
+		all.UnionMayOwn(dmis)
+		qt.Printf("deleted %d metricIDs from %s partition indexDB", n, idb.name)
 	}
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
 
-	n := deletedMetricIDs.Len()
+	n := all.Len()
 	qt.Donef("deleted %d unique metricIDs", n)
 	return n, nil
 }
@@ -1295,25 +1399,33 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 // SearchLabelNames searches for label names matching the given tfss on tr.
 func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
+	defer qt.Done()
 
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 	}
-	labelNames, err := searchAndMerge(qt, s, tr, search, mergeUniq)
-	qt.Donef("found %d label names", len(labelNames))
-	return labelNames, err
+	res, err := searchAndMergeUniq(qt, s, tr, search, maxLabelNames)
+	if err != nil {
+		return nil, err
+	}
+	qt.Printf("found %d label names", len(res))
+	return res, nil
 }
 
 // SearchLabelValues searches for label values for the given labelName, filters and tr.
 func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
+	defer qt.Done()
 
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	}
-	labelValues, err := searchAndMerge(qt, s, tr, search, mergeUniq)
-	qt.Donef("found %d label values", len(labelValues))
-	return labelValues, err
+	res, err := searchAndMergeUniq(qt, s, tr, search, maxLabelValues)
+	if err != nil {
+		return nil, err
+	}
+	qt.Printf("found %d label values", len(res))
+	return res, err
 }
 
 // SearchTagValueSuffixes returns all the tag value suffixes for the given
@@ -1326,21 +1438,31 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tf
 // If more than maxTagValueSuffixes suffixes is found, then only the first
 // maxTagValueSuffixes suffixes is returned.
 func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 	}
-	return searchAndMerge(qt, s, tr, search, mergeUniq)
+	res, err := searchAndMergeUniq(qt, s, tr, search, maxTagValueSuffixes)
+	if err != nil {
+		return nil, err
+	}
+	qt.Printf("found %d tag value suffixes", len(res))
+	return res, err
 }
 
 // SearchGraphitePaths returns all the matching paths for the given graphite
 // query on the given tr.
 func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
-
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]string, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (map[string]struct{}, error) {
 		return idb.SearchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
 	}
-	return searchAndMerge(qt, s, tr, search, mergeUniq)
+
+	res, err := searchAndMergeUniq(qt, s, tr, search, maxPaths)
+	if err != nil {
+		return nil, err
+	}
+	qt.Printf("found %d graphite paths", len(res))
+	return res, err
 }
 
 // replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
@@ -1642,6 +1764,11 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	var firstWarn error
 	for i := range mrs {
 		mr := &mrs[i]
+		if !s.registerSeriesCardinality(mr.MetricNameRaw) {
+			// Skip row, since it exceeds cardinality limit
+			continue
+		}
+
 		date := uint64(mr.Timestamp) / msecPerDay
 
 		if ptw == nil || !ptw.pt.HasTimestamp(mr.Timestamp) {
@@ -1658,13 +1785,11 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		}
 
 		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
-			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
-			// If the TSID is deleted, we re-register time series.
-			// Eventually, the deleted TSID will be removed from the cache.{
-			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip row, since it exceeds cardinality limit
-				continue
-			}
+			// Fast path - the TSID for the given mr.MetricNameRaw has been
+			// found in cache and isn't deleted. If the TSID is deleted, we
+			// re-register time series. Eventually, the deleted TSID will be
+			// removed from the cache.
+
 			if !is.hasMetricID(lTSID.TSID.MetricID) {
 				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 					if firstWarn == nil {
@@ -1712,22 +1837,12 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
-			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip the row, since it exceeds the configured cardinality limit.
-				continue
-			}
-
 			s.storeTSIDToCaches(mr.MetricNameRaw, &lTSID, idb.id, date)
 			continue
 		}
 
 		// Slowest path - there is no TSID in indexdb for the given mr.MetricNameRaw. Create it.
 		generateTSID(&lTSID.TSID, mn)
-
-		if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
-			// Skip the row, since it exceeds the configured cardinality limit.
-			continue
-		}
 
 		// Schedule creating TSID indexes instead of creating them synchronously.
 		// This should keep stable the ingestion rate when new time series are ingested.
@@ -1867,16 +1982,15 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = prevTSID
 			continue
 		}
+		if !s.registerSeriesCardinality(mr.MetricNameRaw) {
+			// Skip row, since it exceeds cardinality limit
+			j--
+			continue
+		}
 
 		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
-			// If the TSID is deleted, we re-register time series.
-			// Eventually, the deleted TSID will be removed from the cache.
-			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip row, since it exceeds cardinality limit
-				j--
-				continue
-			}
+
 			r.TSID = lTSID.TSID
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
@@ -1898,6 +2012,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				// Do not create an entry in per-day index and do not add to
 				// dateMetricIDCache because this will be done in updatePerDateData().
 				idb.createGlobalIndexes(&lTSID.TSID, mn)
+
 				seriesRepopulated++
 				slowInsertsCount++
 			}
@@ -1929,12 +2044,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
-			if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
-				// Skip the row, since it exceeds the configured cardinality limit.
-				j--
-				continue
-			}
-
 			s.storeTSIDToCaches(mr.MetricNameRaw, &lTSID, idb.id, date)
 
 			r.TSID = lTSID.TSID
@@ -1947,12 +2056,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		// Slowest path - the TSID for the given mr.MetricNameRaw isn't found in indexdb. Create it.
 		generateTSID(&lTSID.TSID, mn)
-
-		if !s.registerSeriesCardinality(lTSID.TSID.MetricID, mr.MetricNameRaw) {
-			// Skip the row, since it exceeds the configured cardinality limit.
-			j--
-			continue
-		}
 
 		createAllIndexesForMetricName(idb, mn, &lTSID.TSID, date)
 		s.storeTSIDToCaches(mr.MetricNameRaw, &lTSID, idb.id, date)
@@ -2033,7 +2136,12 @@ func (s *Storage) storeTSIDToCaches(metricNameRaw []byte, lTSID *legacyTSID, idb
 	s.dateMetricIDCache.Set(idbID, date, lTSID.TSID.MetricID)
 }
 
-func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) bool {
+func (s *Storage) registerSeriesCardinality(metricNameRaw []byte) bool {
+	if s.hourlySeriesLimiter == nil && s.dailySeriesLimiter == nil {
+		return true
+	}
+
+	metricID := xxhash.Sum64(metricNameRaw)
 	if sl := s.hourlySeriesLimiter; sl != nil && !sl.Add(metricID) {
 		s.hourlySeriesLimitRowsDropped.Add(1)
 		logSkippedSeries(metricNameRaw, "-storage.maxHourlySeries", sl.MaxItems())
@@ -2296,7 +2404,6 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	for _, dmid := range pendingDateMetricIDs {
 		date := dmid.date
 		metricID := dmid.tsid.MetricID
-
 		timestamp := int64(date) * msecPerDay
 		if ptw == nil || !ptw.pt.HasTimestamp(timestamp) {
 			if ptw != nil {
@@ -2771,7 +2878,6 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) *legacyIndexDBs {
 	}
 
 	numIDBs := len(tableNames)
-
 	legacyIDBs := &legacyIndexDBs{}
 
 	if numIDBs == 0 {

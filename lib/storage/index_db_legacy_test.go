@@ -9,13 +9,23 @@ import (
 func TestLegacyContainsTimeRange(t *testing.T) {
 	defer testRemoveAll(t)
 
+	rng := rand.New(rand.NewSource(1))
 	const numMetrics = 10000
-	tr := TimeRange{
+	trPrev := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	trCurr := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 16, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	trPt := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	rng := rand.New(rand.NewSource(1))
-	data := testGenerateMetricRows(rng, numMetrics, tr.MinTimestamp, tr.MaxTimestamp)
+	mrsPrev := testGenerateMetricRowsWithPrefix(rng, numMetrics, "legacy_prev", trPrev)
+	mrsCurr := testGenerateMetricRowsWithPrefix(rng, numMetrics, "legacy_curr", trCurr)
+	mrsPt := testGenerateMetricRowsWithPrefix(rng, numMetrics, "pt", trPt)
 
 	f := func(idb *indexDB, tr TimeRange, want bool) {
 		t.Helper()
@@ -31,74 +41,97 @@ func TestLegacyContainsTimeRange(t *testing.T) {
 
 	// fill legacy index with data
 	s := MustOpenStorage(t.Name(), OpenOptions{})
-	s.AddRows(data, defaultPrecisionBits)
+	s.AddRows(mrsPrev, defaultPrecisionBits)
+	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
 	s.MustClose()
 	testStorageConvertToLegacy(t)
 
 	// fill partitioned index with data
 	s = MustOpenStorage(t.Name(), OpenOptions{})
-	s.AddRows(data, defaultPrecisionBits)
+	s.AddRows(mrsPt, defaultPrecisionBits)
 	s.DebugFlush()
 	defer s.MustClose()
 
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
 
-	ptws := s.tb.GetPartitions(tr)
+	ptws := s.tb.GetPartitions(trPt)
 	defer s.tb.PutPartitions(ptws)
 	if len(ptws) != 1 {
-		t.Fatalf("unexpected number of partitions for one month time range %s: got %d, want 1", tr.String(), len(ptws))
+		t.Fatalf("unexpected number of partitions for one month time range %v: got %d, want 1", &trPt, len(ptws))
 	}
 	idb := ptws[0].pt.idb
 
-	// fully before tr
-	tr1 := TimeRange{
-		MinTimestamp: time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2024, 10, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	// overlapping with tr from the left
-	tr2 := TimeRange{
+	var tr TimeRange
+
+	// Global index time range.
+	tr = globalIndexTimeRange
+	f(legacyIDBs.getIDBPrev(), tr, true)
+	f(legacyIDBs.getIDBCurr(), tr, true)
+	f(idb, tr, true)
+
+	// Fully before trPrev, trCurr, and trPt.
+	tr = TimeRange{
 		MinTimestamp: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	// fully inside tr
-	tr3 := TimeRange{
+	f(legacyIDBs.getIDBPrev(), tr, true)
+	f(legacyIDBs.getIDBCurr(), tr, true)
+	f(idb, tr, true)
+
+	// Overlaps with trPrev and trPt on the left side, fully before trCurr.
+	tr = TimeRange{
+		MinTimestamp: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 7, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	f(legacyIDBs.getIDBPrev(), tr, true)
+	f(legacyIDBs.getIDBCurr(), tr, true)
+	f(idb, tr, true)
+
+	// Fully inside trPrev and trPt, fully before trCurr.
+	tr = TimeRange{
+		MinTimestamp: time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 7, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	f(legacyIDBs.getIDBPrev(), tr, true)
+	f(legacyIDBs.getIDBCurr(), tr, true)
+	f(idb, tr, true)
+
+	// Fully inside trPt, overlaps with trPrev on the right side and trCurr on
+	// the left side.
+	tr = TimeRange{
 		MinTimestamp: time.Date(2025, 1, 7, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2023, 1, 21, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 21, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	// overlapping with tr from the right
-	tr4 := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 2, 15, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	f(legacyIDBs.getIDBPrev(), tr, true)
+	f(legacyIDBs.getIDBCurr(), tr, true)
+	f(idb, tr, true)
+
+	// Fully inside trPt and trCurr, fully after trPrev.
+	tr = TimeRange{
+		MinTimestamp: time.Date(2025, 1, 18, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 21, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	// fully after tr
-	tr5 := TimeRange{
+	f(legacyIDBs.getIDBPrev(), tr, false)
+	f(legacyIDBs.getIDBCurr(), tr, true)
+	f(idb, tr, true)
+
+	// Overlaps with trPt and trCurr on the right side, fully after trPrev.
+	tr = TimeRange{
+		MinTimestamp: time.Date(2025, 1, 21, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 2, 21, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	f(legacyIDBs.getIDBPrev(), tr, false)
+	f(legacyIDBs.getIDBCurr(), tr, true)
+	f(idb, tr, true)
+
+	// fully after trPrev, trCurr, and trPt.
+	tr = TimeRange{
 		MinTimestamp: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 3, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-
-	// legacy previous indexDB has no data
-	f(legacyIDBs.getIDBPrev(), globalIndexTimeRange, true)
-	f(legacyIDBs.getIDBPrev(), tr1, false)
-	f(legacyIDBs.getIDBPrev(), tr2, false)
-	f(legacyIDBs.getIDBPrev(), tr3, false)
-	f(legacyIDBs.getIDBPrev(), tr4, false)
-	f(legacyIDBs.getIDBPrev(), tr5, false)
-
-	// legacy current indexDB has some data
-	f(legacyIDBs.getIDBCurr(), globalIndexTimeRange, true)
-	f(legacyIDBs.getIDBCurr(), tr1, true)
-	f(legacyIDBs.getIDBCurr(), tr2, true)
-	f(legacyIDBs.getIDBCurr(), tr3, true)
-	f(legacyIDBs.getIDBCurr(), tr4, true)
-	f(legacyIDBs.getIDBCurr(), tr5, false)
-
-	// partitioned indexDB return true for any time range
-	f(idb, globalIndexTimeRange, true)
-	f(idb, tr1, true)
-	f(idb, tr2, true)
-	f(idb, tr3, true)
-	f(idb, tr4, true)
-	f(idb, tr5, true)
+	f(legacyIDBs.getIDBPrev(), tr, false)
+	f(legacyIDBs.getIDBCurr(), tr, false)
+	f(idb, tr, true)
 }

@@ -602,10 +602,10 @@ func TestLegacyStorageSnapshots_CreateListDelete(t *testing.T) {
 }
 
 // testStorageConvertToLegacy converts the storage partition indexDBs into the
-// legacy indexDB. The original partition indexDBs are removed.
+// legacy prev and curr indexDBs. The original partition indexDBs are removed.
 //
-// The index is copied to curr indexDB. The function also creates an empty prev
-// indexDB directory.
+// Metrics are split evenly between prev and curr. First half goes to prev,
+// second - to curr.
 //
 // The storageDataPath is expected to be t.Name().
 func testStorageConvertToLegacy(t *testing.T) {
@@ -618,6 +618,12 @@ func testStorageConvertToLegacy(t *testing.T) {
 	}
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
+	metricsPerIDB, err := s.GetSeriesCount(noDeadline)
+	if err != nil {
+		t.Fatalf("could not get series count: %v", err)
+	}
+	// Evenly split metrics between prev and curr legacy idbs.
+	metricsPerIDB /= 2
 
 	// Create legacy prev and curr indexDBs and open legacy curr indexDB.
 
@@ -637,7 +643,8 @@ func testStorageConvertToLegacy(t *testing.T) {
 	}
 	var isReadOnly atomic.Bool
 	isReadOnly.Store(false)
-	legacyIDBCurr := mustOpenIndexDB(2, legacyIDBTimeRange, legacyIDBCurrName, legacyIDBCurrPath, s, &isReadOnly, true)
+	legacyIDBPrev := mustOpenIndexDB(1, legacyIDBTimeRange, legacyIDBPrevName, legacyIDBPrevPath, s, &isReadOnly, false)
+	legacyIDBCurr := mustOpenIndexDB(2, legacyIDBTimeRange, legacyIDBCurrName, legacyIDBCurrPath, s, &isReadOnly, false)
 
 	// Read index items from the partition indexDBs and write them to the legacy
 	// curr indexDB.
@@ -657,6 +664,9 @@ func testStorageConvertToLegacy(t *testing.T) {
 		metricID uint64
 	}
 	seenPerDayIndexEntries := make(map[dateMetricID]bool)
+	metricsCount := uint64(0)
+	legacyIDB := legacyIDBPrev
+
 	for _, ptw := range ptws {
 		idb := ptw.pt.idb
 		for ts := idb.tr.MinTimestamp; ts < idb.tr.MaxTimestamp; ts += msecPerDay {
@@ -673,12 +683,14 @@ func testStorageConvertToLegacy(t *testing.T) {
 			if err != nil {
 				t.Fatalf("could not get TSIDs from metricIDs: %v", err)
 			}
-			for i, metricID := range metricIDs {
-				if tsids[i].MetricID != metricID {
-					t.Fatalf("metricID and TSID slices do not match")
-				}
-			}
 			for _, tsid := range tsids {
+				if metricsCount == metricsPerIDB {
+					legacyIDB = legacyIDBCurr
+					seenGlobalIndexEntries = make(map[uint64]bool)
+					seenPerDayIndexEntries = make(map[dateMetricID]bool)
+				}
+				metricsCount++
+
 				metricID := tsid.MetricID
 				mnBytes, ok := idb.searchMetricName(nil, metricID, false)
 				if !ok {
@@ -689,7 +701,7 @@ func testStorageConvertToLegacy(t *testing.T) {
 					t.Fatalf("Could not unmarshal metric name from bytes %q: %v", string(mnBytes), err)
 				}
 				if !seenGlobalIndexEntries[metricID] {
-					legacyIDBCurr.createGlobalIndexes(&tsid, &mn)
+					legacyIDB.createGlobalIndexes(&tsid, &mn)
 					seenGlobalIndexEntries[metricID] = true
 				}
 				dateMetricID := dateMetricID{
@@ -697,7 +709,7 @@ func testStorageConvertToLegacy(t *testing.T) {
 					metricID: metricID,
 				}
 				if !seenPerDayIndexEntries[dateMetricID] {
-					legacyIDBCurr.createPerDayIndexes(date, &tsid, &mn)
+					legacyIDB.createPerDayIndexes(date, &tsid, &mn)
 					seenPerDayIndexEntries[dateMetricID] = true
 				}
 			}
@@ -705,6 +717,7 @@ func testStorageConvertToLegacy(t *testing.T) {
 	}
 
 	s.tb.PutPartitions(ptws)
+	legacyIDBPrev.MustClose()
 	legacyIDBCurr.MustClose()
 	s.MustClose()
 

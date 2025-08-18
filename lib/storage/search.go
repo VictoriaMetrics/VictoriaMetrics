@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -13,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // BlockRef references a Block.
@@ -211,29 +209,25 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 	}
 
 	merge := func(data [][]TSID) []TSID {
-		var all []TSID
-		seen := &uint64set.Set{}
-		for _, tsids := range data {
-			for _, tsid := range tsids {
-				if seen.Has(tsid.MetricID) {
-					continue
-				}
-				all = append(all, tsid)
-				seen.Add(tsid.MetricID)
+		tsidss := make([][]TSID, 0, len(data))
+		for _, d := range data {
+			if len(d) > 0 {
+				tsidss = append(tsidss, d)
 			}
 		}
-		return all
+		if len(tsidss) == 0 {
+			return nil
+		}
+		if len(tsidss) == 1 {
+			return tsidss[0]
+		}
+		return mergeSortedTSIDs(tsidss)
 	}
 
 	tsids, err := searchAndMerge(qt, s.storage, tr, search, merge)
 	if err != nil {
 		return nil, err
 	}
-
-	// Sort the found tsids, since they must be passed to TSID search
-	// in the sorted order.
-	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
-	qt.Printf("sort %d TSIDs", len(tsids))
 
 	return tsids, nil
 }
@@ -276,8 +270,9 @@ func (s *Search) NextMetricBlock() bool {
 				// Skip the block, since it contains only data outside the configured retention.
 				continue
 			}
+			idb := s.idbForTimeRange(TimeRange{s.ts.BlockRef.bh.MinTimestamp, s.ts.BlockRef.bh.MaxTimestamp})
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, &s.ts.BlockRef.bh)
+			s.MetricBlockRef.MetricName, ok = s.storage.searchMetricName(idb, s.legacyIDBs, s.MetricBlockRef.MetricName[:0], tsid.MetricID, false)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
@@ -309,41 +304,19 @@ func (s *Search) NextMetricBlock() bool {
 	return false
 }
 
-func (s *Search) searchMetricName(metricName []byte, metricID uint64, bh *blockHeader) ([]byte, bool) {
-	tr := TimeRange{
-		MinTimestamp: bh.MinTimestamp,
-		MaxTimestamp: bh.MaxTimestamp,
+func (s *Search) idbForTimeRange(tr TimeRange) *indexDB {
+	if len(s.ptws) == 0 {
+		return nil
+	}
+	if len(s.ptws) == 1 {
+		return s.ptws[0].pt.idb
 	}
 	for _, ptw := range s.ptws {
-		idb := ptw.pt.idb
-		if idb.tr.overlapsWith(tr) {
-			mn, found := idb.searchMetricName(metricName, metricID, false)
-			if found {
-				return mn, true
-			}
-			// Do not continue, since the data block time range cannot span
-			// multiple indexDBs.
-			break
+		if ptw.pt.tr.overlapsWith(tr) {
+			return ptw.pt.idb
 		}
 	}
-
-	// Fallback to legacy current indexDB if it exists.
-	if idbCurr := s.legacyIDBs.getIDBCurr(); idbCurr != nil {
-		mn, found := idbCurr.searchMetricName(metricName, metricID, false)
-		if found {
-			return mn, true
-		}
-	}
-
-	// Fallback to legacy previous indexDB if it exists.
-	if idbPrev := s.legacyIDBs.getIDBPrev(); idbPrev != nil {
-		mn, found := idbPrev.searchMetricName(metricName, metricID, false)
-		if found {
-			return mn, true
-		}
-	}
-
-	return metricName, false
+	return nil
 }
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.

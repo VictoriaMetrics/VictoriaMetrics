@@ -295,7 +295,7 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 
 func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, tr TimeRange, s *Storage) *partition {
 	id := uint64(tr.MinTimestamp)
-	idb := mustOpenIndexDB(id, tr, name, indexDBPartsPath, s, &s.isReadOnly, true)
+	idb := mustOpenIndexDB(id, tr, name, indexDBPartsPath, s, &s.isReadOnly, false)
 
 	p := &partition{
 		name:             name,

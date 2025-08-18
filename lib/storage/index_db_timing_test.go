@@ -128,7 +128,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	}
 
 	// Make sure all the items can be searched.
-	db.s.DebugFlush()
+	s.DebugFlush()
 	b.ResetTimer()
 
 	benchSearch := func(b *testing.B, tfs *TagFilters, expectedMetricIDs int) {
@@ -143,8 +143,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}
-			if len(metricIDs) != expectedMetricIDs {
-				b.Fatalf("unexpected metricIDs found; got %d; want %d", len(metricIDs), expectedMetricIDs)
+			if metricIDs.Len() != expectedMetricIDs {
+				b.Fatalf("unexpected metricIDs found; got %d; want %d", metricIDs.Len(), expectedMetricIDs)
 			}
 		}
 	}

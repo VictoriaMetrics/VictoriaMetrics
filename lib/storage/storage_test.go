@@ -3445,7 +3445,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
-		wantEmpty:        []string(nil),
+		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
 	}
@@ -3490,6 +3490,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 			}
 			got[i] = string(mn.MetricGroup)
 		}
+		slices.Sort(got)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("[%v] unexpected metric names: got %v, want %v", &tr, got, want)
 		}
@@ -3663,7 +3664,7 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
-		wantEmpty:        []string(nil),
+		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
 	}
@@ -3909,11 +3910,18 @@ func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetric
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
 		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	}
-	metricIDs, err := searchAndMerge(nil, s, tr, search, mergeUniq)
+	merge := func(data [][]uint64) []uint64 {
+		s := &uint64set.Set{}
+		for _, d := range data {
+			s.AddMulti(d)
+		}
+		all := s.AppendTo(nil)
+		return all
+	}
+	metricIDs, err := searchAndMerge(nil, s, tr, search, merge)
 	if err != nil {
 		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
 	}
-	slices.Sort(metricIDs)
 	return metricIDs
 }
 
@@ -4015,7 +4023,7 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 		// not in partition idb.
 
 		// Empty the tsidCache to test the case when tsid is retrieved from the
-		// index that belongs to the current generation indexDB.
+		// index.
 		s.resetAndSaveTSIDCache()
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()

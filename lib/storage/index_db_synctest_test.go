@@ -54,8 +54,8 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 			}
 			wantDeletedMetricIDs := &uint64set.Set{}
 			wantDeletedMetricIDs.AddMulti(want.deletedMetricIDs)
-			if !idb.getDeletedMetricIDs().Equal(wantDeletedMetricIDs) {
-				t.Fatalf("deleted metricIDs set is different from %v", want.deletedMetricIDs)
+			if got := idb.getDeletedMetricIDs(); !got.Equal(wantDeletedMetricIDs) {
+				t.Fatalf("unexpected deletedMetricIDs: got %v, want %v", got.AppendTo(nil), want.deletedMetricIDs)
 			}
 		}
 

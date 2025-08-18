@@ -74,7 +74,7 @@ func mustOpenLegacyIndexDB(path string, s *Storage) *legacyIndexDB {
 		MinTimestamp: 0,
 		MaxTimestamp: math.MaxInt64,
 	}
-	idb := mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, false)
+	idb := mustOpenIndexDB(id, tr, name, path, s, &s.isReadOnly, true)
 	legacyIDB := &legacyIndexDB{idb: idb}
 	legacyIDB.incRef()
 	return legacyIDB

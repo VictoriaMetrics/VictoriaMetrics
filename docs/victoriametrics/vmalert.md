@@ -865,8 +865,8 @@ There are following non-required `replay` flags:
 * `-replay.disableProgressBar` - whether to disable progress bar which shows progress work.
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
-* `-replay.ruleEvaluationConcurrency` -  The maximum number of concurrent `/query_range` requests for a single rule. 
-  Increasing this value when replaying for a long time and a single request range is limited by `-replay.maxDatapointsPerQuery`.
+* `-replay.ruleEvaluationConcurrency` -  The maximum number of concurrent `/query_range` requests when replay recording rule or alerting rule with for=0.
+  Increasing this value when replaying for a long time, since each request is limited by `-replay.maxDatapointsPerQuery`.
   The default value is `1`.
 
 See full description for these flags in `./vmalert -help`.

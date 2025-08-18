@@ -2,11 +2,11 @@ package storage
 
 import (
 	"path/filepath"
-	"slices"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 type legacyIndexDBs struct {
@@ -132,7 +132,7 @@ func (s *Storage) legacyMustRotateIndexDB(currentTime time.Time) {
 	s.legacyNextRotationTimestamp.Store(nextRotationTimestamp)
 }
 
-func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) ([]uint64, error) {
+func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (*uint64set.Set, error) {
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
 
@@ -141,31 +141,29 @@ func (s *Storage) legacyDeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters,
 		return nil, nil
 	}
 
-	var (
-		dmisPrev []uint64
-		dmisCurr []uint64
-		err      error
-	)
+	all := &uint64set.Set{}
 
 	if idbPrev := legacyIDBs.getIDBPrev(); idbPrev != nil {
 		qt.Printf("start deleting from previous legacy indexDB")
-		dmisPrev, err = idbPrev.DeleteSeries(qt, tfss, maxMetrics)
+		dmis, err := idbPrev.DeleteSeries(qt, tfss, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
-		qt.Printf("deleted %d metricIDs from previous legacy indexDB", len(dmisPrev))
+		qt.Printf("deleted %d metricIDs from previous legacy indexDB", dmis.Len())
+		all.UnionMayOwn(dmis)
 	}
 
 	if idbCurr := legacyIDBs.getIDBCurr(); idbCurr != nil {
 		qt.Printf("start deleting from current legacy indexDB")
-		dmisCurr, err = idbCurr.DeleteSeries(qt, tfss, maxMetrics)
+		dmis, err := idbCurr.DeleteSeries(qt, tfss, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
-		qt.Printf("deleted %d metricIDs from current legacy indexDB", len(dmisCurr))
+		qt.Printf("deleted %d metricIDs from current legacy indexDB", dmis.Len())
+		all.UnionMayOwn(dmis)
 	}
 
-	return slices.Concat(dmisPrev, dmisCurr), nil
+	return all, nil
 }
 
 func (s *Storage) legacyDebugFlush() {

@@ -723,14 +723,11 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 }
 
 func parseAuthConfig(data []byte) (*AuthConfig, error) {
-	data, err := envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 	ac := &AuthConfig{
 		ms: metrics.NewSet(),
 	}
-	if err = yaml.UnmarshalStrict(data, ac); err != nil {
+	if err := yaml.UnmarshalStrict(data, ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
 
