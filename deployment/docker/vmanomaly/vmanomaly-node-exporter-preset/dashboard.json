@@ -1005,7 +1005,7 @@
           "refId": "A"
         }
       ],
-      "title": "Anoamlies: Read Latency",
+      "title": "Anomalies: Read Latency",
       "type": "state-timeline"
     },
     {
