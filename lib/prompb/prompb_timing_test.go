@@ -11,7 +11,7 @@ func BenchmarkWriteRequestUnmarshalProtobuf(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchWriteRequest.Timeseries)))
 	b.RunParallel(func(pb *testing.PB) {
-		wru := &WriteRequestUnmarshaller{}
+		wru := &WriteRequestUnmarshaler{}
 		for pb.Next() {
 			if _, err := wru.UnmarshalProtobuf(data); err != nil {
 				panic(fmt.Errorf("unexpected error: %s", err))

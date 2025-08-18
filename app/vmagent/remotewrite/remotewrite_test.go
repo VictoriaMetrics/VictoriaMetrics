@@ -106,7 +106,7 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 
 		// copy inputTss to make sure it is not mutated during TryPush call
 		copy(expectedTss, inputTss)
-		if !rwctx.TryPush(inputTss, false) {
+		if !rwctx.TryPushTimeSeries(inputTss, false) {
 			t.Fatalf("cannot push samples to rwctx")
 		}
 

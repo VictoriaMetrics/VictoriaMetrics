@@ -596,6 +596,15 @@ in order to compare it to the current response body. The memory usage may be red
 When staleness tracking is disabled, then `vmagent` doesn't track the number of new time series per each scrape,
 e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatically-generated-metrics) for details.
 
+## Metric metadata
+
+By default, `vmagent` ignores metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). Set `-enableMetadata=true` to enable metadata processing{{% available_from "v1.124.0" %}}.
+During processing, metadata won't be dropped or modified by [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
+
+When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata received via the [multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (/insert/<accountID>/<suffix>). However, if `vm_account_id` or `vm_project_id` labels are added directly to metrics before reaching vmagent, and vmagent writes to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), the tenant info won't be attached and the metadata will be stored under the default tenant of VictoriaMetrics cluster.
+
+>Enabling metadata requires extra memory, disk space, and network traffic.
+
 ## Stream parsing mode
 
 By default, `vmagent` parses the full response from the scrape target, applies [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
@@ -796,8 +805,8 @@ In this case `-remoteWrite.disableOnDiskQueue` command-line flag can be passed t
 and the `-remoteWrite.disableOnDiskQueue` command-line flag is set:
 
 - It returns `429 Too Many Requests` HTTP error to clients, which send data to `vmagent` via [supported HTTP endpoints](#how-to-push-data-to-vmagent).
-  If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.disableOnDiskQueue` command-line flags are set
-  for different `-remoteWrite.url` options, then the ingested samples are silently dropped instead of returning the error to clients.
+  If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.url` command-line flags are set, 
+  then the ingested samples are silently dropped instead of returning the error to clients.
 - It suspends consuming data from [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#google-pubsub-integration) until the remote storage becomes available.
   If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.disableOnDiskQueue` command-line flags are set
   for different `-remoteWrite.url` options, then the fetched samples are silently dropped instead of suspending data consumption from Kafka or Google PubSub.
@@ -1497,6 +1506,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing
   -dryRun
      Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
+  -enableMetadata
+     Whether to enable metadata processing for metrics scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See also remoteWrite.maxMetadataPerBlock
   -enableMultitenantHandlers
      Whether to process incoming data via multitenant insert handlers according to https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format . By default incoming data is processed via single-node insert handlers according to https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data .See https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy for details
   -enableTCP6
@@ -1936,7 +1947,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -remoteWrite.dropSamplesOnOverload
      Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence
   -remoteWrite.flushInterval duration
-     Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
+     Interval for flushing the data to remote storage. This option takes effect only when less than -remoteWrite.maxRowsPerBlock data points per -remoteWrite.flushInterval are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array
      Whether to force Prometheus remote write protocol for sending data to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol
      Supports array of values separated by comma or specified via multiple flags.
@@ -1967,6 +1978,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Empty values are set to default value.
   -remoteWrite.maxHourlySeries int
      The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
+  -remoteWrite.maxMetadataPerBlock int
+     The maximum number of metadata to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize (default 5000)
   -remoteWrite.maxRowsPerBlock int
      The maximum number of samples to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize (default 10000)
   -remoteWrite.oauth2.clientID array

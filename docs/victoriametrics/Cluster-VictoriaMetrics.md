@@ -373,6 +373,8 @@ The multi-level cluster setup for `vminsert` nodes has the following shortcoming
 These issues are addressed by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
 `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
 
+See the [cluster instability troubleshooting guide](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability) for details on diagnosing and mitigating networking problems.
+
 ### vmstorage groups at vmselect
 
 `vmselect` can be configured to query multiple distinct groups of `vmstorage` nodes with individual `-replicationFactor` per each group.
@@ -462,23 +464,22 @@ for sending data from `vminsert` to `vmstorage` node according to `-vminsertAddr
 
 The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
 
+Discovery mechanism could be also used together with [vmstorage group](#vmstorage-groups-at-vmselect). Consider the following example:
+
+```bash
+/path/to/vmselect \
+  -globalReplicationFactor=2 \
+  -storageNode=g1/file:/path/to/file-with-vmstorage-list/ \      # Group g1: static list from file
+  -storageNode=g2/srv+vmstorage-autodiscovery \                  # Group g2: nodes discovered dynamically via SRV records
+  -storageNode=g3/host7,g3/host8,g3/host9                        # Group g3: statically defined hostnames
+```
+
+Each `-storageNode` parameter assigns one or more storage nodes to a specific group (e.g., `g1`, `g2`, `g3`).
+The automatically discovered nodes retain the [vmstorage group](#vmstorage-groups-at-vmselect) prefix to maintain consistent group mapping.
 
 ### Environment variables
 
-All the VictoriaMetrics components allow referring environment variables in command-line flags via `%{ENV_VAR}` syntax.
-For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
-if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
-This expansion is performed by VictoriaMetrics itself.
-
-VictoriaMetrics recursively expands `%{ENV_VAR}` references in environment variables on startup.
-For example, `FOO=%{BAR}` environment variable is expanded to `FOO=abc` if `BAR=a%{BAZ}` and `BAZ=bc`.
-
-Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
-
-- The `-envflag.enable` flag must be set
-- Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
-- For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
-- It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
+See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables).
 
 ## Security
 
@@ -528,24 +529,19 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 ## Monitoring
 
-All the cluster components expose various metrics in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
+All the cluster components [expose various metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-cluster.yml)
+in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag. 
 By default, the following TCP ports are used:
 
 - `vminsert` - 8480
 - `vmselect` - 8481
 - `vmstorage` - 8482
 
-It is recommended setting up [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
-or Prometheus to scrape `/metrics` pages from all the cluster components, so they can be monitored and analyzed
-with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
-Graphs on these dashboards contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+> Prefer giving distinct scrape job names per each component type. I.e. `vmstorage`, `vminsert` and `vmselect` should have corresponding job names.
 
-If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
-command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
-See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
+Use [the official Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
 
-It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or in Prometheus from [this list](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts).
-See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
+See more details on [how to monitor VictoriaMetrics components](https://docs.victoriametrics.com/#monitoring).
 
 ## Cardinality limiter
 
@@ -1339,6 +1335,8 @@ Below is the output for `/path/to/vminsert -help`:
      Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. Higher values for -dedup.minScrapeInterval at vmselect is OK (default 1)
   -rpc.disableCompression
      Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage
+  -rpc.handshakeTimeout duration
+     Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. (default 5s)
   -search.denyPartialResponse
      Whether to deny partial responses if a part of -storageNode instances fail to perform queries; this trades availability over consistency; see also -search.maxQueryDuration
   -sortLabels
@@ -1580,6 +1578,8 @@ Below is the output for `/path/to/vmselect -help`:
   -replicationFactor array
      How many copies of every ingested sample is available across -storageNode nodes. vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable. See also -globalReplicationFactor and -search.skipSlowReplicas (default 1)
      Supports an array of `key:value` entries separated by comma or specified via multiple flags.
+  -rpc.handshakeTimeout duration
+     Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. (default 5s)
   -search.cacheTimestampOffset duration
      The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources (default 5m0s)
   -search.denyPartialResponse
@@ -1626,6 +1626,8 @@ Below is the output for `/path/to/vmselect -help`:
      The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage (default 10000000)
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
+  -search.maxGraphitePathExpressionLen int
+     The maximum length of pathExpression field in Graphite series. Longer expressions are truncated to prevent memory exhaustion on complex nested queries. Set to 0 to disable truncation. (default 1024)
   -search.maxGraphiteSeries int
      The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#render-api (default 300000)
   -search.maxGraphiteTagKeys int
@@ -1870,6 +1872,10 @@ Below is the output for `/path/to/vmstorage -help`:
      Interval for reloading the license file specified via -licenseFile. See https://victoriametrics.com/products/enterprise/ . This flag is available only in Enterprise binaries (default 1h0m0s)
   -logNewSeries
      Whether to log new series. This option is for debug purposes only. It can lead to performance issues when big number of new series are ingested into VictoriaMetrics
+  -logNewSeriesAuthKey value
+     authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*
+     Flag value can be read from the given file when using -logNewSeriesAuthKey=file:///abs/path/to/file or -logNewSeriesAuthKey=file://./relative/path/to/file .
+     Flag value can be read from the given http/https url when using -logNewSeriesAuthKey=http://host/path or -logNewSeriesAuthKey=https://host/path
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -1942,6 +1948,8 @@ Below is the output for `/path/to/vmstorage -help`:
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -rpc.disableCompression
      Whether to disable compression of the data sent from vmstorage to vmselect. This reduces CPU usage at the cost of higher network bandwidth usage
+  -rpc.handshakeTimeout duration
+     Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. (default 5s)
   -search.maxConcurrentRequests int
      The maximum number of concurrent vmselect requests the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration
   -search.maxQueueDuration duration

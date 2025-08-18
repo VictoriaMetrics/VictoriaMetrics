@@ -341,11 +341,15 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		return []datasource.Metric{{Timestamps: []int64{0}, Values: []float64{math.NaN()}}}, nil
 	}
 	for _, s := range res.Data {
-		ls, as, err := ar.expandTemplates(s, qFn, time.Time{})
+		ls, err := ar.expandLabelTemplates(s)
 		if err != nil {
-			return nil, fmt.Errorf("failed to expand templates: %s", err)
+			return nil, err
 		}
 		alertID := hash(ls.processed)
+		as, err := ar.expandAnnotationTemplates(s, qFn, time.Time{}, ls)
+		if err != nil {
+			return nil, err
+		}
 		a := ar.newAlert(s, time.Time{}, ls.processed, as) // initial alert
 
 		prevT := time.Time{}
@@ -363,7 +367,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 				a.State = notifier.StatePending
 				a.ActiveAt = at
 				// re-template the annotations as active timestamp is changed
-				_, a.Annotations, _ = ar.expandTemplates(s, qFn, at)
+				a.Annotations, _ = ar.expandAnnotationTemplates(s, qFn, at, ls)
 				a.Start = time.Time{}
 			} else if at.Sub(a.ActiveAt) >= ar.For && a.State != notifier.StateFiring {
 				a.State = notifier.StateFiring
@@ -376,13 +380,15 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			}
 			result = append(result, ar.alertToTimeSeries(a, s.Timestamps[i])...)
 
-			// save alert's state on last iteration, so it can be used on the next execRange call
-			if at.Equal(end) {
+			// if for>0, save alert's state on last iteration, so it can be used on the next execRange call
+			if ar.For > 0 && at.Equal(end) {
 				holdAlertState[alertID] = a
 			}
 		}
 	}
-	ar.alerts = holdAlertState
+	if len(holdAlertState) > 0 {
+		ar.alerts = holdAlertState
+	}
 	return result, nil
 }
 
@@ -428,9 +434,22 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	expandedLabels := make([]*labelSet, len(res.Data))
 	expandedAnnotations := make([]map[string]string, len(res.Data))
 	for i, m := range res.Data {
-		ls, as, err := ar.expandTemplates(m, qFn, ts)
+		ls, err := ar.expandLabelTemplates(m)
 		if err != nil {
-			curState.Err = fmt.Errorf("failed to expand templates: %w", err)
+			curState.Err = err
+			return nil, curState.Err
+		}
+		at := ts
+		alertID := hash(ls.processed)
+		if a, ok := ar.alerts[alertID]; ok {
+			// modify activeAt for annotation templating if the alert has already triggered(in state Pending or Firing)
+			if a.State != notifier.StateInactive {
+				at = a.ActiveAt
+			}
+		}
+		as, err := ar.expandAnnotationTemplates(m, qFn, at, ls)
+		if err != nil {
+			curState.Err = err
 			return nil, curState.Err
 		}
 		expandedLabels[i] = ls
@@ -473,6 +492,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			a.KeepFiringSince = time.Time{}
 			continue
 		}
+
 		a := ar.newAlert(m, ts, labels.processed, annotations)
 		a.ID = alertID
 		a.State = notifier.StatePending
@@ -536,12 +556,18 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	return append(tss, ar.toTimeSeries(ts.Unix())...), nil
 }
 
-func (ar *AlertingRule) expandTemplates(m datasource.Metric, qFn templates.QueryFn, ts time.Time) (*labelSet, map[string]string, error) {
+func (ar *AlertingRule) expandLabelTemplates(m datasource.Metric) (*labelSet, error) {
+	qFn := func(_ string) ([]datasource.Metric, error) {
+		return nil, fmt.Errorf("`query` template isn't supported in rule label")
+	}
 	ls, err := ar.toLabels(m, qFn)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to expand labels: %w", err)
+		return nil, fmt.Errorf("failed to expand label templates: %s", err)
 	}
+	return ls, nil
+}
 
+func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templates.QueryFn, activeAt time.Time, ls *labelSet) (map[string]string, error) {
 	tplData := notifier.AlertTplData{
 		Value:    m.Values[0],
 		Type:     ar.Type.String(),
@@ -549,14 +575,14 @@ func (ar *AlertingRule) expandTemplates(m datasource.Metric, qFn templates.Query
 		Expr:     ar.Expr,
 		AlertID:  hash(ls.processed),
 		GroupID:  ar.GroupID,
-		ActiveAt: ts,
+		ActiveAt: activeAt,
 		For:      ar.For,
 	}
 	as, err := notifier.ExecTemplate(qFn, ar.Annotations, tplData)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to template annotations: %w", err)
+		return nil, fmt.Errorf("failed to expand annotation templates: %s", err)
 	}
-	return ls, as, nil
+	return as, nil
 }
 
 // toTimeSeries creates `ALERTS` and `ALERTS_FOR_STATE` for active alerts

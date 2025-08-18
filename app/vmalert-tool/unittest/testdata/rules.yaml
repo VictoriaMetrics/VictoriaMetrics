@@ -15,6 +15,10 @@ groups:
       - alert: SameAlertNameWithDifferentGroup
         expr: absent(test)
         for: 1m
+      - alert: AlertWithTemplate
+        expr: test
+        annotations:
+          queryAnno: '{{ query "foo" | first | value }}'
 
   - name: group2
     rules:

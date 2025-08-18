@@ -15,7 +15,7 @@ func TestWriteRequestMarshalUnmarshal(t *testing.T) {
 
 		data := wrm.MarshalProtobuf(nil)
 
-		wru := &prompb.WriteRequestUnmarshaller{}
+		wru := &prompb.WriteRequestUnmarshaler{}
 		wr, err := wru.UnmarshalProtobuf(data)
 		if err != nil {
 			t.Fatalf("cannot unmarshal protobuf: %s", err)
@@ -107,6 +107,9 @@ func TestWriteRequestMarshalUnmarshal(t *testing.T) {
 				MetricFamilyName: "process_cpu_seconds_total",
 				Help:             "Total user and system CPU time spent in seconds",
 				Unit:             "seconds",
+
+				ProjectID: 123,
+				AccountID: 456,
 			},
 		},
 	})
@@ -160,6 +163,9 @@ func TestWriteRequestMarshalUnmarshal(t *testing.T) {
 				MetricFamilyName: "process_cpu_seconds_total",
 				Help:             "Total user and system CPU time spent in seconds",
 				Unit:             "seconds",
+
+				ProjectID: 123,
+				AccountID: 456,
 			},
 		},
 	})
@@ -173,6 +179,9 @@ func TestWriteRequestMarshalUnmarshal(t *testing.T) {
 				MetricFamilyName: "process_cpu_seconds_total",
 				Help:             "Total user and system CPU time spent in seconds",
 				Unit:             "seconds",
+
+				ProjectID: 123,
+				AccountID: 456,
 			},
 		},
 	})
@@ -186,6 +195,9 @@ func TestWriteRequestMarshalUnmarshal(t *testing.T) {
 				MetricFamilyName: "process_cpu_seconds_total",
 				Help:             "Total user and system CPU time spent in seconds",
 				Unit:             "seconds",
+
+				ProjectID: 123,
+				AccountID: 456,
 			},
 			{
 				// GAUGE = 2
@@ -193,6 +205,9 @@ func TestWriteRequestMarshalUnmarshal(t *testing.T) {
 				MetricFamilyName: "process_memory_bytes",
 				Help:             "Total user and system memory in bytes",
 				Unit:             "bytes",
+
+				ProjectID: 1,
+				AccountID: 2,
 			},
 		},
 	})

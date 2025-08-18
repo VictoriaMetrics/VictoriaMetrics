@@ -52,6 +52,8 @@ import (
 )
 
 var (
+	enableMetadata = flag.Bool("enableMetadata", false, "Whether to enable metadata processing for metrics scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. "+
+		"See also remoteWrite.maxMetadataPerBlock")
 	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
 	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter for more info")
 	strictParse          = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
@@ -88,6 +90,11 @@ var (
 
 var clusterMemberID int
 
+// IsMetadataEnabled returns true if metadata is enabled.
+func IsMetadataEnabled() bool {
+	return *enableMetadata
+}
+
 func mustInitClusterMemberID() {
 	s := *clusterMemberNum
 	// special case for kubernetes deployment, where pod-name formatted at some-pod-name-1
@@ -121,19 +128,15 @@ type Config struct {
 }
 
 func (cfg *Config) unmarshal(data []byte, isStrict bool) error {
-	var err error
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return fmt.Errorf("cannot expand environment variables: %w", err)
+	data = envtemplate.ReplaceBytes(data)
+	if !isStrict {
+		return yaml.Unmarshal(data, cfg)
 	}
-	if isStrict {
-		if err = yaml.UnmarshalStrict(data, cfg); err != nil {
-			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
-		}
-	} else {
-		err = yaml.Unmarshal(data, cfg)
+
+	if err := yaml.UnmarshalStrict(data, cfg); err != nil {
+		return fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
 	}
-	return err
+	return nil
 }
 
 func (cfg *Config) marshal() []byte {
@@ -441,10 +444,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 	var stcs []StaticConfig
 	if err := yaml.UnmarshalStrict(data, &stcs); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %w", path, err)
@@ -485,11 +485,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict 
 				logger.Errorf("skipping %q at `scrape_config_files` because of error: %s", path, err)
 				continue
 			}
-			data, err = envtemplate.ReplaceBytes(data)
-			if err != nil {
-				logger.Errorf("skipping %q at `scrape_config_files` because of failure to expand environment vars: %s", path, err)
-				continue
-			}
+			data = envtemplate.ReplaceBytes(data)
 			var scs []*ScrapeConfig
 			if isStrict {
 				if err = yaml.UnmarshalStrict(data, &scs); err != nil {
