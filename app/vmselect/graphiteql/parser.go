@@ -210,7 +210,7 @@ func (p *parser) parseMetricExprOrFuncCall() (Expr, error) {
 		}
 		return fe, nil
 	default:
-		// Metric epxression or bool expression or None.
+		// Metric expression or bool expression or None.
 		if isBool(ident) {
 			be := &BoolExpr{
 				B: strings.EqualFold(ident, "true"),

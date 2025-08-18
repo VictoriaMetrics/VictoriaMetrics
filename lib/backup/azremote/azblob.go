@@ -44,7 +44,7 @@ type FS struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// envLoookupFunc is used for looking up environment variables in tests.
+	// envLookupFunc is used for looking up environment variables in tests.
 	envLookupFunc func(name string) (string, bool)
 }
 

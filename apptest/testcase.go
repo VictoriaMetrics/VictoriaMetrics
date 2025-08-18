@@ -173,7 +173,7 @@ func (tc *TestCase) MustStartVmagent(instance string, flags []string, promScrape
 // vminsert, and one vmselect.
 //
 // Both Vmsingle and Vmcluster implement the PrometheusWriteQuerier used in
-// business logic tests to abstract out the infrasture.
+// business logic tests to abstract out the infrastructure.
 //
 // This type is not suitable for infrastructure tests where custom cluster
 // setups are often required.
