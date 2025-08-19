@@ -557,6 +557,28 @@ func putIndexItems(ii *indexItems) {
 
 var indexItemsPool sync.Pool
 
+// It has been found empirically, that once the time range is bigger than 40
+// days searching using per-day index becomes slower than using global index.
+//
+// TODO(rtm0): Extract into a flag?
+const maxDaysForPerDaySearch = 40
+
+// adjustTimeRange decides whether to use the time range as is or use
+// globalIndexTimeRange based on the time range length and -disablePerDayIndex
+// flag.
+func (db *indexDB) adjustTimeRange(tr TimeRange) TimeRange {
+	if db.s.disablePerDayIndex {
+		return globalIndexTimeRange
+	}
+
+	minDate, maxDate := tr.DateRange()
+	if maxDate-minDate > maxDaysForPerDaySearch {
+		return globalIndexTimeRange
+	}
+
+	return tr
+}
+
 // SearchLabelNames returns all the label names, which match the given tfss on
 // the given tr.
 func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) (map[string]struct{}, error) {

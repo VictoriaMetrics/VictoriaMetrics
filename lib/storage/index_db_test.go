@@ -2211,3 +2211,63 @@ func sortedSlice(m map[string]struct{}) []string {
 	slices.Sort(s)
 	return s
 }
+
+func TestIndexDBAdjustTimeRange(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(disablePerDayIndex bool, tr TimeRange, want TimeRange) {
+		t.Helper()
+
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
+		defer s.MustClose()
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		if got := idbCurr.adjustTimeRange(tr); got != want {
+			t.Errorf("unexpected time range: got %v, want %v", &got, &want)
+		}
+	}
+
+	var tr TimeRange
+
+	// Zero time range is adjusted to globalIndexTimeRange regardless whether
+	// the -disablePerDayIndex flag is set or not.
+	tr = TimeRange{}
+	f(false, tr, globalIndexTimeRange)
+	f(true, tr, globalIndexTimeRange)
+
+	// Time range is smaller than 40 days. When the -disablePerDayIndex flag is
+	// unset, the time range will not be adjusted. When the flag is set, the
+	// adjusted time range will be globalIndexTimeRange.
+	tr = TimeRange{10 * msecPerDay, 50 * msecPerDay}
+	f(false, tr, tr)
+	f(true, tr, globalIndexTimeRange)
+
+	// Time range is exactly 40 days. In this case, the TimeRange.MaxTimestamp
+	// is set to the minimum possible value when the time range becomes 40 days.
+	// When the -disablePerDayIndex flag is unset, the time range will not be
+	// adjusted. When the flag is set, the adjusted time range will be
+	// globalIndexTimeRange.
+	tr = TimeRange{10 * msecPerDay, 50*msecPerDay + 1}
+	f(false, tr, tr)
+	f(true, tr, globalIndexTimeRange)
+
+	// Another case when time range is exactly 40 days. This time the the
+	// TimeRange.MaxTimestamp is set to its max value when the time range is
+	// still 40 days.
+	// When the -disablePerDayIndex flag is unset, the time range will not be
+	// adjusted. When the flag is set, the adjusted time range will be
+	// globalIndexTimeRange.
+	tr = TimeRange{10 * msecPerDay, 51 * msecPerDay}
+	f(false, tr, tr)
+	f(true, tr, globalIndexTimeRange)
+
+	// Time range is more than 40 days. The time range is adjusted to
+	// globalIndexTimeRange regardless whether the -disablePerDayIndex flag is
+	// set or not.
+	tr = TimeRange{10 * msecPerDay, 51*msecPerDay + 1}
+	f(false, tr, globalIndexTimeRange)
+	f(true, tr, globalIndexTimeRange)
+
+}

@@ -1265,27 +1265,22 @@ func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
 	s.metricNameCache.Set(key[:], metricName)
 }
 
-// searchAndMerge concurrently performs a search operation on all IndexDBs.
-// The individual search results are then merged (merge function applied
-// only if there is more than one index).
+// searchAndMerge concurrently performs a search operation on the given set of
+// indexDBs. The individual search results are then merged.
 //
 // The function creates a child query tracer for each search function call and
 // closes it once the search() returns. Thus, implementations of search func
 // must not close the query tracer that they receive.
-func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (T, error), merge func([]T) T) (T, error) {
+func searchIDBsAndMerge[T any](qt *querytracer.Tracer, idbs []*indexDB, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (T, error), merge func([]T) T) (T, error) {
 	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
 	defer qt.Done()
-
-	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
-	var idbs = []*indexDB{idbPrev, idbCurr}
 
 	qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
 	var wg sync.WaitGroup
 	data := make([]T, len(idbs))
 	errs := make([]error, len(idbs))
 	for i, idb := range idbs {
-		searchTR := s.adjustTimeRange(tr)
+		searchTR := idb.adjustTimeRange(tr)
 		qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
 		wg.Add(1)
 		go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
@@ -1310,6 +1305,14 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	qtMerge.Done()
 
 	return result, nil
+}
+
+// searchAndMerge performs the search in both prev and curr indexDBs.
+func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, search func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (T, error), merge func([]T) T) (T, error) {
+	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+	var idbs = []*indexDB{idbPrev, idbCurr}
+	return searchIDBsAndMerge(qt, idbs, tr, search, merge)
 }
 
 // searchAndMergeUniq is a specific searchAndMerge operation that is common for
@@ -1369,7 +1372,7 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 // indexDBs everytime the method is called 1) may be much slower because of the
 // locks and 2) the set of indexDBs may change between the calls due to indexDB
 // rotation.
-func (s *Storage) searchMetricName(idbPrev, idbCurr *indexDB, dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
+func (s *Storage) searchMetricName(idbs []*indexDB, dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
 	if !noCache {
 		metricName := s.getMetricNameFromCache(dst, metricID)
 		if len(metricName) > len(dst) {
@@ -1377,21 +1380,31 @@ func (s *Storage) searchMetricName(idbPrev, idbCurr *indexDB, dst []byte, metric
 		}
 	}
 
-	dst, found := idbCurr.searchMetricName(dst, metricID, noCache)
-	if found {
-		if !noCache {
-			s.putMetricNameToCache(metricID, dst)
-		}
-		return dst, true
+	type result struct {
+		metricName []byte
+		found      bool
 	}
 
-	// Fallback to previous indexDB.
-	dst, found = idbPrev.searchMetricName(dst, metricID, noCache)
-	if found {
-		if !noCache {
-			s.putMetricNameToCache(metricID, dst)
+	search := func(_ *querytracer.Tracer, idb *indexDB, _ TimeRange) (result, error) {
+		var res result
+		res.metricName, res.found = idb.searchMetricName(res.metricName, metricID, noCache)
+		return res, nil
+	}
+
+	merge := func(results []result) result {
+		for _, res := range results {
+			if res.found {
+				return res
+			}
 		}
-		return dst, true
+		return result{}
+	}
+
+	res, _ := searchIDBsAndMerge(nil, idbs, TimeRange{}, search, merge)
+	if res.found {
+		if !noCache {
+			s.putMetricNameToCache(metricID, res.metricName)
+		}
 	}
 
 	// Not deleting metricID if no corresponding metricName has been found
@@ -1399,7 +1412,7 @@ func (s *Storage) searchMetricName(idbPrev, idbCurr *indexDB, dst []byte, metric
 	// For cases when this does happen see indexDB.SearchMetricNames() and
 	// indexDB.getTSIDsFromMetricIDs()).
 
-	return dst, false
+	return res.metricName, res.found
 }
 
 // SearchMetricNames returns marshaled metric names matching the given tfss on
@@ -1841,28 +1854,6 @@ func (s *Storage) date(millis int64) uint64 {
 		return globalIndexDate
 	}
 	return uint64(millis) / msecPerDay
-}
-
-// It has been found empirically, that once the time range is bigger than 40
-// days searching using per-day index becomes slower than using global index.
-//
-// TODO(rtm0): Extract into a flag?
-const maxDaysForPerDaySearch = 40
-
-// adjustTimeRange decides whether to use the time range as is or use
-// globalIndexTimeRange based on the time range length and -disablePerDayIndex
-// flag.
-func (s *Storage) adjustTimeRange(tr TimeRange) TimeRange {
-	if s.disablePerDayIndex {
-		return globalIndexTimeRange
-	}
-
-	minDate, maxDate := tr.DateRange()
-	if maxDate-minDate > maxDaysForPerDaySearch {
-		return globalIndexTimeRange
-	}
-
-	return tr
 }
 
 // RegisterMetricNames registers all the metric names from mrs in the indexdb, so they can be queried later.
