@@ -14,6 +14,19 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.25.3
+Released: 2025-08-19
+
+- FEATURE: Added forecasting capabilities to the [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) this allows users to generate *future* (point-wise and interval) predictions with offsets defined by `forecast_at` argument (e.g. `['1d', '1w']`) at *current* timestamp and store these in respective series, e.g. `yhat_1d`, `yhat_lower_1d`, `yhat_upper_1d`, etc. This feature is particularly useful for scenarios where future predictions are needed, such as capacity planning or trend analysis. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#forecasting) for more details.
+
+- IMPROVEMENT: Added `logger_levels` argument to `settings` [config section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels) to allow setting specific log levels for individual components. Useful for debugging specific components. For example, `logger_levels: { "reader.vm": "DEBUG" }` will set the log level for the `VmReader` component to `DEBUG`, while leaving other components at their default log levels. Also is supported in [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) mode, allowing for dynamic log level changes without service restarts.
+
+- IMPROVEMENT: Added logging of URLs used for querying VictoriaMetrics TSDB in [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) to ease the debugging of incomplete data retrieval, incorrect endpoints, or misconfigured tenant IDs. The URLs are logged at the `DEBUG` level, so you can control their verbosity using the `--loggerLevelComponents` argument with `reader.vm=DEBUG` or `reader=DEBUG` to see the URLs in the logs.
+
+- IMPROVEMENT: Added `offset` [argument](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) to `VmReader` on reader and query levels to allow for flexible time offset adjustments in the reader. Useful for correcting for data collection delays. The `offset` can be specified as a string (e.g., "15s", "-20s") and will be applied to all queries processed by the reader. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#using-offsets) for more details.
+
+- BUGFIX: Resolved the issue where symlink-ed configuration files were not properly processed by [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) mechanism, leading to the service not picking up changes made to the original files. Now it properly resolves symlinks and reloads the configuration when the original file is modified.
+
 ## v1.25.2
 Released: 2025-07-30
 
