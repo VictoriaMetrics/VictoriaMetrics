@@ -137,7 +137,7 @@ func (tbf *tmpBlocksFile) WriteBlockData(b []byte, tbfIdx uint) (tmpBlockAddr, e
 	return addr, nil
 }
 
-// Len() returnt tbf size in bytes.
+// Len() return tbf size in bytes.
 func (tbf *tmpBlocksFile) Len() uint64 {
 	return tbf.offset
 }

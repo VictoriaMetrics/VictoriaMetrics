@@ -209,7 +209,7 @@ func testSearchInternal(s *Storage, tr TimeRange, mrs []MetricRow, accountsCount
 			return fmt.Errorf("cannot add tag filter %q=%q: %w", "instance", ".*", err)
 		}
 
-		// Build extectedMrs.
+		// Build expectedMrs.
 		var expectedMrs []MetricRow
 		metricGroupRegexp := regexp.MustCompile(fmt.Sprintf("^%s$", metricGroupRe))
 		var mn MetricName

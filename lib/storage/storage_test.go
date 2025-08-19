@@ -2796,13 +2796,11 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		gotErr := err != nil
 		if gotErr != opts.wantErr {
 			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
-				tfss, &opts.tr, opts.maxMetrics, err, opts.wantErr,
-			}...)
+				tfss, &opts.tr, opts.maxMetrics, err, opts.wantErr}...)
 		}
 		if got := len(names); got != opts.wantCount {
 			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected metric name count: got %d, want %d", []any{
-				tfss, &opts.tr, opts.maxMetrics, got, opts.wantCount,
-			}...)
+				tfss, &opts.tr, opts.maxMetrics, got, opts.wantCount}...)
 		}
 	}
 
@@ -4189,7 +4187,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 // testSearchMetricIDs returns metricIDs for the given tfss and tr.
 //
 // The returned metricIDs are sorted. The function panics in in case of error.
-// The function is not a part of Storage beause it is currently used in unit
+// The function is not a part of Storage because it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
@@ -4644,7 +4642,7 @@ func testGenerateMetricRowBatches(accountID, projectID uint32, opts *batchOption
 	allTimeseries := len(names)
 	rowsAddedTotal := uint64(opts.numBatches * opts.numRowsPerBatch)
 
-	// When RegisterMetricNames() is called it only restisters the time series
+	// When RegisterMetricNames() is called it only registers the time series
 	// in IndexDB but no samples is written to the storage.
 	if opts.registerOnly {
 		rowsAddedTotal = 0
