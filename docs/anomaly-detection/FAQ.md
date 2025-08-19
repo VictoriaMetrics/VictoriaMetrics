@@ -54,6 +54,25 @@ Respective config is defined in a [`reader`](https://docs.victoriametrics.com/an
 ## Handling noisy input data
 `vmanomaly` operates on data fetched from VictoriaMetrics using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries, so the initial data quality can be fine-tuned with aggregation, grouping, and filtering to reduce noise and improve anomaly detection accuracy.
 
+## Using offsets
+`vmanomaly` supports {{% available_from "v1.25.3" anomaly %}} the use of offsets in the [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) section to adjust the time range of the data being queried. This can be particularly useful for correcting for data collection delays or other timing issues. It can be also defined or overridden on [per-query basis](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
+
+For example, if you want to query data with a 60-second delay (e.g. data collection happened 1 sec ago, however, timestamps written to VictoriaMetrics are 60 seconds in the past), you can set the `offset` argument to `-60s` in the reader section:
+
+```yaml
+reader:
+  class: 'vm'
+  datasource_url: 'http://localhost:8428'
+  sampling_period: '10s'
+  offset: '-60s'
+  queries:
+    vmb:
+      expr: 'avg(vm_blocks)'
+    cpu_custom_offset:
+      expr: 'avg(rate(vm_cpu_usage[5m]))'
+      offset: '-30s'  # this will override the global offset for this query only
+```
+
 ## Handling timezones
 
 `vmanomaly` supports timezone-aware anomaly detection {{% available_from "v1.18.0" anomaly %}} through a `tz` argument, available both at the [reader level](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) and at the [query level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
@@ -179,6 +198,22 @@ While `vmanomaly` detects anomalies and produces scores, it *does not directly g
 
 <img src="https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/guide-vmanomaly-vmalert_overview.webp" alt="node_exporter_example_diagram" style="width:60%"/>
 
+Once anomaly scores are written back to VictoriaMetrics, you can use [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions subset in `vmalert` to define alerting rules based on these scores. Reasonable defaults are `anomaly_score > 1`:
+
+```yaml
+groups:
+- name: vmanomaly_alerts
+  rules:
+  - alert: HighAnomalyScore
+    expr: anomaly_score > 1  # or similar expressions, like `min(anomaly_score{...}) by (...) > 1`
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Anomaly score > 1 for {{ $labels.for }} query"
+      description: "Anomaly score is {{ $value }} for query {{ $labels.for }}. Value: {{ $value }}."
+```
+
 ## Preventing alert fatigue
 Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data, while a value greater than 1.0 is generally classified as an anomaly. However, there are no perfect models for anomaly detection, that's why reasonable defaults expressions like `anomaly_score > 1` may not work 100% of the time. However, anomaly scores, produced by `vmanomaly` are written back as metrics to VictoriaMetrics, where tools like [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) can use [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions to fine-tune alerting thresholds and conditions, balancing between avoiding [false negatives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative) and reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
 
@@ -228,6 +263,117 @@ writer:
 
 Configuration above will produce N intervals of full length (`fit_window`=14d + `fit_every`=1h) until `to_iso` timestamp is reached to run N consecutive `fit` calls to train models; Then these models will be used to produce `M = [fit_every / sampling_frequency]` infer datapoints for `fit_every` range at the end of each such interval, imitating M consecutive calls of `infer_every` in `PeriodicScheduler` [config](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler). These datapoints then will be written back to VictoriaMetrics TSDB, defined in `writer` [section](https://docs.victoriametrics.com/anomaly-detection/components/writer#vm-writer) for further visualization (i.e. in VMUI or Grafana)
 
+## Forecasting
+
+Not intended for forecasting in its core, `vmanomaly` can still be used to produce forecasts using [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet) {{% available_from "v1.25.3" anomaly %}}, which can be helpful in scenarios like capacity planning, resource allocation, or trend analysis, if the underlying data is complex and can't be handled by inline MetricsQL queries, including [predict_linear](https://docs.victoriametrics.com/victoriametrics/metricsql/#predict_linear).
+
+> However, please note that this mode should be used with care, as the model will produce `yhat_{h}` (and probably `yhat_lower_{h}`, and `yhat_upper_{h}`) time series **for each timeseries returned by input queries and for each forecasting horizon specified in `forecast_at` argument, which can lead to a significant increase in the number of active timeseries in VictoriaMetrics TSDB**.
+
+Here's an example of how to produce forecasts using `vmanomaly` and combine it with the regular model, e.g. to estimate daily outcomes for a disk usage metric:
+
+```yaml
+# https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
+schedulers:
+  periodic_5m:  # this scheduler will be used to produce anomaly scores each 5 minutes using "regular" simple model
+    class: 'periodic'
+    fit_every: '30d'
+    fit_window: '3d'
+    infer_every: '5m'
+  periodic_forecast:  # this scheduler will be used to produce forecasts each 24h using "daily" model
+    class: 'periodic'
+    fit_every: '7d'
+    fit_window: '730d' # to fit the model on 2 years of data to account for seasonality and holidays
+    infer_every: '24h'
+# https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
+reader:
+  class: 'vm'
+  datasource_url: 'http://play.victoriametrics.com'
+  tenant_id: '0:0'
+  sampling_period: '5m'
+  # other reader params ...
+  queries:
+    disk_usage_perc_5m:
+      expr: |
+        max_over_time(
+          1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"} 
+          / 
+          node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"}),
+          1h
+        )
+      data_range: [0, 1]
+      # step: '1m'  # default will be inherited from sampling_period
+    disk_usage_perc_1d:
+      expr: |
+        max_over_time(
+          1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"} 
+          / 
+          node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"}),
+          24h
+        )
+      step: '1d'  # override default step to 1d, as we want to produce daily forecasts
+      data_range: [0, 1]
+# https://docs.victoriametrics.com/anomaly-detection/components/models/
+models:
+  quantile_5m:
+    class: 'quantile_online'  # online model, which updates itself each infer call
+    queries: ['disk_usage_perc_5m']
+    schedulers: ['periodic_5m']
+    clip_predictions: True
+    detection_direction: 'above_expected'  # as we are interested in spikes in capacity planning
+    quantiles: [0.25, 0.5, 0.75]  # to produce median and upper quartiles
+    iqr_threshold: 2.0
+
+  prophet_1d:
+    class: 'prophet'
+    queries: ['disk_usage_perc_1d']
+    schedulers: ['periodic_forecast']
+    clip_predictions: True
+    detection_direction: 'above_expected'  # as we are interested in spikes in capacity planning
+    forecast_at: ['3d', '7d']  # this will produce forecasts for 3 and 7 days ahead
+    provide_series: ['yhat', 'yhat_upper']  # to write forecasts back to VictoriaMetrics, omitting `yhat_lower` as it is not needed in this example
+    # other model params, yearly_seasonality may stay
+    # https://facebook.github.io/prophet/docs/quick_start#python-api
+    args:
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
+      country_holidays: 'US'
+# https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer
+writer:
+  class: 'vm'
+  datasource_url: '{your_victoriametrics_url_for_writing}'
+  # tenant_id: '0:0' # or your tenant ID if using clustered VictoriaMetrics
+  # other writer params ...
+  # https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting
+  metric_format:
+    __name__: $VAR
+    for: $QUERY_KEY
+```
+
+Then, respective alerts can be configured in [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) to notify disk exhaustion risks, e.g. if the forecasted disk usage exceeds 90% in the next 3 days:
+
+```yaml
+groups:
+- name: disk_usage_alerts
+  rules:
+  - alert: DiskUsageHigh
+    expr: |
+      yhat_7d{for="disk_usage_perc_1d"} > 0.9
+    for: 24h
+    labels:
+      severity: critical
+    annotations:
+      summary: "Disk usage is forecasted to exceed 90% in the next 3 days"
+      description: "Disk usage is forecasted to exceed 90% in the next 3 days for instance {{ $labels.instance }}. Forecasted value: {{ $value }}."
+  - alert: DiskUsageCritical
+    expr: |
+      yhat_3d{for="disk_usage_perc_1d"} > 0.95
+    for: 24h
+    labels:
+      severity: critical
+    annotations:
+      summary: "Disk usage is forecasted to exceed 95% in the next 3 days"
+      description: "Disk usage is forecasted to exceed 95% in the next 3 days for instance {{ $labels.instance }}. Forecasted value: {{ $value }}."
+```
+
 ## Resource consumption of vmanomaly
 `vmanomaly` itself is a lightweight service, resource usage is primarily dependent on [scheduling](https://docs.victoriametrics.com/anomaly-detection/components/scheduler) (how often and on what data to fit/infer your models), [# and size of timeseries returned by your queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), and the complexity of the employed [models](https://docs.victoriametrics.com/anomaly-detection/components/models). Its resource usage is directly related to these factors, making it adaptable to various operational scales. Various optimizations are available to balance between RAM usage, processing speed, and model capacity. These options are described in the sections below.
 
@@ -243,7 +389,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.25.2
+    image: victoriametrics/vmanomaly:v1.25.3
     # ...
     ports:
       - "8490:8490"
@@ -456,7 +602,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.25.2 && docker image tag victoriametrics/vmanomaly:v1.25.2 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.25.3 && docker image tag victoriametrics/vmanomaly:v1.25.3 vmanomaly
 ```
 
 ```sh
