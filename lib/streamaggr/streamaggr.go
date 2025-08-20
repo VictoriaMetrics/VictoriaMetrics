@@ -1239,8 +1239,8 @@ func (ctx *flushCtx) flushSeries() {
 	} else {
 		// Use worker pool for large batches
 		wg := sync.WaitGroup{}
-		tssCh := make(chan prompb.TimeSeries, len(tss))
-		resultCh := make(chan prompb.TimeSeries, len(tss))
+		tssCh := make(chan *prompb.TimeSeries, len(tss))
+		resultCh := make(chan *prompb.TimeSeries, len(tss))
 		auxLabelsCh := make(chan *promutil.Labels, numCPUs)
 
 		for i := 0; i < numCPUs; i++ {
@@ -1262,16 +1262,14 @@ func (ctx *flushCtx) flushSeries() {
 						// The metric has been deleted by relabeling
 						continue
 					}
-					resultCh <- prompb.TimeSeries{
-						Labels:  dstLabels[dstLabelsLen:],
-						Samples: ts.Samples,
-					}
+					ts.Labels = dstLabels[dstLabelsLen:]
+					resultCh <- ts
 				}
 			}()
 		}
 
-		for _, ts := range tss {
-			tssCh <- ts
+		for i := range tss {
+			tssCh <- &tss[i]
 		}
 		close(tssCh)
 
@@ -1280,7 +1278,7 @@ func (ctx *flushCtx) flushSeries() {
 		close(auxLabelsCh)
 
 		for ts := range resultCh {
-			dst = append(dst, ts)
+			dst = append(dst, *ts)
 		}
 
 		// Push the results first, then return auxLabels to pool
