@@ -1,3 +1,9 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+---
 VictoriaMetrics command-line tool (**vmctl**) provides the following migration modes:
 - [Prometheus](https://docs.victoriametrics.com/victoriametrics/vmctl/prometheus/) to VictoriaMetrics via [snapshot](https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot)
 - [InfluxDB](https://docs.victoriametrics.com/victoriametrics/vmctl/influxdb/) to VictoriaMetrics
