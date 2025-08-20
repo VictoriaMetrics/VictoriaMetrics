@@ -1168,6 +1168,10 @@ type flushCtx struct {
 	tss     []prompb.TimeSeries
 	labels  []prompb.Label
 	samples []prompb.Sample
+
+	// Reusable slices for parallel processing
+	workerResults [][]prompb.TimeSeries
+	auxToReturn   []*promutil.Labels
 }
 
 func (ctx *flushCtx) reset() {
@@ -1178,6 +1182,16 @@ func (ctx *flushCtx) reset() {
 	ctx.isLast = false
 	ctx.flushTimestamp = 0
 	ctx.resetSeries()
+
+	// Reset worker slices but keep capacity
+	for i := range ctx.workerResults {
+		if ctx.workerResults[i] != nil {
+			ctx.workerResults[i] = ctx.workerResults[i][:0]
+		}
+	}
+	for i := range ctx.auxToReturn {
+		ctx.auxToReturn[i] = nil
+	}
 }
 
 func (ctx *flushCtx) resetSeries() {
@@ -1214,7 +1228,7 @@ func (ctx *flushCtx) flushSeries() {
 	numCPUs := cgroup.AvailableCPUs()
 
 	// Process directly without worker pool for small batches
-	if len(tss) <= numCPUs {
+	if len(tss) <= numCPUs*10 {
 		auxLabels := promutil.GetLabels()
 		dstLabels := auxLabels.Labels[:0]
 
@@ -1236,24 +1250,41 @@ func (ctx *flushCtx) flushSeries() {
 			ctx.ao.outputSamples.Add(len(dst))
 		}
 		promutil.PutLabels(auxLabels)
-	} else {
-		// Use worker pool for large batches
+	} else { // Use worker pool for large batches
+		// Direct slice partitioning to avoid channel allocations
+		batchSize := (len(tss) + numCPUs - 1) / numCPUs
+
+		// Reuse slices from flushCtx to avoid allocations
+		if ctx.workerResults == nil {
+			ctx.workerResults = make([][]prompb.TimeSeries, numCPUs)
+			ctx.auxToReturn = make([]*promutil.Labels, numCPUs)
+		}
+		results := ctx.workerResults
+		auxToReturn := ctx.auxToReturn
 		wg := sync.WaitGroup{}
-		tssCh := make(chan *prompb.TimeSeries, len(tss))
-		resultCh := make(chan *prompb.TimeSeries, len(tss))
-		auxLabelsCh := make(chan *promutil.Labels, numCPUs)
 
 		for i := 0; i < numCPUs; i++ {
+			start := i * batchSize
+			end := start + batchSize
+			if end > len(tss) {
+				end = len(tss)
+			}
+			if start >= len(tss) {
+				break
+			}
+
 			wg.Add(1)
-			go func() {
+			go func(workerIdx int, batch []prompb.TimeSeries) {
 				defer wg.Done()
 				auxLabels := promutil.GetLabels()
-				defer func() {
-					auxLabelsCh <- auxLabels
-				}()
+				auxToReturn[workerIdx] = auxLabels
 				dstLabels := auxLabels.Labels[:0]
 
-				for ts := range tssCh {
+				// Pre-allocate result slice to minimize grows
+				localResult := make([]prompb.TimeSeries, 0, len(batch))
+
+				for j := range batch {
+					ts := &batch[j] // Direct slice element reference
 					dstLabelsLen := len(dstLabels)
 
 					dstLabels = append(dstLabels, ts.Labels...)
@@ -1263,22 +1294,24 @@ func (ctx *flushCtx) flushSeries() {
 						continue
 					}
 					ts.Labels = dstLabels[dstLabelsLen:]
-					resultCh <- ts
+					localResult = append(localResult, *ts)
 				}
-			}()
-		}
 
-		for i := range tss {
-			tssCh <- &tss[i]
+				results[workerIdx] = localResult
+			}(i, tss[start:end])
 		}
-		close(tssCh)
 
 		wg.Wait()
-		close(resultCh)
-		close(auxLabelsCh)
-
-		for ts := range resultCh {
-			dst = append(dst, *ts)
+		// Before collecting results, calculate total capacity
+		totalCap := 0
+		for _, result := range results {
+			totalCap += len(result)
+		}
+		if cap(dst) < totalCap {
+			dst = make([]prompb.TimeSeries, 0, totalCap)
+		}
+		for i := range results {
+			dst = append(dst, results[i]...)
 		}
 
 		// Push the results first, then return auxLabels to pool
@@ -1286,8 +1319,10 @@ func (ctx *flushCtx) flushSeries() {
 			ctx.pushFunc(dst)
 			ctx.ao.outputSamples.Add(len(dst))
 		}
-		for auxLabels := range auxLabelsCh {
-			promutil.PutLabels(auxLabels)
+		for i := range auxToReturn {
+			if auxToReturn[i] != nil {
+				promutil.PutLabels(auxToReturn[i])
+			}
 		}
 	}
 }
