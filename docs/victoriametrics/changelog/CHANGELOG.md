@@ -1,3 +1,9 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+---
 The following `tip` changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
 
 * [How to build single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-build-from-sources)
