@@ -313,8 +313,10 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	if err != nil {
 		logger.Panicf("FATAL: cannot load deleted metricIDs for the previous indexDB at %q: %s", path, err)
 	}
-	s.setDeletedMetricIDs(dmisCurr)
-	s.updateDeletedMetricIDs(dmisPrev)
+	dmis := &uint64set.Set{}
+	dmis.UnionMayOwn(dmisCurr)
+	dmis.UnionMayOwn(dmisPrev)
+	s.setDeletedMetricIDs(dmis)
 
 	// check for free disk space before opening the table
 	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023
@@ -382,11 +384,11 @@ func (s *Storage) setDeletedMetricIDs(dmis *uint64set.Set) {
 	s.deletedMetricIDs.Store(dmis)
 }
 
-func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
+func (s *Storage) updateDeletedMetricIDs(metricIDs []uint64) {
 	s.deletedMetricIDsUpdateLock.Lock()
 	dmisOld := s.getDeletedMetricIDs()
 	dmisNew := dmisOld.Clone()
-	dmisNew.Union(metricIDs)
+	dmisNew.AddMulti(metricIDs)
 	s.setDeletedMetricIDs(dmisNew)
 	s.deletedMetricIDsUpdateLock.Unlock()
 }
@@ -1468,8 +1470,8 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 	var (
-		dmisPrev *uint64set.Set
-		dmisCurr *uint64set.Set
+		dmisPrev []uint64
+		dmisCurr []uint64
 		err      error
 	)
 
@@ -1478,16 +1480,16 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	if err != nil {
 		return 0, err
 	}
-	qt.Printf("deleted %d metricIDs from previous indexDB", dmisPrev.Len())
-	deletedMetricIDs.UnionMayOwn(dmisPrev)
+	qt.Printf("deleted %d metricIDs from previous indexDB", len(dmisPrev))
+	deletedMetricIDs.AddMulti(dmisPrev)
 
 	qt.Printf("start deleting from current indexDB")
 	dmisCurr, err = idbCurr.DeleteSeries(qt, tfss, maxMetrics)
 	if err != nil {
 		return 0, err
 	}
-	qt.Printf("deleted %d metricIDs from current indexDB", dmisCurr.Len())
-	deletedMetricIDs.UnionMayOwn(dmisCurr)
+	qt.Printf("deleted %d metricIDs from current indexDB", len(dmisCurr))
+	deletedMetricIDs.AddMulti(dmisCurr)
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
