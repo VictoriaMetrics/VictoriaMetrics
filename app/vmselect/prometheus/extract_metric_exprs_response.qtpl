@@ -1,0 +1,24 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+) %}
+
+{% stripspace %}
+
+ExtractMetricExprsResponse generates response for /extract-metric-exprs .
+{% func ExtractMetricExprsResponse(metrics []string, qt *querytracer.Tracer) %}
+{
+	"status":"success",
+	"data":[
+		{% if len(metrics) > 0 %}
+			{%q= metrics[0] %}
+			{% for i := 1; i < len(metrics); i++ %}
+				,{%q= metrics[i] %}
+			{% endfor %}
+		{% endif %}
+	]
+	{% code	qt.Done() %}
+	{%= dumpQueryTrace(qt) %}
+}
+{% endfunc %}
+
+{% endstripspace %} 
