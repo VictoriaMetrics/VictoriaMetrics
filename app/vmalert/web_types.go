@@ -111,11 +111,11 @@ type apiGroup struct {
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	EvalDelay float64 `json:"eval_delay,omitempty"`
 	// Unhealthy unhealthy rules count
-	Unhealthy int
+	unhealthy int
 	// Healthy passing rules count
-	Healthy int
+	healthy int
 	// NoMatch not matching rules count
-	NoMatch int
+	noMatch int
 }
 
 // APILink returns a link to the group's JSON representation.

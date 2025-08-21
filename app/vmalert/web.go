@@ -365,12 +365,12 @@ func (rh *requestHandler) groups(rf *rulesFilter) []*apiGroup {
 				rule.Alerts = nil
 			}
 			if rule.LastError != "" {
-				g.Unhealthy++
+				g.unhealthy++
 			} else {
-				g.Healthy++
+				g.healthy++
 			}
 			if isNoMatch(rule) {
-				g.NoMatch++
+				g.noMatch++
 			}
 			filteredRules = append(filteredRules, rule)
 		}
