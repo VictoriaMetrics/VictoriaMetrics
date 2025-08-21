@@ -8,7 +8,7 @@ export const formatDuration = (raw: number) => {
   if (duration.get("minute")) fmt.push("m[m]");
   if (duration.get("millisecond")) {
     fmt.push("s.SSS[s]");
-  } else if (duration.get("second")) {
+  } else if (!fmt.length || duration.get("second")) {
     fmt.push("s[s]");
   }
   return duration.format(fmt.join(" "));

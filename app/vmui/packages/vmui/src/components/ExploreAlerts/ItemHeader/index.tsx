@@ -41,7 +41,7 @@ const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, ty
   };
 
   const copyLink = async () => {
-    let link = `${serverUrl}/#/rules?group_id=${groupId}`;
+    let link = `${serverUrl}/vmui/#/rules?group_id=${groupId}`;
     if (type) link = `${link}&${entity}_id=${id}`;
     await copyToClipboard(link, `Link to ${entity} has been copied`);
   };

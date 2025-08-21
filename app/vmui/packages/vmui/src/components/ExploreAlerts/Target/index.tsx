@@ -7,18 +7,14 @@ import Badges from "../Badges";
 
 interface TargetProps {
   target: APITarget;
-  expandTargets: Set<string>;
-  onTargetsChange: (a: boolean) => void;
 }
 
-const Target: FC<TargetProps> = ({ target, expandTargets, onTargetsChange }) => {
+const Target: FC<TargetProps> = ({ target }) => {
   const state = target?.lastError ? "unhealthy" : "ok";
   return (
     <div className={`vm-explore-alerts-target vm-badge-item ${state.replace(" ", "-")}`}>
       {(!!target?.labels?.length || !!target?.lastError) ? (
         <Accordion
-          defaultExpanded={expandTargets.has(target.address)}
-          onChange={onTargetsChange}
           key={`target-${target.address}`}
           title={(
             <div className="vm-explore-alerts-target-header__name">{target.address}</div>
