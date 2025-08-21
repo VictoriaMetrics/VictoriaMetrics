@@ -102,6 +102,16 @@ var marshaledBlockHeaderSize = func() int {
 // Marshal appends marshaled bh to dst and returns the result.
 func (bh *blockHeader) Marshal(dst []byte) []byte {
 	dst = bh.TSID.Marshal(dst)
+	return bh.marshal(dst)
+}
+
+// Marshal appends marshaled bh with custom tenant info to dst and returns the result.
+func (bh *blockHeader) MarshalWithTenant(dst []byte, accountID, projectID uint32) []byte {
+	dst = bh.TSID.MarshalWithTenant(dst, accountID, projectID)
+	return bh.marshal(dst)
+}
+
+func (bh *blockHeader) marshal(dst []byte) []byte {
 	dst = encoding.MarshalInt64(dst, bh.MinTimestamp)
 	dst = encoding.MarshalInt64(dst, bh.MaxTimestamp)
 	dst = encoding.MarshalInt64(dst, bh.FirstValue)

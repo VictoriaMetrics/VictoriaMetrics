@@ -1055,7 +1055,9 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
-	defer bi.MustClose()
+	if bi != nil {
+		defer bi.MustClose()
+	}
 
 	// Send empty error message to vmselect.
 	if err := ctx.writeString(""); err != nil {
@@ -1064,18 +1066,20 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 
 	// Send found blocks to vmselect.
 	blocksRead := 0
-	for bi.NextBlock(&ctx.mb) {
-		blocksRead++
-		s.metricBlocksRead.Inc()
-		s.metricRowsRead.Add(ctx.mb.Block.RowsCount())
+	if bi != nil {
+		for bi.NextBlock(&ctx.mb) {
+			blocksRead++
+			s.metricBlocksRead.Inc()
+			s.metricRowsRead.Add(ctx.mb.Block.RowsCount())
 
-		ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0], ctx.sq.AccountID, ctx.sq.ProjectID)
-		if err := ctx.writeDataBufBytes(); err != nil {
-			return fmt.Errorf("cannot send MetricBlock: %w", err)
+			ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0], ctx.sq.AccountID, ctx.sq.ProjectID)
+			if err := ctx.writeDataBufBytes(); err != nil {
+				return fmt.Errorf("cannot send MetricBlock: %w", err)
+			}
 		}
-	}
-	if err := bi.Error(); err != nil {
-		return fmt.Errorf("search error: %w", err)
+		if err := bi.Error(); err != nil {
+			return fmt.Errorf("search error: %w", err)
+		}
 	}
 	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
 
