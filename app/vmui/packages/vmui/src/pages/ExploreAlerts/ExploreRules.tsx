@@ -14,7 +14,7 @@ import ExploreAlert from "../../pages/ExploreAlerts/ExploreAlert";
 import ExploreGroup from "../../pages/ExploreAlerts/ExploreGroup";
 import { Group, Rule as APIRule } from "../../types";
 import { getQueryStringValue } from "../../utils/query-string";
-import { getState, getStates, getChanges, getFromStorage } from "./helpers";
+import { getState, getStates, getChanges } from "./helpers";
 import debounce from "lodash.debounce";
 
 const defaultTypesStr = getQueryStringValue("types", "") as string;
@@ -28,8 +28,6 @@ const ExploreRules: FC = () => {
   const ruleId = getQueryStringValue("rule_id", "") as string;
   const alertId = getQueryStringValue("alert_id", "") as string;
 
-  const [expandGroups, setExpandGroups] = useState<Set<string>>(getFromStorage("expandGroups"));
-  const [expandRules, setExpandRules] = useState<Set<string>>(getFromStorage("expandRules"));
   const [searchInput, setSearchInput] = useState(defaultSearchInput);
   const [types, setTypes] = useState(defaultTypes);
   const [states, setStates] = useState(defaultStates);
@@ -62,19 +60,6 @@ const ExploreRules: FC = () => {
     }
   }, [searchInput]);
 
-  const handleGroupChangeExpand = useCallback((id: string) => {
-    return (value: boolean) => {
-      const newExpand = new Set<string>([...Array.from(expandGroups)]);
-      if (!value) {
-        newExpand.add(id);
-      } else {
-        newExpand.delete(id);
-      }
-      window.localStorage.setItem("expandGroups", Array.from(newExpand).join(","));
-      setExpandGroups(newExpand);
-    };
-  }, [expandGroups]);
-
   const getModal = () => {
     if (ruleId !== "") {
       return (
@@ -103,19 +88,6 @@ const ExploreRules: FC = () => {
       );
     }
   };
-
-  const handleRuleChangeExpand = useCallback((id: string) => {
-    return (value: boolean) => {
-      const newExpand = new Set<string>([...Array.from(expandRules)]);
-      if (!value) {
-        newExpand.add(id);
-      } else {
-        newExpand.delete(id);
-      }
-      window.localStorage.setItem("expandRules", Array.from(newExpand).join(","));
-      setExpandRules(newExpand);
-    };
-  }, [expandRules]);
 
   const handleChangeStates = useCallback((title: string) => {
     setStates(getChanges(title, states));
@@ -252,10 +224,8 @@ const ExploreRules: FC = () => {
                   className="vm-explore-alert-group vm-block vm-block_empty-padding"
                 >
                   <Accordion
-                    defaultExpanded={expandGroups.has(group.id)}
                     key={`group-${group.id}`}
                     id={`group-${group.id}`}
-                    onChange={handleGroupChangeExpand(group.id)}
                     title={<GroupHeader group={group} />}
                   >
                     <div className="vm-explore-alerts-items">
@@ -263,8 +233,6 @@ const ExploreRules: FC = () => {
                         <Rule
                           key={`rule-${rule.id}`}
                           rule={rule}
-                          expandRules={expandRules}
-                          onRulesChange={handleRuleChangeExpand(rule.id)}
                           states={getStates(rule)}
                         />
                       ))}

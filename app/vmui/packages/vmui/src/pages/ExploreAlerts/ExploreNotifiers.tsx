@@ -11,7 +11,7 @@ import NotifierHeader from "../../components/ExploreAlerts/NotifierHeader";
 import Target from "../../components/ExploreAlerts/Target";
 import { Notifier as APINotifier, Target as APITarget } from "../../types";
 import { getQueryStringValue } from "../../utils/query-string";
-import { getChanges, getFromStorage } from "./helpers";
+import { getChanges } from "./helpers";
 import debounce from "lodash.debounce";
 
 const defaultKindsStr = getQueryStringValue("kinds", "") as string;
@@ -25,8 +25,6 @@ const ExploreNotifiers: FC = () => {
     error: errorNotifiers,
   } = useFetchNotifiers();
 
-  const [expandNotifiers, setExpandNotifiers] = useState<Set<string>>(getFromStorage("expandNotifiers"));
-  const [expandTargets, setExpandTargets] = useState<Set<string>>(getFromStorage("expandTargets"));
   const [searchInput, setSearchInput] = useState(defaultSearchInput);
   const [kinds, setKinds] = useState(defaultKinds);
 
@@ -83,32 +81,6 @@ const ExploreNotifiers: FC = () => {
     }
   };
 
-  const handleNotifiersChangeExpand = (id: string) => {
-    return (value: boolean) => {
-      const newExpand = new Set<string>([...Array.from(expandNotifiers)]);
-      if (!value) {
-        newExpand.add(id);
-      } else {
-        newExpand.add(id);
-      }
-      setExpandNotifiers(newExpand);
-      window.localStorage.setItem("expandNotifiers", Array.from(newExpand).join(","));
-    };
-  };
-
-  const handleTargetChangeExpand = (id: string) => {
-    return (value: boolean) => {
-      const newExpand = new Set<string>([...Array.from(expandTargets)]);
-      if (!value) {
-        newExpand.add(id);
-      } else {
-        newExpand.add(id);
-      }         
-      setExpandTargets(newExpand);
-      window.localStorage.setItem("expandTargets", Array.from(newExpand).join(","));
-    };
-  };
-
   const allKinds: Set<string> = new Set();
   const filteredNotifiers: APINotifier[] = [];
 
@@ -155,10 +127,8 @@ const ExploreNotifiers: FC = () => {
               className="vm-explore-alert-group vm-block vm-block_empty-padding"
             >
               <Accordion
-                defaultExpanded={expandNotifiers.has(notifier.kind)}
                 key={`notifier-${notifier.kind}`}
                 id={`notifier-${notifier.kind}`}
-                onChange={handleNotifiersChangeExpand(notifier.kind)}
                 title={<NotifierHeader notifier={notifier} />}
               >
                 <div className="vm-explore-alerts-items">
@@ -166,8 +136,6 @@ const ExploreNotifiers: FC = () => {
                     <Target
                       key={`target-${target.address}`}
                       target={target}
-                      expandTargets={expandTargets}
-                      onTargetsChange={handleTargetChangeExpand(target.address)}
                     />
                   ))}
                 </div>

@@ -39,8 +39,3 @@ export const getStates = (rule: Rule) => {
   }
   return output;
 };
-
-export const getFromStorage = (key: string) => {
-  const stateDump = window.localStorage.getItem(key) || "";
-  return new Set<string>(stateDump.split(",").filter(s => s));
-};
