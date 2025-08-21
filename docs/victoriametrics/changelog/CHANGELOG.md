@@ -25,6 +25,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: upgrade Go builder from Go1.24.6 to Go1.25. See [Go1.25 release notes](https://tip.golang.org/doc/go1.25).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): migrate VMAlert pages to VMUI, displaying related information when `-vmalert.proxyURL` is set, instead of jumping to VMAlert UI.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `/api/v1/group?group_id=<id>` API endpoint returning the group details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `lastError` field to `/api/v1/notifiers` response, which contains error from the last attempt to send data to the target.
 
 ## [v1.124.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.124.0)
 

@@ -1,0 +1,18 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-rule {
+  padding: $padding-tiny;
+  padding-right: 0;
+  display: flex;
+  row-gap: $padding-tiny;
+  flex-direction: column;
+  position: relative;
+
+  &:has(>details[open]) {
+    background-color: $color-background-item;
+  }
+
+  &:hover {
+    background-color: $color-background-item;
+  }
+}

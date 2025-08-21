@@ -1,0 +1,48 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-target {
+  row-gap: $padding-global;
+  margin-right: $padding-global;
+  display: flex;
+  flex-direction: column;
+
+  .vm-col-md {
+    width: 40%;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  table {
+    width: 100%;
+    td {
+      vertical-align: middle;
+      padding: $padding-global $padding-small;
+    }
+    th {
+      font-weight: bold;
+      text-align: center;
+      padding: 0 $padding-small;
+    }
+  }
+
+  padding: $padding-tiny;
+  padding-right: 0;
+  display: flex;
+  row-gap: $padding-tiny;
+  flex-direction: column;
+  position: relative;
+  border-radius: $border-radius-small;
+
+  &:has(>details[open]) {
+    background-color: $color-background-item;
+  }
+
+  &:hover {
+    background-color: $color-background-item;
+  }
+
+  .vm-explore-alerts-item-header__name {
+    line-height: 22px;
+  }
+}

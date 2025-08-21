@@ -1,0 +1,74 @@
+@use "src/styles/variables" as *;
+
+.vm-modal {
+  .vm-explore-alerts-alert-item {
+    table {
+      width: auto;
+    }
+  }
+}
+
+.vm-explore-alerts-alert-item {
+  row-gap: $padding-global;
+  margin-right: $padding-global;
+  display: flex;
+  flex-direction: column;
+
+  .title {
+    font-weight: bold;
+    text-align: center;
+  }
+
+  a:hover > pre {
+    background-color: $color-background-badge;
+    cursor: pointer;
+  }
+
+  a:hover {
+    background-color: $color-background-hover;
+    cursor: pointer;
+  }
+
+  pre {
+    background-color: $color-background-badge;
+    padding: 0 $padding-global;
+    border-radius: $border-radius-small;
+    word-break: break-word;
+    white-space: pre-wrap;
+    .keyword,
+    .function,
+    .attr-name,
+    .range-duration {
+      color: $color-keyword;
+    }
+  }
+
+  .vm-col-sm {
+    width: 10%;
+    white-space: nowrap;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vm-col-md {
+    width: 15%;
+    white-space: nowrap;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  table {
+    width: 100%;
+    td, th {
+      line-height: 30px;
+      padding: 4px $padding-small;
+    }
+    th {
+      font-weight: bold;
+      text-align: center;
+      padding: 0 $padding-small;
+    }
+  }
+}

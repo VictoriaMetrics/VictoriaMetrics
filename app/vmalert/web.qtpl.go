@@ -363,7 +363,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*apiG
 //line app/vmalert/web.qtpl:116
 			qw422016.N().S(`" class="d-flex w-100 border-0 flex-column group-items`)
 //line app/vmalert/web.qtpl:116
-			if g.Unhealthy > 0 {
+			if g.unhealthy > 0 {
 //line app/vmalert/web.qtpl:116
 				qw422016.N().S(` alert-danger`)
 //line app/vmalert/web.qtpl:116
@@ -407,11 +407,11 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*apiG
                             <span class="d-flex gap-2">
                                 `)
 //line app/vmalert/web.qtpl:126
-			if g.Unhealthy > 0 {
+			if g.unhealthy > 0 {
 //line app/vmalert/web.qtpl:126
 				qw422016.N().S(`<span class="badge bg-danger" title="Number of rules with status Error">`)
 //line app/vmalert/web.qtpl:126
-				qw422016.N().D(g.Unhealthy)
+				qw422016.N().D(g.unhealthy)
 //line app/vmalert/web.qtpl:126
 				qw422016.N().S(`</span> `)
 //line app/vmalert/web.qtpl:126
@@ -420,11 +420,11 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*apiG
 			qw422016.N().S(`
                                 `)
 //line app/vmalert/web.qtpl:127
-			if g.NoMatch > 0 {
+			if g.noMatch > 0 {
 //line app/vmalert/web.qtpl:127
 				qw422016.N().S(`<span class="badge bg-warning" title="Number of rules with status NoMatch">`)
 //line app/vmalert/web.qtpl:127
-				qw422016.N().D(g.NoMatch)
+				qw422016.N().D(g.noMatch)
 //line app/vmalert/web.qtpl:127
 				qw422016.N().S(`</span> `)
 //line app/vmalert/web.qtpl:127
@@ -433,7 +433,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*apiG
 			qw422016.N().S(`
                                 <span class="badge bg-success" title="Number of rules with status Ok">`)
 //line app/vmalert/web.qtpl:128
-			qw422016.N().D(g.Healthy)
+			qw422016.N().D(g.healthy)
 //line app/vmalert/web.qtpl:128
 			qw422016.N().S(`</span>
                             </span>

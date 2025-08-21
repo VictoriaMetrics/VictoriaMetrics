@@ -25,6 +25,7 @@ func TestHandler(t *testing.T) {
 	m := &manager{groups: map[uint64]*rule.Group{}}
 	var ar *rule.AlertingRule
 	var rr *rule.RecordingRule
+	var groupIDs []uint64
 	for _, dsType := range []string{"prometheus", "", "graphite"} {
 		g := rule.NewGroup(config.Group{
 			Name:        "group",
@@ -45,7 +46,9 @@ func TestHandler(t *testing.T) {
 		ar = g.Rules[0].(*rule.AlertingRule)
 		rr = g.Rules[1].(*rule.RecordingRule)
 		g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
-		m.groups[g.CreateID()] = g
+		id := g.CreateID()
+		m.groups[id] = g
+		groupIDs = append(groupIDs, id)
 	}
 	rh := &requestHandler{m: m}
 
@@ -186,6 +189,21 @@ func TestHandler(t *testing.T) {
 		getResp(t, ts.URL+"/"+expRule.APILink(), &gotRuleWithUpdates, 200)
 		if len(gotRuleWithUpdates.StateUpdates) < 1 {
 			t.Fatalf("expected %+v to have state updates field not empty", gotRuleWithUpdates.StateUpdates)
+		}
+	})
+	t.Run("/api/v1/group?groupID", func(t *testing.T) {
+		id := groupIDs[0]
+		g := m.groups[id]
+		expGroup := groupToAPI(g)
+		gotGroup := apiGroup{}
+		getResp(t, ts.URL+"/"+expGroup.APILink(), &gotGroup, 200)
+		if expGroup.ID != gotGroup.ID {
+			t.Fatalf("expected to get Group %q; got %q instead", expGroup.ID, gotGroup.ID)
+		}
+		gotGroup = apiGroup{}
+		getResp(t, ts.URL+"/vmalert/"+expGroup.APILink(), &gotGroup, 200)
+		if expGroup.ID != gotGroup.ID {
+			t.Fatalf("expected to get Group %q; got %q instead", expGroup.ID, gotGroup.ID)
 		}
 	})
 

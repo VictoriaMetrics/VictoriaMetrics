@@ -492,13 +492,6 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	}
 
-	if path == "/vmalert" {
-		// vmalert access via incomplete url without `/` in the end. Redirect to complete url.
-		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
-		// is hidden behind vmauth or similar proxy.
-		httpserver.Redirect(w, "vmalert/")
-		return true
-	}
 	if strings.HasPrefix(path, "/vmalert/") {
 		vmalertRequests.Inc()
 		if len(*vmalertProxyURL) == 0 {
@@ -542,7 +535,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		prettifyQueryRequests.Inc()
 		prometheus.PrettifyQuery(w, r)
 		return true
-	case "/api/v1/rules", "/rules":
+	case "/api/v1/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
 			proxyVMAlertRequests(w, r)
@@ -552,7 +545,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"groups":[]}}`)
 		return true
-	case "/api/v1/alerts", "/alerts":
+	case "/api/v1/alerts":
 		alertsRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
 			proxyVMAlertRequests(w, r)
@@ -562,7 +555,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
 		return true
-	case "/api/v1/notifiers", "/notifiers":
+	case "/api/v1/notifiers":
 		notifiersRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
 			proxyVMAlertRequests(w, r)
