@@ -123,8 +123,6 @@ Released at 2025-07-18
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): Prevent panic when re-packing a corrupted block during protocol downgrade. See [#9417](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9417).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix handling of `/api/v1/notifiers` and `/api/v1/metadata` endpoints; previously, requests to these endpoints returned 400 Bad Request. `vmsingle` was not affected.
 
-* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add export functionality for Query and RawQuery tabs with CSV/JSON support. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9332).
-
 ## [v1.121.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.121.0)
 
 Released at 2025-07-04
