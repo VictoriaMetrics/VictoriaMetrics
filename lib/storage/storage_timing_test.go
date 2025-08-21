@@ -612,3 +612,49 @@ func benchmarkDirSize(path string) int64 {
 	}
 	return size
 }
+
+func BenchmarkStorageAddRowsDailyPartitioning(b *testing.B) {
+	defer fs.MustRemoveDir(b.Name())
+
+	f := func(b *testing.B, numRows int) {
+		b.Helper()
+
+		s := MustOpenStorage(b.Name(), OpenOptions{Retention: 10 * 24 * time.Hour})
+		defer s.MustClose()
+
+		var globalOffset atomic.Uint64
+
+		globalOffset.Store(uint64(time.Now().UnixMilli() - msecPerDay*2))
+
+		b.SetBytes(int64(numRows))
+		b.ReportAllocs()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			mrs := make([]MetricRow, numRows)
+			var mn MetricName
+			mn.MetricGroup = []byte("rps")
+			mn.Tags = []Tag{
+				{[]byte("job"), []byte("webservice")},
+				{[]byte("instance"), []byte("1.2.3.4")},
+			}
+			for pb.Next() {
+				offset := int(globalOffset.Add(uint64(numRows)))
+				for i := 0; i < numRows; i++ {
+					mr := &mrs[i]
+					mr.MetricNameRaw = mn.marshalRaw(mr.MetricNameRaw[:0])
+					mr.Timestamp = int64(offset + i)
+					mr.Value = float64(offset + i)
+				}
+				s.AddRows(mrs, defaultPrecisionBits)
+			}
+		})
+		b.StopTimer()
+		s.DebugFlush()
+	}
+
+	for _, numRows := range []int{1, 10, 100, 1000, 10000} {
+		b.Run(fmt.Sprintf("%d", numRows), func(b *testing.B) {
+			f(b, numRows)
+		})
+	}
+}

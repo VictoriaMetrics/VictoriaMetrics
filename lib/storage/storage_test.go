@@ -1694,7 +1694,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 
 	// Try opening the storage from snapshot.
 	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
-	s1 := MustOpenStorage(snapshotPath, OpenOptions{})
+	s1 := MustOpenStorage(snapshotPath, OpenOptions{Retention: time.Hour * 24 * 10})
 
 	// Verify the snapshot contains rows
 	var m1 Metrics
@@ -1709,17 +1709,20 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	if err := s1.ForceMergePartitions(""); err != nil {
 		return fmt.Errorf("error when force merging partitions: %w", err)
 	}
-	ptws := s1.tb.GetPartitions(nil)
-	for _, ptw := range ptws {
-		pws := ptw.pt.GetParts(nil, true)
-		numParts := len(pws)
-		ptw.pt.PutParts(pws)
-		if numParts > 1 {
-			s1.tb.PutPartitions(ptws)
-			return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want at most 1", ptw.pt.name, numParts)
+	if !s.enableDailyPartitioning {
+		ptws := s1.tb.GetPartitions(nil)
+		for _, ptw := range ptws {
+			pws := ptw.pt.GetParts(nil, true)
+			numParts := len(pws)
+			ptw.pt.PutParts(pws)
+			if numParts > 1 {
+				s1.tb.PutPartitions(ptws)
+				return fmt.Errorf("unexpected number of parts for partition %q after force merge; got %d; want at most 1", ptw.pt.name, numParts)
+			}
 		}
+		s1.tb.PutPartitions(ptws)
+
 	}
-	s1.tb.PutPartitions(ptws)
 
 	s1.MustClose()
 
@@ -4678,4 +4681,38 @@ func assertIndexDBIsNotNil(t *testing.T, idb *indexDB) {
 	if idb == nil {
 		t.Fatalf("unexpected idb: got nil, want non-nil")
 	}
+}
+
+func TestStorageAddRowsDailyPartitioning(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	path := "TestStorageAddRowsDailyPartitioning"
+	opts := OpenOptions{
+		Retention:       10 * 24 * time.Hour,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e5,
+	}
+	s := MustOpenStorage(path, opts)
+	if err := testStorageAddRows(rng, s); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	assertPartRowsBelongToTheSameDate := func(pws []*partWrapper) {
+		t.Helper()
+		for _, pw := range pws {
+			minDate := pw.p.ph.MinTimestamp / msecPerDay
+			maxDate := pw.p.ph.MaxTimestamp / msecPerDay
+			if maxDate-minDate > 0 {
+				t.Fatalf("part path: %s rows must be belong to the same date, minDate: %d maxDate: %d", pw.p.path, minDate, maxDate)
+			}
+		}
+	}
+	partitions := s.tb.GetPartitions(nil)
+	for _, p := range partitions {
+		p.pt.partsLock.Lock()
+		assertPartRowsBelongToTheSameDate(p.pt.smallParts)
+		assertPartRowsBelongToTheSameDate(p.pt.bigParts)
+		p.pt.partsLock.Unlock()
+	}
+	s.tb.PutPartitions(partitions)
+	s.MustClose()
+	fs.MustRemoveDir(path)
 }

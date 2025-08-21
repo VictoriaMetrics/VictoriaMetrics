@@ -323,3 +323,102 @@ func TestMustOpenPartition_smallAndBigPartsPathsAreNotTheSame(t *testing.T) {
 	_ = mustOpenPartition(smallPartsPath, bigPartsPath, s)
 
 }
+
+func TestGroupPartsByDate(t *testing.T) {
+	f := func(pws []*partWrapper, expected [][]*partWrapper) {
+		t.Helper()
+		got := groupPartsByDate(pws)
+
+		if len(expected) != len(got) {
+			t.Fatalf("groupPartsByDate: unexpected number of day groups: expected=%d, got=%d", len(expected), len(got))
+		}
+
+		cmpPws := func(idx int, a, b []*partWrapper) {
+			t.Helper()
+			if len(a) != len(b) {
+				t.Fatalf("group[%d]: unexpected number of parts: expected=%d, got=%d", idx, len(a), len(b))
+			}
+			for i := range a {
+				if a[i].p.ph.MinTimestamp != b[i].p.ph.MinTimestamp {
+					t.Fatalf("group[%d] part[%d]: MinTimestamp mismatch: expected=%d, got=%d",
+						idx, i, a[i].p.ph.MinTimestamp, b[i].p.ph.MinTimestamp)
+				}
+				if a[i].p.ph.MaxTimestamp != b[i].p.ph.MaxTimestamp {
+					t.Fatalf("group[%d] part[%d]: MaxTimestamp mismatch: expected=%d, got=%d",
+						idx, i, a[i].p.ph.MaxTimestamp, b[i].p.ph.MaxTimestamp)
+				}
+			}
+		}
+
+		for i := range expected {
+			cmpPws(i, expected[i], got[i])
+		}
+
+	}
+
+	// empty
+	f(nil, nil)
+	src := []*partWrapper{
+		{p: &part{ph: partHeader{MinTimestamp: 0, MaxTimestamp: msecPerDay}}},
+	}
+	expected := [][]*partWrapper{
+		{
+			{p: &part{ph: partHeader{MinTimestamp: 0, MaxTimestamp: msecPerDay}}},
+		},
+	}
+	f(src, expected)
+
+	// group by a single day
+	src = []*partWrapper{
+		{p: &part{ph: partHeader{MinTimestamp: 0, MaxTimestamp: msecPerDay - 1024}}},
+		{p: &part{ph: partHeader{MinTimestamp: 0, MaxTimestamp: msecPerDay - 512}}},
+	}
+	expected = [][]*partWrapper{
+		{
+			{p: &part{ph: partHeader{MinTimestamp: 0, MaxTimestamp: msecPerDay - 1024}}},
+			{p: &part{ph: partHeader{MinTimestamp: 0, MaxTimestamp: msecPerDay - 512}}},
+		},
+	}
+	f(src, expected)
+
+	// group into 2 days
+	src = []*partWrapper{
+		{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: msecPerDay + 1024}}},
+		{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: msecPerDay + 512}}},
+		{p: &part{ph: partHeader{MinTimestamp: 2 * msecPerDay, MaxTimestamp: 2*msecPerDay + 1024}}},
+	}
+	expected = [][]*partWrapper{
+		{
+			{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: msecPerDay + 1024}}},
+			{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: msecPerDay + 512}}},
+		},
+		{
+			{p: &part{ph: partHeader{MinTimestamp: 2 * msecPerDay, MaxTimestamp: 2*msecPerDay + 1024}}},
+		},
+	}
+	f(src, expected)
+
+	// group int 2 days + extra day for migration
+	src = []*partWrapper{
+		{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: msecPerDay + 1024}}},
+		{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: msecPerDay + 512}}},
+		{p: &part{ph: partHeader{MinTimestamp: 2 * msecPerDay, MaxTimestamp: 2*msecPerDay + 1024}}},
+		{p: &part{ph: partHeader{MinTimestamp: 0, MaxTimestamp: 2 * msecPerDay}}},
+		{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: 5 * msecPerDay}}},
+	}
+	expected = [][]*partWrapper{
+		{
+			{p: &part{ph: partHeader{MinTimestamp: 0, MaxTimestamp: 2 * msecPerDay}}},
+			{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: 5 * msecPerDay}}},
+		},
+		{
+			{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: msecPerDay + 1024}}},
+			{p: &part{ph: partHeader{MinTimestamp: msecPerDay, MaxTimestamp: msecPerDay + 512}}},
+		},
+		{
+			{p: &part{ph: partHeader{MinTimestamp: 2 * msecPerDay, MaxTimestamp: 2*msecPerDay + 1024}}},
+		},
+	}
+	f(src, expected)
+
+}
