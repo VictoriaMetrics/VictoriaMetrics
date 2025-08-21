@@ -31,6 +31,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 Released at 2025-08-15
 
+**Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): performance regression for queries that match [previously deleted time series](https://docs.victoriametrics.com/#how-to-delete-time-series). The issue affects installation that previously deleted big number of time series but continue querying them. More details in [#9602](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9602). The degradation will be addressed in upcomming releases.
+
 * SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): protect graphite `/render` API endpoint with new flag `-search.maxGraphitePathExpressionLen`. See this PR [#9534](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9534) for details.
