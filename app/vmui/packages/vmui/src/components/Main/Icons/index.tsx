@@ -578,97 +578,13 @@ export const CommentIcon = () => (
   </svg>
 );
 
-export const FilterIcon = () => (
+export const DebugIcon = () => (
   <svg
     viewBox="0 0 24 24"
     fill="currentColor"
   >
     <path
-      d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.72-4.8 5.74-7.39c.51-.66.04-1.61-.79-1.61H5.04c-.83 0-1.3.95-.79 1.61"
-    ></path>
-  </svg>
-);
-
-export const FilterOffIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path
-      d="M19.79 5.61C20.3 4.95 19.83 4 19 4H6.83l7.97 7.97zM2.81 2.81 1.39 4.22 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.17l5.78 5.78 1.41-1.41z"
-    ></path>
-  </svg>
-);
-
-export const OpenNewIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path
-      d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3z"
-    ></path>
-  </svg>
-);
-
-export const ModalIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.89-2-2-2m0 14H5V8h14z"></path>
-  </svg>
-);
-
-export const PauseIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-  </svg>
-);
-
-export const ScrollToTopIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path
-      d="M8 12l4-4 4 4m-4-4v12"
-      strokeWidth="2"
-      stroke="currentColor"
-      fill="none"
+      d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"
     />
   </svg>
 );
-
-export const SortIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M4 3 L4 15 L1.5 15 L5.5 21 L9.5 15 L7 15 L7 3 Z"/>
-    <path d="M13 21 L13 9 L10.5 9 L14.5 3 L18.5 9 L16 9 L16 21 Z"/>
-  </svg>
-);
-
-export const SortArrowDownIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M10.5 3 L10.5 15 L8 15 L12 21 L16 15 L13.5 15 L13.5 3 Z"/>
-  </svg>
-);
-
-export const SortArrowUpIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M10.5 21 L10.5 9 L8 9 L12 3 L16 9 L13.5 9 L13.5 21 Z"/>
-  </svg>
-);
-
-
