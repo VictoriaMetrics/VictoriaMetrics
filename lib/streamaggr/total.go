@@ -25,8 +25,7 @@ type totalAggrValue struct {
 
 func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key string, deleteDeadline int64) {
 	ac := c.(*totalAggrConfig)
-	currentTime := fasttime.UnixTimestamp()
-	keepFirstSample := ac.keepFirstSample && currentTime >= ac.ignoreFirstSampleDeadline
+	keepFirstSample := ac.keepFirstSample
 	lv, ok := av.shared.lastValues[key]
 	if ok || keepFirstSample {
 		if sample.timestamp < lv.timestamp {
