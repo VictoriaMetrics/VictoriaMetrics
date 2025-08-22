@@ -84,11 +84,11 @@ var (
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
 	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. "+
-		"Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits."+
+		"Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. "+
-		"Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits."+
+		"Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
