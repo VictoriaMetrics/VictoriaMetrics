@@ -1973,14 +1973,14 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxRowsPerBlock
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 8388608)
   -remoteWrite.maxDailySeries int
-     The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits.See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
+     The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
   -remoteWrite.maxDiskUsagePerURL array
      The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. Disk usage is unlimited if the value is set to 0
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB. (default 0)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.maxHourlySeries int
-     The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits.See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
+     The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits. See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter
   -remoteWrite.maxMetadataPerBlock int
      The maximum number of metadata to send in each block to remote storage. Higher number may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxBlockSize (default 5000)
   -remoteWrite.maxRowsPerBlock int
