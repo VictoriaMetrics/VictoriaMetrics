@@ -27,7 +27,7 @@ func TestBuffer(t *testing.T) {
 
 		cbLen := cb.Len()
 		if cbLen != totalSize {
-			t.Fatalf("nexpected Buffer.Len value; got %d; want %d", cbLen, totalSize)
+			t.Fatalf("unexpected Buffer.Len value; got %d; want %d", cbLen, totalSize)
 		}
 
 		size := cb.SizeBytes()

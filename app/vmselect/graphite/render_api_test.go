@@ -10,7 +10,7 @@ func TestParseIntervalSuccess(t *testing.T) {
 		t.Helper()
 		interval, err := parseInterval(s)
 		if err != nil {
-			t.Fatalf("unexpected error in parseInterva(%q): %s", s, err)
+			t.Fatalf("unexpected error in parseInterval(%q): %s", s, err)
 		}
 		if interval != intervalExpected {
 			t.Fatalf("unexpected result for parseInterval(%q); got %d; want %d", s, interval, intervalExpected)

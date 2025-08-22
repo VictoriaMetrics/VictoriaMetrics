@@ -76,7 +76,7 @@ type Tag struct {
 	Content string `xml:",innerxml"`
 }
 
-// DataCenterInfo -eureka datacentre metadata
+// DataCenterInfo -eureka datacenter metadata
 type DataCenterInfo struct {
 	Name     string   `xml:"name"`
 	Metadata MetaData `xml:"metadata"`

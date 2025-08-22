@@ -16,7 +16,7 @@ import (
 func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 	defer testRemoveAll(t)
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 
@@ -27,11 +27,11 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		}
 		const numMetrics = 10
 		date := uint64(tr.MinTimestamp) / msecPerDay
-		idb, putCurrIndexDB := s.getCurrIndexDB()
-		defer putCurrIndexDB()
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 		var wantMetricIDs []uint64
 
-		// Symulate corrupted index by inserting `(date, tag) -> metricID`
+		// Simulate corrupted index by inserting `(date, tag) -> metricID`
 		// entries only.
 		for i := range numMetrics {
 			metricName := []byte(fmt.Sprintf("metric_%d", i))
@@ -51,11 +51,11 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			ii.Next()
 			kbPool.Put(kb)
 
-			idb.tb.AddItems(ii.Items)
+			idbCurr.tb.AddItems(ii.Items)
 
 			putIndexItems(ii)
 		}
-		idb.tb.DebugFlush()
+		idbCurr.tb.DebugFlush()
 
 		tfsAll := NewTagFilters()
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
@@ -64,7 +64,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idbCurr.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
@@ -104,7 +104,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 		// As a result they cannot be searched anymore.
-		if diff := cmp.Diff([]uint64{}, searchMetricIDs()); diff != "" {
+		if diff := cmp.Diff([]uint64(nil), searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
 	})
@@ -115,7 +115,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 		defer testRemoveAll(t)
 		t.Helper()
 
-		synctest.Run(func() {
+		synctest.Test(t, func(t *testing.T) {
 			// Align start time to 05:00 in order to have 23h before the next rotation cycle at 04:00 next morning.
 			time.Sleep(time.Hour * 5)
 

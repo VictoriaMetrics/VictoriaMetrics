@@ -121,13 +121,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.25.2
+docker pull victoriametrics/vmanomaly:v1.25.3
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.25.2 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.25.3 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -163,7 +163,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.25.2
+    image: victoriametrics/vmanomaly:v1.25.3
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
@@ -220,6 +220,14 @@ settings:
   n_workers: 4  # number of workers to run workload in parallel, set to 0 or negative number to use all available CPU cores
   anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
   restore_state: True  # restore state from previous run, available since v1.24.0
+  # https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels
+  # to override service-global logger levels, use the `logger_levels` section
+  logger_levels:  
+    # vmanomaly: info
+    # scheduler: info
+    # reader: info
+    # writer: info
+    model.prophet: warning
 
 schedulers:
   1d_1m:
@@ -298,6 +306,9 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 **Visualization**:
 - Set up [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard) to visualize the results of anomaly detection.
 - Set up [self-monitoring dashboard](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/) to monitor the health of `vmanomaly` service and its components.
+
+**Logging**:
+- Tune logging levels in the `settings.logger_levels` [section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels) to control the verbosity of logs. This can help in debugging and monitoring the service behavior, as well as in disabling excessive logging for production environments.
 
 ## Check also
 

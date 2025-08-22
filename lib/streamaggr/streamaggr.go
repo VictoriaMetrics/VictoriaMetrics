@@ -162,7 +162,7 @@ type Config struct {
 	// Interval is the interval between aggregations.
 	Interval string `yaml:"interval"`
 
-	// NoAlighFlushToInterval disables aligning of flushes to multiples of Interval.
+	// NoAlignFlushToInterval disables aligning of flushes to multiples of Interval.
 	// By default flushes are aligned to Interval.
 	//
 	// See also FlushOnShutdown.

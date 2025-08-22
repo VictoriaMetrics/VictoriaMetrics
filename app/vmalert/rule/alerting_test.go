@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -267,8 +268,15 @@ func TestAlertingRule_Exec(t *testing.T) {
 				if got.State != exp.State {
 					t.Fatalf("evalIndex %d: expected state %d; got %d", i, exp.State, got.State)
 				}
+				if rule.Annotations != nil && exp.Annotations != nil {
+					if !reflect.DeepEqual(got.Annotations, exp.Annotations) {
+						t.Fatalf("evalIndex %d: expected annotations %v; got %v", i, exp.Annotations, got.Annotations)
+					}
+				}
 			}
 		}
+		// reset ts for next test
+		ts, _ = time.Parse(time.RFC3339, "2024-10-29T00:00:00Z")
 	}
 
 	f(newTestAlertingRule("empty", 0), [][]datasource.Metric{}, nil, nil)
@@ -522,7 +530,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		},
 	})
 
-	f(newTestAlertingRule("for-pending=>firing=>inactive=>pending=>firing", defaultStep), [][]datasource.Metric{
+	f(newTestAlertingRuleWithCustomFields("for-pending=>firing=>inactive=>pending=>firing", defaultStep, 0, 0, map[string]string{"activeAt": "{{ $activeAt.UnixMilli }}"}), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
 		{metricWithLabels(t, "name", "foo")},
 		// empty step to set alert inactive
@@ -530,11 +538,11 @@ func TestAlertingRule_Exec(t *testing.T) {
 		{metricWithLabels(t, "name", "foo")},
 		{metricWithLabels(t, "name", "foo")},
 	}, map[int][]testAlert{
-		0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
-		1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-		2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
-		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
-		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+		0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.UnixMilli(), 10)}}}},
+		1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.UnixMilli(), 10)}}}},
+		2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.UnixMilli(), 10)}}}},
+		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.Add(defaultStep*3).UnixMilli(), 10)}}}},
+		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.Add(defaultStep*3).UnixMilli(), 10)}}}},
 	}, nil)
 
 	f(newTestAlertingRuleWithCustomFields("for-pending=>firing=>keepfiring=>firing", defaultStep, 0, defaultStep, nil), [][]datasource.Metric{

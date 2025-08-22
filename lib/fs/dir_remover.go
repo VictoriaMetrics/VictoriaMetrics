@@ -94,7 +94,7 @@ func IsPartiallyRemovedDir(dirPath string) bool {
 	des := MustReadDir(dirPath)
 	if len(des) == 0 {
 		// Delete empty dirs too, since they may appear when the unclean shutdown happens after the deleteDirFilename is deleted,
-		// but before the directory is deleted istelf.
+		// but before the directory is deleted itself.
 		return true
 	}
 

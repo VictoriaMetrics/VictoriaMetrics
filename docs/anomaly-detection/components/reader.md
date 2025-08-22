@@ -85,14 +85,18 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
 
   > The recommended approach for using per-query `tenant_id`s is to set both `reader.tenant_id` and `writer.tenant_id` to `multitenant`. See [this section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support) for more details. Configurations where `reader.tenant_id` equals `writer.tenant_id` and is not `multitenant` are also considered safe, provided there is a single, DISTINCT `tenant_id` defined in the reader (either at the reader level or the query level, if set).
 
+- `offset` {{% available_from "v1.25.3" anomaly %}} (string): this optional argument allows specifying a time offset for the query, which can be useful for adjusting the query time range to account for data collection delays or other timing issues. The offset is specified as a string (e.g., "15s", "-20s") and will be applied to the query time range. Valid resolutions are `ms`, `s`, `m`, `h`, `d` (miliseconds, seconds, minutes, hours, days). If not set, defaults to `0s` (0). See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#using-offsets) for more details.
+
 ### Per-query config example
 ```yaml
 reader:
   class: 'vm'
   sampling_period: '1m'
+  datasource_url: 'https://play.victoriametrics.com/'  # source victoriametrics/prometheus
   max_points_per_query: 10000
   data_range: [0, 'inf']
   tenant_id: 'multitenant'
+  offset: '0s'  # optional, defaults to 0s if not set
   # other reader params ...
   queries:
     ingestion_rate_t1:
@@ -109,6 +113,7 @@ reader:
       max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
       tz: 'America/New_York'  # to override reader-wise `tz`
       tenant_id: '2:0'  # overriding tenant_id to isolate data
+      offset: '-15s'  # to override reader-wise `offset` and query data 15 seconds earlier to account for data collection delays
 ```
 
 ### Config parameters
@@ -395,10 +400,24 @@ Optional argument{{% available_from "v1.18.0" anomaly %}} specifies the [IANA](h
 Optional argument{{% available_from "v1.18.1" anomaly %}} allows defining **valid** data ranges for input of all the queries in `queries`. Defaults to `["-inf", "inf"]` if not set and can be overridden on a [per-query basis](#per-query-parameters).
             </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`offset`</span>
+            </td>
+            <td>
+
+`60s`
+            </td>
+            <td>
+Optional argument{{% available_from "v1.25.3" anomaly %}} allows specifying a time offset for all queries in `queries`. Defaults to `0s` (0) if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
     </tbody>
 </table>
 
-Config file example:
+<br>
+Config section example:
 
 ```yaml
 reader:
@@ -407,6 +426,7 @@ reader:
   tenant_id: '0:0'
   tz: 'America/New_York'
   data_range: [1, 'inf']  # reader-level
+  offset: '0s'  # reader-level
   queries:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
@@ -414,6 +434,7 @@ reader:
       data_range: [0, 'inf']  # if set, overrides reader-level data_range
       tz: 'Australia/Sydney'  # if set, overrides reader-level tz
       # tenant_id: '1:0'  # if set, overrides reader-level tenant_id
+      # offset: '-15s'  # if set, overrides reader-level offset
   sampling_period: '1m'
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'

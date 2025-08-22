@@ -231,7 +231,7 @@ scrape_configs:
 `
 	var cfg Config
 	if err := cfg.parseData([]byte(data), "sss"); err != nil {
-		t.Fatalf("cannot parase data: %s", err)
+		t.Fatalf("cannot parse data: %s", err)
 	}
 	sws := cfg.getStaticScrapeWork()
 	swsExpected := []*ScrapeWork{
@@ -304,7 +304,7 @@ scrape_configs:
 `
 	var cfg Config
 	if err := cfg.parseData([]byte(data), "sss"); err != nil {
-		t.Fatalf("cannot parase data: %s", err)
+		t.Fatalf("cannot parse data: %s", err)
 	}
 	sws := cfg.getStaticScrapeWork()
 	swsExpected := []*ScrapeWork{{
@@ -330,7 +330,7 @@ scrape_configs:
 `
 	var cfg Config
 	if err := cfg.parseData([]byte(data), "sss"); err != nil {
-		t.Fatalf("cannot parase data: %s", err)
+		t.Fatalf("cannot parse data: %s", err)
 	}
 	sws := cfg.getFileSDScrapeWork(nil)
 	if !equalStaticConfigForScrapeWorks(sws, sws) {
@@ -1193,7 +1193,7 @@ scrape_configs:
 scrape_configs:
 - job_name: path wo slash
   enable_compression: false
-  static_configs: 
+  static_configs:
   - targets: ["foo.bar:1234"]
   relabel_configs:
   - replacement: metricspath

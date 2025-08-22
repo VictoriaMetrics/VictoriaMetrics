@@ -33,7 +33,7 @@ func (rh *ConsistentHash) GetNodeIdx(h uint64, excludeIdxs []int) int {
 
 	if len(excludeIdxs) == len(rh.nodeHashes) {
 		// All the nodes are excluded. Treat this case as no nodes are excluded.
-		// This is better from load-balacning PoV than selecting some static node.
+		// This is better from load-balancing PoV than selecting some static node.
 		excludeIdxs = nil
 	}
 

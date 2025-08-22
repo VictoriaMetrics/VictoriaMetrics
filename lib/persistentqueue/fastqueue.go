@@ -72,7 +72,7 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes
 	return fq
 }
 
-// IsPersistentQueueDisabled returns true if persistend queue at fq is disabled.
+// IsPersistentQueueDisabled returns true if persistent queue at fq is disabled.
 func (fq *FastQueue) IsPersistentQueueDisabled() bool {
 	return fq.isPQDisabled
 }

@@ -177,7 +177,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 		pathReal, err := filepath.EvalSymlinks(pathOrig)
 		if err != nil {
 			if os.IsNotExist(err) || strings.Contains(err.Error(), "no such file or directory") {
-				// Remove symlink that points to nowere.
+				// Remove symlink that points to nowhere.
 				logger.Infof("removing broken symlink %q", pathOrig)
 				if err := os.Remove(pathOrig); err != nil {
 					return false, fmt.Errorf("cannot remove %q: %w", pathOrig, err)

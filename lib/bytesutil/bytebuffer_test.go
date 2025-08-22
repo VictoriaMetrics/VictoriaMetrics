@@ -84,7 +84,7 @@ func TestByteBufferReadFrom(t *testing.T) {
 			t.Fatalf("unexpected number of bytes read; got %d; want %d", n, 0)
 		}
 		if len(bb.B) != 0 {
-			t.Fatalf("unexpejcted len(bb.B); got %d; want %d", len(bb.B), 0)
+			t.Fatalf("unexpected len(bb.B); got %d; want %d", len(bb.B), 0)
 		}
 	})
 

@@ -55,7 +55,7 @@ func TestValidateMaxPointsPerSeriesFailure(t *testing.T) {
 	f := func(start, end, step int64, maxPoints int) {
 		t.Helper()
 		if err := ValidateMaxPointsPerSeries(start, end, step, maxPoints); err == nil {
-			t.Fatalf("expecint non-nil error for ValidateMaxPointsPerSeries(start=%d, end=%d, step=%d, maxPoints=%d)", start, end, step, maxPoints)
+			t.Fatalf("expecting non-nil error for ValidateMaxPointsPerSeries(start=%d, end=%d, step=%d, maxPoints=%d)", start, end, step, maxPoints)
 		}
 	}
 	// zero step

@@ -17,7 +17,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	//
 	// vmselect (L2) -> vmselect (L1) -> vmstorage <- vminsert
 	//
-	// vmisert writes data into vmstorage.
+	// vminsert writes data into vmstorage.
 	// vmselect (L2) reads that data via vmselect (L1).
 
 	vmstorage := tc.MustStartVmstorage("vmstorage", []string{

@@ -7,7 +7,7 @@ ROOT_IMAGE ?= alpine:3.22.1
 ROOT_IMAGE_SCRATCH ?= scratch
 CERTS_IMAGE := alpine:3.22.1
 
-GO_BUILDER_IMAGE := golang:1.24.6-alpine
+GO_BUILDER_IMAGE := golang:1.25.0-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -43,7 +43,7 @@ app-via-docker: package-builder
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
-			-tags 'netgo osusergo musl' \
+			-tags 'netgo osusergo musl $(EXTRA_GO_BUILD_TAGS)' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-via-docker-windows: package-builder
@@ -58,7 +58,7 @@ app-via-docker-windows: package-builder
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" \
-			-tags 'netgo osusergo' \
+			-tags 'netgo osusergo $(EXTRA_GO_BUILD_TAGS)' \
 			-o bin/$(APP_NAME)-windows$(APP_SUFFIX)-prod.exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker: package-base

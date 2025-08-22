@@ -179,7 +179,7 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 			return nil, fmt.Errorf("missing `client_id` config option for `authentication_method: OAuth`")
 		}
 		if sdc.ClientSecret.String() == "" {
-			return nil, fmt.Errorf("missing `client_secrect` config option for `authentication_method: OAuth`")
+			return nil, fmt.Errorf("missing `client_secret` config option for `authentication_method: OAuth`")
 		}
 		q := url.Values{
 			"grant_type":    []string{"client_credentials"},

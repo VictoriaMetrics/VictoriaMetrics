@@ -46,7 +46,7 @@ func (sdc *SDConfig) role() string {
 	return sdc.Role
 }
 
-// AttachMetadata represents `attach_metadata` option at `kuberentes_sd_config`.
+// AttachMetadata represents `attach_metadata` option at `kubernetes_sd_config`.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
 type AttachMetadata struct {

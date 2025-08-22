@@ -62,7 +62,7 @@ func appendThreeStrings(dst []byte, a, b, c string) []byte {
 	return dst
 }
 
-// OwnerReference represents OwnerReferense from k8s API.
+// OwnerReference represents OwnerReference from k8s API.
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#ownerreference-v1-meta
 type OwnerReference struct {

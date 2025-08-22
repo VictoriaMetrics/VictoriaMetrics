@@ -15,7 +15,7 @@ type RateLimiter struct {
 	// perSecondLimit is the per-second limit of resources.
 	perSecondLimit int64
 
-	// stopCh is used for unbloking rate limiting.
+	// stopCh is used for unblocking rate limiting.
 	stopCh <-chan struct{}
 
 	// mu protects budget and deadline from concurrent access.

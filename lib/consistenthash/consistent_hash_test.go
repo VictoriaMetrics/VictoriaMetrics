@@ -48,7 +48,7 @@ func TestConsistentHash(t *testing.T) {
 	}
 	maxIndexMismatches := float64(len(keys)) / float64(len(nodes))
 	if float64(indexMismatches) > maxIndexMismatches {
-		t.Fatalf("too many index mismtaches after excluding a node; got %d; want no more than %f", indexMismatches, maxIndexMismatches)
+		t.Fatalf("too many index mismatches after excluding a node; got %d; want no more than %f", indexMismatches, maxIndexMismatches)
 	}
 	expectedPerIdxCount = float64(len(keys)) / float64(len(nodes)-1)
 	for i, perIdxCount := range perIdxCounts {

@@ -165,7 +165,7 @@ func (uw *unmarshalWork) runCallback(rows []csvimport.Row) {
 	ctx.wg.Done()
 }
 
-// Unmarshal implements prototparserutil.UnmarshalWork
+// Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf), uw.cds)
 	rows := uw.rows.Rows

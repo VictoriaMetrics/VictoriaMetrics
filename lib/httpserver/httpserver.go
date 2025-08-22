@@ -87,7 +87,7 @@ type server struct {
 // In such cases the caller must serve the request.
 type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 
-// ServeOptions defiens optional parameters for http server
+// ServeOptions defines optional parameters for http server
 type ServeOptions struct {
 	// UseProxyProtocol if is set to true for the corresponding addr, then the incoming connections are accepted via proxy protocol.
 	// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt

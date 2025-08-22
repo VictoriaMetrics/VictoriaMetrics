@@ -49,7 +49,7 @@ func StartVminsert(instance string, flags []string, cli *Client, output io.Write
 		graphiteListenAddrRE,
 		openTSDBListenAddrRE,
 	}
-	// Add storateNode REs to block until vminsert establishes connections with
+	// Add storageNode REs to block until vminsert establishes connections with
 	// all storage nodes. The extracted values are unused.
 	for _, sn := range storageNodes(flags) {
 		logRecord := fmt.Sprintf("successfully dialed -storageNode=\"%s\"", sn)

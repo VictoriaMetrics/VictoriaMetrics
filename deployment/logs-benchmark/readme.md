@@ -4,12 +4,12 @@ Benchmark compares VictoriaLogs with ELK stack and Grafana Loki.
 
 Benchmark is based on:
 
-- Logs from this repository - https://github.com/logpai/loghub
+- Logs from this repository - [https://github.com/logpai/loghub](https://github.com/logpai/loghub)
 - [logs generator](./generator)
 
 For ELK suite it uses:
 
-- filebeat - https://www.elastic.co/beats/filebeat
+- filebeat - [https://www.elastic.co/beats/filebeat](https://www.elastic.co/beats/filebeat)
 - elastic + kibana
 
 For Grafana Loki suite it uses:
@@ -24,7 +24,7 @@ For Grafana Loki suite it uses:
 
 - VictoriaLogs instance
 - vmsingle - port forwarded to `localhost:8428` to see UI
-- exporters for system metris
+- exporters for system metrics
 
 ELK suite uses [docker-compose-elk.yml](./docker-compose-elk.yml) with the following services:
 
@@ -54,7 +54,7 @@ Each filebeat than writes logs to elastic and VictoriaLogs via elasticsearch-com
 1. Download and unarchive logs by running:
 
 ```shell
-cd source_logs 
+cd source_logs
 bash download.sh
 ```
 
@@ -74,11 +74,11 @@ Unarchived logs size per file for reference:
  13G hadoop-*.log
 ```
 
-2. (optional) If needed, adjust amount of logs sent by generator by modifying `-outputRateLimitItems` and
+1. (optional) If needed, adjust amount of logs sent by generator by modifying `-outputRateLimitItems` and
    `outputRateLimitPeriod` parameters in [docker-compose.yml](./docker-compose.yml). By default, it is configured to
    send 10000 logs per second.
 
-3. (optional) Build victoria-logs image and adjust `image` parameter in [docker-compose.yml](./docker-compose.yml):
+1. (optional) Build victoria-logs image and adjust `image` parameter in [docker-compose.yml](./docker-compose.yml):
 
 ```shell
 make package-victoria-logs
@@ -95,25 +95,26 @@ output.elasticsearch:
   hosts: [ "http://vlogs:9428/insert/elasticsearch/" ]
 ```
 
-4. Choose a suite to run.
+1. Choose a suite to run.
 
    In order to run ELK suite use the following command:
-   ```
+
+   ```sh
    make docker-up-elk
    ```
+
    In order to run Loki suite use the following command:
-   ```
+
+   ```sh
    make docker-up-loki
    ```
 
-
-5. Navigate to `http://localhost:3000/` to see Grafana dashboards with resource usage
+1. Navigate to `http://localhost:3000/` to see Grafana dashboards with resource usage
    comparison.
 
    Navigate to `http://localhost:3000/d/hkm6P6_4z/elastic-vs-vlogs` to see ELK suite results.
 
    Navigate to `http://localhost:3000/d/hkm6P6_4y/loki-vs-vlogs` to see Loki suite results.
-
 
 Example results vs ELK:
 

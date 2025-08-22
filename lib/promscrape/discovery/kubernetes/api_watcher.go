@@ -963,7 +963,7 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 			continue
 		}
 		if attachNodeMetadata && role == "node" && (uwx.role == "pod" || uwx.role == "endpoints" || uwx.role == "endpointslice") {
-			// pod, endpoints and enpointslices objects depend on node objects if attachNodeMetadata is set
+			// pod, endpoints and endpointslices objects depend on node objects if attachNodeMetadata is set
 			uwx.needRecreateScrapeWorks = true
 			continue
 		}

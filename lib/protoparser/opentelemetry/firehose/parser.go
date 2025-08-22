@@ -42,7 +42,7 @@ func ProcessRequestBody(b []byte) ([]byte, error) {
 			}
 			totalLength := varIntLength + int(messageLength)
 			if totalLength > len(r.Data) {
-				return nil, fmt.Errorf("failed to parse OpenTelementry message: insufficient length of buffer")
+				return nil, fmt.Errorf("failed to parse OpenTelemetry message: insufficient length of buffer")
 			}
 			dst = append(dst, r.Data[varIntLength:totalLength]...)
 			r.Data = r.Data[totalLength:]

@@ -188,7 +188,7 @@ func newBinaryOpFunc(bf func(left, right float64, isBool bool) float64) binaryOp
 			rightValues := right[i].Values
 			dstValues := dst[i].Values
 			if len(leftValues) != len(rightValues) || len(leftValues) != len(dstValues) {
-				logger.Panicf("BUG: len(leftVaues) must match len(rightValues) and len(dstValues); got %d vs %d vs %d",
+				logger.Panicf("BUG: len(leftValues) must match len(rightValues) and len(dstValues); got %d vs %d vs %d",
 					len(leftValues), len(rightValues), len(dstValues))
 			}
 			for j, a := range leftValues {

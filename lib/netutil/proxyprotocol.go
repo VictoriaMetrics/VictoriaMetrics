@@ -104,7 +104,7 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 	// Read the protocol block itself
 	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, blockLen)
 	if _, err := io.ReadFull(r, bb.B); err != nil {
-		return nil, fmt.Errorf("cannot read proxy protocol block with the lehgth %d bytes: %w", blockLen, err)
+		return nil, fmt.Errorf("cannot read proxy protocol block with the length %d bytes: %w", blockLen, err)
 	}
 	switch command {
 	case 0:
