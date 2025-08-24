@@ -161,11 +161,8 @@ func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
 	afe := func(tss []*timeseries, _ *metricsql.ModifierExpr) []*timeseries {
 		return tss[:1]
 	}
-	limit := afa.ae.Limit
-	if limit > 1 {
-		// Only a single time series per group must be returned
-		limit = 1
-	}
+	// Only a single time series per group must be returned
+	limit := min(afa.ae.Limit, 1)
 	return aggrFuncExt(afe, tss, &afa.ae.Modifier, limit, true)
 }
 
