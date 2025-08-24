@@ -98,9 +98,14 @@ type Search struct {
 	// data blocks.
 	storage *Storage
 
-	// idbCurr and idbPrev are used for MetricName lookup for the found data blocks.
-	idbCurr *indexDB
-	idbPrev *indexDB
+	// Partitions that correspond to the search time range.
+	// These are used for searching metric names by metricID.
+	ptws []*partitionWrapper
+
+	// Legacy indexDBs.
+	// These are used for searching metric names by metricID if searching
+	// partition indexDBs returned no results.
+	legacyIDBs *legacyIndexDBs
 
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
@@ -133,8 +138,8 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.storage = nil
-	s.idbPrev = nil
-	s.idbCurr = nil
+	s.ptws = nil
+	s.legacyIDBs = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -153,10 +158,8 @@ func (s *Search) reset() {
 //
 // Init returns the upper bound on the number of found time series.
 func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
-	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
+	qt = qt.NewChild("init series search: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
-
-	dataTR := tr
 
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
@@ -165,7 +168,8 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 
 	s.reset()
 	s.storage = storage
-	s.idbPrev, s.idbCurr = storage.getPrevAndCurrIndexDBs()
+	s.ptws = storage.tb.GetPartitions(tr)
+	s.legacyIDBs = storage.getLegacyIndexDBs()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
@@ -177,7 +181,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
 	// on Search.MustClose otherwise.
-	s.ts.Init(storage.tb, tsids, dataTR)
+	s.ts.Init(storage.tb, tsids, tr)
 	qt.Printf("search for parts with data for %d series", len(tsids))
 	if err != nil {
 		s.err = err
@@ -234,7 +238,8 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
-	s.storage.putPrevAndCurrIndexDBs(s.idbPrev, s.idbCurr)
+	s.storage.tb.PutPartitions(s.ptws)
+	s.storage.putLegacyIndexDBs(s.legacyIDBs)
 	s.reset()
 }
 
@@ -265,8 +270,9 @@ func (s *Search) NextMetricBlock() bool {
 				// Skip the block, since it contains only data outside the configured retention.
 				continue
 			}
+			idb := s.idbForTimeRange(TimeRange{s.ts.BlockRef.bh.MinTimestamp, s.ts.BlockRef.bh.MaxTimestamp})
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.storage.searchMetricName(s.idbPrev, s.idbCurr, s.MetricBlockRef.MetricName[:0], tsid.MetricID, false)
+			s.MetricBlockRef.MetricName, ok = s.storage.searchMetricName(idb, s.legacyIDBs, s.MetricBlockRef.MetricName[:0], tsid.MetricID, false)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
@@ -296,6 +302,21 @@ func (s *Search) NextMetricBlock() bool {
 
 	s.err = io.EOF
 	return false
+}
+
+func (s *Search) idbForTimeRange(tr TimeRange) *indexDB {
+	if len(s.ptws) == 0 {
+		return nil
+	}
+	if len(s.ptws) == 1 {
+		return s.ptws[0].pt.idb
+	}
+	for _, ptw := range s.ptws {
+		if ptw.pt.tr.overlapsWith(tr) {
+			return ptw.pt.idb
+		}
+	}
+	return nil
 }
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.
