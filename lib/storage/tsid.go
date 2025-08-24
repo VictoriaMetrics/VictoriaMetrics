@@ -67,6 +67,13 @@ func (t *TSID) Marshal(dst []byte) []byte {
 	return dst
 }
 
+// MarshalWithTenant appends marshaled t to dst and returns the result in a cluster format.
+func (t *TSID) MarshalWithTenant(dst []byte, accountID, projectID uint32) []byte {
+	dst = encoding.MarshalUint32(dst, accountID)
+	dst = encoding.MarshalUint32(dst, projectID)
+	return t.Marshal(dst)
+}
+
 // Unmarshal unmarshals t from src and returns the rest of src.
 func (t *TSID) Unmarshal(src []byte) ([]byte, error) {
 	if len(src) < marshaledTSIDSize {

@@ -97,6 +97,13 @@ func NewDeadline(startTime time.Time, timeout time.Duration, flagHint string) De
 	}
 }
 
+// DeadlineFromTimestamp returns deadline from the given timestamp in seconds.
+func DeadlineFromTimestamp(timestamp uint64) Deadline {
+	startTime := time.Now()
+	timeout := time.Unix(int64(timestamp), 0).Sub(startTime)
+	return NewDeadline(startTime, timeout, "")
+}
+
 // Exceeded returns true if deadline is exceeded.
 func (d *Deadline) Exceeded() bool {
 	return fasttime.UnixTimestamp() > d.deadline

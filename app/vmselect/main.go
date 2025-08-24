@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
@@ -26,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -42,7 +44,10 @@ var (
 	resetCacheAuthKey    = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
-	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
+	vmalertProxyURL         = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
+	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
+		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
+	clusternativeTenantID = flag.String("clusternativeTenantID", "0:0", "Default tenant ID for single node setup for compatibility with cluster version")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -58,21 +63,38 @@ func getDefaultMaxConcurrentRequests() int {
 	return n
 }
 
+var vmselectapiServer *vmselectapi.Server
+
 // Init initializes vmselect
 func Init() {
 	tmpDirPath := *vmstorage.DataPath + "/tmp"
 	fs.MustRemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
-	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
+	netstorage.InitMaxUniqueTimeseries(*maxConcurrentRequests)
 
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
+	if *clusternativeListenAddr != "" {
+		logger.Infof("starting vmselectapi server at %q", *clusternativeListenAddr)
+		netstorage.MustSetTenantID(*clusternativeTenantID)
+		s, err := clusternative.NewVMSelectServer(*clusternativeListenAddr)
+		if err != nil {
+			logger.Fatalf("cannot initialize vmselectapi server: %s", err)
+		}
+		vmselectapiServer = s
+		logger.Infof("started vmselectapi server at %q", *clusternativeListenAddr)
+	}
 }
 
 // Stop stops vmselect
 func Stop() {
 	promql.StopRollupResultCache()
+	if vmselectapiServer != nil {
+		logger.Infof("stopping vmselectapi server...")
+		vmselectapiServer.MustStop()
+		logger.Infof("stopped vmselectapi server")
+	}
 }
 
 var concurrencyLimitCh chan struct{}
@@ -88,7 +110,7 @@ var (
 		return float64(len(concurrencyLimitCh))
 	})
 	_ = metrics.NewGauge(`vm_search_max_unique_timeseries`, func() float64 {
-		return float64(prometheus.GetMaxUniqueTimeSeries())
+		return float64(netstorage.GetMaxUniqueTimeSeries())
 	})
 )
 
