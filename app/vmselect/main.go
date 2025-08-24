@@ -397,6 +397,15 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		return true
+	case "prometheus/api/v1/config":
+		configRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := prometheus.ConfigHandler(qt, startTime, w, r); err != nil {
+			configErrors.Inc()
+			httpserver.SendPrometheusError(w, r, err)
+			return true
+		}
+		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
 		if err := prometheus.ExportHandler(startTime, at, w, r); err != nil {
@@ -731,6 +740,16 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		expandWithExprsRequests.Inc()
 		prometheus.ExpandWithExprs(w, r)
 		return true
+	case "prometheus/extract-metric-exprs", "extract-metric-exprs":
+		extractMetricExprsRequests.Inc()
+		startTime := time.Now()
+		qt := querytracer.New(httputil.GetBool(r, "trace"), "%s", r.URL.Path)
+		if err := prometheus.ExtractMetricExprsHandler(qt, startTime, w, r); err != nil {
+			extractMetricExprsErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
 	case "prometheus/prettify-query", "prettify-query":
 		prettifyQueryRequests.Inc()
 		prometheus.PrettifyQuery(w, r)
@@ -936,6 +955,12 @@ var (
 
 	metricNamesStatsResetRequests = metrics.NewCounter(`vm_http_requests_total{path="/admin/api/v1/admin/status/metric_names_stats/reset"}`)
 	metricNamesStatsResetErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/admin/api/v1/admin/status/metric_names_stats/reset"}`)
+
+	configRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/config"}`)
+	configErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/config"}`)
+
+	extractMetricExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/extract-metric-exprs"}`)
+	extractMetricExprsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/extract-metric-exprs"}`)
 )
 
 func usage() {
