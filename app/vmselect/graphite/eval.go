@@ -145,6 +145,12 @@ func (s *series) summarize(aggrFunc aggrFunc, startTime, endTime, step int64, xF
 }
 
 func execExpr(ec *evalConfig, query string) (nextSeriesFunc, error) {
+	// Validate query length to prevent memory exhaustion
+	maxLen := searchutil.GetMaxQueryLen()
+	if len(query) > maxLen {
+		return nil, fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen)
+	}
+
 	expr, err := graphiteql.Parse(query)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %q: %w", query, err)

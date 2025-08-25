@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphiteql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 )
 
@@ -4347,4 +4348,60 @@ func TestSafePathExpressionFromString(t *testing.T) {
 			t.Fatalf("expected full string when truncation disabled, got %q", result)
 		}
 	})
+}
+
+func TestExecExprQueryLengthValidation(t *testing.T) {
+	// Create a test case that exceeds the default maxQueryLen (16KB)
+	longQuery := "sumSeries(" + strings.Repeat("metric.very.long.name.that.takes.space,", 500) + "metric.final)"
+
+	ec := &evalConfig{
+		at:        &auth.Token{},
+		startTime: 0,
+		endTime:   1000,
+	}
+
+	t.Run("query exceeding maxQueryLen should fail", func(t *testing.T) {
+		// This query should be longer than 16KB
+		if len(longQuery) <= 16*1024 {
+			t.Skipf("Test query is not long enough (%d bytes), skipping", len(longQuery))
+		}
+
+		_, err := execExpr(ec, longQuery)
+		if err == nil {
+			t.Fatalf("expected error for query exceeding maxQueryLen")
+		}
+
+		expectedMsg := "too long query"
+		if !strings.Contains(err.Error(), expectedMsg) {
+			t.Fatalf("expected error message to contain %q, got: %v", expectedMsg, err)
+		}
+
+		expectedMsg2 := "search.maxQueryLen"
+		if !strings.Contains(err.Error(), expectedMsg2) {
+			t.Fatalf("expected error message to mention maxQueryLen flag, got: %v", err)
+		}
+	})
+
+	t.Run("short query should succeed parsing", func(t *testing.T) {
+		shortQuery := "metric.cpu.usage"
+
+		// We expect this to fail later (no actual storage), but not from length validation
+		_, err := execExpr(ec, shortQuery)
+		if err != nil && strings.Contains(err.Error(), "too long query") {
+			t.Fatalf("unexpected query length error for short query: %v", err)
+		}
+	})
+}
+
+func TestGetMaxQueryLen(t *testing.T) {
+	// Test that the function returns a reasonable value
+	maxLen := searchutil.GetMaxQueryLen()
+	if maxLen <= 0 {
+		t.Fatalf("GetMaxQueryLen() returned non-positive value: %d", maxLen)
+	}
+
+	// Should return at least the default value
+	if maxLen < 1024 {
+		t.Fatalf("GetMaxQueryLen() returned unexpectedly small value: %d", maxLen)
+	}
 }
