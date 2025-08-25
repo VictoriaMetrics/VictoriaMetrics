@@ -874,6 +874,13 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		queryOffset = 0
 	}
 	ec := newEvalConfig(r, start, start, step, deadline, mayCache, lookbackDelta, isDebug, etfs)
+	if isDebug {
+		if err := populateSimulatedData(r, nil, ec); err != nil {
+			_ = r.Body.Close()
+			return fmt.Errorf("cannot read simulated samples: %w", err)
+		}
+	}
+	_ = r.Body.Close()
 	qs := promql.NewQueryStats(query, nil, ec)
 	ec.QueryStats = qs
 
