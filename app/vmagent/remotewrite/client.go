@@ -463,12 +463,6 @@ again:
 		// - Real-world implementations of v1 use both 400 and 415 status codes.
 		// See more in research: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8462#issuecomment-2786918054
 	case 415, 400:
-		if c.canDowngradeVMProto.Swap(false) {
-			logger.Infof("received unsupported media type or bad request from remote storage at %q. Downgrading protocol from VictoriaMetrics to Prometheus remote write for all future requests. "+
-				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
-			c.useVMProto.Store(false)
-		}
-
 		if encoding.IsZstd(block) {
 			logger.Infof("received unsupported media type or bad request from remote storage at %q. Re-packing the block to Prometheus remote write and retrying."+
 				"See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
