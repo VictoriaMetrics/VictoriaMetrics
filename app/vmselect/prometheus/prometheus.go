@@ -1012,6 +1012,13 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	if err != nil {
 		return fmt.Errorf("cannot populate auth tokens: %w", err)
 	}
+	if isDebug {
+		if err := populateSimulatedData(r, at, ec); err != nil {
+			_ = r.Body.Close()
+			return fmt.Errorf("cannot read simulated samples: %w", err)
+		}
+	}
+	_ = r.Body.Close()
 	qs := promql.NewQueryStats(query, at, ec)
 	ec.QueryStats = qs
 
