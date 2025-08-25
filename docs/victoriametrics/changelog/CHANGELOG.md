@@ -18,6 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): apply `-search.maxQueryLen` limit to Graphite queries. Previously, this limit was only applied to Prometheus queries.
 * FEATURE: upgrade Go builder from Go1.24.6 to Go1.25. See [Go1.25 release notes](https://tip.golang.org/doc/go1.25).
 
 ## [v1.124.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.124.0)
