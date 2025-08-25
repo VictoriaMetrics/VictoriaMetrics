@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 In today's fast-paced and complex landscape of system monitoring, [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (`vmanomaly`), part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), serves as a **powerful observability tool** for SREs and DevOps teams. It **automates the detection of anomalies in time-series data**, reducing manual efforts required to identify abnormal system behavior.
 
 Unlike traditional threshold-based alerting, which relies on **raw metric values** and requires constant tuning and maintenance of thresholds and alerting rules, `vmanomaly` introduces a **unified, interpretable [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)** - a **de-trended, de-seasonalized metric** generated through machine learning. This approach eliminates the need for frequent manual adjustments by enabling **stable, long-term static thresholds (as simple as `anomaly_score > 1`)** that remain effective over time through continuous model retraining.
