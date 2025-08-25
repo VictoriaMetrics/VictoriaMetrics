@@ -1834,7 +1834,7 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []ui
 	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
 	defer qt.Done()
 
-	if len(srcMetricIDs) < 500 {
+	if len(srcMetricIDs) < 100_000 {
 		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
 		return nil
 	}
@@ -1851,7 +1851,7 @@ func (db *indexDB) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []ui
 	db.s.prefetchedMetricIDsLock.Unlock()
 
 	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
-	if len(metricIDs) < 500 {
+	if len(metricIDs) < 100_000 {
 		// It is cheaper to skip pre-fetching and obtain metricNames inline.
 		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
 		return nil
