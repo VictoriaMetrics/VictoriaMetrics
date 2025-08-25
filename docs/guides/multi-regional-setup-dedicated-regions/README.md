@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 ### Scenario
 
 Let's cover the case. You have multiple regions with workloads and want to collect metrics.

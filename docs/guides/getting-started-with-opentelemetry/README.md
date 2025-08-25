@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 VictoriaMetrics and VictoriaLogs support ingestion [metrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry)
 and [logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/) in OpenTelemetry format.
 This guide covers examples of using [opentelemetry-collector](https://opentelemetry.io/docs/collector/) and direct pushing of metrics and logs from the Go application.

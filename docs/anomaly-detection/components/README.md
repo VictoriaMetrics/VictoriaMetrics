@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) service:
 
 - [Model(s) section](https://docs.victoriametrics.com/anomaly-detection/components/models/) - Required

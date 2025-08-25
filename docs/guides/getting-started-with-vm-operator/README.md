@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 **The guide covers:**
 
 * The setup of a [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator) via Helm in [Kubernetes](https://kubernetes.io/) with Helm charts.

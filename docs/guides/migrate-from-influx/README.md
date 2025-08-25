@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 InfluxDB is a well-known time series database built for
 [IoT](https://en.wikipedia.org/wiki/Internet_of_things) monitoring, Application Performance Monitoring (APM) and
 analytics. It has its query language, unique data model, and rich tooling for collecting and processing metrics.
