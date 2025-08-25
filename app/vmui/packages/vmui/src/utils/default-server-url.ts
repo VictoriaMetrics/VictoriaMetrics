@@ -6,12 +6,13 @@ import { getFromStorage } from "./storage";
 export const getDefaultServer = (tenantId?: string): string => {
   const { serverURL } = getAppModeParams();
   const storageURL = getFromStorage("SERVER_URL") as string;
-  const defaultURL = window.location.href.replace(/\/(vmui|#)\/.*/, "");
+  const anomalyURL = `${window.location.origin}${window.location.pathname.replace(/^\/vmui/, "")}`;
+  const defaultURL = window.location.href.replace(/(\/(?:prometheus\/)?(?:graph|vmui)\/.*|\/#\/.*)/, "/prometheus");
   const url = serverURL || storageURL || defaultURL;
 
   switch (APP_TYPE) {
     case AppType.vmanomaly:
-      return storageURL || defaultURL;
+      return storageURL || anomalyURL;
     default:
       return tenantId ? replaceTenantId(url, tenantId) : url;
   }

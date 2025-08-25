@@ -8,4 +8,6 @@ export const getTenantIdFromUrl = (url: string): string => {
   return url.match(regexp)?.[2] || "";
 };
 
-export const getUrlWithoutTenant = (server: string): string => server.replace(/^(.*)(\/select\/[^/]+)/, "$1");
+export const getUrlWithoutTenant = (url: string): string => {
+  return url.replace(regexp, "");
+};
