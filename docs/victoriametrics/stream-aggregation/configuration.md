@@ -184,6 +184,8 @@ support the following approaches for hot reloading stream aggregation configs fr
   ```
 
 * By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload`).
+* Use the `-remoteWrite.configCheckInterval` {{% available_from "#" %}} flag to control how often `vmagent` reloads configs specified via `-remoteWrite.streamAggr.config`, `-streamAggr.config`, `-remoteWrite.relabelConfig` and `remoteWrite.urlRelabelConfig` flags. Reload is disabled by default.
+* Use the `-streamAggr.configCheckInterval` {{% available_from "#" %}} flag to control how often `victoria-metrics` reloads config specified via `-streamAggr.config` flag. Reload is disabled by default.
 
 ## Aggregation outputs
 
