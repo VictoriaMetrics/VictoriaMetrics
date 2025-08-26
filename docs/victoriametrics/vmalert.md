@@ -22,12 +22,11 @@ protocol and require `-remoteWrite.url` to be configured.
 `vmalert` is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
 implementation and aims to be compatible with its syntax.
 
-A [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
-or [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
-of VictoriaMetrics are capable of proxying requests to `vmalert` via `-vmalert.proxyURL` command-line flag. 
-Use this feature for the following cases:
-* for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* for accessing `vmalert`'s UI through VictoriaMetrics Web interface.
+Configure `-vmalert.proxyURL` on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
+or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
+to proxy requests to `vmalert`. Proxying is needed for the following cases:
+* to proxy requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
+* to access `vmalert`'s UI through [VictoriaMetrics Web interface](https://docs.victoriametrics.com/#vmui).
 
 [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_intro) 
 provides out-of-the-box alerting functionality based on `vmalert`. This service simplifies the setup 
