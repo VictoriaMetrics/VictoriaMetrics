@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -33,6 +34,8 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metricsql"
 )
+
+var disableIndexCache = flag.Bool("disableIndexCache", false, "Whether to disable index cache for benchmark query tests")
 
 const (
 	retention31Days = 31 * 24 * time.Hour
@@ -1386,6 +1389,150 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, accountID, project
 		s.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
 	}
 	s.prefetchedMetricIDs.AddMulti(metricIDs)
+	s.prefetchedMetricIDsLock.Unlock()
+
+	qt.Printf("cache metric ids for pre-fetched metric names")
+	return nil
+}
+
+func (s *Storage) prefetchMetricNamesConcur(qt *querytracer.Tracer, accountID, projectID uint32, srcMetricIDs []uint64, deadline uint64) error {
+	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
+	defer qt.Done()
+
+	if len(srcMetricIDs) < 500 {
+		qt.Printf("skip pre-fetching metric names for low number of metric ids=%d", len(srcMetricIDs))
+		return nil
+	}
+
+	var metricIDs []uint64
+
+	s.prefetchedMetricIDsLock.Lock()
+	prefetchedMetricIDs := s.prefetchedMetricIDs
+	for _, metricID := range srcMetricIDs {
+		if !*disableIndexCache && prefetchedMetricIDs.Has(metricID) {
+			continue
+		}
+		metricIDs = append(metricIDs, metricID)
+	}
+	s.prefetchedMetricIDsLock.Unlock()
+
+	qt.Printf("%d out of %d metric names must be pre-fetched", len(metricIDs), len(srcMetricIDs))
+	if len(metricIDs) < 500 {
+		// It is cheaper to skip pre-fetching and obtain metricNames inline.
+		qt.Printf("skip pre-fetching metric names for low number of missing metric ids=%d", len(metricIDs))
+		return nil
+	}
+	s.slowMetricNameLoads.Add(uint64(len(metricIDs)))
+
+	//// Pre-fetch metricIDs.
+	//var missingMetricIDs []uint64
+
+	var err error
+	idb := s.idb()
+
+	var maxMetricID, minMetricID uint64
+	if len(metricIDs) > 1 {
+		minMetricID = metricIDs[0]
+		maxMetricID = metricIDs[len(metricIDs)-1]
+	}
+
+	fCurrentDB := func(qt *querytracer.Tracer, is *indexSearch, missingMetricIDs *[]uint64, wg *sync.WaitGroup) error {
+		//st := time.Now()
+		defer wg.Done()
+		defer qt.Done()
+		qt.Printf("prefetch at the current indexdb start goroutine, index search part length is :%d, part path is:%s, partSize is:%s", is.ts.PartNum(), is.ts.PartPath(0), is.ts.PartSize(0))
+		var metricName []byte
+		for loops, metricID := range metricIDs {
+			if loops&paceLimiterSlowIterationsMask == 0 {
+				if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return err
+				}
+			}
+			var ok bool
+
+			metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
+			if !ok {
+				*missingMetricIDs = append(*missingMetricIDs, metricID)
+				continue
+			}
+		}
+		//qt.Printf("current indexdb end goroutine, index search part length is :%d, part path is:%s, partSize is:%s, cost is:%s", is.ts.PartNum(), is.ts.PartPath(0), is.ts.
+		//	PartSize(0), time.Since(st).String())
+		return nil
+	}
+
+	currIndexSearchs := idb.getIndexSearchMultiInternalWithSinglePart(accountID, projectID, deadline, false)
+	qt.Printf("current indexdbsearch length is:%d", len(currIndexSearchs))
+	defer func() {
+		for _, is := range currIndexSearchs {
+			idb.putIndexSearch(is)
+		}
+	}()
+	var wg = &sync.WaitGroup{}
+	rsMissMetricIDs := make([]*[]uint64, len(currIndexSearchs))
+	currentIndexDBQueryTrace := qt.NewChild("concurrent prefetch metricName by metricID  [%d, %d) at the current index db", minMetricID, maxMetricID)
+	for i, is := range currIndexSearchs {
+		wg.Add(1)
+		tempMissingMetricID := []uint64{}
+		rsMissMetricIDs[i] = &tempMissingMetricID
+		is.deadline = deadline
+		qtOrphan := currentIndexDBQueryTrace.NewChild("concurrent prefetch metricName by metricID  [%d, %d) at the current index db at goroutine :%d", minMetricID, maxMetricID, i)
+		go fCurrentDB(qtOrphan, is, &tempMissingMetricID, wg)
+	}
+	wg.Wait()
+	currentIndexDBQueryTrace.Donef("concurrent prefetch metricName by metricIDs [%d, %d] at the current index db done", minMetricID, maxMetricID)
+
+	extDB := idb.GetExtDB()
+	defer extDB.DecRef()
+	missingMetricIDSet := uint64set.Set{}
+	for _, rsMissMetricID := range rsMissMetricIDs {
+		if rsMissMetricID != nil {
+			for _, missingMetricID := range *rsMissMetricID {
+				missingMetricIDSet.Add(missingMetricID)
+			}
+		}
+	}
+	sortMissingMetricID := missingMetricIDSet.AppendTo(nil)
+	qt.Printf("prefetch metric names after current index search length is:%d", len(sortMissingMetricID))
+	fExtDB := func(qt *querytracer.Tracer, is *indexSearch, wg *sync.WaitGroup) {
+		//st := time.Now()
+		defer wg.Done()
+		defer qt.Done()
+		qt.Printf("prefetch at the ext indexdb start goroutine, index search part length is :%d, part path is:%s, partSize is:%s", is.ts.PartNum(), is.ts.PartPath(0), is.ts.PartSize(0))
+		var metricName []byte
+		for loops, metricID := range sortMissingMetricID {
+			if loops&paceLimiterSlowIterationsMask == 0 {
+				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return
+				}
+			}
+			metricName, _ = is.searchMetricNameWithCache(metricName[:0], metricID)
+		}
+		//qt.Printf("prefetch ext indexdb goroutine end, index search part length is :%d, part path is:%s, partSize is:%s, cost is:%s", is.ts.PartNum(), is.ts.PartPath(0), is.ts.PartSize(0), time.Since(st).String())
+	}
+	extIndexSearchs := extDB.getIndexSearchMultiInternalWithSinglePart(accountID, projectID, deadline, false)
+	qt.Printf("ext indexdb search length is:%d", len(extIndexSearchs))
+	extIndexDBQueryTrace := qt.NewChild("concurrent prefetch  metricName by metricID  [%d, %d) at the ext index db", minMetricID, maxMetricID)
+	for i, is := range extIndexSearchs {
+		qtOrphan := extIndexDBQueryTrace.NewChild("concurrent prefetch metricName by metricID  [%d, %d) at the ext db at goroutine :%d", minMetricID, maxMetricID, i)
+		go fExtDB(qtOrphan, is, wg)
+	}
+	wg.Wait()
+
+	extIndexDBQueryTrace.Donef("concurrent prefetcht metricName by metricIDs [%d, %d] at ext index db done", minMetricID, maxMetricID)
+
+	// Store the pre-fetched metricIDs, so they aren't pre-fetched next time.
+	s.prefetchedMetricIDsLock.Lock()
+	if fasttime.UnixTimestamp() > s.prefetchedMetricIDsDeadline.Load() {
+		// Periodically reset the prefetchedMetricIDs in order to limit its size.
+		s.prefetchedMetricIDs = &uint64set.Set{}
+		d := timeutil.AddJitterToDuration(time.Second * 20 * 60)
+		metricIDsDeadline := fasttime.UnixTimestamp() + uint64(d.Seconds())
+		s.prefetchedMetricIDsDeadline.Store(metricIDsDeadline)
+	}
+	if !*disableIndexCache {
+		s.prefetchedMetricIDs.AddMulti(metricIDs)
+	}
 	s.prefetchedMetricIDsLock.Unlock()
 
 	qt.Printf("cache metric ids for pre-fetched metric names")

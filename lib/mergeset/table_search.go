@@ -5,6 +5,7 @@ import (
 	"container/heap"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
@@ -78,6 +79,32 @@ func (ts *TableSearch) Init(tb *Table, sparse bool) {
 	}
 }
 
+func (ts *TableSearch) InitWithSpecificPart(tb *Table, sparse bool, partIndex int) {
+	if ts.needClosing {
+		logger.Panicf("BUG: missing MustClose call before the next call to Init")
+	}
+
+	ts.reset()
+
+	ts.tb = tb
+
+	ts.tb = tb
+	ts.needClosing = true
+
+	ts.pws = ts.tb.getParts(ts.pws[:0])
+	if partIndex >= len(ts.pws) {
+		ts.pws = nil
+		return
+	}
+	ts.pws[0] = ts.pws[partIndex]
+	ts.pws = ts.pws[:1]
+	// Initialize the psPool.
+	ts.psPool = slicesutil.SetLength(ts.psPool, 1)
+	for i, pw := range ts.pws {
+		ts.psPool[i].Init(pw.p, sparse)
+	}
+}
+
 // Seek seeks for the first item greater or equal to k in the ts.
 func (ts *TableSearch) Seek(k []byte) {
 	if err := ts.Error(); err != nil {
@@ -108,6 +135,49 @@ func (ts *TableSearch) Seek(k []byte) {
 	heap.Init(&ts.psHeap)
 	ts.Item = ts.psHeap[0].Item
 	ts.nextItemNoop = true
+}
+
+func (ts *TableSearch) PartNum() int {
+	return len(ts.psPool)
+}
+
+func (ts *TableSearch) PartPath(index int) string {
+	if index >= len(ts.psPool) {
+		return fmt.Sprintf("part search pool length is:%d, index over length", len(ts.psPool))
+	} else {
+		partPath := ""
+		pathLength := len(ts.psPool[index].p.path)
+		if pathLength >= 20 {
+			partPath = ts.psPool[index].p.path[pathLength-20 : pathLength]
+		} else if pathLength == 0 {
+			partPath = "memory"
+		} else {
+			partPath = ts.psPool[index].p.path
+		}
+		return partPath
+	}
+}
+
+func (ts *TableSearch) PartSize(index int) string {
+	if index >= len(ts.psPool) {
+		return fmt.Sprintf("part search pool length is:%d, index over length", len(ts.psPool))
+	} else {
+		partSize := ts.psPool[index].p.size
+		if partSize < 1024 {
+			return strconv.FormatInt(int64(partSize), 10) + "Byte"
+		}
+		if partSize < 1024*1024 {
+			return strconv.FormatFloat(float64(partSize)/1024, 'f', 2, 64) + "KB"
+		}
+		if partSize < 1024*1024*1024 {
+			return strconv.FormatFloat(float64(partSize)/1024/1024, 'f', 2, 64) + "MB"
+		}
+		return strconv.FormatFloat(float64(partSize)/1024/1024/1024, 'f', 2, 64) + "GB"
+	}
+}
+
+func (ts *TableSearch) GetPartSearchPart() []partSearch {
+	return ts.psPool
 }
 
 // FirstItemWithPrefix seeks for the first item with the given prefix in the ts.

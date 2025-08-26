@@ -681,6 +681,9 @@ func (tb *Table) getParts(dst []*partWrapper) []*partWrapper {
 
 	return dst
 }
+func (tb *Table) GetPartsNum() int {
+	return len(tb.fileParts) + len(tb.inmemoryParts)
+}
 
 // putParts releases the given pws obtained via getParts.
 func (tb *Table) putParts(pws []*partWrapper) {

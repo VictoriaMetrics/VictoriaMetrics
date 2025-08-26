@@ -291,6 +291,46 @@ func (db *indexDB) doExtDB(f func(extDB *indexDB)) {
 	}
 }
 
+func (db *indexDB) GetExtDB() *indexDB {
+	db.extDBLock.Lock()
+	extDB := db.extDB
+	if extDB != nil {
+		extDB.incRef()
+	}
+	db.extDBLock.Unlock()
+	return extDB
+}
+
+func (db *indexDB) DecRef() {
+	n := db.refCount.Add(-1)
+	if n < 0 {
+		logger.Panicf("BUG: negative refCount: %d", n)
+	}
+	if n > 0 {
+		return
+	}
+
+	tbPath := db.tb.Path()
+	db.tb.MustClose()
+	db.SetExtDB(nil)
+
+	// Free space occupied by caches owned by db.
+	db.tagFiltersToMetricIDsCache.Stop()
+	db.loopsPerDateTagFilterCache.Stop()
+
+	db.tagFiltersToMetricIDsCache = nil
+	db.s = nil
+	db.loopsPerDateTagFilterCache = nil
+
+	if !db.mustDrop.Load() {
+		return
+	}
+
+	logger.Infof("dropping indexDB %q", tbPath)
+	fs.MustRemoveDirAtomic(tbPath)
+	logger.Infof("indexDB %q has been dropped", tbPath)
+}
+
 // hasExtDB returns true if db.extDB != nil
 func (db *indexDB) hasExtDB() bool {
 	db.extDBLock.Lock()
@@ -562,6 +602,26 @@ func (db *indexDB) getIndexSearchInternal(accountID, projectID uint32, deadline 
 	is.ts.Init(db.tb, sparse)
 	is.deadline = deadline
 	return is
+}
+
+func (db *indexDB) getIndexSearchMultiInternalWithSinglePart(accountID, projectID uint32, deadline uint64, sparse bool) []*indexSearch {
+	pwn := db.tb.GetPartsNum()
+	rs := make([]*indexSearch, 0, pwn)
+	for i := 0; i < pwn; i++ {
+		v := db.indexSearchPool.Get()
+		if v == nil {
+			v = &indexSearch{
+				db: db,
+			}
+		}
+		is := v.(*indexSearch)
+		is.accountID = accountID
+		is.projectID = projectID
+		is.ts.InitWithSpecificPart(db.tb, sparse, i)
+		is.deadline = deadline
+		rs = append(rs, is)
+	}
+	return rs
 }
 
 func (db *indexDB) putIndexSearch(is *indexSearch) {
@@ -2101,9 +2161,11 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 }
 
 func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byte, bool) {
-	metricName := is.db.getMetricNameFromCache(dst, metricID)
-	if len(metricName) > len(dst) {
-		return metricName, true
+	if !*disableIndexCache {
+		metricName := is.db.getMetricNameFromCache(dst, metricID)
+		if len(metricName) > len(dst) {
+			return metricName, true
+		}
 	}
 	var ok bool
 	dst, ok = is.searchMetricName(dst, metricID)
