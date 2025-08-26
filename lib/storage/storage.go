@@ -91,6 +91,8 @@ type Storage struct {
 
 	disablePerDayIndex bool
 
+	enableDailyPartitioning bool
+
 	tb *table
 
 	// Series cardinality limiters.
@@ -204,12 +206,17 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	if idbPrefillStart <= 0 {
 		idbPrefillStart = time.Hour
 	}
+	var enableDailyPartitioning bool
+	if retention < 30*24*time.Hour {
+		enableDailyPartitioning = true
+	}
 	s := &Storage{
-		path:                   path,
-		cachePath:              filepath.Join(path, cacheDirname),
-		retentionMsecs:         retention.Milliseconds(),
-		stopCh:                 make(chan struct{}),
-		idbPrefillStartSeconds: idbPrefillStart.Milliseconds() / 1000,
+		path:                    path,
+		cachePath:               filepath.Join(path, cacheDirname),
+		retentionMsecs:          retention.Milliseconds(),
+		stopCh:                  make(chan struct{}),
+		idbPrefillStartSeconds:  idbPrefillStart.Milliseconds() / 1000,
+		enableDailyPartitioning: enableDailyPartitioning,
 	}
 	s.logNewSeries.Store(opts.LogNewSeries)
 
