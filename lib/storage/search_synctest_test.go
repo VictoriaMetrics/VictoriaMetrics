@@ -12,8 +12,8 @@ import (
 func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 	defer testRemoveAll(t)
 
-	synctest.Test(t, func(t *testing.T) {
-		const numMetrics = 10
+	synctest.Run(func() {
+		const numMetrics = 30
 		tr := TimeRange{
 			MinTimestamp: time.Now().UnixMilli(),
 			MaxTimestamp: time.Now().Add(23 * time.Hour).UnixMilli(),
@@ -21,13 +21,19 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 		rng := rand.New(rand.NewSource(1))
 		mrs := testGenerateMetricRowsWithPrefix(rng, numMetrics, "metric", tr)
 		s := MustOpenStorage(t.Name(), OpenOptions{})
-		defer s.MustClose()
-		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the index for the entire dataset is
-		// split across prev and curr indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		// Split mrs evenly between legacy prev and curr and pt idbs.
+		s.AddRows(mrs[:(2*numMetrics)/3], defaultPrecisionBits)
 		s.DebugFlush()
+		s.MustClose()
+		testStorageConvertToLegacy(t)
+		// Advance the time a bit before reopening the storage so that the
+		// storage could use a different timestamp for new data parts.
+		time.Sleep(time.Second)
+		synctest.Wait()
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		s.AddRows(mrs[(2*numMetrics)/3:], defaultPrecisionBits)
+		s.DebugFlush()
+		defer s.MustClose()
 
 		tfs := NewTagFilters()
 		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
@@ -45,7 +51,7 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 
 		var m Metrics
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
 			t.Fatalf("unexpected MissingTSIDsForMetricID count: got %d, want %d", got, want)
 		}
 
@@ -63,7 +69,7 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 		}
 
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
 			t.Fatalf("unexpected MissingTSIDsForMetricID count: got %d, want %d", got, want)
 		}
 
@@ -77,7 +83,7 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 		}
 
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
 			t.Fatalf("unexpected MissingTSIDsForMetricID count: got %d, want %d", got, want)
 		}
 	})
