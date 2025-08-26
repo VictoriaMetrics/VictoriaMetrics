@@ -73,8 +73,6 @@ var (
 		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
 		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph. "+
 		"See also -search.maxResponseSeries")
-	maxDebugSamples = flag.Int("search.maxDebugSamples", 1000, "The maximum number of data points that can be sent via the debug endpoint for /api/v1/query_range?debug=true. "+
-		"This limit applies to the total number of (series * data_points) to prevent resource exhaustion from large debug payloads")
 	ignoreExtraFiltersAtLabelsAPI = flag.Bool("search.ignoreExtraFiltersAtLabelsAPI", false, "Whether to ignore match[], extra_filters[] and extra_label query args at "+
 		"/api/v1/labels and /api/v1/label/.../values . This may be useful for decreasing load on VictoriaMetrics when extra filters "+
 		"match too many time series. The downside is that superfluous labels or series could be returned, which do not match the extra filters. "+
@@ -1196,7 +1194,6 @@ func populateSimulatedData(r *http.Request, at *auth.Token, evalConfig *promql.E
 	var simulatedSeries []*storage.SimulatedSamples
 	decoder := json.NewDecoder(r.Body)
 	lineNum := 0
-	totalSamples := 0
 	accountID := uint32(0)
 	projectID := uint32(0)
 	if at != nil {
@@ -1211,12 +1208,6 @@ func populateSimulatedData(r *http.Request, at *auth.Token, evalConfig *promql.E
 			return fmt.Errorf("error decoding input JSON on line %d: %w", lineNum, err)
 		}
 
-		// Check limits before processing
-		sampleCount := len(jeb.Values)
-		if totalSamples+sampleCount > *maxDebugSamples {
-			return fmt.Errorf("too many debug samples: got %d, exceeded limit of %d set by -search.maxDebugSamples", totalSamples+sampleCount, *maxDebugSamples)
-		}
-		totalSamples += sampleCount
 
 		// Validate that values and timestamps arrays have the same length
 		if len(jeb.Values) != len(jeb.Timestamps) {
