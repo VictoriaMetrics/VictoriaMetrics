@@ -124,6 +124,7 @@ func Stop() {
 	}
 	protoparserutil.StopUnmarshalWorkers()
 	common.MustStopStreamAggr()
+	relabel.Stop()
 }
 
 // RequestHandler is a handler for Prometheus remote storage write API

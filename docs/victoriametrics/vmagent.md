@@ -374,7 +374,10 @@ and `-remoteWrite.streamAggr.config`:
 
 * Sending HTTP request to `http://vmagent:8429/-/reload` endpoint. This endpoint can be protected with `-reloadAuthKey` command-line flag.
 
-There is also `-promscrape.configCheckInterval` command-line flag, which can be used for automatic reloading configs from updated `-promscrape.config` file.
+There is also:
+
+* `-promscrape.configCheckInterval` command-line flag controls how often VictoriaMetrics checks the `-promscrape.config` file for changes and reloads it automatically.
+* `-remoteWrite.configCheckInterval` {{% available_from "#" %}} command-line flag controls how often VictoriaMetrics checks and automatically reloads configs specified via `-remoteWrite.streamAggr.config`, `-streamAggr.config`, `-remoteWrite.relabelConfig` and `remoteWrite.urlRelabelConfig` flags.
 
 ## SRV urls
 
@@ -1940,6 +1943,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Optional path to bearer token file to use for the corresponding -remoteWrite.url. The token is re-read from the file every second
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.configCheckInterval duration
+     Interval for checking for changes in configurations defined via -streamAggr.config, -remoteWrite.streamAggr.config, -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig flags. By default, the checking is disabled.
   -remoteWrite.disableOnDiskQueue array
      Whether to disable storing pending data to -remoteWrite.tmpDataPath when the remote storage system at the corresponding -remoteWrite.url cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload
      Supports array of values separated by comma or specified via multiple flags.
