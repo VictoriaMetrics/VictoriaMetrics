@@ -3,7 +3,9 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -65,6 +67,8 @@ var (
 	streamAggrEnableWindows = flagutil.NewArrayBool("remoteWrite.streamAggr.enableWindows", "Enables aggregation within fixed windows for all remote write's aggregators. "+
 		"This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. "+
 		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-windows.")
+	streamAggrConfigCheckInterval = flag.Duration("streamAggr.configCheckInterval", 0, "Interval for checking for changes in configurations defined via "+
+		"-streamAggr.config and -remoteWrite.streamAggr.config flags. By default, the checking is disabled.")
 )
 
 // CheckStreamAggrConfigs checks -remoteWrite.streamAggr.config and -streamAggr.config.
@@ -91,20 +95,22 @@ func CheckStreamAggrConfigs() error {
 	return nil
 }
 
-func reloadStreamAggrConfigs() {
-	reloadStreamAggrConfigGlobal()
+func reloadStreamAggrConfigs(logReload bool) {
+	reloadStreamAggrConfigGlobal(logReload)
 	for _, rwctx := range rwctxsGlobal {
-		rwctx.reloadStreamAggrConfig()
+		rwctx.reloadStreamAggrConfig(logReload)
 	}
 }
 
-func reloadStreamAggrConfigGlobal() {
+func reloadStreamAggrConfigGlobal(logReload bool) {
 	path := *streamAggrGlobalConfig
 	if path == "" {
 		return
 	}
 
-	logger.Infof("reloading stream aggregation configs pointed by -streamAggr.config=%q", path)
+	if logReload {
+		logger.Infof("reloading stream aggregation configs pointed by -streamAggr.config=%q", path)
+	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, path)).Inc()
 
 	sasNew, err := newStreamAggrConfigGlobal()
@@ -122,7 +128,9 @@ func reloadStreamAggrConfigGlobal() {
 		logger.Infof("successfully reloaded -streamAggr.config=%q", path)
 	} else {
 		sasNew.MustStop()
-		logger.Infof("-streamAggr.config=%q wasn't changed since the last reload", path)
+		if logReload {
+			logger.Infof("-streamAggr.config=%q wasn't changed since the last reload", path)
+		}
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, path)).Set(1)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, path)).Set(fasttime.UnixTimestamp())
@@ -171,13 +179,15 @@ func (rwctx *remoteWriteCtx) initStreamAggrConfig() {
 	}
 }
 
-func (rwctx *remoteWriteCtx) reloadStreamAggrConfig() {
+func (rwctx *remoteWriteCtx) reloadStreamAggrConfig(logReload bool) {
 	path := streamAggrConfig.GetOptionalArg(rwctx.idx)
 	if path == "" {
 		return
 	}
 
-	logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", path)
+	if logReload {
+		logger.Infof("reloading stream aggregation configs pointed by -remoteWrite.streamAggr.config=%q", path)
+	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reloads_total{path=%q}`, path)).Inc()
 
 	sasNew, err := rwctx.newStreamAggrConfig()
@@ -195,7 +205,9 @@ func (rwctx *remoteWriteCtx) reloadStreamAggrConfig() {
 		logger.Infof("successfully reloaded -remoteWrite.streamAggr.config=%q", path)
 	} else {
 		sasNew.MustStop()
-		logger.Infof("-remoteWrite.streamAggr.config=%q wasn't changed since the last reload", path)
+		if logReload {
+			logger.Infof("-remoteWrite.streamAggr.config=%q wasn't changed since the last reload", path)
+		}
 	}
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, path)).Set(1)
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, path)).Set(fasttime.UnixTimestamp())
@@ -255,4 +267,27 @@ func newStreamAggrConfigPerURL(idx int, pushFunc streamaggr.PushFunc) (*streamag
 		return nil, fmt.Errorf("cannot load -remoteWrite.streamAggr.config=%q: %w", path, err)
 	}
 	return sas, nil
+}
+
+func startStreamAggrConfigReloader(sighupCh <-chan os.Signal) {
+	configReloaderWG.Add(1)
+	go func() {
+		var tickerCh <-chan time.Time
+		if *streamAggrConfigCheckInterval > 0 {
+			ticker := time.NewTicker(*streamAggrConfigCheckInterval)
+			tickerCh = ticker.C
+			defer ticker.Stop()
+		}
+		defer configReloaderWG.Done()
+		for {
+			select {
+			case <-configReloaderStopCh:
+				return
+			case <-sighupCh:
+				reloadStreamAggrConfigs(true)
+			case <-tickerCh:
+				reloadStreamAggrConfigs(false)
+			}
+		}
+	}()
 }

@@ -34,8 +34,6 @@ import (
 )
 
 var (
-	remoteWriteConfigCheckInterval = flag.Duration("remoteWrite.configCheckInterval", 0, "Interval for checking for changes in configurations defined via "+
-		"-streamAggr.config, -remoteWrite.streamAggr.config, -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig flags. By default, the checking is disabled.")
 	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol "+
 		"or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
@@ -215,27 +213,8 @@ func Init() {
 
 	dropDanglingQueues()
 
-	// Start config reloader.
-	configReloaderWG.Add(1)
-	go func() {
-		var tickerCh <-chan time.Time
-		if *remoteWriteConfigCheckInterval > 0 {
-			ticker := time.NewTicker(*remoteWriteConfigCheckInterval)
-			tickerCh = ticker.C
-			defer ticker.Stop()
-		}
-		defer configReloaderWG.Done()
-		for {
-			select {
-			case <-configReloaderStopCh:
-				return
-			case <-sighupCh:
-			case <-tickerCh:
-			}
-			reloadRelabelConfigs()
-			reloadStreamAggrConfigs()
-		}
-	}()
+	startRelabelConfigReloader(sighupCh)
+	startStreamAggrConfigReloader(sighupCh)
 }
 
 func dropDanglingQueues() {

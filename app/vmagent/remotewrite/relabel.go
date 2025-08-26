@@ -3,9 +3,11 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -30,6 +32,8 @@ var (
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
 		"See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels")
+	relabelConfigCheckInterval = flag.Duration("relabel.configCheckInterval", 0, "Interval for checking for changes in configurations defined via "+
+		"-remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig flags. By default, the checking is disabled.")
 )
 
 var labelsGlobal []prompb.Label
@@ -67,13 +71,15 @@ func initRelabelConfigs() {
 	}
 }
 
-func reloadRelabelConfigs() {
+func reloadRelabelConfigs(logReload bool) {
 	rcs := allRelabelConfigs.Load()
 	if !rcs.isSet() {
 		return
 	}
 	relabelConfigReloads.Inc()
-	logger.Infof("reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
+	if logReload {
+		logger.Infof("reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
+	}
 	rcs, err := loadRelabelConfigs()
 	if err != nil {
 		relabelConfigReloadErrors.Inc()
@@ -270,4 +276,27 @@ func fixPromCompatibleNaming(labels []prompb.Label) {
 			label.Name = promrelabel.SanitizeLabelName(label.Name)
 		}
 	}
+}
+
+func startRelabelConfigReloader(sighupCh <-chan os.Signal) {
+	configReloaderWG.Add(1)
+	go func() {
+		var tickerCh <-chan time.Time
+		if *relabelConfigCheckInterval > 0 {
+			ticker := time.NewTicker(*relabelConfigCheckInterval)
+			tickerCh = ticker.C
+			defer ticker.Stop()
+		}
+		defer configReloaderWG.Done()
+		for {
+			select {
+			case <-configReloaderStopCh:
+				return
+			case <-sighupCh:
+				reloadRelabelConfigs(true)
+			case <-tickerCh:
+				reloadRelabelConfigs(false)
+			}
+		}
+	}()
 }

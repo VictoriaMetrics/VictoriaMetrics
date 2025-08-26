@@ -377,7 +377,8 @@ and `-remoteWrite.streamAggr.config`:
 There is also:
 
 * `-promscrape.configCheckInterval` command-line flag controls how often VictoriaMetrics checks the `-promscrape.config` file for changes and reloads it automatically.
-* `-remoteWrite.configCheckInterval` {{% available_from "#" %}} command-line flag controls how often VictoriaMetrics checks and automatically reloads configs specified via `-remoteWrite.streamAggr.config`, `-streamAggr.config`, `-remoteWrite.relabelConfig` and `remoteWrite.urlRelabelConfig` flags.
+* `-streamAggr.configCheckInterval` {{% available_from "#" %}} command-line flag controls how often VictoriaMetrics checks and automatically reloads configs specified via `-remoteWrite.streamAggr.config` and `-streamAggr.config` flags.
+* `-relabel.configCheckInterval` {{% available_from "#" %}} command-line flag controls how often VictoriaMetrics checks and automatically reloads configs specified via `-remoteWrite.relabelConfig` and `remoteWrite.urlRelabelConfig` flags.
 
 ## SRV urls
 
@@ -1888,6 +1889,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -relabel.configCheckInterval duration
+     Interval for checking for changes in configurations defined via -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig flags. By default, the checking is disabled.
   -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
@@ -1943,8 +1946,6 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Optional path to bearer token file to use for the corresponding -remoteWrite.url. The token is re-read from the file every second
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -remoteWrite.configCheckInterval duration
-     Interval for checking for changes in configurations defined via -streamAggr.config, -remoteWrite.streamAggr.config, -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig flags. By default, the checking is disabled.
   -remoteWrite.disableOnDiskQueue array
      Whether to disable storing pending data to -remoteWrite.tmpDataPath when the remote storage system at the corresponding -remoteWrite.url cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload
      Supports array of values separated by comma or specified via multiple flags.
@@ -2133,6 +2134,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -streamAggr.config string
      Optional path to file with stream aggregation config. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/ . See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval
+  -streamAggr.configCheckInterval duration
+     Interval for checking for changes in configurations defined via -streamAggr.config and -remoteWrite.streamAggr.config flags. By default, the checking is disabled.
   -streamAggr.dedupInterval duration
      Input samples are de-duplicated with this interval on aggregator before optional aggregation with -streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication
   -streamAggr.dropInput
