@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -20,8 +19,6 @@ import (
 )
 
 var (
-	streamAggrConfigCheckInterval = flag.Duration("streamAggr.configCheckInterval", 0, "Interval for checking stream aggregation configuration. "+
-		"By default, the checking is disabled.")
 	streamAggrConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/ . "+
 		"See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval")
@@ -115,17 +112,10 @@ func InitStreamAggr() {
 	// Start config reloader.
 	saCfgReloaderWG.Add(1)
 	go func() {
-		var tickerCh <-chan time.Time
-		if *streamAggrConfigCheckInterval > 0 {
-			ticker := time.NewTicker(*streamAggrConfigCheckInterval)
-			tickerCh = ticker.C
-			defer ticker.Stop()
-		}
 		defer saCfgReloaderWG.Done()
 		for {
 			select {
 			case <-sighupCh:
-			case <-tickerCh:
 			case <-saCfgReloaderStopCh:
 				return
 			}

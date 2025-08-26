@@ -481,7 +481,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
 			return true
 		}
-		configReloadRequests.Inc()
+		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)
 		return true
@@ -747,7 +747,7 @@ var (
 	promscrapeConfigRequests       = metrics.NewCounter(`vmagent_http_requests_total{path="/config"}`)
 	promscrapeStatusConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/status/config"}`)
 
-	configReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
+	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )
 
 func usage() {
