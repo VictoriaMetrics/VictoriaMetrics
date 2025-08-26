@@ -18,7 +18,8 @@ import (
 var (
 	relabelConfig = flag.String("relabelConfig", "", "Optional path to a file with relabeling rules, which are applied to all the ingested metrics. "+
 		"The path can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling for details. The config is reloaded on SIGHUP signal")
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling for details. The config is reloaded on SIGHUP signal or"+
+		"with periodicity that is defined via -relabel.configCheckInterval")
 
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
@@ -67,10 +68,9 @@ func Init() {
 		for {
 			select {
 			case <-sighupCh:
-				configReloads.Inc()
 				logger.Infof("received SIGHUP; reloading -relabelConfig=%q...", *relabelConfig)
 				noChangesLogFn = func() {
-					logger.Infof("nothing changed in %q", relabelConfig)
+					logger.Infof("nothing changed in %q", *relabelConfig)
 				}
 			case <-tickerCh:
 				// silently skip logging for the unchanged config files
@@ -93,6 +93,7 @@ func Init() {
 				noChangesLogFn()
 				continue
 			}
+			configReloads.Inc()
 			pcs = pcsNew
 			pcsGlobal.Store(pcsNew)
 
