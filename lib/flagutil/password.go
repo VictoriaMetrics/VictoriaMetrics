@@ -19,8 +19,8 @@ import (
 // since the returned value can be put in logs.
 // Call Password.Get() for obtaining the real password value.
 func NewPassword(name, description string) *Password {
-	description += fmt.Sprintf("\nFlag value can be read from the given file when using -%s=file:///abs/path/to/file or -%s=file://./relative/path/to/file . "+
-		"Flag value can be read from the given http/https url when using -%s=http://host/path or -%s=https://host/path", name, name, name, name)
+	description += fmt.Sprintf("\nFlag value can be read from the given file when using -%s=file:///abs/path/to/file or -%s=file://./relative/path/to/file."+
+		"\nFlag value can be read from the given http/https url when using -%s=http://host/path or -%s=https://host/path", name, name, name, name)
 	p := &Password{
 		flagname: name,
 	}
