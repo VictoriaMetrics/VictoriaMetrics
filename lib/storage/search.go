@@ -329,7 +329,7 @@ func NewSimulatedSeries(accountID, projectID uint32, metric map[string]string, t
 		Timestamps: timestamp,
 		Value:      value,
 	}
-	ss.Name = GetMetricNameNoCache(accountID, projectID)
+	ss.Name = *GetMetricName()
 	for k, v := range metric {
 		ss.Name.AddTag(k, v)
 	}

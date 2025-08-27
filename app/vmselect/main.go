@@ -545,6 +545,13 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		expandWithExprsRequests.Inc()
 		prometheus.ExpandWithExprs(w, r)
 		return true
+	case "/extract-metric-exprs":
+		startTime := time.Now()
+		if err := prometheus.ExtractMetricExprsHandler(startTime, w, r); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
 	case "/prettify-query":
 		prettifyQueryRequests.Inc()
 		prometheus.PrettifyQuery(w, r)

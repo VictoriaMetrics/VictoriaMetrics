@@ -8,7 +8,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -21,10 +20,6 @@ func TestSimulatedExec(t *testing.T) {
 
 	// Base EvalConfig that will be copied for each test
 	baseEC := EvalConfig{
-		AuthTokens: []*auth.Token{{
-			AccountID: accountID,
-			ProjectID: projectID,
-		}},
 		Start:              start,
 		End:                end,
 		Step:               step,
@@ -32,7 +27,7 @@ func TestSimulatedExec(t *testing.T) {
 		MaxSeries:          1000,
 		Deadline:           searchutil.NewDeadline(time.Now(), time.Hour, ""),
 		RoundDigits:        100,
-		NoCache:            true,
+		MayCache:           false,
 	}
 
 	t.Run(`simple_metric_exact_match`, func(t *testing.T) {
@@ -53,8 +48,6 @@ func TestSimulatedExec(t *testing.T) {
 
 		// Expected result
 		expectedMN := storage.MetricName{
-			AccountID:   accountID,
-			ProjectID:   projectID,
 			MetricGroup: []byte("test_metric"),
 			Tags: []storage.Tag{
 				{
@@ -71,7 +64,7 @@ func TestSimulatedExec(t *testing.T) {
 			},
 		}
 
-		testResultsEqual(t, result, expectedResult, false)
+		testResultsEqual(t, result, expectedResult)
 	})
 
 	t.Run(`filtered_by_tag_value`, func(t *testing.T) {
@@ -101,8 +94,6 @@ func TestSimulatedExec(t *testing.T) {
 
 		// Expected result
 		expectedMN := storage.MetricName{
-			AccountID:   accountID,
-			ProjectID:   projectID,
 			MetricGroup: []byte("test_metric"),
 			Tags: []storage.Tag{
 				{
@@ -123,7 +114,7 @@ func TestSimulatedExec(t *testing.T) {
 			},
 		}
 
-		testResultsEqual(t, result, expectedResult, false)
+		testResultsEqual(t, result, expectedResult)
 	})
 
 	t.Run(`regex_match_on_tag`, func(t *testing.T) {
@@ -151,7 +142,7 @@ func TestSimulatedExec(t *testing.T) {
 		}
 
 		expectedResult := []netstorage.Result{mn[0].toResult(), mn[1].toResult()}
-		testResultsEqual(t, result, expectedResult, false)
+		testResultsEqual(t, result, expectedResult)
 	})
 }
 
@@ -163,10 +154,6 @@ func TestSumOverTime(t *testing.T) {
 	step := int64(30e3)
 
 	baseEC := EvalConfig{
-		AuthTokens: []*auth.Token{{
-			AccountID: accountID,
-			ProjectID: projectID,
-		}},
 		Start:              start,
 		End:                end,
 		Step:               step,
@@ -174,7 +161,7 @@ func TestSumOverTime(t *testing.T) {
 		MaxSeries:          1000,
 		Deadline:           searchutil.NewDeadline(time.Now(), time.Hour, ""),
 		RoundDigits:        100,
-		NoCache:            true,
+		MayCache:           false,
 	}
 
 	t.Run(`basic_sum_over_time`, func(t *testing.T) {
@@ -198,17 +185,14 @@ func TestSumOverTime(t *testing.T) {
 			).withValues(1, 5, 9, 6).withUnix(1000, 1030, 1060, 1090).toResult(),
 		}
 
-		testSimulatedResultsEqual(t, result, expectedResult, false)
+		testSimulatedResultsEqual(t, result, expectedResult)
 	})
 }
 
 type metricBuilder storage.SimulatedSamples
 
 func newMetric(accountID uint32, projectID uint32, pairs ...string) *metricBuilder {
-	mn := storage.MetricName{
-		AccountID: accountID,
-		ProjectID: projectID,
-	}
+	mn := storage.MetricName{}
 	for i := 0; i < len(pairs); i += 2 {
 		mn.AddTag(pairs[i], pairs[i+1])
 	}
@@ -254,7 +238,7 @@ func (b metricBuilders) build() []*storage.SimulatedSamples {
 	return ss
 }
 
-func testSimulatedResultsEqual(t *testing.T, result, resultExpected []netstorage.Result, verifyTenant bool) {
+func testSimulatedResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {
 	t.Helper()
 	result = removeEmptyValuesAndTimeseries(result)
 
@@ -264,7 +248,7 @@ func testSimulatedResultsEqual(t *testing.T, result, resultExpected []netstorage
 	for i := range result {
 		r := &result[i]
 		rExpected := &resultExpected[i]
-		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, verifyTenant, i)
+		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, i)
 		testRowsEqual(t, r.Values, r.Timestamps, rExpected.Values, rExpected.Timestamps)
 	}
 }
@@ -321,7 +305,7 @@ ignoring(path) (
         sum(vm_rows{job=~"$job", instance=~"$instance", type="indexdb/file"})
     )
 )`
-	metrics, err := extractMetricsFromQuery(query)
+	metrics, err := ExtractMetricsFromQuery(query)
 	if err != nil {
 		t.Fatalf(`unexpected error when extracting metrics from query: %s`, err)
 	}
