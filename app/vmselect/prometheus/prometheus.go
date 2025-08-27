@@ -1205,18 +1205,20 @@ func populateSimulatedData(r *http.Request, at *auth.Token, evalConfig *promql.E
 			return fmt.Errorf("mismatched values and timestamps arrays length in debug data on line %d: values=%d, timestamps=%d", lineNum, len(jeb.Values), len(jeb.Timestamps))
 		}
 
-		var mn = *storage.GetMetricName()
+		mn := storage.GetMetricName()
+		defer storage.PutMetricName(mn)
 		mn.AccountID = accountID
 		mn.ProjectID = projectID
 		for k, v := range jeb.Metric {
 			mn.AddTag(k, v)
 		}
 
-		simulatedSeries = append(simulatedSeries, &storage.SimulatedSamples{
-			Name:       mn,
+		ss := &storage.SimulatedSamples{
 			Value:      jeb.Values,
 			Timestamps: jeb.Timestamps,
-		})
+		}
+		ss.Name.CopyFrom(mn)
+		simulatedSeries = append(simulatedSeries, ss)
 		lineNum++
 	}
 

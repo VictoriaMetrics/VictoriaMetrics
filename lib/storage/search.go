@@ -382,12 +382,14 @@ func NewSimulatedSeries(accountID, projectID uint32, metric map[string]string, t
 		Timestamps: timestamp,
 		Value:      value,
 	}
-	ss.Name = *GetMetricName()
-	ss.Name.AccountID = accountID
-	ss.Name.ProjectID = projectID
+	mn := GetMetricName()
+	defer PutMetricName(mn)
+	mn.AccountID = accountID
+	mn.ProjectID = projectID
 	for k, v := range metric {
-		ss.Name.AddTag(k, v)
+		mn.AddTag(k, v)
 	}
+	ss.Name.CopyFrom(mn)
 	return ss
 }
 
