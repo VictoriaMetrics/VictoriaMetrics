@@ -15,6 +15,7 @@
   font-weight: normal;
   color: $color-text;
   line-height: 1.5;
+  opacity: 0.8;
 
   &_mobile {
     align-items: flex-start;
@@ -33,39 +34,53 @@
     justify-content: center;
     align-self: flex-start;
     min-height: 24px;
+    filter: brightness(0.6);
   }
 
   &__content {
     white-space: pre-line;
     text-wrap: balance;
     overflow-wrap: anywhere;
+    filter: brightness(0.6);
   }
 
   &_success {
     color: $color-success;
     background-color: $color-background-success;
-    border: 0.5px solid $color-success;
   }
 
   &_error {
     color: $color-error;
     background-color: $color-background-error;
-    border: 0.5px solid $color-error;
   }
 
   &_info {
     color: $color-info;
     background-color: $color-background-info;
-    border: 0.5px solid $color-info;
   }
 
   &_warning {
     color: $color-warning;
     background-color: $color-background-warning;
-    border: 0.5px solid $color-warning;
   }
 
-  &_dark &__content {
+  &_dark &__content, &_dark &__icon {
     filter: none;
+  }
+
+  &_dark:is(&_success) {
+    border: 0.5px solid $color-success;
+  }
+
+  &_dark:is(&_error) {
+    border: 0.5px solid $color-error;
+  }
+
+  &_dark:is(&_info) {
+    border: 0.5px solid $color-info;
+  }
+
+  &_dark:is(&_warning) {
+    border: 0.5px solid $color-warning;
   }
 }
