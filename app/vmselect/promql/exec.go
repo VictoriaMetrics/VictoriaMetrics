@@ -329,7 +329,8 @@ func escapeDots(s string) string {
 	return string(result)
 }
 
-func extractMetricsFromQuery(query string) ([]string, error) {
+// ExtractMetricsFromQuery visits all the expressions in query and returns all the metrics found in the query.
+func ExtractMetricsFromQuery(query string) ([]string, error) {
 	expr, err := metricsql.Parse(query)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing query: %w", err)
@@ -346,10 +347,4 @@ func extractMetricsFromQuery(query string) ([]string, error) {
 	})
 
 	return metrics, nil
-}
-
-// ExtractMetricsFromQuery extracts metric expressions from a PromQL query.
-// This is the exported version of extractMetricsFromQuery.
-func ExtractMetricsFromQuery(query string) ([]string, error) {
-	return extractMetricsFromQuery(query)
 }

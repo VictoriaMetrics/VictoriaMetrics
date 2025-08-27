@@ -627,8 +627,6 @@ type ConfigData struct {
 //
 // It returns the current configuration for search-related flags.
 func ConfigHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, _ *http.Request) error {
-	defer configDuration.UpdateDuration(startTime)
-
 	config := &ConfigData{
 		MinStalenessInterval: (*minStalenessInterval).String(),
 		MaxStalenessInterval: (*maxStalenessInterval).String(),
@@ -644,14 +642,10 @@ func ConfigHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	return nil
 }
 
-var configDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/config"}`)
-
 // ExtractMetricExprsHandler processes /extract-metric-exprs request.
 //
 // It extracts metric expressions from a given PromQL query.
 func ExtractMetricExprsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
-	defer extractMetricExprsDuration.UpdateDuration(startTime)
-
 	query := r.FormValue("query")
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -671,8 +665,6 @@ func ExtractMetricExprsHandler(qt *querytracer.Tracer, startTime time.Time, w ht
 	}
 	return nil
 }
-
-var extractMetricExprsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/extract-metric-exprs"}`)
 
 // LabelsHandler processes /api/v1/labels request.
 //
@@ -953,7 +945,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	isDebug := httputil.GetBool(r, "debug")
-	mayCache := !httputil.GetBool(r, "nocache") && !isDebug
+	noCache := httputil.GetBool(r, "nocache") || isDebug
 	lookbackDelta, err := getMaxLookback(r, *maxStalenessInterval)
 	if err != nil {
 		return err
@@ -969,11 +961,11 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if err := promql.ValidateMaxPointsPerSeries(start, end, step, *maxPointsPerTimeseries); err != nil {
 		return fmt.Errorf("%w; (see -search.maxPointsPerTimeseries command-line flag)", err)
 	}
-	if mayCache {
+	if !noCache {
 		start, end = promql.AdjustStartEnd(start, end, step)
 	}
 
-	ec := newEvalConfig(r, start, end, step, deadline, mayCache, lookbackDelta, isDebug, etfs)
+	ec := newEvalConfig(r, start, end, step, deadline, noCache, lookbackDelta, isDebug, etfs)
 	if isDebug {
 		if err := populateSimulatedData(r, nil, ec); err != nil {
 			_ = r.Body.Close()
@@ -1017,7 +1009,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	return nil
 }
 
-func newEvalConfig(r *http.Request, start, end, step int64, deadline searchutil.Deadline, mayCache bool, lookbackDelta int64, isDebug bool, etfs [][]storage.TagFilter) *promql.EvalConfig {
+func newEvalConfig(r *http.Request, start, end, step int64, deadline searchutil.Deadline, noCache bool, lookbackDelta int64, isDebug bool, etfs [][]storage.TagFilter) *promql.EvalConfig {
 	ec := &promql.EvalConfig{
 		Start:                start,
 		End:                  end,
@@ -1027,7 +1019,7 @@ func newEvalConfig(r *http.Request, start, end, step int64, deadline searchutil.
 		MinStalenessInterval: *minStalenessInterval,
 		QuotedRemoteAddr:     httpserver.GetQuotedRemoteAddr(r),
 		Deadline:             deadline,
-		MayCache:             mayCache,
+		MayCache:             !noCache,
 		LookbackDelta:        lookbackDelta,
 		RoundDigits:          getRoundDigits(r),
 		EnforcedTagFilterss:  etfs,
@@ -1064,7 +1056,6 @@ func populateSimulatedData(r *http.Request, at *auth.Token, evalConfig *promql.E
 		} else if err != nil {
 			return fmt.Errorf("error decoding input JSON on line %d: %w", lineNum, err)
 		}
-
 
 		// Validate that values and timestamps arrays have the same length
 		if len(jeb.Values) != len(jeb.Timestamps) {
