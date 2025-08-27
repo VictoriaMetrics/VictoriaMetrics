@@ -2108,11 +2108,11 @@ func hasCompositeTagFilters(tfs []*tagFilter, prefix []byte) bool {
 // MatchSimulatedSamples filters the given simulatedSamples against the provided tag filters.
 // It returns only the simulated samples that match any of the given tag filter sets.
 // This function is used for debugging and testing purposes to simulate metric queries.
-func MatchSimulatedSamples(accountID, projectID uint32, simulatedSamples []*SimulatedSamples, tagFilterss [][]TagFilter) ([]*SimulatedSamples, error) {
+func MatchSimulatedSamples(simulatedSamples []*SimulatedSamples, tagFilterss [][]TagFilter) ([]*SimulatedSamples, error) {
 	var kb bytesutil.ByteBuffer
 	matchedSamples := make([]*SimulatedSamples, 0, 1)
 	for _, rawTfs := range tagFilterss {
-		tfs := NewTagFilters(accountID, projectID)
+		tfs := NewTagFilters()
 		for _, tf := range rawTfs {
 			err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp)
 			if err != nil {

@@ -1207,6 +1207,10 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
 func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutil.Deadline) (*Results, error) {
+	if len(sq.SimulatedSeries) > 0 {
+		return processSearchSimulated(qt, sq, deadline)
+	}
+
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1377,6 +1381,41 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	rss.sr = sr
 	rss.tbf = tbf
 	return &rss, nil
+}
+
+func processSearchSimulated(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutil.Deadline) (*Results, error) {
+	qt = qt.NewChild("fetch matching series (simulated): %s", sq)
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+
+	tr := storage.TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+
+	// Process simulated samples.
+	matchedSamples, err := storage.MatchSimulatedSamples(sq.SimulatedSeries, sq.TagFilterss)
+	if err != nil {
+		return nil, fmt.Errorf("cannot match simulated samples: %w", err)
+	}
+
+	// Create a result set similar to ProcessSearchQuery
+	rss := &Results{
+		tr:              tr,
+		deadline:        deadline,
+		isSimulated:     true,
+		simulatedSeries: matchedSamples,
+	}
+
+	if len(matchedSamples) == 0 {
+		qt.Printf("no matching series found")
+	} else {
+		qt.Printf("found %d series", len(rss.simulatedSeries))
+	}
+
+	return rss, nil
 }
 
 type blockRef struct {
