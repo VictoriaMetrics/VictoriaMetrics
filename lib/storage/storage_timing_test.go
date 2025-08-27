@@ -358,13 +358,11 @@ func benchmarkSearch_variableSeries(b *testing.B, graphite bool, op func(b *test
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	for _, numSeries := range []int{
-		1e2, 2e2, 3e2, 4e2, 5e2, 6e2, 7e2, 8e2, 9e2,
-		1e3, 2e3, 3e3, 4e3, 5e3, 6e3, 7e3, 8e3, 9e3,
-		1e4, 2e4, 3e4, 4e4, 5e4, 6e4, 7e4, 8e4, 9e4,
-		1e5, 2e5, 3e5, 4e5, 5e5, 6e5, 7e5, 8e5, 9e5,
-		1e6,
-	} {
+	// Using only a few numbers that represent orders of magnitude so that
+	// routine running of the benchmarks does not take too long. However, when
+	// debugging it is often helpful to add more numbers in between these
+	// numbers.
+	for _, numSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
 		name := fmt.Sprintf("%d", numSeries)
 		b.Run(name, func(b *testing.B) {
 			benchmarkSearch(b, graphite, numSeries, numDeletedSeries, tr, op)
@@ -373,20 +371,22 @@ func benchmarkSearch_variableSeries(b *testing.B, graphite bool, op func(b *test
 }
 
 // benchmarkSearch_variableDeletedSeries measures the execution time of some
-// storage operation on a fixed time, variable number of series and variable
+// storage operation on a fixed time, fixed number of series and variable
 // number of deleted series.
 func benchmarkSearch_variableDeletedSeries(b *testing.B, graphite bool, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
+	// Deployments that we aware of often have tens and hundreds of thouthands
+	// series in their query results, sometimes even millions. Chosen 100K as
+	// something in the middle.
+	const numSeries = 100_000
 	tr := TimeRange{
 		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	for _, numSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
-		for _, numDeletedSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
-			name := fmt.Sprintf("%d-%d", numSeries, numDeletedSeries)
-			b.Run(name, func(b *testing.B) {
-				benchmarkSearch(b, graphite, numSeries, numDeletedSeries, tr, op)
-			})
-		}
+	for _, numDeletedSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
+		name := fmt.Sprintf("%d-%d", numSeries, numDeletedSeries)
+		b.Run(name, func(b *testing.B) {
+			benchmarkSearch(b, graphite, numSeries, numDeletedSeries, tr, op)
+		})
 	}
 }
 
