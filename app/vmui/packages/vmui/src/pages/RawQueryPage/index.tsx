@@ -98,7 +98,7 @@ const RawQueryPage: FC = () => {
       })}
     >
       <QueryConfigurator
-        label={"Time series selector"}
+        label="Time series selector"
         queryErrors={!hideError ? queryErrors : []}
         setQueryErrors={setQueryErrors}
         setHideError={setHideError}

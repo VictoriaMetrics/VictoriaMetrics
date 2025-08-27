@@ -22,10 +22,11 @@ import (
 // AlertManager represents integration provider with Prometheus alert manager
 // https://github.com/prometheus/alertmanager
 type AlertManager struct {
-	addr    *url.URL
-	argFunc AlertURLGenerator
-	client  *http.Client
-	timeout time.Duration
+	addr      *url.URL
+	argFunc   AlertURLGenerator
+	client    *http.Client
+	timeout   time.Duration
+	lastError string
 
 	authCfg *promauth.Config
 	// stores already parsed RelabelConfigs object
@@ -71,6 +72,10 @@ func (am AlertManager) Addr() string {
 	return am.addr.Redacted()
 }
 
+func (am *AlertManager) LastError() string {
+	return am.lastError
+}
+
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	am.metrics.alertsSent.Add(len(alerts))
@@ -79,6 +84,9 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[st
 	am.metrics.alertsSendDuration.UpdateDuration(startTime)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
+		am.lastError = err.Error()
+	} else {
+		am.lastError = ""
 	}
 	return err
 }
