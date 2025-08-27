@@ -740,8 +740,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	case "prometheus/extract-metric-exprs", "extract-metric-exprs":
 		startTime := time.Now()
-		qt := querytracer.New(httputil.GetBool(r, "trace"), "%s", r.URL.Path)
-		if err := prometheus.ExtractMetricExprsHandler(qt, startTime, w, r); err != nil {
+		if err := prometheus.ExtractMetricExprsHandler(startTime, w, r); err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}

@@ -321,7 +321,7 @@ ignoring(path) (
         sum(vm_rows{job=~"$job", instance=~"$instance", type="indexdb/file"})
     )
 )`
-	metrics, err := extractMetricsFromQuery(query)
+	metrics, err := ExtractMetricsFromQuery(query)
 	if err != nil {
 		t.Fatalf(`unexpected error when extracting metrics from query: %s`, err)
 	}

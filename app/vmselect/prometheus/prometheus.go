@@ -756,7 +756,7 @@ func ConfigHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 // ExtractMetricExprsHandler processes /extract-metric-exprs request.
 //
 // It extracts metric expressions from a given PromQL query.
-func ExtractMetricExprsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func ExtractMetricExprsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	query := r.FormValue("query")
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -770,7 +770,7 @@ func ExtractMetricExprsHandler(qt *querytracer.Tracer, startTime time.Time, w ht
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteExtractMetricExprsResponse(bw, metrics, qt)
+	WriteExtractMetricExprsResponse(bw, metrics)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send extract metric exprs response to remote client: %w", err)
 	}
@@ -1205,7 +1205,9 @@ func populateSimulatedData(r *http.Request, at *auth.Token, evalConfig *promql.E
 			return fmt.Errorf("mismatched values and timestamps arrays length in debug data on line %d: values=%d, timestamps=%d", lineNum, len(jeb.Values), len(jeb.Timestamps))
 		}
 
-		var mn = storage.GetMetricNameNoCache(accountID, projectID)
+		var mn = *storage.GetMetricName()
+		mn.AccountID = accountID
+		mn.ProjectID = projectID
 		for k, v := range jeb.Metric {
 			mn.AddTag(k, v)
 		}
