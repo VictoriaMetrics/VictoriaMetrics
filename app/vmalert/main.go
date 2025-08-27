@@ -226,7 +226,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		labels[s[:n]] = s[n+1:]
 	}
 
-	nts, err := notifier.Init(notifier.AlertURLGeneratorFn, labels, *externalURL)
+	nts, err := notifier.Init(labels, *externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
