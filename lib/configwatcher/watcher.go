@@ -84,15 +84,20 @@ func Init() {
 			defer ticker.Stop()
 		}
 		for {
+
 			select {
 			case <-sighupCh:
+				mux.Lock()
 				for _, h := range signalHandlers {
 					h.handler()
 				}
+				mux.Unlock()
 			case <-tickerCh:
+				mux.Lock()
 				for _, h := range checkIntervalHandlers {
 					h.handler()
 				}
+				mux.Unlock()
 			case <-stopChan:
 				return
 			}
