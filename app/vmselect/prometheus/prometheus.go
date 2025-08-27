@@ -1208,7 +1208,6 @@ func populateSimulatedData(r *http.Request, at *auth.Token, evalConfig *promql.E
 			return fmt.Errorf("error decoding input JSON on line %d: %w", lineNum, err)
 		}
 
-
 		// Validate that values and timestamps arrays have the same length
 		if len(jeb.Values) != len(jeb.Timestamps) {
 			return fmt.Errorf("mismatched values and timestamps arrays length in debug data on line %d: values=%d, timestamps=%d", lineNum, len(jeb.Values), len(jeb.Timestamps))

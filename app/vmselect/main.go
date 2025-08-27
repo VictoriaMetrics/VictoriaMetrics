@@ -398,11 +398,9 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		}
 		return true
 	case "prometheus/api/v1/config":
-		configRequests.Inc()
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.ConfigHandler(qt, startTime, w, r); err != nil {
-			configErrors.Inc()
-			httpserver.SendPrometheusError(w, r, err)
+			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		return true
@@ -955,9 +953,6 @@ var (
 
 	metricNamesStatsResetRequests = metrics.NewCounter(`vm_http_requests_total{path="/admin/api/v1/admin/status/metric_names_stats/reset"}`)
 	metricNamesStatsResetErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/admin/api/v1/admin/status/metric_names_stats/reset"}`)
-
-	configRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/config"}`)
-	configErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/config"}`)
 
 	extractMetricExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/extract-metric-exprs"}`)
 	extractMetricExprsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/extract-metric-exprs"}`)
