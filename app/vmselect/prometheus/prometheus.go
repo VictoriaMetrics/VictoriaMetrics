@@ -901,6 +901,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 
 	ct := startTime.UnixNano() / 1e6
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
+	isDebug := httputil.GetBool(r, "debug")
+	noCache := httputil.GetBool(r, "nocache") || isDebug
 	query := r.FormValue("query")
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -995,9 +997,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	} else {
 		queryOffset = 0
 	}
-	isDebug := httputil.GetBool(r, "debug")
-	mayCache := !httputil.GetBool(r, "nocache") && !isDebug
-	ec := newEvalConfig(r, start, start, step, deadline, mayCache, lookbackDelta, isDebug, etfs)
+	ec := newEvalConfig(r, start, start, step, deadline, noCache, lookbackDelta, isDebug, etfs)
 	err = populateAuthTokens(qt, ec, at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot populate auth tokens: %w", err)
@@ -1083,7 +1083,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	isDebug := httputil.GetBool(r, "debug")
-	mayCache := !httputil.GetBool(r, "nocache") && !isDebug
+	noCache := httputil.GetBool(r, "nocache") || isDebug
 	lookbackDelta, err := getMaxLookback(r, *maxStalenessInterval)
 	if err != nil {
 		return err
@@ -1099,11 +1099,11 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	if err := promql.ValidateMaxPointsPerSeries(start, end, step, *maxPointsPerTimeseries); err != nil {
 		return fmt.Errorf("%w; (see -search.maxPointsPerTimeseries command-line flag)", err)
 	}
-	if mayCache {
+	if !noCache {
 		start, end = promql.AdjustStartEnd(start, end, step)
 	}
 
-	ec := newEvalConfig(r, start, end, step, deadline, mayCache, lookbackDelta, isDebug, etfs)
+	ec := newEvalConfig(r, start, end, step, deadline, noCache, lookbackDelta, isDebug, etfs)
 	err = populateAuthTokens(qt, ec, at, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot populate auth tokens: %w", err)
@@ -1151,7 +1151,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	return nil
 }
 
-func newEvalConfig(r *http.Request, start, end, step int64, deadline searchutil.Deadline, mayCache bool, lookbackDelta int64, isDebug bool, etfs [][]storage.TagFilter) *promql.EvalConfig {
+func newEvalConfig(r *http.Request, start, end, step int64, deadline searchutil.Deadline, noCache bool, lookbackDelta int64, isDebug bool, etfs [][]storage.TagFilter) *promql.EvalConfig {
 	ec := &promql.EvalConfig{
 		Start:                start,
 		End:                  end,
@@ -1161,7 +1161,7 @@ func newEvalConfig(r *http.Request, start, end, step int64, deadline searchutil.
 		MinStalenessInterval: *minStalenessInterval,
 		QuotedRemoteAddr:     httpserver.GetQuotedRemoteAddr(r),
 		Deadline:             deadline,
-		NoCache:              !mayCache,
+		NoCache:              noCache,
 		LookbackDelta:        lookbackDelta,
 		RoundDigits:          getRoundDigits(r),
 		EnforcedTagFilterss:  etfs,
