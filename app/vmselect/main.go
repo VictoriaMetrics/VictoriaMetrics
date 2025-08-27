@@ -262,6 +262,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/api/v1/config":
+		httpserver.EnableCORS(w, r)
+		if err := prometheus.ConfigHandler(qt, startTime, w, r); err != nil {
+			httpserver.SendPrometheusError(w, r, err)
+			return true
+		}
+		return true
 	case "/api/v1/export":
 		exportRequests.Inc()
 		if err := prometheus.ExportHandler(startTime, w, r); err != nil {

@@ -2105,6 +2105,43 @@ func hasCompositeTagFilters(tfs []*tagFilter, prefix []byte) bool {
 	return false
 }
 
+// MatchSimulatedSamples filters the given simulatedSamples against the provided tag filters.
+// It returns only the simulated samples that match any of the given tag filter sets.
+// This function is used for debugging and testing purposes to simulate metric queries.
+func MatchSimulatedSamples(accountID, projectID uint32, simulatedSamples []*SimulatedSamples, tagFilterss [][]TagFilter) ([]*SimulatedSamples, error) {
+	var kb bytesutil.ByteBuffer
+	matchedSamples := make([]*SimulatedSamples, 0, 1)
+	for _, rawTfs := range tagFilterss {
+		tfs := NewTagFilters(accountID, projectID)
+		for _, tf := range rawTfs {
+			err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp)
+			if err != nil {
+				return nil, fmt.Errorf("cannot add tagFilter %s: %w", tf.String(), err)
+			}
+		}
+
+		for idx, mn := range simulatedSamples {
+			ok, err := matchTagFilters(&mn.Name, toTFPointers(tfs.tfs), &kb)
+			if err != nil {
+				return nil, fmt.Errorf("cannot match MetricName %s against tagFilters: %w", mn.Name.String(), err)
+			}
+			if ok {
+				matchedSamples = append(matchedSamples, simulatedSamples[idx])
+			}
+		}
+	}
+
+	return matchedSamples, nil
+}
+
+func toTFPointers(tfs []tagFilter) []*tagFilter {
+	tfps := make([]*tagFilter, len(tfs))
+	for i := range tfs {
+		tfps[i] = &tfs[i]
+	}
+	return tfps
+}
+
 func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer) (bool, error) {
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
 	for i, tf := range tfs {

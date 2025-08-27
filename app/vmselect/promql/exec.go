@@ -61,12 +61,15 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		}
 	}
 
+	var rv []*timeseries
+
 	qid := activeQueriesV.Add(ec, q)
-	rv, err := evalExpr(qt, ec, e)
+	rv, err = evalExpr(qt, ec, e)
 	activeQueriesV.Remove(qid)
 	if err != nil {
 		return nil, err
 	}
+
 	if isFirstPointOnly {
 		// Remove all the points except the first one from every time series.
 		for _, ts := range rv {
@@ -324,4 +327,29 @@ func escapeDots(s string) string {
 		}
 	}
 	return string(result)
+}
+
+func extractMetricsFromQuery(query string) ([]string, error) {
+	expr, err := metricsql.Parse(query)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing query: %w", err)
+	}
+
+	var metrics []string
+	metricsql.VisitAll(expr, func(e metricsql.Expr) {
+		if me, ok := e.(*metricsql.MetricExpr); ok {
+			metricStr := string(me.AppendString(nil))
+			if metricStr != "" {
+				metrics = append(metrics, metricStr)
+			}
+		}
+	})
+
+	return metrics, nil
+}
+
+// ExtractMetricsFromQuery extracts metric expressions from a PromQL query.
+// This is the exported version of extractMetricsFromQuery.
+func ExtractMetricsFromQuery(query string) ([]string, error) {
+	return extractMetricsFromQuery(query)
 }

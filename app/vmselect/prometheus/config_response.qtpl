@@ -1,0 +1,20 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+) %}
+
+{% stripspace %}
+
+ConfigResponse generates response for /api/v1/config .
+{% func ConfigResponse(config *ConfigData, qt *querytracer.Tracer) %}
+{
+	"status":"success",
+	"data":{
+		"minStalenessInterval": {%q= config.MinStalenessInterval %},
+		"maxStalenessInterval": {%q= config.MaxStalenessInterval %}
+	}
+	{% code	qt.Done() %}
+	{%= dumpQueryTrace(qt) %}
+}
+{% endfunc %}
+
+{% endstripspace %} 
