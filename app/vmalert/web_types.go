@@ -28,6 +28,8 @@ type apiNotifier struct {
 type apiTarget struct {
 	Address string            `json:"address"`
 	Labels  map[string]string `json:"labels"`
+	// LastError contains the error faced while sending to notifier.
+	LastError string `json:"lastError"`
 }
 
 // apiAlert represents a notifier.AlertingRule state
@@ -109,11 +111,16 @@ type apiGroup struct {
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	EvalDelay float64 `json:"eval_delay,omitempty"`
 	// Unhealthy unhealthy rules count
-	Unhealthy int
+	unhealthy int
 	// Healthy passing rules count
-	Healthy int
+	healthy int
 	// NoMatch not matching rules count
-	NoMatch int
+	noMatch int
+}
+
+// APILink returns a link to the group's JSON representation.
+func (ag *apiGroup) APILink() string {
+	return fmt.Sprintf("api/v1/group?%s=%s", paramGroupID, ag.ID)
 }
 
 // groupAlerts represents a group of alerts for WEB view

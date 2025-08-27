@@ -30,6 +30,8 @@ var (
 		{"api/v1/alerts", "list all active alerts"},
 		{"api/v1/notifiers", "list all notifiers"},
 		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
+		{fmt.Sprintf("api/v1/rule?%s=<int>&%s=<int>", paramGroupID, paramRuleID), "get rule status by group and rule ID"},
+		{fmt.Sprintf("api/v1/group?%s=<int>", paramGroupID), "get group status by group ID"},
 	}
 	systemLinks = [][2]string{
 		{"vmalert/groups", "UI"},
@@ -195,6 +197,20 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 		return true
+	case "/vmalert/api/v1/group", "/api/v1/group":
+		group, err := rh.getGroup(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		data, err := json.Marshal(group)
+		if err != nil {
+			httpserver.Errorf(w, r, "failed to marshal group: %s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
 	case "/-/reload":
 		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
 			return true
@@ -207,6 +223,18 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		return false
 	}
+}
+
+func (rh *requestHandler) getGroup(r *http.Request) (*apiGroup, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
+	}
+	obj, err := rh.m.groupAPI(groupID)
+	if err != nil {
+		return nil, errResponse(err, http.StatusNotFound)
+	}
+	return obj, nil
 }
 
 func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
@@ -337,12 +365,12 @@ func (rh *requestHandler) groups(rf *rulesFilter) []*apiGroup {
 				rule.Alerts = nil
 			}
 			if rule.LastError != "" {
-				g.Unhealthy++
+				g.unhealthy++
 			} else {
-				g.Healthy++
+				g.healthy++
 			}
 			if isNoMatch(rule) {
-				g.NoMatch++
+				g.noMatch++
 			}
 			filteredRules = append(filteredRules, rule)
 		}
@@ -459,8 +487,9 @@ func (rh *requestHandler) listNotifiers() ([]byte, error) {
 		}
 		for _, target := range protoTargets {
 			notifier.Targets = append(notifier.Targets, &apiTarget{
-				Address: target.Addr(),
-				Labels:  target.Labels.ToMap(),
+				Address:   target.Addr(),
+				Labels:    target.Labels.ToMap(),
+				LastError: target.LastError(),
 			})
 		}
 		lr.Data.Notifiers = append(lr.Data.Notifiers, notifier)
