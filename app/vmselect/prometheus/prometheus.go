@@ -1057,15 +1057,17 @@ func populateSimulatedData(r *http.Request, at *auth.Token, evalConfig *promql.E
 		}
 
 		var mn = storage.GetMetricName()
+		defer storage.PutMetricName(mn)
 		for k, v := range jeb.Metric {
 			mn.AddTag(k, v)
 		}
 
-		simulatedSeries = append(simulatedSeries, &storage.SimulatedSamples{
-			Name:       *mn,
+		ss := &storage.SimulatedSamples{
 			Value:      jeb.Values,
 			Timestamps: jeb.Timestamps,
-		})
+		}
+		ss.Name.CopyFrom(mn)
+		simulatedSeries = append(simulatedSeries, ss)
 		lineNum++
 	}
 

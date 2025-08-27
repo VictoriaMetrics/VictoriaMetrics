@@ -316,7 +316,12 @@ func (rss *Results) runParallelSimulated(qt *querytracer.Tracer, f func(rs *Resu
 		}
 	}
 
-	qt.Donef("series=%d, samples=%d", len(rss.simulatedSeries), len(rss.simulatedSeries))
+	// Count total samples across all series
+	totalSamples := 0
+	for _, metric := range rss.simulatedSeries {
+		totalSamples += len(metric.Timestamps)
+	}
+	qt.Donef("series=%d, samples=%d", len(rss.simulatedSeries), totalSamples)
 
 	return firstErr
 }

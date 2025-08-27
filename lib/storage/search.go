@@ -323,16 +323,18 @@ type SimulatedSamples struct {
 }
 
 // NewSimulatedSeries creates a new SimulatedSamples instance with the given parameters.
-// It constructs a metric name from the provided accountID, projectID and metric labels.
-func NewSimulatedSeries(accountID, projectID uint32, metric map[string]string, timestamp []int64, value []float64) *SimulatedSamples {
+// It constructs a metric name from the provided metric labels.
+func NewSimulatedSeries(metric map[string]string, timestamp []int64, value []float64) *SimulatedSamples {
 	ss := &SimulatedSamples{
 		Timestamps: timestamp,
 		Value:      value,
 	}
-	ss.Name = *GetMetricName()
+	mn := GetMetricName()
+	defer PutMetricName(mn)
 	for k, v := range metric {
-		ss.Name.AddTag(k, v)
+		mn.AddTag(k, v)
 	}
+	ss.Name.CopyFrom(mn)
 	return ss
 }
 
