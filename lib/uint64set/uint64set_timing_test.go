@@ -154,6 +154,66 @@ func benchmarkIntersect(b *testing.B, sa, sb *Set) {
 	})
 }
 
+func BenchmarkSubtract(b *testing.B) {
+	f := func(b *testing.B, startA, itemsCountA, startB, itemsCountB uint64) {
+		sa := createRangeSet(startA, int(itemsCountA))
+		sb := createRangeSet(startB, int(itemsCountB))
+		b.ReportAllocs()
+		b.SetBytes(int64(sa.Len() + sb.Len()))
+		for b.Loop() {
+			saCopy := sa.Clone()
+			saCopy.Subtract(sb)
+		}
+	}
+
+	start := uint64(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixNano())
+	itemsACounts := []uint64{1e3, 1e4, 1e5, 1e6, 1e7}
+	itemsBCounts := []uint64{1e7, 1e6, 1e5, 1e4, 1e3}
+	for i := range len(itemsACounts) {
+		itemsCountA := itemsACounts[i]
+		itemsCountB := itemsBCounts[i]
+
+		b.Run(fmt.Sprintf("-----NoOverlap-AbeforeB-A%d-B%d", itemsCountA, itemsCountB), func(b *testing.B) {
+			f(b, start, itemsCountA, start+itemsCountA, itemsCountB)
+		})
+		b.Run(fmt.Sprintf("-----NoOverlap-AbeforeB-B%d-A%d", itemsCountB, itemsCountA), func(b *testing.B) {
+			f(b, start+itemsCountA, itemsCountB, start, itemsCountA)
+		})
+		b.Run(fmt.Sprintf("-----NoOverlap-BbeforeA-A%d-B%d", itemsCountA, itemsCountB), func(b *testing.B) {
+			f(b, start-itemsCountA, itemsCountA, start, itemsCountB)
+		})
+		b.Run(fmt.Sprintf("-----NoOverlap-BbeforeA-B%d-A%d", itemsCountB, itemsCountA), func(b *testing.B) {
+			f(b, start, itemsCountB, start-itemsCountA, itemsCountA)
+		})
+
+		b.Run(fmt.Sprintf("PartialOverlap-AbeforeB-A%d-B%d", itemsCountA, itemsCountB), func(b *testing.B) {
+			f(b, start, itemsCountA, start+itemsCountA-itemsCountB/2, itemsCountB)
+		})
+		b.Run(fmt.Sprintf("PartialOverlap-AbeforeB-B%d-A%d", itemsCountB, itemsCountA), func(b *testing.B) {
+			f(b, start+itemsCountA-itemsCountB/2, itemsCountB, start, itemsCountA)
+		})
+		b.Run(fmt.Sprintf("PartialOverlap-BbeforeA-A%d-B%d", itemsCountA, itemsCountB), func(b *testing.B) {
+			f(b, start+itemsCountB/2, itemsCountA, start, itemsCountB)
+		})
+		b.Run(fmt.Sprintf("PartialOverlap-BbeforeA-B%d-A%d", itemsCountB, itemsCountA), func(b *testing.B) {
+			f(b, start, itemsCountB, start+itemsCountB/2, itemsCountA)
+		})
+
+		b.Run(fmt.Sprintf("---FullOverlap-AbeforeB-A%d-B%d", itemsCountA, itemsCountB), func(b *testing.B) {
+			f(b, start, itemsCountA, start+itemsCountA-itemsCountB, itemsCountB)
+		})
+		b.Run(fmt.Sprintf("---FullOverlap-AbeforeB-B%d-A%d", itemsCountB, itemsCountA), func(b *testing.B) {
+			f(b, start+itemsCountA-itemsCountB, itemsCountB, start, itemsCountA)
+		})
+		b.Run(fmt.Sprintf("---FullOverlap-BbeforeA-A%d-B%d", itemsCountA, itemsCountB), func(b *testing.B) {
+			f(b, start+itemsCountB, itemsCountA, start, itemsCountB)
+		})
+		b.Run(fmt.Sprintf("---FullOverlap-BbeforeA-B%d-A%d", itemsCountB, itemsCountA), func(b *testing.B) {
+			f(b, start, itemsCountB, start+itemsCountB, itemsCountA)
+		})
+	}
+}
+
 func createRangeSet(start uint64, itemsCount int) *Set {
 	var s Set
 	for i := 0; i < itemsCount; i++ {
