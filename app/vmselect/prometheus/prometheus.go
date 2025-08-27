@@ -768,7 +768,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	ct := startTime.UnixNano() / 1e6
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
 	isDebug := httputil.GetBool(r, "debug")
-	mayCache := !httputil.GetBool(r, "nocache") && !isDebug
+	noCache := httputil.GetBool(r, "nocache") || isDebug
 	query := r.FormValue("query")
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -863,7 +863,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	} else {
 		queryOffset = 0
 	}
-	ec := newEvalConfig(r, start, start, step, deadline, mayCache, lookbackDelta, isDebug, etfs)
+	ec := newEvalConfig(r, start, start, step, deadline, noCache, lookbackDelta, isDebug, etfs)
 	if isDebug {
 		if err := populateSimulatedData(r, nil, ec); err != nil {
 			_ = r.Body.Close()
