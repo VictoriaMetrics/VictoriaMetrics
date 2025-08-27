@@ -394,7 +394,7 @@ func benchmarkSearch_variableDeletedSeries(b *testing.B, graphite bool, op func(
 		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
 	for _, numDeletedSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
-		name := fmt.Sprintf("%d-%d", numSeries, numDeletedSeries)
+		name := fmt.Sprintf("%d", numDeletedSeries)
 		b.Run(name, func(b *testing.B) {
 			benchmarkSearch(b, graphite, numSeries, numDeletedSeries, tr, op)
 		})
@@ -406,7 +406,7 @@ func benchmarkSearch_variableDeletedSeries(b *testing.B, graphite bool, op func(
 // deleted series is 0.
 func benchmarkSearch_variableTimeRange(b *testing.B, graphite bool, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
 	const (
-		numSeries        = 100
+		numSeries        = 100_000
 		numDeletedSeries = 0
 	)
 	tr1d := TimeRange{
