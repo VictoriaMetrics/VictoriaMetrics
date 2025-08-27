@@ -126,7 +126,7 @@ var (
 //   - configuration via file. Supports live reloads and service discovery.
 //
 // Init returns an error if both mods are used.
-func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (func() []Notifier, error) {
+func Init(extLabels map[string]string, extURL string) (func() []Notifier, error) {
 	externalURL = extURL
 	externalLabels = extLabels
 	_, err := url.Parse(externalURL)
@@ -153,7 +153,7 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 	}
 
 	if len(*addrs) > 0 {
-		notifiers, err := notifiersFromFlags(gen)
+		notifiers, err := notifiersFromFlags(AlertURLGeneratorFn)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create notifier from flag values: %w", err)
 		}
@@ -163,7 +163,7 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 		return staticNotifiersFn, nil
 	}
 
-	cw, err = newWatcher(*configPath, gen)
+	cw, err = newWatcher(*configPath, AlertURLGeneratorFn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init config watcher: %w", err)
 	}

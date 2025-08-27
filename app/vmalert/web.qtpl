@@ -114,7 +114,7 @@
         {%= Controls(prefix, currentIcon, currentText, icons, filters, true) %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups %}
-                <div id="group-{%s g.ID %}" class="d-flex w-100 border-0 flex-column group-items{% if g.unhealthy > 0 %} alert-danger{% endif %}">
+                <div id="group-{%s g.ID %}" class="d-flex w-100 border-0 flex-column group-items{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
                     <span class="d-flex justify-content-between">
                         <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
                         <span
@@ -124,9 +124,9 @@
                             data-bs-target="#sub-{%s g.ID %}"
                         >
                             <span class="d-flex gap-2">
-                                {% if g.unhealthy > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.unhealthy %}</span> {% endif %}
-                                {% if g.noMatch > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d g.noMatch %}</span> {% endif %}
-                                <span class="badge bg-success" title="Number of rules with status Ok">{%d g.healthy %}</span>
+                                {% if g.Unhealthy > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.Unhealthy %}</span> {% endif %}
+                                {% if g.NoMatch > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d g.NoMatch %}</span> {% endif %}
+                                <span class="badge bg-success" title="Number of rules with status Ok">{%d g.Healthy %}</span>
                             </span>
                         </span>
                     </span>

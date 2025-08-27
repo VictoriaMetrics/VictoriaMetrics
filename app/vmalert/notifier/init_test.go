@@ -14,7 +14,7 @@ func TestInit(t *testing.T) {
 
 	*addrs = flagutil.ArrayString{"127.0.0.1", "127.0.0.2"}
 
-	fn, err := Init(nil, nil, "")
+	fn, err := Init(nil, "")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -54,7 +54,7 @@ func TestInitNegative(t *testing.T) {
 		*configPath = path
 		*addrs = flagutil.ArrayString{addr}
 		*blackHole = bh
-		if _, err := Init(nil, nil, ""); err == nil {
+		if _, err := Init(nil, ""); err == nil {
 			t.Fatalf("expected to get error; got nil instead")
 		}
 	}
@@ -71,7 +71,7 @@ func TestBlackHole(t *testing.T) {
 
 	*blackHole = true
 
-	fn, err := Init(nil, nil, "")
+	fn, err := Init(nil, "")
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
