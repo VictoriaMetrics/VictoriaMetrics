@@ -3,17 +3,14 @@
 package workingsetcache
 
 import (
-	"os"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/VictoriaMetrics/fastcache"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestStats_split(t *testing.T) {
+func TestStats_Split_SetGet(t *testing.T) {
 	synctest.Run(func() {
 		var (
 			k1, v1 = []byte("k1"), []byte("v1")
@@ -102,7 +99,162 @@ func TestStats_split(t *testing.T) {
 	})
 }
 
-func TestStats_whole(t *testing.T) {
+func TestStats_Split_SetBigGetBig(t *testing.T) {
+	const maxSubvalueLen = 64*1024 - 16 - 4 - 1
+	synctest.Run(func() {
+		v := func(seed, size int) []byte {
+			var buf []byte
+			for i := 0; i < size; i++ {
+				buf = append(buf, byte(i+seed))
+			}
+			return buf
+		}
+		var (
+			k1, v1  = []byte("k1"), v(1, maxSubvalueLen-1)
+			k2, v2  = []byte("k2"), v(2, maxSubvalueLen)
+			k3, v3  = []byte("k3"), v(3, maxSubvalueLen+1)
+			k4, v4  = []byte("k4"), v(4, 2*maxSubvalueLen)
+			k5, v5  = []byte("k5"), v(5, 2*maxSubvalueLen+1)
+			kAbsent = []byte("absent")
+			dst     []byte
+		)
+
+		c := New(1024 * 1024 * 20)
+		defer c.Stop()
+		assertMode(t, c, split)
+		assertStats(t, c, fastcache.Stats{})
+
+		c.SetBig(k1, v1)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 2, // SetBig creates at least 2 entries per call.
+			SetCalls:     1,
+		})
+		c.SetBig(k2, v2)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 4,
+			SetCalls:     2,
+		})
+		c.SetBig(k3, v3)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 7,
+			SetCalls:     3,
+		})
+		c.SetBig(k4, v4)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 10,
+			SetCalls:     4,
+		})
+		c.SetBig(k5, v5)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 14,
+			SetCalls:     5,
+		})
+
+		c.Get(dst[:0], k1)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 14,
+			SetCalls:     5,
+			GetCalls:     1,
+		})
+		c.Get(dst[:0], k3)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 14,
+			SetCalls:     5,
+			GetCalls:     2,
+		})
+
+		c.Get(dst[:0], kAbsent)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 14,
+			SetCalls:     5,
+			GetCalls:     3,
+			Misses:       1,
+		})
+
+		// Wait until prev and curr cache are rotated.
+		// k1-5 are now in prev, curr is empty.
+		time.Sleep(*cacheExpireDuration + time.Minute)
+		synctest.Wait()
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 14,
+			SetCalls:     5,
+			GetCalls:     3,
+			Misses:       1,
+		})
+
+		c.GetBig(dst[:0], k1)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 14,
+			SetCalls:     5,
+			GetCalls:     4,
+			Misses:       1,
+		})
+
+		c.GetBig(dst[:0], k3)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 14,
+			SetCalls:     5,
+			GetCalls:     5,
+			Misses:       1,
+		})
+
+		c.GetBig(dst[:0], k5)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 14,
+			SetCalls:     5,
+			GetCalls:     6,
+			Misses:       1,
+		})
+
+		// Wait until prev and curr caches are rotated.
+		// k1,3,5 are now in prev, k2,4 are gone, curr is empty.
+		time.Sleep(*cacheExpireDuration + time.Minute)
+		synctest.Wait()
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 9, // 14-2-3
+			SetCalls:     5,
+			GetCalls:     6,
+			Misses:       1,
+		})
+
+		c.GetBig(dst[:0], k2)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 9,
+			SetCalls:     5,
+			GetCalls:     7,
+			Misses:       2,
+		})
+
+		c.GetBig(dst[:0], k4)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 9,
+			SetCalls:     5,
+			GetCalls:     8,
+			Misses:       3,
+		})
+
+		// Wait until prev and curr caches are rotated.
+		// The both caches should become empty.
+		time.Sleep(*cacheExpireDuration + time.Minute)
+		synctest.Wait()
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 0,
+			SetCalls:     5,
+			GetCalls:     8,
+			Misses:       3,
+		})
+
+		c.GetBig(dst[:0], k1)
+		assertStats(t, c, fastcache.Stats{
+			EntriesCount: 0,
+			SetCalls:     5,
+			GetCalls:     9,
+			Misses:       4,
+		})
+	})
+}
+
+func TestStats_Whole_SetGet(t *testing.T) {
 	defer removeAll(t)
 	synctest.Run(func() {
 		var (
@@ -112,6 +264,8 @@ func TestStats_whole(t *testing.T) {
 			dst    []byte
 		)
 
+		// Cache loaded from file operates in whole mode only if the file was
+		// not empty.
 		c := Load(t.Name(), 1024)
 		c.Set(k1, v1)
 		if err := c.Save(t.Name()); err != nil {
@@ -200,26 +354,4 @@ func TestStats_whole(t *testing.T) {
 		})
 
 	})
-}
-
-func assertMode(t *testing.T, c *Cache, want uint32) {
-	if got := c.mode.Load(); got != want {
-		t.Fatalf("unexpected cache mode: got %d, want %d", got, want)
-	}
-}
-
-func assertStats(t *testing.T, c *Cache, want fastcache.Stats) {
-	t.Helper()
-	var got fastcache.Stats
-	c.UpdateStats(&got)
-	ignoreFields := cmpopts.IgnoreFields(fastcache.Stats{}, "BytesSize", "MaxBytesSize", "EvictedBytes", "BigStats")
-	if diff := cmp.Diff(want, got, ignoreFields); diff != "" {
-		t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
-	}
-}
-
-func removeAll(t *testing.T) {
-	if !t.Failed() {
-		_ = os.RemoveAll(t.Name())
-	}
 }

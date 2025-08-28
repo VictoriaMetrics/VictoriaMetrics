@@ -458,6 +458,7 @@ func (c *Cache) Set(key, value []byte) {
 
 // GetBig appends the found value for the given key to dst and returns the result.
 func (c *Cache) GetBig(dst, key []byte) []byte {
+	c.getCalls.Add(1)
 	curr := c.curr.Load()
 	result := curr.GetBig(dst, key)
 	if len(result) > len(dst) {
@@ -465,6 +466,7 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 		return result
 	}
 	if c.mode.Load() == whole {
+		c.misses.Add(1)
 		// Nothing found.
 		return result
 	}
@@ -473,16 +475,28 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 	prev := c.prev.Load()
 	result = prev.GetBig(dst, key)
 	if len(result) <= len(dst) {
+		c.misses.Add(1)
 		// Nothing found.
 		return result
 	}
 	// Cache the found entry in the current cache.
-	curr.SetBig(key, result[len(dst):])
+	value := result[len(dst):]
+	curr.SetBig(key, value)
+
+	// See fastcache/bigcache.go
+	const maxSubvalueLen = 64*1024 - 16 - 4 - 1
+	numCopiedEntries := len(value) / maxSubvalueLen
+	if numCopiedEntries*maxSubvalueLen < len(value) {
+		numCopiedEntries++
+	}
+	c.copiedFromPrev.Add(1 + uint64(numCopiedEntries))
+
 	return result
 }
 
 // SetBig sets the given value for the given key.
 func (c *Cache) SetBig(key, value []byte) {
+	c.setCalls.Add(1)
 	curr := c.curr.Load()
 	curr.SetBig(key, value)
 }

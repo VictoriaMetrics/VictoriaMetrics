@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/fastcache"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -94,5 +96,34 @@ func testCacheEntriesEqual(t *testing.T, c *fastcache.Cache, expEntries uint64) 
 
 	if s.EntriesCount != expEntries {
 		t.Fatalf("expected %d entries in cache, got %d", expEntries, s.EntriesCount)
+	}
+}
+
+// assertMode checks that the cache mode matches the expected one.
+func assertMode(t *testing.T, c *Cache, want uint32) {
+	t.Helper()
+	if got := c.mode.Load(); got != want {
+		t.Fatalf("unexpected cache mode: got %d, want %d", got, want)
+	}
+}
+
+// assertMode checks that the cache stats matches the expected one.
+func assertStats(t *testing.T, c *Cache, want fastcache.Stats) {
+	t.Helper()
+	var got fastcache.Stats
+	c.UpdateStats(&got)
+	ignoreFields := cmpopts.IgnoreFields(fastcache.Stats{}, "BytesSize", "MaxBytesSize", "EvictedBytes")
+	if diff := cmp.Diff(want, got, ignoreFields); diff != "" {
+		t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
+	}
+}
+
+// removeAll removes the contents of t.Name() directory if the test succeeded.
+// For this to work, a test is expected to store its data in t.Name() dir.
+// In case of test failure the directory is not removed to allow for manual
+// inspection of the directory.
+func removeAll(t *testing.T) {
+	if !t.Failed() {
+		_ = os.RemoveAll(t.Name())
 	}
 }
