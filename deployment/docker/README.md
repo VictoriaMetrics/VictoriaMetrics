@@ -82,7 +82,11 @@ The communication scheme between components is the following:
   and recording rules to `vmagent`;
 * [alertmanager](#alertmanager) is configured to receive notifications from `vmalert`.
 
-<img alt="VictoriaMetrics cluster deployment" width="500" src="assets/vm-cluster.png">
+<picture>
+  <source srcset="assets/vm-cluster-dark.png" media="(prefers-color-scheme: dark)">
+  <source srcset="assets/vm-cluster-light.png" media="(prefers-color-scheme: light)">
+  <img src="assets/vm-cluster-light.png" alt="VictoriaMetrics cluster deployment" width="500" src="assets/vm-cluster-light.png" >
+</picture>
 
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
 
