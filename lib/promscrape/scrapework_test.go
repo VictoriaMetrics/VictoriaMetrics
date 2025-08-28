@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -144,11 +145,10 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 }
 
 func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
-	oldIsmetadataEnabled := *enableMetadata
+	oldMetadataEnabled := prommetadata.SetEnabled(true)
 	defer func() {
-		*enableMetadata = oldIsmetadataEnabled
+		prommetadata.SetEnabled(oldMetadataEnabled)
 	}()
-	*enableMetadata = true
 	f := func(data string, cfg *ScrapeWork, dataExpected string, metaDataExpected []prompb.MetricMetadata) {
 		t.Helper()
 
@@ -599,11 +599,10 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 //
 // The core parsing functionality is validated separately in TestScrapeWorkScrapeInternalSuccess.
 func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
-	oldIsmetadataEnabled := *enableMetadata
+	oldMetadataEnabled := prommetadata.SetEnabled(true)
 	defer func() {
-		*enableMetadata = oldIsmetadataEnabled
+		prommetadata.SetEnabled(oldMetadataEnabled)
 	}()
-	*enableMetadata = true
 	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected, timeseriesExpectedDelta, metadataExpected int64) {
 		t.Helper()
 
