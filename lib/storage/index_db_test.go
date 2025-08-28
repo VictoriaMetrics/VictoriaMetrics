@@ -1704,6 +1704,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err := tfsMetricName.Add(nil, []byte("testMetric"), false, false); err != nil {
 		t.Fatalf("cannot add filter on metric name: %s", err)
 	}
+	tfsComposite := NewTagFilters()
+	if err := tfsComposite.Add(nil, []byte("testMetric"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
 
 	// Perform a search within a day.
 	// This should return the metrics for the day
@@ -1749,6 +1753,16 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
 	}
 
+	// Check SearchLabelNames with filters on composite key and time range.
+	lns, err = idbCurr.SearchLabelNames(nil, []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelNames(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	}
+	got = sortedSlice(lns)
+	if !reflect.DeepEqual(got, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
+	}
+
 	// Check SearchLabelValues with the specified filter.
 	lvs, err = idbCurr.SearchLabelValues(nil, "", []*TagFilters{tfs}, TimeRange{}, 10000, 1e9, noDeadline)
 	if err != nil {
@@ -1775,6 +1789,17 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}
 	got = sortedSlice(lvs)
+	if !reflect.DeepEqual(got, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
+	}
+
+	// Check SearchLabelValues with filters on composite key and time range.
+	lvs, err = idbCurr.SearchLabelValues(nil, "constant", []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	}
+	got = sortedSlice(lvs)
+	labelValues = []string{"const"}
 	if !reflect.DeepEqual(got, labelValues) {
 		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}
