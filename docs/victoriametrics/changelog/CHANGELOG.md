@@ -24,6 +24,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): apply `-search.maxQueryLen` limit to Graphite queries. Previously, this limit was only applied to Prometheus queries.
 * FEATURE: upgrade Go builder from Go1.24.6 to Go1.25. See [Go1.25 release notes](https://tip.golang.org/doc/go1.25).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add export functionality for Query (Table view) and RawQuery tabs in CSV/JSON format. See [#9332](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9332).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): replace `Alerts` tab with `Alerting` tab in vmui. The new `Alerting` tab displays vmalert groups and rules directly in vmui interface without redirecting user to vmalert's WEB UI. Links of format `.*/prometheus/vmalert/.*` will continue working by redirecting to vmalert's UI. This functionality is available only if `-vmalert.proxyURL` is set on vmselect. Some functionality of the new `Alerting` tab requires vmalert to be of the same version as vmselect, or higher.
