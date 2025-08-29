@@ -108,6 +108,9 @@ func mustOpenTable(path string, s *Storage) *table {
 	// Open partitions.
 	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, s)
 
+	// Make sure all the directories inside the path are properly synced.
+	fs.MustSyncPathAndParentDir(path)
+
 	tb := &table{
 		path:                path,
 		smallPartitionsPath: smallPartitionsPath,
@@ -144,10 +147,8 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
 		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath)
 	}
 
-	fs.MustSyncPath(dstSmallDir)
-	fs.MustSyncPath(dstBigDir)
-	fs.MustSyncPath(filepath.Dir(dstSmallDir))
-	fs.MustSyncPath(filepath.Dir(dstBigDir))
+	fs.MustSyncPathAndParentDir(dstSmallDir)
+	fs.MustSyncPathAndParentDir(dstBigDir)
 
 	logger.Infof("created table snapshot for %q at (%q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, time.Since(startTime).Seconds())
 	return dstSmallDir, dstBigDir

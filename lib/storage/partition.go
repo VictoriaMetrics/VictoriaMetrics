@@ -192,8 +192,7 @@ func (pw *partWrapper) decRef() {
 	}
 }
 
-// mustCreatePartition creates new partition for the given timestamp and the given paths
-// to small and big partitions.
+// mustCreatePartition creates new partition for the given timestamp and the given paths to small and big partitions.
 func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) *partition {
 	name := timestampToPartitionName(timestamp)
 	smallPartsPath := filepath.Join(filepath.Clean(smallPartitionsPath), name)
@@ -207,6 +206,9 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 	tr.fromPartitionTimestamp(timestamp)
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, tr, s)
+
+	fs.MustSyncPathAndParentDir(smallPartsPath)
+	fs.MustSyncPathAndParentDir(bigPartsPath)
 
 	pt.startBackgroundWorkers()
 
@@ -242,6 +244,10 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
+	// Create paths to parts if they are missing.
+	fs.MustMkdirIfNotExist(smallPartsPath)
+	fs.MustMkdirIfNotExist(bigPartsPath)
+
 	name := filepath.Base(smallPartsPath)
 	var tr TimeRange
 	if err := tr.fromPartitionName(name); err != nil {
@@ -267,6 +273,9 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 	pt := newPartition(name, smallPartsPath, bigPartsPath, tr, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
+
+	fs.MustSyncPathAndParentDir(smallPartsPath)
+	fs.MustSyncPathAndParentDir(bigPartsPath)
 
 	pt.startBackgroundWorkers()
 
@@ -1917,9 +1926,6 @@ func getPartsSize(pws []*partWrapper) uint64 {
 }
 
 func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
-	// The path can be missing after restoring from backup, so create it if needed.
-	fs.MustMkdirIfNotExist(path)
-
 	// Remove txn and tmp directories, which may be left after the upgrade
 	// to v1.90.0 and newer versions.
 	fs.MustRemoveDir(filepath.Join(path, "txn"))
@@ -1955,7 +1961,6 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 			fs.MustRemoveDir(deletePath)
 		}
 	}
-	fs.MustSyncPath(path)
 
 	// Open parts
 	var pws []*partWrapper
@@ -2003,6 +2008,9 @@ func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath string) {
 	pt.mustCreateSnapshot(pt.smallPartsPath, smallPath, pwsSmall)
 	pt.mustCreateSnapshot(pt.bigPartsPath, bigPath, pwsBig)
 
+	fs.MustSyncPathAndParentDir(smallPath)
+	fs.MustSyncPathAndParentDir(bigPath)
+
 	logger.Infof("created partition snapshot of %q and %q at %q and %q in %.3f seconds",
 		pt.smallPartsPath, pt.bigPartsPath, smallPath, bigPath, time.Since(startTime).Seconds())
 }
@@ -2025,10 +2033,6 @@ func (pt *partition) mustCreateSnapshot(srcDir, dstDir string, pws []*partWrappe
 		dstPath := filepath.Join(dstDir, filepath.Base(srcPath))
 		fs.MustCopyFile(srcPath, dstPath)
 	}
-
-	fs.MustSyncPath(dstDir)
-	parentDir := filepath.Dir(dstDir)
-	fs.MustSyncPath(parentDir)
 }
 
 type partNamesJSON struct {
