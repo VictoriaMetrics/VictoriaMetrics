@@ -49,7 +49,7 @@ vmstorage-2$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.crea
 vmstorage-3$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage3:8482/snapshot/create -dst=gs://<bucket>/vmstorage-3
 ````
 
-Note that `vmbackup` needs access to data folder of every `vmstorage` node. It is recommended to run `vmbackup` on the same machine where `vmstorage` is running.
+Note that `vmbackup` needs access to data folder on every `vmstorage` node.
 For Kubernetes deployments it is recommended to use [sidecar containers](https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/) for running `vmbackup` on the same pod with `vmstorage`.
 
 
