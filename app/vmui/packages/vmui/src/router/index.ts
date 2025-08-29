@@ -1,3 +1,5 @@
+import { APP_TYPE, AppType } from "../constants/appType";
+
 const router = {
   home: "/",
   metrics: "/metrics",
@@ -15,7 +17,6 @@ const router = {
   rawQuery: "/raw-query",
   downsamplingDebug: "/downsampling-filters-debug",
   retentionDebug: "/retention-filters-debug",
-  alerts: "/alerts",
   rules: "/rules",
   notifiers: "/notifiers",
 };
@@ -51,11 +52,23 @@ const routerOptionsDefault = {
   },
 };
 
+const getDefaultOptions = (appType: AppType) => {
+  switch (appType) {
+    case AppType.vmanomaly:
+      return {
+        title: "Anomaly exploration",
+        ...routerOptionsDefault,
+      };
+    default:
+      return {
+        title: "Query",
+        ...routerOptionsDefault,
+      };
+  }
+};
+
 export const routerOptions: { [key: string]: RouterOptions } = {
-  [router.home]: {
-    title: "Query",
-    ...routerOptionsDefault,
-  },
+  [router.home]: getDefaultOptions(APP_TYPE),
   [router.rawQuery]: {
     title: "Raw query",
     ...routerOptionsDefault,
@@ -127,10 +140,7 @@ export const routerOptions: { [key: string]: RouterOptions } = {
     title: "Icons",
     header: {},
   },
-  [router.anomaly]: {
-    title: "Anomaly exploration",
-    ...routerOptionsDefault,
-  },
+  [router.anomaly]: getDefaultOptions(AppType.vmanomaly),
   [router.query]: {
     title: "Query",
     ...routerOptionsDefault,

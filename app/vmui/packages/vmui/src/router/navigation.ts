@@ -17,7 +17,7 @@ interface NavigationConfig {
   serverUrl: string,
   isEnterpriseLicense: boolean,
   showPredefinedDashboards: boolean,
-  showAlertLink: boolean,
+  showAlerting: boolean,
 }
 
 /**
@@ -43,7 +43,7 @@ const getExploreNav = () => [
 ];
 
 /**
- * Submenu for Alerts tab
+ * Submenu for Alerting tab
  */
 
 const getAlertingNav = () => [
@@ -57,14 +57,14 @@ const getAlertingNav = () => [
 export const getDefaultNavigation = ({
   isEnterpriseLicense,
   showPredefinedDashboards,
-  showAlertLink,
+  showAlerting,
 }: NavigationConfig): NavigationItem[] => [
   { value: router.home },
   { value: router.rawQuery },
   { label: "Explore", submenu: getExploreNav() },
   { label: "Tools", submenu: getToolsNav(isEnterpriseLicense) },
   { value: router.dashboards, hide: !showPredefinedDashboards },
-  { value: "Alerting", submenu: getAlertingNav(), hide: !showAlertLink },
+  { value: "Alerting", submenu: getAlertingNav(), hide: !showAlerting },
 ];
 
 /**
