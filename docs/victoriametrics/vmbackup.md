@@ -12,7 +12,6 @@ aliases:
   - /vmbackup/index.html
   - /vmbackup/
 ---
-## Quick start
 
 `vmbackup` creates backups of VictoriaMetrics data to protect against hardware failures and accidental data loss.
 Whether you are using a single-node  or a cluster version, it is recommended to use `vmbackup` to perform periodical data backup from instant snapshots.
@@ -28,7 +27,7 @@ Enterprise binaries can be downloaded and evaluated for free from [the releases 
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ### Single node backup
-In order to perform a complete backup for VictoriaMetrics single node, the following command must be run:
+To make a complete backup for VictoriaMetrics single node run the following command:
 ```sh
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
 ```
