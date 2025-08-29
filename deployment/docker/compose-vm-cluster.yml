@@ -14,10 +14,12 @@ services:
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vmauth:8427/insert/0/prometheus/api/v1/write"
+      - "--remoteWrite.basicAuth.username=foo"
+      - "--remoteWrite.basicAuth.password=bar"
     restart: always
 
   grafana:
-    image: grafana/grafana:12.0.2
+    image: grafana/grafana:12.1.1
     depends_on:
       - "vmauth"
     ports:
