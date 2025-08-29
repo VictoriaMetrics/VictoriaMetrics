@@ -1533,6 +1533,55 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertDeletedMetricIDsCacheSize(3)
 }
 
+func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	const numSeries = 100
+	trPrev := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsPrev := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numSeries, "prev", trPrev)
+	trCurr := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsCurr := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numSeries, "curr", trCurr)
+	deleteSeries := func(s *Storage, want, wantTotal int) {
+		t.Helper()
+		tfs := NewTagFilters(0, 0)
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		if err != nil {
+			t.Fatalf("could not delete series unexpectedly: %v", err)
+		}
+		if got != want {
+			t.Fatalf("unexpected number of deleted series: got %d, want %d", got, want)
+		}
+		var m Metrics
+		s.UpdateMetrics(&m)
+		if got, want := m.DeletedMetricsCount, uint64(wantTotal); got != want {
+			t.Fatalf("unexpected number of total deleted series: got %d, want %d", got, want)
+		}
+
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrsPrev, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, numSeries)
+
+	s.mustRotateIndexDB(time.Now())
+
+	s.AddRows(mrsCurr, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, 2*numSeries)
+}
+
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
 	s := MustOpenStorage(path, OpenOptions{})

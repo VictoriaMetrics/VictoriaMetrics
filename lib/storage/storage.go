@@ -670,6 +670,8 @@ type Metrics struct {
 	MetricNamesUsageTrackerSizeBytes    uint64
 	MetricNamesUsageTrackerSizeMaxBytes uint64
 
+	DeletedMetricsCount uint64
+
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
 }
@@ -777,6 +779,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 		d = 0
 	}
 	m.NextRetentionSeconds = uint64(d)
+
+	m.DeletedMetricsCount += uint64(s.getDeletedMetricIDs().Len())
 
 	idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
