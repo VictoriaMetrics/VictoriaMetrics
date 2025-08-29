@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -123,6 +124,7 @@ func main() {
 		promql.InitRollupResultCache("")
 	}
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+	initVMUIConfig()
 	initVMAlertProxy()
 	var vmselectapiServer *vmselectapi.Server
 	if *clusternativeListenAddr != "" {
@@ -639,6 +641,12 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
+		if p.Suffix == "vmui/config.json" || p.Suffix == "prometheus/config.json" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, vmuiConfig)
+			return true
+		}
+
 		// vmui access.
 		if strings.HasPrefix(p.Suffix, "vmui/static/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/static/") {
 			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
@@ -966,7 +974,33 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
 var (
 	vmalertProxyHost string
 	vmalertProxy     *nethttputil.ReverseProxy
+	vmuiConfig       string
 )
+
+func initVMUIConfig() {
+	var cfg struct {
+		License struct {
+			Type string `json:"type"`
+		} `json:"license"`
+		VMAlert struct {
+			Enabled bool `json:"enabled"`
+		} `json:"vmalert"`
+	}
+	data, err := vmuiFiles.ReadFile("vmui/config.json")
+	if err != nil {
+		logger.Fatalf("cannot read vmui default config: %s", err)
+	}
+	err = json.Unmarshal(data, &cfg)
+	if err != nil {
+		logger.Fatalf("cannot parse vmui default config: %s", err)
+	}
+	cfg.VMAlert.Enabled = len(*vmalertProxyURL) != 0
+	data, err = json.Marshal(&cfg)
+	if err != nil {
+		logger.Fatalf("cannot create vmui config: %s", err)
+	}
+	vmuiConfig = string(data)
+}
 
 // initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
 func initVMAlertProxy() {
