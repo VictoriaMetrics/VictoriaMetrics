@@ -1479,8 +1479,9 @@ func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
 	defer s.MustClose()
 	s.AddRows(mrsPrev, defaultPrecisionBits)
 	s.DebugFlush()
-	s.mustRotateIndexDB(time.Now())
 	deleteSeries(s, numSeries, numSeries)
+
+	s.mustRotateIndexDB(time.Now())
 
 	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
