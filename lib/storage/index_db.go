@@ -199,8 +199,6 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheRequests     uint64
 	TagFiltersToMetricIDsCacheMisses       uint64
 
-	DeletedMetricsCount uint64
-
 	IndexDBRefCount uint64
 
 	MissingTSIDsForMetricID uint64
@@ -231,8 +229,6 @@ func (db *indexDB) scheduleToDrop() {
 // UpdateMetrics updates m with metrics from the db.
 func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	// global index metrics
-	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
-
 	m.IndexBlocksWithMetricIDsProcessed = indexBlocksWithMetricIDsProcessed.Load()
 	m.IndexBlocksWithMetricIDsIncorrectOrder = indexBlocksWithMetricIDsIncorrectOrder.Load()
 
