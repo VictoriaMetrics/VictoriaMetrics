@@ -41,7 +41,7 @@ We recommend using [smart backup](https://docs.victoriametrics.com/victoriametri
 To make a complete backup for [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/), `vmbackup` must be run on each `vmstorage` node in cluster. Backups must
 be placed into different directories on the remote storage in order to avoid conflicts between backups from different nodes.
 
-For example, when creating a backup with 3 `vmstorage` nodes, the following commands must be run:
+For example, run the following command to make a backup for 3 `vmstorage` nodes:
 
 ```sh
 vmstorage-1$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage1:8482/snapshot/create -dst=gs://<bucket>/vmstorage-1
