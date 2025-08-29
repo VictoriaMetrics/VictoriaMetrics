@@ -17,7 +17,6 @@ const router = {
   rawQuery: "/raw-query",
   downsamplingDebug: "/downsampling-filters-debug",
   retentionDebug: "/retention-filters-debug",
-  alerts: "/alerts",
   rules: "/rules",
   notifiers: "/notifiers",
 };

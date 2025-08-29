@@ -180,6 +180,9 @@ export interface AppConfig {
   license?: {
     type?: "enterprise" | "opensource";
   };
+  vmalert?: {
+    enabled: boolean;
+  };
 }
 
 export interface Group {

@@ -3,7 +3,7 @@ import { useEffect, useState } from "preact/compat";
 import { ErrorTypes } from "../types";
 import { APP_TYPE_VM } from "../constants/appType";
 
-const useFetchFlags = () => {
+const useFetchAppConfig = () => {
   const dispatch = useAppDispatch();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -31,5 +31,5 @@ const useFetchFlags = () => {
   return { isLoading, error };
 };
 
-export default useFetchFlags;
+export default useFetchAppConfig;
 
