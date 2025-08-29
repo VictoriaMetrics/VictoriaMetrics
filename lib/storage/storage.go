@@ -471,7 +471,7 @@ func (s *Storage) MustCreateSnapshot() string {
 	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
 	fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
 
-	fs.MustSyncPath(dstDir)
+	fs.MustSyncPathAndParentDir(dstDir)
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 	return snapshotName

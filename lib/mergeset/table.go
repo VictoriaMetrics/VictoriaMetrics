@@ -351,11 +351,14 @@ func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(
 		flushInterval = pendingItemsFlushInterval
 	}
 
-	// Create a directory for the table if it doesn't exist yet.
+	// Create a directory at the path if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
 
 	// Open table parts.
 	pws := mustOpenParts(path)
+
+	// Sync the path and the parent dir, so the path becomes visible in the parent dir.
+	fs.MustSyncPathAndParentDir(path)
 
 	tb := &Table{
 		path:                 path,
@@ -1481,9 +1484,6 @@ func (tb *Table) nextMergeIdx() uint64 {
 }
 
 func mustOpenParts(path string) []*partWrapper {
-	// The path can be missing after restoring from backup, so create it if needed.
-	fs.MustMkdirIfNotExist(path)
-
 	// Remove txn and tmp directories, which may be left after the upgrade
 	// to v1.90.0 and newer versions.
 	fs.MustRemoveDir(filepath.Join(path, "txn"))
@@ -1522,7 +1522,6 @@ func mustOpenParts(path string) []*partWrapper {
 			fs.MustRemoveDir(deletePath)
 		}
 	}
-	fs.MustSyncPath(path)
 
 	// Open parts
 	var pws []*partWrapper
@@ -1594,9 +1593,7 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 		fs.MustHardLinkFiles(srcPartPath, dstPartPath)
 	}
 
-	fs.MustSyncPath(dstDir)
-	parentDir := filepath.Dir(dstDir)
-	fs.MustSyncPath(parentDir)
+	fs.MustSyncPathAndParentDir(dstDir)
 
 	logger.Infof("created Table snapshot of %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 }
