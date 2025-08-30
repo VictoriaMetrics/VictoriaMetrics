@@ -132,10 +132,7 @@ func (ls Labels) String() string {
 // a=[]Label{{Name: "a", Value: "2"}},b=[]Label{{Name: "a", Value: "1"}}, return 1
 // a=[]Label{{Name: "a", Value: "1"}},b=[]Label{{Name: "a", Value: "1"}}, return 0
 func LabelCompare(a, b Labels) int {
-	l := len(a)
-	if len(b) < l {
-		l = len(b)
-	}
+	l := min(len(b), len(a))
 
 	for i := 0; i < l; i++ {
 		if a[i].Name != b[i].Name {
