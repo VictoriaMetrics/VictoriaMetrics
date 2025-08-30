@@ -1,0 +1,37 @@
+name: check-commit-signed
+
+on:
+  pull_request:
+
+jobs:
+  check-commit-signed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # we need full history for commit verification
+
+      - name: Check commit signatures
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "Not a PR event, skipping signature check"
+            exit 0
+          fi
+          
+          RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          echo "Checking commits in PR range: $RANGE"
+          
+          if [ -z "$(git rev-list $RANGE)" ]; then
+            echo "No new commits in this PR, skipping signature check"
+            exit 0
+          fi
+          
+          unsigned=$(git log --pretty="%H %G?" $RANGE | grep -vE " (G|E)$" || true)
+          if [ -n "$unsigned" ]; then
+            echo "Found unsigned commits:"
+            echo "$unsigned"
+            exit 1
+          fi
+          
+          echo "All commits in PR are signed (G or E)"
