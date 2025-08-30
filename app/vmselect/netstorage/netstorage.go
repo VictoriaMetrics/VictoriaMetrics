@@ -1,6 +1,7 @@
 package netstorage
 
 import (
+	"bytes"
 	"container/heap"
 	"errors"
 	"flag"
@@ -15,9 +16,13 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -35,7 +40,36 @@ var (
 		"The flag can be set to lower values for improving performance of big number of concurrently executed queries. "+
 		"The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). "+
 		"There is no sense in setting this flag to values bigger than the number of CPU cores available on the system")
+	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
+		"When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional).")
 )
+
+var (
+	accountID    uint32
+	projectID    uint32
+	tenantPrefix []byte
+)
+
+func HasSameTenantPrefix(raw []byte) bool {
+	return bytes.HasPrefix(raw, tenantPrefix)
+}
+
+func IsSameTenant(sqAccountID, sqProjectID uint32) bool {
+	return sqAccountID == accountID && sqProjectID == projectID
+}
+
+func MustSetTenantID(tenant string) {
+	t, err := auth.NewToken(tenant)
+	if err != nil {
+		logger.Fatalf("failed to parse tenant: %s", err)
+	}
+	accountID = t.AccountID
+	projectID = t.ProjectID
+
+	tenantPrefix = make([]byte, 0, 8)
+	tenantPrefix = encoding.MarshalUint32(tenantPrefix, accountID)
+	tenantPrefix = encoding.MarshalUint32(tenantPrefix, projectID)
+}
 
 // Result is a single timeseries result.
 //
@@ -239,7 +273,6 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		// Nothing to process
 		return 0, nil
 	}
-
 	var mustStop atomic.Bool
 	initTimeseriesWork := func(tsw *timeseriesWork, pts *packedTimeseries) {
 		tsw.rss = rss
@@ -764,16 +797,28 @@ func putSortBlocksHeap(sbh *sortBlocksHeap) {
 
 var sbhPool sync.Pool
 
+// RegisterMetricNames registers metric names from mrs in the storage.
+func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutil.Deadline) error {
+	qt = qt.NewChild("register metric names")
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	vmstorage.RegisterMetricNames(qt, mrs)
+	return nil
+}
+
 // DeleteSeries deletes time series matching the given search query.
 func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutil.Deadline) (int, error) {
 	qt = qt.NewChild("delete series: %s", sq)
 	defer qt.Done()
 	tr := sq.GetTimeRange()
-	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, maxMetrics, deadline)
 	if err != nil {
 		return 0, err
 	}
-	return vmstorage.DeleteSeries(qt, tfss, sq.MaxMetrics)
+	return vmstorage.DeleteSeries(qt, tfss, maxMetrics)
 }
 
 // LabelNames returns label names matching the given sq until the given deadline.
@@ -787,11 +832,12 @@ func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames i
 		maxLabelNames = *maxTagKeysPerSearch
 	}
 	tr := sq.GetTimeRange()
-	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
-	labels, err := vmstorage.SearchLabelNames(qt, tfss, tr, maxLabelNames, sq.MaxMetrics, deadline.Deadline())
+	labels, err := vmstorage.SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search on time range: %w", err)
 	}
@@ -860,11 +906,12 @@ func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQue
 		maxLabelValues = *maxTagValuesPerSearch
 	}
 	tr := sq.GetTimeRange()
-	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
-	labelValues, err := vmstorage.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, sq.MaxMetrics, deadline.Deadline())
+	labelValues, err := vmstorage.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during label values search on time range for labelName=%q: %w", labelName, err)
 	}
@@ -872,6 +919,17 @@ func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQue
 	sort.Strings(labelValues)
 	qt.Printf("sort %d label values", len(labelValues))
 	return labelValues, nil
+}
+
+// Tenants returns tenants until the given deadline.
+func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutil.Deadline) ([]string, error) {
+	qt = qt.NewChild("get tenants on timeRange=%s", &tr)
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+
+	return []string{fmt.Sprintf("%d:%d", accountID, projectID)}, nil
 }
 
 // GraphiteTagValues returns tag values for the given tagName until the given deadline.
@@ -933,12 +991,13 @@ func TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel stri
 		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 	tr := sq.GetTimeRange()
-	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
 	date := uint64(tr.MinTimestamp) / (3600 * 24 * 1000)
-	status, err := vmstorage.GetTSDBStatus(qt, tfss, date, focusLabel, topN, sq.MaxMetrics, deadline.Deadline())
+	status, err := vmstorage.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during tsdb status request: %w", err)
 	}
@@ -991,7 +1050,8 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return err
 	}
-	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, maxMetrics, deadline)
 	if err != nil {
 		return err
 	}
@@ -1001,7 +1061,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 
 	sr := getStorageSearch()
 	defer putStorageSearch(sr)
-	sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
+	sr.Init(qt, vmstorage.Storage, tfss, tr, maxMetrics, deadline.Deadline())
 
 	// Start workers that call f in parallel on available CPU cores.
 	workCh := make(chan *exportWork, gomaxprocs*8)
@@ -1101,14 +1161,21 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
-	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
 
-	metricNames, err := vmstorage.SearchMetricNames(qt, tfss, tr, sq.MaxMetrics, deadline.Deadline())
+	metricNames, err := vmstorage.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("cannot find metric names: %w", err)
+	}
+	if sq.HasTenant {
+		prefix := bytesutil.ToUnsafeString(tenantPrefix)
+		for i := range metricNames {
+			metricNames[i] = prefix + metricNames[i]
+		}
 	}
 	sort.Strings(metricNames)
 	qt.Printf("sort %d metric names", len(metricNames))
@@ -1130,7 +1197,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	if err := vmstorage.CheckTimeRange(tr); err != nil {
 		return nil, err
 	}
-	tfss, err := setupTfss(qt, tr, sq.TagFilterss, sq.MaxMetrics, deadline)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1139,7 +1207,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	defer vmstorage.WG.Done()
 
 	sr := getStorageSearch()
-	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
+	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, maxMetrics, deadline.Deadline())
 	type blockRefs struct {
 		brs []blockRef
 	}
@@ -1291,6 +1359,62 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	return &rss, nil
 }
 
+// ProcessBlocks calls processBlock per each block matching the given sq.
+func ProcessBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery,
+	processBlock func(mb *storage.MetricBlock) error, deadline searchutil.Deadline,
+) error {
+	qt = qt.NewChild("fetch matching series: %s", sq)
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+
+	// Setup search.
+	tr := sq.GetTimeRange()
+	if err := vmstorage.CheckTimeRange(tr); err != nil {
+		return err
+	}
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
+	tfss, err := setupTfss(qt, tr, sq.TagFilterss, maxMetrics, deadline)
+	if err != nil {
+		return err
+	}
+	if len(tfss) == 0 {
+		return fmt.Errorf("missing tag filters")
+	}
+	vmstorage.WG.Add(1)
+	defer vmstorage.WG.Done()
+
+	sr := getStorageSearch()
+	defer putStorageSearch(sr)
+	sr.Init(qt, vmstorage.Storage, tfss, tr, maxMetrics, deadline.Deadline())
+
+	blocksRead := 0
+	var mb storage.MetricBlock
+	for sr.NextMetricBlock() {
+		blocksRead++
+		if deadline.Exceeded() {
+			return fmt.Errorf("timeout exceeded while fetching data block #%d from storage: %s", blocksRead, deadline.String())
+		}
+		mb.MetricName = append(mb.MetricName[:0], sr.MetricBlockRef.MetricName...)
+		sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
+		if err = processBlock(&mb); err != nil {
+			break
+		}
+	}
+	// Check errors.
+	if err == nil {
+		err = sr.Error()
+	}
+	if err != nil {
+		if errors.Is(err, storage.ErrDeadlineExceeded) {
+			return fmt.Errorf("timeout exceeded during the query: %s", deadline.String())
+		}
+		return fmt.Errorf("search error after reading %d data blocks: %w", blocksRead, err)
+	}
+	return nil
+}
+
 type blockRef struct {
 	partRef storage.PartRef
 	addr    tmpBlockAddr
@@ -1381,4 +1505,52 @@ func ResetMetricNamesStats(qt *querytracer.Tracer) error {
 	defer qt.Done()
 	vmstorage.ResetMetricNamesStats(qt)
 	return nil
+}
+
+func getMaxMetrics(searchQueryLimit int) int {
+	if searchQueryLimit <= 0 {
+		return GetMaxUniqueTimeSeries()
+	}
+	// searchQueryLimit cannot exceed `-search.maxUniqueTimeseries`
+	if *maxUniqueTimeseries != 0 && searchQueryLimit > *maxUniqueTimeseries {
+		searchQueryLimit = *maxUniqueTimeseries
+	}
+	return searchQueryLimit
+}
+
+var (
+	maxUniqueTimeseriesValueOnce sync.Once
+	maxUniqueTimeseriesValue     int
+)
+
+// InitMaxUniqueTimeseries init the max metrics limit calculated by available resources.
+// The calculation is split into calculateMaxUniqueTimeSeriesForResource for unit testing.
+func InitMaxUniqueTimeseries(maxConcurrentRequests int) {
+	maxUniqueTimeseriesValueOnce.Do(func() {
+		maxUniqueTimeseriesValue = *maxUniqueTimeseries
+		if maxUniqueTimeseriesValue <= 0 {
+			maxUniqueTimeseriesValue = calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, memory.Remaining())
+		}
+	})
+}
+
+// calculateMaxUniqueTimeSeriesForResource calculate the max metrics limit calculated by available resources.
+func calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, remainingMemory int) int {
+	if maxConcurrentRequests <= 0 {
+		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
+		// In such cases, fallback to unlimited.
+		logger.Warnf("limiting -search.maxUniqueTimeseries to %v because -search.maxConcurrentRequests=%d.", 2e9, maxConcurrentRequests)
+		return 2e9
+	}
+
+	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
+	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
+	mts := remainingMemory / 200 / maxConcurrentRequests
+	logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", mts, maxConcurrentRequests, remainingMemory)
+	return mts
+}
+
+// GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
+func GetMaxUniqueTimeSeries() int {
+	return maxUniqueTimeseriesValue
 }
