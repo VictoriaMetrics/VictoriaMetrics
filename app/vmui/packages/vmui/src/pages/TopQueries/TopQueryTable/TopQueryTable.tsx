@@ -15,7 +15,7 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
   const [orderBy, setOrderBy] = useState<keyof TopQuery>(defaultOrderBy || "count");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
 
-  const sortedList = useMemo(() => stableSort(rows as [], getComparator(orderDir, orderBy)) as TopQuery[],
+  const sortedList = useMemo(() => stableSort(rows, getComparator(orderDir, orderBy)),
     [rows, orderBy, orderDir]);
 
   const onSortHandler = (key: keyof TopQuery) => {

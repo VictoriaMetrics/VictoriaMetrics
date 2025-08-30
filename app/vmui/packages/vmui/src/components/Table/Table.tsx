@@ -9,12 +9,20 @@ import useCopyToClipboard from "../../hooks/useCopyToClipboard";
 
 type OrderDir = "asc" | "desc"
 
+export interface TableColumn<T> {
+  key: keyof T;
+  title?: string;
+  format?: (obj: T) => string;
+  className?: string;
+}
+
 interface TableProps<T> {
   rows: T[];
-  columns: { title?: string, key: keyof Partial<T>, className?: string }[];
+  columns: TableColumn<T>[];
   defaultOrderBy: keyof T;
   copyToClipboard?: keyof T;
   defaultOrderDir?: OrderDir;
+  rowClasses?: (obj: T) => Record<string, boolean>;
   // TODO: Remove when pagination is implemented on the backend.
   paginationOffset: {
     startIndex: number;
@@ -22,7 +30,7 @@ interface TableProps<T> {
   }
 }
 
-const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDir, copyToClipboard, paginationOffset }: TableProps<T>) => {
+const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDir, copyToClipboard, paginationOffset, rowClasses }: TableProps<T>) => {
   const handleCopyToClipboard = useCopyToClipboard();
 
   const [orderBy, setOrderBy] = useState<keyof T>(defaultOrderBy);
@@ -58,6 +66,8 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
     return () => clearTimeout(timeout);
   }, [copied]);
 
+  const copyCol = copyToClipboard && columns.find((col) => col.key == copyToClipboard);
+
   return (
     <table className="vm-table">
       <thead className="vm-table-header">
@@ -90,7 +100,10 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
       <tbody className="vm-table-body">
         {sortedList.map((row, rowIndex) => (
           <tr
-            className="vm-table__row"
+            className={classNames({
+              "vm-table__row": true,
+              ...(rowClasses ? rowClasses(row) : {}),
+            })}
             key={rowIndex}
           >
             {columns.map((col) => (
@@ -101,10 +114,10 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
                 })}
                 key={String(col.key)}
               >
-                {row[col.key] || "-"}
+                {(col.format ? col.format(row) : String(row[col.key])) || "-"}
               </td>
             ))}
-            {copyToClipboard && (
+            {copyToClipboard && copyCol && (
               <td className="vm-table-cell vm-table-cell_right">
                 {row[copyToClipboard] && (
                   <div className="vm-table-cell__content">
@@ -114,7 +127,7 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
                         color={copied === rowIndex ? "success" : "gray"}
                         size="small"
                         startIcon={copied === rowIndex ? <DoneIcon/> : <CopyIcon/>}
-                        onClick={createCopyHandler(row[copyToClipboard], rowIndex)}
+                        onClick={createCopyHandler(copyCol.format ? copyCol.format(row) : String(row[copyToClipboard]), rowIndex)}
                         ariaLabel="copy row"
                       />
                     </Tooltip>
