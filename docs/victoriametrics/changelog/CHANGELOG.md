@@ -3,6 +3,8 @@ build:
   list: never
   publishResources: false
   render: never
+sitemap:
+  disable: true
 ---
 The following `tip` changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
 
