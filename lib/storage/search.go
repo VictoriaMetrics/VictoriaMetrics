@@ -200,6 +200,9 @@ func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Time
 		metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 		if err == nil {
 			tsids, err = idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
+			if err == nil {
+				err = idb.prefetchMetricNames(qt, metricIDs, deadline)
+			}
 		}
 		return tsids, err
 	}
