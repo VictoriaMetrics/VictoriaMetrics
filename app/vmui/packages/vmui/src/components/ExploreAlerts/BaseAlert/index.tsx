@@ -7,6 +7,7 @@ import {
   SearchIcon,
 } from "../../Main/Icons";
 import dayjs from "dayjs";
+import CodeExample from "../../Main/CodeExample/CodeExample";
 
 interface BaseAlertProps {
   item: APIAlert;
@@ -46,9 +47,9 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
           <tr>
             <td className="vm-col-md">Query</td>
             <td>
-              <pre>
-                <code className="language-promql">{query}</code>
-              </pre>
+              <CodeExample
+                code={query}
+              />
             </td>
           </tr>
           <tr>
