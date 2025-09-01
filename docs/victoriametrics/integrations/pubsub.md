@@ -50,7 +50,7 @@ at the `victoriametrics-vmagent-pub-sub-test` project with the following config:
 
 `vmagent` buffers messages read from Google PubSub topic on local disk if the remote storage at `-remoteWrite.url` cannot
 keep up with the data ingestion rate. Buffering can be disabled via `-remoteWrite.disableOnDiskQueue` cmd-line flags. 
-See more about [on-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
+See more about [disabling on-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
 
 See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
 
