@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 **Objective**
 
 Setup Victoria Metrics Cluster with support of multiple retention periods within one installation.

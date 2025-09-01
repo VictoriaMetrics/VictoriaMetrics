@@ -3,6 +3,8 @@ build:
   list: never
   publishResources: false
   render: never
+sitemap:
+  disable: true
 ---
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/casestudies/).
