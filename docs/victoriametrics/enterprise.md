@@ -75,7 +75,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [mTLS for communications between cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection).
 - [mTLS-based request routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing).
 - [Kafka integration](https://docs.victoriametrics.com/victoriametrics/vmagent/#kafka-integration).
-- [Google PubSub integration](https://docs.victoriametrics.com/victoriametrics/vmagent/#google-pubsub-integration).
+- [Google PubSub integration](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage).
 - [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#ip-filters).
