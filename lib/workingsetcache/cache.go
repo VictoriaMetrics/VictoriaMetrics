@@ -456,6 +456,14 @@ func (c *Cache) Set(key, value []byte) {
 	curr.Set(key, value)
 }
 
+// maxSubvalueLen is used for calculating how many big entries have been copied
+// from previous to current fastcache instance.
+//
+// This value is implementation detail of fastcache (see fastcache/bigcache.go).
+// However it needs to be known here in order to accurately calculate the number
+// of copied entries.
+const maxSubvalueLen = 64*1024 - 16 - 4 - 1
+
 // GetBig appends the found value for the given key to dst and returns the result.
 func (c *Cache) GetBig(dst, key []byte) []byte {
 	c.getCalls.Add(1)
@@ -483,8 +491,6 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 	value := result[len(dst):]
 	curr.SetBig(key, value)
 
-	// See fastcache/bigcache.go
-	const maxSubvalueLen = 64*1024 - 16 - 4 - 1
 	numCopiedEntries := len(value) / maxSubvalueLen
 	if numCopiedEntries*maxSubvalueLen < len(value) {
 		numCopiedEntries++
