@@ -635,7 +635,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
-		if p.Suffix == "vmui/config.json" || p.Suffix == "prometheus/config.json" {
+		if p.Suffix == "vmui/config.json" || p.Suffix == "prometheus/vmui/config.json" {
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, vmuiConfig)
 			return true
