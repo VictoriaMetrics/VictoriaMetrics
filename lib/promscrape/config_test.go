@@ -1502,3 +1502,83 @@ scrape_configs:
 	})
 
 }
+
+func TestGetScrapeWorkGeneric(t *testing.T) {
+	baseDir := "/test"
+	discoveryType := "test_sd_config"
+	prev := []*ScrapeWork{}
+
+	f := func(t *testing.T, cfg *Config, visitConfigs func(*ScrapeConfig, func(targetLabelsGetter)), wantLen int) {
+		t.Helper()
+		sws := cfg.getScrapeWorkGeneric(visitConfigs, discoveryType, prev)
+		if len(sws) != wantLen {
+			t.Fatalf("unexpected number of scrape works; got %d; want %d", len(sws), wantLen)
+		}
+	}
+
+	t.Run("basic", func(t *testing.T) {
+		cfg := &Config{
+			baseDir: baseDir,
+			ScrapeConfigs: []*ScrapeConfig{
+				{
+					JobName: "test_job",
+					swc: &scrapeWorkConfig{
+						jobName: "test_job",
+					},
+				},
+			},
+		}
+
+		visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+			visitor(&mockTargetLabelsGetter{
+				labels: []*promutil.Labels{
+					promutil.NewLabelsFromMap(map[string]string{
+						"__address__": "test:1",
+					}),
+					promutil.NewLabelsFromMap(map[string]string{
+						"__address__": "test:1",
+					}),
+					promutil.NewLabelsFromMap(map[string]string{
+						"__address__": "test:1",
+					}),
+				},
+			})
+		}
+
+		f(t, cfg, visitConfigs, 3)
+	})
+
+	t.Run("error handling", func(t *testing.T) {
+		cfg := &Config{
+			baseDir: baseDir,
+			ScrapeConfigs: []*ScrapeConfig{
+				{
+					JobName: "test_job",
+					swc: &scrapeWorkConfig{
+						jobName: "test_job",
+					},
+				},
+			},
+		}
+
+		visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+			visitor(&mockTargetLabelsGetter{
+				err: "simulated error",
+			})
+		}
+
+		f(t, cfg, visitConfigs, 0)
+	})
+}
+
+type mockTargetLabelsGetter struct {
+	labels []*promutil.Labels
+	err    string
+}
+
+func (m *mockTargetLabelsGetter) GetLabels(baseDir string) ([]*promutil.Labels, error) {
+	if m.err != "" {
+		return nil, fmt.Errorf("%s", m.err)
+	}
+	return m.labels, nil
+}
