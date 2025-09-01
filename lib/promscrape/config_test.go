@@ -1536,10 +1536,10 @@ func TestGetScrapeWorkGeneric(t *testing.T) {
 						"__address__": "test:1",
 					}),
 					promutil.NewLabelsFromMap(map[string]string{
-						"__address__": "test:1",
+						"__address__": "test:2",
 					}),
 					promutil.NewLabelsFromMap(map[string]string{
-						"__address__": "test:1",
+						"__address__": "test:3",
 					}),
 				},
 			})
