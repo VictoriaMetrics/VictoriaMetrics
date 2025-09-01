@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/golang/snappy"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Vmsingle holds the state of a vmsingle app and provides vmsingle-specific
@@ -46,7 +47,7 @@ type Vmsingle struct {
 // StartVmsingleAt starts an instance of vmsingle with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr).
-func StartVmsingleAt(instance, binary string, flags []string, cli *Client) (*Vmsingle, error) {
+func StartVmsingleAt(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmsingle, error) {
 	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
@@ -60,6 +61,7 @@ func StartVmsingleAt(instance, binary string, flags []string, cli *Client) (*Vms
 			graphiteListenAddrRE,
 			openTSDBListenAddrRE,
 		},
+		output: output,
 	})
 	if err != nil {
 		return nil, err
@@ -209,10 +211,10 @@ func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vmsingle endpoint.
-func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, _ QueryOpts) {
+func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []prompb.TimeSeries, _ QueryOpts) {
 	t.Helper()
 
-	wr := pb.WriteRequest{Timeseries: records}
+	wr := prompb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
 	if statusCode != http.StatusNoContent {

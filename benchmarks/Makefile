@@ -32,32 +32,34 @@
 #
 # See https://github.com/timescale/tsbs/blob/master/docs/victoriametrics.md
 # for details
-tsbs: tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries tsbs-run-queries
+tsbs: tsbs-build tsbs-generate-data tsbs-load-data tsbs-generate-queries-all tsbs-run-queries-all
 
-TSBS_SCALE := 100000
-# If GNU date is available, use it; otherwise, fall back to the standard date command
-# User can install GNU date on macOS via `brew install coreutils`
-DATE_CMD := $(shell which gdate 2>/dev/null || echo date)
-TSBS_START := $(shell $(DATE_CMD) -u -d "1 day ago 00:00:00" +"%Y-%m-%dT%H:%M:%SZ")
-TSBS_END   := $(shell $(DATE_CMD) -u -d "00:00:00" +"%Y-%m-%dT%H:%M:%SZ")
-TSBS_STEP := 80s
-TSBS_QUERIES := 1000
-TSBS_WORKERS := 4
+TSBS_SCALE ?= 100000
+TSBS_END ?= $(shell date -u +%Y-%m-%dT00:00:00Z)
+TSBS_START ?= $(shell \
+  NOW=$$(date -u +%s); \
+  START=$$((NOW - 86400)); \
+  date -u -d "@$$START" +%Y-%m-%dT00:00:00Z 2>/dev/null || \
+  date -u -r $$START +%Y-%m-%dT00:00:00Z 2>/dev/null \
+)
+TSBS_STEP ?= 80s
+TSBS_QUERIES ?= 1000
+TSBS_WORKERS ?= 4
+TSBS_QUERY_TYPE := cpu-max-all-8
 TSBS_DATA_FILE := /tmp/tsbs-data-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).gz
-TSBS_QUERY_FILE := /tmp/tsbs-queries-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_QUERIES).gz
+TSBS_QUERY_FILE := /tmp/tsbs-queries-$(TSBS_QUERY_TYPE)-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_QUERIES).gz
 TSBS_LOAD_RESULT_CSV_FILE := /tmp/tsbs-load-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).csv
 TSBS_LOAD_RESULT_CSV_FILE_COMPARE ?=
 TSBS_PLOT_SCRIPT := $(shell pwd)/benchmarks/plot-load.sh
-
 # For cluster setup use http://vminsert:8480/insert/0/influx/write
-TSBS_WRITE_URLS := http://localhost:8428/write
+TSBS_WRITE_URLS ?= http://localhost:8428/write
 # For cluster setup use http://vmselect:8481/select/0/prometheus
-TSBS_READ_URLS := http://localhost:8428
-TSBS_METRICS_URL := http://localhost:8428/metrics
+TSBS_READ_URLS ?= http://localhost:8428
+TSBS_METRICS_URL ?= http://localhost:8428/metrics
 
 # Build TSBS tools
 tsbs-build:
-	test -d /tmp/tsbs || (git clone https://github.com/timescale/tsbs.git /tmp/tsbs && \
+	test -d /tmp/tsbs/cmd/tsbs_run_queries_victoriametrics || (git clone https://github.com/timescale/tsbs.git /tmp/tsbs && \
 		cd /tmp/tsbs/cmd/tsbs_generate_data && GOBIN=/tmp/tsbs/bin go install && \
 		cd /tmp/tsbs/cmd/tsbs_generate_queries && GOBIN=/tmp/tsbs/bin go install && \
 		cd /tmp/tsbs/cmd/tsbs_load_victoriametrics && GOBIN=/tmp/tsbs/bin go install && \
@@ -91,7 +93,7 @@ tsbs-load-data:
 		-e process_io_written_bytes_total || true
 
 
-# Generate benchmark queries
+# Generate benchmark queries of a given type
 tsbs-generate-queries:
 	test -f $(TSBS_QUERY_FILE) || /tmp/tsbs/bin/tsbs_generate_queries \
 		--format=victoriametrics \
@@ -100,13 +102,43 @@ tsbs-generate-queries:
 		--scale=$(TSBS_SCALE) \
 		--timestamp-start=$(TSBS_START) \
 		--timestamp-end=$(TSBS_END) \
-		--query-type=cpu-max-all-8 \
+		--query-type=$(TSBS_QUERY_TYPE) \
 		--queries=1000 \
 		| gzip > $(TSBS_QUERY_FILE)
 
-# Run benchmark queries against VictoriaMetrics
+# Generate all types of benchmark queries
+tsbs-generate-queries-all:
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=single-groupby-1-1-1
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=single-groupby-1-1-12
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=single-groupby-1-8-1
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=single-groupby-5-1-1
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=single-groupby-5-1-12
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=single-groupby-5-8-1
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=cpu-max-all-1
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=cpu-max-all-8
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=double-groupby-1
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=double-groupby-5
+	$(MAKE) tsbs-generate-queries TSBS_QUERY_TYPE=double-groupby-all
+
+# Run benchmark queries of a given type against VictoriaMetrics
 tsbs-run-queries:
 	cat $(TSBS_QUERY_FILE) | gunzip | /tmp/tsbs/bin/tsbs_run_queries_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_READ_URLS)
+
+# Run all types of benchmark queries against VictoriaMetrics
+tsbs-run-queries-all:
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=single-groupby-1-1-1
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=single-groupby-1-1-12
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=single-groupby-1-8-1
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=single-groupby-5-1-1
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=single-groupby-5-1-12
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=single-groupby-5-8-1
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=cpu-max-all-1
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=cpu-max-all-8
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=double-groupby-1
+	$(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=double-groupby-5
+
+	# Too heavy: retrieves 1B samples
+	# $(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=double-groupby-all
 
 # Plot the data load `per interval metrics/s` measurements
 #

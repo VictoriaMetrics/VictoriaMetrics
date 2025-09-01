@@ -2443,13 +2443,14 @@ func rollupFake(_ *rollupFuncArg) float64 {
 	return 0
 }
 
+// getScalar expects result from a [scalar](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types).
 func getScalar(arg any, argNum int) ([]float64, error) {
 	ts, ok := arg.([]*timeseries)
 	if !ok {
-		return nil, fmt.Errorf(`unexpected type for arg #%d; got %T; want %T`, argNum+1, arg, ts)
+		return nil, fmt.Errorf(`arg #%d must be a scalar`, argNum+1)
 	}
 	if len(ts) != 1 {
-		return nil, fmt.Errorf(`arg #%d must contain a single timeseries; got %d timeseries`, argNum+1, len(ts))
+		return nil, fmt.Errorf(`arg #%d must be a scalar`, argNum+1)
 	}
 	return ts[0].Values, nil
 }
@@ -2466,14 +2467,15 @@ func getIntNumber(arg any, argNum int) (int, error) {
 	return n, nil
 }
 
+// getString expects result from a string expression, which contains a single timeseries with only NaN values.
 func getString(tss []*timeseries, argNum int) (string, error) {
 	if len(tss) != 1 {
-		return "", fmt.Errorf(`arg #%d must contain a single timeseries; got %d timeseries`, argNum+1, len(tss))
+		return "", fmt.Errorf(`arg #%d must be a string`, argNum+1)
 	}
 	ts := tss[0]
 	for _, v := range ts.Values {
 		if !math.IsNaN(v) {
-			return "", fmt.Errorf(`arg #%d contains non-string timeseries`, argNum+1)
+			return "", fmt.Errorf(`arg #%d must be a string`, argNum+1)
 		}
 	}
 	return string(ts.MetricName.MetricGroup), nil

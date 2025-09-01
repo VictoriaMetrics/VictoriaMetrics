@@ -43,7 +43,7 @@ func (rs *Rows) Reset() {
 	rs.tagsPool = rs.tagsPool[:0]
 }
 
-// Unmarshal unmarshals grahite plaintext protocol rows from s.
+// Unmarshal unmarshals graphite plaintext protocol rows from s.
 //
 // See https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol
 //

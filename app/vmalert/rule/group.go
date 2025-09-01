@@ -21,7 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 var (
@@ -587,6 +587,11 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 
 func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, ruleEvaluationConcurrency int) int {
 	fmt.Printf("> Rule %q (ID: %d)\n", r, r.ID())
+	// alerting rule with for>0 can't be replayed concurrently, since the status change might depend on the previous evaluation
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/commit/abcb21aa5ee918ba9a4e9cde495dba06e1e9564c
+	if r, ok := r.(*AlertingRule); ok && r.For > 0 {
+		ruleEvaluationConcurrency = 1
+	}
 	sem := make(chan struct{}, ruleEvaluationConcurrency)
 	wg := sync.WaitGroup{}
 	res := make(chan int, int(ri.end.Sub(ri.start)/ri.step)+1)
@@ -755,7 +760,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 	}
 
 	if e.Rw != nil {
-		pushToRW := func(tss []prompbmarshal.TimeSeries) error {
+		pushToRW := func(tss []prompb.TimeSeries) error {
 			var lastErr error
 			for _, ts := range tss {
 				if err := e.Rw.Push(ts); err != nil {

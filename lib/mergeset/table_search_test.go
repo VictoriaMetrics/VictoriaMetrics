@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestMain(m *testing.M) {
@@ -17,12 +19,8 @@ func TestMain(m *testing.M) {
 
 func TestTableSearchSerial(t *testing.T) {
 	const path = "TestTableSearchSerial"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	const itemsCount = 1e5
 
@@ -52,12 +50,8 @@ func TestTableSearchSerial(t *testing.T) {
 
 func TestTableSearchConcurrent(t *testing.T) {
 	const path = "TestTableSearchConcurrent"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	const itemsCount = 1e5
 	items := func() []string {

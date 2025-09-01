@@ -359,7 +359,7 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 			return
 		}
 	}
-	rowLen := uncompressedRowSizeBytes(fields)
+	rowLen := EstimatedJSONRowLen(fields)
 	if rowLen > maxUncompressedBlockSize {
 		line := MarshalFieldsToJSON(nil, fields)
 		logger.Warnf("ignoring too long log entry with the estimated length of %d bytes, since it exceeds the limit %d bytes; "+
@@ -512,6 +512,13 @@ func getCanonicalFieldName(fieldName string) string {
 	return fieldName
 }
 
+func getCanonicalColumnName(fieldName string) string {
+	if fieldName == "" {
+		return "_msg"
+	}
+	return fieldName
+}
+
 // GetRowString returns string representation of the row with the given idx.
 func (lr *LogRows) GetRowString(idx int) string {
 	tf := TimeFormatter(lr.timestamps[idx])
@@ -610,17 +617,30 @@ func PutLogRows(lr *LogRows) {
 var logRowsPool sync.Pool
 
 // EstimatedJSONRowLen returns an approximate length of the log entry with the given fields if represented as JSON.
+//
+// The calculation logic must stay in sync with block.uncompressedSizeBytes() in block.go.
+// If you change logic here, update block.uncompressedSizeBytes() accordingly and vice versa.
 func EstimatedJSONRowLen(fields []Field) int {
 	n := len("{}\n")
 	n += len(`"_time":""`) + len(time.RFC3339Nano)
 	for _, f := range fields {
-		nameLen := len(f.Name)
-		if nameLen == 0 {
-			nameLen = len("_msg")
+		// VictoriaLogs data model (https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+		// treats empty values as non-existing values
+		if f.Value == "" {
+			continue
 		}
-		n += len(`,"":""`) + nameLen + len(f.Value)
+
+		name := getCanonicalColumnName(f.Name)
+		n += estimatedJSONFieldLen(name, f.Value)
 	}
 	return n
+}
+
+// estimatedJSONFieldLen returns an approximate length of the field with the given name and value if represented as JSON.
+//
+// The field name must be in raw form (e.g., "" to "_msg") before passing.
+func estimatedJSONFieldLen(name, value string) int {
+	return len(`,"":""`) + len(name) + len(value)
 }
 
 // GetInsertRow returns InsertRow from a pool.

@@ -10,7 +10,6 @@ export interface AppState {
   tenantId: string;
   theme: Theme;
   isDarkTheme: boolean | null;
-  flags: Record<string, string | null>;
   appConfig: AppConfig
 }
 
@@ -18,7 +17,6 @@ export type Action =
   | { type: "SET_SERVER", payload: string }
   | { type: "SET_THEME", payload: Theme }
   | { type: "SET_TENANT_ID", payload: string }
-  | { type: "SET_FLAGS", payload: Record<string, string | null> }
   | { type: "SET_APP_CONFIG", payload: AppConfig }
   | { type: "SET_DARK_THEME" }
 
@@ -29,7 +27,6 @@ export const initialState: AppState = {
   tenantId,
   theme: (getFromStorage("THEME") || Theme.system) as Theme,
   isDarkTheme: null,
-  flags: {},
   appConfig: {}
 };
 
@@ -55,11 +52,6 @@ export function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         isDarkTheme: isDarkTheme(state.theme)
-      };
-    case "SET_FLAGS":
-      return {
-        ...state,
-        flags: action.payload
       };
     case "SET_APP_CONFIG":
       return {

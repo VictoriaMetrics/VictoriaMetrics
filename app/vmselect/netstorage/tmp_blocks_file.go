@@ -27,7 +27,7 @@ func InitTmpBlocksDir(tmpDirPath string) {
 		tmpDirPath = os.TempDir()
 	}
 	tmpBlocksDir = filepath.Join(tmpDirPath, "searchResults")
-	fs.MustRemoveAll(tmpBlocksDir)
+	fs.MustRemoveDirContents(tmpBlocksDir)
 	fs.MustMkdirIfNotExist(tmpBlocksDir)
 }
 
@@ -135,7 +135,7 @@ func (tbf *tmpBlocksFile) WriteBlockRefData(b []byte) (tmpBlockAddr, error) {
 	return addr, nil
 }
 
-// Len() returnt tbf size in bytes.
+// Len() return tbf size in bytes.
 func (tbf *tmpBlocksFile) Len() uint64 {
 	return tbf.offset
 }

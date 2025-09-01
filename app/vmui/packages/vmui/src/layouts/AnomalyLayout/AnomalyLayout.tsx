@@ -1,12 +1,11 @@
 import Header from "../Header/Header";
 import { FC, useEffect } from "preact/compat";
-import { Outlet, useLocation, useSearchParams } from "react-router-dom";
+import { Outlet, useSearchParams } from "react-router-dom";
 import qs from "qs";
 import "../MainLayout/style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
 import Footer from "../Footer/Footer";
-import { routerOptions } from "../../router";
 import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsAnomalyLayout from "./ControlsAnomalyLayout";
@@ -14,16 +13,9 @@ import ControlsAnomalyLayout from "./ControlsAnomalyLayout";
 const AnomalyLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
-  const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   useFetchDefaultTimezone();
-
-  const setDocumentTitle = () => {
-    const defaultTitle = "vmui for vmanomaly";
-    const routeTitle = routerOptions[pathname]?.title;
-    document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
-  };
 
   // for support old links with search params
   const redirectSearchToHashParams = () => {
@@ -38,7 +30,6 @@ const AnomalyLayout: FC = () => {
     if (newHref !== href) window.location.replace(newHref);
   };
 
-  useEffect(setDocumentTitle, [pathname]);
   useEffect(redirectSearchToHashParams, []);
 
   return <section className="vm-container">

@@ -144,7 +144,7 @@ func (pw *partWrapper) decRef() {
 	pw.p = nil
 
 	if deletePath != "" {
-		fs.MustRemoveAll(deletePath)
+		fs.MustRemoveDir(deletePath)
 	}
 }
 
@@ -168,9 +168,8 @@ func mustOpenDatadb(pt *partition, path string, flushInterval time.Duration) *da
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			partsFile := filepath.Join(path, partsFilename)
-			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
-				partPath, partsFile, partsFile, partsFile)
+			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; ensure %q contents is not corrupted; remove %q from %q in order to fix this error",
+				partPath, partsFile, partsFile, partPath, partsFile)
 		}
 
 		p := mustOpenFilePart(pt, partPath)
@@ -564,13 +563,13 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 		mpNew.ph = ph
 	} else {
 		ph.mustWriteMetadata(dstPartPath)
-		// Make sure the created part directory listing is synced.
-		fs.MustSyncPath(dstPartPath)
+		// Make sure the created part directory contents is synced and visible in case of unclean shutdown.
+		fs.MustSyncPathAndParentDir(dstPartPath)
 	}
 	if needStop(stopCh) {
 		// Remove incomplete destination part
 		if dstPartType != partInmemory {
-			fs.MustRemoveAll(dstPartPath)
+			fs.MustRemoveDir(dstPartPath)
 		}
 		return
 	}
@@ -644,7 +643,7 @@ func (ddb *datadb) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *in
 	if ph.RowsCount == 0 {
 		// The created part is empty. Remove it
 		if mpNew == nil {
-			fs.MustRemoveAll(dstPartPath)
+			fs.MustRemoveDir(dstPartPath)
 		}
 		return nil
 	}
@@ -1217,7 +1216,7 @@ func mustRemoveUnusedDirs(path string, partNames []string) {
 		fn := de.Name()
 		if _, ok := m[fn]; !ok {
 			deletePath := filepath.Join(path, fn)
-			fs.MustRemoveAll(deletePath)
+			fs.MustRemoveDir(deletePath)
 			removedDirs++
 		}
 	}

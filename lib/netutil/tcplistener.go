@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"time"
 
@@ -27,12 +26,10 @@ func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Con
 	if err != nil {
 		return nil, err
 	}
-	if tlsConfig != nil {
-		ln = tls.NewListener(ln, tlsConfig)
-	}
 	ms := metrics.GetDefaultSet()
 	tln := &TCPListener{
 		Listener:         ln,
+		tlsConfig:        tlsConfig,
 		useProxyProtocol: useProxyProtocol,
 
 		accepts:      ms.NewCounter(fmt.Sprintf(`vm_tcplistener_accepts_total{name=%q, addr=%q}`, name, addr)),
@@ -76,6 +73,8 @@ func GetTCPNetwork() string {
 type TCPListener struct {
 	net.Listener
 
+	tlsConfig *tls.Config
+
 	accepts      *metrics.Counter
 	acceptErrors *metrics.Counter
 
@@ -102,14 +101,7 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			return nil, err
 		}
 		if ln.useProxyProtocol {
-			pConn, err := newProxyProtocolConn(conn)
-			if err != nil {
-				if !errors.Is(err, io.EOF) {
-					proxyProtocolReadErrorLogger.Errorf("cannot read proxy proto conn for TCP addr %q: %s", ln.Addr(), err)
-				}
-				_ = conn.Close()
-				continue
-			}
+			pConn := newProxyProtocolConn(conn)
 			conn = pConn
 		}
 		ln.cm.conns.Inc()
@@ -117,6 +109,16 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			Conn: conn,
 			cm:   &ln.cm,
 		}
-		return sc, nil
+		if ln.tlsConfig == nil {
+			return sc, nil
+		}
+
+		// Make sure we return tls.Conn instead of statConn, since servers, which use this listener,
+		// such as net/http.Server, assume that the TLS connection must be represented as tls.Conn.
+		// Otherwise they cannot initialize internal fields such as net/http.Request.TLS.
+		// This results in non-working mTLS-based authorization.
+		//
+		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/29
+		return tls.Server(sc, ln.tlsConfig), nil
 	}
 }

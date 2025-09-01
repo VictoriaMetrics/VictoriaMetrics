@@ -152,16 +152,20 @@ func (sm *ScopeMetrics) unmarshalProtobuf(src []byte) (err error) {
 // Metric represents the corresponding OTEL protobuf message
 type Metric struct {
 	Name                 string
+	Description          string
 	Unit                 string
 	Gauge                *Gauge
 	Sum                  *Sum
 	Histogram            *Histogram
 	ExponentialHistogram *ExponentialHistogram
 	Summary              *Summary
+
+	Metadata []*KeyValue
 }
 
 func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	mm.AppendString(1, m.Name)
+	mm.AppendString(2, m.Description)
 	mm.AppendString(3, m.Unit)
 	switch {
 	case m.Gauge != nil:
@@ -175,11 +179,15 @@ func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	case m.Summary != nil:
 		m.Summary.marshalProtobuf(mm.AppendMessage(11))
 	}
+	for _, md := range m.Metadata {
+		md.marshalProtobuf(mm.AppendMessage(12))
+	}
 }
 
 func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 	// message Metric {
 	//   string name = 1;
+	//   string description = 2;
 	//   string unit = 3;
 	//   oneof data {
 	//     Gauge gauge = 5;
@@ -188,6 +196,7 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 	//     ExponentialHistogram exponential_histogram = 10;
 	//     Summary summary = 11;
 	//   }
+	//   repeated opentelemetry.proto.common.v1.KeyValue metadata = 12;
 	// }
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -202,6 +211,12 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read metric name")
 			}
 			m.Name = strings.Clone(name)
+		case 2:
+			description, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read metric description")
+			}
+			m.Description = strings.Clone(description)
 		case 3:
 			unit, ok := fc.String()
 			if !ok {
@@ -252,6 +267,16 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			m.Summary = &Summary{}
 			if err := m.Summary.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Summary: %w", err)
+			}
+		case 12:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read metadata attributes")
+			}
+			m.Metadata = append(m.Metadata, &KeyValue{})
+			mt := m.Metadata[len(m.Metadata)-1]
+			if err := mt.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal metadata attributes: %w", err)
 			}
 		}
 	}

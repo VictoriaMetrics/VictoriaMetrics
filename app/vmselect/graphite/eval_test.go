@@ -4070,6 +4070,9 @@ func TestExecExprFailure(t *testing.T) {
 
 	f(`holtWintersConfidenceArea(group(time("foo.baz",15),time("foo.baz",15)))`)
 	f(`holtWintersConfidenceArea()`)
+
+	// too long query
+	f(`sumSeries(` + strings.Repeat("metric.very.long.name.that.takes.space,", 500) + `metric.final)`)
 }
 
 func compareSeries(ss, ssExpected []*series, expr graphiteql.Expr) error {
@@ -4177,4 +4180,171 @@ func formatTimestamps(tss []int64) string {
 	}
 	fmt.Fprintf(&sb, " ]")
 	return sb.String()
+}
+
+func TestSafePathExpression(t *testing.T) {
+	// Save original value and restore after test
+	originalMaxLen := *maxGraphitePathExpressionLen
+	defer func() {
+		*maxGraphitePathExpressionLen = originalMaxLen
+	}()
+
+	t.Run("nil expression", func(t *testing.T) {
+		result := safePathExpression(nil)
+		if result != "" {
+			t.Fatalf("expected empty string for nil expression, got: %q", result)
+		}
+	})
+
+	t.Run("short expression - no truncation", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 50
+		expr := &graphiteql.MetricExpr{Query: "metric.cpu.usage"}
+		result := safePathExpression(expr)
+		expected := "metric.cpu.usage"
+		if result != expected {
+			t.Fatalf("expected %q, got %q", expected, result)
+		}
+	})
+
+	t.Run("long expression - with truncation", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 20
+		longQuery := "vertica.metrics.fr4.verticamultitenant-eon.request_resource_consumption.very_long_metric_name"
+		expr := &graphiteql.MetricExpr{Query: longQuery}
+		result := safePathExpression(expr)
+		expectedPrefix := longQuery[:20]
+		expectedSuffix := "..."
+		expected := expectedPrefix + expectedSuffix
+
+		if result != expected {
+			t.Fatalf("expected %q, got %q", expected, result)
+		}
+		if len(result) != 23 { // 20 + 3 for "..."
+			t.Fatalf("expected result length 23, got %d", len(result))
+		}
+		if !strings.HasSuffix(result, "...") {
+			t.Fatalf("expected result to end with '...', got %q", result)
+		}
+	})
+
+	t.Run("truncation disabled", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 0 // Disable truncation
+		longQuery := "very.long.metric.name.that.would.normally.be.truncated.but.should.not.be"
+		expr := &graphiteql.MetricExpr{Query: longQuery}
+		result := safePathExpression(expr)
+
+		if result != longQuery {
+			t.Fatalf("expected full string %q when truncation disabled, got %q", longQuery, result)
+		}
+	})
+
+	t.Run("function expression", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 30
+		// Create a function expression: sum(metric.cpu.usage)
+		args := []*graphiteql.ArgExpr{
+			{Expr: &graphiteql.MetricExpr{Query: "metric.cpu.usage"}},
+		}
+		funcExpr := &graphiteql.FuncExpr{
+			FuncName: "sum",
+			Args:     args,
+		}
+
+		result := safePathExpression(funcExpr)
+		expected := "sum(metric.cpu.usage)"
+
+		if result != expected {
+			t.Fatalf("expected %q, got %q", expected, result)
+		}
+	})
+
+	t.Run("complex nested function - truncated", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 15
+		// Create nested functions: sum(avg(metric.cpu.usage))
+		innerArgs := []*graphiteql.ArgExpr{
+			{Expr: &graphiteql.MetricExpr{Query: "metric.cpu.usage"}},
+		}
+		innerFunc := &graphiteql.FuncExpr{
+			FuncName: "avg",
+			Args:     innerArgs,
+		}
+		outerArgs := []*graphiteql.ArgExpr{
+			{Expr: innerFunc},
+		}
+		outerFunc := &graphiteql.FuncExpr{
+			FuncName: "sum",
+			Args:     outerArgs,
+		}
+
+		result := safePathExpression(outerFunc)
+
+		if len(result) != 18 { // 15 + 3 for "..."
+			t.Fatalf("expected result length 18, got %d", len(result))
+		}
+		if !strings.HasSuffix(result, "...") {
+			t.Fatalf("expected result to end with '...', got %q", result)
+		}
+		if !strings.HasPrefix(result, "sum(avg(metric") {
+			t.Fatalf("expected result to start with 'sum(avg(metric', got %q", result)
+		}
+	})
+
+	t.Run("boundary case - exact length", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 10
+		expr := &graphiteql.MetricExpr{Query: "metric.cpu"} // Exactly 10 characters
+		result := safePathExpression(expr)
+		expected := "metric.cpu"
+
+		if result != expected {
+			t.Fatalf("expected %q, got %q", expected, result)
+		}
+	})
+
+	t.Run("boundary case - one character over", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 10
+		expr := &graphiteql.MetricExpr{Query: "metric.cpu.x"} // 11 characters
+		result := safePathExpression(expr)
+		expected := "metric.cpu..."
+
+		if result != expected {
+			t.Fatalf("expected %q, got %q", expected, result)
+		}
+	})
+}
+
+func TestSafePathExpressionFromString(t *testing.T) {
+	// Save original value and restore after test
+	originalMaxLen := *maxGraphitePathExpressionLen
+	defer func() {
+		*maxGraphitePathExpressionLen = originalMaxLen
+	}()
+
+	t.Run("short string - no truncation", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 50
+		input := "sumSeries(metric1,metric2)"
+		result := safePathExpressionFromString(input)
+
+		if result != input {
+			t.Fatalf("expected %q, got %q", input, result)
+		}
+	})
+
+	t.Run("long string - with truncation", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 20
+		input := "sumSeries(very.long.metric.name.that.exceeds.limit,another.metric)"
+		result := safePathExpressionFromString(input)
+		expected := "sumSeries(very.long...."
+
+		if result != expected {
+			t.Fatalf("expected %q, got %q", expected, result)
+		}
+	})
+
+	t.Run("truncation disabled", func(t *testing.T) {
+		*maxGraphitePathExpressionLen = 0
+		input := "very.long.string.that.would.normally.be.truncated"
+		result := safePathExpressionFromString(input)
+
+		if result != input {
+			t.Fatalf("expected full string when truncation disabled, got %q", result)
+		}
+	})
 }

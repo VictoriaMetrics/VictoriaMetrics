@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -102,7 +102,7 @@ func HasRelabeling() bool {
 // Ctx holds relabeling context.
 type Ctx struct {
 	// tmpLabels is used during ApplyRelabeling call.
-	tmpLabels []prompbmarshal.Label
+	tmpLabels []prompb.Label
 }
 
 // Reset resets ctx.
@@ -114,13 +114,13 @@ func (ctx *Ctx) Reset() {
 // ApplyRelabeling applies relabeling to the given labels and returns the result.
 //
 // The returned labels are valid until the next call to ApplyRelabeling.
-func (ctx *Ctx) ApplyRelabeling(labels []prompbmarshal.Label) []prompbmarshal.Label {
+func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	pcs := pcsGlobal.Load()
 	if pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// There are no relabeling rules.
 		return labels
 	}
-	// Convert labels to prompbmarshal.Label format suitable for relabeling.
+	// Convert labels to prompb.Label format suitable for relabeling.
 	tmpLabels := ctx.tmpLabels[:0]
 	for _, label := range labels {
 		name := label.Name
@@ -128,7 +128,7 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompbmarshal.Label) []prompbmarshal.La
 			name = "__name__"
 		}
 		value := label.Value
-		tmpLabels = append(tmpLabels, prompbmarshal.Label{
+		tmpLabels = append(tmpLabels, prompb.Label{
 			Name:  name,
 			Value: value,
 		})
@@ -165,7 +165,7 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompbmarshal.Label) []prompbmarshal.La
 			name = ""
 		}
 		value := label.Value
-		dst = append(dst, prompbmarshal.Label{
+		dst = append(dst, prompb.Label{
 			Name:  name,
 			Value: value,
 		})

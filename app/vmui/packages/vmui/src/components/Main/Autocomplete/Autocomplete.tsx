@@ -15,6 +15,7 @@ export interface AutocompleteOptions {
 }
 
 interface AutocompleteProps {
+  itemClassName?: string
   value: string
   options: AutocompleteOptions[]
   anchor: React.RefObject<HTMLElement>
@@ -41,6 +42,7 @@ enum FocusType {
 
 const Autocomplete: FC<AutocompleteProps> = ({
   value,
+  itemClassName,
   options,
   anchor,
   disabled,
@@ -212,7 +214,9 @@ const Autocomplete: FC<AutocompleteProps> = ({
           >
             {selected?.includes(option.value) && <DoneIcon/>}
             <>{option.icon}</>
-            <span>{option.value}</span>
+            <div className={`vm-list-item-inner ${itemClassName} ${option.value.toLowerCase().replace(" ", "-")}`}>
+              <span>{option.value}</span>
+            </div>
           </div>
         )}
       </div>

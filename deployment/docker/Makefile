@@ -7,7 +7,8 @@ ROOT_IMAGE ?= alpine:3.22.1
 ROOT_IMAGE_SCRATCH ?= scratch
 CERTS_IMAGE := alpine:3.22.1
 
-GO_BUILDER_IMAGE := golang:1.24.5-alpine
+GO_BUILDER_IMAGE := golang:1.25.0
+
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -43,7 +44,7 @@ app-via-docker: package-builder
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-extldflags '-static' $(GO_BUILDINFO)" \
-			-tags 'netgo osusergo musl' \
+			-tags 'netgo osusergo $(EXTRA_GO_BUILD_TAGS)' \
 			-o bin/$(APP_NAME)$(APP_SUFFIX)-prod $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-via-docker-windows: package-builder
@@ -58,7 +59,7 @@ app-via-docker-windows: package-builder
 		$(BUILDER_IMAGE) \
 		go build $(RACE) -trimpath -buildvcs=false \
 			-ldflags "-s -w -extldflags '-static' $(GO_BUILDINFO)" \
-			-tags 'netgo osusergo' \
+			-tags 'netgo osusergo $(EXTRA_GO_BUILD_TAGS)' \
 			-o bin/$(APP_NAME)-windows$(APP_SUFFIX)-prod.exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 package-via-docker: package-base
@@ -158,11 +159,11 @@ app-via-docker-pure:
 	APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) app-via-docker
 
 app-via-docker-linux-amd64:
-	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
+	EXTRA_DOCKER_ENVS='CC=x86_64-linux-gnu-gcc' \
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-arm64:
-	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
+	EXTRA_DOCKER_ENVS='CC=aarch64-linux-gnu-gcc' \
 	CGO_ENABLED=1 GOOS=linux GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-arm:
@@ -201,11 +202,11 @@ package-via-docker-pure:
 	APP_SUFFIX='-pure' DOCKER_OPTS='--env CGO_ENABLED=0' $(MAKE) package-via-docker
 
 package-via-docker-amd64:
-	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
+	EXTRA_DOCKER_ENVS='CC=x86_64-linux-gnu-gcc' \
 	CGO_ENABLED=1 GOARCH=amd64 $(MAKE) package-via-docker-goarch
 
 package-via-docker-arm64:
-	EXTRA_DOCKER_ENVS='CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
+	EXTRA_DOCKER_ENVS='CC=aarch64-linux-gnu-gcc' \
 	CGO_ENABLED=1 GOARCH=arm64 $(MAKE) package-via-docker-goarch
 
 package-via-docker-arm:

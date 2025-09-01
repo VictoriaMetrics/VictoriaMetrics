@@ -1,13 +1,15 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { MetricBase, MetricResult, ExportMetricResult } from "../../../api/types";
-import { ErrorTypes, SeriesLimits } from "../../../types";
+import { ErrorTypes, SeriesLimits, TimeParams } from "../../../types";
 import { useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import { useAppState } from "../../../state/common/StateContext";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { isValidHttpUrl } from "../../../utils/url";
-import { getExportDataUrl } from "../../../api/query-range";
+import { getExportCSVDataUrl, getExportDataUrl, getExportJSONDataUrl } from "../../../api/query-range";
 import { parseLineToJSON } from "../../../utils/json";
+import { downloadCSV, downloadJSON } from "../../../utils/file";
+import { useSnack } from "../../../contexts/Snackbar";
 
 interface FetchQueryParams {
   hideQuery?: number[];
@@ -16,6 +18,7 @@ interface FetchQueryParams {
 
 interface FetchQueryReturn {
   fetchUrl?: string[],
+  exportData: (format: ExportFormats) => void,
   isLoading: boolean,
   data?: MetricResult[],
   error?: ErrorTypes | string,
@@ -25,11 +28,16 @@ interface FetchQueryReturn {
   abortFetch: () => void
 }
 
+type ExportFormats = "csv" | "json";
+type FormatDownloader = (serverUrl: string, query: string[], period: TimeParams, reduceMemUsage: boolean) => void;
+type DownloadFileFormats = Record<ExportFormats, FormatDownloader>
+
 export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): FetchQueryReturn => {
   const { query } = useQueryState();
   const { period } = useTimeState();
   const { displayType, reduceMemUsage, seriesLimits: stateSeriesLimits } = useCustomPanelState();
   const { serverUrl } = useAppState();
+  const { showInfoMessage } = useSnack();
 
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<MetricResult[]>();
@@ -54,6 +62,35 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
       setError(ErrorTypes.validServer);
     }
   }, [serverUrl, period, hideQuery, reduceMemUsage]);
+
+  const fileDownloaders: DownloadFileFormats = useMemo(() => {
+    const getFilename = (format: ExportFormats) => `vmui_export_${query.join("_")}_${period.start}_${period.end}.${format}`;
+    return {
+      csv: async () => {
+        const url = getExportCSVDataUrl(serverUrl, query, period, reduceMemUsage);
+        const response = await fetch(url);
+        try {
+          let text = await response.text();
+          text = "name,value,timestamp\n" + text;
+          downloadCSV(text, getFilename("csv"));
+        } catch (e) {
+          console.error(e);
+          showInfoMessage({ text: "Couldn't fetch data for CSV export. Please try again", type: "error" });
+        }
+      },
+      json: async () => {
+        const url = getExportJSONDataUrl(serverUrl, query, period, reduceMemUsage);
+        try {
+          const response = await fetch(url);
+          const text = await response.text();
+          downloadJSON(text, getFilename("json"));
+        } catch (e) {
+          console.error(e);
+          showInfoMessage({ text: "Couldn't fetch data for JSON export. Please try again", type: "error" });
+        }
+      }
+    };
+  }, [query, period, serverUrl, reduceMemUsage]);
 
   const fetchData = useCallback(async ({ fetchUrl, stateSeriesLimits, showAllSeries }: {
     fetchUrl: string[];
@@ -131,7 +168,7 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
 
         counter++;
       }
-      const limitText = `Showing ${tempData.length} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
+      const limitText = `Showing ${tempData.length} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns fewer series`;
       setWarning(totalLength > seriesLimit ? limitText : "");
       setData(tempData as MetricResult[]);
       setIsLoading(false);
@@ -143,6 +180,12 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
       }
     }
   }, [displayType, hideQuery]);
+
+  const exportData = useCallback((format: ExportFormats) => {
+    if (error) return;
+    const updatedPeriod = { ...period };
+    fileDownloaders[format](serverUrl, query, updatedPeriod, reduceMemUsage);
+  }, [serverUrl, query, period, reduceMemUsage, error, fileDownloaders]);
 
   const abortFetch = useCallback(() => {
     abortControllerRef.current.abort();
@@ -167,5 +210,6 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
     setQueryErrors,
     warning,
     abortFetch,
+    exportData
   };
 };

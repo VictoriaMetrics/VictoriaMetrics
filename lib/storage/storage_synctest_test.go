@@ -4,6 +4,7 @@ package storage
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -15,7 +16,7 @@ import (
 func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 	defer testRemoveAll(t)
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 
@@ -26,11 +27,11 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		}
 		const numMetrics = 10
 		date := uint64(tr.MinTimestamp) / msecPerDay
-		idb, putCurrIndexDB := s.getCurrIndexDB()
-		defer putCurrIndexDB()
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 		var wantMetricIDs []uint64
 
-		// Symulate corrupted index by inserting `(date, tag) -> metricID`
+		// Simulate corrupted index by inserting `(date, tag) -> metricID`
 		// entries only.
 		for i := range numMetrics {
 			metricName := []byte(fmt.Sprintf("metric_%d", i))
@@ -50,11 +51,11 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			ii.Next()
 			kbPool.Put(kb)
 
-			idb.tb.AddItems(ii.Items)
+			idbCurr.tb.AddItems(ii.Items)
 
 			putIndexItems(ii)
 		}
-		idb.tb.DebugFlush()
+		idbCurr.tb.DebugFlush()
 
 		tfsAll := NewTagFilters()
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
@@ -63,7 +64,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idbCurr.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
@@ -103,8 +104,103 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 		// As a result they cannot be searched anymore.
-		if diff := cmp.Diff([]uint64{}, searchMetricIDs()); diff != "" {
+		if diff := cmp.Diff([]uint64(nil), searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
 	})
+}
+
+func TestStorageRotateIndexDBPrefill(t *testing.T) {
+	f := func(opts OpenOptions, prefillStart time.Duration) {
+		defer testRemoveAll(t)
+		t.Helper()
+
+		synctest.Test(t, func(t *testing.T) {
+			// Align start time to 05:00 in order to have 23h before the next rotation cycle at 04:00 next morning.
+			time.Sleep(time.Hour * 5)
+
+			nextRotationTime := time.Now().Add(time.Hour * 23).Truncate(time.Hour)
+
+			s := MustOpenStorage(t.Name(), opts)
+			defer s.MustClose()
+			// first rotation cycle in 4 hours due to synctest start time of 00:00:00
+			rng := rand.New(rand.NewSource(1))
+			ct := time.Now()
+			tr := TimeRange{
+				MinTimestamp: ct.Add(time.Hour).UnixMilli(),
+				MaxTimestamp: ct.Add(time.Hour * 24).UnixMilli(),
+			}
+			const numSeries = 1000
+
+			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
+			s.AddRows(mrs, 1)
+			s.DebugFlush()
+			createdSeries := s.newTimeseriesCreated.Load()
+			if createdSeries != numSeries {
+				t.Fatalf("unexpected number of created series (-%d;+%d)", numSeries, createdSeries)
+			}
+
+			// Sleep until a minute before the prefill start time,
+			// then verify that no timeseries have been pre-created yet.
+			time.Sleep(time.Hour*23 - prefillStart - 1*time.Minute)
+			s.AddRows(mrs, 1)
+			s.DebugFlush()
+			preCreated := s.timeseriesPreCreated.Load()
+			if preCreated != 0 {
+				t.Fatalf("expected no timeseries to be re-created, got: %d", preCreated)
+			}
+
+			// Sleep until half of the prefill rotation interval has elapsed,
+			// then verify that some time series have been pre-created.
+			time.Sleep(prefillStart / 2)
+			s.AddRows(mrs, 1)
+			s.DebugFlush()
+			preCreated = s.timeseriesPreCreated.Load()
+			if preCreated == 0 {
+				t.Fatalf("expected some timeseries to be re-created, got: %d", preCreated)
+			}
+
+			// Sleep until a minute before the index rotation,
+			// verify that almost all time series have been pre-created.
+			time.Sleep(nextRotationTime.Sub(time.Now().Add(time.Minute)))
+			s.AddRows(mrs, 1)
+			s.DebugFlush()
+			preCreated = s.timeseriesPreCreated.Load()
+			if preCreated == 0 || preCreated < numSeries/2 {
+				t.Fatalf("expected more than 50 percent of timeseries to be re-created, got: %d", preCreated)
+			}
+
+			// Sleep until the rotation is over, verify that the rest of time series have been re-created
+			time.Sleep(time.Hour)
+			s.AddRows(mrs, 1)
+			s.DebugFlush()
+			createdSeries, reCreated, rePopulated := s.newTimeseriesCreated.Load(), s.timeseriesPreCreated.Load(), s.timeseriesRepopulated.Load()
+			if createdSeries != numSeries {
+				t.Fatalf("unexpected number of created series (-%d;+%d)", numSeries, createdSeries)
+			}
+			if reCreated+rePopulated != numSeries {
+				t.Fatalf("unexpected number of re-created=%d and re-populated=%d series, want sum to be equal to %d", numSeries, createdSeries, numSeries)
+			}
+		})
+	}
+
+	// Test the default prefill start duration, see -storage.idbPrefillStart flag:
+	// VictoriaMetrics starts prefill indexDB at 3 A.M UTC, while indexDB rotates at 4 A.M UTC.
+	f(
+		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: time.Hour},
+		time.Hour,
+	)
+
+	// Zero IDBPrefillStart option should fallback to 1 hour prefill start:
+	f(
+		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 0},
+		time.Hour,
+	)
+
+	// Test a custom prefill duration: 2h:
+	// VictoriaMetrics starts prefill indexDB at 2 A.M UTC, while indexDB rotates at 4 A.M UTC.
+	f(
+		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 2 * time.Hour},
+		2*time.Hour,
+	)
 }

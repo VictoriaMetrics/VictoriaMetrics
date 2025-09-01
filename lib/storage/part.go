@@ -52,21 +52,32 @@ func mustOpenFilePart(path string) *part {
 	var ph partHeader
 	ph.MustReadMetadata(path)
 
-	timestampsPath := filepath.Join(path, timestampsFilename)
-	timestampsFile := fs.MustOpenReaderAt(timestampsPath)
-	timestampsSize := fs.MustFileSize(timestampsPath)
-
-	valuesPath := filepath.Join(path, valuesFilename)
-	valuesFile := fs.MustOpenReaderAt(valuesPath)
-	valuesSize := fs.MustFileSize(valuesPath)
-
-	indexPath := filepath.Join(path, indexFilename)
-	indexFile := fs.MustOpenReaderAt(indexPath)
-	indexSize := fs.MustFileSize(indexPath)
-
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	metaindexSize := fs.MustFileSize(metaindexPath)
+
+	// Open part files in parallel in order to speed up this process
+	// on high-latency storage systems such as NFS and Ceph.
+
+	var pro fs.ParallelReaderAtOpener
+
+	timestampsPath := filepath.Join(path, timestampsFilename)
+	valuesPath := filepath.Join(path, valuesFilename)
+	indexPath := filepath.Join(path, indexFilename)
+
+	var timestampsFile fs.MustReadAtCloser
+	var timestampsSize uint64
+	pro.Add(timestampsPath, &timestampsFile, &timestampsSize)
+
+	var valuesFile fs.MustReadAtCloser
+	var valuesSize uint64
+	pro.Add(valuesPath, &valuesFile, &valuesSize)
+
+	var indexFile fs.MustReadAtCloser
+	var indexSize uint64
+	pro.Add(indexPath, &indexFile, &indexSize)
+
+	pro.Run()
 
 	size := timestampsSize + valuesSize + indexSize + metaindexSize
 	return newPart(&ph, path, size, metaindexFile, timestampsFile, valuesFile, indexFile)
@@ -105,9 +116,14 @@ func (p *part) String() string {
 
 // MustClose closes all the part files.
 func (p *part) MustClose() {
-	p.timestampsFile.MustClose()
-	p.valuesFile.MustClose()
-	p.indexFile.MustClose()
+	// Close files in parallel in order to speed up this process on storage systems with high latency
+	// such as NFS or Ceph.
+	cs := []fs.MustCloser{
+		p.timestampsFile,
+		p.valuesFile,
+		p.indexFile,
+	}
+	fs.MustCloseParallel(cs)
 
 	ibCache.RemoveBlocksForPart(p)
 }

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -49,7 +49,7 @@ Outer:
 		}
 		var expSamples []parsedSample
 		for _, s := range mt.ExpSamples {
-			expLb := []prompbmarshal.Label{}
+			expLb := []prompb.Label{}
 			if s.Labels != "" {
 				metricsqlExpr, err := metricsql.Parse(s.Labels)
 				if err != nil {
@@ -65,7 +65,7 @@ Outer:
 				}
 				if len(metricsqlMetricExpr.LabelFilterss) > 0 {
 					for _, l := range metricsqlMetricExpr.LabelFilterss[0] {
-						expLb = append(expLb, prompbmarshal.Label{
+						expLb = append(expLb, prompb.Label{
 							Name:  l.Label,
 							Value: l.Value,
 						})

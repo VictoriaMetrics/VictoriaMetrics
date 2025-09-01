@@ -5,15 +5,16 @@ import (
 	"testing"
 	"time"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestSingleDeduplication_dedulicationIsOff(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	sut := tc.MustStartVmsingle("vmsingle", []string{
@@ -26,7 +27,7 @@ func TestSingleDeduplication_dedulicationIsOff(t *testing.T) {
 }
 
 func TestSingleDeduplication_dedulicationIsOn(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	sut := tc.MustStartVmsingle("vmsingle", []string{
@@ -39,10 +40,10 @@ func TestSingleDeduplication_dedulicationIsOn(t *testing.T) {
 }
 
 func TestClusterDeduplication_deduplicationIsOff(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartCluster(&at.ClusterOptions{
+	sut := tc.MustStartCluster(&apptest.ClusterOptions{
 		Vmstorage1Instance: "vmstorage1",
 		Vmstorage1Flags: []string{
 			"-dedup.minScrapeInterval=0",
@@ -59,10 +60,10 @@ func TestClusterDeduplication_deduplicationIsOff(t *testing.T) {
 }
 
 func TestClusterDeduplication_deduplicationIsOn(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartCluster(&at.ClusterOptions{
+	sut := tc.MustStartCluster(&apptest.ClusterOptions{
 		Vmstorage1Instance: "vmstorage1",
 		Vmstorage1Flags: []string{
 			"-dedup.minScrapeInterval=10s",
@@ -79,7 +80,7 @@ func TestClusterDeduplication_deduplicationIsOn(t *testing.T) {
 }
 
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication
-func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplicationIsOn bool) {
+func testDeduplication(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier, deduplicationIsOn bool) {
 	t := tc.T()
 
 	firstDayOfThisMonth := func() time.Time {
@@ -98,34 +99,34 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 	ts3 := start.Add(3 * time.Second).UnixMilli()
 	ts5 := start.Add(5 * time.Second).UnixMilli()
 	ts10 := start.Add(10 * time.Second).UnixMilli()
-	data := []pb.TimeSeries{
+	data := []prompb.TimeSeries{
 		{
-			Labels: []pb.Label{{Name: "__name__", Value: "metric1"}},
-			Samples: []pb.Sample{
+			Labels: []prompb.Label{{Name: "__name__", Value: "metric1"}},
+			Samples: []prompb.Sample{
 				{Timestamp: ts1, Value: 3},
 				{Timestamp: ts3, Value: 10},
 				{Timestamp: ts5, Value: 5},
 			},
 		},
 		{
-			Labels: []pb.Label{{Name: "__name__", Value: "metric2"}},
-			Samples: []pb.Sample{
+			Labels: []prompb.Label{{Name: "__name__", Value: "metric2"}},
+			Samples: []prompb.Sample{
 				{Timestamp: ts1, Value: 3},
 				{Timestamp: ts3, Value: decimal.StaleNaN},
 				{Timestamp: ts5, Value: 5},
 			},
 		},
 		{
-			Labels: []pb.Label{{Name: "__name__", Value: "metric3"}},
-			Samples: []pb.Sample{
+			Labels: []prompb.Label{{Name: "__name__", Value: "metric3"}},
+			Samples: []prompb.Sample{
 				{Timestamp: ts10, Value: 30},
 				{Timestamp: ts10, Value: 100},
 				{Timestamp: ts10, Value: 50},
 			},
 		},
 		{
-			Labels: []pb.Label{{Name: "__name__", Value: "metric4"}},
-			Samples: []pb.Sample{
+			Labels: []prompb.Label{{Name: "__name__", Value: "metric4"}},
+			Samples: []prompb.Sample{
 				{Timestamp: ts10, Value: 30},
 				{Timestamp: ts10, Value: decimal.StaleNaN},
 				{Timestamp: ts10, Value: 50},
@@ -133,31 +134,31 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 		},
 	}
 
-	sut.PrometheusAPIV1Write(t, data, at.QueryOpts{})
+	sut.PrometheusAPIV1Write(t, data, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 	sut.ForceMerge(t)
 
-	wantDuplicates := &at.PrometheusAPIV1QueryResponse{
+	wantDuplicates := &apptest.PrometheusAPIV1QueryResponse{
 		Status: "success",
-		Data: &at.QueryData{
+		Data: &apptest.QueryData{
 			ResultType: "matrix",
-			Result: []*at.QueryResult{
-				{Metric: map[string]string{"__name__": "metric1"}, Samples: []*at.Sample{
+			Result: []*apptest.QueryResult{
+				{Metric: map[string]string{"__name__": "metric1"}, Samples: []*apptest.Sample{
 					{Timestamp: ts1, Value: 3},
 					{Timestamp: ts3, Value: 10},
 					{Timestamp: ts5, Value: 5},
 				}},
-				{Metric: map[string]string{"__name__": "metric2"}, Samples: []*at.Sample{
+				{Metric: map[string]string{"__name__": "metric2"}, Samples: []*apptest.Sample{
 					{Timestamp: ts1, Value: 3},
 					{Timestamp: ts3, Value: decimal.StaleNaN},
 					{Timestamp: ts5, Value: 5},
 				}},
-				{Metric: map[string]string{"__name__": "metric3"}, Samples: []*at.Sample{
+				{Metric: map[string]string{"__name__": "metric3"}, Samples: []*apptest.Sample{
 					{Timestamp: ts10, Value: 30},
 					{Timestamp: ts10, Value: 50},
 					{Timestamp: ts10, Value: 100},
 				}},
-				{Metric: map[string]string{"__name__": "metric4"}, Samples: []*at.Sample{
+				{Metric: map[string]string{"__name__": "metric4"}, Samples: []*apptest.Sample{
 					{Timestamp: ts10, Value: 30},
 					{Timestamp: ts10, Value: 50},
 					{Timestamp: ts10, Value: decimal.StaleNaN},
@@ -165,30 +166,30 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 			},
 		},
 	}
-	wantDeduped := &at.PrometheusAPIV1QueryResponse{
+	wantDeduped := &apptest.PrometheusAPIV1QueryResponse{
 		Status: "success",
-		Data: &at.QueryData{
+		Data: &apptest.QueryData{
 			ResultType: "matrix",
-			Result: []*at.QueryResult{
-				{Metric: map[string]string{"__name__": "metric1"}, Samples: []*at.Sample{
+			Result: []*apptest.QueryResult{
+				{Metric: map[string]string{"__name__": "metric1"}, Samples: []*apptest.Sample{
 					// VictoriaMetrics leaves a single raw sample with the
 					// biggest timestamp for each time series per each
 					// -dedup.minScrapeInterval discrete interval if
 					// -dedup.minScrapeInterval is set to positive duration.
 					{Timestamp: ts5, Value: 5},
 				}},
-				{Metric: map[string]string{"__name__": "metric2"}, Samples: []*at.Sample{
+				{Metric: map[string]string{"__name__": "metric2"}, Samples: []*apptest.Sample{
 					// Even if NaN is present among duplicates, VictoriaMetrics
 					// still chooses the sample with the biggest timestamp.
 					{Timestamp: ts5, Value: 5},
 				}},
-				{Metric: map[string]string{"__name__": "metric3"}, Samples: []*at.Sample{
+				{Metric: map[string]string{"__name__": "metric3"}, Samples: []*apptest.Sample{
 					// If multiple raw samples have the same timestamp on the
 					// given -dedup.minScrapeInterval discrete interval, then
 					// the sample with the biggest value is kept.
 					{Timestamp: ts10, Value: 100},
 				}},
-				{Metric: map[string]string{"__name__": "metric4"}, Samples: []*at.Sample{
+				{Metric: map[string]string{"__name__": "metric4"}, Samples: []*apptest.Sample{
 					// If multiple raw samples have the same timestamp on the
 					// given -dedup.minScrapeInterval discrete interval, then
 					// stale markers are preferred over any other value.
@@ -203,10 +204,10 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 		want = wantDeduped
 	}
 
-	tc.Assert(&at.AssertOptions{
+	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected response",
 		Got: func() any {
-			got := sut.PrometheusAPIV1Export(t, `{__name__=~"metric.*"}`, at.QueryOpts{
+			got := sut.PrometheusAPIV1Export(t, `{__name__=~"metric.*"}`, apptest.QueryOpts{
 				ReduceMemUsage: "1",
 				Start:          fmt.Sprintf("%d", start.UnixMilli()),
 				End:            fmt.Sprintf("%d", end.UnixMilli()),

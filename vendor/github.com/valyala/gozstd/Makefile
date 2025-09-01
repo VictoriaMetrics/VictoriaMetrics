@@ -4,9 +4,9 @@ GOOS_GOARCH := $(GOOS)_$(GOARCH)
 GOOS_GOARCH_NATIVE := $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 LIBZSTD_NAME := libzstd_$(GOOS_GOARCH).a
 ZSTD_VERSION ?= v1.5.7
-ZIG_BUILDER_IMAGE=euantorano/zig:0.10.1
-BUILDER_IMAGE := local/builder_musl:2.0.0-$(shell echo $(ZIG_BUILDER_IMAGE) | tr : _ | tr / _)-1
-
+ZIG_VERSION ?= 0.15.1
+BASE_IMAGE ?= alpine:latest
+BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(BASE_IMAGE) | tr : _ | tr / _)-zig-$(ZIG_VERSION)
 .PHONY: libzstd.a $(LIBZSTD_NAME)
 
 libzstd.a: $(LIBZSTD_NAME)
@@ -32,13 +32,16 @@ else ifeq ($(GOOS_GOARCH),darwin_arm64)
 else ifeq ($(GOOS_GOARCH),darwin_amd64)
 	TARGET=x86_64-macos GOARCH=amd64 GOOS=darwin $(MAKE) package-arch
 else ifeq ($(GOOS_GOARCH),windows_amd64)
-	TARGET=x86_64-windows GOARCH=amd64 GOOS=windows GOARCH=amd64 $(MAKE) package-arch
+	TARGET=x86_64-windows GOARCH=amd64 GOOS=windows $(MAKE) package-arch
+else ifeq ($(GOOS_GOARCH),freebsd_amd64)
+	TARGET=x86_64-freebsd GOARCH=amd64 GOOS=freebsd $(MAKE) package-arch
 endif
 
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
 		|| docker build \
-			--build-arg builder_image=$(ZIG_BUILDER_IMAGE) \
+			--build-arg builder_image=$(BASE_IMAGE) \
+			--build-arg zig_version=$(ZIG_VERSION) \
 			--tag $(BUILDER_IMAGE) \
 			builder
 
@@ -54,10 +57,11 @@ package-arch: package-builder
 			CC="zig cc -target $(TARGET)" \
 			CXX="zig cc -target $(TARGET)" \
 			MOREFLAGS=$(MOREFLAGS) \
-			$(MAKE) clean libzstd.a'
+			RM="rm -rf --" \
+			make clean libzstd.a'
 	mv -f zstd/lib/libzstd.a $(LIBZSTD_NAME)
 
-# freebsd and illumos aren't supported by zig compiler atm.
+# illumos isn't supported by zig compiler atm.
 release:
 	GOOS=linux GOARCH=amd64 $(MAKE) libzstd.a
 	GOOS=linux GOARCH=arm64 $(MAKE) libzstd.a
@@ -68,6 +72,7 @@ release:
 	GOOS=darwin GOARCH=arm64 $(MAKE) libzstd.a
 	GOOS=darwin GOARCH=amd64 $(MAKE) libzstd.a
 	GOOS=windows GOARCH=amd64 $(MAKE) libzstd.a
+	GOOS=freebsd GOARCH=amd64 $(MAKE) libzstd.a
 
 clean:
 	rm -f $(LIBZSTD_NAME)

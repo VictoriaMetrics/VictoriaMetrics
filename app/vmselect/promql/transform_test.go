@@ -37,6 +37,9 @@ func TestFixBrokenBuckets(t *testing.T) {
 	f([]float64{5, 1, 2, 3, nan}, []float64{5, 5, 5, 5, 5})
 	f([]float64{1, 5, 2, nan, 6, 3}, []float64{1, 5, 5, 5, 6, 6})
 	f([]float64{5, 10, 4, 3}, []float64{5, 10, 10, 10})
+	f([]float64{nan, 2, nan, 5}, []float64{0, 2, 2, 5})
+	f([]float64{nan, nan, 4, 5}, []float64{0, 0, 4, 5})
+	f([]float64{nan, nan, nan, 4}, []float64{0, 0, 0, 4})
 }
 
 func TestFixBrokenBucketsMultipleValues(t *testing.T) {
@@ -44,12 +47,11 @@ func TestFixBrokenBucketsMultipleValues(t *testing.T) {
 		t.Helper()
 		xss := make([]leTimeseries, len(values))
 		for i, v := range values {
-
 			xss[i].ts = &timeseries{
 				Values: v,
 			}
 		}
-		for i := range len(values) - 1 {
+		for i := range len(values[0]) {
 			fixBrokenBuckets(i, xss)
 		}
 		result := make([][]float64, len(values))
@@ -61,6 +63,8 @@ func TestFixBrokenBucketsMultipleValues(t *testing.T) {
 		}
 	}
 	f([][]float64{{10, 1}, {11, 2}, {13, 3}}, [][]float64{{10, 1}, {11, 2}, {13, 3}})
+	f([][]float64{{nan, nan}, {11, 2}, {13, 3}}, [][]float64{{0, 0}, {11, 2}, {13, 3}})
+	f([][]float64{{nan, nan, nan}, {11, 2, 3}, {13, 3, 4}}, [][]float64{{0, 0, 0}, {11, 2, 3}, {13, 3, 4}})
 }
 
 func TestVmrangeBucketsToLE(t *testing.T) {

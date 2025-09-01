@@ -22,12 +22,11 @@ protocol and require `-remoteWrite.url` to be configured.
 `vmalert` is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
 implementation and aims to be compatible with its syntax.
 
-A [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
-or [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
-of VictoriaMetrics are capable of proxying requests to `vmalert` via `-vmalert.proxyURL` command-line flag. 
-Use this feature for the following cases:
-* for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* for accessing `vmalert`'s UI through VictoriaMetrics Web interface.
+Configure `-vmalert.proxyURL` on VictoriaMetrics [single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmalert)
+or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
+to proxy requests to `vmalert`. Proxying is needed for the following cases:
+* to proxy requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
+* to access `vmalert`'s UI through [vmui](https://docs.victoriametrics.com/#vmui).
 
 [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_intro) 
 provides out-of-the-box alerting functionality based on `vmalert`. This service simplifies the setup 
@@ -231,13 +230,13 @@ expression and then act according to the Rule type.
 
 There are two types of Rules:
 
-* [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) -
+* [Alerting](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) -
   Alerting rules allow defining alert conditions via `expr` field and to send notifications to
-  [Alertmanager](https://github.com/prometheus/alertmanager) if execution result is not empty.
-* [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) -
+  [Alertmanager](https://github.com/prometheus/alertmanager) if execution result is not empty ([Prometheus alerting rules docs](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules)).
+* [Recording](https://docs.victoriametrics.com/victoriametrics/vmalert/#recording-rules) -
   Recording rules allow defining `expr` which result will be then backfilled to configured
   `-remoteWrite.url`. Recording rules are used to precompute frequently needed or computationally
-  expensive expressions and save their result as a new set of time series.
+  expensive expressions and save their result as a new set of time series ([Prometheus recording rules docs](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)).
 
 `vmalert` forbids defining duplicates - rules with the same combination of name, expression, and labels
 within one group.
@@ -741,7 +740,9 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/notifiers` - list all available notifiers;
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
-  Used as alert source in AlertManager.
+* `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in JSON format.
+* `http://<vmalert-addr>/vmalert/api/v1/group?group_id=<group_id>` - get group status in JSON format.
+Used as alert source in AlertManager.
 * `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in web UI.
 * `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in web UI.
 * `http://<vmalert-addr>/vmalert/api/v1/rule?group_id=<group_id>&alert_id=<alert_id>` - get rule status in JSON format.
@@ -865,8 +866,8 @@ There are following non-required `replay` flags:
 * `-replay.disableProgressBar` - whether to disable progress bar which shows progress work.
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
-* `-replay.ruleEvaluationConcurrency` -  The maximum number of concurrent `/query_range` requests for a single rule. 
-  Increasing this value when replaying for a long time and a single request range is limited by `-replay.maxDatapointsPerQuery`.
+* `-replay.ruleEvaluationConcurrency` -  The maximum number of concurrent `/query_range` requests when replay recording rule or alerting rule with for=0.
+  Increasing this value when replaying for a long time, since each request is limited by `-replay.maxDatapointsPerQuery`.
   The default value is `1`.
 
 See full description for these flags in `./vmalert -help`.
@@ -1621,7 +1622,7 @@ The shortlist of configuration flags is the following:
   -tlsAutocertCacheDir string
      Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
      Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.

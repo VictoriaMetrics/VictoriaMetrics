@@ -305,3 +305,27 @@ reader:  # can be partially reused, because its class and datasource URL are unc
 This means that the service upon restart:
 1. Won't restore the state of `zscore_online` model, because its `z_threshold` argument **has changed**, retraining from scratch is needed on the last `fit_window` = 24 hours of data for `q1`, `q2` and `q3` (as model's `queries` arg is not set so it defaults to all queries found in the reader).
 2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`prophet`, `q2`) combination will be removed from the database file and from the disk.
+
+
+### Logger Levels
+
+{{% available_from "v1.25.3" anomaly %}} `vmanomaly` service supports per-component logger levels, allowing to control the verbosity of logs for each component independently. This can be useful for debugging or monitoring specific components without overwhelming the logs with information from other components. Prefixes are also supported, allowing to set the logger level for all components with a specific prefix.
+
+The logger levels can be set in the `settings` section of the config file under `logger_levels` key, where the key is the component name or prefix and the value is the desired logger level. The available logger levels are: `debug`, `info`, `warning`, `error`, and `critical`.
+
+> Best used in combination with [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) to change the logger levels *on-the-fly* without restarting the service through a short-circuit config check than doesn't even trigger the state restoration logic.
+
+Here's an example configuration that sets the logger level for the `reader` component to `debug` and for the `writer` component to `critical`, while `--loggerLevel` [command line argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) sets the default logger level to `INFO` for all (the other) components, unless overridden by the config:
+
+> If commented out in hot-reload mode during hot-reload event, the logger level for the component will be set back to what `--loggerLevel` command line argument is set to, which defaults to `info` if not specified.
+
+```yaml
+settings:
+  n_workers: 4
+  restore_state: True  # enables state restoration
+  logger_levels:
+    reader.vm: debug  # affects only VmReader logs
+    model: warning  # applies to all components with 'model' prefix, such as 'model.zscore_online', 'model.prophet', etc.
+    # once commented out in hot-reload mode, will use the default logger level set by --loggerLevel command line argument
+    # monitoring.push: critical
+```

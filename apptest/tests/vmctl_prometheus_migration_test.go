@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 )
 
 func TestSingleVmctlPrometheusProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
@@ -37,7 +38,7 @@ func TestSingleVmctlPrometheusProtocol(t *testing.T) {
 }
 
 func TestClusterVmctlPrometheusProtocol(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
