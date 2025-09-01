@@ -55,7 +55,7 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
   and [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time
   and before sending them to remote storage systems. See [these docs](#cardinality-limiter).
 * Can write collected metrics to multiple tenants. See [these docs](#multitenancy).
-* Can read and write data from / to Kafka. See [these docs](#kafka-integration).
+* Can read and write data from / to Kafka. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/kafka).
 * Can read and write data from / to Google PubSub. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/).
 
 ## Quick Start
@@ -1039,187 +1039,6 @@ Additional notes:
 1. The minimum disk size to allocate for the persistent queue is 500Mi per each `-remoteWrite.url`.
 1. On-disk persistent queue can be disabled if needed. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
 
-## Kafka integration
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` can read and write metrics from / to Kafka:
-
-* [Reading metrics from Kafka](#reading-metrics-from-kafka)
-* [Writing metrics to Kafka](#writing-metrics-to-kafka)
-
-The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-in `vmutils-...-enterprise.tar.gz` archives and in docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
-
-### Reading metrics from Kafka
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` can read metrics in various formats from Kafka messages.
-These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line flags. The following formats are supported:
-
-* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
-  Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
-* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/).
-* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
-  and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
-* `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
-* `jsonline` - [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
-
-For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol) 
-or [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol), and handle them accordingly.
-
-Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
-
-`vmagent` consumes messages from Kafka topics specified by `-kafka.consumer.topic` command-line flag. Multiple topics can be specified
-by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
-
-`vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag.
-Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`.
-For example:
-```sh
-./bin/vmagent 
-      -kafka.consumer.topic='topic-a' 
-      -kafka.consumer.topic.brokers='host1:9092;host2:9092' 
-      -kafka.consumer.topic='topic-b' 
-      -kafka.consumer.topic.brokers='host3:9092;host4:9092'
-```
-This command starts `vmagent` which reads messages from `topic-a` at `host1:9092` and `host2:9092` brokers and messages 
-from `topic-b` at `host3:9092` and `host4:9092` brokers.
-
-Note that when using YAML configuration (for example, when using [Helm charts](https://github.com/VictoriaMetrics/helm-charts) or [Kubernetes operator](https://docs.victoriametrics.com/operator/))
-keys provided in `extraArgs` must be unique, so in order to achieve the same configuration as in the example above, the following configuration must be used:
-```yaml
-extraArgs:
-  "kafka.consumer.topic": "topic-a,topic-b"
-  "kafka.consumer.topic.brokers": "host1:9092;host2:9092,host3:9092;host4:9092"
-```
-Note that list of brokers for the same topic is separated by `;` and different groups of brokers are separated by `,`.
-
-The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092`
-from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
-
-```sh
-./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
-       -kafka.consumer.topic.brokers=localhost:9092 \
-       -kafka.consumer.topic.format=influx \
-       -kafka.consumer.topic=metrics-by-telegraf \
-       -kafka.consumer.topic.groupID=some-id
-```
-
-It is expected that [Telegraf](https://github.com/influxdata/telegraf) sends metrics to the `metrics-by-telegraf` topic with the following config:
-
-```yaml
-[[outputs.kafka]]
-brokers = ["localhost:9092"]
-topic = "influx"
-data_format = "influx"
-```
-
-`vmagent` buffers messages read from Kafka topic on local disk if the remote storage at `-remoteWrite.url` cannot keep up with the data ingestion rate.
-In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
-See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
-
-See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
-
-#### Command-line flags for Kafka consumer
-
-These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) version of `vmagent`,
-which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-(see `vmutils-...-enterprise.tar.gz` archives) and from docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
-
-```sh
-  -kafka.consumer.topic array
-        Kafka topic names for data consumption. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.basicAuth.password array
-        Optional basic auth password for -kafka.consumer.topic.  Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.basicAuth.username array
-        Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.brokers array
-        List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.concurrency array
-        Configures consumer concurrency for topic specified via -kafka.consumer.topic flag. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1)
-        Supports array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.defaultFormat string
-        Expected data format in the topic if -kafka.consumer.topic.format is skipped. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default "promremotewrite")
-  -kafka.consumer.topic.format array
-        data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.groupID array
-        Defines group.id for topic. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.isGzipped array
-        Enables gzip setting for topic messages payload. Only prometheus, jsonline, graphite and influx formats accept gzipped messages.See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.options array
-        Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-```
-
-### Writing metrics to Kafka
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` writes data to Kafka with `at-least-once`
-semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`,
-then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`.
-These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
-
-Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id`
-sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
-
-By default, `vmagent` sends compressed messages using Google's Snappy, as defined in [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol).
-To switch to [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol) and reduce network bandwidth,
-simply set the `-remoteWrite.forceVMProto=true` flag. It is also possible to adjust the compression level for the VictoriaMetrics remote write protocol using the `-remoteWrite.vmProtoCompressLevel` 
-command-line flag.
-
-By default, `vmagent` uses a single producer per topic. This behaviour can be changed with setting `kafka://localhost:9092/?concurrency=<int>`, which adds additional workers. It could improve throughput in networks with high latency.
-Or if kafka brokers located at different region/availability-zone.
-
-#### Estimating message size and rate
-
-If you are migrating from remote write to Kafka, the request rate and request body size of remote write can roughly correspond to the message rate and size of Kafka.
-
-vmagent organizes scraped/ingested data into **blocks**. A block contains multiple time series and samples.
-Each block is compressed with Snappy or zstd before being sent out by the remote write or the Kafka producer.
-
-In order to get the request rate of remote write (as the estimated produce rate of Kafka), use this MetricsQL:
-
-```metricsql
-sum(rate(vmagent_remotewrite_requests_total{}[1m])) 
-```
-
-Similarly, the average size of the compressed block of remote write (serving as the estimated message size of Kafka) is as follows:
-
-```metricsql
-sum(rate(vmagent_remotewrite_conn_bytes_written_total{}[1m]))
- / 
-sum(rate(vmagent_remotewrite_requests_total{}[1m])) 
-```
-
-Please note that the remote write body and Kafka message need to use the same compression algorithm in order to serve as 
-estimation references. See more in [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol).
-
-#### Kafka broker authorization and authentication
-
-Two types of auth are supported:
-
-* sasl with username and password:
-
-```sh
-./bin/vmagent -remoteWrite.url='kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN' \
-    -remoteWrite.basicAuth.username=user \
-    -remoteWrite.basicAuth.password=password
-```
-
-* tls certificates:
-
-```sh
-./bin/vmagent -remoteWrite.url='kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL' \
-    -remoteWrite.tlsCAFile=/opt/ca.pem \
-    -remoteWrite.tlsCertFile=/opt/cert.pem \
-    -remoteWrite.tlsKeyFile=/opt/key.pem
-```
-
 ## Security
 
 See general recommendations regarding security [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
@@ -2095,3 +1914,28 @@ Moved to [integrations/pubsub/#writing-metrics](https://docs.victoriametrics.com
 ###### Command-line flags for PubSub producer
 
 Moved to [integrations/pubsub/#producer-command-line-flags](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#producer-command-line-flags).
+
+###### Kafka integration
+
+Moved to [integrations/kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka).
+
+###### Reading metrics from Kafka
+
+Moved to [integrations/kafka/#reading-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics).
+
+###### Command-line flags for Kafka consumer
+
+Moved to [integrations/kafka/#consumer-command-line-flags](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#consumer-command-line-flags).
+
+###### Writing metrics to Kafka
+
+Moved to [integrations/kafka/#writing-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#writing-metrics).
+
+###### Estimating message size and rate
+
+Moved to [integrations/kafka/#estimating-message-size-and-rate](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate).
+
+###### Kafka broker authorization and authentication
+
+Moved to [integrations/kafka/#kafka-broker-authorization-and-authentication](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#kafka-broker-authorization-and-authentication).
+
