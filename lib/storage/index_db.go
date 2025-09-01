@@ -199,8 +199,6 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheRequests     uint64
 	TagFiltersToMetricIDsCacheMisses       uint64
 
-	DeletedMetricsCount uint64
-
 	IndexDBRefCount uint64
 
 	MissingTSIDsForMetricID uint64
@@ -231,8 +229,6 @@ func (db *indexDB) scheduleToDrop() {
 // UpdateMetrics updates m with metrics from the db.
 func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	// global index metrics
-	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
-
 	m.IndexBlocksWithMetricIDsProcessed = indexBlocksWithMetricIDsProcessed.Load()
 	m.IndexBlocksWithMetricIDsIncorrectOrder = indexBlocksWithMetricIDsIncorrectOrder.Load()
 
@@ -623,18 +619,21 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 }
 
 func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
-	filter, err := is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
-	if err != nil {
-		return nil, err
-	}
-	if filter != nil && filter.Len() <= 100e3 {
-		// It is faster to obtain label names by metricIDs from the filter
-		// instead of scanning the inverted index for the matching filters.
-		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
-		metricIDs := filter.AppendTo(nil)
-		qt.Printf("sort %d metricIDs", len(metricIDs))
-		lns := is.getLabelNamesForMetricIDs(qt, metricIDs, maxLabelNames)
-		return lns, nil
+	var filter *uint64set.Set
+	if !isSingleMetricNameFilter(tfss) {
+		filter, err := is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
+		if err != nil {
+			return nil, err
+		}
+		if filter != nil && filter.Len() <= 100e3 {
+			// It is faster to obtain label names by metricIDs from the filter
+			// instead of scanning the inverted index for the matching filters.
+			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+			metricIDs := filter.AppendTo(nil)
+			qt.Printf("sort %d metricIDs", len(metricIDs))
+			lns := is.getLabelNamesForMetricIDs(qt, metricIDs, maxLabelNames)
+			return lns, nil
+		}
 	}
 
 	var prevLabelName []byte
@@ -885,22 +884,26 @@ func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labe
 }
 
 func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, date uint64, maxLabelValues, maxMetrics int) (map[string]struct{}, error) {
-	filter, err := is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
-	if err != nil {
-		return nil, err
-	}
-	if filter != nil && filter.Len() <= 100e3 {
-		// It is faster to obtain label values by metricIDs from the filter
-		// instead of scanning the inverted index for the matching filters.
-		// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
-		metricIDs := filter.AppendTo(nil)
-		qt.Printf("sort %d metricIDs", len(metricIDs))
-		lvs := is.getLabelValuesForMetricIDs(qt, labelName, metricIDs, maxLabelValues)
-		return lvs, nil
-	}
 	if labelName == "__name__" {
 		// __name__ label is encoded as empty string in indexdb.
 		labelName = ""
+	}
+	useCompositeScan := labelName != "" && isSingleMetricNameFilter(tfss)
+	var filter *uint64set.Set
+	if !useCompositeScan {
+		filter, err := is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
+		if err != nil {
+			return nil, err
+		}
+		if filter != nil && filter.Len() <= 100e3 {
+			// It is faster to obtain label values by metricIDs from the filter
+			// instead of scanning the inverted index for the matching filters.
+			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+			metricIDs := filter.AppendTo(nil)
+			qt.Printf("sort %d metricIDs", len(metricIDs))
+			lvs := is.getLabelValuesForMetricIDs(qt, labelName, metricIDs, maxLabelValues)
+			return lvs, nil
+		}
 	}
 
 	labelNameBytes := bytesutil.ToUnsafeBytes(labelName)
@@ -1350,6 +1353,7 @@ func (is *indexSearch) getTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters,
 		qt.Printf("no matching series for filter=%s", tfss)
 		return &TSDBStatus{}, nil
 	}
+
 	ts := &is.ts
 	kb := &is.kb
 	mp := &is.mp
@@ -2188,6 +2192,11 @@ func matchTagFilters(mn *MetricName, tfs []*tagFilter, kb *bytesutil.ByteBuffer)
 		return false, nil
 	}
 	return true, nil
+}
+
+func isSingleMetricNameFilter(tfss []*TagFilters) bool {
+	// We check if tfss contain only single filter which is __name__
+	return len(tfss) == 1 && len(tfss[0].tfs) == 1 && getMetricNameFilter(tfss[0]) != nil
 }
 
 func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxMetrics int) (*uint64set.Set, error) {

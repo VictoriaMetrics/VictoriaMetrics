@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 )
@@ -130,11 +131,10 @@ func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
 }
 
 func BenchmarkScrapeWorkScrapeInternalOneShotWithMetadata(b *testing.B) {
-	oldIsmetadataEnabled := *enableMetadata
+	oldMetadataEnabled := prommetadata.SetEnabled(true)
 	defer func() {
-		*enableMetadata = oldIsmetadataEnabled
+		prommetadata.SetEnabled(oldMetadataEnabled)
 	}()
-	*enableMetadata = true
 	data := `
 # TYPE vm_tcplistener_accepts_total counter
 # HELP vm_tcplistener_accepts_total some useless help message

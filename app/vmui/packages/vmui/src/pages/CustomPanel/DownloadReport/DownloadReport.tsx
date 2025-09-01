@@ -1,5 +1,5 @@
 import { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
-import { DownloadIcon } from "../../../components/Main/Icons";
+import { DebugIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import useBoolean from "../../../hooks/useBoolean";
@@ -217,17 +217,17 @@ const DownloadReport: FC<Props> = ({ fetchUrl, reportType = ReportType.QUERY_DAT
 
   return (
     <>
-      <Tooltip title={"Export query"}>
+      <Tooltip title={"Debug query"}>
         <Button
           variant="text"
-          startIcon={<DownloadIcon/>}
+          startIcon={<DebugIcon />}
           onClick={toggleOpen}
-          ariaLabel="export query"
+          ariaLabel="Debug query"
         />
       </Tooltip>
       {openModal && (
         <Modal
-          title={"Export query"}
+          title={"Debug query"}
           onClose={handleClose}
           isOpen={openModal}
         >

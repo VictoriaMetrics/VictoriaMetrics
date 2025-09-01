@@ -12,7 +12,7 @@ import (
 func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 	defer testRemoveAll(t)
 
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		const numMetrics = 10
 		tr := TimeRange{
 			MinTimestamp: time.Now().UnixMilli(),

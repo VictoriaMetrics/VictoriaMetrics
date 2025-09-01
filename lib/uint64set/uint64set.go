@@ -359,12 +359,23 @@ func (s *Set) Subtract(a *Set) {
 		// Fast path - nothing to subtract.
 		return
 	}
-	a.ForEach(func(part []uint64) bool {
-		for _, x := range part {
-			s.Del(x)
-		}
-		return true
-	})
+	if s.Len() >= a.Len() {
+		a.ForEach(func(part []uint64) bool {
+			for _, x := range part {
+				s.Del(x)
+			}
+			return true
+		})
+	} else {
+		s.ForEach(func(part []uint64) bool {
+			for _, x := range part {
+				if a.Has(x) {
+					s.Del(x)
+				}
+			}
+			return true
+		})
+	}
 }
 
 // Equal returns true if s contains the same items as a.

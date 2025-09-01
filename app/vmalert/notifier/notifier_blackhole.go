@@ -25,6 +25,11 @@ func (bh *blackHoleNotifier) Close() {
 	bh.metrics.close()
 }
 
+// LastError return last notifier's error
+func (bh *blackHoleNotifier) LastError() string {
+	return ""
+}
+
 // newBlackHoleNotifier creates a new blackHoleNotifier
 func newBlackHoleNotifier() *blackHoleNotifier {
 	address := "blackhole"

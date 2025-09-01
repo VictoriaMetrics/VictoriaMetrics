@@ -1,3 +1,9 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+---
 VictoriaMetrics command-line tool (**vmctl**) provides the following migration modes:
 - [Prometheus](https://docs.victoriametrics.com/victoriametrics/vmctl/prometheus/) to VictoriaMetrics via [snapshot](https://prometheus.io/docs/prometheus/latest/querying/api/#snapshot)
 - [InfluxDB](https://docs.victoriametrics.com/victoriametrics/vmctl/influxdb/) to VictoriaMetrics
@@ -26,9 +32,9 @@ vmctl command-line tool is available as:
 
 Download and unpack vmctl:
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.123.0/vmutils-darwin-arm64-v1.123.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.124.0/vmutils-darwin-arm64-v1.124.0.tar.gz
 
-tar xzf vmutils-darwin-arm64-v1.123.0.tar.gz
+tar xzf vmutils-darwin-arm64-v1.124.0.tar.gz
 ```
 
 Once binary is unpacked, see the full list of supported modes by running the following command:

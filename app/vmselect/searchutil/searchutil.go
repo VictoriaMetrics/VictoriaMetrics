@@ -7,10 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -20,6 +22,7 @@ var (
 	maxStatusRequestDuration = flag.Duration("search.maxStatusRequestDuration", time.Minute*5, "The maximum duration for /api/v1/status/* requests")
 	maxLabelsAPIDuration     = flag.Duration("search.maxLabelsAPIDuration", time.Second*5, "The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. "+
 		"See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI")
+	maxQueryLen = flagutil.NewBytes("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
 )
 
 // GetMaxQueryDuration returns the maximum duration for query from r.
@@ -226,4 +229,9 @@ func toTagFilter(dst *storage.TagFilter, src *metricsql.LabelFilter) {
 	dst.Value = []byte(src.Value)
 	dst.IsRegexp = src.IsRegexp
 	dst.IsNegative = src.IsNegative
+}
+
+// GetMaxQueryLen returns the current value of the search.maxQueryLen flag.
+func GetMaxQueryLen() int {
+	return maxQueryLen.IntN()
 }

@@ -105,7 +105,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 func getAPIServerPath(serverURL string) (string, string, error) {
 	if serverURL == "" {
-		return "", "", fmt.Errorf("missing servier url")
+		return "", "", fmt.Errorf("missing server url")
 	}
 	if !strings.Contains(serverURL, "://") {
 		serverURL = "http://" + serverURL

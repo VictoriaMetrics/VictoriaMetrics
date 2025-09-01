@@ -273,7 +273,7 @@ func compareValues(values, valuesExpected []float64) error {
 				return fmt.Errorf("expecting NaN at position #%d; got %v", i, v)
 			}
 		} else if v != vExpected {
-			return fmt.Errorf("unepxected value at position #%d; got %v; want %v", i, v, vExpected)
+			return fmt.Errorf("unexpected value at position #%d; got %v; want %v", i, v, vExpected)
 		}
 	}
 	return nil

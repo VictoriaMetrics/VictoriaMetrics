@@ -413,7 +413,7 @@ func (mn *MetricName) SortAndMarshal(dst []byte) []byte {
 // Marshal appends marshaled mn to dst and returns the result.
 //
 // mn.sortTags must be called before calling this function
-// in order to sort and de-duplcate tags.
+// in order to sort and de-duplicate tags.
 func (mn *MetricName) Marshal(dst []byte) []byte {
 	// Calculate the required size and pre-allocate space in dst
 	dstLen := len(dst)

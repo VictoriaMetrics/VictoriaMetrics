@@ -1,3 +1,9 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+---
 VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/casestudies/).
 
@@ -267,9 +273,13 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui` 
 (or at `http://<vmselect>:8481/select/<accountID>/vmui/` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)).
-The UI allows exploring query results via graphs and tables. It also provides the following features:
 
-- View [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) via `Raw Query` tab {{% available_from "v1.107.0" %}}. Helps in debugging of [unexpected query results](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#unexpected-query-results).
+> See [VMUI at VictoriaMetrics playground](https://play.victoriametrics.com?g0.expr=up).
+
+VMUI provides the following features:
+
+- `Query` tab for ad-hoc queries in MetricsQL, supporting time series, tables and histogram representation
+- `Raw Query` tab {{% available_from "v1.107.0" %}} for viewing [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). Helps in debugging of [unexpected query results](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#unexpected-query-results).
 - Explore:
   - [Metrics explorer](#metrics-explorer) - automatically builds graphs for selected metrics; 
   - [Cardinality explorer](#cardinality-explorer) - stats about existing metrics in TSDB;
@@ -280,46 +290,74 @@ The UI allows exploring query results via graphs and tables. It also provides th
   - [Query analyzer](#query-tracing) - explore query results and traces loaded from JSON. See `Export query` button below;
   - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work;
   - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - debug [relabeling](#relabeling) rules.
-  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - debug [downsampling](#downsampling) configs {{% available_from "v1.105.0" %}}.
-  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - debug [retention filter](#retention-filters) configs {{% available_from "v1.105.0" %}}.
+  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) {{% available_from "v1.105.0" %}} - debug [downsampling](#downsampling) configs.
+  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) {{% available_from "v1.105.0" %}} - debug [retention filter](#retention-filters) configs.
+- `Alerting` {{% available_from "#" %}} for displaying groups and rules from the [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) service. 
+  The tab is available only if [VictoriaMetrics single-node](https://docs.victoriametrics.com/#vmalert) or 
+  [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert) are configured with `-vmalert.proxyURL` command-line flag.
 
-VMUI provides auto-completion for [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) functions, metric names, label names and label values. The auto-completion can be enabled
-by checking the `Autocomplete` toggle. When the auto-completion is disabled, it can still be triggered for the current cursor position by pressing `ctrl+space`.
+**Querying**
+
+Enter the MetricsQL query in `Query` field and hit `Enter`. Multi-line queries can be entered by pressing `Shift-Enter`.
+
+VMUI provides auto-completion for [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) functions, metric names, label names and label values. 
+The auto-completion can be enabled by checking the `Autocomplete` toggle. When the auto-completion is disabled, it can 
+still be triggered for the current cursor position by pressing `ctrl+space`.
+
+To correlate between multiple queries on the same graph click `Add Query` button and enter an additional query.
+Results for all the queries are displayed simultaneously on the same graph.
+
+Results of a particular query can be hidden by clicking the `eye` icon on the right side of the input field. 
+Clicking on the `eye` icon while holding the `ctrl` key hides results of all other queries.
+
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range.
+The step value can be customized by changing `Step` value in the top-right corner.
+
+Clicking on the line on graph pins the tooltip. User can pin multiple tooltips. Press `x` icon to unpin the tooltip.
+
+Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
 
 VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) buckets
 (both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
 and [VictoriaMetrics histograms](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) are supported).
 Try, for example, [this query](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/?g0.expr=sum%28rate%28vm_promscrape_scrape_duration_seconds_bucket%29%29+by+%28vmrange%29&g0.range_input=24h&g0.end_input=2023-04-10T17%3A46%3A12&g0.relative_time=last_24_hours&g0.step_input=31m).
+To disable heatmap view press on settings icon in the top-right corner of graph area and disable `Histogram mode` toggle. 
 
-Graphs in `vmui` support scrolling and zooming:
+**Time range**
 
-* Select the needed time range on the graph in order to zoom in into the selected time range. Hold `ctrl` (or `cmd` on MacOS) and scroll down in order to zoom out.
-* Hold `ctrl` (or `cmd` on MacOS) and scroll up in order to zoom in the area under cursor.
-* Hold `ctrl` (or `cmd` on MacOS) and drag the graph to the left / right in order to move the displayed time range into the future / past.
+The time range for graphs can be adjusted in multiple ways:
 
-Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressing `up` or `down` arrows on the keyboard while the cursor is located in the query input field.
+* Click on time picker in the top-right corner to select a relative (`Last N minutes`) or absolute time range (specify `From` and `To`);
+* Zoom-in into graph by click-and-drag motion over the graph area;
+* When hovering cursor over the graph area, hold `ctrl` (or `cmd` on MacOS) and scroll up or down to zoom out or zoom in;
+* When hovering cursor over the graph area, hold `ctrl` (or `cmd` on MacOS) and drag the graph to the left / right to move the displayed time range into the future / past.
 
-Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
+**Legend**
+
+Legend is displayed below the graph area. 
+Clicking on item in legend hides all other items from displaying. Clicking on the item while holding the `ctrl` key hides 
+only this item.
+
+Clicking on the label-value pair in item automatically copies it into buffer, so it can be pasted later.
+
+There are additional visualization settings in the top right-corner of the legend view: switching to table view,
+hiding common labels, etc.
+
+**Troubleshooting**
 
 When querying the [backfilled data](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling)
 or during [query troubleshooting](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#unexpected-query-results),
 it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
-VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range.
-The step value can be customized by changing `Step value` input.
+Query can be [traced](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing) 
+by clicking on `Trace query` toggle below query input area and executing query again. Once trace is generated, click
+on it to expand for more details.
 
-VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button,
-enter an additional query in the newly appeared input field and press `Enter`.
-Results for all the queries are displayed simultaneously on the same graph.
-Graphs for a particular query can be temporarily hidden by clicking the `eye` icon on the right side of the input field.
-When the `eye` icon is clicked while holding the `ctrl` key, then query results for the rest of queries become hidden
-except of the current query results.
+The query and its trace can be exported by clicking on `debug` icon in top right corner of trace block. The exported file 
+file can be loaded again in VMUI on `Tools=>Query Analyzer` page.
 
-VMUI allows sharing query and [trace](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing) results by clicking on
-`Export query` button in top right corner of the graph area. The query and trace will be exported as a file that later
-can be loaded in VMUI via `Query Analyzer` tool.
-
-See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
+`Raw query` page allows displaying raw, unmodified data. It can be useful for seeing the actual scrape interval or detecting
+sample duplicates.
 
 ### Top queries
 
@@ -2953,7 +2991,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -tlsAutocertCacheDir string
      Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
      Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.

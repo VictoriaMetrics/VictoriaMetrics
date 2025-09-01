@@ -187,7 +187,7 @@ func (mt *Tracker) cloneMetricNameLocked(metricName []byte) string {
 	idx := len(mt.metricNamesBuf)
 	n := len(metricName) + len(mt.metricNamesBuf)
 	if n > cap(mt.metricNamesBuf) {
-		// allocate a new slice instead of reallocting exist
+		// allocate a new slice instead of reallocating exist
 		// it saves memory and reduces GC pressure
 		mt.metricNamesBuf = make([]byte, 0, metricNameBufSize)
 		idx = 0

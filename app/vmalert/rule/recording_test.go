@@ -437,7 +437,7 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 
 	_, err = rr.exec(context.TODO(), time.Now(), 0)
 	if err != nil {
-		t.Fatalf("cannot execute recroding rule: %s", err)
+		t.Fatalf("cannot execute recording rule: %s", err)
 	}
 }
 
