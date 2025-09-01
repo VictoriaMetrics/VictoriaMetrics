@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 This guide covers OpenShift cluster configuration for collecting and storing logs in Victoria Logs.
 
 ## Pre-Requirements
