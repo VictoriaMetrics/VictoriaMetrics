@@ -232,10 +232,7 @@ var defaultMaxWorkersPerQuery = func() int {
 	// for processing an average query, without significant impact on inter-CPU communications.
 	const maxWorkersLimit = 32
 
-	n := gomaxprocs
-	if n > maxWorkersLimit {
-		n = maxWorkersLimit
-	}
+	n := min(gomaxprocs, maxWorkersLimit)
 	return n
 }()
 
@@ -318,10 +315,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	}
 
 	// Prepare worker channels.
-	workers := len(tsws)
-	if workers > maxWorkers {
-		workers = maxWorkers
-	}
+	workers := min(len(tsws), maxWorkers)
 	itemsPerWorker := (len(tsws) + workers - 1) / workers
 	workChs := make([]chan *timeseriesWork, workers)
 	for i := range workChs {
@@ -538,10 +532,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbfs []*tmpBlocksFile, t
 	}
 
 	// Prepare worker channels.
-	workers := len(upws)
-	if workers > gomaxprocs {
-		workers = gomaxprocs
-	}
+	workers := min(len(upws), gomaxprocs)
 	if workers < 1 {
 		workers = 1
 	}
