@@ -7,6 +7,7 @@ import Alert from "../../Main/Alert/Alert";
 import Badges, { BadgeColor } from "../Badges";
 import dayjs from "dayjs";
 import { formatDuration } from "../helpers";
+import CodeExample from "../../Main/CodeExample/CodeExample";
 
 interface BaseRuleProps {
   item: APIRule;
@@ -56,9 +57,9 @@ const BaseRule = ({ item }: BaseRuleProps) => {
           <tr>
             <td className="vm-col-md">Query</td>
             <td>
-              <pre>
-                <code className="language-promql">{query}</code>
-              </pre>
+              <CodeExample
+                code={query}
+              />
             </td>
           </tr>
           {!!item.duration && (
