@@ -130,14 +130,14 @@ func TestExtendedDurationSetSuccess(t *testing.T) {
 	// Empty and zero values
 	f("", 0)
 	f("0", 0)
-	
+
 	// Time units
 	f("1s", 1000)
 	f("30s", 30*1000)
 	f("1h", 3600*1000)
 	f("2h", 2*3600*1000)
 	f("1.5h", 1.5*3600*1000)
-	
+
 	// Extended units
 	f("1d", 24*3600*1000)
 	f("1.5d", 1.5*24*3600*1000)
@@ -146,12 +146,12 @@ func TestExtendedDurationSetSuccess(t *testing.T) {
 	f("2w", 2*7*24*3600*1000)
 	f("1y", 365*24*3600*1000)
 	f("0.25y", 0.25*365*24*3600*1000)
-	
+
 	// Case insensitive
 	f("1D", 24*3600*1000)
 	f("1W", 7*24*3600*1000)
 	f("1Y", 365*24*3600*1000)
-	
+
 	// Minutes are allowed (no ambiguity like in RetentionDuration)
 	f("1m", 60*1000)
 	f("30m", 30*60*1000)
@@ -185,19 +185,19 @@ func TestExtendedDurationJSON(t *testing.T) {
 		if err := d.Set(value); err != nil {
 			t.Fatalf("unexpected error in d.Set(%q): %s", value, err)
 		}
-		
+
 		// Test MarshalJSON
 		data, err := d.MarshalJSON()
 		if err != nil {
 			t.Fatalf("unexpected error in MarshalJSON(): %s", err)
 		}
-		
+
 		// Test UnmarshalJSON
 		var d2 ExtendedDuration
 		if err := d2.UnmarshalJSON(data); err != nil {
 			t.Fatalf("unexpected error in UnmarshalJSON(): %s", err)
 		}
-		
+
 		if d.Milliseconds() != d2.Milliseconds() {
 			t.Fatalf("unexpected result after JSON roundtrip; got %d; want %d", d2.Milliseconds(), d.Milliseconds())
 		}

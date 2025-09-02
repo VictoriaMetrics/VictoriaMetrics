@@ -110,12 +110,12 @@ func (d *RetentionDuration) Set(value string) error {
 //
 // Requires explicit unit suffixes (s, m, h, d, w, y). Bare numbers without units will cause errors (except 0).
 func NewExtendedDuration(name string, defaultValue string, description string) *ExtendedDuration {
-    description += "\nThe following unit suffixes are required: s (second), m (minute), h (hour), d (day), w (week), y (year). " +
-        "Bare numbers without units are not allowed (except 0)"
-    d := &ExtendedDuration{}
-    if err := d.Set(defaultValue); err != nil {
-        panic(fmt.Sprintf("BUG: can not parse default value %s for flag %s", defaultValue, name))
-    }
+	description += "\nThe following unit suffixes are required: s (second), m (minute), h (hour), d (day), w (week), y (year). " +
+		"Bare numbers without units are not allowed (except 0)"
+	d := &ExtendedDuration{}
+	if err := d.Set(defaultValue); err != nil {
+		panic(fmt.Sprintf("BUG: can not parse default value %s for flag %s", defaultValue, name))
+	}
 	flag.Var(d, name, description)
 	return d
 }
@@ -164,34 +164,34 @@ func (d *ExtendedDuration) String() string {
 	return d.valueString
 }
 
-    // Set implements flag.Value interface
-    // It requires explicit unit suffixes and rejects bare numbers (except 0).
-    func (d *ExtendedDuration) Set(value string) error {
+// Set implements flag.Value interface
+// It requires explicit unit suffixes and rejects bare numbers (except 0).
+func (d *ExtendedDuration) Set(value string) error {
 	if value == "" {
 		d.msecs = 0
 		d.valueString = ""
 		return nil
 	}
-	
+
 	// Check for bare numbers first
-        if f, err := strconv.ParseFloat(value, 64); err == nil {
-            // It's a bare number
-            if f != 0 {
-                return fmt.Errorf("duration value must have a unit suffix (s, m, h, d, w, y); got bare number %q (0 is allowed)", value)
-            }
-            // Allow 0 as it's unambiguous
-            d.msecs = 0
-            d.valueString = value
-            return nil
-        }
-	
+	if f, err := strconv.ParseFloat(value, 64); err == nil {
+		// It's a bare number
+		if f != 0 {
+			return fmt.Errorf("duration value must have a unit suffix (s, m, h, d, w, y); got bare number %q (0 is allowed)", value)
+		}
+		// Allow 0 as it's unambiguous
+		d.msecs = 0
+		d.valueString = value
+		return nil
+	}
+
 	// Parse duration with units using metricsql
 	value = strings.ToLower(value)
 	msecs, err := metricsql.PositiveDurationValue(value, 0)
 	if err != nil {
 		return fmt.Errorf("cannot parse duration %q: %w", value, err)
 	}
-	
+
 	d.msecs = msecs
 	d.valueString = value
 	return nil
