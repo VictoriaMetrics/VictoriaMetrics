@@ -19,28 +19,6 @@
     text-align: center;
   }
 
-  pre {
-    position: relative;
-    background-color: $color-background-badge;
-    padding: 0 $padding-global;
-    border-radius: $border-radius-small;
-    word-break: break-word;
-    white-space: pre-wrap;
-    .keyword,
-    .function,
-    .attr-name,
-    .range-duration {
-      color: $color-keyword;
-    }
-    div {
-      position: absolute;
-      top: 0;
-      right: 0;
-      display: flex;
-      column-gap: 4px;
-    }
-  }
-
   .vm-col-hidden {
     width: 30px;
   }
