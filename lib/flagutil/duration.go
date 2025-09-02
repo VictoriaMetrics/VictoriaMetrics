@@ -108,20 +108,21 @@ func (d *RetentionDuration) Set(value string) error {
 
 // NewExtendedDuration returns new `duration` flag with the given name, defaultValue and description.
 //
-// Requires explicit unit suffixes (s, h, d, w, y). Bare numbers without units will cause errors (except 0).
+// Requires explicit unit suffixes (s, m, h, d, w, y). Bare numbers without units will cause errors (except 0).
 func NewExtendedDuration(name string, defaultValue string, description string) *ExtendedDuration {
-	description += "\nThe following unit suffixes are required: s (second), h (hour), d (day), w (week), y (year). " +
-		"Bare numbers without units are not allowed (except 0)"
-	d := &ExtendedDuration{}
-	if err := d.Set(defaultValue); err != nil {
-		panic(fmt.Sprintf("BUG: can not parse default value %s for flag %s", defaultValue, name))
-	}
+    description += "\nThe following unit suffixes are required: s (second), m (minute), h (hour), d (day), w (week), y (year). " +
+        "Bare numbers without units are not allowed (except 0)"
+    d := &ExtendedDuration{}
+    if err := d.Set(defaultValue); err != nil {
+        panic(fmt.Sprintf("BUG: can not parse default value %s for flag %s", defaultValue, name))
+    }
 	flag.Var(d, name, description)
 	return d
 }
 
-// ExtendedDuration is a flag for specifying time durations with extended units (d, w, y).
+// ExtendedDuration is a flag for specifying time durations with explicit unit suffixes.
 // Unlike RetentionDuration, it requires explicit unit suffixes and doesn't treat bare numbers as months.
+// Supported units: s (seconds), m (minutes), h (hours), d (days), w (weeks), y (years).
 type ExtendedDuration struct {
 	// msecs contains parsed duration in milliseconds.
 	msecs int64
@@ -163,9 +164,9 @@ func (d *ExtendedDuration) String() string {
 	return d.valueString
 }
 
-// Set implements flag.Value interface
-// It requires explicit unit suffixes and rejects bare numbers (except 0).
-func (d *ExtendedDuration) Set(value string) error {
+    // Set implements flag.Value interface
+    // It requires explicit unit suffixes and rejects bare numbers (except 0).
+    func (d *ExtendedDuration) Set(value string) error {
 	if value == "" {
 		d.msecs = 0
 		d.valueString = ""
@@ -173,16 +174,16 @@ func (d *ExtendedDuration) Set(value string) error {
 	}
 	
 	// Check for bare numbers first
-	if f, err := strconv.ParseFloat(value, 64); err == nil {
-		// It's a bare number
-		if f != 0 {
-			return fmt.Errorf("duration value must have a unit suffix (s, h, d, w, y); got bare number %q (0 is allowed)", value)
-		}
-		// Allow 0 as it's unambiguous
-		d.msecs = 0
-		d.valueString = value
-		return nil
-	}
+        if f, err := strconv.ParseFloat(value, 64); err == nil {
+            // It's a bare number
+            if f != 0 {
+                return fmt.Errorf("duration value must have a unit suffix (s, m, h, d, w, y); got bare number %q (0 is allowed)", value)
+            }
+            // Allow 0 as it's unambiguous
+            d.msecs = 0
+            d.valueString = value
+            return nil
+        }
 	
 	// Parse duration with units using metricsql
 	value = strings.ToLower(value)
