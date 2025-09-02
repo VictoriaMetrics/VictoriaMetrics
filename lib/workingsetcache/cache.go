@@ -491,11 +491,23 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 	value := result[len(dst):]
 	curr.SetBig(key, value)
 
+	// SetBig() creates at least two entries. I.e. if
+	// len(value) <= maxSubvalueLen, the following 2 entries will be created:
+	// (key, subkey1), (subkey1, subvalue1).
+	//
+	// If len(value) > maxSubvalueLen, then > 2 entries will be created.
+	// For example if len(value) == maxSubvalueLen+100, then 3 entries will be
+	// created: (key, subkey1), (subkey1, subvalue1), (subkey2, subvalue2).
+	// Where len(subvalue1) == maxSubvalueLen and len(subvalue2) == 100.
+	//
+	// See SetBig() in fastcache/bigcache.go.
 	numCopiedEntries := len(value) / maxSubvalueLen
 	if numCopiedEntries*maxSubvalueLen < len(value) {
 		numCopiedEntries++
 	}
-	c.copiedFromPrev.Add(1 + uint64(numCopiedEntries))
+	// Account for storing the (key,subkey1) mapping.
+	numCopiedEntries++
+	c.copiedFromPrev.Add(uint64(numCopiedEntries))
 
 	return result
 }
