@@ -820,17 +820,11 @@ func seekFirstTimestampIdxAfter(timestamps []int64, seekTimestamp int64, nHint i
 	if len(timestamps) == 0 || timestamps[0] > seekTimestamp {
 		return 0
 	}
-	startIdx := nHint - 2
-	if startIdx < 0 {
-		startIdx = 0
-	}
+	startIdx := max(nHint-2, 0)
 	if startIdx >= len(timestamps) {
 		startIdx = len(timestamps) - 1
 	}
-	endIdx := nHint + 2
-	if endIdx > len(timestamps) {
-		endIdx = len(timestamps)
-	}
+	endIdx := min(nHint+2, len(timestamps))
 	if startIdx > 0 && timestamps[startIdx] <= seekTimestamp {
 		timestamps = timestamps[startIdx:]
 		endIdx -= startIdx

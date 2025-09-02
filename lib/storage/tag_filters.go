@@ -418,7 +418,7 @@ func getCommonPrefix(ss []string) (string, []string) {
 //
 // commonPrefix must contain either {nsPrefixTagToMetricIDs} or {nsPrefixDateTagToMetricIDs, date}.
 //
-// If isNegaitve is true, then the tag filter matches all the values
+// If isNegative is true, then the tag filter matches all the values
 // except the given one.
 //
 // If isRegexp is true, then the value is interpreted as anchored regexp,

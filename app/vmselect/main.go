@@ -2,6 +2,7 @@ package vmselect
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -48,13 +49,10 @@ var (
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
-	n := cgroup.AvailableCPUs() * 2
-	if n > 16 {
-		// A single request can saturate all the CPU cores, so there is no sense
-		// in allowing higher number of concurrent requests - they will just contend
-		// for unavailable CPU time.
-		n = 16
-	}
+	// A single request can saturate all the CPU cores, so there is no sense
+	// in allowing higher number of concurrent requests - they will just contend
+	// for unavailable CPU time.
+	n := min(cgroup.AvailableCPUs()*2, 16)
 	return n
 }
 
@@ -67,6 +65,7 @@ func Init() {
 	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
 
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+	initVMUIConfig()
 	initVMAlertProxy()
 }
 
@@ -128,10 +127,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
-		d := searchutil.GetMaxQueryDuration(r)
-		if d > *maxQueueDuration {
-			d = *maxQueueDuration
-		}
+		d := min(searchutil.GetMaxQueryDuration(r), *maxQueueDuration)
 		t := timerpool.Get(d)
 		select {
 		case concurrencyLimitCh <- struct{}{}:
@@ -460,6 +456,11 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		return true
 	}
 	if strings.HasPrefix(path, "/vmui/") {
+		if path == "/vmui/config.json" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, vmuiConfig)
+			return true
+		}
 		if strings.HasPrefix(path, "/vmui/static/") {
 			// Allow clients caching static contents for long period of time, since it shouldn't change over time.
 			// Path to static contents (such as js and css) must be changed whenever its contents is changed.
@@ -734,7 +735,33 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
 var (
 	vmalertProxyHost string
 	vmalertProxy     *nethttputil.ReverseProxy
+	vmuiConfig       string
 )
+
+func initVMUIConfig() {
+	var cfg struct {
+		License struct {
+			Type string `json:"type"`
+		} `json:"license"`
+		VMAlert struct {
+			Enabled bool `json:"enabled"`
+		} `json:"vmalert"`
+	}
+	data, err := vmuiFiles.ReadFile("vmui/config.json")
+	if err != nil {
+		logger.Fatalf("cannot read vmui default config: %s", err)
+	}
+	err = json.Unmarshal(data, &cfg)
+	if err != nil {
+		logger.Fatalf("cannot parse vmui default config: %s", err)
+	}
+	cfg.VMAlert.Enabled = len(*vmalertProxyURL) != 0
+	data, err = json.Marshal(&cfg)
+	if err != nil {
+		logger.Fatalf("cannot create vmui config: %s", err)
+	}
+	vmuiConfig = string(data)
+}
 
 // initVMAlertProxy must be called after flag.Parse(), since it uses command-line flags.
 func initVMAlertProxy() {

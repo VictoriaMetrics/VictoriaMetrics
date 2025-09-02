@@ -9,17 +9,17 @@ import { APP_TYPE, AppType } from "../constants/appType";
 const useNavigationMenu = () => {
   const appModeEnable = getAppModeEnable();
   const { dashboardsSettings } = useDashboardsState();
-  const { serverUrl, flags, appConfig } = useAppState();
+  const { serverUrl, appConfig } = useAppState();
   const isEnterpriseLicense = appConfig.license?.type === "enterprise";
-  const showAlertLink = Boolean(flags["vmalert.proxyURL"]);
+  const showAlerting = appConfig?.vmalert?.enabled || false;
   const showPredefinedDashboards = Boolean(!appModeEnable && dashboardsSettings.length);
 
   const navigationConfig = useMemo(() => ({
     serverUrl,
     isEnterpriseLicense,
-    showAlertLink,
+    showAlerting,
     showPredefinedDashboards
-  }), [serverUrl, isEnterpriseLicense, showAlertLink, showPredefinedDashboards]);
+  }), [serverUrl, isEnterpriseLicense, showAlerting, showPredefinedDashboards]);
 
 
   const menu = useMemo(() => {

@@ -1475,6 +1475,55 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertDeletedMetricIDsCacheSize(month2, 2)
 }
 
+func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	const numSeries = 100
+	trPrev := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsPrev := testGenerateMetricRowsWithPrefix(rng, numSeries, "prev", trPrev)
+	trCurr := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsCurr := testGenerateMetricRowsWithPrefix(rng, numSeries, "curr", trCurr)
+	deleteSeries := func(s *Storage, want, wantTotal int) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		if err != nil {
+			t.Fatalf("could not delete series unexpectedly: %v", err)
+		}
+		if got != want {
+			t.Fatalf("unexpected number of deleted series: got %d, want %d", got, want)
+		}
+		var m Metrics
+		s.UpdateMetrics(&m)
+		if got, want := m.TableMetrics.IndexDBMetrics.DeletedMetricsCount, uint64(wantTotal); got != want {
+			t.Fatalf("unexpected number of total deleted series: got %d, want %d", got, want)
+		}
+
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrsPrev, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, numSeries)
+
+	s.legacyMustRotateIndexDB(time.Now())
+
+	s.AddRows(mrsCurr, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, 2*numSeries)
+}
+
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
 	s := MustOpenStorage(path, OpenOptions{})
@@ -2530,11 +2579,11 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		names, err := s.SearchMetricNames(nil, tfss, opts.tr, opts.maxMetrics, noDeadline)
 		gotErr := err != nil
 		if gotErr != opts.wantErr {
-			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
+			t.Errorf("SearchMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
 				tfss, &opts.tr, opts.maxMetrics, err, opts.wantErr}...)
 		}
 		if got := len(names); got != opts.wantCount {
-			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected metric name count: got %d, want %d", []any{
+			t.Errorf("SearchMetricNames(%v, %v, %d): unexpected metric name count: got %d, want %d", []any{
 				tfss, &opts.tr, opts.maxMetrics, got, opts.wantCount}...)
 		}
 	}
@@ -3904,7 +3953,7 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 // testSearchMetricIDs returns metricIDs for the given tfss and tr.
 //
 // The returned metricIDs are sorted. The function panics in in case of error.
-// The function is not a part of Storage beause it is currently used in unit
+// The function is not a part of Storage because it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
@@ -4355,7 +4404,7 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 	allTimeseries := len(names)
 	rowsAddedTotal := uint64(opts.numBatches * opts.numRowsPerBatch)
 
-	// When RegisterMetricNames() is called it only restisters the time series
+	// When RegisterMetricNames() is called it only registers the time series
 	// in IndexDB but no samples is written to the storage.
 	if opts.registerOnly {
 		rowsAddedTotal = 0

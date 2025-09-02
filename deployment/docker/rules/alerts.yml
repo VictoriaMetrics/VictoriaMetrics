@@ -100,7 +100,7 @@ groups:
           summary: "Churn rate is more than 10% on \"{{ $labels.instance }}\" for the last 15m"
           description: "VM constantly creates new time series on \"{{ $labels.instance }}\".\n
             This effect is known as Churn Rate.\n
-            High Churn Rate tightly connected with database performance and may
+            High Churn Rate is tightly connected with database performance and may
             result in unexpected OOM's or slow queries."
 
       - alert: TooHighChurnRate24h
@@ -117,7 +117,7 @@ groups:
           description: "The number of created new time series over last 24h is 3x times higher than
             current number of active series on \"{{ $labels.instance }}\".\n
             This effect is known as Churn Rate.\n
-            High Churn Rate tightly connected with database performance and may
+            High Churn Rate is tightly connected with database performance and may
             result in unexpected OOM's or slow queries."
 
       - alert: TooHighSlowInsertsRate

@@ -55,8 +55,8 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
   and [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time
   and before sending them to remote storage systems. See [these docs](#cardinality-limiter).
 * Can write collected metrics to multiple tenants. See [these docs](#multitenancy).
-* Can read and write data from / to Kafka. See [these docs](#kafka-integration).
-* Can read and write data from / to Google PubSub. See [these docs](#google-pubsub-integration).
+* Can read and write data from / to Kafka. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/kafka).
+* Can read and write data from / to Google PubSub. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/).
 
 ## Quick Start
 
@@ -598,7 +598,7 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 ## Metric metadata
 
-By default, `vmagent` ignores metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). Set `-enableMetadata=true` to enable metadata processing{{% available_from "v1.124.0" %}}.
+By default, `vmagent` ignores metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto). Set `-enableMetadata=true` to enable metadata processing{{% available_from "v1.125.0" %}}.
 During processing, metadata won't be dropped or modified by [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
 When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata received via the [multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (/insert/<accountID>/<suffix>). However, if `vm_account_id` or `vm_project_id` labels are added directly to metrics before reaching vmagent, and vmagent writes to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), the tenant info won't be attached and the metadata will be stored under the default tenant of VictoriaMetrics cluster.
@@ -797,7 +797,7 @@ There are cases when it is better disabling on-disk persistence for pending data
 
 - When the persistent disk performance isn't enough for the given data processing rate.
 - When it is better to buffer pending data at the client side instead of buffering it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
-- When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or at [Google PubSub side](#reading-metrics-from-pubsub).
+- When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or at [Google PubSub side](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics).
 - When it is better to drop pending data instead of buffering it.
 
 In this case `-remoteWrite.disableOnDiskQueue` command-line flag can be passed to `vmagent` per each configured `-remoteWrite.url`.
@@ -807,7 +807,7 @@ and the `-remoteWrite.disableOnDiskQueue` command-line flag is set:
 - It returns `429 Too Many Requests` HTTP error to clients, which send data to `vmagent` via [supported HTTP endpoints](#how-to-push-data-to-vmagent).
   If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.url` command-line flags are set, 
   then the ingested samples are silently dropped instead of returning the error to clients.
-- It suspends consuming data from [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](#google-pubsub-integration) until the remote storage becomes available.
+- It suspends consuming data from [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/) until the remote storage becomes available.
   If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.disableOnDiskQueue` command-line flags are set
   for different `-remoteWrite.url` options, then the fetched samples are silently dropped instead of suspending data consumption from Kafka or Google PubSub.
 - It drops samples pushed to `vmagent` via non-HTTP protocols and logs the error. Pass `-remoteWrite.dropSamplesOnOverload` command-line flag in order
@@ -1039,313 +1039,6 @@ Additional notes:
 1. The minimum disk size to allocate for the persistent queue is 500Mi per each `-remoteWrite.url`.
 1. On-disk persistent queue can be disabled if needed. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
 
-
-## Google PubSub integration
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` can read and write metrics from / to [Google PubSub](https://cloud.google.com/pubsub):
-
-### Reading metrics from PubSub
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` can read metrics in various formats from Google PubSub messages.
-`-gcp.pubsub.subscribe.defaultMessageFormat` and `-gcp.pubsub.subscribe.topicSubscription.messageFormat` command-line flags allow configuring the needed message format.
-The following message formats are supported:
-
-* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
-  Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-pubsub).
-* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/).
-* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
-  and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
-* `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
-* `jsonline` - [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
-
-Every PubSub message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
-
-`vmagent` consumes messages from PubSub topic subscriptions specified by `-gcp.pubsub.subscribe.topicSubscription` command-line flag.
-Multiple topics can be specified by passing multiple `-gcp.pubsub.subscribe.topicSubscription` command-line flags to `vmagent`.
-
-`vmagent` uses standard Google authorization mechanism for topic access. It's possible to specify credentials directly via `-gcp.pubsub.subscribe.credentialsFile` command-line flag.
-
-For example, the following command starts `vmagent`, which reads metrics in [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/)
-from PubSub `projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
-
-```sh
-./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
-       -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing \
-       -gcp.pubsub.subscribe.topicSubscription.messageFormat=influx
-```
-
-It is expected that [Telegraf](https://github.com/influxdata/telegraf) sends metrics to the `telegraf-testing` topic at the `victoriametrics-vmagent-pub-sub-test` project
-with the following config:
-
-```yaml
-[[outputs.cloud_pubsub]]
-  project = "victoriametrics-vmagent-pub-sub-test"
-  topic = "telegraf-testing"
-  data_format = "influx"
-```
-
-`vmagent` buffers messages read from Google PubSub topic on local disk if the remote storage at `-remoteWrite.url` cannot keep up with the data ingestion rate.
-In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
-See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
-
-See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
-
-#### Consume metrics from multiple topics
-
-`vmagent` can read messages from different topics in different formats. For example, the following command starts `vmagent`, which reads plaintext
-[Influx](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/) messages from `telegraf-testing` topic
-and gzipped [JSON line](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#json-line-format) messages from `json-line-testing` topic:
-
-```sh
-./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
-       -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/telegraf-testing \
-       -gcp.pubsub.subscribe.topicSubscription.messageFormat=influx \
-       -gcp.pubsub.subscribe.topicSubscription.isGzipped=false \
-       -gcp.pubsub.subscribe.topicSubscription=projects/victoriametrics-vmagent-pub-sub-test/subscriptions/json-line-testing \
-       -gcp.pubsub.subscribe.topicSubscription.messageFormat=jsonline \
-       -gcp.pubsub.subscribe.topicSubscription.isGzipped=true
-```
-
-#### Command-line flags for PubSub consumer
-
-These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) version of `vmagent`,
-which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-(see `vmutils-...-enterprise.tar.gz` archives) and from docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
-
-```sh
-  -gcp.pubsub.subscribe.credentialsFile string
-        Path to file with GCP credentials to use for PubSub client. If not set, default credentials are used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials ). See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-  -gcp.pubsub.subscribe.defaultMessageFormat string
-        Default message format if -gcp.pubsub.subscribe.topicSubscription.messageFormat is missing. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default "promremotewrite")
-  -gcp.pubsub.subscribe.topicSubscription array
-        GCP PubSub topic subscription in the format: projects/<project-id>/subscriptions/<subscription-name>. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -gcp.pubsub.subscribe.topicSubscription.concurrency array
-        The number of concurrently processed messages for topic subscription specified via -gcp.pubsub.subscribe.topicSubscription flag. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 0)
-        Supports array of values separated by comma or specified via multiple flags.
-  -gcp.pubsub.subscribe.topicSubscription.isGzipped array
-        Enables gzip decompression for messages payload at the corresponding -gcp.pubsub.subscribe.topicSubscription. Only prometheus, jsonline, graphite and influx formats accept gzipped messages. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports array of values separated by comma or specified via multiple flags.
-  -gcp.pubsub.subscribe.topicSubscription.messageFormat array
-        Message format for the corresponding -gcp.pubsub.subscribe.topicSubscription. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-```
-
-### Writing metrics to PubSub
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` writes data into Google PubSub if `-remoteWrite.url` command-line flag starts with `pubsub:` prefix.
-For example, `-remoteWrite.url=pubsub:projects/victoriametrics-vmagent-publish-test/topics/testing-pubsub-push`.
-
-These messages can be read later from Google PubSub by another `vmagent` instance - see [these docs](#reading-metrics-from-pubsub) for details.
-
-`vmagent` uses standard Google authorization mechanism for PubSub topic access. Custom auth credentials can be specified via `-gcp.pubsub.subscribe.credentialsFile` command-line flag.
-
-#### Command-line flags for PubSub producer
-
-These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) version of `vmagent`,
-which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-(see `vmutils-...-enterprise.tar.gz` archives) and from docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
-
-```sh
-  -gcp.pubsub.publish.byteThreshold int
-        Publish a batch when its size in bytes reaches this value. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1000000)
-  -gcp.pubsub.publish.countThreshold int
-        Publish a batch when it has this many messages. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 100)
-  -gcp.pubsub.publish.credentialsFile string
-        Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials). See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-  -gcp.pubsub.publish.delayThreshold value
-        Publish a non-empty batch after this delay has passed. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 10ms)
-  -gcp.pubsub.publish.maxOutstandingBytes int
-        The maximum size of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default -1)
-  -gcp.pubsub.publish.maxOutstandingMessages int
-        The maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 100)
-  -gcp.pubsub.publish.timeout value
-        The maximum time that the client will attempt to publish a bundle of messages. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
-```
-
-## Kafka integration
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` can read and write metrics from / to Kafka:
-
-* [Reading metrics from Kafka](#reading-metrics-from-kafka)
-* [Writing metrics to Kafka](#writing-metrics-to-kafka)
-
-The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-in `vmutils-...-enterprise.tar.gz` archives and in docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
-
-### Reading metrics from Kafka
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` can read metrics in various formats from Kafka messages.
-These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line flags. The following formats are supported:
-
-* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
-  Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
-* `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/cloud/reference/syntax/line-protocol/).
-* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
-  and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
-* `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
-* `jsonline` - [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
-
-For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol) 
-or [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol), and handle them accordingly.
-
-Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
-
-`vmagent` consumes messages from Kafka topics specified by `-kafka.consumer.topic` command-line flag. Multiple topics can be specified
-by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
-
-`vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag.
-Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`.
-For example:
-```sh
-./bin/vmagent 
-      -kafka.consumer.topic='topic-a' 
-      -kafka.consumer.topic.brokers='host1:9092;host2:9092' 
-      -kafka.consumer.topic='topic-b' 
-      -kafka.consumer.topic.brokers='host3:9092;host4:9092'
-```
-This command starts `vmagent` which reads messages from `topic-a` at `host1:9092` and `host2:9092` brokers and messages 
-from `topic-b` at `host3:9092` and `host4:9092` brokers.
-
-Note that when using YAML configuration (for example, when using [Helm charts](https://github.com/VictoriaMetrics/helm-charts) or [Kubernetes operator](https://docs.victoriametrics.com/operator/))
-keys provided in `extraArgs` must be unique, so in order to achieve the same configuration as in the example above, the following configuration must be used:
-```yaml
-extraArgs:
-  "kafka.consumer.topic": "topic-a,topic-b"
-  "kafka.consumer.topic.brokers": "host1:9092;host2:9092,host3:9092;host4:9092"
-```
-Note that list of brokers for the same topic is separated by `;` and different groups of brokers are separated by `,`.
-
-The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092`
-from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
-
-```sh
-./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
-       -kafka.consumer.topic.brokers=localhost:9092 \
-       -kafka.consumer.topic.format=influx \
-       -kafka.consumer.topic=metrics-by-telegraf \
-       -kafka.consumer.topic.groupID=some-id
-```
-
-It is expected that [Telegraf](https://github.com/influxdata/telegraf) sends metrics to the `metrics-by-telegraf` topic with the following config:
-
-```yaml
-[[outputs.kafka]]
-brokers = ["localhost:9092"]
-topic = "influx"
-data_format = "influx"
-```
-
-`vmagent` buffers messages read from Kafka topic on local disk if the remote storage at `-remoteWrite.url` cannot keep up with the data ingestion rate.
-In this case it may be useful to disable on-disk data persistence in order to prevent from unbounded growth of the on-disk queue.
-See [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence).
-
-See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
-
-#### Command-line flags for Kafka consumer
-
-These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) version of `vmagent`,
-which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-(see `vmutils-...-enterprise.tar.gz` archives) and from docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
-
-```sh
-  -kafka.consumer.topic array
-        Kafka topic names for data consumption. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.basicAuth.password array
-        Optional basic auth password for -kafka.consumer.topic.  Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.basicAuth.username array
-        Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.brokers array
-        List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.concurrency array
-        Configures consumer concurrency for topic specified via -kafka.consumer.topic flag. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1)
-        Supports array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.defaultFormat string
-        Expected data format in the topic if -kafka.consumer.topic.format is skipped. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default "promremotewrite")
-  -kafka.consumer.topic.format array
-        data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.groupID array
-        Defines group.id for topic. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.isGzipped array
-        Enables gzip setting for topic messages payload. Only prometheus, jsonline, graphite and influx formats accept gzipped messages.See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports array of values separated by comma or specified via multiple flags.
-  -kafka.consumer.topic.options array
-        Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-        Supports an array of values separated by comma or specified via multiple flags.
-```
-
-### Writing metrics to Kafka
-
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmagent` writes data to Kafka with `at-least-once`
-semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`,
-then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`.
-These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
-
-Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id`
-sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
-
-By default, `vmagent` sends compressed messages using Google's Snappy, as defined in [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol).
-To switch to [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol) and reduce network bandwidth,
-simply set the `-remoteWrite.forceVMProto=true` flag. It is also possible to adjust the compression level for the VictoriaMetrics remote write protocol using the `-remoteWrite.vmProtoCompressLevel` 
-command-line flag.
-
-By default, `vmagent` uses a single producer per topic. This behaviour can be changed with setting `kafka://localhost:9092/?concurrency=<int>`, which adds additional workers. It could improve throughput in networks with high latency.
-Or if kafka brokers located at different region/availability-zone.
-
-#### Estimating message size and rate
-
-If you are migrating from remote write to Kafka, the request rate and request body size of remote write can roughly correspond to the message rate and size of Kafka.
-
-vmagent organizes scraped/ingested data into **blocks**. A block contains multiple time series and samples.
-Each block is compressed with Snappy or zstd before being sent out by the remote write or the Kafka producer.
-
-In order to get the request rate of remote write (as the estimated produce rate of Kafka), use this MetricsQL:
-
-```metricsql
-sum(rate(vmagent_remotewrite_requests_total{}[1m])) 
-```
-
-Similarly, the average size of the compressed block of remote write (serving as the estimated message size of Kafka) is as follows:
-
-```metricsql
-sum(rate(vmagent_remotewrite_conn_bytes_written_total{}[1m]))
- / 
-sum(rate(vmagent_remotewrite_requests_total{}[1m])) 
-```
-
-Please note that the remote write body and Kafka message need to use the same compression algorithm in order to serve as 
-estimation references. See more in [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol).
-
-#### Kafka broker authorization and authentication
-
-Two types of auth are supported:
-
-* sasl with username and password:
-
-```sh
-./bin/vmagent -remoteWrite.url='kafka://localhost:9092/?topic=prom-rw&security.protocol=SASL_SSL&sasl.mechanisms=PLAIN' \
-    -remoteWrite.basicAuth.username=user \
-    -remoteWrite.basicAuth.password=password
-```
-
-* tls certificates:
-
-```sh
-./bin/vmagent -remoteWrite.url='kafka://localhost:9092/?topic=prom-rw&security.protocol=SSL' \
-    -remoteWrite.tlsCAFile=/opt/ca.pem \
-    -remoteWrite.tlsCertFile=/opt/cert.pem \
-    -remoteWrite.tlsKeyFile=/opt/key.pem
-```
-
 ## Security
 
 See general recommendations regarding security [here](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
@@ -1526,37 +1219,37 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -gcp.pubsub.publish.byteThreshold int
-     Publish a batch when its size in bytes reaches this value. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1000000)
+     Publish a batch when its size in bytes reaches this value. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1000000)
   -gcp.pubsub.publish.countThreshold int
-     Publish a batch when it has this many messages. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 100)
+     Publish a batch when it has this many messages. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 100)
   -gcp.pubsub.publish.credentialsFile string
-     Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials). See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials). See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -gcp.pubsub.publish.delayThreshold duration
-     Publish a non-empty batch after this delay has passed. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 10ms)
+     Publish a non-empty batch after this delay has passed. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 10ms)
   -gcp.pubsub.publish.maxOutstandingBytes int
-     The maximum size of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default -1)
+     The maximum size of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default -1)
   -gcp.pubsub.publish.maxOutstandingMessages int
-     The maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 100)
+     The maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 100)
   -gcp.pubsub.publish.timeout duration
-     The maximum time that the client will attempt to publish a bundle of messages. See https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1m0s)
+     The maximum time that the client will attempt to publish a bundle of messages. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1m0s)
   -gcp.pubsub.subscribe.credentialsFile string
-     Path to file with GCP credentials to use for PubSub client. If not set, default credentials are used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials ). See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Path to file with GCP credentials to use for PubSub client. If not set, default credentials are used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials ). See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -gcp.pubsub.subscribe.defaultMessageFormat string
-     Default message format if -gcp.pubsub.subscribe.topicSubscription.messageFormat is missing. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default "promremotewrite")
+     Default message format if -gcp.pubsub.subscribe.topicSubscription.messageFormat is missing. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default "promremotewrite")
   -gcp.pubsub.subscribe.topicSubscription array
-     GCP PubSub topic subscription in the format: projects/<project-id>/subscriptions/<subscription-name>. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     GCP PubSub topic subscription in the format: projects/<project-id>/subscriptions/<subscription-name>. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -gcp.pubsub.subscribe.topicSubscription.concurrency array
-     The number of concurrently processed messages for topic subscription specified via -gcp.pubsub.subscribe.topicSubscription flag. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 0)
+     The number of concurrently processed messages for topic subscription specified via -gcp.pubsub.subscribe.topicSubscription flag. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 0)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -gcp.pubsub.subscribe.topicSubscription.isGzipped array
-     Enables gzip decompression for messages payload at the corresponding -gcp.pubsub.subscribe.topicSubscription. Only prometheus, jsonline, graphite and influx formats accept gzipped messages. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Enables gzip decompression for messages payload at the corresponding -gcp.pubsub.subscribe.topicSubscription. Only prometheus, jsonline, graphite and influx formats accept gzipped messages. See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -gcp.pubsub.subscribe.topicSubscription.messageFormat array
-     Message format for the corresponding -gcp.pubsub.subscribe.topicSubscription. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Message format for the corresponding -gcp.pubsub.subscribe.topicSubscription. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -graphite.sanitizeMetricName
@@ -1640,41 +1333,41 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -kafka.consumer.topic array
-     Kafka topic names for data consumption. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Kafka topic names for data consumption. See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -kafka.consumer.topic.basicAuth.password array
-     Optional basic auth password for -kafka.consumer.topic.  Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Optional basic auth password for -kafka.consumer.topic.  Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -kafka.consumer.topic.basicAuth.username array
-     Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -kafka.consumer.topic.brokers array
-     List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -kafka.consumer.topic.concurrency array
-     Configures consumer concurrency for topic specified via -kafka.consumer.topic flag. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1)
+     Configures consumer concurrency for topic specified via -kafka.consumer.topic flag. See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 1)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -kafka.consumer.topic.defaultFormat string
-     Expected data format in the topic if -kafka.consumer.topic.format is skipped. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default "promremotewrite")
+     Expected data format in the topic if -kafka.consumer.topic.format is skipped. See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default "promremotewrite")
   -kafka.consumer.topic.format array
-     data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -kafka.consumer.topic.groupID array
-     Defines group.id for topic. See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Defines group.id for topic. See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -kafka.consumer.topic.isGzipped array
-     Enables gzip setting for topic messages payload. Only prometheus, jsonline, graphite and influx formats accept gzipped messages.See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Enables gzip setting for topic messages payload. Only prometheus, jsonline, graphite and influx formats accept gzipped messages.See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -kafka.consumer.topic.options array
-     Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md . See https://docs.victoriametrics.com/victoriametrics/vmagent/#reading-metrics-from-kafka . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md . See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -license string
@@ -2147,7 +1840,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -tlsAutocertCacheDir string
      Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
      Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
@@ -2197,3 +1890,52 @@ Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/
 ###### Debugging scrape targets
 
 Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
+
+###### Google PubSub integration
+
+Moved to [integrations/pubsub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub).
+
+###### Reading metrics from PubSub
+
+Moved to [integrations/pubsub/#reading-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics).
+
+###### Consume metrics from multiple topics
+
+Moved to [integrations/pubsub/#multiple-topics](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#multiple-topics).
+
+###### Command-line flags for PubSub consumer
+
+Moved to [integrations/pubsub/#consumer-command-line-flags](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#consumer-command-line-flags).
+
+###### Writing metrics to PubSub
+
+Moved to [integrations/pubsub/#writing-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics).
+
+###### Command-line flags for PubSub producer
+
+Moved to [integrations/pubsub/#producer-command-line-flags](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#producer-command-line-flags).
+
+###### Kafka integration
+
+Moved to [integrations/kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka).
+
+###### Reading metrics from Kafka
+
+Moved to [integrations/kafka/#reading-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics).
+
+###### Command-line flags for Kafka consumer
+
+Moved to [integrations/kafka/#consumer-command-line-flags](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#consumer-command-line-flags).
+
+###### Writing metrics to Kafka
+
+Moved to [integrations/kafka/#writing-metrics](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#writing-metrics).
+
+###### Estimating message size and rate
+
+Moved to [integrations/kafka/#estimating-message-size-and-rate](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#estimating-message-size-and-rate).
+
+###### Kafka broker authorization and authentication
+
+Moved to [integrations/kafka/#kafka-broker-authorization-and-authentication](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#kafka-broker-authorization-and-authentication).
+

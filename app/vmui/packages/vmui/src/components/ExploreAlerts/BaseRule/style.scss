@@ -1,0 +1,66 @@
+@use "src/styles/variables" as *;
+
+.vm-modal {
+  .vm-explore-alerts-rule-item {
+    table {
+      width: auto;
+    }
+  }
+}
+
+.vm-explore-alerts-rule-item {
+  row-gap: $padding-global;
+  margin-right: $padding-global;
+  display: flex;
+  flex-direction: column;
+
+  .title {
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .vm-col-hidden {
+    width: 30px;
+  }
+
+  .vm-button {
+    color: $color-passive;
+    border: 1px solid var(--color-passive);
+  }
+
+  .vm-col-sm {
+    width: 10%;
+    white-space: nowrap;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vm-col-md {
+    width: 15%;
+    white-space: nowrap;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  table {
+    &.fixed {
+      table-layout: fixed;
+    }
+    width: 100%;
+    td, th {
+      line-height: 30px;
+      padding: 4px $padding-small;
+      vertical-align: middle;
+    }
+    td.align-center {
+      text-align: center
+    }
+    th {
+      font-weight: bold;
+      text-align: center;
+      padding: 0 $padding-small;
+    }
+  }
+}

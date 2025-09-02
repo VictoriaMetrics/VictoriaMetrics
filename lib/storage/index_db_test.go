@@ -724,7 +724,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		}
 	}
 
-	// Check timerseriesCounters only for serial test.
+	// Check timeseriesCounters only for serial test.
 	// Concurrent test may create duplicate timeseries, so GetSeriesCount
 	// would return more timeseries than needed.
 	if !isConcurrent {
@@ -841,7 +841,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 		}
 		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
-			return fmt.Errorf("cannot search with multipel filters matching empty tags: %w", err)
+			return fmt.Errorf("cannot search with multiple filters matching empty tags: %w", err)
 		}
 		if !testHasTSID(tsidsFound, tsid) {
 			return fmt.Errorf("tsids is missing when matching multiple filters with empty tags tsidsFound\ntsid=%+v\ntsidsFound=%+v\ntfs=%s\nmn=%s", tsid, tsidsFound, tfs, mn)
@@ -1619,6 +1619,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if err := tfsMetricName.Add(nil, []byte("testMetric"), false, false); err != nil {
 		t.Fatalf("cannot add filter on metric name: %s", err)
 	}
+	tfsComposite := NewTagFilters()
+	if err := tfsComposite.Add(nil, []byte("testMetric"), false, false); err != nil {
+		t.Fatalf("cannot add filter: %s", err)
+	}
 
 	// Perform a search within a day.
 	// This should return the metrics for the day
@@ -1664,6 +1668,16 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
 	}
 
+	// Check SearchLabelNames with filters on composite key and time range.
+	lns, err = db.SearchLabelNames(nil, []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelNames(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	}
+	got = sortedSlice(lns)
+	if !reflect.DeepEqual(got, labelNames) {
+		t.Fatalf("unexpected labelNames; got\n%s\nwant\n%s", got, labelNames)
+	}
+
 	// Check SearchLabelValues with the specified filter.
 	lvs, err = db.SearchLabelValues(nil, "", []*TagFilters{tfs}, TimeRange{}, 10000, 1e9, noDeadline)
 	if err != nil {
@@ -1690,6 +1704,17 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
 	}
 	got = sortedSlice(lvs)
+	if !reflect.DeepEqual(got, labelValues) {
+		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
+	}
+
+	// Check SearchLabelValues with filters on composite key and time range.
+	lvs, err = db.SearchLabelValues(nil, "constant", []*TagFilters{tfsComposite}, tr, 10000, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("unexpected error in SearchLabelValues(filters=%s, timeRange=%s): %s", tfs, &tr, err)
+	}
+	got = sortedSlice(lvs)
+	labelValues = []string{"const"}
 	if !reflect.DeepEqual(got, labelValues) {
 		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}

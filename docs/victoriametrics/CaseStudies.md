@@ -690,4 +690,4 @@ To address these challenges, we decided to migrate to VictoriaMetrics. We were d
 
 Post-migration, we successfully scaled our monitoring infrastructure to handle billions of data points daily, all while experiencing faster query performance and 60% reduction in yearly infra cost. The improved observability has enhanced our ability to deliver reliable service, allowing us to troubleshoot issues more quickly and effectively.
 
-Read more about the migration journey in our blog - https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability
+Read more about the migration journey in our blog - [https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability](https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability)

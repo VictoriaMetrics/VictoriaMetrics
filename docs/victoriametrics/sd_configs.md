@@ -515,9 +515,9 @@ scrape_configs:
 
 One of the following roles can be configured to discover targets:
 
-* `role: services`
+### Dockerswarm role: services
 
-  The `services` role discovers all Swarm services.
+  The `role: services` discovers all Swarm services.
 
   Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is the endpoint's virtual IP, while the `<port>` is the published port of the service.
@@ -542,9 +542,9 @@ One of the following roles can be configured to discover targets:
   * `__meta_dockerswarm_network_label_<labelname>`: each label of the network
   * `__meta_dockerswarm_network_scope`: the scope of the network
 
-* `role: tasks`
+### Dockerswarm role: tasks
 
-  The `tasks` role discovers all Swarm tasks.
+  The `role: tasks` discovers all Swarm tasks.
 
   Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where the `<ip>` is the node IP, while the `<port>` is the published port of the task.
@@ -583,9 +583,9 @@ One of the following roles can be configured to discover targets:
 
   The `__meta_dockerswarm_network_*` meta labels are not populated for ports which are published with `mode=host`.
 
-* `role: nodes`
+### Dockerswarm role: nodes
 
-  The `nodes` role is used to discover Swarm nodes.
+  The `role: nodes` is used to discover Swarm nodes.
 
   Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is the node IP, while the `<port>` is the `port` value obtained from the `dockerswarm_sd_configs`.
@@ -1072,7 +1072,7 @@ See [these examples](https://docs.victoriametrics.com/victoriametrics/scrape_con
 
 One of the following `role` types can be configured to discover targets:
 
-* `role: node`
+### Kubernetes role: node
 
   The `role: node` discovers one target per cluster node.
 
@@ -1093,7 +1093,7 @@ One of the following `role` types can be configured to discover targets:
 
   In addition, the `instance` label for the node will be set to the node name as retrieved from the API server.
 
-* `role: service`
+### Kubernetes role: service
 
   The `role: service` discovers Kubernetes services.
 
@@ -1120,7 +1120,7 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_service_port_protocol`: Protocol of the service port for the target.
   * `__meta_kubernetes_service_type`: The type of the service.
 
-* `role: pod`
+### Kubernetes role: pod
 
   The `role: pod` discovers all pods and exposes their containers as targets.
 
@@ -1153,8 +1153,7 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_pod_controller_kind`: Object kind of the pod controller.
   * `__meta_kubernetes_pod_controller_name`: Name of the pod controller.
 
-
-* `role: endpoints`
+### Kubernetes role: endpoints
 
   The `role: endpoints` discovers targets from listed endpoints of a service.
 
@@ -1180,10 +1179,10 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_endpoint_address_target_kind`: Kind of the endpoint address target.
   * `__meta_kubernetes_endpoint_address_target_name`: Name of the endpoint address target.
 
-  If the endpoints belong to a service, all labels of the `role: service` are attached.
-  For all targets backed by a pod, all labels of the `role: pod` are attached.
+  If the endpoints belong to a service, all labels of the [`role: service`](#kubernetes-role-service) are attached.
+  For all targets backed by a pod, all labels of the [`role: pod`](#kubernetes-role-pod) are attached.
 
-* `role: endpointslice`
+### Kubernetes role: endpointslice
 
   The `role: endpointslice` discovers targets from existing endpointslices.
 
@@ -1209,10 +1208,10 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_endpointslice_port_name`: Named port of the referenced endpoint.
   * `__meta_kubernetes_endpointslice_port_protocol`: Protocol of the referenced endpoint.
 
-  If the endpoints belong to a service, all labels of the `role: service` are attached.
-  For all targets backed by a pod, all labels of the `role: pod` are attached.
+  If the endpoints belong to a service, all labels of the [`role: service`](#kubernetes-role-service) are attached.
+  For all targets backed by a pod, all labels of the [`role: pod`](#kubernetes-role-pod) are attached.
 
-* `role: ingress`
+### Kubernetes role: ingress
 
   The `role: ingress` discovers a target for each path of each ingress.
 
@@ -1469,9 +1468,9 @@ scrape_configs:
     #   ...
 ```
 
-One of the following `role` types can be configured to discover targets:
+One of the following `role` types can be configured to discover OpenStack targets:
 
-* `role: hypervisor`
+### OpenStack role: hypervisor
 
   The `role: hypervisor` discovers one target per Nova hypervisor node.
 
@@ -1487,7 +1486,7 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_openstack_hypervisor_status`: the hypervisor node's status.
   * `__meta_openstack_hypervisor_type`: the hypervisor node's type.
 
-* `role: instance`
+### OpenStack role: instance
 
   The `role: instance` discovers one target per network interface of Nova instance.
 

@@ -10,6 +10,8 @@ type Notifier interface {
 	Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) error
 	// Addr returns address where alerts are sent.
 	Addr() string
+	// LastError returns error, that occured during last attempt to send data
+	LastError() string
 	// Close is a destructor for the Notifier
 	Close()
 }

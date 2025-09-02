@@ -38,13 +38,13 @@ func (m *Sample) marshalToSizedBuffer(dst []byte) (int, error) {
 	if m.Timestamp != 0 {
 		i = encodeVarint(dst, i, uint64(m.Timestamp))
 		i--
-		dst[i] = 0x10
+		dst[i] = (2 << 3)
 	}
 	if m.Value != 0 {
 		i -= 8
 		binary.LittleEndian.PutUint64(dst[i:], uint64(math.Float64bits(float64(m.Value))))
 		i--
-		dst[i] = 0x9
+		dst[i] = (1 << 3) | 1
 	}
 	return len(dst) - i, nil
 }
@@ -59,7 +59,7 @@ func (m *TimeSeries) marshalToSizedBuffer(dst []byte) (int, error) {
 		i -= size
 		i = encodeVarint(dst, i, uint64(size))
 		i--
-		dst[i] = 0x12
+		dst[i] = (2 << 3) | 2
 	}
 	for j := len(m.Labels) - 1; j >= 0; j-- {
 		size, err := m.Labels[j].marshalToSizedBuffer(dst[:i])
@@ -69,7 +69,7 @@ func (m *TimeSeries) marshalToSizedBuffer(dst []byte) (int, error) {
 		i -= size
 		i = encodeVarint(dst, i, uint64(size))
 		i--
-		dst[i] = 0xa
+		dst[i] = (1 << 3) | 2
 	}
 	return len(dst) - i, nil
 }
@@ -81,14 +81,14 @@ func (m *Label) marshalToSizedBuffer(dst []byte) (int, error) {
 		copy(dst[i:], m.Value)
 		i = encodeVarint(dst, i, uint64(len(m.Value)))
 		i--
-		dst[i] = 0x12
+		dst[i] = (2 << 3) | 2
 	}
 	if len(m.Name) > 0 {
 		i -= len(m.Name)
 		copy(dst[i:], m.Name)
 		i = encodeVarint(dst, i, uint64(len(m.Name)))
 		i--
-		dst[i] = 0xa
+		dst[i] = (1 << 3) | 2
 	}
 	return len(dst) - i, nil
 }
@@ -144,7 +144,7 @@ func (m *WriteRequest) marshalToSizedBuffer(dst []byte) (int, error) {
 		i -= size
 		i = encodeVarint(dst, i, uint64(size))
 		i--
-		dst[i] = 0x1a
+		dst[i] = (3 << 3) | 2
 	}
 	for j := len(m.Timeseries) - 1; j >= 0; j-- {
 		size, err := m.Timeseries[j].marshalToSizedBuffer(dst[:i])
@@ -154,7 +154,7 @@ func (m *WriteRequest) marshalToSizedBuffer(dst []byte) (int, error) {
 		i -= size
 		i = encodeVarint(dst, i, uint64(size))
 		i--
-		dst[i] = 0xa
+		dst[i] = (1 << 3) | 2
 	}
 	return len(dst) - i, nil
 }
@@ -196,36 +196,36 @@ func (m *MetricMetadata) marshalToSizedBuffer(dst []byte) (int, error) {
 		copy(dst[i:], m.Unit)
 		i = encodeVarint(dst, i, uint64(len(m.Unit)))
 		i--
-		dst[i] = 0x2a
+		dst[i] = (5 << 3) | 2
 	}
 	if len(m.Help) > 0 {
 		i -= len(m.Help)
 		copy(dst[i:], m.Help)
 		i = encodeVarint(dst, i, uint64(len(m.Help)))
 		i--
-		dst[i] = 0x22
+		dst[i] = (4 << 3) | 2
 	}
 	if len(m.MetricFamilyName) > 0 {
 		i -= len(m.MetricFamilyName)
 		copy(dst[i:], m.MetricFamilyName)
 		i = encodeVarint(dst, i, uint64(len(m.MetricFamilyName)))
 		i--
-		dst[i] = 0x12
+		dst[i] = (2 << 3) | 2
 	}
 	if m.Type != 0 {
 		i = encodeVarint(dst, i, uint64(m.Type))
 		i--
-		dst[i] = 0x8
+		dst[i] = (1 << 3)
 	}
 	if m.AccountID != 0 {
 		i = encodeVarint(dst, i, uint64(m.AccountID))
 		i--
-		dst[i] = 0x58
+		dst[i] = (11 << 3)
 	}
 	if m.ProjectID != 0 {
 		i = encodeVarint(dst, i, uint64(m.ProjectID))
 		i--
-		dst[i] = 0x60
+		dst[i] = (12 << 3)
 	}
 	return len(dst) - i, nil
 }

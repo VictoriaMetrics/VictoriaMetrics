@@ -7,6 +7,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestSetOps(t *testing.T) {
@@ -757,4 +759,142 @@ func TestAddMulti(t *testing.T) {
 		a = append(a, 1<<32+uint64(i))
 	}
 	f(a)
+}
+
+func TestSubtract(t *testing.T) {
+	f := func(a, b, want *Set) {
+		t.Helper()
+		bBefore := b.AppendTo(nil)
+		a.Subtract(b)
+		bAfter := b.AppendTo(nil)
+		gotValues := []uint64{}
+		gotValues = a.AppendTo(gotValues)
+		wantValues := []uint64{}
+		wantValues = want.AppendTo(wantValues)
+		if diff := cmp.Diff(wantValues, gotValues); diff != "" {
+			t.Fatalf("unexpected a set (-want, +got):\n%s", diff)
+		}
+		if diff := cmp.Diff(bBefore, bAfter); diff != "" {
+			t.Fatalf("unexpected b set (-want, +got):\n%s", diff)
+		}
+	}
+
+	s := func(start, end uint64, se ...uint64) *Set {
+		s := &Set{}
+		for i := start; i <= end; i++ {
+			s.Add(i)
+		}
+		if len(se)%2 != 0 {
+			t.Fatalf("the number of additional starts and ends must be an even number since they go in pairs")
+		}
+		for i := 0; i < len(se); i += 2 {
+			start := se[i]
+			end := se[i+1]
+			for j := start; j <= end; j++ {
+				s.Add(j)
+			}
+		}
+		return s
+	}
+
+	var a, b, want *Set
+
+	// - no overlap
+	// - a values before b values
+	// - len(a) > len(b)
+	a = s(1, 500_000)
+	b = s(500_001, 600_000)
+	want = s(1, 500_000)
+	f(a, b, want)
+
+	// - no overlap
+	// - a values after b values
+	// - len(a) > len(b)
+	a = s(500_001, 1_000_000)
+	b = s(400_000, 500_000)
+	want = s(500_001, 1_000_000)
+	f(a, b, want)
+
+	// - no overlap
+	// - a values before b values
+	// - len(a) < len(b)
+	a = s(400_000, 500_000)
+	b = s(500_001, 1_000_000)
+	want = s(400_000, 500_000)
+	f(a, b, want)
+
+	// - no overlap
+	// - a values after b values
+	// - len(a) < len(b)
+	a = s(500_001, 600_000)
+	b = s(1, 500_000)
+	want = s(500_001, 600_000)
+	f(a, b, want)
+
+	// - overlap on the left side
+	// - len(a) > len(b)
+	a = s(500_000, 1_000_000)
+	b = s(400_000, 600_000)
+	want = s(600_001, 1_000_000)
+	f(a, b, want)
+
+	// - overlap on the right side
+	// - len(a) > len(b)
+	a = s(1, 500_000)
+	b = s(400_001, 600_000)
+	want = s(1, 400_000)
+	f(a, b, want)
+
+	// - overlap on the left side
+	// - len(a) < len(b)
+	a = s(400_000, 600_000)
+	b = s(500_001, 1_000_000)
+	want = s(400_000, 500_000)
+	f(a, b, want)
+
+	// - overlap on the right side
+	// - len(a) < len(b)
+	a = s(400_000, 600_000)
+	b = s(1, 500_000)
+	want = s(500_001, 600_000)
+	f(a, b, want)
+
+	// same
+	a = s(1, 500_000)
+	b = s(1, 500_000)
+	want = &Set{}
+	f(a, b, want)
+
+	// b is a subset of a
+	a = s(1, 500_000)
+	b = s(100_001, 400_000)
+	want = s(1, 100_000, 400_001, 500_000)
+	f(a, b, want)
+
+	// a is a subset of b
+	a = s(100_001, 400_000)
+	b = s(1, 500_000)
+	want = &Set{}
+	f(a, b, want)
+
+	// a with intervals
+	a = s(1, 200_000, 400_000, 500_000)
+	b = s(150_001, 450_000)
+	want = s(1, 150_000, 450_001, 500_000)
+	f(a, b, want)
+
+	// b with intervals
+	a = s(1, 500_000)
+	b = s(200_001, 300_000, 400_001, 500_000)
+	want = s(1, 200_000, 300_001, 400_000)
+	f(a, b, want)
+
+	// subtract more than once.
+	a = s(1, 500_000)
+	b1 := s(100_001, 200_000)
+	want1 := s(1, 100_000, 200_001, 500_000)
+	b2 := s(300_001, 400_000)
+	want2 := s(1, 100_000, 200_001, 300_000, 400_001, 500_000)
+	f(a, b1, want1)
+	f(a, b2, want2)
 }

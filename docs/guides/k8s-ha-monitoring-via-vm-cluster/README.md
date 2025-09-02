@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 **The guide covers:**
 
 * High availability monitoring via [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) with Helm charts

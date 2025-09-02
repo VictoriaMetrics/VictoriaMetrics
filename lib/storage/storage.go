@@ -413,7 +413,7 @@ func (s *Storage) MustCreateSnapshot() string {
 
 	s.legacyCreateSnapshot(snapshotName, srcDir, dstDir)
 
-	fs.MustSyncPath(dstDir)
+	fs.MustSyncPathAndParentDir(dstDir)
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 	return snapshotName
