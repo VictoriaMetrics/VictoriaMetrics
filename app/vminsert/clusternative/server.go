@@ -81,7 +81,9 @@ func (v *vminsertAPI) WriteMetadata(mrs []metricsmetadata.Row) error {
 
 	ctx.Reset() // This line is required for initializing ctx internals.
 	for i := range mrs {
-		if err := ctx.WriteMetadataInt(mrs[i]); err != nil {
+		ctx.MetadataBuf = mrs[i].MarshalTo(ctx.MetadataBuf[:0])
+		storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.MetadataBuf)
+		if err := ctx.WriteMetadataExt(storageNodeIdx, ctx.MetadataBuf); err != nil {
 			return err
 		}
 	}

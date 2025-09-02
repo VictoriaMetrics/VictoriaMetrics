@@ -378,6 +378,7 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
+// MetricMetadataTypeToString maps given uint32 value to the human read-able string
 func MetricMetadataTypeToString(mt uint32) string {
 	//   enum MetricType {
 	//     UNKNOWN = 0;

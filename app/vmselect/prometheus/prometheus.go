@@ -12,10 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
-
 	"github.com/valyala/fastjson/fastfloat"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -757,13 +755,9 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	return nil
 }
 
-type metadataResult map[string][]metadataItem
-type metadataItem struct {
-	Type string `json:"type"`
-	Help string `json:"help"`
-	Unit string `json:"unit"`
-}
-
+// MetadataHandler processes /api/v1/metadata request.
+//
+// See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	cp, err := getCommonParamsForLabelsAPI(r, startTime, false)
 	if err != nil {
@@ -776,14 +770,8 @@ func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token
 	if limit < 0 {
 		limit = 0
 	}
-	limitPerMetric, err := httputil.GetInt(r, "limit_per_metric")
-	if err != nil {
-		return err
-	}
-	if limitPerMetric < 0 {
-		limitPerMetric = 0
-	}
-	metric := r.FormValue("metric")
+
+	metricName := r.FormValue("metric")
 
 	var tt *storage.TenantToken
 	if at != nil {
@@ -795,68 +783,28 @@ func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token
 
 	denyPartialResponse := httputil.GetDenyPartialResponse(r)
 
-	metadata, isPartial, err := netstorage.GetMetricsMetadata(qt, tt, denyPartialResponse, int64(limit), int64(limitPerMetric), metric, cp.deadline)
+	metadata, isPartial, err := netstorage.GetMetricsMetadata(qt, tt, denyPartialResponse, limit, metricName, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot get metadata: %w", err)
 	}
-
-	qtL := qt.NewChild("preparing metadata response; limit=%d limit_per_metric=%d metric=%q", limit, limitPerMetric, metric)
-	qtL.Printf("received %d items from storage", len(metadata))
-	totalItems := 0
-	duplicatesSkipped := 0
-	var resultsPerMetric map[string]int
-	if limitPerMetric > 0 {
-		resultsPerMetric = make(map[string]int, len(metadata))
-	}
-	result := make(metadataResult)
-	for _, md := range metadata {
-		mf := bytesutil.ToUnsafeString(md.MetricFamilyName)
-		if limitPerMetric > 0 && resultsPerMetric[mf] >= limitPerMetric {
-			// Limit reached for this metric, skip the rest of metadata for it.
+	unique := make(map[string]struct{}, len(metadata))
+	var cnt int
+	for _, mdr := range metadata {
+		if _, ok := unique[string(mdr.MetricFamilyName)]; ok {
 			continue
 		}
-
-		// check if the same metric family name is already present
-		if _, ok := result[mf]; ok {
-			duplicate := false
-			for _, item := range result[mf] {
-				if item.Type == prompb.MetricMetadataTypeToString(md.Type) &&
-					item.Help == bytesutil.ToUnsafeString(md.Help) &&
-					item.Unit == bytesutil.ToUnsafeString(md.Unit) {
-					// The same metadata item is already present, skip it.
-					duplicate = true
-					break
-				}
-			}
-			if duplicate {
-				duplicatesSkipped++
-				continue
-			}
-		}
-		result[mf] = append(result[mf], metadataItem{
-			Type: prompb.MetricMetadataTypeToString(md.Type),
-			Help: bytesutil.ToUnsafeString(md.Help),
-			Unit: bytesutil.ToUnsafeString(md.Unit),
-		})
-
-		totalItems += 1
-		if limit > 0 && totalItems >= limit {
-			break
-		}
-		if limitPerMetric > 0 {
-			resultsPerMetric[mf]++
-		}
+		unique[bytesutil.ToUnsafeString(mdr.MetricFamilyName)] = struct{}{}
+		metadata[cnt] = mdr
+		cnt++
 	}
-	qtL.Printf("applied limits; total items=%d, duplicates=%d", totalItems, duplicatesSkipped)
-	qtL.Done()
-
+	metadata = metadata[:cnt]
 	qt.Done()
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteMetadataResponse(bw, isPartial, result, qt)
+	WriteMetadataResponse(bw, isPartial, metadata, qt)
 	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("cannot send labels response to remote client: %w", err)
+		return fmt.Errorf("cannot send metadata response to remote client: %w", err)
 	}
 
 	return nil

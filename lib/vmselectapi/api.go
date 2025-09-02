@@ -46,7 +46,8 @@ type API interface {
 	// ResetMetricNamesUsageStats resets internal state of metric names tracker
 	ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error
 
-	GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit, limitPerMetric int64, metric string, deadline uint64) ([]metricsmetadata.Row, error)
+	// GetMetadataRecords returns metrics metadata.
+	GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error)
 }
 
 // BlockIterator must iterate through series blocks found by VMSelect.InitSearch.

@@ -42,7 +42,8 @@ func (v *vminsertAPI) WriteRows(rows []storage.MetricRow) error {
 }
 
 func (v *vminsertAPI) WriteMetadata(mrs []metricsmetadata.Row) error {
-	return v.storage.AddMetadataRows(mrs)
+	v.storage.AddMetadataRows(mrs)
+	return nil
 }
 
 func (v *vminsertAPI) IsReadOnly() bool {

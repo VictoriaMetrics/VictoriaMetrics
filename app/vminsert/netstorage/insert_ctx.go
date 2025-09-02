@@ -25,6 +25,7 @@ type InsertCtx struct {
 	snb           *storageNodesBucket
 	Labels        sortedLabels
 	MetricNameBuf []byte
+	MetadataBuf   []byte
 
 	bufRowss  []bufRows
 	labelsBuf []byte
@@ -105,6 +106,7 @@ func (ctx *InsertCtx) Reset() {
 	ctx.Labels = labels[:0]
 
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
+	ctx.MetadataBuf = ctx.MetadataBuf[:0]
 
 	if ctx.bufRowss == nil || len(ctx.bufRowss) != len(ctx.snb.sns) {
 		ctx.bufRowss = make([]bufRows, len(ctx.snb.sns))
@@ -188,32 +190,24 @@ func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte
 	return nil
 }
 
+// WriteMetadata writes the given MetricMetadata to the storage buffer
 func (ctx *InsertCtx) WriteMetadata(at *auth.Token, m *prompb.MetricMetadata) error {
-	ctx.MetricNameBuf = metricsmetadata.MarshalRow(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, m)
-	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.MetricNameBuf)
-	return ctx.WriteMetadataExt(storageNodeIdx, ctx.MetricNameBuf)
-}
-
-func (ctx *InsertCtx) WriteMetadataInt(m metricsmetadata.Row) error {
-	ctx.MetricNameBuf = m.MarshalTo(ctx.MetricNameBuf[:0])
-	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.MetricNameBuf)
-	return ctx.WriteMetadataExt(storageNodeIdx, ctx.MetricNameBuf)
-}
-
-func (ctx *InsertCtx) GetStorageNodeIdxForMeta(buf []byte) int {
-	if len(ctx.snb.sns) == 1 {
-		// Fast path - only a single storage node.
-		return 0
+	mdr := metricsmetadata.Row{
+		Type:             m.Type,
+		MetricFamilyName: []byte(m.MetricFamilyName),
+		Unit:             []byte(m.Unit),
+		Help:             []byte(m.Help),
 	}
-
-	h := xxhash.Sum64(buf)
-	ctx.labelsBuf = buf
-
-	// Do not exclude unavailable storage nodes in order to properly account for rerouted metaRows in storageNode.pushMR().
-	idx := ctx.snb.nodesHash.getNodeIdx(h, nil)
-	return idx
+	if at != nil {
+		mdr.AccountID = at.AccountID
+		mdr.ProjectID = at.ProjectID
+	}
+	ctx.MetadataBuf = mdr.MarshalTo(ctx.MetadataBuf[:0])
+	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.MetadataBuf)
+	return ctx.WriteMetadataExt(storageNodeIdx, ctx.MetadataBuf)
 }
 
+// WriteMetadataExt writes the given buffer to the storage buffer by provided storageNodeIdx
 func (ctx *InsertCtx) WriteMetadataExt(storageNodeIdx int, buf []byte) error {
 	br := &ctx.bufRowss[storageNodeIdx]
 	snb := ctx.snb
@@ -230,6 +224,23 @@ func (ctx *InsertCtx) WriteMetadataExt(storageNodeIdx int, buf []byte) error {
 	}
 	br.metaRows++
 	return nil
+}
+
+// GetStorageNodeIdxForMeta returns storage node ID for given buffer
+//
+// The returned index must be passed to WriteMetadataExt.
+func (ctx *InsertCtx) GetStorageNodeIdxForMeta(buf []byte) int {
+	if len(ctx.snb.sns) == 1 {
+		// Fast path - only a single storage node.
+		return 0
+	}
+
+	h := xxhash.Sum64(buf)
+	ctx.labelsBuf = buf
+
+	// Do not exclude unavailable storage nodes in order to properly account for rerouted metaRows in storageNode.pushMR().
+	idx := ctx.snb.nodesHash.getNodeIdx(h, nil)
+	return idx
 }
 
 // FlushBufs flushes ctx bufs to remote storage nodes.

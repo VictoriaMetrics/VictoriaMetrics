@@ -17,11 +17,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/cespare/xxhash/v2"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
@@ -36,6 +34,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 var (
@@ -1145,20 +1144,21 @@ func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutil.D
 	return tenants, nil
 }
 
-func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, denyPartialResponse bool, limit, limitPerMetric int64, metric string, deadline searchutil.Deadline) ([]metricsmetadata.Row, bool, error) {
-	qt = qt.NewChild("get metrics metadata: limit=%d, limitPerMetric=%d, metric=%q", limit, limitPerMetric, metric)
+// GetMetricsMetadata returns time series metric names metadata for the given args
+func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, denyPartialResponse bool, limit int, metricName string, deadline searchutil.Deadline) ([]*metricsmetadata.Row, bool, error) {
+	qt = qt.NewChild("get metrics metadata: limit=%d, metric_name=%q", limit, metricName)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 	type nodeResult struct {
-		metadata []metricsmetadata.Row
+		metadata []*metricsmetadata.Row
 		err      error
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.metricsMetadataRequests.Inc()
-		metadata, err := sn.getMetricsMetadata(qt, tt, limit, limitPerMetric, metric, deadline)
+		metadata, err := sn.getMetricsMetadata(qt, tt, limit, metricName, deadline)
 		if err != nil {
 			sn.metricsMetadataErrors.Inc()
 			err = fmt.Errorf("cannot get metrics metadata from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1169,7 +1169,7 @@ func GetMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, denyPar
 		}
 	})
 
-	var metadata []metricsmetadata.Row
+	var metadata []*metricsmetadata.Row
 	isPartial, err := snr.collectResults(partialMetadataResults, func(result any) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
@@ -3571,7 +3571,7 @@ func (sn *storageNode) processResetMetricNamesUsageStats(qt *querytracer.Tracer,
 	return sn.execOnConnWithPossibleRetry(qt, "resetMetricNamesStats_v1", f, deadline)
 }
 
-func processSearchMetadataOnConn(bc *handshake.BufferedConn, tt *storage.TenantToken, limit, limitPerMetric int64, metric string) ([]metricsmetadata.Row, error) {
+func processSearchMetadataOnConn(bc *handshake.BufferedConn, tt *storage.TenantToken, limit int, metricName string) ([]*metricsmetadata.Row, error) {
 	hasTenantToken := tt != nil
 	if err := writeBool(bc, hasTenantToken); err != nil {
 		return nil, fmt.Errorf("cannot write hasTenantToken: %w", err)
@@ -3585,14 +3585,11 @@ func processSearchMetadataOnConn(bc *handshake.BufferedConn, tt *storage.TenantT
 			return nil, fmt.Errorf("cannot write ProjectID: %w", err)
 		}
 	}
-	if err := writeInt64(bc, limit); err != nil {
+	if err := writeLimit(bc, limit); err != nil {
 		return nil, fmt.Errorf("cannot write limit: %w", err)
 	}
-	if err := writeInt64(bc, limitPerMetric); err != nil {
-		return nil, fmt.Errorf("cannot write limitPerMetric: %w", err)
-	}
-	if err := writeBytes(bc, []byte(metric)); err != nil {
-		return nil, fmt.Errorf("cannot write metric: %w", err)
+	if err := writeBytes(bc, []byte(metricName)); err != nil {
+		return nil, fmt.Errorf("cannot write metricName: %w", err)
 	}
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush write: %w", err)
@@ -3615,19 +3612,19 @@ func processSearchMetadataOnConn(bc *handshake.BufferedConn, tt *storage.TenantT
 	return result, nil
 }
 
-func readMetadataRows(bc *handshake.BufferedConn) ([]metricsmetadata.Row, error) {
+func readMetadataRows(bc *handshake.BufferedConn) ([]*metricsmetadata.Row, error) {
 	n, err := readUint64(bc)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the number of MetricNamesStatsRecord: %w", err)
 	}
-	records := make([]metricsmetadata.Row, n)
+	records := make([]*metricsmetadata.Row, 0, n)
 	var dataBuf []byte
 	for i := range n {
 		dataBuf, err = readBytes(dataBuf[:0], bc, maxLabelValueSize)
 		if err != nil {
 			return records, fmt.Errorf("cannot read record metricName: %w", err)
 		}
-		record := &records[i]
+		var record metricsmetadata.Row
 		dataBuf, err = record.Unmarshal(dataBuf)
 		if err != nil {
 			return records, fmt.Errorf("cannot unmarshal record metricName: %w", err)
@@ -3635,14 +3632,15 @@ func readMetadataRows(bc *handshake.BufferedConn) ([]metricsmetadata.Row, error)
 		if len(dataBuf) != 0 {
 			return records, fmt.Errorf("non-empty tail after unmarshaling Row #%d: (len=%d) %q", i, len(dataBuf), dataBuf)
 		}
+		records = append(records, &record)
 	}
 	return records, nil
 }
 
-func (sn *storageNode) getMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, limit, limitPerMetric int64, metric string, deadline searchutil.Deadline) ([]metricsmetadata.Row, error) {
-	var result []metricsmetadata.Row
+func (sn *storageNode) getMetricsMetadata(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline searchutil.Deadline) ([]*metricsmetadata.Row, error) {
+	var result []*metricsmetadata.Row
 	f := func(bc *handshake.BufferedConn) error {
-		bcResult, err := processSearchMetadataOnConn(bc, tt, limit, limitPerMetric, metric)
+		bcResult, err := processSearchMetadataOnConn(bc, tt, limit, metricName)
 		if err != nil {
 			return err
 		}

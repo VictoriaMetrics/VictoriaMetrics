@@ -1207,25 +1207,21 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 			ProjectID: projectID,
 		}
 	}
-	limit, err := ctx.readInt64()
+	limit, err := ctx.readLimit()
 	if err != nil {
 		return fmt.Errorf("cannot read limit: %w", err)
 	}
-	limitPerMetric, err := ctx.readInt64()
-	if err != nil {
-		return fmt.Errorf("cannot read limitPerMetric: %w", err)
-	}
 	if err := ctx.readDataBufBytes(1024); err != nil {
-		return fmt.Errorf("cannot read metric: %w", err)
+		return fmt.Errorf("cannot read metric name: %w", err)
 	}
-	metric := string(ctx.dataBuf)
+	metricName := string(ctx.dataBuf)
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
 	defer s.endConcurrentRequest()
 
-	result, err := s.api.GetMetadataRecords(ctx.qt, at, limit, limitPerMetric, metric, ctx.deadline)
+	result, err := s.api.GetMetadataRecords(ctx.qt, at, limit, metricName, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -1240,7 +1236,7 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func writeMetadataRows(ctx *vmselectRequestCtx, records []metricsmetadata.Row) error {
+func writeMetadataRows(ctx *vmselectRequestCtx, records []*metricsmetadata.Row) error {
 	if err := ctx.writeUint64(uint64(len(records))); err != nil {
 		return fmt.Errorf("cannot write MetricNamesStatsRecord size: %w", err)
 	}

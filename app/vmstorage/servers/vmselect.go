@@ -238,8 +238,8 @@ func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQue
 	return tfss, nil
 }
 
-func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit, limitPerMetric int64, metric string, deadline uint64) ([]metricsmetadata.Row, error) {
-	return api.s.GetMetadataRows(qt, tt, limit, limitPerMetric, metric, deadline)
+func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error) {
+	return api.s.GetMetadataRows(qt, tt, limit, metricName, deadline)
 }
 
 // blockIterator implements vmselectapi.BlockIterator

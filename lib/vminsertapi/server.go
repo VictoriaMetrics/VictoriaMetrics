@@ -1,6 +1,7 @@
 package vminsertapi
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -57,7 +58,6 @@ func NewVMInsertServer(addr string, connectionTimeout time.Duration, listenerNam
 	logger.Infof("started TCP %s server at %q", listenerName, ln.Addr())
 
 	labels := fmt.Sprintf(`{type=%q}`, listenerName)
-
 	s := &VMInsertServer{
 		api:               api,
 		ln:                ln,
@@ -180,6 +180,10 @@ func (s *VMInsertServer) processConn(bc *handshake.BufferedConn) error {
 	}
 	for {
 		if err := s.processRequest(ctx); err != nil {
+			if err == io.EOF {
+				// Remote client gracefully closed the connection.
+				return nil
+			}
 			return fmt.Errorf("cannot process vminsert request: %w", err)
 		}
 		if err := bc.Flush(); err != nil {
@@ -194,12 +198,17 @@ func (s *VMInsertServer) processRequest(ctx *vminsertRequestCtx) error {
 	// Read rpcName
 	// Do not set deadline on reading rpcName, since it may take a
 	// lot of time for idle connection.
+	ctx.dataBuf = ctx.dataBuf[:0]
 	if err := ctx.readDataBufBytes(maxRPCNameSize); err != nil {
-		if err == io.EOF {
+		if err == io.EOF || errors.Is(err, net.ErrClosed) {
 			// Remote client gracefully closed the connection.
 			return err
 		}
-		return fmt.Errorf("cannot read rpcName: %w", err)
+		// fallback to the previous API version in order to keep backward compatibility
+		rpcErrFallbackLogger.Warnf("cannot read rpcName, fallback to older API version: %s", err)
+		ctx.bc.UnRead(ctx.sizeBuf)
+		ctx.bc.UnRead(ctx.dataBuf)
+		return s.processWriteRows(ctx)
 	}
 	rpcName := string(ctx.dataBuf)
 
@@ -219,8 +228,23 @@ func (s *VMInsertServer) processRPC(ctx *vminsertRequestCtx, rpcName string) err
 		return s.processWriteMetadata(ctx)
 	case "healthcheck_v1":
 		return s.processHealthcheck(ctx)
+	case "":
+		// previous API version healthcheck
+		status := consts.StorageStatusAck
+		if s.api.IsReadOnly() {
+			status = consts.StorageStatusReadOnly
+		}
+
+		if err := sendAck(ctx.bc, byte(status)); err != nil {
+			return fmt.Errorf("cannot send ack for healthcheck_v1: %w", err)
+		}
+		return nil
 	default:
-		return fmt.Errorf("unsupported rpcName: %q", rpcName)
+		// fallback to the previous API version in order to keep backward compatibility
+		rpcErrFallbackLogger.Warnf("unknown rpcName=%q, fallback to older API version", rpcName)
+		ctx.bc.UnRead(ctx.sizeBuf)
+		ctx.bc.UnRead(ctx.dataBuf)
+		return s.processWriteRows(ctx)
 	}
 }
 
@@ -277,6 +301,7 @@ func (ctx *vminsertRequestCtx) readDataBufBytes(maxDataSize int) error {
 	if dataSize > uint64(maxDataSize) {
 		return fmt.Errorf("too big data size: %d; it mustn't exceed %d bytes", dataSize, maxDataSize)
 	}
+
 	ctx.dataBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.dataBuf, int(dataSize))
 	if dataSize == 0 {
 		return nil
@@ -302,3 +327,5 @@ func sendAck(bc *handshake.BufferedConn, status byte) error {
 }
 
 var auxBufPool bytesutil.ByteBufferPool
+
+var rpcErrFallbackLogger = logger.WithThrottler("vminsert_rpc_err_fallback", 30*time.Second)

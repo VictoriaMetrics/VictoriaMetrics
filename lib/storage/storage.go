@@ -3159,19 +3159,21 @@ func (s *Storage) ResetMetricNamesStats(_ *querytracer.Tracer) {
 	s.metricsTracker.Reset(s.tsidCache.Reset)
 }
 
-func (s *Storage) GetMetadataRows(qt *querytracer.Tracer, tt *TenantToken, limit, limitPerMetric int64, metric string, _ uint64) ([]metricsmetadata.Row, error) {
+// GetMetadataRows returns time series metric names emtadata for the given args
+func (s *Storage) GetMetadataRows(qt *querytracer.Tracer, tt *TenantToken, limit int, metricName string, _ uint64) ([]*metricsmetadata.Row, error) {
 	var (
-		res []metricsmetadata.Row
+		res []*metricsmetadata.Row
 	)
 	if tt != nil {
-		res = s.metadataStore.GetForTenant(tt.AccountID, tt.ProjectID, limit, limitPerMetric, metric)
+		res = s.metadataStore.GetForTenant(tt.AccountID, tt.ProjectID, limit, metricName)
 	} else {
-		res = s.metadataStore.Get(limit, limitPerMetric, metric)
+		res = s.metadataStore.Get(limit, metricName)
 	}
 	qt.Printf("found %d metadata rows", len(res))
 	return res, nil
 }
 
-func (s *Storage) AddMetadataRows(rows []metricsmetadata.Row) error {
-	return s.metadataStore.Add(rows)
+// AddMetadataRows writes time series metric names metadata into storage
+func (s *Storage) AddMetadataRows(rows []metricsmetadata.Row) {
+	s.metadataStore.Add(rows)
 }
