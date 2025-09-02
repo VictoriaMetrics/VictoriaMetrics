@@ -48,6 +48,9 @@ TSBS_WORKERS ?= 4
 TSBS_QUERY_TYPE := cpu-max-all-8
 TSBS_DATA_FILE := /tmp/tsbs-data-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).gz
 TSBS_QUERY_FILE := /tmp/tsbs-queries-$(TSBS_QUERY_TYPE)-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_QUERIES).gz
+TSBS_LOAD_RESULT_CSV_FILE := /tmp/tsbs-load-$(TSBS_SCALE)-$(TSBS_START)-$(TSBS_END)-$(TSBS_STEP).csv
+TSBS_LOAD_RESULT_CSV_FILE_COMPARE ?=
+TSBS_PLOT_SCRIPT := $(shell pwd)/benchmarks/plot-load.sh
 # For cluster setup use http://vminsert:8480/insert/0/influx/write
 TSBS_WRITE_URLS ?= http://localhost:8428/write
 # For cluster setup use http://vmselect:8481/select/0/prometheus
@@ -76,7 +79,10 @@ tsbs-generate-data:
 
 # Load data into VictoriaMetrics
 tsbs-load-data:
-	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics --workers=$(TSBS_WORKERS) --urls=$(TSBS_WRITE_URLS)
+	cat $(TSBS_DATA_FILE) | gunzip | /tmp/tsbs/bin/tsbs_load_victoriametrics \
+		--workers=$(TSBS_WORKERS) \
+		--urls=$(TSBS_WRITE_URLS) \
+		2>/dev/tty | tee $(TSBS_LOAD_RESULT_CSV_FILE)
 	curl -s $(TSBS_METRICS_URL) | grep \
 		-e process_cpu_seconds_user_total \
 		-e process_cpu_seconds_system_total \
@@ -133,3 +139,16 @@ tsbs-run-queries-all:
 
 	# Too heavy: retrieves 1B samples
 	# $(MAKE) tsbs-run-queries TSBS_QUERY_TYPE=double-groupby-all
+
+# Plot the data load `per interval metrics/s` measurements
+#
+# To plot measurements collected during the recent benchmark, run
+# make tsbs-plot-load
+#
+# To plot the measurements from some other benchmark, run
+# make tsbs-plot-load TSBS_LOAD_RESULT_CSV_FILE=/path/to/file.csv
+#
+# To plot the measurements from two benchmarks, run
+# make tsbs-plot-load TSBS_LOAD_RESULT_CSV_FILE=/path/to/file1.csv TSBS_LOAD_RESULT_CSV_FILE_COMPARE=/path/to/file2.csv
+tsbs-plot-load:
+	$(TSBS_PLOT_SCRIPT) $(TSBS_LOAD_RESULT_CSV_FILE) $(TSBS_LOAD_RESULT_CSV_FILE_COMPARE)
