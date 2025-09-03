@@ -21,7 +21,7 @@ However, there are some [intentional differences](https://medium.com/@romanhavro
 
 [Standalone MetricsQL package](https://godoc.org/github.com/VictoriaMetrics/metricsql) can be used for parsing MetricsQL in external apps.
 
-If you are unfamiliar with PromQL, then it is suggested reading [this tutorial for beginners](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085)
+If you are unfamiliar with PromQL, we suggest reading [this tutorial for beginners](https://medium.com/@valyala/promql-tutorial-for-beginners-9ab455142085)
 and introduction into [basic querying via MetricsQL](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#metricsql).
 
 The following functionality is implemented differently in MetricsQL compared to PromQL. This improves user experience:
@@ -69,13 +69,13 @@ The list of MetricsQL features on top of PromQL:
   See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#selecting-graphite-metrics).
   VictoriaMetrics can be used as Graphite datasource in Grafana. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#graphite-api-usage) for details.
   See also [label_graphite_group](#label_graphite_group) function, which can be used for extracting the given groups from Graphite metric name.
-* Lookbehind window in square brackets for [rollup functions](#rollup-functions) may be omitted. VictoriaMetrics automatically selects the lookbehind window
+* The lookbehind window in square brackets for [rollup functions](#rollup-functions) may be omitted. VictoriaMetrics automatically selects the lookbehind window
   depending on the `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
   and the real interval between [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) (aka `scrape_interval`).
   For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`.
   It is roughly equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
   The difference is documented in [rate() docs](#rate).
-* Numeric values can contain `_` delimiters for better readability. For example, `1_234_567_890` can be used in queries instead of `1234567890`.
+* Numeric values may include underscore delimiters for better readability. For example, `1_234_567_890` can be used in queries instead of `1234567890`.
 * [Series selectors](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering) accept multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}`
   selects series with `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
   See [these docs](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering-by-multiple-or-filters) for details.
@@ -111,8 +111,8 @@ The list of MetricsQL features on top of PromQL:
 * Metric names and labels names may contain escaped chars. For example, `foo\-bar{baz\=aa="b"}` is valid expression.
   It returns time series with name `foo-bar` containing label `baz=aa` with value `b`.
   Additionally, the following escape sequences are supported:
-  - `\xXX`, where `XX` is hexadecimal representation of the escaped ascii char.
-  - `\uXXXX`, where `XXXX` is a hexadecimal representation of the escaped unicode char.
+  * `\xXX`, where `XX` is hexadecimal representation of the escaped ascii char.
+  * `\uXXXX`, where `XXXX` is a hexadecimal representation of the escaped unicode char.
 * Aggregate functions support optional `limit N` suffix in order to limit the number of output series.
   For example, `sum(x) by (y) limit 3` limits the number of output time series after the aggregation to 3.
   All the other time series are dropped.
@@ -138,8 +138,9 @@ This may result in `duplicate time series` error when the function is applied to
 This error can be fixed by applying `keep_metric_names` modifier to the function or binary operator.
 
 For example:
-- `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
-- `({__name__=~"foo|bar"} / 10) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+
+* `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+* `({__name__=~"foo|bar"} / 10) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
 
 ## MetricsQL functions
 
@@ -166,10 +167,10 @@ Additional details:
 * If the given [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering) returns multiple time series,
   then rollups are calculated individually per each returned series.
 * If lookbehind window in square brackets is missing, then it is automatically set to the following value:
-  - To `step` value passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
+  * To `step` value passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
     for all the [rollup functions](#rollup-functions) except of [default_rollup](#default_rollup) and [rate](#rate). This value is known as `$__interval` in Grafana or `1i` in MetricsQL.
     For example, `avg_over_time(temperature)` is automatically transformed to `avg_over_time(temperature[1i])`.
-  - To the `max(step, scrape_interval)`, where `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+  * To the `max(step, scrape_interval)`, where `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
     for [default_rollup](#default_rollup) and [rate](#rate) functions. This allows avoiding unexpected gaps on the graph when `step` is smaller than `scrape_interval`.
 * Every [series selector](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering) in MetricsQL must be wrapped into a rollup function.
   Otherwise, it is automatically wrapped into [default_rollup](#default_rollup). For example, `foo{bar="baz"}`
@@ -666,8 +667,9 @@ This function is usually applied to [gauges](https://docs.victoriametrics.com/vi
 
 `outlier_iqr_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns the last sample on the given lookbehind window `d`
 if its value is either smaller than the `q25-1.5*iqr` or bigger than `q75+1.5*iqr` where:
-- `iqr` is an [Interquartile range](https://en.wikipedia.org/wiki/Interquartile_range) over [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on the lookbehind window `d`
-- `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) over [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on the lookbehind window `d`.
+
+* `iqr` is an [Interquartile range](https://en.wikipedia.org/wiki/Interquartile_range) over [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on the lookbehind window `d`
+* `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) over [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on the lookbehind window `d`.
 
 The `outlier_iqr_over_time()` is useful for detecting anomalies in gauge values based on the previous history of values.
 For example, `outlier_iqr_over_time(memory_usage_bytes[1h])` triggers when `memory_usage_bytes` suddenly goes outside the usual value range for the last hour.
@@ -758,7 +760,6 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 This function is usually applied to [counters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter).
 
 See also [increase_prometheus](#increase_prometheus) and [rate](#rate).
-
 
 #### rate_over_sum
 
@@ -1105,7 +1106,6 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 This function is usually applied to [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
 
 See also [zscore](#zscore), [range_trim_zscore](#range_trim_zscore) and [outlier_iqr_over_time](#outlier_iqr_over_time).
-
 
 ### Transform functions
 
@@ -1851,7 +1851,6 @@ The list of supported label manipulation functions:
 `alias(q, "name")` is [label manipulation function](#label-manipulation-functions), which sets the given `name` to all the time series returned by `q`.
 For example, `alias(up, "foobar")` would rename `up` series to `foobar` series.
 
-
 #### drop_common_labels
 
 `drop_common_labels(q1, ...., qN)` is [label manipulation function](#label-manipulation-functions), which drops common `label="value"` pairs
@@ -1877,7 +1876,7 @@ For example, `label_graphite_group({__graphite__="foo*.bar.*"}, 0, 2)` would sub
 
 This function is useful for aggregating Graphite metrics with [aggregate functions](#aggregate-functions). For example, the following query would return per-app memory usage:
 
-```
+```metricsql
 sum by (__name__) (
     label_graphite_group({__graphite__="app*.host*.memory_usage"}, 0)
 )
@@ -2002,7 +2001,6 @@ For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `
 would return series in the following order of `bar` label values: `101`, `15`, `2` and `1`.
 
 See also [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label_desc](#sort_by_label_desc).
-
 
 ### Aggregate functions
 
@@ -2179,8 +2177,9 @@ per each `group_labels` for all the time series returned by `q`. The aggregate i
 `outliers_iqr(q)` is [aggregate function](#aggregate-functions), which returns time series from `q` with at least a single point
 outside e.g. [Interquartile range outlier bounds](https://en.wikipedia.org/wiki/Interquartile_range) `[q25-1.5*iqr .. q75+1.5*iqr]`
 comparing to other time series at the given point, where:
-- `iqr` is an [Interquartile range](https://en.wikipedia.org/wiki/Interquartile_range) calculated independently per each point on the graph across `q` series.
-- `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) calculated independently per each point on the graph across `q` series.
+
+* `iqr` is an [Interquartile range](https://en.wikipedia.org/wiki/Interquartile_range) calculated independently per each point on the graph across `q` series.
+* `q25` and `q75` are 25th and 75th [percentiles](https://en.wikipedia.org/wiki/Percentile) calculated independently per each point on the graph across `q` series.
 
 The `outliers_iqr()` is useful for detecting anomalous series in the group of series. For example, `outliers_iqr(temperature) by (country)` returns
 per-country series with anomalous outlier values comparing to the rest of per-country series.
@@ -2349,10 +2348,10 @@ VictoriaMetrics performs subqueries in the following way:
 VictoriaMetrics performs the following implicit conversions for incoming queries before starting the calculations:
 
 * If lookbehind window in square brackets is missing inside [rollup function](#rollup-functions), then it is automatically set to the following value:
-  - To `step` value passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
+  * To `step` value passed to [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) or [/api/v1/query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query)
     for all the [rollup functions](#rollup-functions) except of [default_rollup](#default_rollup) and [rate](#rate). This value is known as `$__interval` in Grafana or `1i` in MetricsQL.
     For example, `avg_over_time(temperature)` is automatically transformed to `avg_over_time(temperature[1i])`.
-  - To the `max(step, scrape_interval)`, where `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+  * To the `max(step, scrape_interval)`, where `scrape_interval` is the interval between [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
     for [default_rollup](#default_rollup) and [rate](#rate) functions. This allows avoiding unexpected gaps on the graph when `step` is smaller than `scrape_interval`.
 * All the [series selectors](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering),
   which aren't wrapped into [rollup functions](#rollup-functions), are automatically wrapped into [default_rollup](#default_rollup) function.

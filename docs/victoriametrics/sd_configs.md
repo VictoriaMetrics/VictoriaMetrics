@@ -1179,8 +1179,8 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_endpoint_address_target_kind`: Kind of the endpoint address target.
   * `__meta_kubernetes_endpoint_address_target_name`: Name of the endpoint address target.
 
-  If the endpoints belong to a service, all labels of the [`role: service`](#kubernetes-role--service) are attached.
-  For all targets backed by a pod, all labels of the [`role: pod`](#kubernetes-role--pod) are attached.
+  If the endpoints belong to a service, all labels of the [`role: service`](#kubernetes-role-service) are attached.
+  For all targets backed by a pod, all labels of the [`role: pod`](#kubernetes-role-pod) are attached.
 
 ### Kubernetes role: endpointslice
 
@@ -1208,8 +1208,8 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_endpointslice_port_name`: Named port of the referenced endpoint.
   * `__meta_kubernetes_endpointslice_port_protocol`: Protocol of the referenced endpoint.
 
-  If the endpoints belong to a service, all labels of the [`role: service`](#kubernetes-role--service) are attached.
-  For all targets backed by a pod, all labels of the [`role: pod`](#kubernetes-role--pod) are attached.
+  If the endpoints belong to a service, all labels of the [`role: service`](#kubernetes-role-service) are attached.
+  For all targets backed by a pod, all labels of the [`role: pod`](#kubernetes-role-pod) are attached.
 
 ### Kubernetes role: ingress
 

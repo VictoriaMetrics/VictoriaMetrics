@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can aggregate incoming [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) in streaming mode by time and by labels before data is written to remote storage
 (or local storage for single-node VictoriaMetrics).
@@ -719,6 +727,13 @@ across multiple `-remoteWrite.url`.
 Stream aggregation allows keeping original metric names after aggregation by using `keep_metric_names` setting.
 But the "meaning" of aggregated metrics is usually different to original ones after the aggregation.
 Make sure that you updated queries in your alerting rules and dashboards accordingly if you used `keep_metric_names` setting.
+
+### Use different deduplication intervals on storage and vmagent
+
+If the storage uses `-dedup.minScrapeInterval` but `vmagent` has no deduplication configured, aggregation results may not match queries on the storage. 
+For example, `sum(rate(foo[1m])) by (instance)` query result can differ from the [rate_sum](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#rate_sum) aggregation result `foo:1m_by_instance_rate_sum`.
+This happens because vmagent aggregates all samples, while queries on the storage use deduplicated samples. 
+To avoid this, set `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` on `vmagent` to match the storage interval.
 
 ---
 

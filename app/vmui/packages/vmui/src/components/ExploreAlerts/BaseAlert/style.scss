@@ -19,30 +19,6 @@
     text-align: center;
   }
 
-  a:hover > pre {
-    background-color: $color-background-badge;
-    cursor: pointer;
-  }
-
-  a:hover {
-    background-color: $color-background-hover;
-    cursor: pointer;
-  }
-
-  pre {
-    background-color: $color-background-badge;
-    padding: 0 $padding-global;
-    border-radius: $border-radius-small;
-    word-break: break-word;
-    white-space: pre-wrap;
-    .keyword,
-    .function,
-    .attr-name,
-    .range-duration {
-      color: $color-keyword;
-    }
-  }
-
   .vm-col-sm {
     width: 10%;
     white-space: nowrap;
@@ -57,6 +33,11 @@
     text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .vm-button {
+    color: $color-passive;
+    border: 1px solid var(--color-passive);
   }
 
   table {

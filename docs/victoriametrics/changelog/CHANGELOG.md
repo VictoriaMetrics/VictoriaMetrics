@@ -3,6 +3,8 @@ build:
   list: never
   publishResources: false
   render: never
+sitemap:
+  disable: true
 ---
 The following `tip` changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
 
@@ -24,19 +26,29 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.125.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.1)
+
+Released at 2025-09-03
+
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly route requests for `prometheus/vmui/config.json` API. Follow-up after 7f15e9f64cb8dd2b2f0f1c10d178fd06ac7c636c.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix `workingsetcache` metrics. Previously, after cache rotation, metrics could be double-counted or inflated. See [9553](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9553) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix the issue where filtering on click does not work on the Explorer Cardinality page. See [#9674](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9674) for details.
+
 ## [v1.125.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.0)
 
 Released at 2025-08-29
 
-* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): apply `-search.maxQueryLen` limit to Graphite queries. Previously, this limit was only applied to Prometheus queries.
+**Known issues: this release has broken vmui cardinality explorer page. See [#9674](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9674) for details.
+
 * FEATURE: upgrade Go builder from Go1.24.6 to Go1.25. See [Go1.25 release notes](https://tip.golang.org/doc/go1.25).
-* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add export functionality for Query (Table view) and RawQuery tabs in CSV/JSON format. See [#9332](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9332).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): replace `Alerts` tab with `Alerting` tab in vmui. The new `Alerting` tab displays vmalert groups and rules directly in vmui interface without redirecting user to vmalert's WEB UI. Links of format `.*/prometheus/vmalert/.*` will continue working by redirecting to vmalert's UI. This functionality is available only if `-vmalert.proxyURL` is set on vmselect. Some functionality of the new `Alerting` tab requires vmalert to be of the same version as vmselect, or higher.
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add export functionality for Query (Table view) and RawQuery tabs in CSV/JSON format. See [#9332](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9332).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `/api/v1/group?group_id=<id>` API endpoint for viewing details of a specific [rules group](https://docs.victoriametrics.com/vmalert.html#groups). The new handler is used by new `Alerting` tab in vmselect.
-* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `lastError` field to `/api/v1/notifiers` response. The new field contains an error message if the last attempt to send data to the notifier failed. The error can be also viewed in `Alerting. Notifiers` tab. 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `lastError` field to `/api/v1/notifiers` response. The new field contains an error message if the last attempt to send data to the notifier failed. The error can be also viewed in `Alerting. Notifiers` tab.
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): apply `-search.maxQueryLen` limit to Graphite queries. Previously, this limit was only applied to Prometheus queries.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): optimize `/api/v1/labels` and `/api/v1/label/TAG/values` requests with a single `match` or `extra_filters` filter containing timeseries metric name. See this PR [#9489](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9489) for details.
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): prevent remote write ingestion stop on push error for [Google Pub/Sub](https://docs.victoriametrics.com/victoriametrics/vmagent/#writing-metrics-to-pubsub) integration.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): prevent remote write ingestion stop on push error for [Google Pub/Sub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics) integration.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly handle [mTLS authorization and routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing). Previously it didn't work. See [#29](https://github.com/VictoriaMetrics/VictoriaLogs/issues/29).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix `timestamp` function compatibility with Prometheus when used with sub-expressions such as `timestamp(sum(foo))`. The fix applies only when `-search.disableImplicitConversion` flag is set. See more in [#9527-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9527#issuecomment-3200646020) and [metricsql#55](https://github.com/VictoriaMetrics/metricsql/pull/55).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): optimize subtract operation on uint64 sets. This should potentially improve index search with huge number of deleted series. See this issue [9602](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9602) for details.
@@ -57,17 +69,17 @@ Released at 2025-08-15
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `-enableMetadata` command-line flag to allow sending metadata to the configured `-remoteWrite.url`, metadata can be scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): treat single `remoteWrite.disableOnDiskQueue` flag the same way as if it is explicitly specified for each remote write url. See [#9565](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9565) for details.
-* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): print a proper error message when templating function fails during execution. Previously, vmalert-tool could throw a misleading panic message instead.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly read proxy-protocol header. See this PR [#9546](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9546) for details.
-* BUGFIX: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): fix samples rate panel not showing data in case vmagent is not scraping metrics. Previously, the panel would not display "samples in" results if vmagent only accepts metrics via push protocols.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent resource leak on partial responses for `/federate` API requests. This this PR [9536](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9536) for details. Thanks to the @fxrlv.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent performance degradation on hitting daily or hourly series cardinality limits. See this issue [9554](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9554) for details.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): gracefully handle `histogram_quantile` calculation for histograms where buckets are created on demand. This change isn't needed for users who use native instrumentation SDKs for metrics from [VictoriaMetrics](https://github.com/VictoriaMetrics/metrics), [Prometheus](https://prometheus.io/docs/instrumenting/clientlibs/) or [OpenTelemetry](https://opentelemetry.io/docs/languages/).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): return a proper error message when the function argument is expected to be a string or scalar.
-* BUGFIX: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): fix panels showing 99th percentile of series or samples read per query or per series. Before, panels were showing the summarized value across all vmselect instances, which didn't make much sense. Now, panels show the max value across the vmselect instances, making it easier to understand complexity of the heaviest queries served.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix potential data race and missing firing states when replaying alerting rule with `-replay.ruleEvaluationConcurrency>1`.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix the `{{ $activeAt }}` variable value in annotation templating when the alert has already triggered. See this issue [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543) for details.
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/victoriametrics/vmalert-tool/): print a proper error message when templating function fails during execution. Previously, vmalert-tool could throw a misleading panic message instead.
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): allow enabling checksum calculation for PUT requests by using `-s3ChecksumAlgorithm` command-line flag. This is required for S3 configurations with WORM being enabled. See [#9532](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9532).
+* BUGFIX: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): fix samples rate panel not showing data in case vmagent is not scraping metrics. Previously, the panel would not display "samples in" results if vmagent only accepts metrics via push protocols.
+* BUGFIX: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): fix panels showing 99th percentile of series or samples read per query or per series. Before, panels were showing the summarized value across all vmselect instances, which didn't make much sense. Now, panels show the max value across the vmselect instances, making it easier to understand complexity of the heaviest queries served.
 
 ## [v1.123.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.123.0)
 
@@ -84,6 +96,19 @@ Released at 2025-08-01
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
+
+## [v1.122.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.3)
+
+Released at 2025-08-29
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/changelog/#v11220) release**
+
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix `timestamp` function compatibility with Prometheus when used with sub-expressions such as `timestamp(sum(foo))`. The fix applies only when `-search.disableImplicitConversion` flag is set. See more in [#9527-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9527#issuecomment-3200646020) and [metricsql#55](https://github.com/VictoriaMetrics/metricsql/pull/55).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): prevent remote write ingestion stop on push error for [Google Pub/Sub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics) integration.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly handle [mTLS authorization and routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing). Previously it didn't work. See [#29](https://github.com/VictoriaMetrics/VictoriaLogs/issues/29).
+* BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: fix support for automatic issuing of TLS certificates for HTTPS server at `-httpListenAddr` via [Let's Encrypt service](https://letsencrypt.org/). See [these docs](https://docs.victoriametrics.com/#automatic-issuing-of-tls-certificates).
 
 ## [v1.122.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.2)
 
@@ -461,6 +486,19 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+
+## [v1.110.17](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.17)
+
+Released at 2025-08-29
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* BUG: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix `timestamp` function compatibility with Prometheus when used with sub-expressions such as `timestamp(sum(foo))`. The fix applies only when `-search.disableImplicitConversion` flag is set. See more in [#9527-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9527#issuecomment-3200646020) and [metricsql#55](https://github.com/VictoriaMetrics/metricsql/pull/55).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): prevent remote write ingestion stop on push error for [Google Pub/Sub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics) integration.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly handle [mTLS authorization and routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing). Previously it didn't work. See [#29](https://github.com/VictoriaMetrics/VictoriaLogs/issues/29).
+* BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: fix support for automatic issuing of TLS certificates for HTTPS server at `-httpListenAddr` via [Let's Encrypt service](https://letsencrypt.org/). See [these docs](https://docs.victoriametrics.com/#automatic-issuing-of-tls-certificates).
 
 ## [v1.110.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.16)
 

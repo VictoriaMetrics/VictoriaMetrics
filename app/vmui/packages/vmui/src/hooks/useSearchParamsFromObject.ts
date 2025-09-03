@@ -30,7 +30,7 @@ const useSearchParamsFromObject = () => {
     if (hasSearchParams) {
       setSearchParams(newSearchParams);
     } else {
-      navigate(`?${searchParams.toString()}`, { replace: true });
+      navigate(`?${newSearchParams.toString()}`, { replace: true });
     }
   }, [searchParams, navigate]);
 

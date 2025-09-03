@@ -286,7 +286,7 @@ labels:
   [ <labelname>: <tmpl_string> ]
 
 # Annotations to add to each generated alert.
-# Annotations could contain arbitrary dynamicly generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
+# Annotations could contain arbitrary dynamically generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
 annotations:
   [ <labelname>: <tmpl_string> ]
 ```
@@ -989,7 +989,7 @@ If at least one evaluation returns no data, then alert's `for` state resets.
 > Note: The alert state is tracked separately for each time series returned during evaluation.
 > For example, if the 1st evaluation returns series A and B, and the 2nd evaluation returns only B – the alert will remain active **only for B**.
 
-If `-remoteWrite.url` command-line flag is configured, vmalert will [persist alert's state](http://localhost:1313/victoriametrics/vmalert/#alerts-state-on-restarts)
+If `-remoteWrite.url` command-line flag is configured, vmalert will [persist alert's state](http://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts)
 in form of time series `ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
 [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) or Grafana to track how 
 alerts state changed in time. See [query statistics dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/alert-statistics.json) as example for tracking historical alerts state.
