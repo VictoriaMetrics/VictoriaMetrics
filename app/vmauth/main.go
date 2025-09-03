@@ -269,7 +269,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			query.Set("request_path", u.String())
 			targetURL.RawQuery = query.Encode()
 		} else { // Update path for regular routes.
-			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
+			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		}
 
 		wasLocalRetry := false
