@@ -2072,10 +2072,10 @@ func testLegacyRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage))
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 	// Convert to legacy 2 times in order to have both prev and curr legacy idbs.
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	defer s.MustClose()
 
 	var wg sync.WaitGroup

@@ -662,37 +662,56 @@ func benchmarkSearch(b *testing.B, graphite bool, numSeries, numDeletedSeries in
 
 	trPrev := TimeRange{
 		MinTimestamp: tr.MinTimestamp,
-		MaxTimestamp: tr.MinTimestamp + (tr.MaxTimestamp-tr.MinTimestamp)/2,
+		MaxTimestamp: tr.MinTimestamp + (tr.MaxTimestamp-tr.MinTimestamp)/3,
 	}
 	trCurr := TimeRange{
-		MinTimestamp: tr.MinTimestamp + (tr.MaxTimestamp-tr.MinTimestamp)/2 + 1,
+		MinTimestamp: tr.MinTimestamp + (tr.MaxTimestamp-tr.MinTimestamp)/3 + 1,
+		MaxTimestamp: tr.MinTimestamp + 2*(tr.MaxTimestamp-tr.MinTimestamp)/3,
+	}
+	trPt := TimeRange{
+		MinTimestamp: tr.MinTimestamp + 2*(tr.MaxTimestamp-tr.MinTimestamp)/3 + 1,
 		MaxTimestamp: tr.MaxTimestamp,
 	}
 
-	numDeletedSeriesPrev := numDeletedSeries / 2
-	mrsToDeletePrev := genRows(numDeletedSeriesPrev, "prev", trPrev)
-	mrsPrev := genRows(numSeries/2, "prev", trPrev)
-	numDeletedSeriesCurr := numDeletedSeries / 2
-	mrsToDeleteCurr := genRows(numDeletedSeriesCurr, "curr", trCurr)
-	mrsCurr := genRows(numSeries/2, "curr", trCurr)
+	numDeletedSeriesPrev := numDeletedSeries / 3
+	numDeletedSeriesCurr := numDeletedSeries / 3
+	numDeletedSeriesPt := numDeletedSeries - numDeletedSeriesPrev - numDeletedSeriesCurr
+	mrsToDeletePrev := genRows(numDeletedSeriesPrev, "legacy_prev", trPrev)
+	mrsToDeleteCurr := genRows(numDeletedSeriesCurr, "legacy_curr", trCurr)
+	mrsToDeletePt := genRows(numDeletedSeriesPt, "pt", trPt)
+
+	numSeriesPrev := numSeries / 3
+	numSeriesCurr := numSeries / 3
+	numSeriesPt := numSeries - numSeriesPrev - numSeriesCurr
+	mrsPrev := genRows(numSeriesPrev, "legacy_prev", trPrev)
+	mrsCurr := genRows(numSeriesCurr, "legacy_curr", trCurr)
+	mrsPt := genRows(numSeriesPt, "pt", trPt)
 
 	s := MustOpenStorage(b.Name(), OpenOptions{})
 	s.AddRows(mrsToDeletePrev, defaultPrecisionBits)
 	s.DebugFlush()
-	deleteSeries(s, "prev", numDeletedSeriesPrev)
+	deleteSeries(s, "legacy_prev", numDeletedSeriesPrev)
 	s.DebugFlush()
 	s.AddRows(mrsPrev, defaultPrecisionBits)
 	s.DebugFlush()
-	// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-	s.legacyMustRotateIndexDB(time.Now())
+	s = mustConvertToLegacy(s)
+
 	s.AddRows(mrsToDeleteCurr, defaultPrecisionBits)
 	s.DebugFlush()
-	deleteSeries(s, "curr", numDeletedSeriesCurr)
+	deleteSeries(s, "legacy_curr", numDeletedSeriesCurr)
 	s.DebugFlush()
 	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
+	s = mustConvertToLegacy(s)
 
-	mrs := slices.Concat(mrsPrev, mrsCurr)
+	s.AddRows(mrsToDeletePt, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, "pt", numDeletedSeriesPt)
+	s.DebugFlush()
+	s.AddRows(mrsPt, defaultPrecisionBits)
+	s.DebugFlush()
+
+	mrs := slices.Concat(mrsPrev, mrsCurr, mrsPt)
 	op(b, s, tr, mrs)
 
 	s.MustClose()

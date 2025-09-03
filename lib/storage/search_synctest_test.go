@@ -30,14 +30,14 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 		// Advance the time a bit before converting to legacy so that the
 		// storage could use a different timestamp for a legacy idb.
 		time.Sleep(time.Second)
-		s = testStorageConvertToLegacy(t, s)
+		s = mustConvertToLegacy(s)
 		s.AddRows(mrsCurr, defaultPrecisionBits)
 		s.DebugFlush()
 		// Advance the time a bit before converting to legacy so that the
 		// storage could use a different timestamp for a legacy idb.
 		time.Sleep(time.Second)
 		// Convert second time to have two legacy idbs (prev and curr)
-		s = testStorageConvertToLegacy(t, s)
+		s = mustConvertToLegacy(s)
 		// Advance the time a bit before converting to legacy so that the
 		// storage could use a different timestamp for data and pt index parts.
 		time.Sleep(time.Second)

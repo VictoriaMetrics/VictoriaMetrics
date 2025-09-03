@@ -418,7 +418,7 @@ func testSearchOpWithLegacyIndexDBs(t *testing.T, legacyData, newData []MetricRo
 	s.DebugFlush()
 	assertLegacyData(s)
 
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	assertLegacyData(s)
 
 	s.AddRows(newData, defaultPrecisionBits)
@@ -441,10 +441,10 @@ func TestLegacyStorageSnapshots_CreateListDelete(t *testing.T) {
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 	// Convert to legacy 2 times in order to have both prev and curr legacy idbs.
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	defer s.MustClose()
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
@@ -668,28 +668,28 @@ func TestStorageConvertToLegacy(t *testing.T) {
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 	s.AddRows(mrs1, defaultPrecisionBits)
 	s.DebugFlush()
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	assertMetricNames(s, trAll, mrs1)
 
 	s.AddRows(mrs2, defaultPrecisionBits)
 	s.DebugFlush()
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	assertMetricNames(s, trAll, slices.Concat(mrs1, mrs2))
 
 	s.AddRows(mrs3, defaultPrecisionBits)
 	s.DebugFlush()
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	assertMetricNames(s, trAll, slices.Concat(mrs2, mrs3))
 
 	s.AddRows(mrs4, defaultPrecisionBits)
 	s.DebugFlush()
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	assertMetricNames(s, trAll, slices.Concat(mrs3, mrs4))
 
 	s.MustClose()
 }
 
-// testStorageConvertToLegacy converts the storage partition indexDBs into a
+// mustConvertToLegacy converts the storage partition indexDBs into a
 // legacy indexDB. The original partition indexDBs are removed.
 //
 // Each invocation of this function will a new legacy indexDB in
@@ -697,9 +697,7 @@ func TestStorageConvertToLegacy(t *testing.T) {
 // indexDBs under that path.
 //
 // The function also deteles all persistent caches.
-func testStorageConvertToLegacy(t *testing.T, s *Storage) *Storage {
-	t.Helper()
-
+func mustConvertToLegacy(s *Storage) *Storage {
 	// Stop storage, move legacy idbs to tmp dir, delete all caches,
 	// re-open storage with pt index only.
 	storageDataPath := s.path
@@ -708,7 +706,7 @@ func testStorageConvertToLegacy(t *testing.T, s *Storage) *Storage {
 	fs.MustMkdirIfNotExist(legacyIDBsPathOrig)
 	legacyIDBsPathTmp := filepath.Join(s.path, "indexdb-legacy")
 	if err := os.Rename(legacyIDBsPathOrig, legacyIDBsPathTmp); err != nil {
-		t.Fatalf("could not rename %q to %q: %v", legacyIDBsPathOrig, legacyIDBsPathTmp, err)
+		panic(fmt.Sprintf("could not rename %q to %q: %v", legacyIDBsPathOrig, legacyIDBsPathTmp, err))
 	}
 	fs.MustRemoveDir(filepath.Join(storageDataPath, cacheDirname))
 	s = MustOpenStorage(storageDataPath, OpenOptions{})
@@ -733,7 +731,7 @@ func testStorageConvertToLegacy(t *testing.T, s *Storage) *Storage {
 	ptws := s.tb.GetPartitions(legacyIDBTimeRange)
 	tfsAll := NewTagFilters()
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
 	tfssAll := []*TagFilters{tfsAll}
 	seenGlobalIndexEntries := make(map[uint64]bool)
@@ -752,21 +750,21 @@ func testStorageConvertToLegacy(t *testing.T, s *Storage) *Storage {
 			date := uint64(ts / msecPerDay)
 			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, day, 1e9, noDeadline)
 			if err != nil {
-				t.Fatalf("could not search metricIDs: %v", err)
+				panic(fmt.Sprintf("could not search metricIDs: %v", err))
 			}
 			tsids, err := idb.getTSIDsFromMetricIDs(nil, metricIDs, noDeadline)
 			if err != nil {
-				t.Fatalf("could not get TSIDs from metricIDs: %v", err)
+				panic(fmt.Sprintf("could not get TSIDs from metricIDs: %v", err))
 			}
 			for _, tsid := range tsids {
 				metricID := tsid.MetricID
 				mnBytes, ok := idb.searchMetricName(nil, metricID, false)
 				if !ok {
-					t.Fatalf("could not get metric name for metricID %d", metricID)
+					panic(fmt.Sprintf("could not get metric name for metricID %d", metricID))
 				}
 				var mn MetricName
 				if err := mn.Unmarshal(mnBytes); err != nil {
-					t.Fatalf("Could not unmarshal metric name from bytes %q: %v", string(mnBytes), err)
+					panic(fmt.Sprintf("Could not unmarshal metric name from bytes %q: %v", string(mnBytes), err))
 				}
 				if !seenGlobalIndexEntries[metricID] {
 					legacyIDB.createGlobalIndexes(&tsid, &mn)
@@ -782,6 +780,13 @@ func testStorageConvertToLegacy(t *testing.T, s *Storage) *Storage {
 				}
 			}
 		}
+		is := idb.getIndexSearch(noDeadline)
+		dmis, err := is.loadDeletedMetricIDs()
+		idb.putIndexSearch(is)
+		if err != nil {
+			panic(fmt.Sprintf("cannot load deleted metricIDs for indexDB %q: %v", idb.name, err))
+		}
+		legacyIDB.saveDeletedMetricIDs(dmis)
 	}
 
 	s.tb.PutPartitions(ptws)
@@ -793,7 +798,7 @@ func testStorageConvertToLegacy(t *testing.T, s *Storage) *Storage {
 	fs.MustRemoveDir(filepath.Join(storageDataPath, dataDirname, indexdbDirname))
 	fs.MustRemoveDir(filepath.Join(storageDataPath, cacheDirname))
 	if err := os.Rename(legacyIDBsPathTmp, legacyIDBsPathOrig); err != nil {
-		t.Fatalf("could not rename %q to %q: %v", legacyIDBsPathTmp, legacyIDBsPathOrig, err)
+		panic(fmt.Sprintf("could not rename %q to %q: %v", legacyIDBsPathTmp, legacyIDBsPathOrig, err))
 	}
 	entries := fs.MustReadDir(legacyIDBsPathOrig)
 	var names []string

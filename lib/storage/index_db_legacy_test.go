@@ -43,10 +43,10 @@ func TestLegacyContainsTimeRange(t *testing.T) {
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 	s.AddRows(mrsPrev, defaultPrecisionBits)
 	s.DebugFlush()
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
-	s = testStorageConvertToLegacy(t, s)
+	s = mustConvertToLegacy(s)
 	// fill partitioned index with data
 	s.AddRows(mrsPt, defaultPrecisionBits)
 	s.DebugFlush()
