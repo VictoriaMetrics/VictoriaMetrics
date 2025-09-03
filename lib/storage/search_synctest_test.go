@@ -4,6 +4,7 @@ package storage
 
 import (
 	"math/rand"
+	"slices"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -13,25 +14,34 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 	defer testRemoveAll(t)
 
 	synctest.Run(func() {
-		const numMetrics = 30
+		const numSeries = 10
 		tr := TimeRange{
 			MinTimestamp: time.Now().UnixMilli(),
 			MaxTimestamp: time.Now().Add(23 * time.Hour).UnixMilli(),
 		}
 		rng := rand.New(rand.NewSource(1))
-		mrs := testGenerateMetricRowsWithPrefix(rng, numMetrics, "metric", tr)
+		mrsPrev := testGenerateMetricRowsWithPrefix(rng, numSeries, "legacy_prev", tr)
+		mrsCurr := testGenerateMetricRowsWithPrefix(rng, numSeries, "legacy_curr", tr)
+		mrsPt := testGenerateMetricRowsWithPrefix(rng, numSeries, "pt", tr)
+		mrs := slices.Concat(mrsPrev, mrsCurr, mrsPt)
 		s := MustOpenStorage(t.Name(), OpenOptions{})
-		// Split mrs evenly between legacy prev and curr and pt idbs.
-		s.AddRows(mrs[:(2*numMetrics)/3], defaultPrecisionBits)
+		s.AddRows(mrsPrev, defaultPrecisionBits)
 		s.DebugFlush()
-		s.MustClose()
-		testStorageConvertToLegacy(t)
-		// Advance the time a bit before reopening the storage so that the
-		// storage could use a different timestamp for new data parts.
+		// Advance the time a bit before converting to legacy so that the
+		// storage could use a different timestamp for a legacy idb.
 		time.Sleep(time.Second)
-		synctest.Wait()
-		s = MustOpenStorage(t.Name(), OpenOptions{})
-		s.AddRows(mrs[(2*numMetrics)/3:], defaultPrecisionBits)
+		s = testStorageConvertToLegacy(t, s)
+		s.AddRows(mrsCurr, defaultPrecisionBits)
+		s.DebugFlush()
+		// Advance the time a bit before converting to legacy so that the
+		// storage could use a different timestamp for a legacy idb.
+		time.Sleep(time.Second)
+		// Convert second time to have two legacy idbs (prev and curr)
+		s = testStorageConvertToLegacy(t, s)
+		// Advance the time a bit before converting to legacy so that the
+		// storage could use a different timestamp for data and pt index parts.
+		time.Sleep(time.Second)
+		s.AddRows(mrsPt, defaultPrecisionBits)
 		s.DebugFlush()
 		defer s.MustClose()
 
