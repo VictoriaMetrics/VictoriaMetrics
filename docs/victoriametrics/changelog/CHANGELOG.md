@@ -27,7 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add an ability to merge client query args with the query args specified at backend urls. See (these docs)[https://docs.victoriametrics.com/victoriametrics/vmauth/#query-args-handling]. This allows merging [`extra_filters`](https://docs.victoriametrics.com/victorialogs/querying/#extra-filters) args specified at the particular VictoriaLogs backend in `vmauth` config and the `extra_filters` args specified in the [Grafana datasource for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/). This is needed for [#106 at VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/issues/106).
-* FEATURE: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): add panel `Storage full ETA` in the vmstorage section to display the minimum approximate time across all the nodes to reach 100% disk capacity.
+* FEATURE: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): add panel `Storage full ETA` in the vmstorage section to display the minimum approximate time across all the nodes to reach 100% of allowed disk capacity.
 
 ## [v1.125.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.1)
 
