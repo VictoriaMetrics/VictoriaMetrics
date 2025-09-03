@@ -286,7 +286,7 @@ labels:
   [ <labelname>: <tmpl_string> ]
 
 # Annotations to add to each generated alert.
-# Annotations could contain arbitrary dynamicly generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
+# Annotations could contain arbitrary dynamically generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
 annotations:
   [ <labelname>: <tmpl_string> ]
 ```
