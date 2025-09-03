@@ -901,7 +901,7 @@ See also [authorization docs](#authorization) and [security docs](#security).
 ## Query args handling
 
 By default `vmauth` sends all the query args specified in the `url_prefix` to the backend. It also proxies query args from client requests
-if they do not clash with the args sepcified in the `url_prefix`. This is needed for security, e.g. it disallows the client overriding
+if they do not clash with the args specified in the `url_prefix`. This is needed for security, e.g. it disallows the client overriding
 security-sensitive query args specified at the `url_prefix` such as `tenant_id`, `password`, `auth_key`, `extra_filters`, etc.
 
 `vmauth` provides the ability to specify a list of query args, which can be proxied from the client request to the backend
