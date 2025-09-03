@@ -35,7 +35,7 @@ Enterprise executables and Docker images have `enterprise` suffix in their names
 
 The use of Enterprise components of VictoriaMetrics and VictoriaLogs is permitted in the following cases:
 
-- Evaluation use in non-production setups. Please, request trial license [here](https://victoriametrics.com/products/enterprise/trial/)
+- Evaluation use in non-production setups. Please, request a [trial license](https://victoriametrics.com/products/enterprise/trial/)
   and then pass it via `-license` or `-licenseFile` command-line flags as described [in these docs](#running-victoriametrics-enterprise).
 
 - Production use if you have a valid enterprise contract or valid permit from VictoriaMetrics company.
@@ -124,11 +124,11 @@ from the corresponding releases page and unpack it. Then run the unpacked binary
 
 All the Enterprise components of VictoriaMetrics and VictoriaLogs require specifying the following command-line flags:
 
-* `-license` - this flag accepts VictoriaMetrics Enterprise license key, which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/)
-* `-licenseFile` - this flag accepts a path to file with VictoriaMetrics Enterprise license key,
+- `-license` - this flag accepts VictoriaMetrics Enterprise license key, which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/)
+- `-licenseFile` - this flag accepts a path to file with VictoriaMetrics Enterprise license key,
   which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/) . Use either `-license` or `-licenseFile`, but not both.
-* `-licenseFile.reloadInterval` - specifies the interval for checking the license file for updates. The default value is 1 hour. If the license file is updated, the new license key is read from the file.
-* `-license.forceOffline` - enables offline verification of VictoriaMetrics Enterprise license key. Contact us via [this page](https://victoriametrics.com/products/enterprise/)
+- `-licenseFile.reloadInterval` - specifies the interval for checking the license file for updates. The default value is 1 hour. If the license file is updated, the new license key is read from the file.
+- `-license.forceOffline` - enables offline verification of VictoriaMetrics Enterprise license key. Contact us via [this page](https://victoriametrics.com/products/enterprise/)
   if you need license key, which can be verified offline without the need to connect to VictoriaMetrics license server.
 
 For example, the following command runs VictoriaMetrics Enterprise binary with the Enterprise license
@@ -153,8 +153,8 @@ It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [
 Docker images for Enterprise components are available at [VictoriaMetrics Docker Hub](https://hub.docker.com/u/victoriametrics) and [VictoriaMetrics Quay](https://quay.io/organization/victoriametrics).
 Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.125.0-enterprise`.
 
-In order to run Docker image of VictoriaMetrics Enterprise component, it is required to provide the license key via command-line
-flag as described [here](#binary-releases).
+In order to run Docker image of VictoriaMetrics Enterprise component, it is required to provide the license key via the command-line
+flag as described in the [binary-releases](#binary-releases) section.
 
 Enterprise license key can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/).
 
@@ -171,6 +171,7 @@ docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/v
 ```
 
 Example docker-compose configuration:
+
 ```yaml
 version: "3.5"
 services:
@@ -195,10 +196,10 @@ The example assumes that the license file is stored at `/vm-license` on the host
 
 It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
-Helm charts for Enterprise components are available [here](https://github.com/VictoriaMetrics/helm-charts).
+Helm charts for Enterprise components are available in our VictoriaMetrics [Helm repository](https://github.com/VictoriaMetrics/helm-charts).
 
 In order to run Enterprise helm chart it is required to provide the license key via `license` value in `values.yaml` file
-and adjust the image tag to the Enterprise one as described [here](#docker-images).
+and adjust the image tag to the Enterprise one as described in the [docker-images](#docker-images) section.
 
 Enterprise license key can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/).
 
@@ -240,6 +241,7 @@ data:
 ```
 
 Or create secret via `kubectl`:
+
 ```sh
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
@@ -255,7 +257,7 @@ In order to use Enterprise components it is required to provide the license key 
 
 Enterprise license key can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/).
 
-For example, the following custom resource for [VictoriaMetrics single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) 
+For example, the following custom resource for [VictoriaMetrics single-node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 is used to provide the license key in plain-text:
 
 ```yaml
@@ -301,15 +303,15 @@ data:
 ```
 
 Or create secret via `kubectl`:
+
 ```sh
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
 Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
-See full list of CRD specifications [here](https://docs.victoriametrics.com/operator/api.html).
+See full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api.html).
 
-
-### FIPS Compatibility 
+### FIPS Compatibility
 
 VictoriaMetrics Enterprise supports [FIPS 140-3](https://en.wikipedia.org/wiki/FIPS_140-3) compliant mode starting with version {{% available_from "v1.118.0" %}},
 using the [Go FIPS 140-3 Cryptographic Module](https://go.dev/blog/fips140). This ensures all cryptographic operations use a validated FIPS module.
@@ -322,8 +324,8 @@ Example archive:
 
 Includes:
 
- * `victoria-metrics-prod` (standard)
- * `victoria-metrics-fips` (FIPS-compatible)
+- `victoria-metrics-prod` (standard)
+- `victoria-metrics-fips` (FIPS-compatible)
 
 Example Docker image:
 
@@ -333,8 +335,8 @@ Example Docker image:
 
 All the VictoriaMetrics and VictoriaLogs Enterprise components expose the following metrics at the `/metrics` page:
 
-* `vm_license_expires_at` - license expiration date in unix timestamp format
-* `vm_license_expires_in_seconds` - the number of seconds left until the license expires
+- `vm_license_expires_at` - license expiration date in unix timestamp format
+- `vm_license_expires_in_seconds` - the number of seconds left until the license expires
 
 Example alerts for [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) based on these metrics:
 
@@ -349,7 +351,7 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 30 days"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}.
             Please make sure to update the license before it expires."
 
       - alert: LicenseExpiresInLessThan7Days
@@ -358,6 +360,6 @@ groups:
           severity: critical
         annotations:
           summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 7 days"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}.
             Please make sure to update the license before it expires."
 ```
