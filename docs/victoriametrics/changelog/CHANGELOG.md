@@ -60,7 +60,7 @@ Released at 2025-08-29
 
 Released at 2025-08-15
 
-**Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): performance regression for queries that match [previously deleted time series](https://docs.victoriametrics.com/#how-to-delete-time-series). The issue affects installation that previously deleted big number of time series (can be checked via `vm_deleted_metrics_total` metric) but continue querying them. More details in [#9602](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9602). The degradation is addressed in [v1.125.1](https://docs.victoriametrics.com/CHANGELOG.html#v11251) release.
+**Known issues: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): performance regression for queries that match [previously deleted time series](https://docs.victoriametrics.com/#how-to-delete-time-series). The issue affects installation that previously deleted big number of time series (can be checked via `vm_deleted_metrics_total` metric) but continue querying them. More details in [#9602](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9602). The degradation is addressed in [v1.125.1](https://docs.victoriametrics.com/CHANGELOG.html#v11251) release.**
 
 * SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
 
