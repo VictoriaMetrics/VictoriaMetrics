@@ -101,6 +101,11 @@ func (g *Gauge) metricType() string {
 	return "gauge"
 }
 
+func (g *Gauge) display() bool {
+	// always display, align with `marshalTo`
+	return true
+}
+
 // GetOrCreateGauge returns registered gauge with the given name
 // or creates new gauge if the registry doesn't contain gauge with
 // the given name.

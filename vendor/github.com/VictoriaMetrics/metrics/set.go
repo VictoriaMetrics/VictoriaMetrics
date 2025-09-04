@@ -52,6 +52,12 @@ func (s *Set) WritePrometheus(w io.Writer) {
 
 	prevMetricFamily := ""
 	for _, nm := range sa {
+		if !nm.metric.display() {
+			// For histogram and summary, the metric will not be printed if no sample recorded,
+			// and we can skip the rest operation such as metadata print.
+			// For other metrics type, they'll always be printed.
+			continue
+		}
 		metricFamily := getMetricFamily(nm.name)
 		if metricFamily != prevMetricFamily {
 			// write meta info only once per metric family
