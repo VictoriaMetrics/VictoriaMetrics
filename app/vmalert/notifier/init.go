@@ -60,8 +60,11 @@ var (
 	sendTimeout = flagutil.NewArrayDuration("notifier.sendTimeout", 10*time.Second, "Timeout when sending alerts to the corresponding -notifier.url")
 )
 
+// AlertURLGeneratorFn returns a URL to the passed alert object.
+// Call InitAlertURLGeneratorFn before using this function.
 var AlertURLGeneratorFn AlertURLGenerator
 
+// InitAlertURLGeneratorFn populates AlertURLGeneratorFn
 func InitAlertURLGeneratorFn(externalURL *url.URL, externalAlertSource string, validateTemplate bool) error {
 	if externalAlertSource == "" {
 		AlertURLGeneratorFn = func(a Alert) string {
