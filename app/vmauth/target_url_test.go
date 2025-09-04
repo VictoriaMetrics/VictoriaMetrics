@@ -101,7 +101,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			return
 		}
 		bu := up.getBackendURL()
-		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
+		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		bu.put()
 
 		gotTarget := target.String()
@@ -352,7 +352,7 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 			return
 		}
 		bu := up.getBackendURL()
-		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
+		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		bu.put()
 
 		gotTarget := target.String()
@@ -527,4 +527,44 @@ func (r *fakeResolver) LookupIPAddr(_ context.Context, host string) ([]net.IPAdd
 
 func (r *fakeResolver) LookupMX(_ context.Context, _ string) ([]*net.MX, error) {
 	return nil, nil
+}
+
+func TestMergeURLs(t *testing.T) {
+	f := func(clientURL, backendURL string, dropSrcPathPrefixParts int, mergeQueryArgs []string, resultURLExpected string) {
+		t.Helper()
+
+		cu, err := url.Parse(clientURL)
+		if err != nil {
+			t.Fatalf("cannot parse client url %q: %s", clientURL, err)
+		}
+		cu = normalizeURL(cu)
+
+		bu, err := url.Parse(backendURL)
+		if err != nil {
+			t.Fatalf("cannot parse backend url %q: %s", backendURL, err)
+		}
+
+		ru := mergeURLs(bu, cu, dropSrcPathPrefixParts, mergeQueryArgs)
+		resultURL := ru.String()
+		if resultURL != resultURLExpected {
+			t.Fatalf("unexpected resultURL\ngot\n%s\nwant\n%s", resultURL, resultURLExpected)
+		}
+	}
+
+	f("http://foo:1234", "https://backend/foo/bar?baz=abc&de", 0, nil, "https://backend/foo/bar?baz=abc&de")
+	f("http://foo:1234", "https://backend/foo/bar/?baz=abc&de", 0, nil, "https://backend/foo/bar/?baz=abc&de")
+	f("https://foo:1234/", "https://backend/foo/bar?baz=abc&de", 0, nil, "https://backend/foo/bar?baz=abc&de")
+	f("https://foo:1234/", "http://backend:8888/foo/bar/?baz=abc&de", 0, nil, "http://backend:8888/foo/bar/?baz=abc&de")
+
+	// merge paths
+	f("http://foo:1234/x/y?z=xxx", "https://backend/foo/bar?baz=abc&de", 0, nil, "https://backend/foo/bar/x/y?baz=abc&de=&z=xxx")
+
+	// "hacky" url
+	f("http://foo:1234/../../x/../y?z=xxx", "https://backend/foo/bar?baz=abc&de", 0, nil, "https://backend/foo/bar/y?baz=abc&de=&z=xxx")
+
+	// make sure that the client args are overridden by server args by default
+	f("http://foo:1234/x/y?password=hack&qqq=www", "https://backend/foo/bar?password=abc", 0, nil, "https://backend/foo/bar/x/y?password=abc&qqq=www")
+
+	// allow overriding the selected query args
+	f("http://foo:1234/x/y?baz=xxx&qqq=www", "https://backend/foo/bar?baz=abc", 0, []string{"baz"}, "https://backend/foo/bar/x/y?baz=abc&baz=xxx&qqq=www")
 }

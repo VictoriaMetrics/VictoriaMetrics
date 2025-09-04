@@ -898,6 +898,33 @@ from both `Authorization` and `X-Amz-Firehose-Access-Key` headers:
 
 See also [authorization docs](#authorization) and [security docs](#security).
 
+## Query args handling
+
+By default `vmauth` sends all the query args specified in the `url_prefix` to the backend. It also proxies query args from client requests
+if they do not clash with the args specified in the `url_prefix`. This is needed for security, e.g. it disallows the client overriding
+security-sensitive query args specified at the `url_prefix` such as `tenant_id`, `password`, `auth_key`, `extra_filters`, etc.
+
+`vmauth` provides the ability to specify a list of query args, which can be proxied from the client request to the backend
+if they clash with the args specified in the `url_prefix`. In this case the client query args are added to the args from the `url_prefix`
+before being proxied to the backend. This can be done via the following options:
+
+- Via `-mergeQueryArgs` command-line flag. This flag may contain comma-separated list of client query arg names, which are allowed
+  to merge with the `url_prefix` query args when sending the request to the backend. This option is applied globally to all the configured backends.
+
+- Via `merge_query_args` option at the `user` and `url_map` level. These values override the `-mergeQueryArgs` command-line flag.
+
+The example below sends the request to `http://victoria-logs:9429/select/logsql/query?extra_filters={env="prod"}&extra_filters={team="dev"}&query=error`
+when `vmauth` receives request to `http://vmauth/select/logsql/query?extra_filters={team="dev"}&query=error`:
+
+```yaml
+unauthorized_user:
+  # Merge `extra_filter` query arg from the clients with the `extra_filter` query args specified in the `url_prefix` below
+  merge_query_args: [extra_filters]
+  url_map:
+  - src_paths: ["/select/.+"]
+    url_prefix: 'http://victoria-logs:9428/?extra_filters={env="prod"}'
+```
+
 ## Auth config
 
 `-auth.config` is represented in the following `yml` format:
