@@ -108,19 +108,19 @@ Additional information:
 
 **Exports raw samples from VictoriaMetrics in CSV format**
 
+You must specify the desired `format` and optionally `match[]` selectors. 
+Suppose you have a `demo` metric with `job` and `instance` labels. 
+The following command exports all time series of the `demo` metric in CSV format including the `job` and `instance` labels.
+
 Single-node VictoriaMetrics:
-
 ```sh
-curl http://localhost:8428/api/v1/export/csv -d 'format=__name__,__value__,__timestamp__:unix_s' -d 'match[]=vm_http_request_errors_total' > filename.csv
+curl http://localhost:8428/api/v1/export/csv -d 'format=__name__,job,instance,__value__,__timestamp__:unix_s' -d 'match[]=demo' > demo.csv
 ```
-
 
 Cluster version of VictoriaMetrics:
-
 ```sh
-curl http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv -d 'format=__name__,__value__,__timestamp__:unix_s' -d 'match[]=vm_http_request_errors_total' > filename.csv
+curl http://<vmselect>:8481/select/0/prometheus/api/v1/export/csv -d 'format=__name__,job,instance,__value__,__timestamp__:unix_s' -d 'match[]=demo' > demo.csv
 ```
-
 
 Additional information:
 
@@ -180,21 +180,22 @@ More information:
 
 **Imports CSV data to VictoriaMetrics**
 
+You must specify the desired `format`. Suppose you want to import `demo` metric exported with [/api/v1/export/csv](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportcsv).
+The following command imports all time series of the `demo` metric in CSV format including the `job` and `instance` labels.
+
 Single-node VictoriaMetrics:
-
 ```sh
-curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
-
-curl -X POST 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market' -T exported_data.csv
+curl -X POST 'http://localhost:8428/api/v1/import/csv?format=2:label:job,3:label:instance,4:metric:demo,5:time:unix_s' -T demo.csv
 ```
 
-
 Cluster version of VictoriaMetrics:
-
 ```sh
-curl -d "GOOG,1.23,4.56,NYSE" 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
+curl -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/csv?format=2:label:job,3:label:instance,4:metric:demo,5:time:unix_s' -T demo.csv
+```
 
-curl -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market' -T exported_data.csv
+A single CSV line can contain multiple metrics. For example, this command imports two metrics `ask{ticker="GOOG",market="NYSE"} 1.23` and `bid{ticker="GOOG",market="NYSE"} 4.56`:
+```
+curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
 ```
 
 
