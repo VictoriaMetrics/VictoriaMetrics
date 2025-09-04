@@ -27,8 +27,8 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
   onChangeOrder,
 }) => {
 
-  const isCounter = useMemo(() => /_sum?|_total?|_count?/.test(name), [name]);
-  const isBucket = useMemo(() => /_bucket?/.test(name), [name]);
+  const isCounter = useMemo(() => /_sum$|_total$|_count$/.test(name), [name]);
+  const isBucket = useMemo(() => /_bucket$/.test(name), [name]);
 
   const [rateEnabled, setRateEnabled] = useState(isCounter);
 
