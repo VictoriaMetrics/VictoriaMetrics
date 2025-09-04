@@ -192,7 +192,7 @@ func (ar *AlertingRule) ToAPI() ApiRule {
 	state := ar.state
 	lastState := state.getLast()
 	r := ApiRule{
-		Type:              RuleTypeAlerting,
+		Type:              TypeAlerting,
 		DatasourceType:    ar.Type.String(),
 		Name:              ar.Name,
 		Query:             ar.Expr,

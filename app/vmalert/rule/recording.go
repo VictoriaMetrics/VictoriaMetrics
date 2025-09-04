@@ -86,7 +86,7 @@ func (rr *RecordingRule) ToAPI() ApiRule {
 	state := rr.state
 	lastState := state.getLast()
 	r := ApiRule{
-		Type:              RuleTypeRecording,
+		Type:              TypeRecording,
 		DatasourceType:    rr.Type.String(),
 		Name:              rr.Name,
 		Query:             rr.Expr,

@@ -47,8 +47,8 @@ var (
 		{Name: "Docs", URL: "https://docs.victoriametrics.com/victoriametrics/vmalert/"},
 	}
 	ruleTypeMap = map[string]string{
-		"alert":  rule.RuleTypeAlerting,
-		"record": rule.RuleTypeRecording,
+		"alert":  rule.TypeAlerting,
+		"record": rule.TypeRecording,
 	}
 )
 

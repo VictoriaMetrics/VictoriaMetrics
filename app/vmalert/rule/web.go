@@ -18,8 +18,10 @@ const (
 	// ParamRuleID is rule id key in url parameter
 	ParamRuleID = "rule_id"
 
-	RuleTypeRecording = "recording"
-	RuleTypeAlerting  = "alerting"
+	// TypeRecording is a RecordingRule type
+	TypeRecording = "recording"
+	// TypeAlerting is an AlertingRule type
+	TypeAlerting = "alerting"
 )
 
 // ApiGroup represents a Group for web view

@@ -37,7 +37,7 @@ func TestRecordingToApi(t *testing.T) {
 		Query:          "up",
 		Labels:         map[string]string{"label": "value"},
 		Health:         "ok",
-		Type:           RuleTypeRecording,
+		Type:           TypeRecording,
 		DatasourceType: "prometheus",
 		ID:             "1248",
 		GroupID:        fmt.Sprintf("%d", g.CreateID()),
