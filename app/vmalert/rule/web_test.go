@@ -47,7 +47,7 @@ func TestRecordingToApi(t *testing.T) {
 		Updates:        make([]StateEntry, 0),
 	}
 
-	res := recordingToAPI(rr)
+	res := rr.ToAPI()
 
 	if !reflect.DeepEqual(res, expectedRes) {
 		t.Fatalf("expected to have: \n%v;\ngot: \n%v", expectedRes, res)

@@ -52,7 +52,7 @@ func (m *manager) ruleAPI(gID, rID uint64) (rule.ApiRule, error) {
 	}
 	for _, r := range g.Rules {
 		if r.ID() == rID {
-			return rule.RuleToAPI(r), nil
+			return r.ToAPI(), nil
 		}
 	}
 	return rule.ApiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
