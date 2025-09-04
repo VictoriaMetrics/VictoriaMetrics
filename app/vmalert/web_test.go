@@ -85,22 +85,22 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/vmalert/rule", func(t *testing.T) {
-		a := ruleToAPI(ar)
+		a := rule.RuleToAPI(ar)
 		getResp(t, ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
-		r := ruleToAPI(rr)
+		r := rule.RuleToAPI(rr)
 		getResp(t, ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
 	t.Run("/vmalert/alert", func(t *testing.T) {
-		alerts := ruleToAPIAlert(ar)
+		alerts := rule.RuleToAPIAlert(ar)
 		for _, a := range alerts {
 			getResp(t, ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
 		}
 	})
 	t.Run("/vmalert/rule?badParam", func(t *testing.T) {
-		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramRuleID)
+		params := fmt.Sprintf("?%s=0&%s=1", rule.ParamGroupID, rule.ParamRuleID)
 		getResp(t, ts.URL+"/vmalert/rule"+params, nil, 404)
 
-		params = fmt.Sprintf("?%s=1&%s=0", paramGroupID, paramRuleID)
+		params = fmt.Sprintf("?%s=1&%s=0", rule.ParamGroupID, rule.ParamRuleID)
 		getResp(t, ts.URL+"/vmalert/rule"+params, nil, 404)
 	})
 
@@ -127,14 +127,14 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/alert?alertID&groupID", func(t *testing.T) {
-		expAlert := newAlertAPI(ar, ar.GetAlerts()[0])
-		alert := &apiAlert{}
+		expAlert := rule.NewAlertAPI(ar, ar.GetAlerts()[0])
+		alert := &rule.ApiAlert{}
 		getResp(t, ts.URL+"/"+expAlert.APILink(), alert, 200)
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Fatalf("expected %v is equal to %v", alert, expAlert)
 		}
 
-		alert = &apiAlert{}
+		alert = &rule.ApiAlert{}
 		getResp(t, ts.URL+"/vmalert/"+expAlert.APILink(), alert, 200)
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Fatalf("expected %v is equal to %v", alert, expAlert)
@@ -142,16 +142,16 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/api/v1/alert?badParams", func(t *testing.T) {
-		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramAlertID)
+		params := fmt.Sprintf("?%s=0&%s=1", rule.ParamGroupID, rule.ParamAlertID)
 		getResp(t, ts.URL+"/api/v1/alert"+params, nil, 404)
 		getResp(t, ts.URL+"/vmalert/api/v1/alert"+params, nil, 404)
 
-		params = fmt.Sprintf("?%s=1&%s=0", paramGroupID, paramAlertID)
+		params = fmt.Sprintf("?%s=1&%s=0", rule.ParamGroupID, rule.ParamAlertID)
 		getResp(t, ts.URL+"/api/v1/alert"+params, nil, 404)
 		getResp(t, ts.URL+"/vmalert/api/v1/alert"+params, nil, 404)
 
 		// bad request, alertID is missing
-		params = fmt.Sprintf("?%s=1", paramGroupID)
+		params = fmt.Sprintf("?%s=1", rule.ParamGroupID)
 		getResp(t, ts.URL+"/api/v1/alert"+params, nil, 400)
 		getResp(t, ts.URL+"/vmalert/api/v1/alert"+params, nil, 400)
 	})
@@ -170,22 +170,22 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
-		expRule := ruleToAPI(ar)
-		gotRule := apiRule{}
+		expRule := rule.RuleToAPI(ar)
+		gotRule := rule.ApiRule{}
 		getResp(t, ts.URL+"/"+expRule.APILink(), &gotRule, 200)
 
 		if expRule.ID != gotRule.ID {
 			t.Fatalf("expected to get Rule %q; got %q instead", expRule.ID, gotRule.ID)
 		}
 
-		gotRule = apiRule{}
+		gotRule = rule.ApiRule{}
 		getResp(t, ts.URL+"/vmalert/"+expRule.APILink(), &gotRule, 200)
 
 		if expRule.ID != gotRule.ID {
 			t.Fatalf("expected to get Rule %q; got %q instead", expRule.ID, gotRule.ID)
 		}
 
-		gotRuleWithUpdates := apiRuleWithUpdates{}
+		gotRuleWithUpdates := rule.ApiRuleWithUpdates{}
 		getResp(t, ts.URL+"/"+expRule.APILink(), &gotRuleWithUpdates, 200)
 		if len(gotRuleWithUpdates.StateUpdates) < 1 {
 			t.Fatalf("expected %+v to have state updates field not empty", gotRuleWithUpdates.StateUpdates)
@@ -194,13 +194,13 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/group?groupID", func(t *testing.T) {
 		id := groupIDs[0]
 		g := m.groups[id]
-		expGroup := groupToAPI(g)
-		gotGroup := apiGroup{}
+		expGroup := rule.GroupToAPI(g)
+		gotGroup := rule.ApiGroup{}
 		getResp(t, ts.URL+"/"+expGroup.APILink(), &gotGroup, 200)
 		if expGroup.ID != gotGroup.ID {
 			t.Fatalf("expected to get Group %q; got %q instead", expGroup.ID, gotGroup.ID)
 		}
-		gotGroup = apiGroup{}
+		gotGroup = rule.ApiGroup{}
 		getResp(t, ts.URL+"/vmalert/"+expGroup.APILink(), &gotGroup, 200)
 		if expGroup.ID != gotGroup.ID {
 			t.Fatalf("expected to get Group %q; got %q instead", expGroup.ID, gotGroup.ID)
