@@ -72,7 +72,7 @@ func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
 		if !ok {
 			continue
 		}
-		if apiAlert := rule.AlertToAPI(ar, aID); apiAlert != nil {
+		if apiAlert := ar.AlertToAPI(aID); apiAlert != nil {
 			return apiAlert, nil
 		}
 	}

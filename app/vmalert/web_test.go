@@ -91,7 +91,7 @@ func TestHandler(t *testing.T) {
 		getResp(t, ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
 	t.Run("/vmalert/alert", func(t *testing.T) {
-		alerts := rule.RuleToAPIAlert(ar)
+		alerts := ar.AlertsToAPI()
 		for _, a := range alerts {
 			getResp(t, ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
 		}

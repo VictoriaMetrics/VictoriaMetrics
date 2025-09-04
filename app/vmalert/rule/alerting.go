@@ -204,7 +204,7 @@ func (ar *AlertingRule) ToAPI() ApiRule {
 		EvaluationTime:    lastState.Duration.Seconds(),
 		Health:            "ok",
 		State:             "inactive",
-		Alerts:            RuleToAPIAlert(ar),
+		Alerts:            ar.AlertsToAPI(),
 		LastSamples:       lastState.Samples,
 		LastSeriesFetched: lastState.SeriesFetched,
 		MaxUpdates:        state.size(),

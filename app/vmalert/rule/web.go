@@ -195,8 +195,8 @@ func (ar ApiRule) WebLink() string {
 		ParamGroupID, ar.GroupID, ParamRuleID, ar.ID)
 }
 
-// RuleToAPIAlert generates list of apiAlert objects from existing alerts
-func RuleToAPIAlert(ar *AlertingRule) []*ApiAlert {
+// AlertsToAPI returns list of ApiAlert objects from existing alerts
+func (ar *AlertingRule) AlertsToAPI() []*ApiAlert {
 	var alerts []*ApiAlert
 	for _, a := range ar.GetAlerts() {
 		if a.State == notifier.StateInactive {
@@ -208,7 +208,7 @@ func RuleToAPIAlert(ar *AlertingRule) []*ApiAlert {
 }
 
 // AlertToAPI generates apiAlert object from alert by its id(hash)
-func AlertToAPI(ar *AlertingRule, id uint64) *ApiAlert {
+func (ar *AlertingRule) AlertToAPI(id uint64) *ApiAlert {
 	a := ar.GetAlert(id)
 	if a == nil {
 		return nil

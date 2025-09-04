@@ -419,7 +419,7 @@ func (rh *requestHandler) groupAlerts() []rule.GroupAlerts {
 			if !ok {
 				continue
 			}
-			alerts = append(alerts, rule.RuleToAPIAlert(a)...)
+			alerts = append(alerts, a.AlertsToAPI()...)
 		}
 		if len(alerts) > 0 {
 			gAlerts = append(gAlerts, rule.GroupAlerts{
@@ -449,7 +449,7 @@ func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
 			if !ok {
 				continue
 			}
-			lr.Data.Alerts = append(lr.Data.Alerts, rule.RuleToAPIAlert(a)...)
+			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsToAPI()...)
 		}
 	}
 
