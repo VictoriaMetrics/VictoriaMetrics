@@ -80,11 +80,6 @@ and the candidate is deployed to the sandbox environment.
 1. Review bugfixes in the changelog to determine if they need to be backported to LTS versions.
    Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
    This serves as a double-check. The initial assessment should already have been done by the person who merged a PR.
-1. Make sure the flags in documentation are synced with the one in binaries. Run:
-   ```sh
-   make docs-update-flags
-   ```
-   Commit the changes if any.
 1. Re-build `vmui` static files. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650).
    ```sh
    make vmui-update
