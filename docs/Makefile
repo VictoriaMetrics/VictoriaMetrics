@@ -135,14 +135,14 @@ docs-update-flags:
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/vminsert_flags.md
 
-	# vminsert uses some code from lib/promscrape but not flags, but they are still registered. removing
-	# not needed after https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9631 is merged
-	awk -i inplace '\
-	  /^  -promscrape./ {skip=1; next}\
-	  skip && /^    / {next}\
-	  skip {skip=0}\
-	  {print}\
-	' docs/victoriametrics/vminsert_flags.md
+	# uncomment and adjust if you need to remove some flags from the documentation.
+	# should be used as a temporary workaround only.
+	#awk -i inplace '\
+	#	  /^  -promscrape./ {skip=1; next}\
+	#	  skip && /^    / {next}\
+	#	  skip {skip=0}\
+	#	  {print}\
+	#	' docs/victoriametrics/vminsert_flags.md
 
 	# adjust flags with dynamic default values
 	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vminsert_flags.md
