@@ -1490,6 +1490,11 @@ func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
 		MaxTimestamp: time.Date(2020, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
 	mrsCurr := testGenerateMetricRowsWithPrefix(rng, numSeries, "curr", trCurr)
+	trPt := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 3, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsPt := testGenerateMetricRowsWithPrefix(rng, numSeries, "pt", trPt)
 	deleteSeries := func(s *Storage, want, wantTotal int) {
 		t.Helper()
 		tfs := NewTagFilters()
@@ -1505,23 +1510,32 @@ func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
 		}
 		var m Metrics
 		s.UpdateMetrics(&m)
-		if got, want := m.TableMetrics.IndexDBMetrics.DeletedMetricsCount, uint64(wantTotal); got != want {
+		if got, want := m.DeletedMetricsCount, uint64(wantTotal); got != want {
 			t.Fatalf("unexpected number of total deleted series: got %d, want %d", got, want)
 		}
 
 	}
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
-	defer s.MustClose()
+
+	// legacy prev idb
 	s.AddRows(mrsPrev, defaultPrecisionBits)
 	s.DebugFlush()
 	deleteSeries(s, numSeries, numSeries)
+	s = mustConvertToLegacy(s)
 
-	s.legacyMustRotateIndexDB(time.Now())
-
+	// legacy curr idb
 	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
 	deleteSeries(s, numSeries, 2*numSeries)
+	s = mustConvertToLegacy(s)
+
+	// pt idb
+	s.AddRows(mrsPt, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, 3*numSeries)
+
+	s.MustClose()
 }
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {

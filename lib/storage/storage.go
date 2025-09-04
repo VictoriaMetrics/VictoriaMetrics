@@ -572,6 +572,8 @@ type Metrics struct {
 	MetricNamesUsageTrackerSizeBytes    uint64
 	MetricNamesUsageTrackerSizeMaxBytes uint64
 
+	DeletedMetricsCount uint64
+
 	TableMetrics TableMetrics
 }
 
@@ -681,6 +683,29 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	s.tb.UpdateMetrics(&m.TableMetrics)
 	s.legacyUpdateMetrics(m)
+
+	ptws := s.tb.GetAllPartitions(nil)
+	defer s.tb.PutPartitions(ptws)
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+	var dmisCountLegacyPrev, dmisCountLegacyCurr uint64
+	if idb := legacyIDBs.getIDBCurr(); idb != nil {
+		dmisCountLegacyCurr = uint64(idb.getDeletedMetricIDs().Len())
+		m.DeletedMetricsCount += dmisCountLegacyCurr
+	}
+	if idb := legacyIDBs.getIDBPrev(); idb != nil {
+		dmisCountLegacyPrev = uint64(idb.getDeletedMetricIDs().Len())
+		// Legacy prev idb also stores a copy of legacy curr idb dmis.
+		dmisCountLegacyPrev -= dmisCountLegacyCurr
+		m.DeletedMetricsCount += dmisCountLegacyPrev
+	}
+	for _, ptw := range ptws {
+		cnt := uint64(ptw.pt.idb.getDeletedMetricIDs().Len())
+		// Each pt idb stores a copy of legacy prev and curr idb dmis.
+		cnt -= dmisCountLegacyPrev
+		cnt -= dmisCountLegacyCurr
+		m.DeletedMetricsCount += cnt
+	}
 }
 
 // TODO(@rtm0): Move to storage_legacy.go
