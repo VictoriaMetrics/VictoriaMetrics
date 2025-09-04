@@ -194,7 +194,7 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/group?groupID", func(t *testing.T) {
 		id := groupIDs[0]
 		g := m.groups[id]
-		expGroup := rule.GroupToAPI(g)
+		expGroup := g.ToAPI()
 		gotGroup := rule.ApiGroup{}
 		getResp(t, ts.URL+"/"+expGroup.APILink(), &gotGroup, 200)
 		if expGroup.ID != gotGroup.ID {

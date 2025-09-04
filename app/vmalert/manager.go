@@ -38,7 +38,7 @@ func (m *manager) groupAPI(gID uint64) (*rule.ApiGroup, error) {
 	if !ok {
 		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
-	return rule.GroupToAPI(g), nil
+	return g.ToAPI(), nil
 }
 
 // ruleAPI generates apiRule object from alert by its ID(hash)

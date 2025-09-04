@@ -328,7 +328,8 @@ func NewAlertAPI(ar *AlertingRule, a *notifier.Alert) *ApiAlert {
 	return aa
 }
 
-func GroupToAPI(g *Group) *ApiGroup {
+// ToAPI returns ApiGroup representation of g
+func (g *Group) ToAPI() *ApiGroup {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	ag := ApiGroup{
