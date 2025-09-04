@@ -30,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): add panel `Storage full ETA` in the vmstorage section to display the minimum approximate time across all the nodes to reach 100% of allowed disk capacity.
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix possible partial rule update responses in group-related APIs during group updates in hot config reload. See [#9551](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9551)
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): properly apply rollup functions to metrics based on their name in vmui's [metrics explorer](https://docs.victoriametrics.com/#metrics-explorer). See [#9655](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9655) for details. Thanks to @wbwren-eric for the fix. 
 
 ## [v1.125.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.1)
 
