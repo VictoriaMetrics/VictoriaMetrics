@@ -482,7 +482,7 @@ func (rh *requestHandler) listNotifiers() ([]byte, error) {
 	lr.Data.Notifiers = make([]*notifier.ApiNotifier, 0)
 	for protoName, protoTargets := range targets {
 		nr := &notifier.ApiNotifier{
-			Kind:    string(protoName),
+			Kind:    protoName,
 			Targets: make([]*notifier.ApiTarget, 0, len(protoTargets)),
 		}
 		for _, target := range protoTargets {
