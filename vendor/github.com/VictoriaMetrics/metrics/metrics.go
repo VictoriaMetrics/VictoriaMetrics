@@ -31,6 +31,9 @@ type namedMetric struct {
 type metric interface {
 	marshalTo(prefix string, w io.Writer)
 	metricType() string
+	// display: Whether this metric will be printed. it's based on whether sample is recorded.
+	// It should align with `marshalTo` of each metrics type.
+	display() bool
 }
 
 var defaultSet = NewSet()

@@ -268,3 +268,15 @@ func (h *Histogram) getSum() float64 {
 func (h *Histogram) metricType() string {
 	return "histogram"
 }
+
+func (h *Histogram) display() bool {
+	// display if buckets contain at least 1 sample, align with `marshalTo`
+	countTotal := uint64(0)
+	h.VisitNonZeroBuckets(func(_ string, count uint64) {
+		countTotal += count
+	})
+	if countTotal == 0 {
+		return false
+	}
+	return true
+}

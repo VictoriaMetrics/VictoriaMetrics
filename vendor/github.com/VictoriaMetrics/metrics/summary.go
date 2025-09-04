@@ -123,6 +123,18 @@ func (sm *Summary) metricType() string {
 	return "summary"
 }
 
+func (sm *Summary) display() bool {
+	// display if contains at least 1 sample, align with `marshalTo`
+	sm.mu.Lock()
+	count := sm.count
+	sm.mu.Unlock()
+
+	if count > 0 {
+		return true
+	}
+	return false
+}
+
 func splitMetricName(name string) (string, string) {
 	n := strings.IndexByte(name, '{')
 	if n < 0 {
@@ -201,7 +213,19 @@ func (qv *quantileValue) marshalTo(prefix string, w io.Writer) {
 }
 
 func (qv *quantileValue) metricType() string {
-	return "unsupported"
+	return "summary"
+}
+
+func (qv *quantileValue) display() bool {
+	// display if not NaN
+	qv.sm.mu.Lock()
+	v := qv.sm.quantileValues[qv.idx]
+	qv.sm.mu.Unlock()
+
+	if !math.IsNaN(v) {
+		return true
+	}
+	return false
 }
 
 func addTag(name, tag string) string {

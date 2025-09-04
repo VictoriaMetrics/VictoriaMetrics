@@ -67,6 +67,11 @@ func (c *Counter) metricType() string {
 	return "counter"
 }
 
+func (c *Counter) display() bool {
+	// always display, align with `marshalTo`
+	return true
+}
+
 // GetOrCreateCounter returns registered counter with the given name
 // or creates new counter if the registry doesn't contain counter with
 // the given name.
