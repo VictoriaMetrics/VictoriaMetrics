@@ -961,23 +961,7 @@ to ensure query results consistency, even if storage layer didn't complete dedup
 
 ## Backups
 
-It is recommended performing periodical backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-for protecting from user errors such as accidental data deletion.
-
-The following steps must be performed for each `vmstorage` node for creating a backup:
-
-1. Create an instant snapshot by navigating to `/snapshot/create` HTTP handler. It will create snapshot and return its name.
-1. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
-   The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
-1. Delete unused snapshots via `/snapshot/delete?snapshot=<snapshot_name>` or `/snapshot/delete_all` in order to free up occupied storage space.
-
-There is no need in synchronizing backups among all the `vmstorage` nodes.
-
-Restoring from backup:
-
-1. Stop `vmstorage` node with `kill -INT`.
-1. Restore data from backup using [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) into `-storageDataPath` directory.
-1. Start `vmstorage` node.
+For backup configuration, please refer for [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
 ## Retention filters
 
