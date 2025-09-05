@@ -1,17 +1,45 @@
+import { useMemo } from "preact/compat";
 import "./style.scss";
 import { Group as APIGroup } from "../../../types";
 import dayjs from "dayjs";
 import { formatDuration } from "../helpers";
-import Badges from "../Badges";
+import Badges, { BadgeColor } from "../Badges";
 
 interface BaseGroupProps {
   group: APIGroup;
 }
 
 const BaseGroup = ({ group }: BaseGroupProps) => {
+  const groupLabels = group?.labels || {};
+  const groupLabelsItems = useMemo(() => {
+    return Object.fromEntries(Object.entries(groupLabels).map(([name, value]) => [name, {
+      color: "passive" as BadgeColor,
+      value: value,
+    }]));
+  }, [groupLabels]);
+
+  const groupParams = group?.params || [];
+  const groupParamsItems = useMemo(() => {
+    return Object.fromEntries(groupParams.map(value => [value, {
+      color: "passive" as BadgeColor,
+    }]));
+  }, [groupParams]);
+
+  const groupHeaders = group?.headers || [];
+  const groupHeadersItems = useMemo(() => {
+    return Object.fromEntries(groupHeaders.map(value => [value, {
+      color: "passive" as BadgeColor,
+    }]));
+  }, [groupHeaders]);
+
+  const groupNotifierHeaders = group?.notifier_headers || [];
+  const groupNotifierHeadersItems = useMemo(() => {
+    return Object.fromEntries(groupNotifierHeaders.map(value => [value, {
+      color: "passive" as BadgeColor,
+    }]));
+  }, [groupNotifierHeaders]);
   return (
     <div className="vm-explore-alerts-group">
-      <div></div>
       <table>
         <tbody>
           {!!group.interval && (
@@ -50,51 +78,42 @@ const BaseGroup = ({ group }: BaseGroupProps) => {
               <td>{group.concurrency}</td>
             </tr>
           )}
-          {!!group?.labels?.length && (
+          {!!Object.keys(groupLabels).length && (
             <tr>
               <td className="vm-col-md">Labels</td>
               <td>
                 <Badges
-                  items={Object.fromEntries(Object.entries(group.labels).map(([name, value]) => [name, {
-                    color: "passive",
-                    value: value,
-                  }]))}
+                  items={groupLabelsItems}
                 />
               </td>
             </tr>
           )}
-          {!!group?.params?.length && (
+          {!!groupParams.length && (
             <tr>
               <td className="vm-col-md">Params</td>
               <td>
                 <Badges
-                  items={Object.fromEntries(group.params.map(value => [value, {
-                    color: "passive",
-                  }]))}
+                  items={groupParamsItems}
                 />
               </td>
             </tr>
           )}
-          {!!group?.headers?.length && (
+          {!!groupHeaders.length && (
             <tr>
               <td className="vm-col-md">Headers</td>
               <td>
                 <Badges
-                  items={Object.fromEntries(group.headers.map(value => [value, {
-                    color: "passive",
-                  }]))}
+                  items={groupHeadersItems}
                 />
               </td>
             </tr>
           )}
-          {!!group?.notifier_headers?.length && (
+          {!!groupNotifierHeaders.length && (
             <tr>
               <td className="vm-col-md">Notifier headers</td>
               <td>
                 <Badges
-                  items={Object.fromEntries(group.notifier_headers.map(value => [value, {
-                    color: "passive",
-                  }]))}
+                  items={groupNotifierHeadersItems}
                 />
               </td>
             </tr>

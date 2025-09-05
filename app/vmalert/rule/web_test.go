@@ -1,4 +1,4 @@
-package main
+package rule
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 )
 
 func TestRecordingToApi(t *testing.T) {
@@ -17,7 +16,7 @@ func TestRecordingToApi(t *testing.T) {
 		Values: []float64{1}, Timestamps: []int64{0},
 	})
 	entriesLimit := 44
-	g := rule.NewGroup(config.Group{
+	g := NewGroup(config.Group{
 		Name:        "group",
 		File:        "rules.yaml",
 		Concurrency: 1,
@@ -31,24 +30,24 @@ func TestRecordingToApi(t *testing.T) {
 			},
 		},
 	}, fq, 1*time.Minute, nil)
-	rr := g.Rules[0].(*rule.RecordingRule)
+	rr := g.Rules[0].(*RecordingRule)
 
-	expectedRes := apiRule{
+	expectedRes := ApiRule{
 		Name:           "record_name",
 		Query:          "up",
 		Labels:         map[string]string{"label": "value"},
 		Health:         "ok",
-		Type:           ruleTypeRecording,
+		Type:           TypeRecording,
 		DatasourceType: "prometheus",
 		ID:             "1248",
 		GroupID:        fmt.Sprintf("%d", g.CreateID()),
 		GroupName:      "group",
 		File:           "rules.yaml",
 		MaxUpdates:     44,
-		Updates:        make([]rule.StateEntry, 0),
+		Updates:        make([]StateEntry, 0),
 	}
 
-	res := recordingToAPI(rr)
+	res := rr.ToAPI()
 
 	if !reflect.DeepEqual(res, expectedRes) {
 		t.Fatalf("expected to have: \n%v;\ngot: \n%v", expectedRes, res)

@@ -28,11 +28,11 @@ There is also user-friendly database for logs - [VictoriaLogs](https://docs.vict
 If you have questions about VictoriaMetrics, then feel free asking them at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/),
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
+[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
 See [features available in enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/).
-Enterprise binaries can be downloaded and evaluated for free 
+Enterprise binaries can be downloaded and evaluated for free
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
+See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/victoriametrics/#how-to-upgrade-victoriametrics).
 
@@ -64,8 +64,8 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 ## vmui
 
-VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at 
-`http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmeselect` service.
+VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at
+`http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmselect` service.
 The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui).
 
 ## Multitenancy
@@ -95,10 +95,9 @@ when different tenants have different amounts of data and different query load.
 
 See also [multitenancy via labels](#multitenancy-via-labels).
 
-
 ### Multitenancy via labels
 
-**Writes**
+**Writes:**
 
 `vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
 where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
@@ -106,6 +105,7 @@ In this case the account ID and project ID are obtained from optional `vm_accoun
 If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding account ID and project ID are set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
 For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
+
 ```promtextmetric
 http_requests_total{path="/foo",vm_account_id="42"} 12
 http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
@@ -122,12 +122,13 @@ such as [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) and
 [OpenTSDB telnet put protocol](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet).
 
-**Reads**
+**Reads:**
 
 _For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)._
 
 `vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
 Currently supported endpoints for `<suffix>` are:
+
 - `/prometheus/api/v1/query`
 - `/prometheus/api/v1/query_range`
 - `/prometheus/api/v1/series`
@@ -142,11 +143,13 @@ Currently supported endpoints for `<suffix>` are:
 
 It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
 For example, the following query fetches metric `up` for the tenants `accountID=42` and `accountID=7, projectID=9`:
+
 ```promtextmetric
 up{vm_account_id="7", vm_project_id="9" or vm_account_id="42"}
 ```
 
 `vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
+
 ```promtextmetric
 up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
 up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
@@ -154,6 +157,7 @@ up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs s
 
 Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
 query args to apply additional filters for the query:
+
 ```bash
 curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
   -d 'query=up' \
@@ -162,6 +166,7 @@ curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
 ```
 
 The precedence for applying filters for tenants follows this order:
+
 1. Filter tenants by `extra_label` and `extra_filters` filters.
  These filters have the highest priority and are applied first when provided through the query arguments.
 2. Filter tenants from labels selectors defined at metricsQL query expression.
@@ -169,7 +174,6 @@ The precedence for applying filters for tenants follows this order:
 **Security considerations**
 It is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
-
 
 ## Binaries
 
@@ -275,11 +279,13 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 It is recommended setting up [monitoring](#monitoring) for the cluster.
 
 The following tools can simplify cluster setup:
+
 - [An example docker-compose config for VictoriaMetrics cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#victoriametrics-cluster)
 - [Helm charts for VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts)
 - [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator)
 
 It is possible manually setting up a toy cluster on a single host. In this case every cluster component - `vminsert`, `vmselect` and `vmstorage` - must have distinct values for `-httpListenAddr` command-line flag. This flag specifies http address for accepting http requests for [monitoring](#monitoring) and [profiling](#profiling). `vmstorage` node must have distinct values for the following additional command-line flags in order to prevent resource usage clash:
+
 - `-storageDataPath` - every `vmstorage` node must have a dedicated data storage.
 - `-vminsertAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting data from `vminsert` nodes.
 - `-vmselectAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting requests from `vmselect` nodes.
@@ -367,8 +373,8 @@ while the second-level `vminsert` nodes can spread the data among `vmstorage` no
 
 The multi-level cluster setup for `vminsert` nodes has the following shortcomings because of synchronous replication and data sharding:
 
-* Data ingestion speed is limited by the slowest link to AZ.
-* `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporarily unavailable. This results in data gaps at AZs which were temporarily unavailable.
+- Data ingestion speed is limited by the slowest link to AZ.
+- `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporarily unavailable. This results in data gaps at AZs which were temporarily unavailable.
 
 These issues are addressed by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
 `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
@@ -525,12 +531,12 @@ When `vmselect` runs with `-clusternativeListenAddr` command-line option, then i
 See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
 
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
+See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Monitoring
 
 All the cluster components [expose various metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus-vm-cluster.yml)
-in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag. 
+in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
 By default, the following TCP ports are used:
 
 - `vminsert` - 8480
@@ -576,7 +582,7 @@ The metric is set to `0` when the `vmstorage` isn't in read-only mode.
 The main differences between URL formats of cluster and [Single server](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 versions are that cluster has separate components for read and ingestion path, and because of multi-tenancy support.
 Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, `csv`, `native` and `prometheus` data formats **not** only `prometheus` data.
-Check practical examples of VictoriaMetrics API [here](https://docs.victoriametrics.com/victoriametrics/url-examples/).
+Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.com/victoriametrics/url-examples/).
 
 - URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
@@ -640,11 +646,11 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
   Note that the `delete_series` handler should be used only in exceptional cases such as deletion of accidentally ingested incorrect time series. It shouldn't
   be used on a regular basis, since it carries non-zero overhead.
 
-- URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...` .
-The `start` and `end` query args are optional. If they are missing, then all the tenants with at least one sample stored in VictoriaMetrics are returned.
+- URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...`.
+  The `start` and `end` query args are optional. If they are missing, then all the tenants with at least one sample stored in VictoriaMetrics are returned.
 
 - URL for accessing [vmalerts](https://docs.victoriametrics.com/victoriametrics/vmalert/) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
-  This URL works only when `-vmalert.proxyURL` flag is set. See more about vmalert [here](#vmalert). 
+  This URL works only when `-vmalert.proxyURL` flag is set. See more about [vmalert](#vmalert).
 
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
   - `/internal/force_merge` - initiate [forced compactions](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge) on the given `vmstorage` node.
@@ -860,7 +866,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 - `-search.maxTSDBStatusTopNSeries` at `vmselect` limits the number of unique time
   series that can be queried with topN argument by a single
   [/api/v1/status/tsdb?topN=N](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats)
-  call. 
+  call.
 - `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from
   [/api/v1/labels](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels). This endpoint is used mostly by Grafana
   for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect`
@@ -941,14 +947,14 @@ HDD-based persistent disks should be enough for the majority of use cases. It is
 
 ## Deduplication
 
-Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. 
-See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for details. The only difference is that 
-deduplication can't be guaranteed when samples and sample duplicates for the same time series end up on different 
+Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do.
+See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for details. The only difference is that
+deduplication can't be guaranteed when samples and sample duplicates for the same time series end up on different
 `vmstorage` nodes. This could happen in the following scenarios:
 
-* when adding/removing `vmstorage` nodes a new samples for time series will be re-routed to another `vmstorage` nodes;
-* when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
-* when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
+- when adding/removing `vmstorage` nodes a new samples for time series will be re-routed to another `vmstorage` nodes;
+- when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
+- when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
 
 It is recommended to set **the same** `-dedup.minScrapeInterval` command-line flag value to both `vmselect` and `vmstorage` nodes
 to ensure query results consistency, even if storage layer didn't complete deduplication yet.
@@ -1000,7 +1006,7 @@ For example, the following config sets retention to 5 days for time series with 
 See also [downsampling](#downsampling).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
+See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Downsampling
 
@@ -1032,7 +1038,7 @@ then query results can be less consistent because of mixing raw and downsampled 
 See also [retention filters](#retention-filters).
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
+See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Profiling
 
@@ -1044,14 +1050,11 @@ All the cluster components provide the following handlers for [profiling](https:
 
 Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` with `vmstorage` hostname if needed):
 
-
 ```bash
 curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 ```
 
-
 Example command for collecting memory profile from `vminsert` (replace `0.0.0.0` with `vminsert` hostname if needed):
-
 
 ```bash
 curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
@@ -1059,35 +1062,34 @@ curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 
 It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
 
-
 ## vmalert
 
 vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/)
 when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
-* for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* for accessing vmalert UI through vmselect Web interface.
+
+- for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
+- for accessing vmalert UI through vmselect Web interface.
 
 For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag and visit
 `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/` link.
-
 
 ## Community and contributions
 
 Feel free asking any questions regarding VictoriaMetrics:
 
-* [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
-* [X (Twitter)](https://x.com/VictoriaMetrics/)
-* [Linkedin](https://www.linkedin.com/company/victoriametrics/)
-* [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
-* [Telegram-en](https://t.me/VictoriaMetrics_en)
-* [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
-* [Mastodon](https://mastodon.social/@victoriametrics/)
+- [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
+- [X (Twitter)](https://x.com/VictoriaMetrics/)
+- [Linkedin](https://www.linkedin.com/company/victoriametrics/)
+- [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
+- [Telegram-en](https://t.me/VictoriaMetrics_en)
+- [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
+- [Mastodon](https://mastodon.social/@victoriametrics/)
 
 If you like VictoriaMetrics and want contributing, then please read [these docs](https://docs.victoriametrics.com/victoriametrics/contributing/).
 
 ## Reporting bugs
 
-Report bugs and propose new features [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+Report bugs and propose new features in our [GitHub Issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
 ## List of command-line flags
 

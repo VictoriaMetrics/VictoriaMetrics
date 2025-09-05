@@ -21,6 +21,8 @@ type Rule interface {
 	// ID returns unique ID that may be used for
 	// identifying this Rule among others.
 	ID() uint64
+	// ToAPI returns ApiRule representation of Rule
+	ToAPI() ApiRule
 	// exec executes the rule with given context at the given timestamp and limit.
 	// returns an err if number of resulting time series exceeds the limit.
 	exec(ctx context.Context, ts time.Time, limit int) ([]prompb.TimeSeries, error)
@@ -66,39 +68,6 @@ type StateEntry struct {
 	SeriesFetched *int `json:"series_fetched"`
 	// stores the curl command reflecting the HTTP request used during rule.Exec
 	Curl string `json:"curl"`
-}
-
-// GetLastEntry returns latest stateEntry of rule
-func GetLastEntry(r Rule) StateEntry {
-	if rule, ok := r.(*AlertingRule); ok {
-		return rule.state.getLast()
-	}
-	if rule, ok := r.(*RecordingRule); ok {
-		return rule.state.getLast()
-	}
-	return StateEntry{}
-}
-
-// GetRuleStateSize returns size of rule stateEntry
-func GetRuleStateSize(r Rule) int {
-	if rule, ok := r.(*AlertingRule); ok {
-		return rule.state.size()
-	}
-	if rule, ok := r.(*RecordingRule); ok {
-		return rule.state.size()
-	}
-	return 0
-}
-
-// GetAllRuleState returns rule entire stateEntries
-func GetAllRuleState(r Rule) []StateEntry {
-	if rule, ok := r.(*AlertingRule); ok {
-		return rule.state.getAll()
-	}
-	if rule, ok := r.(*RecordingRule); ok {
-		return rule.state.getAll()
-	}
-	return []StateEntry{}
 }
 
 func (s *ruleState) size() int {

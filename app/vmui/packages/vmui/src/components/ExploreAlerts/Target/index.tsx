@@ -1,9 +1,9 @@
-import { FC } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import "./style.scss";
 import { Target as APITarget } from "../../../types";
 import Alert from "../../Main/Alert/Alert";
 import Accordion from "../../Main/Accordion/Accordion";
-import Badges from "../Badges";
+import Badges, { BadgeColor } from "../Badges";
 
 interface TargetProps {
   target: APITarget;
@@ -11,6 +11,13 @@ interface TargetProps {
 
 const Target: FC<TargetProps> = ({ target }) => {
   const state = target?.lastError ? "unhealthy" : "ok";
+  const targetLabels = target?.labels || {};
+  const badgesItems = useMemo(() => {
+    return Object.fromEntries(Object.entries(targetLabels).map(([name, value]) => [name, {
+      value: value,
+      color: "passive" as BadgeColor,
+    }]));
+  }, [targetLabels]);
   return (
     <div className={`vm-explore-alerts-target vm-badge-item ${state.replace(" ", "-")}`}>
       {(!!target?.labels?.length || !!target?.lastError) ? (
@@ -23,15 +30,12 @@ const Target: FC<TargetProps> = ({ target }) => {
           <div className="vm-explore-alerts-target-item">
             <table>
               <tbody>
-                {!!target?.labels?.length && (
+                {!!Object.keys(targetLabels).length && (
                   <tr>      
                     <td className="vm-col-md">Labels</td>
                     <td>
                       <Badges
-                        items={Object.fromEntries(Object.entries(target.labels).map(([name, value]) => [name, {
-                          value: value,
-                          color: "passive",
-                        }]))}
+                        items={badgesItems}
                       />
                     </td>
                   </tr>

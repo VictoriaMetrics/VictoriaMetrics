@@ -132,7 +132,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 		}
 		labels[s[:n]] = s[n+1:]
 	}
-	_, err = notifier.Init(nil, labels, externalURL)
+	_, err = notifier.Init(labels, externalURL)
 	if err != nil {
 		logger.Fatalf("failed to init notifier: %v", err)
 	}

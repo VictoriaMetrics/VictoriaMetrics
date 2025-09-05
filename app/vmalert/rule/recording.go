@@ -81,6 +81,37 @@ func (rr *RecordingRule) ID() uint64 {
 	return rr.RuleID
 }
 
+// ToAPI returns ApiRule representation of rr
+func (rr *RecordingRule) ToAPI() ApiRule {
+	state := rr.state
+	lastState := state.getLast()
+	r := ApiRule{
+		Type:              TypeRecording,
+		DatasourceType:    rr.Type.String(),
+		Name:              rr.Name,
+		Query:             rr.Expr,
+		Labels:            rr.Labels,
+		LastEvaluation:    lastState.Time,
+		EvaluationTime:    lastState.Duration.Seconds(),
+		Health:            "ok",
+		LastSamples:       lastState.Samples,
+		LastSeriesFetched: lastState.SeriesFetched,
+		MaxUpdates:        state.size(),
+		Updates:           state.getAll(),
+
+		// encode as strings to avoid rounding
+		ID:        fmt.Sprintf("%d", rr.ID()),
+		GroupID:   fmt.Sprintf("%d", rr.GroupID),
+		GroupName: rr.GroupName,
+		File:      rr.File,
+	}
+	if lastState.Err != nil {
+		r.LastError = lastState.Err.Error()
+		r.Health = "err"
+	}
+	return r
+}
+
 // NewRecordingRule creates a new RecordingRule
 func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *RecordingRule {
 	debug := group.Debug

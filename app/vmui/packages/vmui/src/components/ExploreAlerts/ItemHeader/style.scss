@@ -2,7 +2,6 @@
 
 .vm-explore-alerts-item-header {
   display: flex;
-  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   justify-content: space-between;
   gap: $padding-global;
@@ -28,7 +27,6 @@
   }
 
   &_mobile {
-    grid-template-columns: 1fr auto;
     .vm-button-text {
       display: none;
     }
@@ -51,9 +49,11 @@
   &__title {
     display: flex;
     column-gap: $padding-global;
+    overflow: hidden;
     svg {
       fill: $color-text-disabled;
       width: 14px;
+      min-width: 14px;
     }
   }
 
@@ -67,4 +67,9 @@
     background-color: $color-hover-black;
     border-radius: 6px;
   }
+}
+
+.vm-explore-alerts-controls {
+  display: flex;
+  column-gap: $padding-global;
 }

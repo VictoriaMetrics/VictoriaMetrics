@@ -187,6 +187,54 @@ func (ar *AlertingRule) ID() uint64 {
 	return ar.RuleID
 }
 
+// ToAPI returns ApiRule representation of ar
+func (ar *AlertingRule) ToAPI() ApiRule {
+	state := ar.state
+	lastState := state.getLast()
+	r := ApiRule{
+		Type:              TypeAlerting,
+		DatasourceType:    ar.Type.String(),
+		Name:              ar.Name,
+		Query:             ar.Expr,
+		Duration:          ar.For.Seconds(),
+		KeepFiringFor:     ar.KeepFiringFor.Seconds(),
+		Labels:            ar.Labels,
+		Annotations:       ar.Annotations,
+		LastEvaluation:    lastState.Time,
+		EvaluationTime:    lastState.Duration.Seconds(),
+		Health:            "ok",
+		State:             "inactive",
+		Alerts:            ar.AlertsToAPI(),
+		LastSamples:       lastState.Samples,
+		LastSeriesFetched: lastState.SeriesFetched,
+		MaxUpdates:        state.size(),
+		Updates:           state.getAll(),
+		Debug:             ar.Debug,
+
+		// encode as strings to avoid rounding in JSON
+		ID:        fmt.Sprintf("%d", ar.ID()),
+		GroupID:   fmt.Sprintf("%d", ar.GroupID),
+		GroupName: ar.GroupName,
+		File:      ar.File,
+	}
+	if lastState.Err != nil {
+		r.LastError = lastState.Err.Error()
+		r.Health = "err"
+	}
+	// satisfy apiRule.State logic
+	if len(r.Alerts) > 0 {
+		r.State = notifier.StatePending.String()
+		stateFiring := notifier.StateFiring.String()
+		for _, a := range r.Alerts {
+			if a.State == stateFiring {
+				r.State = stateFiring
+				break
+			}
+		}
+	}
+	return r
+}
+
 // GetAlerts returns active alerts of rule
 func (ar *AlertingRule) GetAlerts() []*notifier.Alert {
 	ar.alertsMu.RLock()

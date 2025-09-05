@@ -1,20 +1,28 @@
-import { useState, useMemo } from "react";
+import { createRef, useEffect, useState, useMemo } from "react";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CopyIcon, DoneIcon } from "../Main/Icons";
 import { getComparator, stableSort } from "./helpers";
 import Tooltip from "../Main/Tooltip/Tooltip";
 import Button from "../Main/Button/Button";
-import { useEffect } from "preact/compat";
 import useCopyToClipboard from "../../hooks/useCopyToClipboard";
 
 type OrderDir = "asc" | "desc"
 
+export interface TableColumn<T> {
+  key: keyof T;
+  title?: string;
+  format?: (obj: T) => string;
+  className?: string;
+}
+
 interface TableProps<T> {
   rows: T[];
-  columns: { title?: string, key: keyof Partial<T>, className?: string }[];
+  columns: TableColumn<T>[];
   defaultOrderBy: keyof T;
   copyToClipboard?: keyof T;
   defaultOrderDir?: OrderDir;
+  rowClasses?: (obj: T) => Record<string, boolean>;
+  rowAction?: (ref: React.RefObject<HTMLElement>) => () => void;
   // TODO: Remove when pagination is implemented on the backend.
   paginationOffset: {
     startIndex: number;
@@ -22,12 +30,34 @@ interface TableProps<T> {
   }
 }
 
-const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDir, copyToClipboard, paginationOffset }: TableProps<T>) => {
+interface TableRow {
+  id: string;
+}
+
+const Table = <T extends TableRow>({
+  rows,
+  columns,
+  defaultOrderBy,
+  defaultOrderDir,
+  copyToClipboard,
+  paginationOffset,
+  rowClasses,
+  rowAction = (_ref: React.RefObject<HTMLElement>) => () => {},
+}: TableProps<T>) => {
   const handleCopyToClipboard = useCopyToClipboard();
 
   const [orderBy, setOrderBy] = useState<keyof T>(defaultOrderBy);
   const [orderDir, setOrderDir] = useState<OrderDir>(defaultOrderDir || "desc");
   const [copied, setCopied] = useState<number | null>(null);
+  const [rowRefs, setRowRefs] = useState(new Map());
+
+  useEffect(() => {
+    const newRowRefs = new Map();
+    rows.forEach(row => {
+      newRowRefs.set(row.id, createRef());
+    });
+    setRowRefs(newRowRefs);
+  }, [rows]);
 
   // const sortedList = useMemo(() => stableSort(rows as [], getComparator(orderDir, orderBy)),
   //   [rows, orderBy, orderDir]);
@@ -57,6 +87,8 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
     const timeout = setTimeout(() => setCopied(null), 2000);
     return () => clearTimeout(timeout);
   }, [copied]);
+
+  const copyCol = copyToClipboard && columns.find((col) => col.key == copyToClipboard);
 
   return (
     <table className="vm-table">
@@ -90,8 +122,14 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
       <tbody className="vm-table-body">
         {sortedList.map((row, rowIndex) => (
           <tr
-            className="vm-table__row"
+            className={classNames({
+              "vm-table__row": true,
+              ...(rowClasses ? rowClasses(row) : {}),
+            })}
+            id={row.id}
             key={rowIndex}
+            ref={rowRefs.get(row.id)}
+            onClick={rowAction(rowRefs.get(row.id))}
           >
             {columns.map((col) => (
               <td
@@ -101,10 +139,10 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
                 })}
                 key={String(col.key)}
               >
-                {row[col.key] || "-"}
+                {(col.format ? col.format(row) : String(row[col.key])) || "-"}
               </td>
             ))}
-            {copyToClipboard && (
+            {copyToClipboard && copyCol && (
               <td className="vm-table-cell vm-table-cell_right">
                 {row[copyToClipboard] && (
                   <div className="vm-table-cell__content">
@@ -114,7 +152,7 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
                         color={copied === rowIndex ? "success" : "gray"}
                         size="small"
                         startIcon={copied === rowIndex ? <DoneIcon/> : <CopyIcon/>}
-                        onClick={createCopyHandler(row[copyToClipboard], rowIndex)}
+                        onClick={createCopyHandler(copyCol.format ? copyCol.format(row) : String(row[copyToClipboard]), rowIndex)}
                         ariaLabel="copy row"
                       />
                     </Tooltip>

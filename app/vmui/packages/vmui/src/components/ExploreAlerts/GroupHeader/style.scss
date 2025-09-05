@@ -58,3 +58,8 @@
     border-radius: 6px;
   }
 }
+
+.vm-explore-alerts-controls {
+  display: flex;
+  column-gap: $padding-global;
+}

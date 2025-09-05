@@ -1,16 +1,14 @@
 @use "src/styles/variables" as *;
 
-.vm-modal {
-  .vm-explore-alerts-alert-item {
-    table {
-      width: auto;
-    }
+.vm-modal.vm-explore-alerts {
+  .vm-modal-content {
+    overflow-y: scroll;
   }
 }
 
 .vm-explore-alerts-alert-item {
   row-gap: $padding-global;
-  margin-right: $padding-global;
+  margin: $padding-global;
   display: flex;
   flex-direction: column;
 
@@ -19,36 +17,35 @@
     text-align: center;
   }
 
-  .vm-col-sm {
-    width: 10%;
-    white-space: nowrap;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .vm-col-md {
-    width: 15%;
-    white-space: nowrap;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 20%;
   }
 
   .vm-button {
     color: $color-passive;
-    border: 1px solid var(--color-passive);
+    border: 1px solid $color-passive;
+  }
+
+  .vm-code-example {
+    .vm-button {
+      background-color: $color-code;
+    }
   }
 
   table {
+    word-break: break-word;
+    table-layout: fixed;
     width: 100%;
     td, th {
       line-height: 30px;
       padding: 4px $padding-small;
+      white-space: nowrap;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     th {
       font-weight: bold;
-      text-align: center;
       padding: 0 $padding-small;
     }
   }

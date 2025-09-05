@@ -1,8 +1,9 @@
+import { useMemo } from "preact/compat";
 import "./style.scss";
 import { Alert as APIAlert } from "../../../types";
 import { createSearchParams } from "react-router-dom";
 import Button from "../../Main/Button/Button";
-import Badges from "../Badges";
+import Badges, { BadgeColor } from "../Badges";
 import {
   SearchIcon,
 } from "../../Main/Icons";
@@ -15,6 +16,13 @@ interface BaseAlertProps {
 
 const BaseAlert = ({ item }: BaseAlertProps) => {
   const query = item?.expression;
+  const alertLabels = item?.labels || {};
+  const alertLabelsItems = useMemo(() => {
+    return Object.fromEntries(Object.entries(alertLabels).map(([name, value]) => [name, {
+      color: "passive" as BadgeColor,
+      value: value,
+    }]));
+  }, [alertLabels]);
 
   const openQueryLink = () => {
     const params = {
@@ -27,6 +35,10 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
   return (
     <div className="vm-explore-alerts-alert-item">
       <table>
+        <colgroup>
+          <col className="vm-col-md"/>
+          <col/>
+        </colgroup>
         <tbody>
           <tr>
             <td
@@ -45,7 +57,7 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
             </td>
           </tr>
           <tr>
-            <td className="vm-col-md">Query</td>
+            <td>Query</td>
             <td>
               <CodeExample
                 code={query}
@@ -53,18 +65,15 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
             </td>
           </tr>
           <tr>
-            <td className="vm-col-md">Active at</td>
+            <td>Active at</td>
             <td>{dayjs(item.activeAt).format("DD MMM YYYY HH:mm:ss")}</td>
           </tr>
-          {!!Object.keys(item?.labels || {}).length && (
+          {!!Object.keys(alertLabels).length && (
             <tr>
-              <td className="vm-col-md">Labels</td>
+              <td>Labels</td>
               <td>
                 <Badges
-                  items={Object.fromEntries(Object.entries(item.labels).map(([name, value]) => [name, {
-                    color: "passive",
-                    value: value,
-                  }]))}
+                  items={alertLabelsItems}
                 />
               </td>
             </tr>
@@ -75,10 +84,14 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
         <>
           <span className="title">Annotations</span>
           <table>
+            <colgroup>
+              <col className="vm-col-md"/>
+              <col/>
+            </colgroup>
             <tbody>
               {Object.entries(item.annotations || {}).map(([name, value]) => (
                 <tr key={name}>
-                  <td className="vm-col-md">{name}</td>
+                  <td>{name}</td>
                   <td>{value}</td>
                 </tr>
               ))}

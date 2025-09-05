@@ -20,7 +20,7 @@ func TestAlertExecTemplate(t *testing.T) {
 	)
 	extLabels["cluster"] = extCluster
 	extLabels["dc"] = extDC
-	_, err := Init(nil, extLabels, extURL)
+	_, err := Init(extLabels, extURL)
 	checkErr(t, err)
 
 	f := func(alert *Alert, annotations map[string]string, tplExpected map[string]string) {

@@ -141,7 +141,8 @@ func checkSupportedFunctions(e Expr) error {
 		if !ok {
 			return
 		}
-		if !IsRollupFunc(fe.Name) && !IsTransformFunc(fe.Name) {
+
+		if !IsSupportedFunction(fe.Name) {
 			err = fmt.Errorf("unsupported function %q", fe.Name)
 		}
 	})

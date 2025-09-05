@@ -4,10 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
@@ -57,6 +60,42 @@ var (
 	sendTimeout = flagutil.NewArrayDuration("notifier.sendTimeout", 10*time.Second, "Timeout when sending alerts to the corresponding -notifier.url")
 )
 
+// AlertURLGeneratorFn returns a URL to the passed alert object.
+// Call InitAlertURLGeneratorFn before using this function.
+var AlertURLGeneratorFn AlertURLGenerator
+
+// InitAlertURLGeneratorFn populates AlertURLGeneratorFn
+func InitAlertURLGeneratorFn(externalURL *url.URL, externalAlertSource string, validateTemplate bool) error {
+	if externalAlertSource == "" {
+		AlertURLGeneratorFn = func(a Alert) string {
+			gID, aID := strconv.FormatUint(a.GroupID, 10), strconv.FormatUint(a.ID, 10)
+			return fmt.Sprintf("%s/vmalert/alert?%s=%s&%s=%s", externalURL, "group_id", gID, "alert_id", aID)
+		}
+		return nil
+	}
+	if validateTemplate {
+		if err := ValidateTemplates(map[string]string{
+			"tpl": externalAlertSource,
+		}); err != nil {
+			return fmt.Errorf("error validating source template %s: %w", externalAlertSource, err)
+		}
+	}
+	m := map[string]string{
+		"tpl": externalAlertSource,
+	}
+	AlertURLGeneratorFn = func(alert Alert) string {
+		qFn := func(_ string) ([]datasource.Metric, error) {
+			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
+		}
+		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
+		if err != nil {
+			logger.Errorf("cannot template alert source: %s", err)
+		}
+		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
+	}
+	return nil
+}
+
 // cw holds a configWatcher for configPath configuration file
 // configWatcher provides a list of Notifier objects discovered
 // from static config or via service discovery.
@@ -90,7 +129,7 @@ var (
 //   - configuration via file. Supports live reloads and service discovery.
 //
 // Init returns an error if both mods are used.
-func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (func() []Notifier, error) {
+func Init(extLabels map[string]string, extURL string) (func() []Notifier, error) {
 	externalURL = extURL
 	externalLabels = extLabels
 	_, err := url.Parse(externalURL)
@@ -117,7 +156,7 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 	}
 
 	if len(*addrs) > 0 {
-		notifiers, err := notifiersFromFlags(gen)
+		notifiers, err := notifiersFromFlags(AlertURLGeneratorFn)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create notifier from flag values: %w", err)
 		}
@@ -127,7 +166,7 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 		return staticNotifiersFn, nil
 	}
 
-	cw, err = newWatcher(*configPath, gen)
+	cw, err = newWatcher(*configPath, AlertURLGeneratorFn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init config watcher: %w", err)
 	}

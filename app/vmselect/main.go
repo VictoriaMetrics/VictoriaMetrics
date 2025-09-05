@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
@@ -18,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -27,7 +30,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -740,6 +742,7 @@ var (
 
 func initVMUIConfig() {
 	var cfg struct {
+		Version string `json:"version"`
 		License struct {
 			Type string `json:"type"`
 		} `json:"license"`
@@ -754,6 +757,11 @@ func initVMUIConfig() {
 	err = json.Unmarshal(data, &cfg)
 	if err != nil {
 		logger.Fatalf("cannot parse vmui default config: %s", err)
+	}
+	cfg.Version = buildinfo.ShortVersion()
+	if cfg.Version == "" {
+		// buildinfo.ShortVersion() may return empty result for builds without tags
+		cfg.Version = buildinfo.Version
 	}
 	cfg.VMAlert.Enabled = len(*vmalertProxyURL) != 0
 	data, err = json.Marshal(&cfg)

@@ -23,17 +23,20 @@ To get the license key you can request a [free trial license](https://victoriame
 VictoriaMetrics cluster for enterprise provides various metrics and statistics usage per tenant:
 
 `vminsert`:
-  * `vm_tenant_inserted_rows_total` - total number of inserted rows. Find out which tenant puts the most of the pressure on the storage.
+
+* `vm_tenant_inserted_rows_total` - total number of inserted rows. Find out which tenant puts the most of the pressure on the storage.
 
 `vmselect`:
-  * `vm_tenant_select_requests_duration_ms_total` - query latency. Helps to identify tenants with the heaviest queries.
-  * `vm_tenant_select_requests_total` - total number of requests. Discover which tenant sends the most of the queries and how it changes with time.
+
+* `vm_tenant_select_requests_duration_ms_total` - query latency. Helps to identify tenants with the heaviest queries.
+* `vm_tenant_select_requests_total` - total number of requests. Discover which tenant sends the most of the queries and how it changes with time.
 
 `vmstorage`:
-  * `vm_tenant_active_timeseries` - number of active time series. This metric correlates with memory usage, so can be used to find the most expensive tenant in terms of memory.
-  * `vm_tenant_used_tenant_bytes` - disk space usage. Helps to track disk space usage per tenant.
-  * `vm_tenant_timeseries_created_total` - number of new time series created. Helps to track
-    the churn rate per tenant, or identify inefficient usage of the system.
+
+* `vm_tenant_active_timeseries` - number of active time series. This metric correlates with memory usage, so can be used to find the most expensive tenant in terms of memory.
+* `vm_tenant_used_tenant_bytes` - disk space usage. Helps to track disk space usage per tenant.
+* `vm_tenant_timeseries_created_total` - number of new time series created. Helps to track
+  the churn rate per tenant, or identify inefficient usage of the system.
 
 Collect the metrics by any scrape agent you like (`vmagent`, `victoriametrics`, Prometheus, etc) and put into TSDB.
 It is ok to use existing cluster for storing such metrics, but make sure to use a different tenant for it to avoid collisions.
@@ -75,6 +78,7 @@ The metrics cover:
 Using the `/api/v1/query` endpoint, you can collect these metrics in your application to create a separate billing service.
 
 Example of billing logic:
+
 1. Understand the cost of running VictoriaMetrics, calculate the percentage of every tenant and divide the cost between organizations/teams. This way is suitable for internal usage.
 1. Define the Unit ( for example, 1 unit equals 1k active timeseries, 1k new series over 24h, 1GB of disk space, 1k datapoints per second, etc.) and price per Unit. Collect the data from the `/api/v1/query` endpoint of existent usage and calculate the number of units the tenant uses. This way is suitable when you provide VictoriaMetrics for your customers and inside the organization or teams.
 
@@ -83,7 +87,7 @@ Check the Billing section of [Grafana Dashboard](#visualization), it contains bi
 ## Integration with vmgateway
 
 `vmgateway` supports integration with Per Tenant Statistics data for rate limiting purposes.
-More information can be found [here](https://docs.victoriametrics.com/victoriametrics/vmgateway/)
+More information can be found in the [vmgateway documentation](https://docs.victoriametrics.com/victoriametrics/vmgateway/)
 
 ## Integration with vmalert
 
