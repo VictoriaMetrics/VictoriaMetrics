@@ -2355,7 +2355,7 @@ To update the documentation follow the steps below:
 Requirements for changes to docs:
 
 * Keep backward compatibility of existing links. Avoid changing anchors or deleting pages as they could have been
-  used or posted in other docs, GitHub issues, stackoverflow answers, etc.
+  used or posted in other docs, GitHub issues, Stack Overflow answers, etc.
 * Keep docs clear, concise and simple. Try using as simple wording as possible, without sacrificing clarity.
 * Keep docs consistent. When modifying existing docs, verify that other places referencing to this doc are still relevant.
 * Prefer improving the existing docs instead of adding new ones.
