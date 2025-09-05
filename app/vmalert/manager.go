@@ -38,7 +38,7 @@ func (m *manager) groupAPI(gID uint64) (*rule.ApiGroup, error) {
 	if !ok {
 		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
-	return rule.GroupToAPI(g), nil
+	return g.ToAPI(), nil
 }
 
 // ruleAPI generates apiRule object from alert by its ID(hash)
@@ -52,7 +52,7 @@ func (m *manager) ruleAPI(gID, rID uint64) (rule.ApiRule, error) {
 	}
 	for _, r := range g.Rules {
 		if r.ID() == rID {
-			return rule.RuleToAPI(r), nil
+			return r.ToAPI(), nil
 		}
 	}
 	return rule.ApiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
@@ -72,7 +72,7 @@ func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
 		if !ok {
 			continue
 		}
-		if apiAlert := rule.AlertToAPI(ar, aID); apiAlert != nil {
+		if apiAlert := ar.AlertToAPI(aID); apiAlert != nil {
 			return apiAlert, nil
 		}
 	}

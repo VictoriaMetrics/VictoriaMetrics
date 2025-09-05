@@ -47,8 +47,8 @@ var (
 		{Name: "Docs", URL: "https://docs.victoriametrics.com/victoriametrics/vmalert/"},
 	}
 	ruleTypeMap = map[string]string{
-		"alert":  rule.RuleTypeAlerting,
-		"record": rule.RuleTypeRecording,
+		"alert":  rule.TypeAlerting,
+		"record": rule.TypeRecording,
 	}
 )
 
@@ -347,7 +347,7 @@ func (rh *requestHandler) groups(rf *rulesFilter) []*rule.ApiGroup {
 		if !rf.matchesGroup(group) {
 			continue
 		}
-		g := rule.GroupToAPI(group)
+		g := group.ToAPI()
 		// the returned list should always be non-nil
 		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221
 		filteredRules := make([]rule.ApiRule, 0)
@@ -419,11 +419,11 @@ func (rh *requestHandler) groupAlerts() []rule.GroupAlerts {
 			if !ok {
 				continue
 			}
-			alerts = append(alerts, rule.RuleToAPIAlert(a)...)
+			alerts = append(alerts, a.AlertsToAPI()...)
 		}
 		if len(alerts) > 0 {
 			gAlerts = append(gAlerts, rule.GroupAlerts{
-				Group:  rule.GroupToAPI(g),
+				Group:  g.ToAPI(),
 				Alerts: alerts,
 			})
 		}
@@ -449,7 +449,7 @@ func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
 			if !ok {
 				continue
 			}
-			lr.Data.Alerts = append(lr.Data.Alerts, rule.RuleToAPIAlert(a)...)
+			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsToAPI()...)
 		}
 	}
 

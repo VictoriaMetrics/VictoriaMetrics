@@ -18,8 +18,10 @@ const (
 	// ParamRuleID is rule id key in url parameter
 	ParamRuleID = "rule_id"
 
-	RuleTypeRecording = "recording"
-	RuleTypeAlerting  = "alerting"
+	// TypeRecording is a RecordingRule type
+	TypeRecording = "recording"
+	// TypeAlerting is an AlertingRule type
+	TypeAlerting = "alerting"
 )
 
 // ApiGroup represents a Group for web view
@@ -195,94 +197,8 @@ func (ar ApiRule) WebLink() string {
 		ParamGroupID, ar.GroupID, ParamRuleID, ar.ID)
 }
 
-func RuleToAPI(r any) ApiRule {
-	if ar, ok := r.(*AlertingRule); ok {
-		return alertingToAPI(ar)
-	}
-	if rr, ok := r.(*RecordingRule); ok {
-		return recordingToAPI(rr)
-	}
-	return ApiRule{}
-}
-
-func recordingToAPI(rr *RecordingRule) ApiRule {
-	lastState := GetLastEntry(rr)
-	r := ApiRule{
-		Type:              RuleTypeRecording,
-		DatasourceType:    rr.Type.String(),
-		Name:              rr.Name,
-		Query:             rr.Expr,
-		Labels:            rr.Labels,
-		LastEvaluation:    lastState.Time,
-		EvaluationTime:    lastState.Duration.Seconds(),
-		Health:            "ok",
-		LastSamples:       lastState.Samples,
-		LastSeriesFetched: lastState.SeriesFetched,
-		MaxUpdates:        GetRuleStateSize(rr),
-		Updates:           GetAllRuleState(rr),
-
-		// encode as strings to avoid rounding
-		ID:        fmt.Sprintf("%d", rr.ID()),
-		GroupID:   fmt.Sprintf("%d", rr.GroupID),
-		GroupName: rr.GroupName,
-		File:      rr.File,
-	}
-	if lastState.Err != nil {
-		r.LastError = lastState.Err.Error()
-		r.Health = "err"
-	}
-	return r
-}
-
-// alertingToAPI returns Rule representation in form of ApiRule
-func alertingToAPI(ar *AlertingRule) ApiRule {
-	lastState := GetLastEntry(ar)
-	r := ApiRule{
-		Type:              RuleTypeAlerting,
-		DatasourceType:    ar.Type.String(),
-		Name:              ar.Name,
-		Query:             ar.Expr,
-		Duration:          ar.For.Seconds(),
-		KeepFiringFor:     ar.KeepFiringFor.Seconds(),
-		Labels:            ar.Labels,
-		Annotations:       ar.Annotations,
-		LastEvaluation:    lastState.Time,
-		EvaluationTime:    lastState.Duration.Seconds(),
-		Health:            "ok",
-		State:             "inactive",
-		Alerts:            RuleToAPIAlert(ar),
-		LastSamples:       lastState.Samples,
-		LastSeriesFetched: lastState.SeriesFetched,
-		MaxUpdates:        GetRuleStateSize(ar),
-		Updates:           GetAllRuleState(ar),
-		Debug:             ar.Debug,
-
-		// encode as strings to avoid rounding in JSON
-		ID:        fmt.Sprintf("%d", ar.ID()),
-		GroupID:   fmt.Sprintf("%d", ar.GroupID),
-		GroupName: ar.GroupName,
-		File:      ar.File,
-	}
-	if lastState.Err != nil {
-		r.LastError = lastState.Err.Error()
-		r.Health = "err"
-	}
-	// satisfy apiRule.State logic
-	if len(r.Alerts) > 0 {
-		r.State = notifier.StatePending.String()
-		stateFiring := notifier.StateFiring.String()
-		for _, a := range r.Alerts {
-			if a.State == stateFiring {
-				r.State = stateFiring
-				break
-			}
-		}
-	}
-	return r
-}
-
-// RuleToAPIAlert generates list of apiAlert objects from existing alerts
-func RuleToAPIAlert(ar *AlertingRule) []*ApiAlert {
+// AlertsToAPI returns list of ApiAlert objects from existing alerts
+func (ar *AlertingRule) AlertsToAPI() []*ApiAlert {
 	var alerts []*ApiAlert
 	for _, a := range ar.GetAlerts() {
 		if a.State == notifier.StateInactive {
@@ -294,7 +210,7 @@ func RuleToAPIAlert(ar *AlertingRule) []*ApiAlert {
 }
 
 // AlertToAPI generates apiAlert object from alert by its id(hash)
-func AlertToAPI(ar *AlertingRule, id uint64) *ApiAlert {
+func (ar *AlertingRule) AlertToAPI(id uint64) *ApiAlert {
 	a := ar.GetAlert(id)
 	if a == nil {
 		return nil
@@ -328,7 +244,8 @@ func NewAlertAPI(ar *AlertingRule, a *notifier.Alert) *ApiAlert {
 	return aa
 }
 
-func GroupToAPI(g *Group) *ApiGroup {
+// ToAPI returns ApiGroup representation of g
+func (g *Group) ToAPI() *ApiGroup {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	ag := ApiGroup{
@@ -353,7 +270,7 @@ func GroupToAPI(g *Group) *ApiGroup {
 	}
 	ag.Rules = make([]ApiRule, 0)
 	for _, r := range g.Rules {
-		ag.Rules = append(ag.Rules, RuleToAPI(r))
+		ag.Rules = append(ag.Rules, r.ToAPI())
 	}
 	return &ag
 }
