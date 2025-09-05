@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -84,6 +85,9 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
 		"Bigger responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs")
+	getScrapeWorkConcurrency = flag.Int("promscrape.getScrapeWorkConcurrency", 1, "The maximum number of concurrent goroutines used to generate scrape work during service discovery. "+
+		"Higher values may speed up target generation for configurations with many scrape_configs, but increase CPU and memory usage. "+
+		"Default is 1 (no concurrency). See https://docs.victoriametrics.com/victoriametrics/vmagent/#concurrent-scrape-target-generation")
 )
 
 var clusterMemberID int
@@ -821,25 +825,52 @@ type targetLabelsGetter interface {
 func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)), discoveryType string, prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
-	for _, sc := range cfg.ScrapeConfigs {
-		dstLen := len(dst)
-		ok := true
-		visitConfigs(sc, func(sdc targetLabelsGetter) {
-			if !ok {
-				return
-			}
-			targetLabels, err := sdc.GetLabels(cfg.baseDir)
-			if err != nil {
-				logger.Errorf("skipping %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
-				ok = false
-				return
-			}
-			dst = appendScrapeWorkForTargetLabels(dst, sc.swc, targetLabels, discoveryType)
-		})
-		if !ok {
-			dst = sc.appendPrevTargets(dst[:dstLen], swsPrevByJob, discoveryType)
-		}
+
+	// Generate ScrapeWork concurrently. The concurrency limit is promscrape.getScrapeWorkConcurrency.
+	// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8838
+	concurrencyLimit := *getScrapeWorkConcurrency
+	if concurrencyLimit < 1 {
+		concurrencyLimit = 1
 	}
+	sem := make(chan struct{}, concurrencyLimit)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, sc := range cfg.ScrapeConfigs {
+		wg.Add(1)
+		go func(sc *ScrapeConfig) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			dstLocal := make([]*ScrapeWork, 0)
+			dstLenLocal := len(dstLocal)
+			ok := true
+
+			visitConfigs(sc, func(sdc targetLabelsGetter) {
+				if !ok {
+					return
+				}
+				targetLabels, err := sdc.GetLabels(cfg.baseDir)
+				if err != nil {
+					logger.Errorf("skipping %s targets for job_name=%s because of error: %s",
+						discoveryType, sc.swc.jobName, err)
+					ok = false
+					return
+				}
+				dstLocal = appendScrapeWorkForTargetLabels(dstLocal, sc.swc, targetLabels, discoveryType)
+			})
+
+			if !ok {
+				dstLocal = sc.appendPrevTargets(dstLocal[:dstLenLocal], swsPrevByJob, discoveryType)
+			}
+
+			mu.Lock()
+			dst = append(dst, dstLocal...)
+			mu.Unlock()
+		}(sc)
+	}
+	wg.Wait()
 	return dst
 }
 
