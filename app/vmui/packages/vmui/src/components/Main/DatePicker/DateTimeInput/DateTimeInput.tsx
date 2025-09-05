@@ -17,6 +17,7 @@ interface DateTimeInputProps {
   value?:  string;
   label: string;
   pickerLabel: string;
+  dateOnly?: boolean;
   pickerRef: React.RefObject<HTMLDivElement>;
   onChange: (date: string) => void;
   onEnter: () => void;
@@ -24,6 +25,7 @@ interface DateTimeInputProps {
 
 const DateTimeInput: FC<DateTimeInputProps> = ({
   value = "",
+  dateOnly = false,
   label,
   pickerLabel,
   pickerRef,
@@ -52,6 +54,9 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
       setAwaitChangeForEnter(true);
     }
   };
+
+  const mask = dateOnly ? "9999-99-99" : "9999-99-99 99:99:99";
+  const placeholder = dateOnly ? "YYYY-MM-DD" : "YYYY-MM-DD HH:mm:ss";
 
   const handleChangeDate = (val: string) => {
     setMaskedValue(val);
@@ -89,8 +94,8 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
       <InputMask
         tabIndex={1}
         inputRef={setInputRef}
-        mask="9999-99-99 99:99:99"
-        placeholder="YYYY-MM-DD HH:mm:ss"
+        mask={mask}
+        placeholder={placeholder}
         value={maskedValue}
         autoCapitalize={"none"}
         inputMode={"numeric"}
