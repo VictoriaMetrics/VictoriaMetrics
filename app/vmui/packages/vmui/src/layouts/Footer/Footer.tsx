@@ -41,7 +41,7 @@ const Footer: FC<Props> = memo(({ links = footerLinksByDefault }) => {
     ))}
     <div className="vm-footer__copyright">
       &copy; {copyrightYears} VictoriaMetrics.
-      {version && <span className="vm-footer__version">&nbsp;{version}</span>}
+      {version && <span className="vm-footer__version">&nbsp;Version: {version}</span>}
     </div>
   </footer>;
 });
