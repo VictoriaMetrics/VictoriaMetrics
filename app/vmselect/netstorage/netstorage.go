@@ -33,6 +33,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -1545,14 +1546,21 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	addrs := &tbfwLocal.addrssPool[addrsIdx]
 
 	addrsPool := tbfwLocal.addrsPool
-	if uintptr(cap(addrsPool)) >= maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}) && len(addrsPool) == cap(addrsPool) {
-		// Allocate a new addrsPool in order to avoid slow allocation of an object
-		// bigger than maxFastAllocBlockSize bytes at append() below.
-		addrsPool = make([]tmpBlockAddr, 0, maxFastAllocBlockSize/unsafe.Sizeof(tmpBlockAddr{}))
-		tbfwLocal.addrsPool = addrsPool
-	}
 	if canAppendToBlockAddrPool(addrsPool, addrs.addrs) {
 		// It is safe appending addr to addrsPool, since there are no other items added there yet.
+		if len(addrsPool) == cap(addrsPool) {
+			// append() below is about to reallocate the addrsPool and copy its data to a new slice.
+			// This copying is wasteful here since already created addrs' slices keep referencing to the old addrsPool.
+			// Allocate a new slice with bigger capacity, copy only the current addrs.
+			n := maxFastAllocBlockSize / int(unsafe.Sizeof(tmpBlockAddr{}))
+			if len(addrsPool) >= n && len(addrs.addrs) < n {
+				// Allocate a new addrsPool in order to avoid slow allocation of an object
+				// bigger than maxFastAllocBlockSize bytes at append() below.
+				addrsPool = append(make([]tmpBlockAddr, 0, n), addrs.addrs...)
+			} else {
+				addrsPool = slicesutil.ExtendCapacity(addrs.addrs, len(addrsPool)+1-len(addrs.addrs))
+			}
+		}
 		addrsPool = append(addrsPool, addr)
 		tbfwLocal.addrsPool = addrsPool
 		addrs.addrs = addrsPool[len(addrsPool)-len(addrs.addrs)-1 : len(addrsPool) : len(addrsPool)]
@@ -1564,10 +1572,17 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 
 	if len(addrs.addrs) == 1 {
 		metricNamesBuf := tbfwLocal.metricNamesBuf
-		if cap(metricNamesBuf) >= maxFastAllocBlockSize && len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
-			// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
-			// bigger than maxFastAllocBlockSize bytes at append() below.
-			metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+		if len(metricNamesBuf)+len(metricName) > cap(metricNamesBuf) {
+			// append() below is about to reallocate the metricNamesBuf and copy its data to a new slice.
+			// This copying is wasteful here since already created strings keep referencing to the old metricNamesBuf.
+			// Allocate a new empty slice with bigger capacity.
+			if len(metricNamesBuf)+len(metricName) > maxFastAllocBlockSize {
+				// Allocate a new metricNamesBuf in order to avoid slow allocation of byte slice
+				// bigger than maxFastAllocBlockSize bytes at append() below.
+				metricNamesBuf = make([]byte, 0, maxFastAllocBlockSize)
+			} else {
+				metricNamesBuf = slicesutil.ExtendCapacity[byte](nil, len(metricNamesBuf)+len(metricName))
+			}
 		}
 		metricNamesBufLen := len(metricNamesBuf)
 		metricNamesBuf = append(metricNamesBuf, metricName...)
