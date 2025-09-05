@@ -1,16 +1,14 @@
 @use "src/styles/variables" as *;
 
-.vm-modal {
-  .vm-explore-alerts-group {
-    table {
-      width: auto;
-    }
+.vm-modal.vm-explore-alerts {
+  .vm-modal-content {
+    overflow-y: scroll;
   }
 }
 
 .vm-explore-alerts-group {
   row-gap: $padding-global;
-  margin-right: $padding-global;
+  margin: $padding-global;
   display: flex;
   flex-direction: column;
 
@@ -41,24 +39,13 @@
     }
   }
 
-  .vm-col-sm {
-    width: 10%;
-    white-space: nowrap;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .vm-col-md {
-    width: 15%;
-    white-space: nowrap;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 20%;
   }
 
   table {
     width: 100%;
+    table-layout: fixed;
     tr.hoverable {
       cursor: pointer;
       &:hover {
@@ -68,6 +55,10 @@
     td, th {
       line-height: 30px;
       padding: 4px $padding-small;
+      white-space: nowrap;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     th {
       font-weight: bold;

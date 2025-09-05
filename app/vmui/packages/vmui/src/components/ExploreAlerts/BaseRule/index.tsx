@@ -1,3 +1,4 @@
+import { useMemo } from "preact/compat";
 import "./style.scss";
 import { Rule as APIRule } from "../../../types";
 import { useNavigate, createSearchParams } from "react-router-dom";
@@ -25,6 +26,14 @@ const BaseRule = ({ item }: BaseRuleProps) => {
     };
   };
 
+  const ruleLabels = item?.labels || {};
+  const ruleLabelsItems = useMemo(() => {
+    return Object.fromEntries(Object.entries(ruleLabels).map(([name, value]) => [name, {
+      color: "passive" as BadgeColor,
+      value: value,
+    }]));
+  }, [ruleLabels]);
+
   const openQueryLink = () => {
     const params = {
       "g0.expr": query,
@@ -35,8 +44,11 @@ const BaseRule = ({ item }: BaseRuleProps) => {
 
   return (
     <div className="vm-explore-alerts-rule-item">
-      <div></div>
       <table>
+        <colgroup>
+          <col className="vm-col-md"/>
+          <col/>
+        </colgroup>
         <tbody>
           <tr>
             <td
@@ -55,7 +67,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
             </td>
           </tr>
           <tr>
-            <td className="vm-col-md">Query</td>
+            <td>Query</td>
             <td>
               <CodeExample
                 code={query}
@@ -64,33 +76,30 @@ const BaseRule = ({ item }: BaseRuleProps) => {
           </tr>
           {!!item.duration && (
             <tr>
-              <td className="vm-col-md">For</td>
+              <td>For</td>
               <td>{formatDuration(item.duration)}</td>
             </tr>
           )}
           {!!item.lastEvaluation && (
             <tr>
-              <td className="vm-col-md">Last evaluation</td>
+              <td>Last evaluation</td>
               <td>{dayjs(item.lastEvaluation).format("DD MMM YYYY HH:mm:ss")}</td>
             </tr>
           )}
           {!!item.lastError && item.health !== "ok" && (
             <tr>
-              <td className="vm-col-md">Last error</td>
+              <td>Last error</td>
               <td>
                 <Alert variant="error">{item.lastError}</Alert>
               </td>
             </tr>
           )}
-          {!!Object.keys(item?.labels || {}).length && (
+          {!!Object.keys(ruleLabelsItems).length && (
             <tr>
-              <td className="vm-col-md">Labels</td>
+              <td>Labels</td>
               <td>
                 <Badges
-                  items={Object.fromEntries(Object.entries(item.labels).map(([name, value]) => [name, {
-                    color: "passive",
-                    value: value,
-                  }]))}
+                  items={ruleLabelsItems}
                 />
               </td>
             </tr>
@@ -100,11 +109,15 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       {!!Object.keys(item?.annotations || {}).length && (
         <>
           <span className="title">Annotations</span>
-          <table className="fixed">
+          <table>
+            <colgroup>
+              <col className="vm-col-md"/>
+              <col/>
+            </colgroup>
             <tbody>
               {Object.entries(item.annotations || {}).map(([name, value]) => (
                 <tr key={name}>
-                  <td className="vm-col-md">{name}</td>
+                  <td>{name}</td>
                   <td>{value}</td>
                 </tr>
               ))}
@@ -115,14 +128,14 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       {!!item?.updates?.length && (
         <>
           <span className="title">{`Last updates ${item.updates.length}/${item.max_updates_entries}`}</span>
-          <table className="fixed">
+          <table>
             <thead>
               <tr>
-                <th className="vm-col-md">Updated at</th>
-                <th className="vm-col-md">Series returned</th>
-                <th className="vm-col-md">Series fetched</th>
-                <th className="vm-col-md">Duration</th>
-                <th className="vm-col-md">Executed at</th>
+                <th>Updated at</th>
+                <th>Series returned</th>
+                <th>Series fetched</th>
+                <th>Duration</th>
+                <th>Executed at</th>
               </tr>
             </thead>
             <tbody>
@@ -130,11 +143,11 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                 <tr
                   key={update.at}
                 >
-                  <td className="vm-col-md">{dayjs(update.time).format("DD MMM YYYY HH:mm:ss")}</td>
-                  <td className="vm-col-md">{update.samples}</td>
-                  <td className="vm-col-md">{update.series_fetched}</td>
-                  <td className="vm-col-md">{formatDuration(update.duration / 1e9)}</td>
-                  <td className="vm-col-md">{dayjs(update.at).format("DD MMM YYYY HH:mm:ss")}</td>
+                  <td>{dayjs(update.time).format("DD MMM YYYY HH:mm:ss")}</td>
+                  <td>{update.samples}</td>
+                  <td>{update.series_fetched}</td>
+                  <td>{formatDuration(update.duration / 1e9)}</td>
+                  <td>{dayjs(update.at).format("DD MMM YYYY HH:mm:ss")}</td>
                 </tr>
               ))}
             </tbody>
@@ -144,14 +157,21 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       {!!item?.alerts?.length && (
         <>
           <span className="title">Alerts</span>
-          <table className="fixed">
+          <table>
+            <colgroup>
+              <col className="vm-col-sm"/>
+              <col className="vm-col-sm"/>
+              <col className="vm-col-sm"/>
+              <col/>
+              <col className="vm-col-hidden"/>
+            </colgroup>
             <thead>
               <tr>
-                <th className="vm-col-sm">Active since</th>
-                <th className="vm-col-sm">State</th>
-                <th className="vm-col-sm">Value</th>
-                <th>Labels</th>
-                <th className="vm-col-hidden"></th>
+                <th>Active since</th>
+                <th>State</th>
+                <th>Value</th>
+                <th className="title">Labels</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -160,15 +180,15 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                   id={`alert-${alert.id}`}
                   key={alert.id}
                 >
-                  <td className="vm-col-sm">
+                  <td>
                     {dayjs(alert.activeAt).format("DD MMM YYYY HH:mm:ss")}
                   </td>
-                  <td className="vm-col-sm">
+                  <td>
                     <Badges
                       items={{ [alert.state]: { color: alert.state as BadgeColor } }}
                     />
                   </td>
-                  <td className="vm-col-sm">
+                  <td>
                     <Badges
                       items={{ [alert.value]: { color: "passive" } }}
                     />
@@ -182,7 +202,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                       }]))}
                     />
                   </td>
-                  <td className="vm-col-hidden">
+                  <td>
                     <Button
                       className="vm-button-borderless"
                       size="small"
