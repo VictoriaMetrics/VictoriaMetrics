@@ -85,13 +85,13 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/vmalert/rule", func(t *testing.T) {
-		a := rule.RuleToAPI(ar)
+		a := ar.ToAPI()
 		getResp(t, ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
-		r := rule.RuleToAPI(rr)
+		r := rr.ToAPI()
 		getResp(t, ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
 	t.Run("/vmalert/alert", func(t *testing.T) {
-		alerts := rule.RuleToAPIAlert(ar)
+		alerts := ar.AlertsToAPI()
 		for _, a := range alerts {
 			getResp(t, ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
 		}
@@ -170,7 +170,7 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
-		expRule := rule.RuleToAPI(ar)
+		expRule := ar.ToAPI()
 		gotRule := rule.ApiRule{}
 		getResp(t, ts.URL+"/"+expRule.APILink(), &gotRule, 200)
 
@@ -194,7 +194,7 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/group?groupID", func(t *testing.T) {
 		id := groupIDs[0]
 		g := m.groups[id]
-		expGroup := rule.GroupToAPI(g)
+		expGroup := g.ToAPI()
 		gotGroup := rule.ApiGroup{}
 		getResp(t, ts.URL+"/"+expGroup.APILink(), &gotGroup, 200)
 		if expGroup.ID != gotGroup.ID {
