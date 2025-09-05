@@ -530,6 +530,8 @@ func (tb *Table) MustClose() {
 	tb.partsLock.Unlock()
 
 	for _, pw := range fileParts {
+		//TODO(@rtm0): Add check that refCount == 1? Similar to how it is done
+		// for partitions in table.MustClose() in lib/storage/table.go.
 		pw.decRef()
 	}
 }
@@ -1553,9 +1555,6 @@ func mustOpenParts(path string) []*partWrapper {
 // or a problem with the underlying file system (such as insufficient
 // permissions).
 func (tb *Table) MustCreateSnapshotAt(dstDir string) {
-	logger.Infof("creating Table snapshot of %q...", tb.path)
-	startTime := time.Now()
-
 	var err error
 	srcDir := tb.path
 	srcDir, err = filepath.Abs(srcDir)
@@ -1594,8 +1593,6 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 	}
 
 	fs.MustSyncPathAndParentDir(dstDir)
-
-	logger.Infof("created Table snapshot of %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 }
 
 func mustWritePartNames(pws []*partWrapper, dstDir string) {
