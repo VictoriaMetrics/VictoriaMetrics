@@ -1,4 +1,4 @@
-import { FC } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
@@ -83,6 +83,13 @@ const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, ty
     }
   };
 
+  const badgesItems = useMemo(() => {
+    return Object.fromEntries(Object.entries(states || {}).map(([name,  value]) => [name, {
+      color: name.toLowerCase().replace(" ", "-") as BadgeColor,
+      value: value == 1 ? 0 : value,
+    }]));
+  }, [states]);
+
   return (
     <div
       className={headerClasses}
@@ -92,12 +99,11 @@ const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, ty
         {renderIcon()}
         <div className="vm-explore-alerts-item-header__name">{name}</div>
       </div>
-      <Badges
-        items={Object.fromEntries(Object.entries(states || {}).map(([name, value]) => [name, {
-          color: name.toLowerCase().replace(" ", "-") as BadgeColor,
-          value: value == 1 ? 0 : value,
-        }]))}
-      >
+      <div className="vm-explore-alerts-controls">
+        <Badges
+          align="end"
+          items={badgesItems}
+        />
         {onClose ? (
           <Button
             className="vm-back-button"
@@ -119,7 +125,7 @@ const ItemHeader: FC<ItemHeaderControlsProps> = ({ name, id, groupId, entity, ty
             onClick={openItemLink}
           />
         )}
-      </Badges>
+      </div>
     </div>
   );
 };
