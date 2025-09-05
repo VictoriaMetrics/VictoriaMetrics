@@ -973,6 +973,7 @@ var (
 
 func initVMUIConfig() {
 	var cfg struct {
+		Version string `json:"version"`
 		License struct {
 			Type string `json:"type"`
 		} `json:"license"`
@@ -987,6 +988,11 @@ func initVMUIConfig() {
 	err = json.Unmarshal(data, &cfg)
 	if err != nil {
 		logger.Fatalf("cannot parse vmui default config: %s", err)
+	}
+	cfg.Version = buildinfo.ShortVersion()
+	if cfg.Version == "" {
+		// buildinfo.ShortVersion() may return empty result for builds without tags
+		cfg.Version = buildinfo.Version
 	}
 	cfg.VMAlert.Enabled = len(*vmalertProxyURL) != 0
 	data, err = json.Marshal(&cfg)

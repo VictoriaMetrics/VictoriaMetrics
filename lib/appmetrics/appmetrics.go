@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,8 +26,6 @@ var exposeMetadataOnce sync.Once
 func initExposeMetadata() {
 	metrics.ExposeMetadata(*exposeMetadata)
 }
-
-var versionRe = regexp.MustCompile(`v\d+\.\d+\.\d+(?:-enterprise)?(?:-cluster)?`)
 
 // WritePrometheusMetrics writes all the registered metrics to w in Prometheus exposition format.
 func WritePrometheusMetrics(w io.Writer) {
@@ -58,7 +55,7 @@ func writePrometheusMetrics(w io.Writer) {
 	metrics.WritePrometheus(w, true)
 	metrics.WriteFDMetrics(w)
 
-	metrics.WriteGaugeUint64(w, fmt.Sprintf("vm_app_version{version=%q, short_version=%q}", buildinfo.Version, versionRe.FindString(buildinfo.Version)), 1)
+	metrics.WriteGaugeUint64(w, fmt.Sprintf("vm_app_version{version=%q, short_version=%q}", buildinfo.Version, buildinfo.ShortVersion()), 1)
 	metrics.WriteGaugeUint64(w, "vm_allowed_memory_bytes", uint64(memory.Allowed()))
 	metrics.WriteGaugeUint64(w, "vm_available_memory_bytes", uint64(memory.Allowed()+memory.Remaining()))
 	metrics.WriteGaugeUint64(w, "vm_available_cpu_cores", uint64(cgroup.AvailableCPUs()))
