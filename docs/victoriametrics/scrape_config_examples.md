@@ -19,7 +19,6 @@ aliases:
 - [HTTP-based target discovery](#http-based-target-discovery)
 - [Kubernetes target discovery](#kubernetes-target-discovery)
 
-
 ## Static configs
 
 Let's start from a simple case with scraping targets at pre-defined addresses.
@@ -35,7 +34,7 @@ scrape_configs:
 
 After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/) to the same directory:
 
-```
+```sh
 wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.125.1/victoria-metrics-linux-amd64-v1.125.1.tar.gz
 tar xzf victoria-metrics-linux-amd64-v1.125.1.tar.gz
 ```
@@ -43,7 +42,7 @@ tar xzf victoria-metrics-linux-amd64-v1.125.1.tar.gz
 Then start VictoriaMetrics and instruct it to scrape targets defined in `scrape.yaml` and save scraped metrics
 to local storage according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
 
-```
+```sh
 ./victoria-metrics-prod -promscrape.config=scrape.yaml
 ```
 
@@ -71,7 +70,7 @@ and full urls in scrape target lists.
 
 Send `SIGHUP` signal `victoria-metrics-prod` process, so it [reloads the updated `scrape.yaml`](https://docs.victoriametrics.com/victoriametrics/vmagent/#configuration-update):
 
-```
+```sh
 kill -HUP `pidof victoria-metrics-prod`
 ```
 
@@ -105,7 +104,7 @@ can efficiently process thousands of scrape configs in production.
 Every scrape config in the list **must** contain `job_name` field - its' value is used as [`job`](https://prometheus.io/docs/concepts/jobs_instances/) label
 in all the metrics scraped from targets defined in this scrape config.
 Every scrape config must contain at least a single section from [this list](https://docs.victoriametrics.com/victoriametrics/sd_configs/#supported-service-discovery-configs).
-Every scrape config may contain other options described [here](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
+Every scrape config may contain other options described in the [scrape configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
 
 In our case only [`static_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs) sections are used.
 These sections consist of a list of static configs according to [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs).
@@ -118,7 +117,6 @@ then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#
 
 Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets).
 It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) if needed.
-
 
 ## File-based target discovery
 
@@ -182,7 +180,7 @@ check for updates in `files` specified at [`file_sd_configs`](https://docs.victo
 every 30 seconds. This interval can be changed via `-promscrape.fileSDCheckInterval` command-line flag.
 For example, the following command starts VictoriaMetrics, which checks for updates in `file_sd_configs` every 5 seconds:
 
-```
+```sh
 ./victoria-metrics-prod -promscrape.config=scrape.yaml -promscrape.fileSDCheckInterval=5s
 ```
 
@@ -210,7 +208,6 @@ then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#
 
 Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets).
 It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) if needed.
-
 
 ## HTTP-based target discovery
 

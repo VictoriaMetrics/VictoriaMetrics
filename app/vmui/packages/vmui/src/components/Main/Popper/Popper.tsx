@@ -22,8 +22,8 @@ interface PopperProps {
   children: ReactNode
   open: boolean
   onClose: () => void
-  buttonRef: React.RefObject<HTMLElement>
-  placement?: "bottom-right" | "bottom-left" | "top-left" | "top-right" | "fixed"
+  buttonRef?: React.RefObject<HTMLElement>
+  placement?: "bottom-right" | "bottom-left" | "top-left" | "top-right" | "center-left" | "center-right" | "fixed"
   placementPosition?: { top: number, left: number } | null
   animation?: string
   offset?: { top: number, left: number }
@@ -32,6 +32,7 @@ interface PopperProps {
   title?: string
   disabledFullScreen?: boolean
   variant?: "default" | "dark"
+  classes?: string[]
 }
 
 const Popper: FC<PopperProps> = ({
@@ -46,6 +47,7 @@ const Popper: FC<PopperProps> = ({
   fullWidth,
   title,
   disabledFullScreen,
+  classes,
   variant
 }) => {
   const { isMobile } = useDeviceDetect();
@@ -78,6 +80,7 @@ const Popper: FC<PopperProps> = ({
   }, [popperRef]);
 
   const popperStyle = useMemo(() => {
+    if (!buttonRef) return {};
     const buttonEl = buttonRef.current;
 
     if (!buttonEl || !isOpen) return {};
@@ -90,8 +93,9 @@ const Popper: FC<PopperProps> = ({
       width: "auto"
     };
 
-    const needAlignRight = placement === "bottom-right" || placement === "top-right";
+    const needAlignRight = placement?.includes("right");
     const needAlignTop = placement?.includes("top");
+    const needAlignCenter = placement?.includes("center");
 
     const offsetTop = offset?.top || 0;
     const offsetLeft = offset?.left || 0;
@@ -101,6 +105,7 @@ const Popper: FC<PopperProps> = ({
 
     if (needAlignRight) position.left = buttonPos.right - popperSize.width;
     if (needAlignTop) position.top = buttonPos.top - popperSize.height - offsetTop;
+    if (needAlignCenter) position.top = buttonPos.top + (buttonPos.height - popperSize.height) / 2 - offsetTop;
 
     if (placement === "fixed" && placementPosition) {
       position.top = Math.max(placementPosition.top + offset.top, 0);
@@ -161,6 +166,10 @@ const Popper: FC<PopperProps> = ({
   useEventListener("scroll", handleClose);
   useEventListener("popstate", handlePopstate);
   useClickOutside(popperRef, handleClickOutside, buttonRef);
+  const classMap: Record<string, boolean> = {};
+  (classes || []).forEach((cls) => {
+    classMap[cls] = true;
+  });
 
   return (
     <>
@@ -171,6 +180,7 @@ const Popper: FC<PopperProps> = ({
             [`vm-popper_${variant}`]: variant,
             "vm-popper_mobile": isMobile && !disabledFullScreen,
             "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
+            ...classMap,
           })}
           ref={popperRef}
           style={(isMobile && !disabledFullScreen) ? {} : popperStyle}
