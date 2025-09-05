@@ -26,11 +26,26 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add an ability to merge client query args with the query args specified at backend urls. See (these docs)[https://docs.victoriametrics.com/victoriametrics/vmauth/#query-args-handling]. This allows merging [`extra_filters`](https://docs.victoriametrics.com/victorialogs/querying/#extra-filters) args specified at the particular VictoriaLogs backend in `vmauth` config and the `extra_filters` args specified in the [Grafana datasource for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/). This is needed for [#106 at VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/issues/106).
+* FEATURE: [dashboards/victoriametrics-cluster](https://grafana.com/grafana/dashboards/11176): add panel `Storage full ETA` in the vmstorage section to display the minimum approximate time across all the nodes to reach 100% of allowed disk capacity.
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show vmselect version in the vmui's footer.
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix possible partial rule update responses in group-related APIs during group updates in hot config reload. See [#9551](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9551)
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): properly apply rollup functions to metrics based on their name in vmui's [metrics explorer](https://docs.victoriametrics.com/#metrics-explorer). See [#9655](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9655) for details. Thanks to @wbwren-eric for the fix. 
+
+## [v1.125.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.1)
+
+Released at 2025-09-03
+
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly route requests for `prometheus/vmui/config.json` API. Follow-up after 7f15e9f64cb8dd2b2f0f1c10d178fd06ac7c636c.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix `workingsetcache` metrics. Previously, after cache rotation, metrics could be double-counted or inflated. See [9553](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9553) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix the issue where filtering on click does not work on the Explorer Cardinality page. See [#9674](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9674) for details.
 
 ## [v1.125.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.0)
 
 Released at 2025-08-29
+
+**Known issues: this release has a bug in vmui's [Cardinality Explorer](https://docs.victoriametrics.com/#cardinality-explorer) page that makes some UI elements unresponsive. The issue was addressed in [v1.125.1](https://docs.victoriametrics.com/CHANGELOG.html#v11251) release.**
 
 * FEATURE: upgrade Go builder from Go1.24.6 to Go1.25. See [Go1.25 release notes](https://tip.golang.org/doc/go1.25).
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): replace `Alerts` tab with `Alerting` tab in vmui. The new `Alerting` tab displays vmalert groups and rules directly in vmui interface without redirecting user to vmalert's WEB UI. Links of format `.*/prometheus/vmalert/.*` will continue working by redirecting to vmalert's UI. This functionality is available only if `-vmalert.proxyURL` is set on vmselect. Some functionality of the new `Alerting` tab requires vmalert to be of the same version as vmselect, or higher.
@@ -50,7 +65,7 @@ Released at 2025-08-29
 
 Released at 2025-08-15
 
-**Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): performance regression for queries that match [previously deleted time series](https://docs.victoriametrics.com/#how-to-delete-time-series). The issue affects installation that previously deleted big number of time series but continue querying them. More details in [#9602](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9602). The degradation will be addressed in upcomming releases.
+**Known issues: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): performance regression for queries that match [previously deleted time series](https://docs.victoriametrics.com/#how-to-delete-time-series). The issue affects installation that previously deleted big number of time series (can be checked via `vm_deleted_metrics_total` metric) but continue querying them. More details in [#9602](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9602). The degradation is addressed in [v1.125.1](https://docs.victoriametrics.com/CHANGELOG.html#v11251) release.**
 
 * SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
 
@@ -478,6 +493,16 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+
+## [v1.110.18](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.18)
+
+Released at 2025-09-3
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* SECURITY: upgrade Go `jwt`, `csrf` and `oauth2` dependencies.
 
 ## [v1.110.17](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.17)
 

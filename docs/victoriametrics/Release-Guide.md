@@ -13,26 +13,31 @@ aliases:
 - /release-guide/
 ---
 
-## Pre-reqs
+## PreRequisites
 
 1. Make sure you have these tools installed `golang`, `docker`, `make`, `git`, `gcc`, `ca-certificates`, `curl`, `zip`:
 1. Make sure you have `enterprise` remote configured
-   ```
+
+   ```sh
    git remote add enterprise <url>
    ```
+
 1. Replace `origin` remote with `opensource` to avoid accidentally pushing enterprise stuff to public repository.
-   ```
+
+   ```sh
    git remote remove origin
    git remote add opensource git@github.com:VictoriaMetrics/VictoriaMetrics.git
    ```
+
 1. Make sure you have singing key configured
 1. Make sure you have github token with at least `read:org, repo, write:packages` permissions exported under `GITHUB_TOKEN` env variable.
-   You can create token [here](https://github.com/settings/tokens)
+   You can create a token in your [profile settings](https://github.com/settings/tokens)
 1. Make sure you're [authorized](https://hub.docker.com/orgs/victoriametrics/settings/enforce-sign-in/windows) for pushing docker images to [docker.io](https://hub.docker.com/u/victoriametrics) and [quay.io](https://quay.io/organization/victoriametrics).
 
 ### For MacOS users
 
 Make sure you have GNU version of utilities `zip`, `tar`, `sha256sum`. To install them run the following commands:
+
 ```sh
 brew install coreutils
 brew install gnu-tar
@@ -40,12 +45,13 @@ export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
 ```
 
 Docker may need additional configuration changes:
-```sh 
+
+```sh
 docker buildx create --use --name=qemu
-docker buildx inspect --bootstrap  
+docker buildx inspect --bootstrap
 ```
 
-By default, docker on MacOS has limited amount of resources (CPU, mem) to use. 
+By default, docker on MacOS has limited amount of resources (CPU, mem) to use.
 Bumping the limits may significantly improve build speed.
 
 ## Release
@@ -60,30 +66,38 @@ and the candidate is deployed to the sandbox environment.
 
 1. Lock merges for 24h with `/mutex merge` in Slack.
 1. Make sure you get all changes fetched.
+
    ```sh
    git fetch --all
    ```
+
 1. Make sure tests pass on branches `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster`.
+
    ```sh
    make test-full
    make check-all
    ```
+
 1. Make sure all the changes are synced between `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster` branches.
    This serves as a double-check. The synchronization should already have been done by the person who merged a PR.
    You can use the following commands to gather the changes and then compare them using your favorite diff tool.
+
    ```sh
    git checkout master && git log v1.xx.y..HEAD --oneline > master_changelog.txt
    git checkout cluster && git log v1.xx.y-cluster..HEAD --oneline > cluster_changelog.txt
    git checkout enterprise-single-node && git log v1.xx.y-enterprise..HEAD --oneline > enterprise_changelog.txt
    git checkout enterprise-cluster && git log v1.xx.y-enterprise-cluster..HEAD --oneline > enterprise_cluster_changelog.txt
    ```
+
 1. Review bugfixes in the changelog to determine if they need to be backported to LTS versions.
    Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
    This serves as a double-check. The initial assessment should already have been done by the person who merged a PR.
 1. Re-build `vmui` static files. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650).
+
    ```sh
    make vmui-update
    ```
+
 1. Make sure that the release branches have no security issues.
 1. Update release versions if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md).
 1. Run `PKG_TAG=v1.xx.y make docs-update-version` command to update version help tooltips.
@@ -95,9 +109,9 @@ and the candidate is deployed to the sandbox environment.
    * `git tag -s v1.xx.y-enterprise-cluster` in `enterprise-cluster` branch
 1. Run `TAG=v1.xx.y EXTRA_DOCKER_TAG_SUFFIX=-rcY make publish-release`. This command performs the following tasks:
 
-   - a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
+   * a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
       This step can be run manually with the command `make release` from the needed git tag.
-   - b)  Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
+   * b)  Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
       for the given `TAG`, `TAG-cluster`, `TAG-enterprise` and `TAG-enterprise-cluster`.
       The resulting docker images will have special release candidate suffix for the given `EXTRA_DOCKER_TAG_SUFFIX`.
       The multi-platform Docker image is built for the following platforms:
@@ -110,18 +124,18 @@ and the candidate is deployed to the sandbox environment.
 
 1. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
 
-   - a) Create draft GitHub release with the name `TAG`. This step can be run manually
+   * a) Create draft GitHub release with the name `TAG`. This step can be run manually
       with the command `TAG=v1.xx.y make github-create-release`.
       The release id is stored at `/tmp/vm-github-release` file.
-   - b) Upload all the binaries and checksums created at step `11a` to that release.
+   * b) Upload all the binaries and checksums created at step `11a` to that release.
       This step can be run manually with the command `make github-upload-assets`.
       It is expected that the needed release id is stored at `/tmp/vm-github-release` file,
       which must be created at the step `a`.
       If the upload process is interrupted by any reason, then the following recovery steps must be performed:
-      - To delete the created draft release by running the command `make github-delete-release`.
+      * To delete the created draft release by running the command `make github-delete-release`.
         This command expects that the id of the release to delete is located at `/tmp/vm-github-release`
         file created at the step `a`.
-      - To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
+      * To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
         and all the needed assets are re-uploaded to it.
 
 1. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
@@ -142,8 +156,8 @@ Issues included in the release are closed, with the comment.
 1. Run `TAG=v1.xx.y EXTRA_DOCKER_TAG_SUFFIX=-rc1 make publish-final-images`. This command publishes the final release images from release candidate image for given `EXTRA_DOCKER_TAG_SUFFIX` and updates  `latest` Docker image tag for the given `TAG`.
    This command must be run only for the latest officially published release. It must be skipped when publishing other releases such as
    [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) or some test releases.
-1. Deploy the final images to the sandbox environment and perform a quick smoke test to verify basic functionality works. 
-1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics:
+1. Deploy the final images to the sandbox environment and perform a quick smoke test to verify basic functionality works.
+1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at [https://github.com/VictoriaMetrics/VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics):
 
    ```shell
    git push opensource v1.xx.y
@@ -163,7 +177,7 @@ Issues included in the release are closed, with the comment.
    **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
 
 1. Publish release by pressing "Publish release" green button on GitHub [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
-1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
+1. Update GitHub issues related to the new release. Usually, such issues have a label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such issues by mentioning which release they were included into, and remove the label. See an example of a [closed issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511).
 1. Bump VictoriaMetrics version at `deployment/docker/*.yml`. For example:
 
    ```shell
@@ -178,8 +192,8 @@ Issues included in the release are closed, with the comment.
 The operator repository [https://github.com/VictoriaMetrics/operator/](https://github.com/VictoriaMetrics/operator/)
 
 1. Bump the VictoriaMetrics version in [file `internal/config/config.go`](https://github.com/VictoriaMetrics/operator/blob/master/internal/config/config.go) with new release version for:
-   - `VM_METRICS_VERSION` key in `defaultEnvs` map.
-   - `BaseOperatorConf.MetricsVersion` default value.
+   * `VM_METRICS_VERSION` key in `defaultEnvs` map.
+   * `BaseOperatorConf.MetricsVersion` default value.
 1. Run `make docs`.
 1. Add the dependency to the new release to the tip section in `docs/CHANGELOG.md` ([example](https://github.com/VictoriaMetrics/operator/pull/1355/commits/1d7f4439c359b371b05a06e93f615dbcfb266cf5)).
 1. Commit and send a PR for review.
@@ -194,11 +208,11 @@ Bump the version of images
 
 Bump `appVersion` field in `Chart.yaml` with new release version.
 Add new line to "Next release" section in `CHANGELOG.md` about version update (the line must always start with "`-`"). Do **NOT** change headers in `CHANGELOG.md`.
-Bump `version` field in `Chart.yaml` with incremental semver version (based on the `CHANGELOG.md` analysis). 
+Bump `version` field in `Chart.yaml` with incremental semver version (based on the `CHANGELOG.md` analysis).
 
 Do these updates to the following charts:
 
-1. Update `vmagent` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/Chart.yaml) 
+1. Update `vmagent` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/Chart.yaml)
 1. Update `vmalert` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/Chart.yaml)
 1. Update `vmauth` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/Chart.yaml)
 1. Update `cluster` chart `version` and `appVersion` in  [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/Chart.yaml)
@@ -207,7 +221,7 @@ Do these updates to the following charts:
 1. Update `k8s-stack` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/Chart.yaml)
 1. Update `single` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/Chart.yaml)
 
-See commit example [here](https://github.com/VictoriaMetrics/helm-charts/commit/0ec3ab81795cb098d4741451b66886cc6d9be36c).
+See commit example of a [helm chart](https://github.com/VictoriaMetrics/helm-charts/commit/0ec3ab81795cb098d4741451b66886cc6d9be36c).
 
 Once updated, run the following commands:
 
@@ -216,7 +230,7 @@ Once updated, run the following commands:
    ![release helm charts](Release-Guide_helm-release.webp)
 1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
-#### Ansible Roles 
+#### Ansible Roles
 
 > Note that ansible playbooks versioning uses its own versioning scheme. The version of the playbooks is not tied to the version of VictoriaMetrics components.
 

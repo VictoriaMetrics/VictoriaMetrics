@@ -35,12 +35,14 @@ const GroupHeaderHeader: FC<GroupHeaderControlsProps> = ({ group }) => {
           <div className="vm-explore-alerts-group-header__file">{group.file}</div>
         )}
       </div>
-      <Badges
-        items={Object.fromEntries(Object.entries(group.states || {}).map(([name, value]) => [name.toLowerCase(), {
-          color: name.toLowerCase().replace(" ", "-") as BadgeColor,
-          value: value,
-        }]))}
-      >
+      <div className="vm-explore-alerts-controls">
+        <Badges
+          align="end"
+          items={Object.fromEntries(Object.entries(group.states || {}).map(([name, value]) => [name.toLowerCase(), {
+            color: name.toLowerCase().replace(" ", "-") as BadgeColor,
+            value: value,
+          }]))}
+        />
         <Button
           className="vm-button-borderless"
           size="small"
@@ -49,7 +51,7 @@ const GroupHeaderHeader: FC<GroupHeaderControlsProps> = ({ group }) => {
           startIcon={<DetailsIcon />}
           onClick={openGroupModal}
         />
-      </Badges>
+      </div>
     </div>
   );
 };

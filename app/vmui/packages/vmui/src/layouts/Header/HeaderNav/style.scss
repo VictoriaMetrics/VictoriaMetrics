@@ -20,6 +20,14 @@
     }
   }
 
+  &_column &-item-submenu {
+    display: none;
+  }
+
+  &_column &-item_open &-item-submenu {
+    display: grid;
+  }
+
   &-item {
     position: relative;
     padding: $padding-global $padding-small;
@@ -44,6 +52,7 @@
     }
 
     &_active {
+      padding: $padding-global $padding-small 10px $padding-small;
       border-bottom: 2px solid rgba($color-black, 0.2);
     }
 
@@ -60,7 +69,6 @@
 
     &-submenu {
       display: grid;
-      white-space: nowrap;
       padding: $padding-small;
       color: $color-white;
       border-radius: $border-radius-small;

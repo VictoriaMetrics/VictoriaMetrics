@@ -183,6 +183,7 @@ export interface AppConfig {
   vmalert?: {
     enabled: boolean;
   };
+  version?: string;
 }
 
 export interface Group {
