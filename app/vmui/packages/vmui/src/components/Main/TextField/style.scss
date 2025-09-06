@@ -66,8 +66,8 @@
   &__helper-text,
   &__warning,
   &__error {
-    position: relative;
-    top: calc($font-size-small/-2);
+    position: absolute;
+    bottom: calc($font-size-small/-2);
     width: fit-content;
     overflow-wrap: anywhere;
     pointer-events: auto;
