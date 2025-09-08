@@ -2197,33 +2197,27 @@ See the full description of [command-line flags](#list-of-command-line-flags).
 ### From VictoriaMetrics
 
 The simplest way to migrate data from one single-node (source) to another (destination), or from one vmstorage node
-to another do the following:
+to another is to do the following:
 
 1. Stop the VictoriaMetrics (source) with `kill -INT`;
 1. Copy (via [rsync](https://en.wikipedia.org/wiki/Rsync) or any other tool) the entire folder specified
-via `-storageDataPath` from the source node to the empty folder at the destination node.
+via `-storageDataPath` from the source node to **an empty folder** at the destination node.
 1. Once copy is done, stop the VictoriaMetrics (destination) with `kill -INT` and verify that
 its `-storageDataPath` points to the copied folder from p.2;
 1. Start the VictoriaMetrics (destination). The copied data should be now available.
 
 Things to consider when copying data:
 
-1. Data formats between single-node and vmstorage node aren't compatible and can't be copied.
-1. Copying data folder means complete replacement of the previous data on destination VictoriaMetrics.
+* Data formats between single-node and vmstorage node aren't compatible and can't be copied.
+* Copying a data folder means complete replacement of the previous data on destination VictoriaMetrics.
+* Data can't be mixed: make sure that the destination folder **is empty** before copying.
 
-For more complex scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction
-of data - see [vmctl. Migrating data from VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
+For scenarios like single-to-cluster, cluster-to-single, re-sharding or migrating only a fraction of data: 
+[see how to migrate data from VictoriaMetrics via vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/victoriametrics/).
 
 ### From other systems
 
-Use [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) for data migration. It supports the following data migration types:
-
-* From Prometheus to VictoriaMetrics
-* From InfluxDB to VictoriaMetrics
-* From VictoriaMetrics to VictoriaMetrics
-* From OpenTSDB to VictoriaMetrics
-
-See [vmctl docs](https://docs.victoriametrics.com/victoriametrics/vmctl/) for more details.
+Use [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) to migrate data from other systems to VictoriaMetrics.
 
 ## Backfilling
 
