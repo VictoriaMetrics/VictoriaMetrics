@@ -78,7 +78,7 @@ then import it into VM using `vmctl` in [Prometheus mode](https://docs.victoriam
     1. Import data into VictoriaMetrics with `vmctl`.
 
 2. Import using `vmctl`.
-    1. Follow the [Quick Start instructions](https://docs.victoriametrics.com/victoriametrics/vmctl#quick-start) to get `vmctl` on your machine.
+    1. Follow the [Quick Start instructions](https://docs.victoriametrics.com/victoriametrics/vmctl/#quick-start) to get `vmctl` on your machine.
     1. Use [Prometheus](https://docs.victoriametrics.com/victoriametrics/vmctl/prometheus/) mode to import data:
     ```sh
     vmctl prometheus --prom-snapshot thanos-data --vm-addr http://victoria-metrics:8428
@@ -106,7 +106,7 @@ The importing process example for local installation of Thanos and single-node V
 --vm-addr=http://127.0.0.1:8428 \
 ```
 
-_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl#configuring-victoriametrics)._
+_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl/#configuring-victoriametrics)._
 
 On the [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy side you will see logs like:
 ```sh

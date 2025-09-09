@@ -1202,7 +1202,7 @@ Moved to [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/
 
 ###### Google PubSub integration
 
-Moved to [integrations/pubsub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub).
+Moved to [integrations/pubsub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/).
 
 ###### Reading metrics from PubSub
 
@@ -1226,7 +1226,7 @@ Moved to [integrations/pubsub/#producer-command-line-flags](https://docs.victori
 
 ###### Kafka integration
 
-Moved to [integrations/kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka).
+Moved to [integrations/kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/).
 
 ###### Reading metrics from Kafka
 
