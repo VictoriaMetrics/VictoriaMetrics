@@ -61,7 +61,7 @@ writer:
 
 ## Sub-configuration
 
-[Global configuration](#global-configuration) file can be split into `N` >= 1 validated **sub-configurations** based on logical entities such as [schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/), [queries](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries), [models](https://docs.victoriametrics.com/anomaly-detection/components/models), and [extra_filters](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=extra_filters#config-parameters). Each sub-configuration remains functional and respects the many-to-many relationships between models, queries, and schedulers. A minimal valid sub-configuration consists of a single [model type](https://docs.victoriametrics.com/anomaly-detection/components/models) running on a single [query](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) and attached to a single [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/).
+[Global configuration](#global-configuration) file can be split into `N` >= 1 validated **sub-configurations** based on logical entities such as [schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/), [queries](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries), [models](https://docs.victoriametrics.com/anomaly-detection/components/models), and [extra_filters](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters). Each sub-configuration remains functional and respects the many-to-many relationships between models, queries, and schedulers. A minimal valid sub-configuration consists of a single [model type](https://docs.victoriametrics.com/anomaly-detection/components/models) running on a single [query](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) and attached to a single [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/).
 
 [Example config above](#configuration-example) can be split into 2 sub-configurations (by queries):
 
@@ -72,7 +72,7 @@ writer:
 
 `vmanomaly` supports **horizontal scalability** {{% available_from "v1.21.0" anomaly %}} by sharding [sub-config entities](#sub-configuration), enabling workload distribution across multiple nodes while preserving consistency and maintaining a single global configuration entry point.
 
-A `vmanomaly` [global YAML configuration](#global-configuration) can be split into `N` validated [sub-configurations](#sub-configuration) based on logical entities such as [schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/), [queries](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries), [models](https://docs.victoriametrics.com/anomaly-detection/components/models), and [extra_filters](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=extra_filters#config-parameters).
+A `vmanomaly` [global YAML configuration](#global-configuration) can be split into `N` validated [sub-configurations](#sub-configuration) based on logical entities such as [schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/), [queries](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries), [models](https://docs.victoriametrics.com/anomaly-detection/components/models), and [extra_filters](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters).
 
 These [sub-configurations](#sub-configuration) can be assigned to a specific shard (node) indexed from `{0, K-1}` across `K` available nodes. 
 
@@ -105,7 +105,7 @@ vmanomaly_config_entities{preset="default",scope="shard"} 4.0
 
 Meaning, `vmanomaly` runs in sharded mode, where this particular shard uses 4 out of 8 [sub-configurations](#sub-configuration), received after [global config](#global-configuration) split.
 
-For more details, refer to the `vmanomaly_config_entities` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/?highlight=vmanomaly_config_entities#startup-metrics).
+For more details, refer to the `vmanomaly_config_entities` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics).
 
 ---
 
