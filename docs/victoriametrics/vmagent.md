@@ -74,7 +74,7 @@ and sending the data to the Prometheus-compatible remote storage:
   The `-remoteWrite.url` may refer to [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address. See [these docs](#srv-urls) for details.
 
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
-to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `victoria-metrics-host:8428`:
+to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) located at `victoria-metrics-host:8428`:
 
 ```sh
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
