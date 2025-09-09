@@ -26,7 +26,7 @@ Configure `-vmalert.proxyURL` on VictoriaMetrics [single-node](https://docs.vict
 or [vmselect in cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert)
 to proxy requests to `vmalert`. Proxying is needed for the following cases:
 * to proxy requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* to access `vmalert`'s UI through [vmui](https://docs.victoriametrics.com/#vmui).
+* to access `vmalert`'s UI through [vmui](https://docs.victoriametrics.com/victoriametrics/#vmui).
 
 [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_intro) 
 provides out-of-the-box alerting functionality based on `vmalert`. This service simplifies the setup 
@@ -827,7 +827,7 @@ max range per request:  8h20m0s
 regardless of the `concurrency` setting. This ensures that any potential chaining between rules is preserved (see `-replay.rulesDelay`).
 If you want rules to run concurrently based on the `concurrency` setting, set `-replay.rulesDelay=0`.
 
-vmalert sends rule's expression to [/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) endpoint
+vmalert sends rule's expression to [/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) endpoint
 of the configured `-datasource.url`. Returned data is then processed according to the rule type and
 backfilled to `-remoteWrite.url` via [remote Write protocol](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations).
 vmalert respects `evaluationInterval` value set by flag or per-group during the replay.

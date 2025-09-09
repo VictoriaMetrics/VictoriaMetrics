@@ -19,8 +19,8 @@ See full list of DataDog-related configuration flags by running:
 /path/to/victoria-metrics-prod --help | grep datadog
 ```
 
-See how to send data to VictoriaMetrics via [DataDog "submit metrics" API](https://docs.victoriametrics.com/url-examples/#datadogapiv2series).
-The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples/#apiv1export).
+See how to send data to VictoriaMetrics via [DataDog "submit metrics" API](https://docs.victoriametrics.com/victoriametrics/url-examples/#datadogapiv2series).
+The imported data can be read via [export API](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export).
 
 ## Sending metrics to VictoriaMetrics
 
@@ -98,9 +98,9 @@ For example, `/datadog/api/v2/series?extra_label=foo=bar` would add `{foo="bar"}
 DataDog agent sends the [configured tags](https://docs.datadoghq.com/getting_started/tagging/) to
 undocumented endpoint - `/datadog/intake`. This endpoint isn't supported by VictoriaMetrics yet.
 This prevents from adding the configured tags to DataDog agent data sent into VictoriaMetrics.
-The workaround is to run a sidecar [vmagent](https://docs.victoriametrics.com/vmagent/) alongside every DataDog agent,
+The workaround is to run a sidecar [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) alongside every DataDog agent,
 which must run with `DD_DD_URL=http://localhost:8429/datadog` environment variable.
 The sidecar `vmagent` must be configured with the needed tags via `-remoteWrite.label` command-line flag and must forward
 incoming data with the added tags to a centralized VictoriaMetrics specified via `-remoteWrite.url` command-line flag.
 
-See [how to add labels to metrics](https://docs.victoriametrics.com/vmagent/#adding-labels-to-metrics) on ingestion.
+See [how to add labels to metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics) on ingestion.

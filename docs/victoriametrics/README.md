@@ -102,7 +102,7 @@ See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/victoria
 
 ## Components
 
-VictoriaMetrics ecosystem contains the following components additionally to [single-node VictoriaMetrics](https://docs.victoriametrics.com/):
+VictoriaMetrics ecosystem contains the following components additionally to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/):
 
 * [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) - lightweight agent for receiving metrics via [pull-based](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)
   and [push-based](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-push-data-to-vmagent) protocols, transforming and sending them to the configured Prometheus-compatible
@@ -296,7 +296,7 @@ VMUI provides the following features:
   * [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) {{% available_from "v1.105.0" %}} - debug [downsampling](#downsampling) configs.
   * [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) {{% available_from "v1.105.0" %}} - debug [retention filter](#retention-filters) configs.
 * `Alerting` {{% available_from "#" %}} for displaying groups and rules from the [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) service.
-  The tab is available only if [VictoriaMetrics single-node](https://docs.victoriametrics.com/#vmalert) or
+  The tab is available only if [VictoriaMetrics single-node](https://docs.victoriametrics.com/victoriametrics/#vmalert) or
   [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert) are configured with `-vmalert.proxyURL` command-line flag.
 
 **Querying:**
@@ -1850,7 +1850,7 @@ The usage stats for a metric won't update in these two cases:
 
 * Querying a metric with non-matching filters. For example, querying for `vm_log_messages_total{level!="info"}` won't update usage stats
   for `vm_log_messages_total` if there is no `{level!="info"}` series yet.
-* The query response is fully cached in the [rollup result cache](https://docs.victoriametrics.com/#rollup-result-cache).
+* The query response is fully cached in the [rollup result cache](https://docs.victoriametrics.com/victoriametrics/#rollup-result-cache).
 
 To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint for
 a single-node VictoriaMetrics (or at `http://<vmselect>:8481/select/<accountID>/prometheus/api/v1/status/metric_names_stats` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)).
@@ -2333,14 +2333,14 @@ Report bugs and propose new features in our [GitHub Issues](https://github.com/V
 
 ## Documentation
 
-VictoriaMetrics documentation is available at [https://docs.victoriametrics.com/](https://docs.victoriametrics.com/).
+VictoriaMetrics documentation is available at [https://docs.victoriametrics.com/victoriametrics/](https://docs.victoriametrics.com/victoriametrics/).
 It is built from `*.md` files located in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) folder
 and gets automatically updated once changes are merged to [master](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master) branch.
 To update the documentation follow the steps below:
 
 * [Fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-forks)
   VictoriaMetrics repo and apply changes to the docs:
-  * To update [the main page](https://docs.victoriametrics.com/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/README.md).
+  * To update [the main page](https://docs.victoriametrics.com/victoriametrics/) modify [this file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/README.md).
   * To update other pages, apply changes to the corresponding file in [docs folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
 * If your changes contain an image then see [images in documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#images-in-documentation).
 * Create [a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request)

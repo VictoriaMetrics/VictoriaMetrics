@@ -169,7 +169,7 @@ func usage() {
 	const s = `
 victoria-metrics is a time series database and monitoring solution.
 
-See the docs at https://docs.victoriametrics.com/
+See the docs at https://docs.victoriametrics.com/victoriametrics/
 `
 	flagutil.Usage(s)
 }

@@ -41,7 +41,7 @@ VictoriaMetrics sets the current time to the ingested samples if the timestamp i
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
 
 VictoriaMetrics single-node or vmselect can read the ingested data back.
-Try reading the data via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format) endpoint:
+Try reading the data via [/api/v1/export](https://docs.victoriametrics.com/victoriametrics/#how-to-export-data-in-json-line-format) endpoint:
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
@@ -52,7 +52,7 @@ The `/api/v1/export` endpoint should return the following response:
 {"metric":{"__name__":"foo.bar.baz","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1560277406000]}
 ```
 
-See also [Graphite relabeling](https://docs.victoriametrics.com/vmagent/#graphite-relabeling).
+See also [Graphite relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#graphite-relabeling).
 
 ## Querying
 
@@ -63,10 +63,10 @@ VictoriaMetrics **single-node** or **vmselect** support the following query APIs
 
 ## Selecting Graphite metrics
 
-VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/metricsql/).
+VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series with Graphite-compatible filters in [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
 For example, `{__graphite__="foo.*.bar"}` is equivalent to `{__name__=~"foo[.][^.]*[.]bar"}`, but works faster and is easier 
 to use when migrating from Graphite to VictoriaMetrics. See [docs for Graphite paths and wildcards](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards).
-VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/metricsql/#label_graphite_group) 
+VictoriaMetrics also supports [label_graphite_group](https://docs.victoriametrics.com/victoriametrics/metricsql/#label_graphite_group) 
 function for extracting the given groups from Graphite metric name.
 
 The `__graphite__` pseudo-label supports e.g. alternate regexp filters such as `(value1|...|valueN)`.
@@ -91,12 +91,12 @@ All Graphite handlers can be prepended with `/graphite` prefix. For example, bot
 VictoriaMetrics accepts optional query args: `extra_label=<label_name>=<label_value>` and `extra_filters[]=series_selector`
 for all the Graphite APIs. These args can be used for limiting the scope of time series visible to the given tenant.
 It is expected that the `extra_label` query arg is automatically set by auth proxy sitting in front of VictoriaMetrics.
-See [vmauth](https://docs.victoriametrics.com/vmauth/) and [vmgateway](https://docs.victoriametrics.com/vmgateway/) as examples of such proxies.
+See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) as examples of such proxies.
 
 [Contact us](mailto:sales@victoriametrics.com) if you need assistance with such a proxy.
 
 VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series with Graphite-compatible filters 
-in [MetricsQL](https://docs.victoriametrics.com/metricsql/). See [Selecting Graphite metrics](#selecting-graphite-metrics).
+in [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/). See [Selecting Graphite metrics](#selecting-graphite-metrics).
 
 ### Render API
 
