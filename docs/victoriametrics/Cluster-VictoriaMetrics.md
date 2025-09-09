@@ -1135,6 +1135,9 @@ Below is the output for `/path/to/vminsert -help`:
      Whether to disable re-routing when some of vmstorage nodes are unavailable. Disabled re-routing stops ingestion when some storage nodes are unavailable. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableRerouting
   -dropSamplesOnOverload
      Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded. The drop of samples happens before the replication, so it's not recommended to use this flag with -replicationFactor enabled.
+   -dropSamplesOlderThan value
+     Whether to drop samples older than specified before sending them to vmstorage. May help to decrease the number of small parts for old partitions, therefore decreasing necessity for unnecessary small/big merges.
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
