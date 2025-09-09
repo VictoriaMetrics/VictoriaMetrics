@@ -227,7 +227,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 ### Basic Auth proxy
 
 `vmauth` can authorize access to backends depending on the provided [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) request headers.
-For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 if they contain Basic Auth header with the given `username` and `password`:
 
 ```yaml
@@ -242,7 +242,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 ### Bearer Token auth proxy
 
 `vmauth` can authorize access to backends depending on the provided `Bearer Token` request headers.
-For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+For example, the following [config](#auth-config) proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 if they contain the given `bearer_token`:
 
 ```yaml
@@ -322,7 +322,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 `vmauth` can be configured for adding some mandatory query args before proxying requests to backends.
 For example, the following [config](#auth-config) adds [`extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
-to all the requests, which are proxied to [single-node VictoriaMetrics](https://docs.victoriametrics.com/):
+to all the requests, which are proxied to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/):
 
 ```yaml
 unauthorized_user:

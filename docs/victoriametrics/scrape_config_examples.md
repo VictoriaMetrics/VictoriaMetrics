@@ -32,7 +32,7 @@ scrape_configs:
     - localhost:9100
 ```
 
-After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/) to the same directory:
+After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the same directory:
 
 ```sh
 wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.125.1/victoria-metrics-linux-amd64-v1.125.1.tar.gz
@@ -98,7 +98,7 @@ scrape_configs:
 
 The [`scrape_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) section contains a list of scrape configs.
 Our `scrape.yaml` file contains two scrape configs - for `job_name: node-exporter` and for `job_name: victoriametrics`.
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can efficiently process thousands of scrape configs in production.
 
 Every scrape config in the list **must** contain `job_name` field - its' value is used as [`job`](https://prometheus.io/docs/concepts/jobs_instances/) label
@@ -111,7 +111,7 @@ These sections consist of a list of static configs according to [these docs](htt
 Every static config contains a list of `targets`, which need to be scraped. The target address is used as [`instance`](https://prometheus.io/docs/concepts/jobs_instances/)
 label in all the metrics scraped from the target.
 
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can efficiently process tens of thousands of targets in production. If you need scraping more targets,
 then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
@@ -123,7 +123,7 @@ It is possible to modify scrape urls via [relabeling](https://docs.victoriametri
 It may be not so convenient updating `scrape.yaml` file with [`static_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs)
 every time new scrape target is added, changed or removed. In this case [`file_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs)
 can come to rescue. It allows defining a list of scrape targets in `JSON` files, and automatically updating the list of scrape targets
-at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) side
+at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) side
 when the corresponding `JSON` files are updated.
 
 Let's create `node_exporter_targets.json` file with the following contents:
@@ -146,7 +146,7 @@ scrape_configs:
     - node_exporter_targets.json
 ```
 
-Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
+Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
 
 ```yaml
 # Download and unpack single-node VictoriaMetrics
@@ -175,7 +175,7 @@ and full urls in scrape target lists.
 
 Save the updated `node_exporter_targets.json`, wait for 30 seconds and then refresh the `http://localhost:8428/targets` page.
 Now this page must contain all the targets defined in the updated `node_exporter_targets.json`.
-By default [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+By default [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 check for updates in `files` specified at [`file_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs)
 every 30 seconds. This interval can be changed via `-promscrape.fileSDCheckInterval` command-line flag.
 For example, the following command starts VictoriaMetrics, which checks for updates in `file_sd_configs` every 5 seconds:
@@ -202,7 +202,7 @@ scrape_configs:
 It is possible to specify directories with `*` wildcards for distinct sets of targets at `file_sd_configs`.
 See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs) for details.
 
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can efficiently scrape tens of thousands of scrape targets. If you need scraping more targets,
 then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
