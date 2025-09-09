@@ -463,6 +463,9 @@ type storageNode struct {
 	// The number of rows dropped on overload if -dropSamplesOnOverload is set.
 	rowsDroppedOnOverload *metrics.Counter
 
+	// The number of rows dropped on overload if -dropSamplesOlderThan is set.
+	rowsDroppedOnAge *metrics.Counter
+
 	// The number of rows rerouted from the given vmstorage node
 	// to healthy nodes when the given node was unhealthy.
 	rowsReroutedFromHere *metrics.Counter
@@ -547,6 +550,7 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q}`, addr)),
 			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q}`, addr)),
 			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q}`, addr)),
+			rowsDroppedOnAge:      ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_age{name="vminsert", addr=%q}`, addr)),
 			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
 			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
 			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
