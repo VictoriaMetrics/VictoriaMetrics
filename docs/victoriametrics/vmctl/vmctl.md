@@ -360,4 +360,4 @@ Moved to [vmctl/victoriametrics](https://docs.victoriametrics.com/victoriametric
 
 ###### Tuning
 
-Moved to [vmctl#migration-tips](https://docs.victoriametrics.com/victoriametrics/vmctl#migration-tips).
+Moved to [vmctl#migration-tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips).

@@ -309,7 +309,7 @@ kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_
 ```
 
 Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
-See full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api.html).
+See full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api/).
 
 ### FIPS Compatibility
 

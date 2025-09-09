@@ -143,7 +143,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    for details. The raw samples can be also viewed in [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) in `Raw Query` tab and shared via `export` button.
 
    If you migrate from InfluxDB, then pass `-search.setLookbackToStep` command-line flag to single-node VictoriaMetrics
-   or to `vmselect` in VictoriaMetrics cluster. See also [how to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx.html).
+   or to `vmselect` in VictoriaMetrics cluster. See also [how to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx/).
 
 1. Sometimes response caching may lead to unexpected results when samples with older timestamps
    are ingested into VictoriaMetrics (aka [backfilling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling)).
