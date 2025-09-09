@@ -295,7 +295,7 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 **Writer**:
 - Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
 - Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) for writing the results.
-- Adding `for` label to `metric_format` argument is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Please refer to `metric_format` argument description [here](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters).
+- Adding `for` label to `metric_format` argument is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Please refer to `metric_format` argument description [here](https://docs.victoriametrics.com/anomaly-detection/components/writer/#config-parameters).
 
 **Models**:
 - Configure built-in models hyperparameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section. Where possible, incorporate [domain knowledge](https://docs.victoriametrics.com/anomaly-detection/faq/#incorporating-domain-knowledge) for optimal results.

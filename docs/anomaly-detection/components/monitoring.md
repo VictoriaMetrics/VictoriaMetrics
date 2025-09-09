@@ -819,7 +819,7 @@ The `reader` component logs events during the process of querying VictoriaMetric
 ---
 
 
-**No data found (False)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=query_from_last_seen_timestamp#config-parameters) VmReader flag. A `warning` log is generated when no data is found in the requested range. This could indicate that the query was misconfigured or that no new data exists for the time period requested. Log message format:
+**No data found (False)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) VmReader flag. A `warning` log is generated when no data is found in the requested range. This could indicate that the query was misconfigured or that no new data exists for the time period requested. Log message format:
 
 ```text
 [Scheduler {{scheduler_alias}}] No data between {{start_s}} and {{end_s}} for query "{{query_key}}"
@@ -827,7 +827,7 @@ The `reader` component logs events during the process of querying VictoriaMetric
 
 ---
 
-**No unseen data found (True)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=query_from_last_seen_timestamp#config-parameters) VmReader flag. A `warning` log is generated when no new data is returned (i.e., all data has already been seen in a previous inference step(s)). This helps in identifying situations where data for inference has already been processed. Based on VmReader's `adjust` flag. Log messages:
+**No unseen data found (True)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) VmReader flag. A `warning` log is generated when no new data is returned (i.e., all data has already been seen in a previous inference step(s)). This helps in identifying situations where data for inference has already been processed. Based on VmReader's `adjust` flag. Log messages:
 
 ```text
 [Scheduler {{scheduler_alias}}] No unseen data between {{start_s}} and {{end_s}} for query "{{query_key}}"
