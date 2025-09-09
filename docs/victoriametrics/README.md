@@ -1557,7 +1557,7 @@ Then set up [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) i
 so it could route requests from particular user to VictoriaMetrics with the desired retention.
 
 Similar scheme can be applied for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
-See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html) for multi-retention setup details.
+See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup/) for multi-retention setup details.
 
 ### Retention filters
 

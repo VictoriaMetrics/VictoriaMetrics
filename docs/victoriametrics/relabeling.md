@@ -1099,7 +1099,7 @@ section instead of `relabel_configs` section. They serve different purposes:
 - Target relabeling can be debugged by clicking the `debug` link for a target on
   the `http://vmagent:8429/target` or `http://vmagent:8429/service-discovery`
   pages. See
-  [Relabel Debug - vmagent](https://docs.victoriametrics.com/victoriametrics/relabeling#relabel-debugging).
+  [Relabel Debug - vmagent](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 - Special labels with the `__` prefix are automatically added when discovering
   targets and removed after relabeling:
   - Meta-labels starting with the `__meta_` prefix. The specific sets of labels
@@ -1124,7 +1124,7 @@ section instead of `relabel_configs` section. They serve different purposes:
 
 - Metric relabeling can be debugged on the
   `http://vmagent:8429/metric-relabel-debug` page. See
-  [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling#relabel-debugging).
+  [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 - All labels that start with the `__` prefix are automatically removed from
   metrics after relabeling. It is common practice to store temporary labels with
   names starting with `__` during metrics relabeling.
