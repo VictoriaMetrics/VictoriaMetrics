@@ -708,7 +708,7 @@ Label names [description](#labelnames)
 * `stage` - stage of model - 'fit', 'infer' or 'fit_infer' for models that do it simultaneously, see [model types](https://docs.victoriametrics.com/anomaly-detection/components/models/#model-types).
 * `query_key` - query alias from [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/) config section.
 * `model_alias` - model alias from [`models`](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section{{% available_from "v1.10.0" anomaly %}}.
-* `scheduler_alias` - scheduler alias from [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler) config section{{% available_from "v1.11.0" anomaly %}}.
+* `scheduler_alias` - scheduler alias from [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) config section{{% available_from "v1.11.0" anomaly %}}.
 * `preset` - preset alias for [`preset`](https://docs.victoriametrics.com/anomaly-detection/presets/) mode of `vmanomaly`{{% available_from "v1.12.0" anomaly %}}.
 * `url` - writer or reader url endpoint.
 * `code` - response status code or `connection_error`, `timeout`.

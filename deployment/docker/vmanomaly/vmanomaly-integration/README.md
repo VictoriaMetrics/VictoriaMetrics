@@ -1,6 +1,6 @@
 # Docker Compose file for "vmanomaly integration" guide
 
-Please read the "vmanomaly integration" guide first - [https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert.html](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert.html)
+Please read the "vmanomaly integration" guide first - [Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 
 To make this Docker compose file work, you MUST replace the content of [vmanomaly_license](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-integration/vmanomaly_license) with valid license.
 
