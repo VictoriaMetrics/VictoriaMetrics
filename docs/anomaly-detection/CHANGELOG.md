@@ -148,7 +148,7 @@ Released: 2025-04-11
 ## v1.21.0
 Released: 2025-03-19
 
-- FEATURE: Introduced [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability) in `vmanomaly` service. Dedicated page can be found [here](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly).
+- FEATURE: Introduced [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability) in `vmanomaly` service. Dedicated page can be found [here](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/).
 
 ## v1.20.1
 Released: 2025-03-16
@@ -216,7 +216,7 @@ Released: 2024-12-02
 
 > This release introduced a bug in [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) where configurations with `fit_every` > `fit_window` could cause inference to be skipped for |fit_every - fit_window| time, until the next `fit_every` call happens. For `fit_every` > `fit_window` configurations we recommend upgrading to [v1.20.1](#v1201), which resolves this issue.
 
-- IMPROVEMENT: Introduced a new `push_frequency` parameter for the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters), with a default value of 15m. This enhancement ensures better alignment with pull-based monitoring behavior and improves [self-monitoring experience](https://docs.victoriametrics.com/anomaly-detection/self-monitoring) of `vmanomaly` in setups with infrequent schedules (e.g., rare `fit_every` or `infer_every` intervals) to deal with data staleness.
+- IMPROVEMENT: Introduced a new `push_frequency` parameter for the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters), with a default value of 15m. This enhancement ensures better alignment with pull-based monitoring behavior and improves [self-monitoring experience](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/) of `vmanomaly` in setups with infrequent schedules (e.g., rare `fit_every` or `infer_every` intervals) to deal with data staleness.
 
 - BUGFIX: Fixed a bug, introduced in [v1.18.5](#v1185), that prevented the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) from properly instantiating and pushing [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly).
 
