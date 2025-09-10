@@ -44,10 +44,10 @@ After you run `vmanomaly` with `preset` arg specified, available assets can be v
 The default preset indicates that the `vmanomaly` service is running in its standard mode — either because the `preset` section is not specified in the configuration or is explicitly set to `default` or `default:vX.Y`.
 
 Since this mode is designed to support **any** configuration, it requires the user to fully define all [necessary configuration sections](https://docs.victoriametrics.com/anomaly-detection/components/), including:  
-- [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader) (with the required `queries` section)  
-- [Writer](https://docs.victoriametrics.com/anomaly-detection/components/writer)  
-- [Models](https://docs.victoriametrics.com/anomaly-detection/components/models)  
-- [Schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler)
+- [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) (with the required `queries` section)  
+- [Writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/)  
+- [Models](https://docs.victoriametrics.com/anomaly-detection/components/models/)  
+- [Schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/)
 
 Although this mode is designed to be as flexible as possible, it includes a pre-built [Grafana dashboard](https://grafana.com/grafana/dashboards/22922). This dashboard is based on the [service output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output), specifically [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score), and helps streamline the anomaly drill-down process.  
 

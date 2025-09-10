@@ -372,7 +372,7 @@ supported by VictoriaMetrics.
 
 See more details on [key concepts of writing data here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#write-data).
 See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/victoriametrics/data-ingestion/)
-and [other integrations](https://docs.victoriametrics.com/victoriametrics/integrations).
+and [other integrations](https://docs.victoriametrics.com/victoriametrics/integrations/).
 
 ## Query data
 
@@ -384,7 +384,7 @@ VictoriaMetrics provides an [HTTP API](https://docs.victoriametrics.com/victoria
 for serving read queries. The API is used in various integrations such as [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/).
 
 See more details on [key concepts of querying data](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data)
-and [other integrations](https://docs.victoriametrics.com/victoriametrics/integrations).
+and [other integrations](https://docs.victoriametrics.com/victoriametrics/integrations/).
 
 ## Alerting
 
