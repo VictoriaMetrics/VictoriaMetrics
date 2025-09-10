@@ -115,4 +115,4 @@ sinks:
 # References
 
 - [Vector documentation](https://vector.dev/docs/)
-- [VictoriaLogs documentation for using vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector)
+- [VictoriaLogs documentation for using vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/)

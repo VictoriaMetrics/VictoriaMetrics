@@ -2481,4 +2481,4 @@ Moved to [integrations/graphite/#tags-api](https://docs.victoriametrics.com/vict
 
 ###### Integrations
 
-Moved to [integrations](https://docs.victoriametrics.com/victoriametrics/integrations).
+Moved to [integrations](https://docs.victoriametrics.com/victoriametrics/integrations/).
