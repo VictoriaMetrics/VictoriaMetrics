@@ -65,9 +65,9 @@ The `/api/v1/export` endpoint should return the following response:
 
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 * [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db`
-  [label](https://docs.victoriametrics.com/keyconcepts/#labels) value unless `db` tag exists in the InfluxDB line.
+  [label](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) value unless `db` tag exists in the InfluxDB line.
   The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
-  read more about multi-tenancy [here](https://docs.victoriametrics.com/keyconcepts/#multi-tenancy).
+  read more about multi-tenancy [here](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#multi-tenancy).
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default.
   It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag.
   If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
@@ -96,7 +96,7 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'ht
 ```
 
 An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
-After that the data may be read via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format) endpoint:
+After that the data may be read via [/api/v1/export](https://docs.victoriametrics.com/victoriametrics/#how-to-export-data-in-json-line-format) endpoint:
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
 ```

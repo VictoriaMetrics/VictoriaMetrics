@@ -31,7 +31,7 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
   const { isMobile } = useDeviceDetect();
 
   const windowSize = useWindowSize();
-  const displaySidebar = useMemo(() => window.innerWidth < 1000, [windowSize]);
+  const displaySidebar = useMemo(() => window.innerWidth < 1230, [windowSize]);
 
   const { isDarkTheme } = useAppState();
   const appModeEnable = getAppModeEnable();
@@ -105,6 +105,7 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
       controlsComponent={controlsComponent}
       displaySidebar={displaySidebar}
       isMobile={isMobile}
+      closeModal={() => {}}
     />
   </header>;
 };

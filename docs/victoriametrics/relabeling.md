@@ -122,10 +122,10 @@ VictoriaMetrics relabeling is compatible with
 [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
 and provides the following enhancements:
 
-- **The `replacement` field**: allows you to construct new label values  
-  by referencing existing ones using the `{{label_name}}` syntax.  
+- **The `replacement` field**: allows you to construct new label values
+  by referencing existing ones using the `{{label_name}}` syntax.
   For example, if a metric has the labels
-  `{instance="host123", job="node_exporter"}`,  
+  `{instance="host123", job="node_exporter"}`,
   this rule will create or update the `fullname` label with the value
   `host123-node_exporter`:
 
@@ -466,6 +466,7 @@ Here are examples of these options:
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+if%3A+%27%7B__meta_kubernetes_pod_name%3D%7E%22test-.*%22%7D%27%0A++action%3A+drop&labels=%7B__meta_kubernetes_pod_name%3D%22test-payment-7cbd8d77b6-4l5xv%22%2Cnamespace%3D%22qa%22%2Capp%3D%22payment-service%22%7D)
 
 - This config keeps only pods with names starting with the `backend-` prefix:
+
   ```yaml
   scrape_configs:
     - job_name: backend_pods
@@ -475,6 +476,7 @@ Here are examples of these options:
         - if: '{__meta_kubernetes_pod_name=~"backend-.*"}'
           action: keep
   ```
+
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+if%3A+%27%7B__meta_kubernetes_pod_name%3D%7E%22backend-.*%22%7D%27%0A++action%3A+keep&labels=%7B__meta_kubernetes_pod_name%3D%22frontend-auth-5cbdbb7ff8-qf82n%22%2Cnamespace%3D%22prod%22%2Ccontainer%3D%22auth%22%7D)
 
 See also
@@ -889,11 +891,13 @@ Let's see this in action:
 
 - Remove labels with names starting with the `kubernetes_` prefix from all
   scraped metrics:
+
   ```yaml
   metric_relabel_configs:
     - action: labeldrop
       regex: "kubernetes_.*"
   ```
+
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+action%3A+labeldrop%0A++regex%3A+%22kubernetes_.*%22&labels=%7B__name__%3D%22container_cpu_usage_seconds_total%22%2Ccontainer%3D%22app%22%2C+kubernetes_namespace%3D%22default%22%2C+kubernetes_pod_name%3D%22app-123%22%7D)
 
 The `regex` option must match the whole label name from start to end, not just a
@@ -948,12 +952,14 @@ label name and the `replacement` field to set the label value. For example:
 
 - Add a `team="platform"` label only for metrics from jobs that match `web-.*`
   and are not in the staging environment :
+
   ```yaml
   metric_relabel_configs:
     - if: '{job=~"web-.*", environment!="staging"}'
       target_label: team
       replacement: platform
   ```
+
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+if%3A+%27%7Bjob%3D%7E%22web-.*%22%2C+environment%21%3D%22staging%22%7D%27%0A++target_label%3A+team%0A++replacement%3A+platform&labels=%7B__name__%3D%22http_requests_total%22%2C+job%3D%22web-api%22%2C+environment%3D%22prod%22%7D)
 
 {{% /collapse %}}
@@ -985,6 +991,7 @@ Below are a few illustrations:
 
 - Add `prod_` prefix to `job` label values only for metrics matching
   `{job=~"api-service-.*",env!="dev"}`:
+
   ```yaml
   metric_relabel_configs:
     - if: '{job=~"api-service-.*",env!="dev"}'
@@ -992,6 +999,7 @@ Below are a few illustrations:
       target_label: job
       replacement: prod_$1
   ```
+
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+if%3A+%27%7Bjob%3D%7E%22api-service-.*%22%2Cenv%21%3D%22dev%22%7D%27%0A++source_labels%3A+%5Bjob%5D%0A++target_label%3A+job%0A++replacement%3A+prod_%241&labels=%7B__name__%3D%22http_requests_total%22%2Cjob%3D%22api-service-orders%22%2C+env%3D%22staging%22%2C+instance%3D%2210.0.0.5%3A8080%22%7D)
 
 {{% /collapse %}}
@@ -1032,6 +1040,7 @@ Let's take some examples:
 
 - Replace all dashes (`-`) in metric names with underscores (`_`) (e.g.
   `nginx-ingress-latency` → `nginx_ingress_latency`):
+
   ```yaml
   metric_relabel_configs:
     - source_labels: [__name__]
@@ -1040,6 +1049,7 @@ Let's take some examples:
       replacement: "_"
       target_label: __name__
   ```
+
   [Try the above config](https://play.victoriametrics.com/select/0/prometheus/graph/#/relabeling?config=-+source_labels%3A+%5B__name__%5D%0A++action%3A+replace_all%0A++regex%3A+%27-%27%0A++replacement%3A+%27_%27%0A++target_label%3A+__name__&labels=%7B__name__%3D%22nginx-ingress-latency%22%2C+host%3D%22example.com%22%7D)
 
 {{% /collapse %}}
@@ -1089,7 +1099,7 @@ section instead of `relabel_configs` section. They serve different purposes:
 - Target relabeling can be debugged by clicking the `debug` link for a target on
   the `http://vmagent:8429/target` or `http://vmagent:8429/service-discovery`
   pages. See
-  [Relabel Debug - vmagent](https://docs.victoriametrics.com/victoriametrics/relabeling#relabel-debugging).
+  [Relabel Debug - vmagent](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 - Special labels with the `__` prefix are automatically added when discovering
   targets and removed after relabeling:
   - Meta-labels starting with the `__meta_` prefix. The specific sets of labels
@@ -1114,7 +1124,7 @@ section instead of `relabel_configs` section. They serve different purposes:
 
 - Metric relabeling can be debugged on the
   `http://vmagent:8429/metric-relabel-debug` page. See
-  [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling#relabel-debugging).
+  [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging).
 - All labels that start with the `__` prefix are automatically removed from
   metrics after relabeling. It is common practice to store temporary labels with
   names starting with `__` during metrics relabeling.

@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"io/fs"
 	"math"
 	"math/rand"
 	"os"
@@ -17,8 +16,10 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
 )
@@ -514,9 +515,7 @@ func TestStorageOpenClose(t *testing.T) {
 		s := MustOpenStorage(path, opts)
 		s.MustClose()
 	}
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func TestStorageRandTimestamps(t *testing.T) {
@@ -558,9 +557,7 @@ func TestStorageRandTimestamps(t *testing.T) {
 		}
 	})
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func testStorageRandTimestamps(s *Storage) error {
@@ -793,9 +790,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 	}
 
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func testStorageDeleteSeries(s *Storage, workerNum int) error {
@@ -1137,11 +1132,11 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached := func(tfss []*TagFilters, tr TimeRange, want bool) {
 		t.Helper()
 
-		idb, putIndexDB := s.getCurrIndexDB()
-		defer putIndexDB()
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 		tfssKey := marshalTagFiltersKey(nil, tfss, tr, true)
-		_, got := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey)
+		_, got := idbCurr.getMetricIDsFromTagFiltersCache(nil, tfssKey)
 		if got != want {
 			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)
 		}
@@ -1444,6 +1439,55 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertDeletedMetricIDsCacheSize(3)
 }
 
+func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	const numSeries = 100
+	trPrev := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsPrev := testGenerateMetricRowsWithPrefix(rng, numSeries, "prev", trPrev)
+	trCurr := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsCurr := testGenerateMetricRowsWithPrefix(rng, numSeries, "curr", trCurr)
+	deleteSeries := func(s *Storage, want, wantTotal int) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		if err != nil {
+			t.Fatalf("could not delete series unexpectedly: %v", err)
+		}
+		if got != want {
+			t.Fatalf("unexpected number of deleted series: got %d, want %d", got, want)
+		}
+		var m Metrics
+		s.UpdateMetrics(&m)
+		if got, want := m.DeletedMetricsCount, uint64(wantTotal); got != want {
+			t.Fatalf("unexpected number of total deleted series: got %d, want %d", got, want)
+		}
+
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrsPrev, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, numSeries)
+
+	s.mustRotateIndexDB(time.Now())
+
+	s.AddRows(mrsCurr, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, 2*numSeries)
+}
+
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
 	s := MustOpenStorage(path, OpenOptions{})
@@ -1451,9 +1495,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
@@ -1476,9 +1518,7 @@ func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 		}
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func testStorageRegisterMetricNames(s *Storage) error {
@@ -1614,9 +1654,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func TestStorageAddRowsConcurrent(t *testing.T) {
@@ -1645,9 +1683,7 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 		}
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 func testGenerateMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
@@ -1780,15 +1816,14 @@ func TestStorageRotateIndexDB(t *testing.T) {
 		wg.Wait()
 		s.DebugFlush()
 
-		idbCurr, putIndexDB := s.getCurrIndexDB()
-		defer putIndexDB()
-		idbPrev := idbCurr.extDB
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 		isCurr := idbCurr.getIndexSearch(noDeadline)
 		defer idbCurr.putIndexSearch(isCurr)
 		isPrev := idbPrev.getIndexSearch(noDeadline)
 		defer idbPrev.putIndexSearch(isPrev)
 
-		return testCountAllMetricNamesNoExtDB(isPrev, tr), testCountAllMetricNamesNoExtDB(isCurr, tr)
+		return testCountAllMetricNamesInIndex(isPrev, tr), testCountAllMetricNamesInIndex(isCurr, tr)
 	}
 
 	var oldCurr int
@@ -1808,7 +1843,7 @@ func TestStorageRotateIndexDB(t *testing.T) {
 	}
 }
 
-func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
+func testCountAllMetricNamesInIndex(is *indexSearch, tr TimeRange) int {
 	tfss := NewTagFilters()
 	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
@@ -1819,10 +1854,13 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 	}
 	metricNames := map[string]bool{}
 	var metricName []byte
-	for _, metricID := range metricIDs {
-		metricName, _ = is.searchMetricName(metricName[:0], metricID)
-		metricNames[string(metricName)] = true
-	}
+	metricIDs.ForEach(func(part []uint64) bool {
+		for _, metricID := range part {
+			metricName, _ = is.searchMetricName(metricName[:0], metricID)
+			metricNames[string(metricName)] = true
+		}
+		return true
+	})
 	return len(metricNames)
 }
 
@@ -2097,7 +2135,7 @@ func testRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage)) {
 func testListDirEntries(t *testing.T, root string, ignorePrefix ...string) []string {
 	t.Helper()
 	var paths []string
-	f := func(path string, _ fs.DirEntry, err error) error {
+	f := func(path string, _ os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -2201,7 +2239,7 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 
 	assertPathDoesNotExist := func(path string) {
 		t.Helper()
-		if vmfs.IsPathExist(path) {
+		if fs.IsPathExist(path) {
 			t.Fatalf("path was not expected to exist: %q", path)
 		}
 	}
@@ -2251,9 +2289,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 		t.Fatalf("expecting zero snapshots; got %q", snapshots)
 	}
 	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
+	fs.MustRemoveDir(path)
 }
 
 // testRemoveAll removes all storage data produced by a test if the test hasn't
@@ -2264,7 +2300,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 func testRemoveAll(t *testing.T) {
 	defer func() {
 		if !t.Failed() {
-			vmfs.MustRemoveAll(t.Name())
+			fs.MustRemoveDir(t.Name())
 		}
 	}()
 }
@@ -2492,7 +2528,10 @@ func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		tfss := NewTagFilters()
@@ -2573,11 +2612,11 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		names, err := s.SearchMetricNames(nil, tfss, opts.tr, opts.maxMetrics, noDeadline)
 		gotErr := err != nil
 		if gotErr != opts.wantErr {
-			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
+			t.Errorf("SearchMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
 				tfss, &opts.tr, opts.maxMetrics, err, opts.wantErr}...)
 		}
 		if got := len(names); got != opts.wantCount {
-			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected metric name count: got %d, want %d", []any{
+			t.Errorf("SearchMetricNames(%v, %v, %d): unexpected metric name count: got %d, want %d", []any{
 				tfss, &opts.tr, opts.maxMetrics, got, opts.wantCount}...)
 		}
 	}
@@ -2768,7 +2807,10 @@ func TestStorageSearchLabelNames_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
@@ -2817,7 +2859,10 @@ func TestStorageSearchLabelValues_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchLabelValues(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
@@ -2857,7 +2902,10 @@ func TestStorageSearchTagValueSuffixes_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchTagValueSuffixes(nil, tr, "", "prefix.", '.', 1e9, noDeadline)
@@ -2896,7 +2944,10 @@ func TestStorageSearchGraphitePaths_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e9, noDeadline)
@@ -3022,11 +3073,15 @@ func TestStorageGetSeriesCount(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		for _, tr := range trs {
-			for i := range mrs {
-				mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+		for i, tr := range trs {
+			for j := range mrs {
+				mrs[j].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
 			}
 			s.AddRows(mrs, defaultPrecisionBits)
+			if i == 0 {
+				// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+				s.mustRotateIndexDB(time.Now())
+			}
 		}
 		s.DebugFlush()
 
@@ -3049,15 +3104,18 @@ func TestStorageGetSeriesCount(t *testing.T) {
 	var want uint64
 
 	oneMonth := []TimeRange{month(1)}
+	// no index inflation since the metrics are inserted only to one indexDB
 	want = numMetrics
 	f(numMetrics, oneMonth, want)
 
 	twoMonths := []TimeRange{month(1), month(2)}
-	want = numMetrics
+	// index inflation since the same metrics are inserted both to the previous and current indexDBs
+	want = numMetrics * 2
 	f(numMetrics, twoMonths, want)
 
 	fourMonths := []TimeRange{month(1), month(2), month(3), month(4)}
-	want = numMetrics
+	// index inflation since the same metrics are inserted both to the previous and current indexDBs
+	want = numMetrics * 2
 	f(numMetrics, fourMonths, want)
 }
 
@@ -3429,7 +3487,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
-		wantEmpty:        []string(nil),
+		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
 	}
@@ -3474,6 +3532,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 			}
 			got[i] = string(mn.MetricGroup)
 		}
+		slices.Sort(got)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("[%v] unexpected metric names: got %v, want %v", &tr, got, want)
 		}
@@ -3647,7 +3706,7 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
-		wantEmpty:        []string(nil),
+		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
 	}
@@ -3884,6 +3943,30 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 	})
 }
 
+// testSearchMetricIDs returns metricIDs for the given tfss and tr.
+//
+// The returned metricIDs are sorted. The function panics in in case of error.
+// The function is not a part of Storage because it is currently used in unit
+// tests only.
+func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
+		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	}
+	merge := func(data [][]uint64) []uint64 {
+		s := &uint64set.Set{}
+		for _, d := range data {
+			s.AddMulti(d)
+		}
+		all := s.AppendTo(nil)
+		return all
+	}
+	metricIDs, err := searchAndMerge(nil, s, tr, search, merge)
+	if err != nil {
+		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
+	}
+	return metricIDs
+}
+
 // testCountAllMetricIDs is a test helper function that counts the IDs of
 // all time series within the given time range.
 func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
@@ -3891,15 +3974,7 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
-	idb, putIndexDB := s.getCurrIndexDB()
-	defer putIndexDB()
-	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
-	if err != nil {
-		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
-	}
+	ids := testSearchMetricIDs(s, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
 	return len(ids)
 }
 
@@ -4319,7 +4394,7 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 	allTimeseries := len(names)
 	rowsAddedTotal := uint64(opts.numBatches * opts.numRowsPerBatch)
 
-	// When RegisterMetricNames() is called it only restisters the time series
+	// When RegisterMetricNames() is called it only registers the time series
 	// in IndexDB but no samples is written to the storage.
 	if opts.registerOnly {
 		rowsAddedTotal = 0
@@ -4444,7 +4519,7 @@ func TestMustOpenIndexDBTables_noTables(t *testing.T) {
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBIsNotNil(t, prev)
 	assertIndexDBIsNotNil(t, curr)
 	assertIndexDBIsNotNil(t, next)
@@ -4455,16 +4530,17 @@ func TestMustOpenIndexDBTables_prevOnly(t *testing.T) {
 
 	storageDataPath := t.Name()
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
 	assertPathsExist(t, prevPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBIsNotNil(t, curr)
 	assertIndexDBIsNotNil(t, next)
@@ -4475,19 +4551,22 @@ func TestMustOpenIndexDBTables_currAndPrev(t *testing.T) {
 
 	storageDataPath := t.Name()
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
+
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
-	vmfs.MustMkdirIfNotExist(currPath)
+	createEmptyIndexdb(currPath)
+
 	assertPathsExist(t, prevPath, currPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBIsNotNil(t, next)
@@ -4500,20 +4579,23 @@ func TestMustOpenIndexDBTables_nextAndCurrAndPrev(t *testing.T) {
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
+
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
-	vmfs.MustMkdirIfNotExist(currPath)
+	createEmptyIndexdb(currPath)
+
 	nextName := "123456789ABCDEF2"
 	nextPath := filepath.Join(idbPath, nextName)
-	vmfs.MustMkdirIfNotExist(nextPath)
+	createEmptyIndexdb(nextPath)
+
 	assertPathsExist(t, prevPath, currPath, nextPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
@@ -4524,28 +4606,34 @@ func TestMustOpenIndexDBTables_ObsoleteDirsAreRemoved(t *testing.T) {
 
 	storageDataPath := t.Name()
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
 	obsolete1Name := "123456789ABCDEEE"
 	obsolete1Path := filepath.Join(idbPath, obsolete1Name)
-	vmfs.MustMkdirIfNotExist(obsolete1Path)
+	createEmptyIndexdb(obsolete1Path)
+
 	obsolete2Name := "123456789ABCDEEF"
 	obsolete2Path := filepath.Join(idbPath, obsolete2Name)
-	vmfs.MustMkdirIfNotExist(obsolete2Path)
+	createEmptyIndexdb(obsolete2Path)
+
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
+
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
-	vmfs.MustMkdirIfNotExist(currPath)
+	createEmptyIndexdb(currPath)
+
 	nextName := "123456789ABCDEF2"
 	nextPath := filepath.Join(idbPath, nextName)
-	vmfs.MustMkdirIfNotExist(nextPath)
+	createEmptyIndexdb(nextPath)
+
 	assertPathsExist(t, obsolete1Path, obsolete2Path, prevPath, currPath, nextPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
@@ -4557,22 +4645,26 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 
 	storageDataPath := t.Name()
 	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
 	prevName := "123456789ABCDEF0"
 	prevPath := filepath.Join(idbPath, prevName)
-	vmfs.MustMkdirIfNotExist(prevPath)
+	createEmptyIndexdb(prevPath)
+
 	currName := "123456789ABCDEF1"
 	currPath := filepath.Join(idbPath, currName)
-	vmfs.MustMkdirIfNotExist(currPath)
+	createEmptyIndexdb(currPath)
+
 	nextName := "123456789ABCDEF2"
 	nextPath := filepath.Join(idbPath, nextName)
-	vmfs.MustMkdirIfNotExist(nextPath)
+	createEmptyIndexdb(nextPath)
+
 	assertPathsExist(t, prevPath, currPath, nextPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
@@ -4580,7 +4672,7 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	s.mustRotateIndexDB(time.Now())
 	next = s.idbNext.Load()
 	curr = s.idbCurr.Load()
-	prev = curr.extDB
+	prev = s.idbPrev.Load()
 	newNextName := next.name
 	newNextPath := filepath.Join(idbPath, newNextName)
 	assertPathsDoNotExist(t, prevPath)
@@ -4592,11 +4684,17 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	}
 }
 
+func createEmptyIndexdb(path string) {
+	fs.MustMkdirIfNotExist(path)
+	partsFilePath := filepath.Join(path, "parts.json")
+	fs.MustWriteAtomic(partsFilePath, []byte("[]"), false)
+}
+
 func assertPathsExist(t *testing.T, paths ...string) {
 	t.Helper()
 
 	for _, path := range paths {
-		if !vmfs.IsPathExist(path) {
+		if !fs.IsPathExist(path) {
 			t.Fatalf("path does not exist: %s", path)
 		}
 	}
@@ -4606,7 +4704,7 @@ func assertPathsDoNotExist(t *testing.T, paths ...string) {
 	t.Helper()
 
 	for _, path := range paths {
-		if vmfs.IsPathExist(path) {
+		if fs.IsPathExist(path) {
 			t.Fatalf("path exists: %s", path)
 		}
 	}

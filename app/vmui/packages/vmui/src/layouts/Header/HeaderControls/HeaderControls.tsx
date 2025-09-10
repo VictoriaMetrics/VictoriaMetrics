@@ -18,6 +18,7 @@ export interface ControlsProps {
   isMobile?: boolean;
   headerSetup?: RouterOptionsHeader;
   accountIds?: string[];
+  closeModal: () => void;
 }
 
 const HeaderControls: FC<ControlsProps & HeaderProps> = ({
@@ -45,13 +46,14 @@ const HeaderControls: FC<ControlsProps & HeaderProps> = ({
       isMobile={isMobile}
       accountIds={accountIds}
       headerSetup={headerSetup}
+      closeModal={handleCloseList}
     />
   );
 
   if (isMobile) {
     return (
       <>
-        <div>
+        <div className="vm-header-controls">
           <Button
             className={classNames({
               "vm-header-button": !appModeEnable

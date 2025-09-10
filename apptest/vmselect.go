@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"testing"
@@ -22,7 +23,7 @@ type Vmselect struct {
 // StartVmselect starts an instance of vmselect with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVmselect(instance string, flags []string, cli *Client) (*Vmselect, error) {
+func StartVmselect(instance string, flags []string, cli *Client, output io.Writer) (*Vmselect, error) {
 	app, stderrExtracts, err := startApp(instance, "../../bin/vmselect", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
@@ -32,6 +33,7 @@ func StartVmselect(instance string, flags []string, cli *Client) (*Vmselect, err
 			httpListenAddrRE,
 			vmselectAddrRE,
 		},
+		output: output,
 	})
 	if err != nil {
 		return nil, err
@@ -138,6 +140,50 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 
 	res, _ := app.cli.PostForm(t, seriesURL, values)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
+}
+
+// PrometheusAPIV1SeriesCount sends a query to a /prometheus/api/v1/series/count endpoint
+// and returns the total number of time series.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
+func (app *Vmselect) PrometheusAPIV1SeriesCount(t *testing.T, opts QueryOpts) *PrometheusAPIV1SeriesCountResponse {
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/series/count", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+
+	res, _ := app.cli.PostForm(t, seriesURL, values)
+	return NewPrometheusAPIV1SeriesCountResponse(t, res)
+}
+
+// PrometheusAPIV1Labels sends a query to a /prometheus/api/v1/labels endpoint
+// and returns the label names list of time series that match the query.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels
+func (app *Vmselect) PrometheusAPIV1Labels(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1LabelsResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/labels", app.httpListenAddr, opts.getTenant())
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1LabelsResponse(t, res)
+}
+
+// PrometheusAPIV1LabelValues sends a query to a /prometheus/api/v1/label/.../values endpoint
+// and returns the label names list of time series that match the query.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues
+func (app *Vmselect) PrometheusAPIV1LabelValues(t *testing.T, labelName, matchQuery string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/label/%s/values", app.httpListenAddr, opts.getTenant(), labelName)
+
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1LabelValuesResponse(t, res)
 }
 
 // APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending

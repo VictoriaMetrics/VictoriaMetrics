@@ -55,7 +55,7 @@ type InstancesResponse struct {
 	NextPageToken  string         `xml:"nextToken"`
 }
 
-// ReservationSet represetns ReservationSet from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
+// ReservationSet represents ReservationSet from https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html
 type ReservationSet struct {
 	Items []Reservation `xml:"item"`
 }

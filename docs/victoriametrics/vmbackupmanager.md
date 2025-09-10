@@ -110,7 +110,7 @@ Backup manager launched with the following configuration:
 ```sh
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
-./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -eula
+./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -licenseFile=/path/to/vm-license
 ```
 
 Expected logs in vmbackupmanager:
@@ -170,7 +170,7 @@ We enable backup retention policy for backup manager by using following configur
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
 ./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create
--keepLastDaily=3 -eula
+-keepLastDaily=3 -licenseFile=/path/to/vm-license
 ```
 
 Expected logs in backup manager on start:
@@ -196,14 +196,14 @@ You can protect any backup against deletion by retention policy with the `vmback
 For instance:
 
 ```sh
-./vmbackupmanager backup lock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+./vmbackupmanager backup lock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data
 ```
 
 After that the backup won't be deleted by retention policy.
 You can view the `locked` attribute in backup list:
 
 ```sh
-./vmbackupmanager backup list -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+./vmbackupmanager backup list -dst=<DST_PATH> -storageDataPath=/vmstorage-data
 ```
 
 To remove protection, you can use the command `vmbackupmanager backups unlock`.
@@ -211,7 +211,7 @@ To remove protection, you can use the command `vmbackupmanager backups unlock`.
 For example:
 
 ```sh
-./vmbackupmanager backup unlock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+./vmbackupmanager backup unlock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data
 ```
 
 ## API methods
@@ -370,7 +370,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
        onStart:
          enabled: "true"
    ```
-   See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
+   See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api/#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api/#vmsinglespec).
 1. Enter container running `vmbackupmanager`
 1. Use `vmbackupmanager backup list` to get list of available backups:
   ```sh
@@ -394,7 +394,7 @@ These steps are assuming that [VictoriaMetrics operator](https://docs.victoriame
 Clusters here are referred to as `source` and `destination`.
 
 1. Create a new cluster with access to *source* cluster `vmbackupmanager` storage and same number of storage nodes.
-   Add the following section in order to enable restore on start (operator `VMStorage` schema can be found [here](https://docs.victoriametrics.com/operator/api.html#vmstorage):
+   Add the following section in order to enable restore on start (operator `VMStorage` schema can be found [here](https://docs.victoriametrics.com/operator/api/#vmstorage):
    ```yaml
    vmbackup:
      restore:
@@ -636,7 +636,7 @@ command-line flags:
   -tlsAutocertCacheDir string
      Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir .This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -tlsAutocertHosts array
      Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.

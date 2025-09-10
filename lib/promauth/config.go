@@ -663,7 +663,7 @@ func (opts *Options) NewConfig() (*Config, error) {
 	}
 	if opts.OAuth2 != nil {
 		if actx.getAuthHeader != nil {
-			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `ouath2`")
+			return nil, fmt.Errorf("cannot simultaneously use `authorization`, `basic_auth, `bearer_token` and `oauth2`")
 		}
 		if err := actx.initFromOAuth2Config(baseDir, opts.OAuth2); err != nil {
 			return nil, fmt.Errorf("cannot initialize oauth2: %w", err)

@@ -21,9 +21,9 @@ Through the **Settings** section of a config, you can configure the following pa
 
 ## Anomaly Score Outside Data Range
 
-This argument allows you to override the anomaly score for anomalies that are caused by values outside the expected **data range** of particular [query](https://docs.victoriametrics.com/anomaly-detection/components/models#queries). The reasons for such anomalies can be various, such as improperly constructed metricsQL queries, sensor malfunctions, or other issues that lead to unexpected values in the data and require investigation.
+This argument allows you to override the anomaly score for anomalies that are caused by values outside the expected **data range** of particular [query](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries). The reasons for such anomalies can be various, such as improperly constructed metricsQL queries, sensor malfunctions, or other issues that lead to unexpected values in the data and require investigation.
 
-> If not set, the [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq#what-is-anomaly-score) for such anomalies defaults to `1.01` for backward compatibility, however, it is recommended to set it to a higher value, such as `5.0`, to better reflect the severity of anomalies that fall outside the expected data range to catch them faster and check the query for correctness and underlying data for potential issues.
+> If not set, the [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) for such anomalies defaults to `1.01` for backward compatibility, however, it is recommended to set it to a higher value, such as `5.0`, to better reflect the severity of anomalies that fall outside the expected data range to catch them faster and check the query for correctness and underlying data for potential issues.
 
 Here's an example configuration that sets default anomaly score outside expected data range to `5.0` and overrides it for a specific model to `1.5`:
 
@@ -147,18 +147,20 @@ monitoring:
 
 ## State Restoration
 
+> This feature is best used with config [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{% available_from "v1.25.0" anomaly %}} for increased deployment flexibility.
+
 The `restore_state` argument {{% available_from "v1.24.0" anomaly %}} makes `vmanomaly` service **stateful** by persisting and restoring state between runs. If enabled, the service will save the state of anomaly detection models and their training data to local filesystem, allowing for seamless continuation of operations after service restarts.
 
 By default, `restore_state` is set to `false`, meaning the service will start fresh on each restart, to maintain backward compatibility.
 
-> This feature requires enabling [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq#on-disk-mode) for the models and data. If not enabled, the service will exit with an error when `restore_state` is set to `true`.
+> This feature requires enabling [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) for the models and data. If not enabled, the service will exit with an error when `restore_state` is set to `true`.
 
 ### Benefits
 
 This feature improves the experience of using the anomaly detection service in several ways:
 - **Operational continuity**: Production of anomaly scores is resumed from the last known state, minimizing downtime, especially useful in conbination with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with `start_from` argument explicitly defined.
 - **Resource efficiency**: Avoids unnecessary resource and time consumption by not retraining models that have already been trained and remain actual, or querying redundant data from VictoriaMetrics TSDB.
-- **Config hot-reloading**: Allows for on-the-fly configuration changes with the reuse of unchanged models/data/scheduler combinations, avoiding unnecessary retraining and manual service restarts. *Please note, that hot reloading is not yet supported yet, will be a part of recent releases.*
+- **Config hot-reloading**: Allows for on-the-fly configuration changes with the reuse of unchanged models/data/scheduler combinations, avoiding unnecessary retraining, additional resource utilization and manual service restarts. Please refer to the [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) section for more details on how to use this feature.
 
 ### How it works
 
@@ -263,7 +265,7 @@ reader:
 # other components like writer, monitoring, etc.
 ```
 
-if the service is restarted in less than 1 hour after the last training (now < next scheduled fit time), it will restore the state of the `zscore_online` and `prophet` models if their signature (class, hyperparameters, schedulers, etc.) has not changed. It will load the trained model instances or their training data from disk and continue producing [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq#what-is-anomaly-score) without retraining. If there are changes or new queries added to the configuration, the service will add these to scheduled jobs for fit and infer. That's what is changed and what is restored in a config below:
+if the service is restarted in less than 1 hour after the last training (now < next scheduled fit time), it will restore the state of the `zscore_online` and `prophet` models if their signature (class, hyperparameters, schedulers, etc.) has not changed. It will load the trained model instances or their training data from disk and continue producing [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) without retraining. If there are changes or new queries added to the configuration, the service will add these to scheduled jobs for fit and infer. That's what is changed and what is restored in a config below:
 
 ```yaml
 settings:
@@ -303,3 +305,27 @@ reader:  # can be partially reused, because its class and datasource URL are unc
 This means that the service upon restart:
 1. Won't restore the state of `zscore_online` model, because its `z_threshold` argument **has changed**, retraining from scratch is needed on the last `fit_window` = 24 hours of data for `q1`, `q2` and `q3` (as model's `queries` arg is not set so it defaults to all queries found in the reader).
 2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`prophet`, `q2`) combination will be removed from the database file and from the disk.
+
+
+### Logger Levels
+
+{{% available_from "v1.25.3" anomaly %}} `vmanomaly` service supports per-component logger levels, allowing to control the verbosity of logs for each component independently. This can be useful for debugging or monitoring specific components without overwhelming the logs with information from other components. Prefixes are also supported, allowing to set the logger level for all components with a specific prefix.
+
+The logger levels can be set in the `settings` section of the config file under `logger_levels` key, where the key is the component name or prefix and the value is the desired logger level. The available logger levels are: `debug`, `info`, `warning`, `error`, and `critical`.
+
+> Best used in combination with [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) to change the logger levels *on-the-fly* without restarting the service through a short-circuit config check than doesn't even trigger the state restoration logic.
+
+Here's an example configuration that sets the logger level for the `reader` component to `debug` and for the `writer` component to `critical`, while `--loggerLevel` [command line argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) sets the default logger level to `INFO` for all (the other) components, unless overridden by the config:
+
+> If commented out in hot-reload mode during hot-reload event, the logger level for the component will be set back to what `--loggerLevel` command line argument is set to, which defaults to `info` if not specified.
+
+```yaml
+settings:
+  n_workers: 4
+  restore_state: True  # enables state restoration
+  logger_levels:
+    reader.vm: debug  # affects only VmReader logs
+    model: warning  # applies to all components with 'model' prefix, such as 'model.zscore_online', 'model.prophet', etc.
+    # once commented out in hot-reload mode, will use the default logger level set by --loggerLevel command line argument
+    # monitoring.push: critical
+```

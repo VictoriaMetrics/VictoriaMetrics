@@ -2,7 +2,6 @@ package rule
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -21,7 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 var (
@@ -289,7 +288,7 @@ func (g *Group) InterruptEval() {
 	}
 }
 
-// Close stops the group and it's rules, unregisters group metrics
+// Close stops the group and its rules, unregisters group metrics
 func (g *Group) Close() {
 	if g.doneCh == nil {
 		return
@@ -298,10 +297,6 @@ func (g *Group) Close() {
 	g.InterruptEval()
 	<-g.finishedCh
 
-	g.closeGroupMetrics()
-}
-
-func (g *Group) closeGroupMetrics() {
 	metrics.UnregisterSet(g.metrics.set, true)
 }
 
@@ -331,7 +326,7 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 	defer func() { close(g.finishedCh) }()
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
-	// over time in order to reduce load on datasource.
+	// over time to reduce the load on datasource.
 	if !SkipRandSleepOnGroupStart {
 		sleepBeforeStart := delayBeforeStart(evalTS, g.GetID(), g.Interval, g.EvalOffset)
 		g.infof("will start in %v", sleepBeforeStart)
@@ -472,18 +467,6 @@ func (g *Group) UpdateWith(newGroup *Group) {
 	g.updateCh <- newGroup
 }
 
-// DeepCopy returns a deep copy of group
-func (g *Group) DeepCopy() *Group {
-	g.mu.RLock()
-	data, _ := json.Marshal(g)
-	g.mu.RUnlock()
-	newG := Group{}
-	_ = json.Unmarshal(data, &newG)
-	newG.Rules = g.Rules
-	newG.id = g.id
-	return &newG
-}
-
 // if offset is specified, delayBeforeStart returns a duration to help aligning timestamp with offset;
 // otherwise, it returns a random duration between [0..interval] based on group key.
 func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *time.Duration) time.Duration {
@@ -587,6 +570,11 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 
 func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewrite.RWClient, replayRuleRetryAttempts, ruleEvaluationConcurrency int) int {
 	fmt.Printf("> Rule %q (ID: %d)\n", r, r.ID())
+	// alerting rule with for>0 can't be replayed concurrently, since the status change might depend on the previous evaluation
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/commit/abcb21aa5ee918ba9a4e9cde495dba06e1e9564c
+	if r, ok := r.(*AlertingRule); ok && r.For > 0 {
+		ruleEvaluationConcurrency = 1
+	}
 	sem := make(chan struct{}, ruleEvaluationConcurrency)
 	wg := sync.WaitGroup{}
 	res := make(chan int, int(ri.end.Sub(ri.start)/ri.step)+1)
@@ -755,7 +743,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 	}
 
 	if e.Rw != nil {
-		pushToRW := func(tss []prompbmarshal.TimeSeries) error {
+		pushToRW := func(tss []prompb.TimeSeries) error {
 			var lastErr error
 			for _, ts := range tss {
 				if err := e.Rw.Push(ts); err != nil {

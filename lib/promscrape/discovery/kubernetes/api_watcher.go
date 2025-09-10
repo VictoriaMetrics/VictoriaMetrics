@@ -356,7 +356,11 @@ func groupWatchersCleaner() {
 		time.Sleep(7 * time.Second)
 		groupWatchersLock.Lock()
 		for key, gw := range groupWatchers {
-			gw.mu.Lock()
+			if !gw.mu.TryLock() {
+				// This gw is likely in use, skip it to avoid blocking the loop
+				// Try again in the next cleanup cycle
+				continue
+			}
 			// Calculate the number of apiWatcher instances subscribed to gw.
 			awsTotal := 0
 			for _, uw := range gw.m {
@@ -959,7 +963,7 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 			continue
 		}
 		if attachNodeMetadata && role == "node" && (uwx.role == "pod" || uwx.role == "endpoints" || uwx.role == "endpointslice") {
-			// pod, endpoints and enpointslices objects depend on node objects if attachNodeMetadata is set
+			// pod, endpoints and endpointslices objects depend on node objects if attachNodeMetadata is set
 			uwx.needRecreateScrapeWorks = true
 			continue
 		}

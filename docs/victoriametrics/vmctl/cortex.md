@@ -32,7 +32,7 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 --vm-addr=http://127.0.0.1:8428 \
 ```
 
-_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl#configuring-victoriametrics)._
+_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl/#configuring-victoriametrics)._
 
 When the process finishes, you will see the following:
 

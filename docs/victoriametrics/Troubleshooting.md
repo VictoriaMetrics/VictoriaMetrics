@@ -81,7 +81,7 @@ then please follow the following steps in order to quickly find the solution:
    before posting your question to VictoriaMetrics Slack chat, since GitHub issues are indexed by Google,
    while Slack messages aren't indexed by Google. This simplifies searching for the solution to the issue for future VictoriaMetrics users.
 
-1. Pro tip 1: if you see that [VictoriaMetrics docs](https://docs.victoriametrics.com/) contain incomplete or incorrect information,
+1. Pro tip 1: if you see that [VictoriaMetrics docs](https://docs.victoriametrics.com/victoriametrics/) contain incomplete or incorrect information,
    then please create a pull request with the relevant changes. This will help VictoriaMetrics community.
 
    All the docs published at `https://docs.victoriametrics.com` are located in the [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs)
@@ -143,7 +143,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    for details. The raw samples can be also viewed in [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) in `Raw Query` tab and shared via `export` button.
 
    If you migrate from InfluxDB, then pass `-search.setLookbackToStep` command-line flag to single-node VictoriaMetrics
-   or to `vmselect` in VictoriaMetrics cluster. See also [how to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx.html).
+   or to `vmselect` in VictoriaMetrics cluster. See also [how to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx/).
 
 1. Sometimes response caching may lead to unexpected results when samples with older timestamps
    are ingested into VictoriaMetrics (aka [backfilling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling)).
@@ -437,6 +437,19 @@ The most common sources of cluster instability are:
   If this can't be guaranteed, set `-sortLabels=true` cmd-line flag to `vminsert`. Please note, sorting may increase
   CPU usage for `vminsert`.
 
+- Network instability between cluster components (`vminsert`, `vmselect`, `vmstorage`) may lead to increased error rates, timeouts, or degraded performance. 
+  Check resource usage graphs for all components on [the official Grafana dashboard for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring). 
+  If the graphs show high CPU usage, then the cluster is likely overloaded and requires more resources.
+  Note that short-lived 100% CPU spikes may not be visible in metrics with typical 10–30s scrape intervals, 
+  but can still cause transient network failures. In such cases, check CPU usage at the OS level with higher-resolution tools. 
+  Consider increasing `-vmstorageDialTimeout` and `-rpc.handshakeTimeout`{{% available_from "v1.124.0" %}} to mitigate the effects of CPU spikes.
+  
+  If resource usage looks normal but networking issues still occur, then the root cause is likely outside VictoriaMetrics.
+  This may be caused by unreliable or congested network links, especially across availability zones or regions. 
+  In multi-AZ setups, consider [a multi-level cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup) with region-local load balancers to reduce cross-zone connections. 
+  If the network cannot be improved, increasing timeouts such as `-vmstorageDialTimeout`, `-rpc.handshakeTimeout`{{% available_from "v1.124.0" %}}, or `-search.maxQueueDuration` may help, but should be done cautiously, as higher timeouts can impact cluster stability in other ways.
+  Keep in mind that VictoriaMetrics assumes reliable networking between components. If the network is unstable, the overall cluster stability may degrade regardless of resource availability. 
+
 The obvious solution against VictoriaMetrics cluster instability is to make sure cluster components
 have enough free resources for graceful processing of the increased workload.
 See [capacity planning docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
@@ -446,7 +459,7 @@ for details.
 
 ## Too much disk space used
 
-If too much disk space is used by a [single-node VictoriaMetrics](https://docs.victoriametrics.com/) or by `vmstorage` component
+If too much disk space is used by a [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) or by `vmstorage` component
 at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), then please check the following:
 
 - Make sure that there are no old snapshots, since they can occupy disk space. See [how to work with snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots)

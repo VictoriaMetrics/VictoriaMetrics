@@ -17,7 +17,8 @@ scrape_configs:
 - job_name: vminsert
   static_configs:
   - targets:
-    - vminsert:8480
+    - vminsert-1:8480
+    - vminsert-2:8480
 - job_name: vmselect
   static_configs:
   - targets:

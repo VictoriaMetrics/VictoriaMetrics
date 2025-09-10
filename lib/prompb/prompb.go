@@ -2,6 +2,8 @@ package prompb
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
 
 	"github.com/VictoriaMetrics/easyproto"
 )
@@ -13,24 +15,12 @@ type WriteRequest struct {
 
 	// Metadata is a list of metadata info in the given WriteRequest
 	Metadata []MetricMetadata
-
-	labelsPool  []Label
-	samplesPool []Sample
 }
 
 // Reset resets wr for subsequent reuse.
 func (wr *WriteRequest) Reset() {
-	clear(wr.Timeseries)
-	wr.Timeseries = wr.Timeseries[:0]
-
-	clear(wr.Metadata)
-	wr.Metadata = wr.Metadata[:0]
-
-	clear(wr.labelsPool)
-	wr.labelsPool = wr.labelsPool[:0]
-
-	clear(wr.samplesPool)
-	wr.samplesPool = wr.samplesPool[:0]
+	wr.Timeseries = ResetTimeSeries(wr.Timeseries)
+	wr.Metadata = ResetMetadata(wr.Metadata)
 }
 
 // TimeSeries is a timeseries.
@@ -60,32 +50,83 @@ type Label struct {
 	Value string
 }
 
-// UnmarshalProtobuf unmarshals wr from src.
+// LabelsToString converts labels to Prometheus-compatible string
+func LabelsToString(labels []Label) string {
+	labelsCopy := append([]Label{}, labels...)
+	sort.Slice(labelsCopy, func(i, j int) bool {
+		return string(labelsCopy[i].Name) < string(labelsCopy[j].Name)
+	})
+	var b []byte
+	b = append(b, '{')
+	for i, label := range labelsCopy {
+		if len(label.Name) == 0 {
+			b = append(b, "__name__"...)
+		} else {
+			b = append(b, label.Name...)
+		}
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, label.Value)
+		if i < len(labels)-1 {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, '}')
+	return string(b)
+}
+
+// WriteRequestUnmarshaler is reusable unmarshaler for WriteRequest protobuf messages.
+// It maintains internal pools for labels and samples to reduce memory allocations.
+// See UnmarshalProtobuf for details on how to use it.
+type WriteRequestUnmarshaler struct {
+	wr WriteRequest
+
+	labelsPool  []Label
+	samplesPool []Sample
+}
+
+func (wru *WriteRequestUnmarshaler) Reset() {
+	wru.wr.Reset()
+
+	clear(wru.labelsPool)
+	wru.labelsPool = wru.labelsPool[:0]
+
+	clear(wru.samplesPool)
+	wru.samplesPool = wru.samplesPool[:0]
+}
+
+// UnmarshalProtobuf parses the given Protobuf-encoded `src` into an internal WriteRequest instance
+// and returns a pointer to it. This method avoids allocations by reusing preallocated slices and pools.
 //
-// src mustn't change while wr is in use, since wr points to src.
-func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
-	wr.Reset()
+// Notes:
+//   - The `src` slice must remain unchanged for the lifetime of the returned WriteRequest,
+//     as the WriteRequest retain references to it.
+//   - The returned WriteRequest is only valid until the next call to UnmarshalProtobuf,
+//     which reuses internal buffers and structs.
+func (wru *WriteRequestUnmarshaler) UnmarshalProtobuf(src []byte) (*WriteRequest, error) {
+	wru.Reset()
+
+	var err error
 
 	// message WriteRequest {
 	//    repeated TimeSeries timeseries = 1;
 	//    reserved 2;
 	//    repeated Metadata metadata = 3;
 	// }
-	tss := wr.Timeseries
-	mds := wr.Metadata
-	labelsPool := wr.labelsPool
-	samplesPool := wr.samplesPool
+	tss := wru.wr.Timeseries
+	mds := wru.wr.Metadata
+	labelsPool := wru.labelsPool
+	samplesPool := wru.samplesPool
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return fmt.Errorf("cannot read the next field: %w", err)
+			return nil, fmt.Errorf("cannot read the next field: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read timeseries data")
+				return nil, fmt.Errorf("cannot read timeseries data")
 			}
 			if len(tss) < cap(tss) {
 				tss = tss[:len(tss)+1]
@@ -95,12 +136,12 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 			ts := &tss[len(tss)-1]
 			labelsPool, samplesPool, err = ts.unmarshalProtobuf(data, labelsPool, samplesPool)
 			if err != nil {
-				return fmt.Errorf("cannot unmarshal timeseries: %w", err)
+				return nil, fmt.Errorf("cannot unmarshal timeseries: %w", err)
 			}
 		case 3:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read metricMetadata data")
+				return nil, fmt.Errorf("cannot read metricMetadata data")
 			}
 			if len(mds) < cap(mds) {
 				mds = mds[:len(mds)+1]
@@ -109,16 +150,16 @@ func (wr *WriteRequest) UnmarshalProtobuf(src []byte) (err error) {
 			}
 			md := &mds[len(mds)-1]
 			if err := md.unmarshalProtobuf(data); err != nil {
-				return fmt.Errorf("cannot unmarshal metricMetadata: %w", err)
+				return nil, fmt.Errorf("cannot unmarshal metricMetadata: %w", err)
 			}
 
 		}
 	}
-	wr.Timeseries = tss
-	wr.Metadata = mds
-	wr.labelsPool = labelsPool
-	wr.samplesPool = samplesPool
-	return nil
+	wru.wr.Timeseries = tss
+	wru.wr.Metadata = mds
+	wru.labelsPool = labelsPool
+	wru.samplesPool = samplesPool
+	return &wru.wr, nil
 }
 
 func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesPool []Sample) ([]Label, []Sample, error) {
@@ -229,6 +270,30 @@ func (s *Sample) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
+// MetricMetadataType represents the Prometheus type of a metric.
+// https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.pb.go#L28C1-L39C2
+// https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#metric-types
+type MetricMetadataType int32
+
+const (
+	// MetricMetadataUNKNOWN represents a Prometheus Unknown-typed metric
+	MetricMetadataUNKNOWN MetricMetadataType = 0
+	// MetricMetadataCOUNTER represents a Prometheus Counter
+	MetricMetadataCOUNTER MetricMetadataType = 1
+	// MetricMetadataGAUGE represents a Prometheus Gauge
+	MetricMetadataGAUGE MetricMetadataType = 2
+	// MetricMetadataHISTOGRAM represents a Prometheus Histogram
+	MetricMetadataHISTOGRAM MetricMetadataType = 3
+	// MetricMetadataGAUGEHISTOGRAM represents a Prometheus GaugeHistogram
+	MetricMetadataGAUGEHISTOGRAM MetricMetadataType = 4
+	// MetricMetadataSUMMARY represents a Prometheus Summary
+	MetricMetadataSUMMARY MetricMetadataType = 5
+	// MetricMetadataINFO represents a Prometheus Info metric
+	MetricMetadataINFO MetricMetadataType = 6
+	// MetricMetadataSTATESET represents a Prometheus StateSet metric
+	MetricMetadataSTATESET MetricMetadataType = 7
+)
+
 // MetricMetadata represents additional meta information for specific MetricFamilyName
 // Refer to https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.proto#L21
 type MetricMetadata struct {
@@ -238,6 +303,10 @@ type MetricMetadata struct {
 	MetricFamilyName string
 	Help             string
 	Unit             string
+
+	// Additional fields to allow storing and querying metadata in multitenancy.
+	AccountID uint32
+	ProjectID uint32
 }
 
 func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
@@ -257,6 +326,9 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 	//   string metric_family_name = 2;
 	//   string help = 4;
 	//   string unit = 5;
+	//
+	//   uint32 AccountID = 11;
+	//   uint32 ProjectID = 12;
 	// }
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -289,7 +361,24 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read unit")
 			}
 			mm.Unit = value
+		case 11:
+			value, ok := fc.Uint32()
+			if !ok {
+				return fmt.Errorf("cannot read AccountID")
+			}
+			mm.AccountID = value
+		case 12:
+			value, ok := fc.Uint32()
+			if !ok {
+				return fmt.Errorf("cannot read ProjectID")
+			}
+			mm.ProjectID = value
 		}
 	}
 	return nil
+}
+
+// IsEmpty checks if the WriteRequest has data to push.
+func (m *WriteRequest) IsEmpty() bool {
+	return m == nil || (len(m.Timeseries) == 0 && len(m.Metadata) == 0)
 }

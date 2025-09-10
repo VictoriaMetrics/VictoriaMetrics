@@ -17,6 +17,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
+// safePathExpressionFromString truncates a pathExpression string if it exceeds
+// the maximum allowed length to prevent memory exhaustion.
+func safePathExpressionFromString(pathExpr string) string {
+	maxLen := *maxGraphitePathExpressionLen
+	if maxLen > 0 && len(pathExpr) > maxLen {
+		return pathExpr[:maxLen] + "..."
+	}
+	return pathExpr
+}
+
 // nextSeriesFunc must return the next series to process.
 //
 // nextSeriesFunc must release all the occupied resources before returning non-nil error.
@@ -319,7 +329,7 @@ func aggregateSeries(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeries
 		Tags:           tags,
 		Timestamps:     ec.newTimestamps(step),
 		Values:         as.Finalize(xFilesFactor),
-		pathExpression: name,
+		pathExpression: safePathExpressionFromString(name),
 		expr:           expr,
 		step:           step,
 	}
@@ -1124,7 +1134,7 @@ func constantLine(ec *evalConfig, expr graphiteql.Expr, n float64) nextSeriesFun
 		Timestamps:     []int64{ec.startTime, ec.startTime + step, ec.startTime + 2*step},
 		Values:         []float64{n, n, n},
 		expr:           expr,
-		pathExpression: string(expr.AppendString(nil)),
+		pathExpression: safePathExpression(expr),
 		step:           step,
 	}
 	return singleSeriesFunc(s)
@@ -1208,10 +1218,7 @@ func transformDelay(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, er
 		values := s.Values
 		stepsLocal := steps
 		if stepsLocal < 0 {
-			stepsLocal = -stepsLocal
-			if stepsLocal > len(values) {
-				stepsLocal = len(values)
-			}
+			stepsLocal = min(-stepsLocal, len(values))
 			copy(values, values[stepsLocal:])
 			for i := len(values) - 1; i >= len(values)-stepsLocal; i-- {
 				values[i] = nan
@@ -4653,20 +4660,14 @@ func transformSubstr(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, e
 		if start > len(splitName) {
 			start = len(splitName)
 		} else if start < 0 {
-			start = len(splitName) + start
-			if start < 0 {
-				start = 0
-			}
+			start = max(len(splitName)+start, 0)
 		}
 		if stop == 0 {
 			stop = len(splitName)
 		} else if stop > len(splitName) {
 			stop = len(splitName)
 		} else if stop < 0 {
-			stop = len(splitName) + stop
-			if stop < 0 {
-				stop = 0
-			}
+			stop = max(len(splitName)+stop, 0)
 		}
 		if stop < start {
 			stop = start

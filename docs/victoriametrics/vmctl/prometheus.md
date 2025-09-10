@@ -18,7 +18,7 @@ and made it accessible for vmctl in the same filesystem:
   --prom-snapshot=/path/to/snapshot
 ```
 
-_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl#configuring-victoriametrics)._
+_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl/#configuring-victoriametrics)._
 
 As soon as required flags are provided and healthchecks are done, `vmctl` will start exploring Prometheus snapshot.
 It fetches all available blocks from the snapshot, reads the metadata and prints stats for discovered data:

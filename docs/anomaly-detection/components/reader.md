@@ -19,7 +19,7 @@ Future updates will introduce additional readers, expanding the range of data so
 
 ## VM reader
 
-> There is backward-compatible change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
+> There is backward-compatible change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
 
 Old format like
 
@@ -54,7 +54,7 @@ reader:
 
 ### Per-query parameters
 
-There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields, which *override reader-level parameters*, if set:
+There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg format. Now each query alias supports the next (sub)fields, which *override reader-level parameters*, if set:
 
 - `expr` (string): MetricsQL/PromQL expression that defines an input for VmReader. As accepted by `/query_range?query=%s`. i.e. `avg(vm_blocks)`
 
@@ -72,7 +72,7 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
 
   > If not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg{{% available_from "v1.18.1" anomaly %}}
 
-- `max_points_per_query`{{% available_from "v1.17.0" anomaly %}} (int): Optional arg, overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
+- `max_points_per_query`{{% available_from "v1.17.0" anomaly %}} (int): Optional arg, overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
 
 - `tz`{{% available_from "v1.18.0" anomaly %}} (string): this optional argument enables timezone specification per query, overriding the reader’s default `tz`. This setting helps to account for local timezone shifts, such as [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models that are sensitive to seasonal variations (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)).
 
@@ -85,14 +85,18 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
 
   > The recommended approach for using per-query `tenant_id`s is to set both `reader.tenant_id` and `writer.tenant_id` to `multitenant`. See [this section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support) for more details. Configurations where `reader.tenant_id` equals `writer.tenant_id` and is not `multitenant` are also considered safe, provided there is a single, DISTINCT `tenant_id` defined in the reader (either at the reader level or the query level, if set).
 
+- `offset` {{% available_from "v1.25.3" anomaly %}} (string): this optional argument allows specifying a time offset for the query, which can be useful for adjusting the query time range to account for data collection delays or other timing issues. The offset is specified as a string (e.g., "15s", "-20s") and will be applied to the query time range. Valid resolutions are `ms`, `s`, `m`, `h`, `d` (miliseconds, seconds, minutes, hours, days). If not set, defaults to `0s` (0). See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#using-offsets) for more details.
+
 ### Per-query config example
 ```yaml
 reader:
   class: 'vm'
   sampling_period: '1m'
+  datasource_url: 'https://play.victoriametrics.com/'  # source victoriametrics/prometheus
   max_points_per_query: 10000
   data_range: [0, 'inf']
   tenant_id: 'multitenant'
+  offset: '0s'  # optional, defaults to 0s if not set
   # other reader params ...
   queries:
     ingestion_rate_t1:
@@ -109,6 +113,7 @@ reader:
       max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
       tz: 'America/New_York'  # to override reader-wise `tz`
       tenant_id: '2:0'  # overriding tenant_id to isolate data
+      offset: '-15s'  # to override reader-wise `offset` and query data 15 seconds earlier to account for data collection delays
 ```
 
 ### Config parameters
@@ -170,7 +175,7 @@ Datasource URL address
 `0:0`, `multitenant`
             </td>
             <td>
-For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. Starting from [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1162), `multitenant` [endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/?highlight=reads#multitenancy-via-labels) is supported, to execute queries over multiple [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. Starting from [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1162), `multitenant` [endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels) is supported, to execute queries over multiple [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
             </td>
         </tr>
         <tr>
@@ -327,7 +332,7 @@ Path to a file, which contains token, that is passed in the standard format with
 `[]`
             </td>
             <td>
-List of strings with series selector. See: [Prometheus querying API enhancements](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/##prometheus-querying-api-enhancements)
+List of strings with series selector. See: [Prometheus querying API enhancements](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements)
             </td>
         </tr>
         <tr>
@@ -353,7 +358,7 @@ If True, then query will be performed from the last seen timestamp for a given s
 `1ms`
             </td>
             <td>
-It allows overriding the default `-search.latencyOffset`{{% available_from "v1.15.1" anomaly %}} [flag of VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=infer_every#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value](https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags).
+It allows overriding the default `-search.latencyOffset`{{% available_from "v1.15.1" anomaly %}} [flag of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value](https://docs.victoriametrics.com/victoriametrics/#list-of-command-line-flags).
             </td>
         </tr>
         <tr>
@@ -366,7 +371,7 @@ It allows overriding the default `-search.latencyOffset`{{% available_from "v1.1
 `10000`
             </td>
             <td>
-Optional arg{{% available_from "v1.17.0" anomaly %}} overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. You can also set it on [per-query](#per-query-parameters) basis to override this global one.
+Optional arg{{% available_from "v1.17.0" anomaly %}} overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. You can also set it on [per-query](#per-query-parameters) basis to override this global one.
             </td>
         </tr>
         <tr>
@@ -395,10 +400,24 @@ Optional argument{{% available_from "v1.18.0" anomaly %}} specifies the [IANA](h
 Optional argument{{% available_from "v1.18.1" anomaly %}} allows defining **valid** data ranges for input of all the queries in `queries`. Defaults to `["-inf", "inf"]` if not set and can be overridden on a [per-query basis](#per-query-parameters).
             </td>
         </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`offset`</span>
+            </td>
+            <td>
+
+`60s`
+            </td>
+            <td>
+Optional argument{{% available_from "v1.25.3" anomaly %}} allows specifying a time offset for all queries in `queries`. Defaults to `0s` (0) if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
     </tbody>
 </table>
 
-Config file example:
+<br>
+Config section example:
 
 ```yaml
 reader:
@@ -407,6 +426,7 @@ reader:
   tenant_id: '0:0'
   tz: 'America/New_York'
   data_range: [1, 'inf']  # reader-level
+  offset: '0s'  # reader-level
   queries:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
@@ -414,6 +434,7 @@ reader:
       data_range: [0, 'inf']  # if set, overrides reader-level data_range
       tz: 'Australia/Sydney'  # if set, overrides reader-level tz
       # tenant_id: '1:0'  # if set, overrides reader-level tenant_id
+      # offset: '-15s'  # if set, overrides reader-level offset
   sampling_period: '1m'
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'

@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -83,8 +82,7 @@ absolute path to all .tpl files in root.
 )
 
 var (
-	alertURLGeneratorFn notifier.AlertURLGenerator
-	extURL              *url.URL
+	extURL *url.URL
 )
 
 func main() {
@@ -121,7 +119,7 @@ func main() {
 		return
 	}
 
-	alertURLGeneratorFn, err = getAlertURLGenerator(extURL, *externalAlertSource, *validateTemplates)
+	err = notifier.InitAlertURLGeneratorFn(extURL, *externalAlertSource, *validateTemplates)
 	if err != nil {
 		logger.Fatalf("failed to init `external.alert.source`: %s", err)
 	}
@@ -228,7 +226,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		labels[s[:n]] = s[n+1:]
 	}
 
-	nts, err := notifier.Init(alertURLGeneratorFn, labels, *externalURL)
+	nts, err := notifier.Init(labels, *externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
@@ -290,35 +288,6 @@ func getHostnameAsExternalURL(addr string, isSecure bool) (*url.URL, error) {
 		schema = "https://"
 	}
 	return url.Parse(fmt.Sprintf("%s%s%s", schema, hname, port))
-}
-
-func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, validateTemplate bool) (notifier.AlertURLGenerator, error) {
-	if externalAlertSource == "" {
-		return func(a notifier.Alert) string {
-			gID, aID := strconv.FormatUint(a.GroupID, 10), strconv.FormatUint(a.ID, 10)
-			return fmt.Sprintf("%s/vmalert/alert?%s=%s&%s=%s", externalURL, paramGroupID, gID, paramAlertID, aID)
-		}, nil
-	}
-	if validateTemplate {
-		if err := notifier.ValidateTemplates(map[string]string{
-			"tpl": externalAlertSource,
-		}); err != nil {
-			return nil, fmt.Errorf("error validating source template %s: %w", externalAlertSource, err)
-		}
-	}
-	m := map[string]string{
-		"tpl": externalAlertSource,
-	}
-	return func(alert notifier.Alert) string {
-		qFn := func(_ string) ([]datasource.Metric, error) {
-			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
-		}
-		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
-		if err != nil {
-			logger.Errorf("cannot template alert source: %s", err)
-		}
-		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
-	}, nil
 }
 
 func usage() {

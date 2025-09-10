@@ -33,7 +33,7 @@ For example, `sharding_test.go` aims at testing data sharding.
 
 Since integration tests start applications in a separate process, they require
 the application binary files to be built and put into the `bin` directory. The
-build rule used for running integration tests, `make integration-test`,
+build rule used for running integration tests, `make apptest`,
 accounts for that, it builds all application binaries before running the tests.
 But if you want to run the tests without `make`, i.e. by executing
 `go test ./app/apptest`, you will need to build the binaries first (for example,

@@ -29,7 +29,9 @@ var (
 		{"api/v1/rules", "list all loaded groups and rules"},
 		{"api/v1/alerts", "list all active alerts"},
 		{"api/v1/notifiers", "list all notifiers"},
-		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
+		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", rule.ParamGroupID, rule.ParamAlertID), "get alert status by group and alert ID"},
+		{fmt.Sprintf("api/v1/rule?%s=<int>&%s=<int>", rule.ParamGroupID, rule.ParamRuleID), "get rule status by group and rule ID"},
+		{fmt.Sprintf("api/v1/group?%s=<int>", rule.ParamGroupID), "get group status by group ID"},
 	}
 	systemLinks = [][2]string{
 		{"vmalert/groups", "UI"},
@@ -45,8 +47,8 @@ var (
 		{Name: "Docs", URL: "https://docs.victoriametrics.com/victoriametrics/vmalert/"},
 	}
 	ruleTypeMap = map[string]string{
-		"alert":  ruleTypeAlerting,
-		"record": ruleTypeRecording,
+		"alert":  rule.TypeAlerting,
+		"record": rule.TypeRecording,
 	}
 )
 
@@ -112,7 +114,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/rules":
 		// Grafana makes an extra request to `/rules`
 		// handler in addition to `/api/v1/rules` calls in alerts UI
-		var data []*apiGroup
+		var data []*rule.ApiGroup
 		rf, err := newRulesFilter(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
@@ -178,18 +180,32 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		w.Write(data)
 		return true
 	case "/vmalert/api/v1/rule", "/api/v1/rule":
-		rule, err := rh.getRule(r)
+		apiRule, err := rh.getRule(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		rwu := apiRuleWithUpdates{
-			apiRule:      rule,
-			StateUpdates: rule.Updates,
+		rwu := rule.ApiRuleWithUpdates{
+			ApiRule:      apiRule,
+			StateUpdates: apiRule.Updates,
 		}
 		data, err := json.Marshal(rwu)
 		if err != nil {
 			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
+			return true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return true
+	case "/vmalert/api/v1/group", "/api/v1/group":
+		group, err := rh.getGroup(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		data, err := json.Marshal(group)
+		if err != nil {
+			httpserver.Errorf(w, r, "failed to marshal group: %s", err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -209,30 +225,42 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
-func (rh *requestHandler) getRule(r *http.Request) (apiRule, error) {
-	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
+func (rh *requestHandler) getGroup(r *http.Request) (*rule.ApiGroup, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(rule.ParamGroupID), 10, 64)
 	if err != nil {
-		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
+		return nil, fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err)
 	}
-	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 64)
+	obj, err := rh.m.groupAPI(groupID)
 	if err != nil {
-		return apiRule{}, fmt.Errorf("failed to read %q param: %w", paramRuleID, err)
-	}
-	obj, err := rh.m.ruleAPI(groupID, ruleID)
-	if err != nil {
-		return apiRule{}, errResponse(err, http.StatusNotFound)
+		return nil, errResponse(err, http.StatusNotFound)
 	}
 	return obj, nil
 }
 
-func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
-	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 64)
+func (rh *requestHandler) getRule(r *http.Request) (rule.ApiRule, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(rule.ParamGroupID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %w", paramGroupID, err)
+		return rule.ApiRule{}, fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err)
 	}
-	alertID, err := strconv.ParseUint(r.FormValue(paramAlertID), 10, 64)
+	ruleID, err := strconv.ParseUint(r.FormValue(rule.ParamRuleID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %w", paramAlertID, err)
+		return rule.ApiRule{}, fmt.Errorf("failed to read %q param: %w", rule.ParamRuleID, err)
+	}
+	obj, err := rh.m.ruleAPI(groupID, ruleID)
+	if err != nil {
+		return rule.ApiRule{}, errResponse(err, http.StatusNotFound)
+	}
+	return obj, nil
+}
+
+func (rh *requestHandler) getAlert(r *http.Request) (*rule.ApiAlert, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(rule.ParamGroupID), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err)
+	}
+	alertID, err := strconv.ParseUint(r.FormValue(rule.ParamAlertID), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %q param: %w", rule.ParamAlertID, err)
 	}
 	a, err := rh.m.alertAPI(groupID, alertID)
 	if err != nil {
@@ -244,7 +272,7 @@ func (rh *requestHandler) getAlert(r *http.Request) (*apiAlert, error) {
 type listGroupsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Groups []*apiGroup `json:"groups"`
+		Groups []*rule.ApiGroup `json:"groups"`
 	} `json:"data"`
 }
 
@@ -310,19 +338,19 @@ func (rf *rulesFilter) matchesGroup(group *rule.Group) bool {
 	return true
 }
 
-func (rh *requestHandler) groups(rf *rulesFilter) []*apiGroup {
+func (rh *requestHandler) groups(rf *rulesFilter) []*rule.ApiGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	groups := make([]*apiGroup, 0)
+	groups := make([]*rule.ApiGroup, 0)
 	for _, group := range rh.m.groups {
 		if !rf.matchesGroup(group) {
 			continue
 		}
-		g := groupToAPI(group)
+		g := group.ToAPI()
 		// the returned list should always be non-nil
 		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221
-		filteredRules := make([]apiRule, 0)
+		filteredRules := make([]rule.ApiRule, 0)
 		for _, rule := range g.Rules {
 			if rf.ruleType != "" && rf.ruleType != rule.Type {
 				continue
@@ -350,7 +378,7 @@ func (rh *requestHandler) groups(rf *rulesFilter) []*apiGroup {
 		groups = append(groups, g)
 	}
 	// sort list of groups for deterministic output
-	slices.SortFunc(groups, func(a, b *apiGroup) int {
+	slices.SortFunc(groups, func(a, b *rule.ApiGroup) int {
 		if a.Name != b.Name {
 			return strings.Compare(a.Name, b.Name)
 		}
@@ -375,32 +403,32 @@ func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, error) {
 type listAlertsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Alerts []*apiAlert `json:"alerts"`
+		Alerts []*rule.ApiAlert `json:"alerts"`
 	} `json:"data"`
 }
 
-func (rh *requestHandler) groupAlerts() []groupAlerts {
+func (rh *requestHandler) groupAlerts() []rule.GroupAlerts {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	var gAlerts []groupAlerts
+	var gAlerts []rule.GroupAlerts
 	for _, g := range rh.m.groups {
-		var alerts []*apiAlert
+		var alerts []*rule.ApiAlert
 		for _, r := range g.Rules {
 			a, ok := r.(*rule.AlertingRule)
 			if !ok {
 				continue
 			}
-			alerts = append(alerts, ruleToAPIAlert(a)...)
+			alerts = append(alerts, a.AlertsToAPI()...)
 		}
 		if len(alerts) > 0 {
-			gAlerts = append(gAlerts, groupAlerts{
-				Group:  groupToAPI(g),
+			gAlerts = append(gAlerts, rule.GroupAlerts{
+				Group:  g.ToAPI(),
 				Alerts: alerts,
 			})
 		}
 	}
-	slices.SortFunc(gAlerts, func(a, b groupAlerts) int {
+	slices.SortFunc(gAlerts, func(a, b rule.GroupAlerts) int {
 		return strings.Compare(a.Group.Name, b.Group.Name)
 	})
 	return gAlerts
@@ -411,7 +439,7 @@ func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
 	defer rh.m.groupsMu.RUnlock()
 
 	lr := listAlertsResponse{Status: "success"}
-	lr.Data.Alerts = make([]*apiAlert, 0)
+	lr.Data.Alerts = make([]*rule.ApiAlert, 0)
 	for _, group := range rh.m.groups {
 		if !rf.matchesGroup(group) {
 			continue
@@ -421,12 +449,12 @@ func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
 			if !ok {
 				continue
 			}
-			lr.Data.Alerts = append(lr.Data.Alerts, ruleToAPIAlert(a)...)
+			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsToAPI()...)
 		}
 	}
 
 	// sort list of alerts for deterministic output
-	slices.SortFunc(lr.Data.Alerts, func(a, b *apiAlert) int {
+	slices.SortFunc(lr.Data.Alerts, func(a, b *rule.ApiAlert) int {
 		return strings.Compare(a.ID, b.ID)
 	})
 
@@ -443,7 +471,7 @@ func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
 type listNotifiersResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Notifiers []*apiNotifier `json:"notifiers"`
+		Notifiers []*notifier.ApiNotifier `json:"notifiers"`
 	} `json:"data"`
 }
 
@@ -451,19 +479,20 @@ func (rh *requestHandler) listNotifiers() ([]byte, error) {
 	targets := notifier.GetTargets()
 
 	lr := listNotifiersResponse{Status: "success"}
-	lr.Data.Notifiers = make([]*apiNotifier, 0)
+	lr.Data.Notifiers = make([]*notifier.ApiNotifier, 0)
 	for protoName, protoTargets := range targets {
-		notifier := &apiNotifier{
-			Kind:    string(protoName),
-			Targets: make([]*apiTarget, 0, len(protoTargets)),
+		nr := &notifier.ApiNotifier{
+			Kind:    protoName,
+			Targets: make([]*notifier.ApiTarget, 0, len(protoTargets)),
 		}
 		for _, target := range protoTargets {
-			notifier.Targets = append(notifier.Targets, &apiTarget{
-				Address: target.Addr(),
-				Labels:  target.Labels.ToMap(),
+			nr.Targets = append(nr.Targets, &notifier.ApiTarget{
+				Address:   target.Addr(),
+				Labels:    target.Labels.ToMap(),
+				LastError: target.LastError(),
 			})
 		}
-		lr.Data.Notifiers = append(lr.Data.Notifiers, notifier)
+		lr.Data.Notifiers = append(lr.Data.Notifiers, nr)
 	}
 
 	b, err := json.Marshal(lr)

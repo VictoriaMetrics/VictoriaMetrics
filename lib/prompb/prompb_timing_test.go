@@ -3,8 +3,6 @@ package prompb
 import (
 	"fmt"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 func BenchmarkWriteRequestUnmarshalProtobuf(b *testing.B) {
@@ -13,20 +11,31 @@ func BenchmarkWriteRequestUnmarshalProtobuf(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(benchWriteRequest.Timeseries)))
 	b.RunParallel(func(pb *testing.PB) {
-		var wr WriteRequest
+		wru := &WriteRequestUnmarshaler{}
 		for pb.Next() {
-			if err := wr.UnmarshalProtobuf(data); err != nil {
+			if _, err := wru.UnmarshalProtobuf(data); err != nil {
 				panic(fmt.Errorf("unexpected error: %s", err))
 			}
 		}
 	})
 }
 
-var benchWriteRequest = func() *prompbmarshal.WriteRequest {
-	var tss []prompbmarshal.TimeSeries
+func BenchmarkWriteRequestMarshalProtobuf(b *testing.B) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(benchWriteRequest.Timeseries)))
+	b.RunParallel(func(pb *testing.PB) {
+		var data []byte
+		for pb.Next() {
+			data = benchWriteRequest.MarshalProtobuf(data[:0])
+		}
+	})
+}
+
+var benchWriteRequest = func() *WriteRequest {
+	var tss []TimeSeries
 	for i := 0; i < 10_000; i++ {
-		ts := prompbmarshal.TimeSeries{
-			Labels: []prompbmarshal.Label{
+		ts := TimeSeries{
+			Labels: []Label{
 				{
 					Name:  "__name__",
 					Value: "process_cpu_seconds_total",
@@ -64,7 +73,7 @@ var benchWriteRequest = func() *prompbmarshal.WriteRequest {
 					Value: fmt.Sprintf("aaa-bb-cc-dd-ee-%d", i),
 				},
 			},
-			Samples: []prompbmarshal.Sample{
+			Samples: []Sample{
 				{
 					Value:     float64(i),
 					Timestamp: 1e9 + int64(i)*1000,
@@ -73,11 +82,10 @@ var benchWriteRequest = func() *prompbmarshal.WriteRequest {
 		}
 		tss = append(tss, ts)
 	}
-	wrm := &prompbmarshal.WriteRequest{
+	wr := &WriteRequest{
 		Timeseries: tss,
-		Metadata: []prompbmarshal.MetricMetadata{
+		Metadata: []MetricMetadata{
 			{
-				// COUNTER = 1
 				Type:             1,
 				MetricFamilyName: "process_cpu_seconds_total",
 				Help:             "Total user and system CPU time spent in seconds",
@@ -85,5 +93,5 @@ var benchWriteRequest = func() *prompbmarshal.WriteRequest {
 			},
 		},
 	}
-	return wrm
+	return wr
 }()

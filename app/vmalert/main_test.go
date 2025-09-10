@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 )
 
@@ -45,30 +46,6 @@ func TestGetExternalURL(t *testing.T) {
 	}
 	if u.String() != expURL {
 		t.Fatalf("unexpected url: want %s, got %s", expURL, u.String())
-	}
-}
-
-func TestGetAlertURLGenerator(t *testing.T) {
-	testAlert := notifier.Alert{GroupID: 42, ID: 2, Value: 4, Labels: map[string]string{"tenant": "baz"}}
-	u, _ := url.Parse("https://victoriametrics.com/path")
-	fn, err := getAlertURLGenerator(u, "", false)
-	if err != nil {
-		t.Fatalf("unexpected error %s", err)
-	}
-	exp := fmt.Sprintf("https://victoriametrics.com/path/vmalert/alert?%s=42&%s=2", paramGroupID, paramAlertID)
-	if exp != fn(testAlert) {
-		t.Fatalf("unexpected url want %s, got %s", exp, fn(testAlert))
-	}
-	_, err = getAlertURLGenerator(nil, "foo?{{invalid}}", true)
-	if err == nil {
-		t.Fatalf("expected template validation error got nil")
-	}
-	fn, err = getAlertURLGenerator(u, "foo?query={{$value}}&ds={{ $labels.tenant }}", true)
-	if err != nil {
-		t.Fatalf("unexpected error %s", err)
-	}
-	if exp := "https://victoriametrics.com/path/foo?query=4&ds=baz"; exp != fn(testAlert) {
-		t.Fatalf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
 }
 
@@ -108,8 +85,8 @@ groups:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(f.Name()) }()
-	writeToFile(t, f.Name(), rules1)
+	defer fs.MustRemovePath(f.Name())
+	writeToFile(f.Name(), rules1)
 
 	*configCheckInterval = 200 * time.Millisecond
 	*rulePath = []string{f.Name()}
@@ -164,7 +141,7 @@ groups:
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
 	}
 
-	writeToFile(t, f.Name(), rules2)
+	writeToFile(f.Name(), rules2)
 	time.Sleep(*configCheckInterval * 2)
 	checkCfg(nil)
 	groupsLen = lenLocked(m)
@@ -172,7 +149,7 @@ groups:
 		t.Fatalf("expected to have exactly 2 groups loaded; got %d", groupsLen)
 	}
 
-	writeToFile(t, f.Name(), rules1)
+	writeToFile(f.Name(), rules1)
 	procutil.SelfSIGHUP()
 	time.Sleep(*configCheckInterval / 2)
 	checkCfg(nil)
@@ -181,7 +158,7 @@ groups:
 		t.Fatalf("expected to have exactly 1 group loaded; got %d", groupsLen)
 	}
 
-	writeToFile(t, f.Name(), `corrupted`)
+	writeToFile(f.Name(), `corrupted`)
 	procutil.SelfSIGHUP()
 	time.Sleep(*configCheckInterval / 2)
 	checkCfg(fmt.Errorf("config error"))
@@ -194,10 +171,6 @@ groups:
 	<-syncCh
 }
 
-func writeToFile(t *testing.T, file, b string) {
-	t.Helper()
-	err := os.WriteFile(file, []byte(b), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
+func writeToFile(file, b string) {
+	fs.MustWriteSync(file, []byte(b))
 }

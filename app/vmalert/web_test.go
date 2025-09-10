@@ -25,6 +25,7 @@ func TestHandler(t *testing.T) {
 	m := &manager{groups: map[uint64]*rule.Group{}}
 	var ar *rule.AlertingRule
 	var rr *rule.RecordingRule
+	var groupIDs []uint64
 	for _, dsType := range []string{"prometheus", "", "graphite"} {
 		g := rule.NewGroup(config.Group{
 			Name:        "group",
@@ -45,7 +46,9 @@ func TestHandler(t *testing.T) {
 		ar = g.Rules[0].(*rule.AlertingRule)
 		rr = g.Rules[1].(*rule.RecordingRule)
 		g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
-		m.groups[g.CreateID()] = g
+		id := g.CreateID()
+		m.groups[id] = g
+		groupIDs = append(groupIDs, id)
 	}
 	rh := &requestHandler{m: m}
 
@@ -82,22 +85,22 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/vmalert/rule", func(t *testing.T) {
-		a := ruleToAPI(ar)
+		a := ar.ToAPI()
 		getResp(t, ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
-		r := ruleToAPI(rr)
+		r := rr.ToAPI()
 		getResp(t, ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
 	})
 	t.Run("/vmalert/alert", func(t *testing.T) {
-		alerts := ruleToAPIAlert(ar)
+		alerts := ar.AlertsToAPI()
 		for _, a := range alerts {
 			getResp(t, ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
 		}
 	})
 	t.Run("/vmalert/rule?badParam", func(t *testing.T) {
-		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramRuleID)
+		params := fmt.Sprintf("?%s=0&%s=1", rule.ParamGroupID, rule.ParamRuleID)
 		getResp(t, ts.URL+"/vmalert/rule"+params, nil, 404)
 
-		params = fmt.Sprintf("?%s=1&%s=0", paramGroupID, paramRuleID)
+		params = fmt.Sprintf("?%s=1&%s=0", rule.ParamGroupID, rule.ParamRuleID)
 		getResp(t, ts.URL+"/vmalert/rule"+params, nil, 404)
 	})
 
@@ -124,14 +127,14 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/alert?alertID&groupID", func(t *testing.T) {
-		expAlert := newAlertAPI(ar, ar.GetAlerts()[0])
-		alert := &apiAlert{}
+		expAlert := rule.NewAlertAPI(ar, ar.GetAlerts()[0])
+		alert := &rule.ApiAlert{}
 		getResp(t, ts.URL+"/"+expAlert.APILink(), alert, 200)
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Fatalf("expected %v is equal to %v", alert, expAlert)
 		}
 
-		alert = &apiAlert{}
+		alert = &rule.ApiAlert{}
 		getResp(t, ts.URL+"/vmalert/"+expAlert.APILink(), alert, 200)
 		if !reflect.DeepEqual(alert, expAlert) {
 			t.Fatalf("expected %v is equal to %v", alert, expAlert)
@@ -139,16 +142,16 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("/api/v1/alert?badParams", func(t *testing.T) {
-		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramAlertID)
+		params := fmt.Sprintf("?%s=0&%s=1", rule.ParamGroupID, rule.ParamAlertID)
 		getResp(t, ts.URL+"/api/v1/alert"+params, nil, 404)
 		getResp(t, ts.URL+"/vmalert/api/v1/alert"+params, nil, 404)
 
-		params = fmt.Sprintf("?%s=1&%s=0", paramGroupID, paramAlertID)
+		params = fmt.Sprintf("?%s=1&%s=0", rule.ParamGroupID, rule.ParamAlertID)
 		getResp(t, ts.URL+"/api/v1/alert"+params, nil, 404)
 		getResp(t, ts.URL+"/vmalert/api/v1/alert"+params, nil, 404)
 
 		// bad request, alertID is missing
-		params = fmt.Sprintf("?%s=1", paramGroupID)
+		params = fmt.Sprintf("?%s=1", rule.ParamGroupID)
 		getResp(t, ts.URL+"/api/v1/alert"+params, nil, 400)
 		getResp(t, ts.URL+"/vmalert/api/v1/alert"+params, nil, 400)
 	})
@@ -167,25 +170,40 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/rule?ruleID&groupID", func(t *testing.T) {
-		expRule := ruleToAPI(ar)
-		gotRule := apiRule{}
+		expRule := ar.ToAPI()
+		gotRule := rule.ApiRule{}
 		getResp(t, ts.URL+"/"+expRule.APILink(), &gotRule, 200)
 
 		if expRule.ID != gotRule.ID {
 			t.Fatalf("expected to get Rule %q; got %q instead", expRule.ID, gotRule.ID)
 		}
 
-		gotRule = apiRule{}
+		gotRule = rule.ApiRule{}
 		getResp(t, ts.URL+"/vmalert/"+expRule.APILink(), &gotRule, 200)
 
 		if expRule.ID != gotRule.ID {
 			t.Fatalf("expected to get Rule %q; got %q instead", expRule.ID, gotRule.ID)
 		}
 
-		gotRuleWithUpdates := apiRuleWithUpdates{}
+		gotRuleWithUpdates := rule.ApiRuleWithUpdates{}
 		getResp(t, ts.URL+"/"+expRule.APILink(), &gotRuleWithUpdates, 200)
 		if len(gotRuleWithUpdates.StateUpdates) < 1 {
 			t.Fatalf("expected %+v to have state updates field not empty", gotRuleWithUpdates.StateUpdates)
+		}
+	})
+	t.Run("/api/v1/group?groupID", func(t *testing.T) {
+		id := groupIDs[0]
+		g := m.groups[id]
+		expGroup := g.ToAPI()
+		gotGroup := rule.ApiGroup{}
+		getResp(t, ts.URL+"/"+expGroup.APILink(), &gotGroup, 200)
+		if expGroup.ID != gotGroup.ID {
+			t.Fatalf("expected to get Group %q; got %q instead", expGroup.ID, gotGroup.ID)
+		}
+		gotGroup = rule.ApiGroup{}
+		getResp(t, ts.URL+"/vmalert/"+expGroup.APILink(), &gotGroup, 200)
+		if expGroup.ID != gotGroup.ID {
+			t.Fatalf("expected to get Group %q; got %q instead", expGroup.ID, gotGroup.ID)
 		}
 	})
 

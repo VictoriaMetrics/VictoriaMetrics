@@ -45,9 +45,14 @@ func validateStorageClass(storageClass s3types.StorageClass) error {
 	return fmt.Errorf("unsupported S3 storage class: %s. Supported values: %v", storageClass, supportedStorageClasses)
 }
 
-// StringToS3StorageClass converts string types to AWS S3 StorageClass type for value comparison
-func StringToS3StorageClass(sc string) s3types.StorageClass {
+// StringToStorageClass converts string types to AWS S3 StorageClass type for value comparison
+func StringToStorageClass(sc string) s3types.StorageClass {
 	return s3types.StorageClass(sc)
+}
+
+// StringToChecksumAlgorithm converts string types to AWS S3 ChecksumAlgorithm type for value comparison
+func StringToChecksumAlgorithm(alg string) s3types.ChecksumAlgorithm {
+	return s3types.ChecksumAlgorithm(alg)
 }
 
 // FS represents filesystem for backups in S3.
@@ -74,6 +79,9 @@ type FS struct {
 
 	// Object Storage Class: https://aws.amazon.com/s3/storage-classes/
 	StorageClass s3types.StorageClass
+
+	// Checksum algorithm
+	ChecksumAlgorithm s3types.ChecksumAlgorithm
 
 	// The name of S3 config profile to use.
 	ProfileName string
@@ -340,12 +348,13 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		r: r,
 	}
 	input := &s3.PutObjectInput{
-		Bucket:       aws.String(fs.Bucket),
-		Key:          aws.String(path),
-		Body:         sr,
-		StorageClass: fs.StorageClass,
-		Metadata:     fs.Metadata,
-		Tagging:      fs.tags,
+		Bucket:            aws.String(fs.Bucket),
+		Key:               aws.String(path),
+		Body:              sr,
+		StorageClass:      fs.StorageClass,
+		Metadata:          fs.Metadata,
+		ChecksumAlgorithm: fs.ChecksumAlgorithm,
+		Tagging:           fs.tags,
 	}
 
 	_, err := fs.uploader.Upload(fs.ctx, input)
@@ -432,12 +441,13 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 		r: bytes.NewReader(data),
 	}
 	input := &s3.PutObjectInput{
-		Bucket:       aws.String(fs.Bucket),
-		Key:          aws.String(path),
-		Body:         sr,
-		StorageClass: fs.StorageClass,
-		Metadata:     fs.Metadata,
-		Tagging:      fs.tags,
+		Bucket:            aws.String(fs.Bucket),
+		Key:               aws.String(path),
+		Body:              sr,
+		StorageClass:      fs.StorageClass,
+		Metadata:          fs.Metadata,
+		ChecksumAlgorithm: fs.ChecksumAlgorithm,
+		Tagging:           fs.tags,
 	}
 	_, err := fs.uploader.Upload(fs.ctx, input)
 	if err != nil {

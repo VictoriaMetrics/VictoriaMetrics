@@ -3,10 +3,11 @@ package storage
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestTableSearch(t *testing.T) {
@@ -185,11 +186,7 @@ func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange,
 	// Create a table from rowss and test search on it.
 	strg := newTestStorage()
 	tb := mustOpenTable("test-table", strg)
-	defer func() {
-		if err := os.RemoveAll("test-table"); err != nil {
-			t.Fatalf("cannot remove table directory: %s", err)
-		}
-	}()
+	defer fs.MustRemoveDir("test-table")
 	for _, rows := range rowss {
 		tb.MustAddRows(rows)
 

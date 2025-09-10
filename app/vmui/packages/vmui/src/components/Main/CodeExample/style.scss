@@ -6,8 +6,9 @@
   padding: $padding-global;
   white-space: pre-wrap;
   border-radius: $border-radius-small;
-  background-color: rgba($color-black, 0.05);
+  background-color: $color-code;
   overflow: auto;
+  text-overflow: ellipsis;
 
   &__copy {
     position: absolute;

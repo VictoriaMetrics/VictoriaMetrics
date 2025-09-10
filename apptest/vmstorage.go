@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -22,11 +23,11 @@ type Vmstorage struct {
 	vmselectAddr    string
 }
 
-// StartVmstorage starts an instance of vmstorage with the given flags. It also
+// StartVmstorageAt starts an instance of vmstorage with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVmstorage(instance string, flags []string, cli *Client) (*Vmstorage, error) {
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmstorage", flags, &appOptions{
+func StartVmstorageAt(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmstorage, error) {
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":  "127.0.0.1:0",
@@ -39,6 +40,7 @@ func StartVmstorage(instance string, flags []string, cli *Client) (*Vmstorage, e
 			vminsertAddrRE,
 			vmselectAddrRE,
 		},
+		output: output,
 	})
 	if err != nil {
 		return nil, err

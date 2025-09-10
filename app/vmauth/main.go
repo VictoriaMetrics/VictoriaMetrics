@@ -110,9 +110,7 @@ func main() {
 	})
 
 	if len(*httpInternalListenAddr) > 0 {
-		go httpserver.Serve(*httpInternalListenAddr, internalRequestHandler, httpserver.ServeOptions{
-			UseProxyProtocol: useProxyProtocol,
-		})
+		go httpserver.Serve(*httpInternalListenAddr, internalRequestHandler, httpserver.ServeOptions{})
 	}
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -271,7 +269,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			query.Set("request_path", u.String())
 			targetURL.RawQuery = query.Encode()
 		} else { // Update path for regular routes.
-			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
+			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		}
 
 		wasLocalRetry := false

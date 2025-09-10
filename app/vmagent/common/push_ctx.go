@@ -3,7 +3,7 @@ package common
 import (
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -12,13 +12,13 @@ type PushCtx struct {
 	// WriteRequest contains the WriteRequest, which must be pushed later to remote storage.
 	//
 	// The actual labels and samples for the time series are stored in Labels and Samples fields.
-	WriteRequest prompbmarshal.WriteRequest
+	WriteRequest prompb.WriteRequest
 
 	// Labels contains flat list of all the labels used in WriteRequest.
-	Labels []prompbmarshal.Label
+	Labels []prompb.Label
 
 	// Samples contains flat list of all the samples used in WriteRequest.
-	Samples []prompbmarshal.Sample
+	Samples []prompb.Sample
 }
 
 // Reset resets ctx.

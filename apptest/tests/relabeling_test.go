@@ -2,18 +2,18 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func TestSingleIngestionWithRelabeling(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 	const relabelFileName = "relabel_config.yaml"
 	relabelingRules := `
@@ -43,9 +43,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
   target_label: __name__
   `
 	relabelFilePath := fmt.Sprintf("%s/%s", t.TempDir(), relabelFileName)
-	if err := os.WriteFile(relabelFilePath, []byte(relabelingRules), os.ModePerm); err != nil {
-		t.Fatalf("cannot create file=%q: %s", relabelFilePath, err)
-	}
+	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 	sut := tc.MustStartVmsingle("relabeling-ingest",
 		[]string{fmt.Sprintf(`-relabelConfig=%s`, relabelFilePath),
 			`-retentionPeriod=100y`})
@@ -55,29 +53,29 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 		qtime       string
 		step        string
 		wantMetrics []map[string]string
-		wantSamples []*at.Sample
+		wantSamples []*apptest.Sample
 	}
-	f := func(sut at.PrometheusQuerier, opts *opts) {
+	f := func(sut apptest.PrometheusQuerier, opts *opts) {
 		t.Helper()
-		wantResult := []*at.QueryResult{}
+		wantResult := []*apptest.QueryResult{}
 		for idx, wm := range opts.wantMetrics {
-			wantResult = append(wantResult, &at.QueryResult{
+			wantResult = append(wantResult, &apptest.QueryResult{
 				Metric:  wm,
-				Samples: []*at.Sample{opts.wantSamples[idx]},
+				Samples: []*apptest.Sample{opts.wantSamples[idx]},
 			})
 
 		}
-		tc.Assert(&at.AssertOptions{
+		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return sut.PrometheusAPIV1Query(t, opts.query, at.QueryOpts{
+				return sut.PrometheusAPIV1Query(t, opts.query, apptest.QueryOpts{
 					Time: opts.qtime,
 					Step: opts.step,
 				})
 			},
-			Want: &at.PrometheusAPIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
+			Want: &apptest.PrometheusAPIV1QueryResponse{Data: &apptest.QueryData{Result: wantResult}},
 			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+				cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
 			},
 		})
 	}
@@ -85,7 +83,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
 		`importprometheus_series{label="foo"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
 		`must_drop_series{label="foo"} 20 1707123456800`,        // 2024-02-05T08:57:36.800Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 	f(sut, &opts{
 		query: `{label="foo"}[120ms]`,
@@ -101,7 +99,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 				"ingestion_protocol": "importprometheus",
 			},
 		},
-		wantSamples: []*at.Sample{
+		wantSamples: []*apptest.Sample{
 			{Timestamp: 1707123456700, Value: 10},
 		},
 	})
@@ -111,7 +109,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 	sut.InfluxWrite(t, []string{
 		`influxline,label=foo1 series1=10,series2=30 1707123456700`, // 2024-02-05T08:57:36.700Z
 		`must_drop,label=foo1 series1=20,series2=40 1707123456800`,  // 2024-02-05T08:57:36.800Z
-	}, at.QueryOpts{})
+	}, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 	f(sut, &opts{
 		query: `{label="foo1"}[120ms]`,
@@ -135,15 +133,15 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 				"label4":             "value4",
 				"ingestion_protocol": "influxline"},
 		},
-		wantSamples: []*at.Sample{
+		wantSamples: []*apptest.Sample{
 			{Timestamp: 1707123456700, Value: 10},
 			{Timestamp: 1707123456700, Value: 30},
 		},
 	})
 
-	pbData := []pb.TimeSeries{
+	pbData := []prompb.TimeSeries{
 		{
-			Labels: []pb.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "prometheusrw_series",
@@ -153,7 +151,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 					Value: "foo2",
 				},
 			},
-			Samples: []pb.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     10,
 					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
@@ -162,7 +160,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 			},
 		},
 		{
-			Labels: []pb.Label{
+			Labels: []prompb.Label{
 				{
 					Name:  "__name__",
 					Value: "must_drop_series",
@@ -172,7 +170,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 					Value: "foo2",
 				},
 			},
-			Samples: []pb.Sample{
+			Samples: []prompb.Sample{
 				{
 					Value:     20,
 					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
@@ -180,7 +178,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 			},
 		},
 	}
-	sut.PrometheusAPIV1Write(t, pbData, at.QueryOpts{})
+	sut.PrometheusAPIV1Write(t, pbData, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 	f(sut, &opts{
 		query: `{label="foo2"}[120ms]`,
@@ -196,7 +194,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 				"ingestion_protocol": "prometheusrw",
 			},
 		},
-		wantSamples: []*at.Sample{
+		wantSamples: []*apptest.Sample{
 			{Timestamp: 1707123456700, Value: 10}, // 2024-02-05T08:57:36.700Z
 		},
 	})

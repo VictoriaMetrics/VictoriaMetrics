@@ -1450,7 +1450,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Percentage of used RSS memory (resident).\nThe RSS memory shows the amount of memory recently accessed by the application. It includes anonymous memory and data from recently accessed files (aka page cache).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
+          "description": "How much resident memory (RAM) the process is actually using, compared to its allowed container or system limit.\n\n- Good: Below 70% most of the time, maybe spiking a bit under load.\n- Bad: Above 90% for more than 5 minutes = risk of out-of-memory (OOM) kill.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2089,7 +2089,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\nThe lower the better.",
+          "description": "CPU pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html). Helps troubleshoot high CPU usage or throttling.\nLower is better.\n\n- waiting: The percentage of time at least one task in the process was ready to run (runnable) but couldn't get scheduled on the CPU.\n- stalled: The percentage of time all tasks in the process (except idle ones) were unable to get CPU time — a full CPU stall.\n\nIf there's a CPU burst, it's normal to see waiting or stalled > 1%. It only becomes a concern if it consistently climbs above 5–10% and aligns with latency spikes or GC slowdowns.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2211,7 +2211,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\n\nThe lower the better.",
+          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\nLower is better.\n\n- waiting: Time fraction where at least one thread was blocked on memory.\n- stalled: Time fraction where every thread was blocked on memory (severe pressure).\n\nIf queries slow down and both series spike, the host is likely limited by RAM or I/O throughput.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4900,7 +4900,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.",
+          "description": "Shows the approx time needed to reach 100% of allowed disk capacity based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.",
           "fieldConfig": {
             "defaults": {
               "color": {
