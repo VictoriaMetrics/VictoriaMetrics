@@ -72,12 +72,12 @@ func MustRemoveDir(dirPath string) {
 	}
 	wg.Wait()
 
+	// Remove the deleteDirFilename file
+	MustRemovePath(deleteFilePath)
+
 	// Make sure the deleted names are properly synced to the dirPath,
 	// so they are no longer visible after unclean shutdown.
 	MustSyncPath(dirPath)
-
-	// Remove the deleteDirFilename file
-	MustRemovePath(deleteFilePath)
 
 	// Remove the dirPath itself
 	MustRemovePath(dirPath)
