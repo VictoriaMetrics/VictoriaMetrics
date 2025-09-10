@@ -35,7 +35,7 @@ To make a complete backup for VictoriaMetrics single node run the following comm
 Please refer to [full backup creation](https://docs.victoriametrics.com/victoriametrics/vmbackup/#full-backups) for further details.
 We recommend using [smart backup](https://docs.victoriametrics.com/victoriametrics/vmbackup/#smart-backups) strategy as a best practice.
 
-### Cluster backup
+### Cluster backup {id="backups-for-victoriametrics-cluster"}
 
 To make a complete backup for [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/), `vmbackup` must be run on each `vmstorage` node in cluster. Backups must
 be placed into different directories on the remote storage in order to avoid conflicts between backups from different nodes.
@@ -64,7 +64,7 @@ Further in this document you can find [how backup mechanism works step by step](
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio) or [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/). See [these docs](#advanced-usage) for details.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 
-## Backup types
+## Backup types {id="use-cases"}
 
 `vmbackup` supports [incremental](https://docs.victoriametrics.com/victoriametrics/vmbackup/#incremental-backups) and [full](https://docs.victoriametrics.com/victoriametrics/vmbackup/#full-backups) backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
 Full backups can be accelerated with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
@@ -90,7 +90,7 @@ Full backup can be performed on a single node with the following command:
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
 
-### Full backups with server-side copy from existing backup
+### Full backups with server-side copy from existing backup {id="regular-backups-with-server-side-copy-from-existing-backup"}
 
 If the destination GCS bucket already contains the previous backup at `-origin` path, then new backup can be accelerated
 with the following command:
@@ -573,14 +573,3 @@ by setting it via `<ROOT_IMAGE>` environment variable. For example, the followin
 ROOT_IMAGE=scratch make package-vmbackup
 ```
 
----
-The following legacy links are retained for historical reference.
-
-###### Backups for victoriametrics cluster
-Moved to [Cluster backup](https://docs.victoriametrics.com/victoriametrics/vmbackup/#cluster-backup)
-
-###### Use cases
-Moved to [Backup types](https://docs.victoriametrics.com/victoriametrics/vmbackup/#backup-types)
-
-###### Regular backups with server-side copy from existing backup
-Moved to [Full backups with server-side copy from existing backup](https://docs.victoriametrics.com/victoriametrics/vmbackup/#regular-backups-with-server-side-copy-from-existing-backup)
