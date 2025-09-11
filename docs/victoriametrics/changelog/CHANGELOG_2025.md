@@ -10,6 +10,7 @@ menu:
     weight: 2
 tags:
   - metrics
+canonical: /victoriametrics/changelog/
 aliases:
   - /CHANGELOG_2025.html
   - /changelog_2025
