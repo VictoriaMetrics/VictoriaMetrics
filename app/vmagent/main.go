@@ -478,6 +478,22 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrape.WriteConfigData(&bb)
 		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%s}}`, stringsutil.JSONString(string(bb.B)))
 		return true
+	case "/remotewrite-relabel-config", "/api/v1/status/remotewrite-relabel-config":
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey) {
+			return true
+		}
+		promscrapeConfigRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		remotewrite.WriteRelabelConfigData(w)
+		return true
+	case "/remotewrite-url-relabel-config", "/api/v1/status/remotewrite-url-relabel-config":
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey) {
+			return true
+		}
+		promscrapeConfigRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		remotewrite.WriteURLRelabelConfigData(w)
+		return true
 	case "/prometheus/-/reload", "/-/reload":
 		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
 			return true
