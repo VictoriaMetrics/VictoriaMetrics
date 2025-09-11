@@ -155,8 +155,8 @@ const ExploreRules: FC = () => {
     [groups, types, states, searchInput]
   );
 
-  if (allTypes.size === types.length) types.splice(0, types.length);
-  if (allStates.size === states.length) states.splice(0, states.length);
+  const selectedTypes = allTypes.size === types.length ? [] : types;
+  const selectedStates = allStates.size === states.length ? [] : states;
 
   return (
     <>
@@ -164,9 +164,9 @@ const ExploreRules: FC = () => {
       {(!modalOpen || !!allStates?.size) && (
         <div className="vm-explore-alerts">
           <RulesHeader
-            types={types}
+            types={selectedTypes}
             allTypes={Array.from(allTypes)}
-            states={states}
+            states={selectedStates}
             allStates={Array.from(allStates)}
             onChangeTypes={handleChangeTypes}
             onChangeStates={handleChangeStates}
