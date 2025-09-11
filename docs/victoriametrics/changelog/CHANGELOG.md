@@ -33,6 +33,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix possible partial rule update responses in group-related APIs during group updates in hot config reload. See [#9551](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9551)
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): properly apply rollup functions to metrics based on their name in vmui's [metrics explorer](https://docs.victoriametrics.com/victoriametrics/#metrics-explorer). See [#9655](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9655) for details. Thanks to @wbwren-eric for the fix. 
+* BUGFIX: all components: properly expose metadata for summaries and histograms in VictoriaMetrics components with enabled `-metrics.exposeMetadata` cmd-line flag. See [metrics#98](https://github.com/VictoriaMetrics/metrics/issues/98) for details.
+* BUGFIX: all components: lower severity of the log message for unavailable [Pressure Stall Information (PSI)](https://docs.kernel.org/accounting/psi.html) metrics from `ERROR` to `INFO` level. See [#9161](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9161) for details.
 
 ## [v1.125.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.1)
 

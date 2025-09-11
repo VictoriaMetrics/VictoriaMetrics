@@ -139,7 +139,7 @@ github.com/VictoriaMetrics/easyproto
 # github.com/VictoriaMetrics/fastcache v1.13.0
 ## explicit; go 1.24.0
 github.com/VictoriaMetrics/fastcache
-# github.com/VictoriaMetrics/metrics v1.39.1
+# github.com/VictoriaMetrics/metrics v1.40.0
 ## explicit; go 1.18
 github.com/VictoriaMetrics/metrics
 # github.com/VictoriaMetrics/metricsql v0.84.8
@@ -888,8 +888,8 @@ golang.org/x/oauth2/jwt
 ## explicit; go 1.23.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.34.0
-## explicit; go 1.23.0
+# golang.org/x/sys v0.36.0
+## explicit; go 1.24.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
