@@ -185,15 +185,16 @@ it can remove unwanted samples via Prometheus-like relabeling before sending the
 Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
 Note that there are two ways to provide the relabeling configuration. Choosing
-the correct way depends on the model used ror metric collection:
+the correct one depends on the model used for metric collection:
 
-- `Pull` model (used with `node_exporter` targets). The relabeling configuration
-   is specified for each job in the scrape config file. The path to this file is
-   then passed to the `vmagent` via the `-promscrape.config` flag.
+- `Pull` model (used with `node_exporter` targets). The relabeling is performed
+   as soon as the metrics are received. Therefore, the relabeling configuration
+   is specified for each job in the scrape config file whose path is then passed
+   to the `vmagent` via the `-promscrape.config` flag.
 - `Push` model (used with `Graphite  agent`, `Kafka`, etc). The relabeling can
    only be performed right before a remote write. Therefore the relabeling
-   configuration is specified in a separate config file. The path to this file
-   is then passed to the `vmagent` via the `-remoteWrite.relabelConfig` flag.
+   configuration is specified in a separate config file whose path is then
+   passed to the `vmagent` via the `-remoteWrite.relabelConfig` flag.
 
 ### Splitting data streams among multiple systems
 
