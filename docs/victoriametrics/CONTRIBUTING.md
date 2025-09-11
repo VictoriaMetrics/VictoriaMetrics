@@ -79,7 +79,7 @@ Pull requests requirements:
    Submit a pull request to the upstream repository first. Afterward, a separate pull request can be opened to update the version of the vendored folder in downstream repository.
    The update of vendored package can be done with: run `go get` with the **tag** (avoid using the commit hash),
    and then run `go mod tidy` and `go mod vendor` to update the `go.mod`, `go.sum` and `/vendor`.
-1. Reviewers who you think have the best expertise on the matter.
+1. Ping reviewers who you think have the best expertise on the matter.
 
 See good example of a [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
 
