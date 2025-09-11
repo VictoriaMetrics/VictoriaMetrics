@@ -76,7 +76,7 @@ Pull requests requirements:
    that would be clear to other readers even if they don't have the full context.
 1. Avoid modifying code in the `/vendor` folder manually, even when the vendored package originates from the VictoriaMetrics GitHub organization.
    For instance, VictoriaLogs vendors packages under the `/lib` folder from VictoriaMetrics, and VictoriaTraces vendors the `/lib/logstorage` package from VictoriaLogs.
-   Instead, submit a pull request to the upstream repository first. Afterward, a separate pull request can be opened to update the version of the vendored folder in downstream repository.
+   Submit a pull request to the upstream repository first. Afterward, a separate pull request can be opened to update the version of the vendored folder in downstream repository.
 1. Reviewers who you think have the best expertise on the matter.
 
 See good example of a [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
