@@ -51,7 +51,7 @@ const Select: FC<SelectProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isMultiple = Array.isArray(value);
-  const selectedValues = Array.isArray(value) ? value.slice() : [];
+  let selectedValues = Array.isArray(value) ? value.slice() : [];
   const hideInput = isMobile && isMultiple && !!selectedValues?.length;
 
   const textFieldValue = useMemo(() => {
@@ -126,8 +126,7 @@ const Select: FC<SelectProps> = ({
 
   if (includeAll && !resultList.includes("All")) resultList.push("All");
   if (includeAll && (!selectedValues?.length || selectedValues?.length === resultList?.length)) {
-    selectedValues.splice(0, selectedValues?.length);
-    selectedValues.push("All");
+    selectedValues = ["All"];
   }
 
   return (
