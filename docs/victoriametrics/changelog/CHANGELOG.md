@@ -27,7 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): stream responses from backends to clients without delays. Previously the backend data could be buffered at `vmauth` side for indefinite amounts of time. This was preventing from using `vmauth` for streaming the data from backends in [live tailing mode](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing). See [VictoriaLogs#667](https://github.com/VictoriaMetrics/VictoriaLogs/issues/667).
-
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` APIs to return `-promscrape.config` and `-remoteWrite.relabelConfig` flag values. See [#9504](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9504).
 
 ## [v1.126.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.126.0)
 
