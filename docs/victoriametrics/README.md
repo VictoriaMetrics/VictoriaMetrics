@@ -630,6 +630,8 @@ Note that `production` builds are not supported via Podman because Podman does n
 
 ## How to work with snapshots
 
+### Create snapshot
+
 Send a request to `http://<victoriametrics-addr>:8428/snapshot/create` endpoint in order to create
 an [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 The page returns the following JSON response on successful creation of snapshot:
@@ -654,6 +656,8 @@ for more details. This adds some restrictions on what can be done with the conte
 See also [snapshot troubleshooting](#snapshot-troubleshooting).
 
 The `http://<victoriametrics-addr>:8428/snapshot/list` endpoint returns the list of available snapshots.
+
+### Delete snapshot
 
 Send a query to `http://<victoriametrics-addr>:8428/snapshot/delete?snapshot=<snapshot-name>` in order
 to delete the snapshot with `<snapshot-name>` name.
@@ -2254,11 +2258,8 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 
 ## Backups
 
-VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/)
-and [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) tools.
-We also provide [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool for enterprise subscribers.
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
+For backup configuration and setup, please refer to [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
+
 
 ## vmalert
 
