@@ -21,8 +21,9 @@ type bufferedWriter interface {
 type BufferedConn struct {
 	net.Conn
 
-	br io.Reader
-	bw bufferedWriter
+	unreadBuf []byte
+	br        io.Reader
+	bw        bufferedWriter
 
 	readDeadline  time.Time
 	writeDeadline time.Time
@@ -73,17 +74,31 @@ func (bc *BufferedConn) SetWriteDeadline(t time.Time) error {
 	return bc.Conn.SetWriteDeadline(t)
 }
 
+// UnRead returns data from the buffer back
+func (bc *BufferedConn) UnRead(p []byte) {
+	bc.unreadBuf = append(bc.unreadBuf, p...)
+}
+
 // Read reads up to len(p) from bc to p.
 func (bc *BufferedConn) Read(p []byte) (int, error) {
+	var unreadN int
+	if len(bc.unreadBuf) > 0 {
+		unreadN = copy(p, bc.unreadBuf)
+		bc.unreadBuf = bc.unreadBuf[unreadN:]
+		if unreadN > len(p) {
+			return unreadN, nil
+		}
+	}
 	startTime := fasttime.UnixTimestamp()
 	if deadlineExceeded(bc.readDeadline, startTime) {
 		return 0, os.ErrDeadlineExceeded
 	}
-	n, err := bc.br.Read(p)
+
+	n, err := bc.br.Read(p[unreadN:])
 	if err != nil && err != io.EOF {
 		err = fmt.Errorf("cannot read data in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
-	return n, err
+	return n + unreadN, err
 }
 
 // Write writes p to bc.
@@ -125,6 +140,8 @@ func (bc *BufferedConn) Close() error {
 		zw.Release()
 	}
 	bc.bw = nil
+
+	bc.unreadBuf = nil
 
 	return err
 }
