@@ -13,6 +13,8 @@ import Button from "../../Button/Button";
 interface DatePickerProps {
   date: Date | Dayjs
   format?: string
+  minDate?: Date | Dayjs
+  maxDate?: Date | Dayjs
   onChange: (date: string) => void
 }
 
@@ -24,6 +26,8 @@ enum CalendarTypeView {
 
 const Calendar: FC<DatePickerProps> = ({
   date,
+  minDate,
+  maxDate,
   format = DATE_TIME_FORMAT,
   onChange,
 }) => {
@@ -34,6 +38,8 @@ const Calendar: FC<DatePickerProps> = ({
   const today = dayjs.tz();
   const viewDateIsToday = today.format(DATE_FORMAT) === viewDate.format(DATE_FORMAT);
   const { isMobile } = useDeviceDetect();
+  const min = minDate ? dayjs(minDate) : undefined;
+  const max = maxDate ? dayjs(maxDate) : undefined;
 
   const toggleDisplayYears = () => {
     setViewType(prev => prev === CalendarTypeView.years ? CalendarTypeView.days : CalendarTypeView.years);
@@ -75,9 +81,13 @@ const Calendar: FC<DatePickerProps> = ({
         onChangeViewDate={handleChangeViewDate}
         toggleDisplayYears={toggleDisplayYears}
         showArrowNav={viewType === CalendarTypeView.days}
+        hasPrev={viewType === CalendarTypeView.days && (!min || viewDate.startOf("month").isAfter(min))}
+        hasNext={viewType === CalendarTypeView.days && (!max || viewDate.endOf("month").isBefore(max))}
       />
       {viewType === CalendarTypeView.days && (
         <CalendarBody
+          minDate={min}
+          maxDate={max}
           viewDate={viewDate}
           selectDate={selectDate}
           onChangeSelectDate={handleChangeSelectDate}
@@ -85,12 +95,16 @@ const Calendar: FC<DatePickerProps> = ({
       )}
       {viewType === CalendarTypeView.years && (
         <YearsList
+          minDate={min}
+          maxDate={max}
           viewDate={viewDate}
           onChangeViewDate={handleChangeViewDate}
         />
       )}
       {viewType === CalendarTypeView.months && (
         <MonthsList
+          minDate={min}
+          maxDate={max}
           selectDate={selectDate}
           viewDate={viewDate}
           onChangeViewDate={handleChangeViewDate}
