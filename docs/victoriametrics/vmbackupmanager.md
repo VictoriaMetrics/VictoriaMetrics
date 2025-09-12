@@ -156,9 +156,13 @@ Backup retention policy is controlled by:
 * `-keepLastWeekly` - keep the last N weekly backups. Disabled by default
 * `-keepLastMonthly` - keep the last N monthly backups. Disabled by default
 
-> *Note*: 0 value in every keepLast flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
+> `0` value in every `keepLast*` flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
 
-> *Note*: retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
+> Retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
+
+> It is not safe to use object lifecycle rules provided by object storage for backup retention.
+> `vmbackupmanager` and `vmbackup` preserve original creation dates of the files when uploading data to object storage. Lifecycle rules of the object storage will be applied to original partition creation dates and not to the backup creation dates.
+> This may lead to deleting data which is still required for restoring from backup.
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
@@ -187,7 +191,7 @@ info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2
 
 The result on the GCS bucket. We see only 3 daily backups:
 
-[retention policy daily after retention cycle](vmbackupmanager_rp_daily_2.webp "retention policy daily after retention cycle")
+![retention policy daily after retention cycle](vmbackupmanager_rp_daily_2.webp "retention policy daily after retention cycle")
 
 #### Protection backups against deletion by retention policy
 
@@ -235,7 +239,7 @@ For example:
   ```json
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-  > Note: `created_at` field is in RFC3339 format.
+  > `created_at` field is in RFC3339 format.
   
 * PUT `/api/v1/backups/<BACKUP_NAME>` - update "locked" attribute for backup by name.
   Example request body:
