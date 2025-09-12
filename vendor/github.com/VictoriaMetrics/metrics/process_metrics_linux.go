@@ -240,7 +240,6 @@ func writeProcessMemMetrics(w io.Writer) {
 	WriteGaugeUint64(w, "process_resident_memory_anon_bytes", ms.rssAnon)
 	WriteGaugeUint64(w, "process_resident_memory_file_bytes", ms.rssFile)
 	WriteGaugeUint64(w, "process_resident_memory_shared_bytes", ms.rssShmem)
-
 }
 
 func getMemStats(path string) (*memStats, error) {
@@ -321,7 +320,7 @@ func psiTotalSecs(microsecs uint64) float64 {
 var psiMetricsStart = func() *psiMetrics {
 	m, err := getPSIMetrics()
 	if err != nil {
-		log.Printf("ERROR: metrics: disable exposing PSI metrics because of failed init: %s", err)
+		log.Printf("INFO: metrics: disable exposing PSI metrics because of failed init: %s", err)
 		return nil
 	}
 	return m
