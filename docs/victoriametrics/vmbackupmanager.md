@@ -158,7 +158,7 @@ Backup retention policy is controlled by:
 
 > `0` value in every `keepLast*` flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
 
-> Retention policy does not enforce removing previous versions of objects in object storages such if versioning is enabled. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
+> Retention policy does not enforce removing previous versions of objects in object storages if versioning is enabled. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
 
 > It is not safe to use object lifecycle rules provided by object storage for backup retention.
 > `vmbackupmanager` and `vmbackup` preserve original creation dates of the files when uploading data to object storage. Lifecycle rules of the object storage will be applied to original partition creation dates and not to the backup creation dates.
