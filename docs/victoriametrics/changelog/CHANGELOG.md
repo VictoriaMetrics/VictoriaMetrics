@@ -37,6 +37,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix VMUI backend URL, while using multitenant API. See more in [#9703](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9703).
 * BUGFIX: all components: properly expose metadata for summaries and histograms in VictoriaMetrics components with enabled `-metrics.exposeMetadata` cmd-line flag. See [metrics#98](https://github.com/VictoriaMetrics/metrics/issues/98) for details.
 * BUGFIX: all components: lower severity of the log message for unavailable [Pressure Stall Information (PSI)](https://docs.kernel.org/accounting/psi.html) metrics from `ERROR` to `INFO` level. See [#9161](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9161) for details.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): properly prepare restore mark contents when using a backup shortname (e.g. `vmbackupmanager restore create daily/2025-09-12`). Previously, restore would fail with `failed to restore backup: cannot initialize remote fs: missing scheme in path` error.
 
 ## [v1.125.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.1)
 
