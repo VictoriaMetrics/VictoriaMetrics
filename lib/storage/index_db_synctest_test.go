@@ -27,8 +27,9 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+		idb := ptw.pt.idb
+		defer s.tb.PutPartition(ptw)
 
 		type want struct {
 			missingMetricIDs        []uint64
@@ -37,7 +38,7 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 		}
 		assertGetTSIDsFromMetricIDs := func(metricIDs []uint64, want want) {
 			t.Helper()
-			tsids, err := idbCurr.getTSIDsFromMetricIDs(nil, metricIDs, noDeadline)
+			tsids, err := idb.getTSIDsFromMetricIDs(nil, metricIDs, noDeadline)
 			if err != nil {
 				t.Fatalf("getTSIDsFromMetricIDs() failed unexpectedly: %v", err)
 			}
@@ -48,13 +49,13 @@ func TestIndexDB_MetricIDsNotMappedToTSIDsAreDeleted(t *testing.T) {
 			if diff := cmp.Diff(want.missingMetricIDs, missingMetricIDs); diff != "" {
 				t.Fatalf("unexpected tsids (-want, +got):\n%s", diff)
 			}
-			if got, want := idbCurr.missingTSIDsForMetricID.Load(), want.missingTSIDsForMetricID; got != want {
+			if got, want := idb.missingTSIDsForMetricID.Load(), want.missingTSIDsForMetricID; got != want {
 				t.Fatalf("unexpected missingTSIDsForMetricID metric value: got %d, want %d", got, want)
 			}
 			wantDeletedMetricIDs := &uint64set.Set{}
 			wantDeletedMetricIDs.AddMulti(want.deletedMetricIDs)
-			if !s.getDeletedMetricIDs().Equal(wantDeletedMetricIDs) {
-				t.Fatalf("deleted metricIDs set is different from %v: %v", want.deletedMetricIDs, s.getDeletedMetricIDs().AppendTo(nil))
+			if got := idb.getDeletedMetricIDs(); !got.Equal(wantDeletedMetricIDs) {
+				t.Fatalf("unexpected deletedMetricIDs: got %v, want %v", got.AppendTo(nil), want.deletedMetricIDs)
 			}
 		}
 
