@@ -249,6 +249,44 @@ for the collected samples. Examples:
   ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
 
+### Routing
+
+vmagent supports relabeling, deduplication and stream aggregation for all the received metric samples, scraped or pushed. 
+Then, the data is forwarded to specified `-remoteWrite.url` destinations. The processing order is the following:
+
+**Global Processing (applies to all samples)**
+1. Ingestion rate limiting:
+    - `-maxIngestionRate`
+2. [Relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
+    - `-remoteWrite.relabelConfig`
+3. Complexity limiting:
+    - `-maxLabelsPerTimeseries`
+    - `-maxLabelNameLen`
+    - `-maxLabelValueLen`
+4. [Cardinality limiting](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter):
+    - `-remoteWrite.maxHourlySeries`
+    - `-remoteWrite.maxDailySeries`
+5. [Stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation):
+    - `-streamAggr.config`
+    - `-streamAggr.dedupInterval`
+
+**Replication / Sharding**
+- [Replicate sample to each](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability) `-remoteWrite.url`
+- Or [shard among URLs](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages)
+  if `-remoteWrite.shardByURL` is set
+
+**Per-URL Processing (applies separately to each `-remoteWrite.url`)**
+1. Per-URL [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
+    - `-remoteWrite.urlRelabelConfig`
+2. Per-URL [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation):
+    - `-remoteWrite.streamAggr.config`
+    - `-remoteWrite.streamAggr.dedupInterval`
+3. Add extra labels:
+    - `-remoteWrite.label`
+4. Per-URL [persistent queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue) (enabled by default):
+    - `-remoteWrite.disableOnDiskQueue`
+5. Push to corresponding `-remoteWrite.url`
+
 ## How to push data to vmagent
 
 `vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data)
