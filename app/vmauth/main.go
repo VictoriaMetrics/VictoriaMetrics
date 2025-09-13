@@ -372,9 +372,23 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	updateHeadersByConfig(w.Header(), hc.ResponseHeaders)
 	w.WriteHeader(res.StatusCode)
 
+	ct := res.Header.Get("Content-Type")
+	var bodyWriter io.Writer = w
+	stopPeriodicFlush := func() {}
+	if isStreamingContentType(ct) {
+		fw := newFlushWriter(w)
+		stopPeriodicFlush = fw.startPeriodicFlush()
+
+		// Headers are sent immediately for streaming clients
+		// put it here for clarity
+		fw.Flush()
+		bodyWriter = fw
+	}
+
 	copyBuf := copyBufPool.Get()
 	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
-	_, err = io.CopyBuffer(w, res.Body, copyBuf.B)
+	_, err = io.CopyBuffer(bodyWriter, res.Body, copyBuf.B)
+	stopPeriodicFlush()
 	copyBufPool.Put(copyBuf)
 	_ = res.Body.Close()
 	if err != nil && !netutil.IsTrivialNetworkError(err) {
@@ -387,6 +401,67 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 }
 
 var copyBufPool bytesutil.ByteBufferPool
+
+// flushWriter serializes Write and Flush on the underlying ResponseWriter.
+// It is used only for streaming responses after headers are sent.
+type flushWriter struct {
+	w  http.ResponseWriter
+	fl http.Flusher
+	mu sync.Mutex
+}
+
+func newFlushWriter(w http.ResponseWriter) *flushWriter {
+	fw := &flushWriter{w: w}
+	if f, ok := w.(http.Flusher); ok {
+		fw.fl = f
+	}
+	return fw
+}
+
+func (fw *flushWriter) Write(p []byte) (n int, err error) {
+	fw.mu.Lock()
+	n, err = fw.w.Write(p)
+	fw.mu.Unlock()
+	return n, err
+}
+
+func (fw *flushWriter) Flush() {
+	if fw.fl == nil {
+		return
+	}
+	fw.mu.Lock()
+	fw.fl.Flush()
+	fw.mu.Unlock()
+}
+
+// isStreamingContentType returns true for content types that are commonly used
+// for server-initiated streaming where low latency is expected.
+func isStreamingContentType(contentType string) bool {
+	s := strings.ToLower(contentType)
+	return strings.HasPrefix(s, "application/x-ndjson")
+}
+
+// startPeriodicFlush starts a background flusher on fw if it supports flushing.
+// It returns a function to stop the flusher.
+func (fw *flushWriter) startPeriodicFlush() func() {
+	if fw.fl == nil {
+		return func() {}
+	}
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				fw.Flush()
+			case <-done:
+				return
+			}
+		}
+	}()
+	return func() { close(done) }
+}
 
 func copyHeader(dst, src http.Header) {
 	for k, vv := range src {
