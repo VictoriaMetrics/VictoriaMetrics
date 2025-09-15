@@ -197,13 +197,13 @@ func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr g
 			}
 			s.summarize(aggrAvg, ec.startTime, ec.endTime, ec.storageStep, 0)
 			t := timerpool.Get(30 * time.Second)
+			defer timerpool.Put(t)
 			select {
 			case seriesCh <- s:
 			case <-t.C:
 				logger.Errorf("resource leak when processing the %s (full query: %s); please report this error to VictoriaMetrics developers",
 					expr.AppendString(nil), ec.originalQuery)
 			}
-			timerpool.Put(t)
 			return nil
 		})
 		close(seriesCh)
