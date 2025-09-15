@@ -8,29 +8,42 @@ import (
 	"strings"
 )
 
-func mergeURLs(uiURL, requestURI *url.URL, dropSrcPathPrefixParts int) *url.URL {
+func mergeURLs(uiURL, requestURI *url.URL, dropSrcPathPrefixParts int, mergeQueryArgs []string) *url.URL {
 	targetURL := *uiURL
+
 	srcPath := dropPrefixParts(requestURI.Path, dropSrcPathPrefixParts)
 	if strings.HasPrefix(srcPath, "/") {
 		targetURL.Path = strings.TrimSuffix(targetURL.Path, "/")
 	}
 	targetURL.Path += srcPath
 	requestParams := requestURI.Query()
-	// fast path
+
 	if len(requestParams) == 0 {
 		return &targetURL
 	}
-	// merge query parameters from requests.
-	uiParams := targetURL.Query()
+
+	// Merge client query args with backend query args
+	targetParams := targetURL.Query()
+	uiParams := url.Values{}
+
+	// Copy all the target query args
+	for k, v := range targetParams {
+		for i := range v {
+			uiParams.Add(k, v[i])
+		}
+	}
+
+	// Copy the client query args if they do not clash with target args.
 	for k, v := range requestParams {
-		// skip clashed query params from original request
-		if exist := uiParams.Get(k); len(exist) > 0 {
+		if targetParams.Has(k) && !slices.Contains(mergeQueryArgs, k) {
+			// Skip clashed client query params for security reasons
 			continue
 		}
 		for i := range v {
 			uiParams.Add(k, v[i])
 		}
 	}
+
 	targetURL.RawQuery = uiParams.Encode()
 	return &targetURL
 }

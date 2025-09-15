@@ -2,7 +2,6 @@ package rule
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -289,7 +288,7 @@ func (g *Group) InterruptEval() {
 	}
 }
 
-// Close stops the group and it's rules, unregisters group metrics
+// Close stops the group and its rules, unregisters group metrics
 func (g *Group) Close() {
 	if g.doneCh == nil {
 		return
@@ -298,10 +297,6 @@ func (g *Group) Close() {
 	g.InterruptEval()
 	<-g.finishedCh
 
-	g.closeGroupMetrics()
-}
-
-func (g *Group) closeGroupMetrics() {
 	metrics.UnregisterSet(g.metrics.set, true)
 }
 
@@ -331,7 +326,7 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 	defer func() { close(g.finishedCh) }()
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
-	// over time in order to reduce load on datasource.
+	// over time to reduce the load on datasource.
 	if !SkipRandSleepOnGroupStart {
 		sleepBeforeStart := delayBeforeStart(evalTS, g.GetID(), g.Interval, g.EvalOffset)
 		g.infof("will start in %v", sleepBeforeStart)
@@ -470,18 +465,6 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 // UpdateWith inserts new group to updateCh
 func (g *Group) UpdateWith(newGroup *Group) {
 	g.updateCh <- newGroup
-}
-
-// DeepCopy returns a deep copy of group
-func (g *Group) DeepCopy() *Group {
-	g.mu.RLock()
-	data, _ := json.Marshal(g)
-	g.mu.RUnlock()
-	newG := Group{}
-	_ = json.Unmarshal(data, &newG)
-	newG.Rules = g.Rules
-	newG.id = g.id
-	return &newG
 }
 
 // if offset is specified, delayBeforeStart returns a duration to help aligning timestamp with offset;

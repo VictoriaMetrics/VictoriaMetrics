@@ -34,7 +34,7 @@ Found 40000 timeseries to import. Continue? [Y/n] y
 2020/01/18 21:19:00 Total time: 31m48.467044016s
 ```
 
-_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl#configuring-victoriametrics)._
+_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl/#configuring-victoriametrics)._
 
 ## Data mapping
 

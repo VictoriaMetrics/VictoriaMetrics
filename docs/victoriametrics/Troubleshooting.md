@@ -81,7 +81,7 @@ then please follow the following steps in order to quickly find the solution:
    before posting your question to VictoriaMetrics Slack chat, since GitHub issues are indexed by Google,
    while Slack messages aren't indexed by Google. This simplifies searching for the solution to the issue for future VictoriaMetrics users.
 
-1. Pro tip 1: if you see that [VictoriaMetrics docs](https://docs.victoriametrics.com/) contain incomplete or incorrect information,
+1. Pro tip 1: if you see that [VictoriaMetrics docs](https://docs.victoriametrics.com/victoriametrics/) contain incomplete or incorrect information,
    then please create a pull request with the relevant changes. This will help VictoriaMetrics community.
 
    All the docs published at `https://docs.victoriametrics.com` are located in the [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs)
@@ -143,7 +143,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    for details. The raw samples can be also viewed in [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) in `Raw Query` tab and shared via `export` button.
 
    If you migrate from InfluxDB, then pass `-search.setLookbackToStep` command-line flag to single-node VictoriaMetrics
-   or to `vmselect` in VictoriaMetrics cluster. See also [how to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx.html).
+   or to `vmselect` in VictoriaMetrics cluster. See also [how to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx/).
 
 1. Sometimes response caching may lead to unexpected results when samples with older timestamps
    are ingested into VictoriaMetrics (aka [backfilling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backfilling)).
@@ -459,7 +459,7 @@ for details.
 
 ## Too much disk space used
 
-If too much disk space is used by a [single-node VictoriaMetrics](https://docs.victoriametrics.com/) or by `vmstorage` component
+If too much disk space is used by a [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) or by `vmstorage` component
 at [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), then please check the following:
 
 - Make sure that there are no old snapshots, since they can occupy disk space. See [how to work with snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots)

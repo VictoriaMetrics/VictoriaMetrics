@@ -370,7 +370,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
        onStart:
          enabled: "true"
    ```
-   See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
+   See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api/#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api/#vmsinglespec).
 1. Enter container running `vmbackupmanager`
 1. Use `vmbackupmanager backup list` to get list of available backups:
   ```sh
@@ -394,7 +394,7 @@ These steps are assuming that [VictoriaMetrics operator](https://docs.victoriame
 Clusters here are referred to as `source` and `destination`.
 
 1. Create a new cluster with access to *source* cluster `vmbackupmanager` storage and same number of storage nodes.
-   Add the following section in order to enable restore on start (operator `VMStorage` schema can be found [here](https://docs.victoriametrics.com/operator/api.html#vmstorage):
+   Add the following section in order to enable restore on start (operator `VMStorage` schema can be found [here](https://docs.victoriametrics.com/operator/api/#vmstorage):
    ```yaml
    vmbackup:
      restore:

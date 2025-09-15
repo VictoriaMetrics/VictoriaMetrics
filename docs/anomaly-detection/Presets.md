@@ -44,10 +44,10 @@ After you run `vmanomaly` with `preset` arg specified, available assets can be v
 The default preset indicates that the `vmanomaly` service is running in its standard mode — either because the `preset` section is not specified in the configuration or is explicitly set to `default` or `default:vX.Y`.
 
 Since this mode is designed to support **any** configuration, it requires the user to fully define all [necessary configuration sections](https://docs.victoriametrics.com/anomaly-detection/components/), including:  
-- [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader) (with the required `queries` section)  
-- [Writer](https://docs.victoriametrics.com/anomaly-detection/components/writer)  
-- [Models](https://docs.victoriametrics.com/anomaly-detection/components/models)  
-- [Schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler)
+- [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) (with the required `queries` section)  
+- [Writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/)  
+- [Models](https://docs.victoriametrics.com/anomaly-detection/components/models/)  
+- [Schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/)
 
 Although this mode is designed to be as flexible as possible, it includes a pre-built [Grafana dashboard](https://grafana.com/grafana/dashboards/22922). This dashboard is based on the [service output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output), specifically [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score), and helps streamline the anomaly drill-down process.  
 
@@ -69,11 +69,11 @@ Alternatively, you can [download it from Grafana cloud](https://grafana.com/graf
 - **Dashboard-level filters** apply to all visualizations, unless otherwise stated
   - The most generic filters are already added, e.g.`preset`, `model_alias`, `scheduler_alias`, which are the labels that all `anomaly_score` metrics have by default
   - To **apply additional filters** on one or more labels, use `Ad hoc filters` [ad hoc Grafana filter](https://grafana.com/docs/grafana/latest/dashboards/use-dashboards/#filter-dashboard-data).
-- Adjust `Metrics prefix` (by default - no prefix) according to output format, defined in `writer.metric_format` [config section](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters). <br>Example: `__name__: 'vmanomaly_$VAR'` will result in metric names 'vmanomaly_anomaly_score', 'vmanomaly_y', 'vmanomaly_yhat', 'vmanomaly_yhat_upper', etc. - put `vmanomaly_` in the field for such metrics to be properly fetched in visualizations
+- Adjust `Metrics prefix` (by default - no prefix) according to output format, defined in `writer.metric_format` [config section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#config-parameters). <br>Example: `__name__: 'vmanomaly_$VAR'` will result in metric names 'vmanomaly_anomaly_score', 'vmanomaly_y', 'vmanomaly_yhat', 'vmanomaly_yhat_upper', etc. - put `vmanomaly_` in the field for such metrics to be properly fetched in visualizations
 - The **`Group by`** dashboard filter allows you to segment visualizations based on selected label (applicable to [Global Anomaly Score Statistics](#global-anomaly-score-statistics) section).
   - For example, setting it to `model_alias` will create separate sub-visualizations for each unique model alias.
   - This helps in analyzing anomaly patterns across different dimensions.
-  - It's recommended to start with `for` label (which stands for query alias defined in `reader.queries` and can be also configured in `writer.metric_format` [config section](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters))
+  - It's recommended to start with `for` label (which stands for query alias defined in `reader.queries` and can be also configured in `writer.metric_format` [config section](https://docs.victoriametrics.com/anomaly-detection/components/writer/#config-parameters))
 - The **`Threshold`** dashboard constant (default: `1.0`) determines anomaly classification:
   - **Non-anomalous** data points: `anomaly_score` ≤ `Threshold`
   - **Anomalous** data points: `anomaly_score` > `Threshold`
@@ -118,7 +118,7 @@ This section provides anomaly score statistics at the individual time series lev
 > This panel **has data if these conditions were met**:
 >  - [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) were used under respective `model_alias` label
 >  - The `provide_series` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) explicitly or implicitly included `y` <br>(input data of original timeseries, observed by the model at prediction time).
->  - In `writer.metric_format` special label `for` was configured to point out to query alias used in `reader.queries` section. <br>See `metric_format` argument description on [writer page](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters) for the details.
+>  - In `writer.metric_format` special label `for` was configured to point out to query alias used in `reader.queries` section. <br>See `metric_format` argument description on [writer page](https://docs.victoriametrics.com/anomaly-detection/components/writer/#config-parameters) for the details.
 
 Use **`Show series`** dashboard variable to specify what [vmanomaly output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) series to plot on [Local Anomaly Score Statistics](#local-anomaly-score-statistics) dashboard section corresponding to raw metrics scale. Defaults to `y` - raw metric values model saw during prediction phase. Setting it to (`y`, `yhat`, `yhat_lower`, `yhat_upper`) may ease the debugging of produced anomaly scores.
 
