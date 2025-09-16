@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): stream responses from backends to clients without delays. Previously the backend data could be bufferred at `vmauth` side for indefinite amounts of time. This was preventing from using `vmauth` for streaming the data from backends in [live tailing mode](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing). See [#667 at VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/issues/667).
+
 
 ## [v1.126.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.126.0)
 

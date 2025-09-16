@@ -372,10 +372,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	updateHeadersByConfig(w.Header(), hc.ResponseHeaders)
 	w.WriteHeader(res.StatusCode)
 
-	copyBuf := copyBufPool.Get()
-	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
-	_, err = io.CopyBuffer(w, res.Body, copyBuf.B)
-	copyBufPool.Put(copyBuf)
+	err = copyStream(w, res.Body)
 	_ = res.Body.Close()
 	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
@@ -384,6 +381,39 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		return true, false
 	}
 	return true, false
+}
+
+func copyStream(client io.Writer, backend io.Reader) error {
+	copyBuf := copyBufPool.Get()
+	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
+	defer copyBufPool.Put(copyBuf)
+	buf := copyBuf.B
+
+	flusher, _ := client.(http.Flusher)
+
+	for {
+		n, backendErr := backend.Read(buf)
+		data := buf[:n]
+		n, clientErr := client.Write(data)
+		if clientErr != nil {
+			return fmt.Errorf("cannot write data to client: %w", clientErr)
+		}
+		if n != len(data) {
+			logger.Panicf("BUG: unexpected number of bytes written returned by client.Write; got %d; want %d", n, len(data))
+		}
+		if flusher != nil {
+			// Flush the read data from the backend to the client as fast as possible
+			// in order to reduce delays for data propagation.
+			// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/667
+			flusher.Flush()
+		}
+		if backendErr != nil {
+			if backendErr == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("cannot read data from backend: %w", backendErr)
+		}
+	}
 }
 
 var copyBufPool bytesutil.ByteBufferPool
