@@ -15,13 +15,13 @@ aliases:
 
 `vmbackup` creates backups of VictoriaMetrics data to protect against hardware failures and accidental data loss.
 Whether you are using a single-node  or a cluster version, it is recommended to use `vmbackup` to perform periodical data backup from instant snapshots.
-More information how to work with them could be found in [instant snapshots documentation](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-work-with-snapshots).
+More information how to work with them could be found in [instant snapshots documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
 Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/).
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
-If you are running enterprise version, you can also use [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
+If you are running enterprise version, you can also use [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
 creation of hourly, daily, weekly and monthly backups.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
@@ -37,7 +37,7 @@ We recommend using [smart backup](https://docs.victoriametrics.com/victoriametri
 
 ### Cluster backup {id="backups-for-victoriametrics-cluster"}
 
-To make a complete backup for [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/), `vmbackup` must be run on each `vmstorage` node in cluster. Backups must
+To make a complete backup for [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/), `vmbackup` must be run on each `vmstorage` node in cluster. Backups must
 be placed into different directories on the remote storage in order to avoid conflicts between backups from different nodes.
 
 For example, run the following command to make a backup for 3 `vmstorage` nodes:
