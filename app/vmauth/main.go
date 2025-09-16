@@ -374,9 +374,10 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 
 	err = copyStream(w, res.Body)
 	_ = res.Body.Close()
-	if err != nil && !netutil.IsTrivialNetworkError(err) {
+	if err != nil && !netutil.IsTrivialNetworkError(err) && !errors.Is(err, context.Canceled) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
+
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
 		return true, false
 	}
