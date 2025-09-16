@@ -50,7 +50,7 @@ and performing [regular upgrades](https://docs.victoriametrics.com/victoriametri
 
 1. Go to [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) and sign up (it's free).
 1. After signing up, you will be immediately granted $200 of trial credits you can spend on running Single node or Cluster.
-1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) guide for detailed instructions.
+1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#creating-deployments) guide for detailed instructions.
 
 ### Starting VictoriaMetrics Single Node via Docker {id="starting-vm-single-via-docker"}
 
