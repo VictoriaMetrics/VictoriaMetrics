@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove the error log when marshaling an invalid comment or an empty HELP metadata line during scraping, if [metadata processing](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) is enabled. See [#9710](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9710).
 
 ## [v1.126.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.126.0)
 
