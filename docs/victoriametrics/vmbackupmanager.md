@@ -160,9 +160,7 @@ Backup retention policy is controlled by:
 
 > Retention policy does not enforce removing previous versions of objects in object storages if versioning is enabled. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
 
-> It is not safe to use object lifecycle rules provided by object storage for backup retention.
-> `vmbackupmanager` and `vmbackup` preserve original creation dates of the files when uploading data to object storage. Lifecycle rules of the object storage will be applied to original partition creation dates and not to the backup creation dates.
-> This may lead to deleting data which is still required for restoring from backup.
+> It is possible enforce retention by using object storage lifecycle rules. Please, see [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/#retention-by-using-object-storage-lifecycle-rules) for more details.
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
@@ -192,6 +190,15 @@ info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2
 The result on the GCS bucket. We see only 3 daily backups:
 
 ![retention policy daily after retention cycle](vmbackupmanager_rp_daily_2.webp "retention policy daily after retention cycle")
+
+#### Retention by using object storage lifecycle rules
+
+It is possible to enforce retention by using object storage lifecycle rules.
+In order to do that it is required not use `keepLast*` flags in `vmbackupmanager` and configure lifecycle rules
+in your object storage to remove objects under `/hourly/`, `/daily/`, `/weekly/` and `/monthly/` prefixes.
+
+Note that `/latest/` prefix must be excluded from lifecycle rules as it saves files with original modification time.
+This means that files under `/latest/` prefix will be removed by lifecycle rules if they are older than specified in the rules.
 
 #### Protection backups against deletion by retention policy
 
