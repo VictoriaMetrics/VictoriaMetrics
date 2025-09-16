@@ -1,0 +1,13 @@
+dns_sd_configs:
+  - names:
+      - cloudflare.com
+    type: 'A'
+    port: 9093
+relabel_configs:
+  - source_labels: [__meta_dns_name]
+    replacement: '${1}'
+    target_label: dns_name
+alert_relabel_configs:
+  - action: keep
+    source_labels: [env]
+    regex: "(abc"

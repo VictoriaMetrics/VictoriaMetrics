@@ -66,7 +66,7 @@ To start using `vmalert` you will need the following things:
 * datasource address - reachable endpoint with [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) support for running queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
-  [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
+  [config file](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info. To persist results to multiple destinations use vmagent
   configured with multiple remote writes as a proxy;
@@ -1365,16 +1365,37 @@ static_configs:
       [ bearer_token ]
       [ bearer_token_file ]
       [ headers ]
+      # List of relabel configurations for alert labels sent via Notifier.
+      # Supports the same relabeling features as the rest of VictoriaMetrics components.
+      # See https://docs.victoriametrics.com/victoriametrics/relabeling/
+      #
+      # Cannot be used together with the external `alert_relabel_configs`
+      alert_relabel_configs:
+        [ - <relabel_config> ... ]
 
 # List of Consul service discovery configurations.
-# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 consul_sd_configs:
-  [ - <consul_sd_config> ... ]
+  # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
+  [ - <consul_sd_config> ]
+  # List of relabel configurations for entities discovered via service discovery.
+  # Supports the same relabeling features as the rest of VictoriaMetrics components.
+  # See https://docs.victoriametrics.com/victoriametrics/relabeling/
+  #
+  # Cannot be used together with the external `alert_relabel_configs`
+  alert_relabel_configs:
+    [ - <relabel_config> ... ]
 
 # List of DNS service discovery configurations.
-# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
 dns_sd_configs:
-  [ - <dns_sd_config> ... ]
+  # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+  [ - <dns_sd_config> ]
+  # List of relabel configurations for entities discovered via service discovery.
+  # Supports the same relabeling features as the rest of VictoriaMetrics components.
+  # See https://docs.victoriametrics.com/victoriametrics/relabeling/
+  #
+  # Cannot be used together with the external `alert_relabel_configs`
+  alert_relabel_configs:
+    [ - <relabel_config> ... ]
 
 # List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.
