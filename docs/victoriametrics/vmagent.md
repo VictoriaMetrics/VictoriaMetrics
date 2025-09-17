@@ -251,10 +251,19 @@ for the collected samples. Examples:
 
 ### Routing
 
-vmagent supports relabeling, deduplication and stream aggregation for all the received metric samples, scraped or pushed. 
-Then, the data is forwarded to specified `-remoteWrite.url` destinations. The processing order is the following:
+vmagent supports limiting, relabeling, deduplication and stream aggregation for all the received metric samples, scraped or pushed.
+The received data is then forwarded to specified `-remoteWrite.url` destinations. 
 
-**Global Processing (applies to all samples)**
+See the processing order and corresponding command-line flags for controlling the data below.
+
+**Scraping: applied only to scraped metric samples**
+1. [Service Discovery relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#service-discovery-relabeling)
+2. [Scraping relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#scraping-relabeling)
+3. `sample_limit`, `series_limit`, `label_limit` in [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
+
+----------
+
+**Global Processing: applied to all scraped or received metric samples**
 1. Ingestion rate limiting:
     - `-maxIngestionRate`
 2. [Relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
@@ -268,20 +277,24 @@ Then, the data is forwarded to specified `-remoteWrite.url` destinations. The pr
     - `-remoteWrite.maxDailySeries`
 5. [Stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation):
     - `-streamAggr.config`
-    - `-streamAggr.dedupInterval`
+    - `-streamAggr.dedupInterval` 
 
-**Replication / Sharding**
+----------
+
+**Replicating / Sharding**
 - [Replicate sample to each](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability) `-remoteWrite.url`
 - Or [shard among URLs](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages)
   if `-remoteWrite.shardByURL` is set
 
-**Per-URL Processing (applies separately to each `-remoteWrite.url`)**
+----------
+
+**Per-URL Processing: applied separately to each `-remoteWrite.url`**
 1. Per-URL [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
     - `-remoteWrite.urlRelabelConfig`
 2. Per-URL [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation):
     - `-remoteWrite.streamAggr.config`
     - `-remoteWrite.streamAggr.dedupInterval`
-3. Add extra labels:
+3. Per-URL extra labels:
     - `-remoteWrite.label`
 4. Per-URL [persistent queue](https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue) (enabled by default):
     - `-remoteWrite.disableOnDiskQueue`
