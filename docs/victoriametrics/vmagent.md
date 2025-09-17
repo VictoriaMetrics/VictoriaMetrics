@@ -184,6 +184,18 @@ See also [how to scrape large number of targets](#scraping-big-number-of-targets
 it can remove unwanted samples via Prometheus-like relabeling before sending the collected data to remote storage.
 Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 
+Note that there are two ways to provide the relabeling configuration. Choosing
+the correct one depends on the model used for metric collection:
+
+- `Pull` model (used with `node_exporter` targets). The relabeling is performed
+   as soon as the metrics are received. Therefore, the relabeling configuration
+   is specified for each job in the scrape config file whose path is then passed
+   to the `vmagent` via the `-promscrape.config` flag.
+- `Push` model (used with `Graphite  agent`, `Kafka`, etc). The relabeling can
+   only be performed right before a remote write. Therefore the relabeling
+   configuration is specified in a separate config file whose path is then
+   passed to the `vmagent` via the `-remoteWrite.relabelConfig` flag.
+
 ### Splitting data streams among multiple systems
 
 `vmagent` supports splitting the collected data between multiple destinations with the help of `-remoteWrite.urlRelabelConfig`,
