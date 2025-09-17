@@ -372,7 +372,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	updateHeadersByConfig(w.Header(), hc.ResponseHeaders)
 	w.WriteHeader(res.StatusCode)
 
-	err = copyStream(w, res.Body)
+	err = copyStreamToClient(w, res.Body)
 	_ = res.Body.Close()
 	if err != nil && !netutil.IsTrivialNetworkError(err) && !errors.Is(err, context.Canceled) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
@@ -384,25 +384,28 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	return true, false
 }
 
-func copyStream(client io.Writer, backend io.Reader) error {
+func copyStreamToClient(client io.Writer, backend io.Reader) error {
 	copyBuf := copyBufPool.Get()
 	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
 	defer copyBufPool.Put(copyBuf)
 	buf := copyBuf.B
 
-	flusher, _ := client.(http.Flusher)
+	flusher, ok := client.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: client must implement net/http.Flusher interface; got %T", client)
+	}
 
 	for {
 		n, backendErr := backend.Read(buf)
-		data := buf[:n]
-		n, clientErr := client.Write(data)
-		if clientErr != nil {
-			return fmt.Errorf("cannot write data to client: %w", clientErr)
-		}
-		if n != len(data) {
-			logger.Panicf("BUG: unexpected number of bytes written returned by client.Write; got %d; want %d", n, len(data))
-		}
-		if flusher != nil {
+		if n > 0 {
+			data := buf[:n]
+			n, clientErr := client.Write(data)
+			if clientErr != nil {
+				return fmt.Errorf("cannot write data to client: %w", clientErr)
+			}
+			if n != len(data) {
+				logger.Panicf("BUG: unexpected number of bytes written returned by client.Write; got %d; want %d", n, len(data))
+			}
 			// Flush the read data from the backend to the client as fast as possible
 			// in order to reduce delays for data propagation.
 			// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/667
