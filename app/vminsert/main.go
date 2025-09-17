@@ -4,12 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/clusternative"
@@ -35,7 +35,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutil"
-	clusternativeserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/clusternative"
 	graphiteserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/graphite"
 	influxserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/influx"
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
@@ -83,7 +82,7 @@ var (
 )
 
 var (
-	clusternativeServer *clusternativeserver.Server
+	clusternativeServer *vminsertapi.VMInsertServer
 	graphiteServer      *graphiteserver.Server
 	influxServer        *influxserver.Server
 	opentsdbServer      *opentsdbserver.Server
@@ -123,9 +122,11 @@ func main() {
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
 	protoparserutil.StartUnmarshalWorkers()
 	if len(*clusternativeListenAddr) > 0 {
-		clusternativeServer = clusternativeserver.MustStart(*clusternativeListenAddr, func(c net.Conn) error {
-			return clusternative.InsertHandler(c)
-		})
+		var err error
+		clusternativeServer, err = clusternative.NewVMinsertServer(*clusternativeListenAddr)
+		if err != nil {
+			logger.Fatalf("cannot start vminsert clusternative server at %q: %s", *clusternativeListenAddr, err)
+		}
 	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, *graphiteUseProxyProtocol, func(r io.Reader) error {
