@@ -155,6 +155,9 @@ const ExploreRules: FC = () => {
     [groups, types, states, searchInput]
   );
 
+  if (allTypes.size === types.length) types.splice(0, types.length);
+  if (allStates.size === states.length) states.splice(0, states.length);
+
   return (
     <>
       {modalOpen && getModal()}
