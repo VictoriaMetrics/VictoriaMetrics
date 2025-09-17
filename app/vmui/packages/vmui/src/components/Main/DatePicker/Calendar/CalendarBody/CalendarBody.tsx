@@ -4,6 +4,8 @@ import classNames from "classnames";
 import Tooltip from "../../../Tooltip/Tooltip";
 
 interface CalendarBodyProps {
+  minDate?: Dayjs
+  maxDate?: Dayjs
   viewDate: Dayjs
   selectDate: Dayjs
   onChangeSelectDate: (date: Dayjs) => void
@@ -11,7 +13,7 @@ interface CalendarBodyProps {
 
 const weekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const CalendarBody: FC<CalendarBodyProps> = ({ viewDate: date, selectDate, onChangeSelectDate }) => {
+const CalendarBody: FC<CalendarBodyProps> = ({ minDate, maxDate, viewDate: date, selectDate, onChangeSelectDate }) => {
   const format = "YYYY-MM-DD";
   const today = dayjs.tz();
   const viewDate = dayjs(date.format(format));
@@ -44,21 +46,25 @@ const CalendarBody: FC<CalendarBodyProps> = ({ viewDate: date, selectDate, onCha
         </Tooltip>
       ))}
 
-      {days.map((d, i) => (
-        <div
-          className={classNames({
-            "vm-calendar-body-cell": true,
-            "vm-calendar-body-cell_day": true,
-            "vm-calendar-body-cell_day_empty": !d,
-            "vm-calendar-body-cell_day_active": (d && d.format(format)) === selectDate.format(format),
-            "vm-calendar-body-cell_day_today": (d && d.format(format)) === today.format(format)
-          })}
-          key={d ? d.format(format) : i}
-          onClick={createHandlerSelectDate(d)}
-        >
-          {d && d.format("D")}
-        </div>
-      ))}
+      {days.map((d, i) => {
+        const isDisabled = d && ((minDate && d.isBefore(minDate)) || (maxDate && d.isAfter(maxDate)));
+        return (
+          <div
+            className={classNames({
+              "vm-calendar-body-cell": true,
+              "vm-calendar-body-cell_day": true,
+              "vm-calendar-body-cell_day_empty": !d,
+              "vm-calendar-body-cell_day_active": (d && d.format(format)) === selectDate.format(format),
+              "vm-calendar-body-cell_day_today": (d && d.format(format)) === today.format(format),
+              "vm-calendar-body-cell_day_disabled": isDisabled,
+            })}
+            key={d ? d.format(format) : i}
+            onClick={createHandlerSelectDate(d)}
+          >
+            {d && d.format("D")}
+          </div>
+        );
+      })}
     </div>
   );
 };
