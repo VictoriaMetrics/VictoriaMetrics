@@ -356,11 +356,7 @@ func groupWatchersCleaner() {
 		time.Sleep(7 * time.Second)
 		groupWatchersLock.Lock()
 		for key, gw := range groupWatchers {
-			if !gw.mu.TryLock() {
-				// This gw is likely in use, skip it to avoid blocking the loop
-				// Try again in the next cleanup cycle
-				continue
-			}
+			gw.mu.Lock()
 			// Calculate the number of apiWatcher instances subscribed to gw.
 			awsTotal := 0
 			for _, uw := range gw.m {
