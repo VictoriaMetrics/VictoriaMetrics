@@ -21,6 +21,7 @@ interface DateTimeInputProps {
   pickerRef: React.RefObject<HTMLDivElement>;
   onChange: (date: string) => void;
   onEnter: () => void;
+  disabled?: boolean;
 }
 
 const DateTimeInput: FC<DateTimeInputProps> = ({
@@ -30,7 +31,8 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
   pickerLabel,
   pickerRef,
   onChange,
-  onEnter
+  onEnter,
+  disabled
 }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [inputRef, setInputRef] = useState<HTMLInputElement | null>(null);
@@ -87,7 +89,8 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
     <div
       className={classNames({
         "vm-date-time-input": true,
-        "vm-date-time-input_error": error
+        "vm-date-time-input_error": error,
+        "vm-date-time-input_disabled": disabled,
       })}
     >
       <label>{label}</label>
@@ -103,6 +106,7 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
         onChange={handleMaskedChange}
         onBlur={handleBlur}
         onKeyUp={handleKeyUp}
+        disabled={disabled}
       />
       {error && (
         <span className="vm-date-time-input__error-text">{error}</span>
@@ -117,6 +121,7 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
           size="small"
           startIcon={<CalendarIcon/>}
           ariaLabel="calendar"
+          disabled={disabled}
         />
       </div>
       <DatePicker
