@@ -24,6 +24,9 @@ import (
 )
 
 var (
+	ruleResultLimit = flag.Int("rule.resultLimit", 0, "Limits the number of alerts or recording results a single rule can produce. "+
+		"If exceeded, the rule will be marked with an error and all its results will be discarded. "+
+		"0 means no limit.")
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
 		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
 	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier.")
@@ -111,7 +114,6 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		Name:            cfg.Name,
 		File:            cfg.File,
 		Interval:        cfg.Interval.Duration(),
-		Limit:           cfg.Limit,
 		Concurrency:     cfg.Concurrency,
 		checksum:        cfg.Checksum,
 		Params:          cfg.Params,
@@ -127,6 +129,11 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
+	}
+	if cfg.Limit != nil {
+		g.Limit = *cfg.Limit
+	} else {
+		g.Limit = *ruleResultLimit
 	}
 	if g.Concurrency < 1 {
 		g.Concurrency = 1
