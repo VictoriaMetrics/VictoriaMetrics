@@ -18,6 +18,7 @@ VMAlert command-line tool
 
 You can use `vmalert-tool` to run unit tests for alerting and recording rules.
 It will perform the following actions:
+
 * sets up an isolated VictoriaMetrics instance;
 * simulates the periodic ingestion of time series;
 * queries the ingested data for recording and alerting rules evaluation like [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/);
@@ -25,7 +26,7 @@ It will perform the following actions:
 
 See how to run vmalert-tool for unit test below:
 
-```
+```sh
 # Run vmalert-tool with one or multiple test files via `--files` cmd-line flag
 # Supports file path with hierarchical patterns and regexpes, and http url.
 ./vmalert-tool unittest --files /path/to/file --files http://<some-server-addr>/path/to/test.yaml
@@ -283,10 +284,12 @@ groups:
 ### Debug mode
 
 vmalert-tool can print additional log messages for specific alerting rules, similar to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#debug-mode), by following these steps:
+
 1. Set `debug: true` in rule’s configuration;
 2. Run vmalert-tool with the flag `-loggerLevel=INFO`.
 
 The additional log messages include tips for alert state transformations, timestamp and result of each evaluation:
+
 ```shell-session
 2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 1970-01-01T00:00:00Z: query returned 0 samples (elapsed: 2.148792ms)
 2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:254	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=1970-01-01T00%3A01%3A00Z"
