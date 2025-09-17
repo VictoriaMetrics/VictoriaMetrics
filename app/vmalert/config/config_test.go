@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
+	"github.com/aws/smithy-go/ptr"
 	"gopkg.in/yaml.v2"
 )
 
@@ -183,7 +184,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 
 	f(&Group{
 		Name:  "wrong limit",
-		Limit: -1,
+		Limit: ptr.Int(-1),
 	}, false, "invalid limit")
 
 	f(&Group{
