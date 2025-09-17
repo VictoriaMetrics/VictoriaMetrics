@@ -6,20 +6,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func BenchmarkSearchData_variableSeries(b *testing.B) {
-	benchmarkSearch_variableSeries(b, false, benchmarkSearchData)
-}
-
-func BenchmarkSearchData_variableDeletedSeries(b *testing.B) {
-	benchmarkSearch_variableDeletedSeries(b, false, benchmarkSearchData)
-}
-
-func BenchmarkSearchData_variableTimeRange(b *testing.B) {
-	benchmarkSearch_variableTimeRange(b, false, benchmarkSearchData)
-}
-
-// benchmarkSearchData is a helper function used in various data search
-// benchmarks.
+// benchmarkSearchData measures the search of all data on the given time range.
+// It also ensures that the search result is correct by comparing it with metric
+// rows stored in the database.
 func benchmarkSearchData(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
 	b.Helper()
 	tfss := NewTagFilters()
