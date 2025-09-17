@@ -226,7 +226,7 @@ func (cw *configWatcher) start() error {
 			var alertRelabelConfigs []*promrelabel.ParsedConfigs
 			for i := range cw.cfg.DNSSDConfigs {
 				alertRelabelConfig := cw.cfg.parsedAlertRelabelConfigs
-				if cw.cfg.ConsulSDConfigs[i].AlertRelabelConfigs != nil {
+				if cw.cfg.DNSSDConfigs[i].AlertRelabelConfigs != nil {
 					alertRelabelConfig, _ = promrelabel.ParseRelabelConfigs(cw.cfg.DNSSDConfigs[i].AlertRelabelConfigs)
 				}
 				sdc := &cw.cfg.DNSSDConfigs[i]
