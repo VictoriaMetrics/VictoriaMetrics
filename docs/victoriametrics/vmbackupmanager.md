@@ -158,9 +158,9 @@ Backup retention policy is controlled by:
 
 > `0` value in every `keepLast*` flag results into deletion of ALL backups for particular type (hourly, daily, weekly and monthly)
 
-> Retention policy does not enforce removing previous versions of objects in object storages if versioning is enabled. See [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
+> Retention policy does not enforce removing previous versions of objects in object storages if versioning is enabled. See [permanent deletion of objects in s3 compatible-storages](https://docs.victoriametrics.com/victoriametrics/vmbackup/#permanent-deletion-of-objects-in-s3-compatible-storages) for more details.
 
-> It is possible enforce retention by using object storage lifecycle rules. Please, see [these docs](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/#retention-by-using-object-storage-lifecycle-rules) for more details.
+> It is possible enforce retention by using object storage lifecycle rules. Please, see [retention by using object storage lifecycle rules](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/#retention-by-using-object-storage-lifecycle-rules) for more details.
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
@@ -193,7 +193,7 @@ The result on the GCS bucket. We see only 3 daily backups:
 
 #### Retention by using object storage lifecycle rules
 
-It is possible to enforce retention by using object storage lifecycle rules.
+It is possible to enforce retention by using [object storage lifecycle rules](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html).
 In order to do that it is required not use `keepLast*` flags in `vmbackupmanager` and configure lifecycle rules
 in your object storage to remove objects under `/hourly/`, `/daily/`, `/weekly/` and `/monthly/` prefixes.
 
