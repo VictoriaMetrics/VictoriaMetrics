@@ -1,15 +1,50 @@
 @use "src/styles/variables" as *;
 
 .vm-graph-settings {
-  &-popper {
-    display: grid;
-    gap: $padding-global;
-    padding: 0 0 $padding-global;
+  display: flex;
+  align-items: center;
+  gap: $padding-small;
 
-    &__body {
-      display: grid;
-      gap: $padding-large;
-      padding: 0 $padding-global;
+  &-modal {
+    .vm-modal-content-body {
+      padding: 0;
     }
+
+    .vm-modal-content-header {
+      margin-bottom: 0;
+    }
+  }
+
+  &-body {
+    display: grid;
+    min-width: 300px;
+
+    &-section {
+      border-bottom: $border-divider;
+
+      &:last-child {
+        border-bottom: none;
+        padding-bottom: $padding-large;
+      }
+
+      &__title {
+        padding: $padding-global;
+        font-weight: bold;
+        background: $color-hover-black;
+      }
+
+      &-content {
+        display: grid;
+        gap: $padding-large;
+        padding: $padding-large;
+      }
+    }
+  }
+
+  &-row {
+    display: grid;
+    align-items: center;
+    justify-content: stretch;
+    grid-template-columns: 1fr 100px;
   }
 }

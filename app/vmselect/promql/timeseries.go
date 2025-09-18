@@ -19,8 +19,8 @@ type timeseries struct {
 	Values     []float64
 	Timestamps []int64
 
-	// Whether the timeseries may be re-used.
-	// Timeseries may be re-used only if their members own values
+	// Whether the timeseries may be reused.
+	// Timeseries may be reused only if their members own values
 	// they refer to.
 	denyReuse bool
 }

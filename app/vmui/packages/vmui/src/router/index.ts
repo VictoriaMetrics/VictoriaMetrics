@@ -1,4 +1,4 @@
-import { AppType } from "../types/appType";
+import { APP_TYPE, AppType } from "../constants/appType";
 
 const router = {
   home: "/",
@@ -9,44 +9,69 @@ const router = {
   trace: "/trace",
   withTemplate: "/expand-with-exprs",
   relabel: "/relabeling",
-  logs: "/logs",
   activeQueries: "/active-queries",
   queryAnalyzer: "/query-analyzer",
   icons: "/icons",
   anomaly: "/anomaly",
   query: "/query",
+  rawQuery: "/raw-query",
+  downsamplingDebug: "/downsampling-filters-debug",
+  retentionDebug: "/retention-filters-debug",
+  rules: "/rules",
+  notifiers: "/notifiers",
 };
 
 export interface RouterOptionsHeader {
-  tenant?: boolean,
-  stepControl?: boolean,
-  timeSelector?: boolean,
-  executionControls?: boolean,
-  globalSettings?: boolean,
-  cardinalityDatePicker?: boolean
+  tenant?: boolean;
+  stepControl?: boolean;
+  timeSelector?: boolean;
+  executionControls?: ExecutionControlsProps;
+  globalSettings?: boolean;
+  cardinalityDatePicker?: boolean;
 }
 
 export interface RouterOptions {
-  title?: string,
-  header: RouterOptionsHeader
+  title?: string;
+  header: RouterOptionsHeader;
 }
 
-const { REACT_APP_TYPE } = process.env;
-const isLogsApp = REACT_APP_TYPE === AppType.logs;
+interface ExecutionControlsProps {
+  tooltip: string;
+  useAutorefresh: boolean;
+}
 
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: !isLogsApp,
-    timeSelector: !isLogsApp,
-    executionControls: !isLogsApp,
+    stepControl: true,
+    timeSelector: true,
+    executionControls: {
+      tooltip: "Refresh dashboard",
+      useAutorefresh: true,
+    }
+  },
+};
+
+const getDefaultOptions = (appType: AppType) => {
+  switch (appType) {
+    case AppType.vmanomaly:
+      return {
+        title: "Anomaly exploration",
+        ...routerOptionsDefault,
+      };
+    default:
+      return {
+        title: "Query",
+        ...routerOptionsDefault,
+      };
   }
 };
 
-export const routerOptions: {[key: string]: RouterOptions} = {
-  [router.home]: {
-    title: "Query",
-    ...routerOptionsDefault
+export const routerOptions: { [key: string]: RouterOptions } = {
+  [router.home]: getDefaultOptions(APP_TYPE),
+  [router.rawQuery]: {
+    title: "Raw query",
+    ...routerOptionsDefault,
   },
   [router.metrics]: {
     title: "Explore Prometheus metrics",
@@ -54,61 +79,80 @@ export const routerOptions: {[key: string]: RouterOptions} = {
       tenant: true,
       stepControl: true,
       timeSelector: true,
-    }
+    },
   },
   [router.cardinality]: {
     title: "Explore cardinality",
     header: {
       tenant: true,
       cardinalityDatePicker: true,
-    }
+    },
   },
   [router.topQueries]: {
     title: "Top queries",
     header: {
       tenant: true,
-    }
+    },
   },
   [router.trace]: {
     title: "Trace analyzer",
-    header: {}
+    header: {},
   },
   [router.queryAnalyzer]: {
     title: "Query analyzer",
-    header: {}
+    header: {},
   },
   [router.dashboards]: {
     title: "Dashboards",
     ...routerOptionsDefault,
   },
+  [router.rules]: {
+    title: "Rules",
+    header: {
+      executionControls: {
+        tooltip: "Refresh alerts",
+        useAutorefresh: false,
+      }
+    },
+  },
+  [router.notifiers]: {
+    title: "Notifiers",
+    header: {
+      executionControls: {
+        tooltip: "Refresh notifiers",
+        useAutorefresh: false,
+      },
+    },
+  },
   [router.withTemplate]: {
     title: "WITH templates",
-    header: {}
+    header: {},
   },
   [router.relabel]: {
     title: "Metric relabel debug",
-    header: {}
-  },
-  [router.logs]: {
-    title: "Logs Explorer",
-    header: {}
+    header: {},
   },
   [router.activeQueries]: {
     title: "Active Queries",
-    header: {}
+    header: {},
   },
   [router.icons]: {
     title: "Icons",
-    header: {}
+    header: {},
   },
-  [router.anomaly]: {
-    title: "Anomaly exploration",
-    ...routerOptionsDefault
-  },
+  [router.anomaly]: getDefaultOptions(AppType.vmanomaly),
   [router.query]: {
     title: "Query",
-    ...routerOptionsDefault
-  }
+    ...routerOptionsDefault,
+  },
+  [router.downsamplingDebug]: {
+    title: "Downsampling filters debug",
+    header: {},
+  },
+  [router.retentionDebug]: {
+    title: "Retention filters debug",
+    header: {},
+  },
 };
 
 export default router;

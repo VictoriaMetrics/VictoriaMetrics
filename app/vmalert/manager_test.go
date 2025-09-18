@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math/rand"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -18,7 +19,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if err := templates.Load([]string{"testdata/templates/*good.tmpl"}, true); err != nil {
+	if err := templates.Load([]string{"testdata/templates/*good.tmpl"}, url.URL{}); err != nil {
 		os.Exit(1)
 	}
 	os.Exit(m.Run())
@@ -143,7 +144,7 @@ func TestManagerUpdate_Success(t *testing.T) {
 		}
 
 		for _, wantG := range groupsExpected {
-			gotG, ok := m.groups[wantG.ID()]
+			gotG, ok := m.groups[wantG.CreateID()]
 			if !ok {
 				t.Fatalf("expected to have group %q", wantG.Name)
 			}
@@ -257,7 +258,7 @@ func compareGroups(t *testing.T, a, b *rule.Group) {
 	}
 	for i, r := range a.Rules {
 		got, want := r, b.Rules[i]
-		if a.ID() != b.ID() {
+		if a.CreateID() != b.CreateID() {
 			t.Fatalf("expected to have rule %q; got %q", want.ID(), got.ID())
 		}
 		if err := rule.CompareRules(t, want, got); err != nil {

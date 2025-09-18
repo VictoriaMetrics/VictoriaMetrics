@@ -11,10 +11,15 @@ func BenchmarkDeduplicateSamples(b *testing.B) {
 	timestamps := make([]int64, blockSize)
 	values := make([]float64, blockSize)
 	for i := 0; i < len(timestamps); i++ {
-		timestamps[i] = int64(i) * 1e3
+		isDuplicate := i%2 == 1
+		ts := int64(i) * 1e3
+		if isDuplicate {
+			ts = int64(i-1) * 1e3
+		}
+		timestamps[i] = ts
 		values[i] = float64(i)
 	}
-	for _, minScrapeInterval := range []time.Duration{time.Second, 2 * time.Second, 5 * time.Second, 10 * time.Second} {
+	for _, minScrapeInterval := range []time.Duration{3 * time.Second, 4 * time.Second, 10 * time.Second} {
 		b.Run(fmt.Sprintf("minScrapeInterval=%s", minScrapeInterval), func(b *testing.B) {
 			dedupInterval := minScrapeInterval.Milliseconds()
 			b.ReportAllocs()
@@ -40,10 +45,14 @@ func BenchmarkDeduplicateSamplesDuringMerge(b *testing.B) {
 	timestamps := make([]int64, blockSize)
 	values := make([]int64, blockSize)
 	for i := 0; i < len(timestamps); i++ {
-		timestamps[i] = int64(i) * 1e3
-		values[i] = int64(i)
+		isDuplicate := i%2 == 1
+		ts := int64(i) * 1e3
+		if isDuplicate {
+			ts = int64(i-1) * 1e3
+		}
+		timestamps[i] = ts
 	}
-	for _, minScrapeInterval := range []time.Duration{time.Second, 2 * time.Second, 5 * time.Second, 10 * time.Second} {
+	for _, minScrapeInterval := range []time.Duration{3 * time.Second, 4 * time.Second, 10 * time.Second} {
 		b.Run(fmt.Sprintf("minScrapeInterval=%s", minScrapeInterval), func(b *testing.B) {
 			dedupInterval := minScrapeInterval.Milliseconds()
 			b.ReportAllocs()

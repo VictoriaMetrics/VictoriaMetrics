@@ -55,7 +55,7 @@ func testMetaindexRowMarshalUnmarshal(t *testing.T, mr *metaindexRow) {
 	prefix := []byte("foo")
 	dstNew := mr.Marshal(prefix)
 	if string(dstNew[:len(prefix)]) != string(prefix) {
-		t.Fatalf("unexepcted prefix when marshaling mr=%+v; got\n%x; want\n%x", mr, dstNew[:len(prefix)], prefix)
+		t.Fatalf("unexpected prefix when marshaling mr=%+v; got\n%x; want\n%x", mr, dstNew[:len(prefix)], prefix)
 	}
 	if string(dstNew[len(prefix):]) != string(dst) {
 		t.Fatalf("unexpected prefixed dstNew for mr=%+v; got\n%x; want\n%x", mr, dstNew[len(prefix):], dst)

@@ -1,0 +1,1674 @@
+{
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "11.4.0"
+    },
+    {
+      "type": "panel",
+      "id": "histogram",
+      "name": "Histogram",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "victoriametrics-metrics-datasource",
+      "name": "VictoriaMetrics",
+      "version": "0.13.3"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Anomaly statistic dashboard for VictoriaMetrics Anomaly Detection (vmanomaly) v1.18.4 or higher",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 2,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "doc",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Dashboard Guide",
+      "tooltip": "Follow to `vmanomaly` docs to see detailed guide on how to operate this dashboard",
+      "type": "link",
+      "url": "https://docs.victoriametrics.com/anomaly-detection/presets/#default"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 9319,
+      "panels": [
+        {
+          "description": "This section highlights hints to make full use of the dashboard",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 16,
+            "w": 24,
+            "x": 0,
+            "y": 1
+          },
+          "id": 9318,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "This dashboard shows **[anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)** statistics produced by [`vmanomaly`](https://victoriametrics.com/products/enterprise/anomaly-detection/) and stored in \"${DS_VM:text}\" datasource.\n\nTimezone: `$__timezone`\n\n<br>\n\n#### Usage Hints:\n- Hover over the **(i) icons** in the top-right corner of each visualization and variable to see a detailed description of its specifics.\n- **Dashboard-level filters** apply to all visualizations.\n  - The most generic filters are already added, e.g. `model_alias`, `scheduler_alias`, <br>which are the labels that all `anomaly_score` metrics have by default\n  - To filter on one or more labels, use `Ad hoc filters` [ad hoc Grafana filter](https://grafana.com/docs/grafana/latest/dashboards/use-dashboards/#filter-dashboard-data).\n- Adjust `Metrics prefix` (current = `${vmanomaly_prefix}`) according to output format, defined in `writer.metric_format` [config section](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters)\n  - e.g. if your `writer.metric_format.__name__` was set to `vmanomaly_$VAR`, set the prefix to `vmanomaly_` string.\n- The **`Group by`** dashboard filter allows you to segment visualizations based on selected labels.\n  - For example, setting it to `model_alias` will create separate sub-visualizations for each unique model alias.\n  - This helps in analyzing anomaly patterns across different dimensions.\n- The **`Threshold`** dashboard constant (default: `1.0`, current: `$anomaly_score_threshold`) determines anomaly classification:\n  - **Non-anomalous** data points: `anomaly_score` ≤ `Threshold`\n  - **Anomalous** data points: `anomaly_score` > `Threshold`\n  - Set the threshold value consistently with your **alerting rules** for accurate anomaly detection.\n- The **`Min Anomaly%`** dashboard constant helps to filter the visualizations in **Local Anomaly Score Statistics** dashboard section,<br>leaving only timeseries with % of anomalies over time > selected value (`$anomaly_share`%)\n- The **`Show series`** dashboard custom multi-valued list allows to specify what [vmanomaly output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) series <br>to plot on \"local anomaly score statistics\" dashboard sections <br>(defaults to `y` - raw metric values model saw during prediction phase)",
+            "mode": "markdown"
+          },
+          "pluginVersion": "11.4.0",
+          "title": "",
+          "type": "text"
+        }
+      ],
+      "title": "Dashboard Hints",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 9281,
+      "panels": [],
+      "title": "Global Anomaly Score Statistics",
+      "type": "row"
+    },
+    {
+      "description": "This section presents aggregated (by `$groupby`) **[anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)** statistics for active instances of [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (`vmanomaly`).",
+      "gridPos": {
+        "h": 2,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
+      "id": 9297,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "This section presents aggregated (by `${groupby}`) **[anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)** statistics for active instances of [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (`vmanomaly`). <br>`Min.Anomaly%` filter **doesn't affect** the results of this section.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "11.4.0",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VM}"
+      },
+      "description": "Statistics (min, max, quantiles, share and cnt of scores > `Threshold`=`$anomaly_score_threshold`) for [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score), given dashboard-level filters and (optional) `Group by`=`$groupby` grouping applied as additional columns, if set",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "auto",
+              "wrapText": true
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "decimals": 2,
+          "fieldMinMax": false,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/score\\..*/"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "applyToRow": false,
+                  "mode": "gradient",
+                  "type": "color-background",
+                  "wrapText": true
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "anomaly.cnt"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 147
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "anomaly.%"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 124
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "applyToRow": false,
+                  "mode": "gradient",
+                  "type": "color-background",
+                  "wrapText": true
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 0.01
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.05
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*cnt/"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "series.cnt"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 107
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "points.cnt"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 119
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "score.min"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 108
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "score.q25"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 102
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "score.q50"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 106
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "score.q75"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 101
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "score.q99"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 124
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "id": 9322,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "anomaly.%"
+          }
+        ]
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range]) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "series.cnt",
+          "range": false,
+          "refId": "series_cnt"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(count_over_time({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range])) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "points.cnt",
+          "range": false,
+          "refId": "points_cnt"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(count_gt_over_time({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range], $anomaly_score_threshold)) by ($groupby)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "anomaly.cnt",
+          "range": false,
+          "refId": "as_cnt"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "avg(share_gt_over_time({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range], $anomaly_score_threshold)) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "anomaly.%",
+          "range": false,
+          "refId": "as_share"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "min({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range]) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "score.min",
+          "range": false,
+          "refId": "as_min"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "quantile(0.25, {__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range]) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "score.q25",
+          "range": false,
+          "refId": "as_q25"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "quantile(0.5, {__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range]) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "score.q50",
+          "range": false,
+          "refId": "as_q50"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "quantile(0.75, {__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range]) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "score.q75",
+          "range": false,
+          "refId": "as_q75"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "quantile(0.99, {__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range]) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "score.q99",
+          "range": false,
+          "refId": "as_q99"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "max({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range]) by ($groupby)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "score.max",
+          "range": false,
+          "refId": "as_max"
+        }
+      ],
+      "title": "Anomaly Score Statistics, grouped by `$groupby`",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "$groupby",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 10": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Time 6": true,
+              "Time 7": true,
+              "Time 8": true,
+              "Time 9": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "Time 6": "",
+              "Time 7": "",
+              "Value #A": "series.cnt",
+              "Value #as_cnt": "anomaly.cnt",
+              "Value #as_max": "score.max",
+              "Value #as_min": "score.min",
+              "Value #as_q25": "score.q25",
+              "Value #as_q50": "score.q50",
+              "Value #as_q75": "score.q75",
+              "Value #as_q99": "score.q99",
+              "Value #as_share": "anomaly.%",
+              "Value #points_cnt": "points.cnt",
+              "Value #series_cnt": "series.cnt"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VM}"
+      },
+      "description": "% of anomalous data points over selected time range, given anomaly threshold `Threshold`=`$anomaly_score_threshold` and the other dashboard-level filters.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 1,
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 14,
+        "x": 0,
+        "y": 11
+      },
+      "id": 9316,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "avg(share_gt_over_time({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range], $anomaly_score_threshold)) by ($groupby)",
+          "instant": false,
+          "legendFormat": "% over time {{$groupby}}",
+          "range": true,
+          "refId": "share_of_anomalous_datapoints"
+        }
+      ],
+      "title": "% of Anomalies over time (threshold = $anomaly_score_threshold), grouped by `$groupby`",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VM}"
+      },
+      "description": "Distribution of [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) over selected time range, given anomaly threshold `Threshold` and the other dashboard-level filters.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 18,
+        "w": 10,
+        "x": 14,
+        "y": 11
+      },
+      "id": 9317,
+      "options": {
+        "combine": false,
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "expr": "avg({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range] > $anomaly_score_threshold) by ($groupby)",
+          "legendFormat": "score distribution, {{$groupby}}",
+          "range": true,
+          "refId": "share_of_anomalous_datapoints"
+        }
+      ],
+      "title": "Anomaly score (> $anomaly_score_threshold) distribution, grouped by `$groupby`",
+      "type": "histogram"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VM}"
+      },
+      "description": "99th quantile anomaly score over selected time range, given anomaly `Threshold`=`$anomaly_score_threshold` and the other dashboard-level filters.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 1,
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Threshold"
+            },
+            "properties": [
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "solid"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#F2495C",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/Threshold.*/"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 14,
+        "x": 0,
+        "y": 20
+      },
+      "id": 9321,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "expr": "quantile(0.99, {__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\", ${adhoc_filters}}[$__range]) by ($groupby)",
+          "legendFormat": "score q99 {{$groupby}}",
+          "range": true,
+          "refId": "anomaly_score_q99"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "editorMode": "code",
+          "expr": "$anomaly_score_threshold",
+          "legendFormat": "Threshold=$anomaly_score_threshold",
+          "range": true,
+          "refId": "as_threshold"
+        }
+      ],
+      "title": "q99 anomaly score over time (threshold = $anomaly_score_threshold), grouped by `$groupby`",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "id": 9326,
+      "panels": [
+        {
+          "description": "This section holds raw (timeseries-wise) **[anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)** statistics for active instances of [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (`vmanomaly`).",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 2,
+            "w": 24,
+            "x": 0,
+            "y": 30
+          },
+          "id": 9328,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "This section holds raw (timeseries-wise)  **[anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)** statistics produced by [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (`vmanomaly`). <br>`Min.Anomaly%` filter affect the results of this section.",
+            "mode": "markdown"
+          },
+          "pluginVersion": "11.4.0",
+          "title": "",
+          "type": "text"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "description": "This table holds the labelset and the respective anomaly% (share of raw datapoints over a selected time range that have anomaly score > `Threshold` = `$anomaly_score_threshold`) for individual timeseries, additionally filtered by min anomaly  filter = `$anomaly_share` %",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "center",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "anomaly.%"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "green",
+                          "value": null
+                        },
+                        {
+                          "color": "#EAB839",
+                          "value": 0.05
+                        },
+                        {
+                          "color": "red",
+                          "value": 0.1
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "unit",
+                    "value": "percentunit"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 2
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 209
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 24,
+            "x": 0,
+            "y": 32
+          },
+          "id": 9325,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "enablePagination": true,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "anomaly.%"
+              }
+            ]
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${DS_VM}"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "share_gt_over_time({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\"}[$__range], $anomaly_score_threshold) >= ($anomaly_share/100)",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "anomaly.%",
+              "range": false,
+              "refId": "as_share"
+            }
+          ],
+          "title": "Anomalous Time Series",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "Time": 0,
+                  "Value": 1,
+                  "cluster": 2,
+                  "container": 3,
+                  "device": 4,
+                  "endpoint": 5,
+                  "for": 6,
+                  "instance": 7,
+                  "job": 8,
+                  "mode": 9,
+                  "model_alias": 10,
+                  "namespace": 11,
+                  "pod": 12,
+                  "preset": 13,
+                  "prometheus": 14,
+                  "scheduler_alias": 15,
+                  "service": 16
+                },
+                "renameByName": {
+                  "Value": "anomaly.%"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "description": "[Anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) over time for individual timeseries, given dashboard filters",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "anomaly score",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 0.5,
+                "pointSize": 3,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "/Threshold.*/"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineStyle",
+                    "value": {
+                      "dash": [
+                        10,
+                        10
+                      ],
+                      "fill": "dash"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 14,
+            "w": 24,
+            "x": 0,
+            "y": 41
+          },
+          "id": 9327,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${DS_VM}"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "{__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\"}[$__range] and range_last(\n  share_gt_over_time(\n    {__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\"}[$__range], \n    $anomaly_score_threshold\n  ) >= ($anomaly_share / 100)\n) ",
+              "format": "time_series",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "as_absolute"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${DS_VM}"
+              },
+              "editorMode": "code",
+              "expr": "$anomaly_score_threshold",
+              "hide": false,
+              "legendFormat": "Threshold=$anomaly_score_threshold",
+              "range": true,
+              "refId": "as_threshold"
+            }
+          ],
+          "title": "Anomalous Time Series",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VM}"
+          },
+          "description": "Raw metric values which correspond to generated above [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) for easier debugging. Different series from [vmanomaly output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) can be shown, including `y` (raw metric value model saw at prediction time), `yhat` (model predictions), `yhat_lower` and `yhat_upper` (respective model predictions' boundaries).\n\n**Note:** This panel works only if `writer.metric_format.for` was properly set in `vmanomaly` config + `provide_series` arg of respective [model](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) included `y` column, so for each timeseries seen not only `anomaly_score` metric was generated, but also `y` (actual values model saw during inference). See [the guide section for the details](https://docs.victoriametrics.com/anomaly-detection/presets/#default)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Raw metric scale",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 0.7,
+                "pointSize": 3,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "/.*yhat_upper.*/"
+                },
+                "properties": []
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 14,
+            "w": 24,
+            "x": 0,
+            "y": 55
+          },
+          "id": 9329,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${DS_VM}"
+              },
+              "editorMode": "code",
+              "expr": "{__name__=~\"${vmanomaly_prefix}${output_series}\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\"}[$__range] and range_last(\n  share_gt_over_time(\n    {__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"${preset}\", scheduler_alias=~\"${scheduler_alias}\", model_alias=~\"${model_alias}\"}[$__range], \n    $anomaly_score_threshold\n  ) >= ($anomaly_share / 100)\n) ",
+              "hide": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "raw_metrics_data"
+            }
+          ],
+          "title": "Raw Metric Values ($output_series)",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Local Anomaly Score Statistics",
+      "type": "row"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 40,
+  "tags": [
+    "vmanomaly"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "description": "Select the VictoriaMetrics data source that contains `anomaly_score` metrics produced by vmanomaly",
+        "includeAll": false,
+        "label": "Data Source",
+        "name": "DS_VM",
+        "options": [],
+        "query": "victoriametrics-metrics-datasource",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "description": "The prefix for output metrics generated by `vmanomaly`, defined in `writer.metric_format.__name__`, \n\nExample: __name__: 'test_$VAR' will result in names 'test_anomaly_score', 'test_y', 'test_yhat', 'test_yhat_upper', etc. - put `test_` in the field for such metrics to be properly fetched in visualizations",
+        "label": "Metrics Prefix",
+        "name": "vmanomaly_prefix",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "0.5",
+          "value": "0.5"
+        },
+        "description": "Anomaly score threshold T that splits non-anomalous data points (if anomaly_score <= T) and anomalous data points (if anomaly_score > T). By default equals to 1.0, which is a value for all built-in models in `vmanomaly`. See FAQ section https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score for the details",
+        "label": "Threshold",
+        "name": "anomaly_score_threshold",
+        "options": [
+          {
+            "selected": true,
+            "text": "0.5",
+            "value": "0.5"
+          }
+        ],
+        "query": "0.5",
+        "type": "textbox"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "${DS_VM}"
+        },
+        "definition": "label_values({__name__=\"${vmanomaly_prefix}anomaly_score\"},preset)",
+        "description": "Preset used for `vmanomaly`, e.g. `node_exporter`. If not specified in a config, defaults to `default`. See https://docs.victoriametrics.com/anomaly-detection/presets/ for the details",
+        "includeAll": true,
+        "label": "Presets",
+        "multi": true,
+        "name": "preset",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values({__name__=\"${vmanomaly_prefix}anomaly_score\"},preset)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "${DS_VM}"
+        },
+        "definition": "label_values({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"$preset\"},scheduler_alias)",
+        "description": "Scheduler alias, used in VictoriaMetrics Anomaly Detection configs, e.g. `periodic_1w_1m`. See https://docs.victoriametrics.com/anomaly-detection/components/scheduler/ for the details",
+        "includeAll": true,
+        "label": "Schedulers",
+        "multi": true,
+        "name": "scheduler_alias",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"$preset\"},scheduler_alias)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "${DS_VM}"
+        },
+        "definition": "label_values({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"$preset\", scheduler_alias=~\"$scheduler_alias\"},model_alias)",
+        "description": "Model aliases, defined in a `models` section of a config - https://docs.victoriametrics.com/anomaly-detection/components/models/",
+        "includeAll": true,
+        "label": "Models",
+        "multi": true,
+        "name": "model_alias",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values({__name__=\"${vmanomaly_prefix}anomaly_score\", preset=~\"$preset\", scheduler_alias=~\"$scheduler_alias\"},model_alias)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "${DS_VM}"
+        },
+        "definition": "label_names(${vmanomaly_prefix}anomaly_score)",
+        "description": "Add a `groupby` option to use in `by` clauses of metricsQL queries of (generalized) dashboard visualizations, e.g. to have more granular view instead of default `by ()` clause. Example: choose \"model_alias\" to group by `model_alias` label values.",
+        "label": "Group by",
+        "name": "groupby",
+        "options": [],
+        "query": {
+          "qryType": 0,
+          "query": "label_names(${vmanomaly_prefix}anomaly_score)",
+          "refId": "VariableQueryEditor-VariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "5",
+          "value": "5"
+        },
+        "description": "Specify % of datapoints in a [$__interval] that has anomaly score > `Threshold` variable to filter timeseries in Local Anomaly Statistic section",
+        "label": "Min. Anomaly%",
+        "name": "anomaly_share",
+        "options": [
+          {
+            "selected": true,
+            "text": "5",
+            "value": "5"
+          }
+        ],
+        "query": "5",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": [
+            "y"
+          ],
+          "value": [
+            "y"
+          ]
+        },
+        "description": "What series on raw metrics scale to show on local anomaly score statistic (defaults to `y` - raw metric values). Can be a multi-value subset of https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output - [`y`, `yhat`, `yhat_lower`, `yhat_upper`]",
+        "includeAll": false,
+        "label": "Show series",
+        "multi": true,
+        "name": "output_series",
+        "options": [
+          {
+            "selected": true,
+            "text": "y",
+            "value": "y"
+          },
+          {
+            "selected": false,
+            "text": "yhat",
+            "value": "yhat"
+          },
+          {
+            "selected": false,
+            "text": "yhat_lower",
+            "value": "yhat_lower"
+          },
+          {
+            "selected": false,
+            "text": "yhat_upper",
+            "value": "yhat_upper"
+          }
+        ],
+        "query": "y, yhat, yhat_lower, yhat_upper",
+        "type": "custom"
+      },
+      {
+        "baseFilters": [],
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "${DS_VM}"
+        },
+        "description": "Ad hoc filters to apply to all queries of this dashboard, specified as a list of <label> <op> <value> triplets. See https://grafana.com/docs/grafana/latest/dashboards/use-dashboards/#filter-dashboard-data for the details",
+        "filters": [],
+        "label": "Ad hoc filters",
+        "name": "adhoc_filters",
+        "type": "adhoc"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "VictoriaMetrics - vmanomaly - anomaly statistics",
+  "uid": "vmanomaly-dashboard-anomaly-stats",
+  "version": 1,
+  "weekStart": ""
+}

@@ -1,0 +1,75 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $padding-global;
+
+  .vm-button_small {
+    padding: 4px;
+  }
+
+  @media(max-width: 768px) {
+    .vm-button-text {
+      display: none;
+    }
+  }
+
+  .vm-button-borderless {
+    border: 0;
+  }
+
+  .vm-back-button {
+    svg {
+      transform: rotate(90deg);
+    }
+  }
+
+  &_mobile {
+    .vm-button-text {
+      display: none;
+    }
+  }
+
+  &__index {
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+  }
+
+  &__name {
+    font-weight: bold;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 130%;
+    word-break: break-word;
+  }
+
+  &__title {
+    display: flex;
+    column-gap: $padding-global;
+    overflow: hidden;
+    svg {
+      fill: $color-text-disabled;
+      width: 14px;
+      min-width: 14px;
+    }
+  }
+
+  &__file {
+    color: $color-text-disabled;
+  }
+
+  code {
+    padding: 0.2em 0.4em;
+    font-size: 85%;
+    background-color: $color-hover-black;
+    border-radius: 6px;
+  }
+}
+
+.vm-explore-alerts-controls {
+  display: flex;
+  column-gap: $padding-global;
+}

@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import { Dayjs } from "dayjs";
 import { ArrowDownIcon, ArrowDropDownIcon } from "../../../Icons";
 

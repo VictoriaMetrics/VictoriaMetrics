@@ -1,21 +1,21 @@
 import { getAppModeParams } from "./app-mode";
 import { replaceTenantId } from "./tenants";
-import { AppType } from "../types/appType";
+import { APP_TYPE, AppType } from "../constants/appType";
 import { getFromStorage } from "./storage";
-const { REACT_APP_TYPE } = process.env;
+
+export const getDefaultURL = (u: string) => {
+  return u.replace(/(\/(?:prometheus\/)?(?:graph|vmui)\/.*|\/#\/.*)/, "").replace(/(\/select\/[^/]+)$/, "$1/prometheus");
+};
 
 export const getDefaultServer = (tenantId?: string): string => {
   const { serverURL } = getAppModeParams();
   const storageURL = getFromStorage("SERVER_URL") as string;
-  const logsURL = window.location.href.replace(/\/(select\/)?(vmui)\/.*/, "");
-  const anomalyURL = `${window.location.origin}${window.location.pathname}`;
-  const defaultURL = window.location.href.replace(/\/(?:prometheus\/)?(?:graph|vmui)\/.*/, "/prometheus");
+  const anomalyURL = `${window.location.origin}${window.location.pathname.replace(/^\/vmui/, "")}`;
+  const defaultURL = getDefaultURL(window.location.href);
   const url = serverURL || storageURL || defaultURL;
 
-  switch (REACT_APP_TYPE) {
-    case AppType.logs:
-      return logsURL;
-    case AppType.anomaly:
+  switch (APP_TYPE) {
+    case AppType.vmanomaly:
       return storageURL || anomalyURL;
     default:
       return tenantId ? replaceTenantId(url, tenantId) : url;

@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 func BenchmarkParseStream(b *testing.B) {
 	samples := []*pb.Metric{
 		generateGauge("my-gauge", ""),
-		generateHistogram("my-histogram", ""),
+		generateHistogram("my-histogram", "", true),
 		generateSum("my-sum", "", false),
 		generateSummary("my-summary", ""),
 	}
@@ -24,7 +24,7 @@ func BenchmarkParseStream(b *testing.B) {
 		data := pbRequest.MarshalProtobuf(nil)
 
 		for p.Next() {
-			err := ParseStream(bytes.NewBuffer(data), false, nil, func(_ []prompbmarshal.TimeSeries) error {
+			err := ParseStream(bytes.NewBuffer(data), "", nil, func(_ []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
 				return nil
 			})
 			if err != nil {
@@ -32,5 +32,4 @@ func BenchmarkParseStream(b *testing.B) {
 			}
 		}
 	})
-
 }

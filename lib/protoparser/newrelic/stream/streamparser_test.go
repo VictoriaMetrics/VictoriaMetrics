@@ -18,7 +18,7 @@ func TestParseFailure(t *testing.T) {
 			panic(fmt.Errorf("unexpected call into callback"))
 		}
 		r := bytes.NewReader([]byte(req))
-		if err := Parse(r, false, callback); err == nil {
+		if err := Parse(r, "", callback); err == nil {
 			t.Fatalf("expecting non-empty error")
 		}
 	}
@@ -41,7 +41,7 @@ func TestParseSuccess(t *testing.T) {
 
 		// Parse from uncompressed reader
 		r := bytes.NewReader([]byte(req))
-		if err := Parse(r, false, callback); err != nil {
+		if err := Parse(r, "", callback); err != nil {
 			t.Fatalf("unexpected error when parsing uncompressed request: %s", err)
 		}
 
@@ -53,7 +53,7 @@ func TestParseSuccess(t *testing.T) {
 		if err := zw.Close(); err != nil {
 			t.Fatalf("cannot close compressed writer: %s", err)
 		}
-		if err := Parse(&bb, true, callback); err != nil {
+		if err := Parse(&bb, "gzip", callback); err != nil {
 			t.Fatalf("unexpected error when parsing compressed request: %s", err)
 		}
 	}

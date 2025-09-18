@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -104,4 +105,86 @@ func TestParseProxyProtocolFail(t *testing.T) {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
 		// ports
 		0, 80, 0, 0})
+}
+
+func TestProxyProtocolConnReadWriteSuccessful(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	ppc := newProxyProtocolConn(server)
+
+	expectedData := []byte("Hello, World!")
+
+	// Send proxy protocol header and test data from client
+	go func() {
+		proxyHeader := []byte{
+			0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A, // signature
+			0x21,       // version 2
+			0x11,       // family IPv4
+			0x00, 0x0C, // length: 12 bytes (IPv4 + ports)
+			192, 168, 1, 100, // source IP
+			10, 0, 0, 1, // destination IP
+			0x1F, 0x90, // source port 8080
+			0x00, 0x50, // destination port 80
+		}
+
+		// net.Pipe should not produce an error as it is completely in-memory
+		_, _ = client.Write(proxyHeader)
+		_, _ = client.Write(expectedData)
+	}()
+
+	// Read from proxy protocol connection
+	actualData := make([]byte, len(expectedData))
+	n, err := ppc.Read(actualData)
+	if err != nil {
+		t.Fatalf("failed to read from proxy protocol connection: %v", err)
+	}
+	if n != len(expectedData) {
+		t.Fatalf("expected to read %d bytes, got %d", len(expectedData), n)
+	}
+	if !bytes.Equal(actualData, expectedData) {
+		t.Fatalf("expected %q, got %q", expectedData, actualData)
+	}
+
+	// Verify the remote address is correctly extracted
+	expectedAddr := &net.TCPAddr{
+		IP:   net.IPv4(192, 168, 1, 100),
+		Port: 8080,
+	}
+	gotAddr := ppc.RemoteAddr()
+	if !reflect.DeepEqual(gotAddr, expectedAddr) {
+		t.Fatalf("expected remote addr %v, got %v", expectedAddr, gotAddr)
+	}
+}
+
+func TestProxyProtocolConnReadWriteFailure(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	ppc := newProxyProtocolConn(server)
+
+	go func() {
+		invalidProxyHeader := []byte("GET / HTTP/1.1\r\n\r\n")
+
+		// net.Pipe should not produce an error as it is completely in-memory
+		_, _ = client.Write(invalidProxyHeader)
+	}()
+
+	buf := make([]byte, 100)
+	_, err := ppc.Read(buf)
+	if err == nil {
+		t.Fatal("expected error when reading from proxy protocol connection; got none")
+	}
+	if !strings.HasPrefix(err.Error(), `unexpected proxy protocol header`) {
+		t.Fatalf("unexpected proxy protocol header error expected; got: %v", err)
+	}
+
+	// Should return original remote address on error
+	expectedAddr := server.RemoteAddr()
+	gotAddr := ppc.RemoteAddr()
+	if !reflect.DeepEqual(gotAddr, expectedAddr) {
+		t.Fatalf("expected remote addr %v, got %v", expectedAddr, gotAddr)
+	}
 }

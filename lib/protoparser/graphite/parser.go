@@ -14,7 +14,7 @@ import (
 
 var (
 	sanitizeMetricName = flag.Bool("graphite.sanitizeMetricName", false, "Sanitize metric names for the ingested Graphite data. "+
-		"See https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd")
+		"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting")
 )
 
 // graphite text line protocol may use white space or tab as separator
@@ -43,7 +43,7 @@ func (rs *Rows) Reset() {
 	rs.tagsPool = rs.tagsPool[:0]
 }
 
-// Unmarshal unmarshals grahite plaintext protocol rows from s.
+// Unmarshal unmarshals graphite plaintext protocol rows from s.
 //
 // See https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol
 //
@@ -120,7 +120,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	if len(timestampStr) > 0 {
 		ts, err := fastfloat.Parse(timestampStr)
 		if err != nil {
-			return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w; orignal line: %q", timestampStr, err, sOrig)
+			return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w; original line: %q", timestampStr, err, sOrig)
 		}
 		r.Timestamp = int64(ts)
 	}

@@ -8,9 +8,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -26,17 +26,17 @@ var (
 //
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6
 func InsertHandler(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return stream.Parse(req.Body, isGzipped, func(rows []parser.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, encoding, func(rows []vmimport.Row) error {
 		return insertRows(at, rows, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []vmimport.Row, extraLabels []prompb.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -50,7 +50,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 		labelsLen := len(labels)
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  bytesutil.ToUnsafeString(tag.Key),
 				Value: bytesutil.ToUnsafeString(tag.Value),
 			})
@@ -63,12 +63,12 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 		}
 		samplesLen := len(samples)
 		for j, value := range values {
-			samples = append(samples, prompbmarshal.Sample{
+			samples = append(samples, prompb.Sample{
 				Value:     value,
 				Timestamp: timestamps[j],
 			})
 		}
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
+		tssDst = append(tssDst, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],
 		})

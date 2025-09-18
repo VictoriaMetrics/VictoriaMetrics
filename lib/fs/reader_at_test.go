@@ -2,7 +2,6 @@ package fs
 
 import (
 	"fmt"
-	"os"
 	"testing"
 )
 
@@ -18,10 +17,8 @@ func testReaderAt(t *testing.T, bufSize int) {
 	path := "TestReaderAt"
 	const fileSize = 8 * 1024 * 1024
 	data := make([]byte, fileSize)
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		t.Fatalf("cannot create %q: %s", path, err)
-	}
-	defer MustRemoveAll(path)
+	MustWriteSync(path, data)
+	defer MustRemovePath(path)
 	r := MustOpenReaderAt(path)
 	defer r.MustClose()
 

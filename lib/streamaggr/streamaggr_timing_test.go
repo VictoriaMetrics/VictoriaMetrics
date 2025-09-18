@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -39,24 +40,8 @@ func BenchmarkAggregatorsPush(b *testing.B) {
 	}
 }
 
-func BenchmarkAggregatorsFlushInternalSerial(b *testing.B) {
-	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-	a := newBenchAggregators(benchOutputs, pushFunc)
-	defer a.MustStop()
-	_ = a.Push(benchSeries, nil)
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	b.SetBytes(int64(len(benchSeries) * len(benchOutputs)))
-	for i := 0; i < b.N; i++ {
-		for _, aggr := range a.as {
-			aggr.flushInternal(pushFunc, false)
-		}
-	}
-}
-
 func benchmarkAggregatorsPush(b *testing.B, output string) {
-	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
+	pushFunc := func(_ []prompb.TimeSeries) {}
 	a := newBenchAggregators([]string{output}, pushFunc)
 	defer a.MustStop()
 
@@ -94,8 +79,8 @@ func newBenchAggregators(outputs []string, pushFunc PushFunc) *Aggregators {
 	return a
 }
 
-func newBenchSeries(seriesCount int) []prompbmarshal.TimeSeries {
-	a := make([]string, seriesCount)
+func newBenchSeries(seriesCount int) []prompb.TimeSeries {
+	a := make([]string, 0, seriesCount)
 	for j := 0; j < seriesCount; j++ {
 		s := fmt.Sprintf(`http_requests_total{path="/foo/%d",job="foo_%d",instance="bar",pod="pod-123232312",namespace="kube-foo-bar",node="node-123-3434-443",`+
 			`some_other_label="foo-bar-baz",environment="prod",label1="value1",label2="value2",label3="value3"} %d`, j, j%100, j*1000)
@@ -103,7 +88,7 @@ func newBenchSeries(seriesCount int) []prompbmarshal.TimeSeries {
 	}
 	metrics := strings.Join(a, "\n")
 	offsetMsecs := time.Now().UnixMilli()
-	return prompbmarshal.MustParsePromMetrics(metrics, offsetMsecs)
+	return prometheus.MustParsePromMetrics(metrics, offsetMsecs)
 }
 
 const seriesCount = 10_000

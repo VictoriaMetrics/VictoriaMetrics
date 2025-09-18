@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseServiceListFailure(t *testing.T) {
@@ -99,8 +99,8 @@ func TestParseServiceListSuccess(t *testing.T) {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabelss := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                             "kube-dns.kube-system.svc:53",
 			"__meta_kubernetes_namespace":             "kube-system",
 			"__meta_kubernetes_service_name":          "kube-dns",
@@ -124,7 +124,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_port":   "true",
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_scrape": "true",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                             "kube-dns.kube-system.svc:53",
 			"__meta_kubernetes_namespace":             "kube-system",
 			"__meta_kubernetes_service_name":          "kube-dns",
@@ -148,7 +148,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_port":   "true",
 			"__meta_kubernetes_service_annotationpresent_prometheus_io_scrape": "true",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                             "kube-dns.kube-system.svc:9153",
 			"__meta_kubernetes_namespace":             "kube-system",
 			"__meta_kubernetes_service_name":          "kube-dns",

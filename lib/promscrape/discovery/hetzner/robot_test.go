@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseRobotServerListResponse(t *testing.T) {
@@ -93,8 +93,8 @@ func TestParseRobotServerListResponse(t *testing.T) {
 	port := 123
 	labelss := appendRobotTargetLabels(nil, &rsl[0], port)
 
-	expectedLabels := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabels := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                        "123.123.123.123:123",
 			"__meta_hetzner_role":                "robot",
 			"__meta_hetzner_server_id":           "321",
@@ -107,5 +107,5 @@ func TestParseRobotServerListResponse(t *testing.T) {
 			"__meta_hetzner_robot_cancelled":     "false",
 		}),
 	}
-	discoveryutils.TestEqualLabelss(t, labelss, expectedLabels)
+	discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
 }

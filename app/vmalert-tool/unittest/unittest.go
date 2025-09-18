@@ -4,17 +4,21 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	vmalertconfig "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -27,69 +31,146 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	storagePath    string
-	httpListenAddr = ":8880"
+	httpListenAddr string
 	// insert series from 1970-01-01T00:00:00
-	testStartTime = time.Unix(0, 0).UTC()
-
-	testPromWriteHTTPPath = "http://127.0.0.1" + httpListenAddr + "/api/v1/write"
-	testDataSourcePath    = "http://127.0.0.1" + httpListenAddr + "/prometheus"
-	testRemoteWritePath   = "http://127.0.0.1" + httpListenAddr
-	testHealthHTTPPath    = "http://127.0.0.1" + httpListenAddr + "/health"
-
+	testStartTime          = time.Unix(0, 0).UTC()
+	testLogLevel           = "ERROR"
 	disableAlertgroupLabel bool
 )
 
 const (
 	testStoragePath = "vmalert-unittest"
-	testLogLevel    = "ERROR"
 )
 
 // UnitTest runs unittest for files
-func UnitTest(files []string, disableGroupLabel bool) bool {
-	if err := templates.Load([]string{}, true); err != nil {
+func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, httpListenPort, logLevel string) bool {
+	if logLevel != "" {
+		testLogLevel = logLevel
+	}
+	eu, err := url.Parse(externalURL)
+	if err != nil {
+		logger.Fatalf("failed to parse external URL: %w", err)
+	}
+	if err := templates.Load([]string{}, *eu); err != nil {
 		logger.Fatalf("failed to load template: %v", err)
 	}
-	storagePath = filepath.Join(os.TempDir(), testStoragePath)
+
+	// set up http server
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/prometheus/api/v1/query":
+			if err := prometheus.QueryHandler(nil, time.Now(), w, r); err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+			}
+		case "/prometheus/api/v1/write", "/api/v1/write":
+			if err := promremotewrite.InsertHandler(r); err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+			}
+		default:
+		}
+	})
+	if httpListenPort == "" {
+		server := httptest.NewServer(handler)
+		httpListenAddr = strings.Split(server.URL, ":")[2]
+		defer server.Close()
+	} else {
+		httpListenAddr = httpListenPort
+
+		ln, err := net.Listen(netutil.GetTCPNetwork(), fmt.Sprintf(":%s", httpListenPort))
+		if err != nil {
+			logger.Fatalf("cannot listen on port %s: %v", httpListenPort, err)
+		}
+		go func() {
+			err = http.Serve(ln, handler)
+			if err != nil {
+				logger.Fatalf("cannot start http server: %v", err)
+			}
+			defer ln.Close()
+		}()
+	}
+
+	tmpFolder, err := os.MkdirTemp(os.TempDir(), testStoragePath)
+	if err != nil {
+		logger.Fatalf("failed to create tmp dir for tests: %v", err)
+	}
+	storagePath = tmpFolder
 	processFlags()
 	vminsert.Init()
 	vmselect.Init()
 	// storagePath will be created again when closing vmselect, so remove it again.
-	defer fs.MustRemoveAll(storagePath)
+	defer fs.MustRemoveDir(storagePath)
 	defer vminsert.Stop()
 	defer vmselect.Stop()
 	disableAlertgroupLabel = disableGroupLabel
 
-	testfiles, err := config.ReadFromFS(files)
+	testfiles, err := vmalertconfig.ReadFromFS(files)
 	if err != nil {
-		fmt.Println("  FAILED")
-		fmt.Printf("\nfailed to read test files: \n%v", err)
+		logger.Fatalf("failed to load test files %q: %v", files, err)
 	}
-	var failed bool
-	for fileName, file := range testfiles {
-		if err := ruleUnitTest(fileName, file); err != nil {
-			fmt.Println("  FAILED")
-			fmt.Printf("\nfailed to run unit test for file %q: \n%v", file, err)
-			failed = true
-		} else {
-			fmt.Println("  SUCCESS")
-		}
+	if len(testfiles) == 0 {
+		logger.Fatalf("no test file found")
 	}
 
+	labels := make(map[string]string)
+	for _, s := range externalLabels {
+		if len(s) == 0 {
+			continue
+		}
+		n := strings.IndexByte(s, '=')
+		if n < 0 {
+			logger.Fatalf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
+		}
+		labels[s[:n]] = s[n+1:]
+	}
+	_, err = notifier.Init(labels, externalURL)
+	if err != nil {
+		logger.Fatalf("failed to init notifier: %v", err)
+	}
+
+	var failed bool
+	runTest := func() bool {
+		for fileName, file := range testfiles {
+			if err := ruleUnitTest(fileName, file, labels); err != nil {
+				fmt.Println("FAILED")
+				fmt.Printf("failed to run unit test for file %q: \n%v", fileName, err)
+				return true
+			}
+			fmt.Println("SUCCESS")
+		}
+		return false
+	}
+
+	finishCh := make(chan struct{}, 1)
+	go func() {
+		failed = runTest()
+		finishCh <- struct{}{}
+	}()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case sig := <-sigs:
+		fmt.Printf("received signal %s\n", sig)
+		failed = true
+		break
+	case <-finishCh:
+		break
+	}
 	return failed
 }
 
-func ruleUnitTest(filename string, content []byte) []error {
-	fmt.Println("\nUnit Testing: ", filename)
+func ruleUnitTest(filename string, content []byte, externalLabels map[string]string) []error {
+	fmt.Println("\n\nUnit Testing: ", filename)
 	var unitTestInp unitTestFile
 	if err := yaml.UnmarshalStrict(content, &unitTestInp); err != nil {
 		return []error{fmt.Errorf("failed to unmarshal file: %w", err)}
@@ -104,7 +185,7 @@ func ruleUnitTest(filename string, content []byte) []error {
 
 	if unitTestInp.EvaluationInterval.Duration() == 0 {
 		fmt.Println("evaluation_interval set to 1m by default")
-		unitTestInp.EvaluationInterval = &promutils.Duration{D: 1 * time.Minute}
+		unitTestInp.EvaluationInterval = &promutil.Duration{D: 1 * time.Minute}
 	}
 
 	groupOrderMap := make(map[string]int)
@@ -119,6 +200,9 @@ func ruleUnitTest(filename string, content []byte) []error {
 	if err != nil {
 		return []error{fmt.Errorf("failed to parse `rule_files`: %w", err)}
 	}
+	if len(testGroups) == 0 {
+		return []error{fmt.Errorf("found no rule group in %v", unitTestInp.RuleFiles)}
+	}
 
 	var errs []error
 	for _, t := range unitTestInp.Tests {
@@ -126,7 +210,7 @@ func ruleUnitTest(filename string, content []byte) []error {
 			errs = append(errs, err)
 			continue
 		}
-		testErrs := t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, testGroups)
+		testErrs := t.test(unitTestInp.EvaluationInterval.Duration(), groupOrderMap, testGroups, externalLabels)
 		errs = append(errs, testErrs...)
 	}
 
@@ -163,6 +247,10 @@ func verifyTestGroup(group testGroup) error {
 			return fmt.Errorf("\n%s    missing required field \"eval_time\"", testGroupName)
 		}
 	}
+	if group.ExternalLabels != nil {
+		fmt.Printf("\n%s    warning: filed `external_labels` will be deprecated soon, please use `-external.label` cmd-line flag instead. "+
+			"Check https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735 for details.\n", testGroupName)
+	}
 	return nil
 }
 
@@ -177,8 +265,9 @@ func processFlags() {
 		{flag: "search.disableCache", value: "true"},
 		// set storage retention time to 100 years, allow to store series from 1970-01-01T00:00:00.
 		{flag: "retentionPeriod", value: "100y"},
-		{flag: "datasource.url", value: testDataSourcePath},
-		{flag: "remoteWrite.url", value: testRemoteWritePath},
+		{flag: "datasource.url", value: fmt.Sprintf("http://127.0.0.1:%s/prometheus", httpListenAddr)},
+		{flag: "remoteWrite.url", value: fmt.Sprintf("http://127.0.0.1:%s", httpListenAddr)},
+		{flag: "notifier.blackhole", value: "true"},
 	} {
 		// panics if flag doesn't exist
 		if err := flag.Lookup(fv.flag).Value.Set(fv.value); err != nil {
@@ -189,27 +278,10 @@ func processFlags() {
 
 func setUp() {
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
-	var ab flagutil.ArrayBool
-	go httpserver.Serve([]string{httpListenAddr}, &ab, func(w http.ResponseWriter, r *http.Request) bool {
-		switch r.URL.Path {
-		case "/prometheus/api/v1/query":
-			if err := prometheus.QueryHandler(nil, time.Now(), w, r); err != nil {
-				httpserver.Errorf(w, r, "%s", err)
-			}
-			return true
-		case "/prometheus/api/v1/write", "/api/v1/write":
-			if err := promremotewrite.InsertHandler(r); err != nil {
-				httpserver.Errorf(w, r, "%s", err)
-			}
-			return true
-		default:
-		}
-		return false
-	})
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	readyCheckFunc := func() bool {
-		resp, err := http.Get(testHealthHTTPPath)
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/health", httpListenAddr))
 		if err != nil {
 			return false
 		}
@@ -225,27 +297,27 @@ checkCheck:
 			if readyCheckFunc() {
 				break checkCheck
 			}
-			time.Sleep(3 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
 
 func tearDown() {
-	if err := httpserver.Stop([]string{httpListenAddr}); err != nil {
-		logger.Errorf("cannot stop the webservice: %s", err)
-	}
 	vmstorage.Stop()
 	metrics.UnregisterAllMetrics()
-	fs.MustRemoveAll(storagePath)
+	fs.MustRemoveDir(storagePath)
 }
 
-func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group) (checkErrs []error) {
+func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]int, testGroups []vmalertconfig.Group, externalLabels map[string]string) (checkErrs []error) {
 	// set up vmstorage and http server for ingest and read queries
 	setUp()
 	// tear down vmstorage and clean the data dir
 	defer tearDown()
 
-	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, testPromWriteHTTPPath)
+	if tg.Interval == nil {
+		tg.Interval = promutil.NewDuration(evalInterval)
+	}
+	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, fmt.Sprintf("http://127.0.0.1:%s/api/v1/write", httpListenAddr))
 	if err != nil {
 		return []error{err}
 	}
@@ -288,7 +360,15 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	// create groups with given rule
 	var groups []*rule.Group
 	for _, group := range testGroups {
-		ng := rule.NewGroup(group, q, time.Minute, tg.ExternalLabels)
+		mergedExternalLabels := make(map[string]string)
+		for k, v := range tg.ExternalLabels {
+			mergedExternalLabels[k] = v
+		}
+		for k, v := range externalLabels {
+			mergedExternalLabels[k] = v
+		}
+		ng := rule.NewGroup(group, q, time.Minute, mergedExternalLabels)
+		ng.Init()
 		groups = append(groups, ng)
 	}
 
@@ -396,15 +476,15 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 
 // unitTestFile holds the contents of a single unit test file
 type unitTestFile struct {
-	RuleFiles          []string            `yaml:"rule_files"`
-	EvaluationInterval *promutils.Duration `yaml:"evaluation_interval"`
-	GroupEvalOrder     []string            `yaml:"group_eval_order"`
-	Tests              []testGroup         `yaml:"tests"`
+	RuleFiles          []string           `yaml:"rule_files"`
+	EvaluationInterval *promutil.Duration `yaml:"evaluation_interval"`
+	GroupEvalOrder     []string           `yaml:"group_eval_order"`
+	Tests              []testGroup        `yaml:"tests"`
 }
 
 // testGroup is a group of input series and test cases associated with it
 type testGroup struct {
-	Interval           *promutils.Duration `yaml:"interval"`
+	Interval           *promutil.Duration  `yaml:"interval"`
 	InputSeries        []series            `yaml:"input_series"`
 	AlertRuleTests     []alertTestCase     `yaml:"alert_rule_test"`
 	MetricsqlExprTests []metricsqlTestCase `yaml:"metricsql_expr_test"`

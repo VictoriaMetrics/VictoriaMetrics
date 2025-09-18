@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // GetScrapeURL makes scrape url and __address_ labels for the given labels and extraParams.
-func GetScrapeURL(labels *promutils.Labels, extraParams map[string][]string) (string, string) {
+func GetScrapeURL(labels *promutil.Labels, extraParams map[string][]string) (string, string) {
 	// See https://www.robustperception.io/life-of-a-label
 	scheme := labels.Get("__scheme__")
 	if len(scheme) == 0 {
@@ -37,7 +37,13 @@ func GetScrapeURL(labels *promutils.Labels, extraParams map[string][]string) (st
 		metricsPath = address[n:]
 		address = address[:n]
 	}
-	address = addMissingPort(address, scheme == "https")
+
+	// If port is missing, typically it should be 80/443. This WAS written in a label and used as scrapeURL.
+	// However, adding the port by default can cause some issues, see: https://github.com/prometheus/prometheus/pull/9523#issuecomment-2059314966
+	// After https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6792:
+	// - don't add the default port to scrapeURL.
+	// - continue adding the default port to the label value for backward compatibility and avoid generating new time series.
+	addressMustWithPort := addMissingPort(address, scheme == "https")
 
 	if !strings.HasPrefix(metricsPath, "/") {
 		metricsPath = "/" + metricsPath
@@ -52,10 +58,10 @@ func GetScrapeURL(labels *promutils.Labels, extraParams map[string][]string) (st
 	}
 	paramsStr := url.Values(params).Encode()
 	scrapeURL := buildScrapeURL(scheme, address, metricsPath, optionalQuestion, paramsStr)
-	return scrapeURL, address
+	return scrapeURL, addressMustWithPort
 }
 
-func getParamsFromLabels(labels *promutils.Labels, extraParams map[string][]string) map[string][]string {
+func getParamsFromLabels(labels *promutil.Labels, extraParams map[string][]string) map[string][]string {
 	// See https://www.robustperception.io/life-of-a-label
 	var m map[string][]string
 	for _, label := range labels.GetLabels() {

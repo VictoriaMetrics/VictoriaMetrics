@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // See https://docs.openstack.org/api-ref/compute/#list-servers
@@ -52,10 +52,10 @@ func parseServersDetail(data []byte) (*serversDetail, error) {
 	return &srvd, nil
 }
 
-func addInstanceLabels(servers []server, port int) []*promutils.Labels {
-	var ms []*promutils.Labels
+func addInstanceLabels(servers []server, port int) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, server := range servers {
-		commonLabels := promutils.NewLabels(16)
+		commonLabels := promutil.NewLabels(16)
 		commonLabels.Add("__meta_openstack_instance_id", server.ID)
 		commonLabels.Add("__meta_openstack_instance_status", server.Status)
 		commonLabels.Add("__meta_openstack_instance_name", server.Name)
@@ -63,7 +63,7 @@ func addInstanceLabels(servers []server, port int) []*promutils.Labels {
 		commonLabels.Add("__meta_openstack_user_id", server.UserID)
 		commonLabels.Add("__meta_openstack_instance_flavor", server.Flavor.ID)
 		for k, v := range server.Metadata {
-			commonLabels.Add(discoveryutils.SanitizeLabelName("__meta_openstack_tag_"+k), v)
+			commonLabels.Add(discoveryutil.SanitizeLabelName("__meta_openstack_tag_"+k), v)
 		}
 		// Traverse server.Addresses in alphabetical order of pool name
 		// in order to return targets in deterministic order.
@@ -93,14 +93,14 @@ func addInstanceLabels(servers []server, port int) []*promutils.Labels {
 					continue
 				}
 				// copy labels
-				m := promutils.NewLabels(20)
+				m := promutil.NewLabels(20)
 				m.AddFrom(commonLabels)
 				m.Add("__meta_openstack_address_pool", pool)
 				m.Add("__meta_openstack_private_ip", ip.Address)
 				if len(publicIP) > 0 {
 					m.Add("__meta_openstack_public_ip", publicIP)
 				}
-				m.Add("__address__", discoveryutils.JoinHostPort(ip.Address, port))
+				m.Add("__address__", discoveryutil.JoinHostPort(ip.Address, port))
 				ms = append(ms, m)
 			}
 		}
@@ -137,7 +137,7 @@ func (cfg *apiConfig) getServers() ([]server, error) {
 	}
 }
 
-func getInstancesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
+func getInstancesLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
 	srv, err := cfg.getServers()
 	if err != nil {
 		return nil, err

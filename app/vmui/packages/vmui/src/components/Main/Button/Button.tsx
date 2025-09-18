@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import "./style.scss";
@@ -14,8 +14,9 @@ interface ButtonProps {
   disabled?: boolean
   children?: ReactNode
   className?: string
-  onClick?: (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void
-  onMouseDown?: (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void
+  "data-id"?: string
+  onClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void
+  onMouseDown?: (e: ReactMouseEvent<HTMLButtonElement>) => void
 }
 
 const Button: FC<ButtonProps> = ({
@@ -31,16 +32,16 @@ const Button: FC<ButtonProps> = ({
   disabled,
   onClick,
   onMouseDown,
+  "data-id": dataId
 }) => {
 
   const classesButton = classNames({
     "vm-button": true,
     [`vm-button_${variant}_${color}`]: true,
     [`vm-button_${size}`]: size,
-    "vm-button_icon": (startIcon || endIcon) && !children,
+    "vm-button_icon_only": (startIcon || endIcon) && !children,
     "vm-button_full-width": fullWidth,
-    "vm-button_with-icon": startIcon || endIcon,
-    "vm-button_disabled": disabled,
+    "vm-button_with-icons": startIcon || endIcon,
     [className || ""]: className
   });
 
@@ -51,12 +52,9 @@ const Button: FC<ButtonProps> = ({
       aria-label={ariaLabel}
       onClick={onClick}
       onMouseDown={onMouseDown}
+      data-id={dataId}
     >
-      <>
-        {startIcon && <span className="vm-button__start-icon">{startIcon}</span>}
-        {children && <span>{children}</span>}
-        {endIcon && <span className="vm-button__end-icon">{endIcon}</span>}
-      </>
+      {startIcon}{children}{endIcon}
     </button>
   );
 };

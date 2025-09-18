@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { useFetchActiveQueries } from "./hooks/useFetchActiveQueries";
 import Alert from "../../components/Main/Alert/Alert";
 import Spinner from "../../components/Main/Spinner/Spinner";

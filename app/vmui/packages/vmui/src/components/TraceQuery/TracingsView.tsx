@@ -1,7 +1,7 @@
-import React, { FC, useState } from "preact/compat";
+import { FC, useState } from "preact/compat";
 import Trace from "./Trace";
 import Button from "../Main/Button/Button";
-import { ArrowDownIcon, CodeIcon, DeleteIcon, DownloadIcon } from "../Main/Icons";
+import { CodeIcon, CollapseIcon, DeleteIcon, DownloadIcon, ExpandIcon } from "../Main/Icons";
 import "./style.scss";
 import NestedNav from "./NestedNav/NestedNav";
 import Alert from "../Main/Alert/Alert";
@@ -10,6 +10,7 @@ import Modal from "../Main/Modal/Modal";
 import JsonForm from "../../pages/TracePage/JsonForm/JsonForm";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
+import { downloadJSON } from "../../utils/file";
 
 interface TraceViewProps {
   traces: Trace[];
@@ -54,17 +55,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
   };
 
   const handleSaveToFile = (tracingData: Trace) => () => {
-    const blob = new Blob([tracingData.originalJSON], { type: "application/json" });
-    const href = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = `vmui_trace_${tracingData.queryValue}.json`;
-    document.body.appendChild(link);
-    link.click();
-
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
+    downloadJSON(tracingData.originalJSON, `vmui_trace_${tracingData.queryValue}.json`);
   };
 
   const handleExpandAll = (tracingData: Trace) => () => {
@@ -89,13 +80,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
               <Tooltip title={expandedTraces.includes(trace.idValue) ? "Collapse All" : "Expand All"}>
                 <Button
                   variant="text"
-                  startIcon={(
-                    <div
-                      className={classNames({
-                        "vm-tracings-view-trace-header__expand-icon": true,
-                        "vm-tracings-view-trace-header__expand-icon_open": expandedTraces.includes(trace.idValue) })}
-                    ><ArrowDownIcon/></div>
-                  )}
+                  startIcon={expandedTraces.includes(trace.idValue) ? <CollapseIcon/> : <ExpandIcon/> }
                   onClick={handleExpandAll(trace)}
                   ariaLabel={expandedTraces.includes(trace.idValue) ? "Collapse All" : "Expand All"}
                 />

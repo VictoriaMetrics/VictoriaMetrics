@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import { FC } from "react";
 import GraphView from "../../../components/Views/GraphView/GraphView";
 import GraphTips from "../../../components/Chart/GraphTips/GraphTips";
 import GraphSettings from "../../../components/Configurators/GraphSettings/GraphSettings";
@@ -47,7 +47,9 @@ const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef, isAnomalyVie
     <div className="vm-custom-panel-body-header__graph-controls">
       <GraphTips/>
       <GraphSettings
+        data={graphData}
         yaxis={yaxis}
+        isHistogram={isHistogram}
         setYaxisLimits={setYaxisLimits}
         toggleEnableLimits={toggleEnableLimits}
         spanGaps={{ value: spanGaps, onChange: setSpanGaps }}

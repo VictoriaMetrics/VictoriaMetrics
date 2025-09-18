@@ -10,7 +10,7 @@ import (
 // specific files
 // static content
 //
-//go:embed favicon-32x32.png robots.txt index.html manifest.json asset-manifest.json
+//go:embed favicon.svg robots.txt index.html manifest.json asset-manifest.json
 //go:embed static
 var files embed.FS
 

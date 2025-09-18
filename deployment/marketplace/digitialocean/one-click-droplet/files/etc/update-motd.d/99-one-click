@@ -19,8 +19,8 @@ On the server:
   * VictoriaMetrics is running on ports: 8428, 8089, 4242, 2003 and they are bound to the local interface.
 
 ********************************************************************************
-  # This image includes v1.102.0 release of VictoriaMetrics.
-  # See Release notes https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0
+  # This image includes v1.104.0 release of VictoriaMetrics.
+  # See Release notes https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0
 
   # Welcome to VictoriaMetrics droplet!
 

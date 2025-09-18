@@ -12,7 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // partHeader represents part header.
@@ -58,7 +58,7 @@ func (ph *partHeader) readMinDedupInterval(partPath string) error {
 		}
 		return fmt.Errorf("cannot read %q: %w", filePath, err)
 	}
-	dedupInterval, err := promutils.ParseDuration(string(data))
+	dedupInterval, err := timeutil.ParseDuration(string(data))
 	if err != nil {
 		return fmt.Errorf("cannot parse minimum dedup interval %q at %q: %w", data, filePath, err)
 	}

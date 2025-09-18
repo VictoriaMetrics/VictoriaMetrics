@@ -16,7 +16,6 @@ package storage
 
 import (
 	"context"
-	"io"
 	"time"
 
 	"cloud.google.com/go/iam/apiv1/iampb"
@@ -62,6 +61,7 @@ type storageClient interface {
 	GetObject(ctx context.Context, params *getObjectParams, opts ...storageOption) (*ObjectAttrs, error)
 	UpdateObject(ctx context.Context, params *updateObjectParams, opts ...storageOption) (*ObjectAttrs, error)
 	RestoreObject(ctx context.Context, params *restoreObjectParams, opts ...storageOption) (*ObjectAttrs, error)
+	MoveObject(ctx context.Context, params *moveObjectParams, opts ...storageOption) (*ObjectAttrs, error)
 
 	// Default Object ACL methods.
 
@@ -87,7 +87,7 @@ type storageClient interface {
 	RewriteObject(ctx context.Context, req *rewriteObjectRequest, opts ...storageOption) (*rewriteObjectResponse, error)
 
 	NewRangeReader(ctx context.Context, params *newRangeReaderParams, opts ...storageOption) (*Reader, error)
-	OpenWriter(params *openWriterParams, opts ...storageOption) (*io.PipeWriter, error)
+	OpenWriter(params *openWriterParams, opts ...storageOption) (internalWriter, error)
 
 	// IAM methods.
 
@@ -107,6 +107,8 @@ type storageClient interface {
 	ListNotifications(ctx context.Context, bucket string, opts ...storageOption) (map[string]*Notification, error)
 	CreateNotification(ctx context.Context, bucket string, n *Notification, opts ...storageOption) (*Notification, error)
 	DeleteNotification(ctx context.Context, bucket string, id string, opts ...storageOption) error
+
+	NewMultiRangeDownloader(ctx context.Context, params *newMultiRangeDownloaderParams, opts ...storageOption) (*MultiRangeDownloader, error)
 }
 
 // settings contains transport-agnostic configuration for API calls made via
@@ -122,7 +124,7 @@ type settings struct {
 	gax []gax.CallOption
 
 	// idempotent indicates if the call is idempotent or not when considering
-	// if the call should be retired or not.
+	// if the call should be retried or not.
 	idempotent bool
 
 	// clientOption is a set of option.ClientOption to be used during client
@@ -132,6 +134,8 @@ type settings struct {
 
 	// userProject is the user project that should be billed for the request.
 	userProject string
+
+	metricsContext *metricsContext
 }
 
 func initSettings(opts ...storageOption) *settings {
@@ -235,7 +239,8 @@ type openWriterParams struct {
 	chunkSize int
 	// chunkRetryDeadline - see `Writer.ChunkRetryDeadline`.
 	// Optional.
-	chunkRetryDeadline time.Duration
+	chunkRetryDeadline   time.Duration
+	chunkTransferTimeout time.Duration
 
 	// Object/request properties
 
@@ -251,12 +256,22 @@ type openWriterParams struct {
 	// conds - see `Writer.o.conds`.
 	// Optional.
 	conds *Conditions
+	// appendGen -- object generation to write to.
+	// Optional; required for taking over appendable objects only
+	appendGen int64
 	// encryptionKey - see `Writer.o.encryptionKey`
 	// Optional.
 	encryptionKey []byte
 	// sendCRC32C - see `Writer.SendCRC32C`.
 	// Optional.
 	sendCRC32C bool
+	// append - Write with appendable object semantics.
+	// Optional.
+	append bool
+	// finalizeOnClose - Finalize the object when the storage.Writer is closed
+	// successfully.
+	// Optional.
+	finalizeOnClose bool
 
 	// Writer callbacks
 
@@ -272,6 +287,19 @@ type openWriterParams struct {
 	// setObj callback for reporting the resulting object - see `Writer.obj`.
 	// Required.
 	setObj func(*ObjectAttrs)
+	// setSize callback for updated the persisted size in Writer.obj.
+	setSize func(int64)
+	// setTakeoverOffset callback for returning offset to start writing from to Writer.
+	setTakeoverOffset func(int64)
+}
+
+type newMultiRangeDownloaderParams struct {
+	bucket        string
+	conds         *Conditions
+	encryptionKey []byte
+	gen           int64
+	object        string
+	handle        *ReadHandle
 }
 
 type newRangeReaderParams struct {
@@ -283,6 +311,7 @@ type newRangeReaderParams struct {
 	object         string
 	offset         int64
 	readCompressed bool // Use accept-encoding: gzip. Only works for HTTP currently.
+	handle         *ReadHandle
 }
 
 type getObjectParams struct {
@@ -308,6 +337,13 @@ type restoreObjectParams struct {
 	encryptionKey  []byte
 	conds          *Conditions
 	copySourceACL  bool
+}
+
+type moveObjectParams struct {
+	bucket, srcObject, dstObject string
+	srcConds                     *Conditions
+	dstConds                     *Conditions
+	encryptionKey                []byte
 }
 
 type composeObjectRequest struct {

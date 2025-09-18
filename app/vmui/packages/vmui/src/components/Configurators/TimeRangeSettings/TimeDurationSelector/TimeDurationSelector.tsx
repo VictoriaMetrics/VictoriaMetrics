@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import { relativeTimeOptions } from "../../../../utils/time";
 import "./style.scss";
 import classNames from "classnames";

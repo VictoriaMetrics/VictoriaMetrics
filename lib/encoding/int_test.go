@@ -321,7 +321,7 @@ func testMarshalUnmarshalBytes(t *testing.T, s string) {
 		t.Fatalf("unexpected sNew from b=%x; got %q; expecting %q", b, bNew, s)
 	}
 	if len(tail) > 0 {
-		t.Fatalf("unexepcted data left after unmarshaling s=%q from b=%x: %x", s, b, tail)
+		t.Fatalf("unexpected data left after unmarshaling s=%q from b=%x: %x", s, b, tail)
 	}
 
 	prefix := []byte("abcde")

@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 //line lib/promscrape/targetstatus.qtpl:12
@@ -1087,7 +1087,7 @@ func queryArgs(filter *requestFilter, override map[string]string) string {
 }
 
 //line lib/promscrape/targetstatus.qtpl:413
-func streamformatLabels(qw422016 *qt422016.Writer, labels *promutils.Labels) {
+func streamformatLabels(qw422016 *qt422016.Writer, labels *promutil.Labels) {
 //line lib/promscrape/targetstatus.qtpl:414
 	labelsList := labels.GetLabels()
 
@@ -1117,7 +1117,7 @@ func streamformatLabels(qw422016 *qt422016.Writer, labels *promutils.Labels) {
 }
 
 //line lib/promscrape/targetstatus.qtpl:421
-func writeformatLabels(qq422016 qtio422016.Writer, labels *promutils.Labels) {
+func writeformatLabels(qq422016 qtio422016.Writer, labels *promutil.Labels) {
 //line lib/promscrape/targetstatus.qtpl:421
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line lib/promscrape/targetstatus.qtpl:421
@@ -1128,7 +1128,7 @@ func writeformatLabels(qq422016 qtio422016.Writer, labels *promutils.Labels) {
 }
 
 //line lib/promscrape/targetstatus.qtpl:421
-func formatLabels(labels *promutils.Labels) string {
+func formatLabels(labels *promutil.Labels) string {
 //line lib/promscrape/targetstatus.qtpl:421
 	qb422016 := qt422016.AcquireByteBuffer()
 //line lib/promscrape/targetstatus.qtpl:421

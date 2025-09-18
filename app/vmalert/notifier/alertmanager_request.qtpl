@@ -1,13 +1,14 @@
 {% import (
     "time"
 
-    "github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+    "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 ) %}
 {% stripspace %}
 
-{% func amRequest(alerts []Alert, generatorURL func(Alert) string, relabelCfg *promrelabel.ParsedConfigs) %}
+{% func amRequest(alerts []Alert, generatorURL func(Alert) string, lblss [][]prompb.Label) %}
 [
 {% for i, alert := range alerts %}
+{% code lbls := lblss[i] %}
 {
     "startsAt":{%q= alert.Start.Format(time.RFC3339Nano) %},
     "generatorURL": {%q= generatorURL(alert) %},
@@ -15,7 +16,6 @@
     "endsAt":{%q= alert.End.Format(time.RFC3339Nano) %},
     {% endif %}
     "labels": {
-        {% code lbls := alert.toPromLabels(relabelCfg) %}
         {% code ll := len(lbls) %}
         {% for idx, l := range lbls %}
             {%q= l.Name %}:{%q= l.Value %}{% if idx != ll-1 %}, {% endif %}

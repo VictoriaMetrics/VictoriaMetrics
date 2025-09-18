@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "react";
+import { FC, useMemo } from "react";
 import { PlayIcon, QuestionIcon, RestartIcon, TipIcon, WikiIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";
@@ -112,7 +112,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
       {isCluster &&
         <div className="vm-cardinality-configurator-bottom-helpful">
           <Hyperlink
-            href="https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cardinality-explorer-statistic-inaccuracy"
+            href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer-statistic-inaccuracy"
             withIcon={true}
           >
             <WikiIcon/>
@@ -123,7 +123,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
 
       <div className="vm-cardinality-configurator-bottom-helpful">
         <Hyperlink
-          href="https://docs.victoriametrics.com/#cardinality-explorer"
+          href="https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer"
           withIcon={true}
         >
           <WikiIcon/>

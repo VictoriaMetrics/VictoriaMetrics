@@ -132,15 +132,6 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 
 	bsr.ph.MustReadMetadata(path)
 
-	timestampsPath := filepath.Join(path, timestampsFilename)
-	timestampsFile := filestream.MustOpen(timestampsPath, true)
-
-	valuesPath := filepath.Join(path, valuesFilename)
-	valuesFile := filestream.MustOpen(valuesPath, true)
-
-	indexPath := filepath.Join(path, indexFilename)
-	indexFile := filestream.MustOpen(indexPath, true)
-
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	mrs, err := unmarshalMetaindexRows(bsr.mrs[:0], metaindexFile)
@@ -148,21 +139,38 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	if err != nil {
 		logger.Panicf("FATAL: cannot unmarshal metaindex rows from file part %q: %s", metaindexPath, err)
 	}
+	bsr.mrs = mrs
 
 	bsr.path = path
-	bsr.timestampsReader = timestampsFile
-	bsr.valuesReader = valuesFile
-	bsr.indexReader = indexFile
-	bsr.mrs = mrs
+
+	// Open part files in parallel in order to speed up this operation
+	// on high-latency storage systems such as NFS or Ceph.
+
+	var pfo filestream.ParallelFileOpener
+
+	timestampsPath := filepath.Join(path, timestampsFilename)
+	valuesPath := filepath.Join(path, valuesFilename)
+	indexPath := filepath.Join(path, indexFilename)
+
+	pfo.Add(timestampsPath, &bsr.timestampsReader, true)
+	pfo.Add(valuesPath, &bsr.valuesReader, true)
+	pfo.Add(indexPath, &bsr.indexReader, true)
+
+	pfo.Run()
 }
 
 // MustClose closes the bsr.
 //
 // It closes *Reader files passed to Init.
 func (bsr *blockStreamReader) MustClose() {
-	bsr.timestampsReader.MustClose()
-	bsr.valuesReader.MustClose()
-	bsr.indexReader.MustClose()
+	// Close files in parallel in order to speed up this process on storage systems with high latency
+	// such as NFS or Ceph.
+	cs := []fs.MustCloser{
+		bsr.timestampsReader,
+		bsr.valuesReader,
+		bsr.indexReader,
+	}
+	fs.MustCloseParallel(cs)
 
 	bsr.reset()
 }

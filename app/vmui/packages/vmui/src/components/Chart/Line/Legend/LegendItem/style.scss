@@ -18,18 +18,7 @@
 
   &_hide {
     text-decoration: line-through;
-    opacity: 0.5;
-  }
-
-  &_static {
-    grid-template-columns: 1fr;
-    margin: 0;
-    padding: 0;
-    cursor: default;
-
-    &:hover {
-      background-color: $color-background-block;
-    }
+    opacity: 0.2;
   }
 
   &__marker {

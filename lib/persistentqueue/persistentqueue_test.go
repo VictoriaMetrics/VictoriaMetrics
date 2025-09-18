@@ -6,11 +6,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestQueueOpenClose(t *testing.T) {
 	path := "queue-open-close"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	for i := 0; i < 3; i++ {
 		q := mustOpen(path, "foobar", 0)
 		if n := q.GetPendingBytes(); n > 0 {
@@ -18,7 +20,7 @@ func TestQueueOpenClose(t *testing.T) {
 		}
 		q.MustClose()
 	}
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 }
 
 func TestQueueOpen(t *testing.T) {
@@ -28,7 +30,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateFile(filepath.Join(path, metainfoFilename), "foobarbaz")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("junk-files-and-dirs", func(_ *testing.T) {
 		path := "queue-open-junk-files-and-dir"
@@ -38,7 +40,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(filepath.Join(path, "junk-dir"))
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("invalid-chunk-offset", func(_ *testing.T) {
 		path := "queue-open-invalid-chunk-offset"
@@ -47,7 +49,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 1234)), "qwere")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("too-new-chunk", func(_ *testing.T) {
 		path := "queue-open-too-new-chunk"
@@ -56,7 +58,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 100*uint64(DefaultChunkFileSize))), "asdf")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("too-old-chunk", func(t *testing.T) {
 		path := "queue-open-too-old-chunk"
@@ -72,7 +74,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 0)), "adfsfd")
 		q := mustOpen(path, mi.Name, 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("too-big-reader-offset", func(t *testing.T) {
 		path := "queue-open-too-big-reader-offset"
@@ -86,7 +88,7 @@ func TestQueueOpen(t *testing.T) {
 		}
 		q := mustOpen(path, mi.Name, 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("metainfo-dir", func(_ *testing.T) {
 		path := "queue-open-metainfo-dir"
@@ -94,7 +96,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(filepath.Join(path, metainfoFilename))
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("too-small-reader-file", func(t *testing.T) {
 		path := "too-small-reader-file"
@@ -110,7 +112,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 0)), "sdf")
 		q := mustOpen(path, mi.Name, 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("invalid-writer-file-size", func(_ *testing.T) {
 		path := "too-small-reader-file"
@@ -119,7 +121,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 0)), "sdfdsf")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 	t.Run("invalid-queue-name", func(t *testing.T) {
 		path := "invalid-queue-name"
@@ -133,17 +135,17 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 0)), "sdf")
 		q := mustOpen(path, "baz", 0)
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	})
 }
 
 func TestQueueResetIfEmpty(t *testing.T) {
 	path := "queue-reset-if-empty"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	q := mustOpen(path, "foobar", 0)
 	defer func() {
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	}()
 
 	block := make([]byte, 1024*1024)
@@ -170,11 +172,11 @@ func TestQueueResetIfEmpty(t *testing.T) {
 
 func TestQueueWriteRead(t *testing.T) {
 	path := "queue-write-read"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	q := mustOpen(path, "foobar", 0)
 	defer func() {
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	}()
 
 	for j := 0; j < 5; j++ {
@@ -206,11 +208,11 @@ func TestQueueWriteRead(t *testing.T) {
 
 func TestQueueWriteCloseRead(t *testing.T) {
 	path := "queue-write-close-read"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	q := mustOpen(path, "foobar", 0)
 	defer func() {
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	}()
 
 	for j := 0; j < 5; j++ {
@@ -247,11 +249,11 @@ func TestQueueWriteCloseRead(t *testing.T) {
 
 func TestQueueChunkManagementSimple(t *testing.T) {
 	path := "queue-chunk-management-simple"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	const chunkFileSize = 100
 	const maxBlockSize = 20
 	q := mustOpenInternal(path, "foobar", chunkFileSize, maxBlockSize, 0)
-	defer mustDeleteDir(path)
+	defer fs.MustRemoveDir(path)
 	defer q.MustClose()
 	var blocks []string
 	for i := 0; i < 100; i++ {
@@ -278,13 +280,13 @@ func TestQueueChunkManagementSimple(t *testing.T) {
 
 func TestQueueChunkManagementPeriodicClose(t *testing.T) {
 	path := "queue-chunk-management-periodic-close"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	const chunkFileSize = 100
 	const maxBlockSize = 20
 	q := mustOpenInternal(path, "foobar", chunkFileSize, maxBlockSize, 0)
 	defer func() {
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	}()
 	var blocks []string
 	for i := 0; i < 100; i++ {
@@ -316,11 +318,11 @@ func TestQueueChunkManagementPeriodicClose(t *testing.T) {
 func TestQueueLimitedSize(t *testing.T) {
 	const maxPendingBytes = 1000
 	path := "queue-limited-size"
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	q := mustOpen(path, "foobar", maxPendingBytes)
 	defer func() {
 		q.MustClose()
-		mustDeleteDir(path)
+		fs.MustRemoveDir(path)
 	}()
 
 	// Check that small blocks are successfully buffered and read
@@ -371,21 +373,13 @@ func TestQueueLimitedSize(t *testing.T) {
 }
 
 func mustCreateFile(path, contents string) {
-	if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
-		panic(fmt.Errorf("cannot create file %q with %d bytes contents: %w", path, len(contents), err))
-	}
+	fs.MustWriteSync(path, []byte(contents))
 }
 
 func mustCreateDir(path string) {
-	mustDeleteDir(path)
+	fs.MustRemoveDir(path)
 	if err := os.MkdirAll(path, 0700); err != nil {
 		panic(fmt.Errorf("cannot create dir %q: %w", path, err))
-	}
-}
-
-func mustDeleteDir(path string) {
-	if err := os.RemoveAll(path); err != nil {
-		panic(fmt.Errorf("cannot remove dir %q: %w", path, err))
 	}
 }
 

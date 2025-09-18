@@ -1,0 +1,45 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: $padding-global calc($padding-small + 10px);
+  width: 100%;
+
+  &_mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  &__rule_type {
+    min-width: 120px;
+  }
+
+  &__state {
+    min-width: 150px;
+  }
+
+  &-search {
+    flex-grow: 1;
+    .vm-text-field__input {
+      padding: 11px 28px;
+    }
+    .vm-text-field__icon-start {
+      height: 42px;
+    }
+  }
+
+  &__clear-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    cursor: pointer;
+
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+}

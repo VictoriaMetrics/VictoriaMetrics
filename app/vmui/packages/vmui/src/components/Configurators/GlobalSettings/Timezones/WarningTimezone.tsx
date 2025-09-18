@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import { WarningIcon } from "../../../Main/Icons";
 

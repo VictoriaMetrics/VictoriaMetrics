@@ -17,6 +17,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
+// safePathExpressionFromString truncates a pathExpression string if it exceeds
+// the maximum allowed length to prevent memory exhaustion.
+func safePathExpressionFromString(pathExpr string) string {
+	maxLen := *maxGraphitePathExpressionLen
+	if maxLen > 0 && len(pathExpr) > maxLen {
+		return pathExpr[:maxLen] + "..."
+	}
+	return pathExpr
+}
+
 // nextSeriesFunc must return the next series to process.
 //
 // nextSeriesFunc must release all the occupied resources before returning non-nil error.
@@ -319,7 +329,7 @@ func aggregateSeries(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeries
 		Tags:           tags,
 		Timestamps:     ec.newTimestamps(step),
 		Values:         as.Finalize(xFilesFactor),
-		pathExpression: name,
+		pathExpression: safePathExpressionFromString(name),
 		expr:           expr,
 		step:           step,
 	}
@@ -1124,7 +1134,7 @@ func constantLine(ec *evalConfig, expr graphiteql.Expr, n float64) nextSeriesFun
 		Timestamps:     []int64{ec.startTime, ec.startTime + step, ec.startTime + 2*step},
 		Values:         []float64{n, n, n},
 		expr:           expr,
-		pathExpression: string(expr.AppendString(nil)),
+		pathExpression: safePathExpression(expr),
 		step:           step,
 	}
 	return singleSeriesFunc(s)
@@ -1208,10 +1218,7 @@ func transformDelay(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, er
 		values := s.Values
 		stepsLocal := steps
 		if stepsLocal < 0 {
-			stepsLocal = -stepsLocal
-			if stepsLocal > len(values) {
-				stepsLocal = len(values)
-			}
+			stepsLocal = min(-stepsLocal, len(values))
 			copy(values, values[stepsLocal:])
 			for i := len(values) - 1; i >= len(values)-stepsLocal; i-- {
 				values[i] = nan
@@ -1380,7 +1387,7 @@ func aggregateSeriesList(ec *evalConfig, fe *graphiteql.FuncExpr, nextSeriesFirs
 	}
 
 	if len(ssFirst) != len(ssSecond) {
-		return nil, fmt.Errorf("First and second lists must have equal number of series; got %d vs %d series", len(ssFirst), len(ssSecond))
+		return nil, fmt.Errorf("first and second lists must have equal number of series; got %d vs %d series", len(ssFirst), len(ssSecond))
 	}
 	if stepFirst != stepSecond {
 		return nil, fmt.Errorf("step mismatch for first and second: %d vs %d", stepFirst, stepSecond)
@@ -2594,17 +2601,17 @@ func transformMinMax(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, e
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		values := s.Values
-		min := aggrMin(values)
-		if math.IsNaN(min) {
-			min = 0
+		minV := aggrMin(values)
+		if math.IsNaN(minV) {
+			minV = 0
 		}
-		max := aggrMax(values)
-		if math.IsNaN(max) {
-			max = 0
+		maxV := aggrMax(values)
+		if math.IsNaN(maxV) {
+			maxV = 0
 		}
-		vRange := max - min
+		vRange := maxV - minV
 		for i, v := range values {
-			v = (v - min) / vRange
+			v = (v - minV) / vRange
 			if math.IsInf(v, 0) {
 				v = 0
 			}
@@ -2975,9 +2982,9 @@ func transformRemoveAbovePercentile(ec *evalConfig, fe *graphiteql.FuncExpr) (ne
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		values := s.Values
-		max := aggrFunc(values)
+		maxV := aggrFunc(values)
 		for i, v := range values {
-			if v > max {
+			if v > maxV {
 				values[i] = nan
 			}
 		}
@@ -3035,9 +3042,9 @@ func transformRemoveBelowPercentile(ec *evalConfig, fe *graphiteql.FuncExpr) (ne
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		values := s.Values
-		min := aggrFunc(values)
+		minV := aggrFunc(values)
 		for i, v := range values {
-			if v < min {
+			if v < minV {
 				values[i] = nan
 			}
 		}
@@ -3151,7 +3158,7 @@ func transformRemoveEmptySeries(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSe
 			xff = xFilesFactor
 		}
 		n := aggrCount(s.Values)
-		if n/float64(len(s.Values)) < xff {
+		if n/float64(len(s.Values)) <= xff {
 			return nil, nil
 		}
 		s.expr = fe
@@ -4514,11 +4521,11 @@ func transformOffsetToZero(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		values := s.Values
-		min := aggrMin(values)
+		minV := aggrMin(values)
 		for i, v := range values {
-			values[i] = v - min
+			values[i] = v - minV
 		}
-		s.Tags["offsetToZero"] = fmt.Sprintf("%g", min)
+		s.Tags["offsetToZero"] = fmt.Sprintf("%g", minV)
 		s.Name = fmt.Sprintf("offsetToZero(%s)", s.Name)
 		s.expr = fe
 		s.pathExpression = s.Name
@@ -4567,29 +4574,29 @@ func transformPerSecond(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 	return f, nil
 }
 
-func nonNegativeDelta(curr, prev, max, min float64) (float64, float64) {
-	if !math.IsNaN(max) && curr > max {
+func nonNegativeDelta(currV, prevV, maxV, minV float64) (float64, float64) {
+	if !math.IsNaN(maxV) && currV > maxV {
 		return nan, nan
 	}
-	if !math.IsNaN(min) && curr < min {
+	if !math.IsNaN(minV) && currV < minV {
 		return nan, nan
 	}
-	if math.IsNaN(curr) || math.IsNaN(prev) {
-		return nan, curr
+	if math.IsNaN(currV) || math.IsNaN(prevV) {
+		return nan, currV
 	}
-	if curr >= prev {
-		return curr - prev, curr
+	if currV >= prevV {
+		return currV - prevV, currV
 	}
-	if !math.IsNaN(max) {
-		if math.IsNaN(min) {
-			min = float64(0)
+	if !math.IsNaN(maxV) {
+		if math.IsNaN(minV) {
+			minV = float64(0)
 		}
-		return max + 1 + curr - prev - min, curr
+		return maxV + 1 + currV - prevV - minV, currV
 	}
-	if !math.IsNaN(min) {
-		return curr - min, curr
+	if !math.IsNaN(minV) {
+		return currV - minV, currV
 	}
-	return nan, curr
+	return nan, currV
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.threshold
@@ -4653,20 +4660,14 @@ func transformSubstr(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, e
 		if start > len(splitName) {
 			start = len(splitName)
 		} else if start < 0 {
-			start = len(splitName) + start
-			if start < 0 {
-				start = 0
-			}
+			start = max(len(splitName)+start, 0)
 		}
 		if stop == 0 {
 			stop = len(splitName)
 		} else if stop > len(splitName) {
 			stop = len(splitName)
 		} else if stop < 0 {
-			stop = len(splitName) + stop
-			if stop < 0 {
-				stop = 0
-			}
+			stop = max(len(splitName)+stop, 0)
 		}
 		if stop < start {
 			stop = start
@@ -4941,8 +4942,8 @@ func transformSortByMinima(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 	}
 	// Filter out series with all the values smaller than 0
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		max := aggrMax(s.Values)
-		if math.IsNaN(max) || max <= 0 {
+		maxV := aggrMax(s.Values)
+		if math.IsNaN(maxV) || maxV <= 0 {
 			return nil, nil
 		}
 		return s, nil

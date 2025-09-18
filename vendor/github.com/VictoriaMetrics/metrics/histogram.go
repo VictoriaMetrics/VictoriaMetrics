@@ -36,7 +36,7 @@ var bucketMultiplier = math.Pow(10, 1.0/bucketsPerDecimal)
 //
 // Histogram buckets can be converted to Prometheus-like buckets with `le` labels
 // with `prometheus_buckets(<metric_name>_bucket)` function from PromQL extensions in VictoriaMetrics.
-// (see https://docs.victoriametrics.com/metricsql/ ):
+// (see https://docs.victoriametrics.com/victoriametrics/metricsql/ ):
 //
 //	prometheus_buckets(request_duration_bucket)
 //
@@ -46,7 +46,7 @@ var bucketMultiplier = math.Pow(10, 1.0/bucketsPerDecimal)
 //
 // Zero histogram is usable.
 type Histogram struct {
-	// Mu gurantees synchronous update for all the counters and sum.
+	// Mu guarantees synchronous update for all the counters and sum.
 	//
 	// Do not use sync.RWMutex, since it has zero sense from performance PoV.
 	// It only complicates the code.

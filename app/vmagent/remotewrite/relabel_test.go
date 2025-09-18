@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestApplyRelabeling(t *testing.T) {
@@ -39,7 +39,7 @@ func TestApplyRelabeling(t *testing.T) {
 }
 
 func TestAppendExtraLabels(t *testing.T) {
-	f := func(extraLabels []prompbmarshal.Label, sTss, sExpTss string) {
+	f := func(extraLabels []prompb.Label, sTss, sExpTss string) {
 		t.Helper()
 		rctx := &relabelCtx{}
 		tss, expTss := parseSeries(sTss), parseSeries(sExpTss)
@@ -50,20 +50,20 @@ func TestAppendExtraLabels(t *testing.T) {
 	}
 
 	f(nil, "up", "up")
-	f([]prompbmarshal.Label{{Name: "foo", Value: "bar"}}, "up", `up{foo="bar"}`)
-	f([]prompbmarshal.Label{{Name: "foo", Value: "bar"}}, `up{foo="baz"}`, `up{foo="bar"}`)
-	f([]prompbmarshal.Label{{Name: "baz", Value: "qux"}}, `up{foo="baz"}`, `up{foo="baz",baz="qux"}`)
+	f([]prompb.Label{{Name: "foo", Value: "bar"}}, "up", `up{foo="bar"}`)
+	f([]prompb.Label{{Name: "foo", Value: "bar"}}, `up{foo="baz"}`, `up{foo="bar"}`)
+	f([]prompb.Label{{Name: "baz", Value: "qux"}}, `up{foo="baz"}`, `up{foo="baz",baz="qux"}`)
 
 	oldVal := *usePromCompatibleNaming
 	*usePromCompatibleNaming = true
-	f([]prompbmarshal.Label{{Name: "foo.bar", Value: "baz"}}, "up", `up{foo.bar="baz"}`)
+	f([]prompb.Label{{Name: "foo.bar", Value: "baz"}}, "up", `up{foo.bar="baz"}`)
 	*usePromCompatibleNaming = oldVal
 }
 
-func parseSeries(data string) []prompbmarshal.TimeSeries {
-	var tss []prompbmarshal.TimeSeries
-	tss = append(tss, prompbmarshal.TimeSeries{
-		Labels: promutils.MustNewLabelsFromString(data).GetLabels(),
+func parseSeries(data string) []prompb.TimeSeries {
+	var tss []prompb.TimeSeries
+	tss = append(tss, prompb.TimeSeries{
+		Labels: promutil.MustNewLabelsFromString(data).GetLabels(),
 	})
 	return tss
 }

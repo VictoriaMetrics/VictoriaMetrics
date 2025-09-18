@@ -13,7 +13,7 @@ tests:
       - expr: suquery_interval_test
         eval_time: 4m
         exp_samples:
-          - labels: '{__name__="suquery_interval_test",datacenter="dc-123", instance="localhost:9090", job="vmagent2"}'
+          - labels: '{__name__="suquery_interval_test", cluster="prod", instance="localhost:9090", job="vmagent2"}'
             value: 1
 
     alert_rule_test:
@@ -25,22 +25,21 @@ tests:
               job: vmagent2
               severity: page
               instance: localhost:9090
-              datacenter: dc-123
+              cluster: prod
             exp_annotations:
               summary: "Instance localhost:9090 down"
-              description: "localhost:9090 of job vmagent2 has been down for more than 5 minutes."
+              description: "localhost:9090 of job vmagent2 in cluster prod has been down for more than 5 minutes."
+              dashboard: "http://grafana:3000/d/dashboard?orgId=1"
 
       - eval_time: 0
         groupname: group1
         alertname: AlwaysFiring
         exp_alerts:
           - exp_labels:
-              datacenter: dc-123
+              cluster: prod
 
       - eval_time: 0
         groupname: group1
         alertname: InstanceDown
         exp_alerts: []
 
-    external_labels:
-      datacenter: dc-123

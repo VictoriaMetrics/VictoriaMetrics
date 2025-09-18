@@ -42,7 +42,7 @@ type PromRegex struct {
 	substrDotPlus string
 
 	// orValues contains or values for the suffix regex.
-	// For example, orValues contain ["foo","bar","baz"] for regex suffix="foo|bar|baz"
+	// For example, orValues contain ["foo","bar","baz"] for regex="foo|bar|baz"
 	orValues []string
 
 	// reSuffixMatcher contains fast matcher for "^suffix$"

@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"net/url"
 	"testing"
 
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
 func TestParseAuthConfigFailure(t *testing.T) {
@@ -24,15 +26,9 @@ func TestParseAuthConfigFailure(t *testing.T) {
 		}
 	}
 
-	// Empty config
-	f(``)
-
 	// Invalid entry
 	f(`foobar`)
 	f(`foobar: baz`)
-
-	// Empty users
-	f(`users: []`)
 
 	// Missing url_prefix
 	f(`
@@ -284,7 +280,7 @@ users:
 }
 
 func TestParseAuthConfigSuccess(t *testing.T) {
-	f := func(s string, expectedAuthConfig map[string]*UserInfo) {
+	f := func(s string, expectedAuthConfig map[string]*UserInfo, expectedUnauthorizedUserConfig *UserInfo) {
 		t.Helper()
 		ac, err := parseAuthConfig([]byte(s))
 		if err != nil {
@@ -298,9 +294,19 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 		if err := areEqualConfigs(m, expectedAuthConfig); err != nil {
 			t.Fatal(err)
 		}
+
+		if err := areEqualConfigs(ac.UnauthorizedUser, expectedUnauthorizedUserConfig); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	insecureSkipVerifyTrue := true
+
+	// Empty config
+	f(``, map[string]*UserInfo{}, nil)
+
+	// Empty users
+	f(`users: []`, map[string]*UserInfo{}, nil)
 
 	// Single user
 	f(`
@@ -318,7 +324,7 @@ users:
 			MaxConcurrentRequests: 5,
 			TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
 		},
-	})
+	}, nil)
 
 	// Single user with auth_token
 	f(`
@@ -342,7 +348,7 @@ users:
 			TLSCertFile:           "foo/baz",
 			TLSKeyFile:            "foo/foo",
 		},
-	})
+	}, nil)
 
 	// Multiple url_prefix entries
 	insecureSkipVerifyFalse := false
@@ -357,6 +363,7 @@ users:
   tls_insecure_skip_verify: false
   retry_status_codes: [500, 501]
   load_balancing_policy: first_available
+  merge_query_args: [foo, bar]
   drop_src_path_prefix_parts: 1
   discover_backend_ips: true
 `, map[string]*UserInfo{
@@ -370,10 +377,11 @@ users:
 			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
+			MergeQueryArgs:         []string{"foo", "bar"},
 			DropSrcPathPrefixParts: intp(1),
 			DiscoverBackendIPs:     &discoverBackendIPsTrue,
 		},
-	})
+	}, nil)
 
 	// Multiple users
 	f(`
@@ -391,7 +399,7 @@ users:
 			Username:  "bar",
 			URLPrefix: mustParseURL("https://bar/x/"),
 		},
-	})
+	}, nil)
 
 	// non-empty URLMap
 	sharedUserInfo := &UserInfo{
@@ -441,7 +449,7 @@ users:
 `, map[string]*UserInfo{
 		getHTTPAuthBearerToken("foo"):    sharedUserInfo,
 		getHTTPAuthBasicToken("foo", ""): sharedUserInfo,
-	})
+	}, nil)
 
 	// Multiple users with the same name - this should work, since these users have different passwords
 	f(`
@@ -463,7 +471,7 @@ users:
 			Password:  "bar",
 			URLPrefix: mustParseURL("https://bar/x"),
 		},
-	})
+	}, nil)
 
 	// with default url
 	keepOriginalHost := true
@@ -479,6 +487,8 @@ users:
     - "foo: bar"
     - "xxx: y"
     keep_original_host: true
+    load_balancing_policy: first_available
+    merge_query_args: [foo, bar]
   default_url:
   - http://default1/select/0/prometheus
   - http://default2/select/0/prometheus
@@ -503,6 +513,8 @@ users:
 						},
 						KeepOriginalHost: &keepOriginalHost,
 					},
+					LoadBalancingPolicy: "first_available",
+					MergeQueryArgs:      []string{"foo", "bar"},
 				},
 			},
 			DefaultURL: mustParseURLs([]string{
@@ -530,6 +542,8 @@ users:
 						},
 						KeepOriginalHost: &keepOriginalHost,
 					},
+					LoadBalancingPolicy: "first_available",
+					MergeQueryArgs:      []string{"foo", "bar"},
 				},
 			},
 			DefaultURL: mustParseURLs([]string{
@@ -537,7 +551,7 @@ users:
 				"http://default2/select/0/prometheus",
 			}),
 		},
-	})
+	}, nil)
 
 	// With metric_labels
 	f(`
@@ -587,6 +601,23 @@ users:
 				ResponseHeaders: []*Header{
 					mustNewHeader("'Abc: def'"),
 				},
+			},
+		},
+	}, nil)
+
+	// unauthorized_user
+	f(`
+unauthorized_user:
+  merge_query_args: [extra_filters]
+  url_map:
+  - src_paths: ["/select/.+"]
+    url_prefix: 'http://victoria-logs:9428/?extra_filters={env="prod"}'
+`, nil, &UserInfo{
+		MergeQueryArgs: []string{"extra_filters"},
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/select/.+"}),
+				URLPrefix: mustParseURL(`http://victoria-logs:9428/?extra_filters={env="prod"}`),
 			},
 		},
 	})
@@ -777,6 +808,97 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 	fn(7, 7, 7)
 }
 
+func TestBrokenBackend(t *testing.T) {
+	up := mustParseURLs([]string{
+		"http://node1:343",
+		"http://node2:343",
+		"http://node3:343",
+	})
+	up.loadBalancingPolicy = "least_loaded"
+	pbus := up.bus.Load()
+	bus := *pbus
+
+	// explicitly mark one of the backends as broken
+	bus[1].setBroken()
+
+	// broken backend should never return while there are healthy backends
+	for i := 0; i < 1e3; i++ {
+		b := up.getBackendURL()
+		if b.isBroken() {
+			t.Fatalf("unexpected broken backend %q", b.url)
+		}
+	}
+}
+
+func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
+	f := func(actualUrl, expectedUrl string) {
+		t.Helper()
+		up := mustParseURL(actualUrl)
+		up.discoverBackendIPs = true
+		up.loadBalancingPolicy = "least_loaded"
+
+		up.discoverBackendAddrsIfNeeded()
+		pbus := up.bus.Load()
+		bus := *pbus
+
+		if len(bus) != 1 {
+			t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
+		}
+
+		got := bus[0].url.Host
+		if got != expectedUrl {
+			t.Fatalf(`expected url to be %q; got %q instead`, expectedUrl, bus[0].url.Host)
+		}
+	}
+
+	// Discover backendURL with SRV hostnames
+	customResolver := &fakeResolver{
+		Resolver: &net.Resolver{},
+		// SRV records must return hostname
+		// not an IP address
+		lookupSRVResults: map[string][]*net.SRV{
+			"_vmselect._tcp.selectwithport.": {
+				{
+					Target: "vmselect.local",
+					Port:   8481,
+				},
+			},
+			"_vmselect._tcp.selectwoport.": {
+				{
+					Target: "vmselect.local",
+				},
+			},
+		},
+		lookupIPAddrResults: map[string][]net.IPAddr{
+			"vminsert.local": {
+				{
+					IP: net.ParseIP("10.0.10.13"),
+				},
+			},
+			"ipv6.vminsert.local": {
+				{
+					IP: net.ParseIP("2607:f8b0:400a:80b::200e"),
+				},
+			},
+		},
+	}
+	origResolver := netutil.Resolver
+	netutil.Resolver = customResolver
+	defer func() {
+		netutil.Resolver = origResolver
+	}()
+	f("http://srv+_vmselect._tcp.selectwithport.:8080", "vmselect.local:8080")
+	f("http://srv+_vmselect._tcp.selectwithport.:", "vmselect.local:8481")
+	f("http://srv+_vmselect._tcp.selectwoport.:8080", "vmselect.local:8080")
+	f("http://srv+_vmselect._tcp.selectwoport.", "vmselect.local:")
+
+	f("http://vminsert.local:8080", "10.0.10.13:8080")
+	f("http://vminsert.local", "10.0.10.13:")
+	f("http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
+	f("http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:")
+
+}
+
 func getRegexs(paths []string) []*Regex {
 	var sps []*Regex
 	for _, path := range paths {
@@ -791,7 +913,7 @@ func removeMetrics(m map[string]*UserInfo) {
 	}
 }
 
-func areEqualConfigs(a, b map[string]*UserInfo) error {
+func areEqualConfigs(a, b any) error {
 	aData, err := yaml.Marshal(a)
 	if err != nil {
 		return fmt.Errorf("cannot marshal a: %w", err)

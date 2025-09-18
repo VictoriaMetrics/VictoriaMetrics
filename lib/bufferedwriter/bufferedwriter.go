@@ -64,21 +64,30 @@ func (bw *Writer) Write(p []byte) (int, error) {
 		return 0, bw.err
 	}
 	n, err := bw.bw.Write(p)
-	if err != nil && !netutil.IsTrivialNetworkError(err) {
+	if err != nil {
 		bw.err = fmt.Errorf("cannot send %d bytes to client: %w", len(p), err)
 	}
 	return n, bw.err
 }
 
 // Flush flushes bw to the underlying writer.
+//
+// Connection close errors are ignored to not trigger on them and to not write to logs, but Write method doesn't ignore
+// them since it may lead to an unexpected behaviour (see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8157)
 func (bw *Writer) Flush() error {
 	bw.lock.Lock()
 	defer bw.lock.Unlock()
 	if bw.err != nil {
+		if netutil.IsTrivialNetworkError(bw.err) {
+			return nil
+		}
 		return bw.err
 	}
-	if err := bw.bw.Flush(); err != nil && !netutil.IsTrivialNetworkError(err) {
+	if err := bw.bw.Flush(); err != nil {
 		bw.err = fmt.Errorf("cannot flush data to client: %w", err)
+		if netutil.IsTrivialNetworkError(err) {
+			return nil
+		}
 	}
 	return bw.err
 }

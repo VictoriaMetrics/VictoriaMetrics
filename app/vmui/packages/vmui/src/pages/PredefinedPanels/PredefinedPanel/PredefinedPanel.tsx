@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { DisplayType, PanelSettings } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import GraphView from "../../../components/Views/GraphView/GraphView";
@@ -119,6 +119,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
         {title || ""}
       </h3>
       <GraphSettings
+        data={graphData || []}
         yaxis={yaxis}
         setYaxisLimits={setYaxisLimits}
         toggleEnableLimits={toggleEnableLimits}
@@ -130,6 +131,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
       {error && <Alert variant="error">{error}</Alert>}
       {warning && <Alert variant="warning">{warning}</Alert>}
       {graphData && <GraphView
+        isPredefinedPanel
         data={graphData}
         period={period}
         customStep={customStep}

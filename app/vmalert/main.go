@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strconv"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -31,20 +31,20 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArrayString("rule", `Path to the files or http url with alerting and/or recording rules.
+	rulePath = flagutil.NewArrayString("rule", `Path to the files or http url with alerting and/or recording rules in YAML format.
 Supports hierarchical patterns and regexpes.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules.
  -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
  -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
  -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
-Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+Rule files support YAML multi-document. Files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
 
 Enterprise version of vmalert supports S3 and GCS paths to rules.
 For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
 S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
 all files with prefix rule_ in folder dir.
-See https://docs.victoriametrics.com/vmalert/#reading-rules-from-object-storage
+See https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage
 `)
 
 	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions `+
@@ -66,24 +66,24 @@ absolute path to all .tpl files in root.
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
-	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
+	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions for different types.")
 
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
-		`Supports templating - see https://docs.victoriametrics.com/vmalert/#templating . `+
+		`Supports templating - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating . `+
 		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. `+
 		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. `+
 		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
-		"Pass multiple -label flags in order to add multiple label sets.")
-
-	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup. DEPRECATED - this flag has no effect and will be removed in the next releases.")
+		"In case of conflicts, original labels are kept with prefix `exported_`.")
 
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
 
-var alertURLGeneratorFn notifier.AlertURLGenerator
+var (
+	extURL *url.URL
+)
 
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
@@ -97,13 +97,15 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	if !*remoteReadIgnoreRestoreErrors {
-		logger.Warnf("flag `remoteRead.ignoreRestoreErrors` is deprecated and will be removed in next releases.")
+	var err error
+	extURL, err = getExternalURL(*externalURL)
+	if err != nil {
+		logger.Fatalf("failed to init external.url %q: %s", *externalURL, err)
 	}
 
-	err := templates.Load(*ruleTemplatesPath, true)
+	err = templates.Load(*ruleTemplatesPath, *extURL)
 	if err != nil {
-		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
+		logger.Fatalf("failed to load template %q: %s", *ruleTemplatesPath, err)
 	}
 
 	if *dryRun {
@@ -117,12 +119,7 @@ func main() {
 		return
 	}
 
-	eu, err := getExternalURL(*externalURL)
-	if err != nil {
-		logger.Fatalf("failed to init `-external.url`: %s", err)
-	}
-
-	alertURLGeneratorFn, err = getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
+	err = notifier.InitAlertURLGeneratorFn(extURL, *externalAlertSource, *validateTemplates)
 	if err != nil {
 		logger.Fatalf("failed to init `external.alert.source`: %s", err)
 	}
@@ -150,8 +147,12 @@ func main() {
 		if err != nil {
 			logger.Fatalf("failed to init datasource: %s", err)
 		}
-		if err := replay(groupsCfg, q, rw); err != nil {
+		totalRows, droppedRows, err := replay(groupsCfg, q, rw)
+		if err != nil {
 			logger.Fatalf("replay failed: %s", err)
+		}
+		if droppedRows > 0 {
+			logger.Fatalf("failed to push all generated samples to remote write url, dropped %d samples out of %d", droppedRows, totalRows)
 		}
 		logger.Infof("replay succeed!")
 		return
@@ -184,7 +185,9 @@ func main() {
 		listenAddrs = []string{":8880"}
 	}
 	rh := &requestHandler{m: manager}
-	go httpserver.Serve(listenAddrs, useProxyProtocol, rh.handler)
+	go httpserver.Serve(listenAddrs, rh.handler, httpserver.ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+	})
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
@@ -223,7 +226,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		labels[s[:n]] = s[n+1:]
 	}
 
-	nts, err := notifier.Init(alertURLGeneratorFn, labels, *externalURL)
+	nts, err := notifier.Init(labels, *externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
@@ -287,40 +290,11 @@ func getHostnameAsExternalURL(addr string, isSecure bool) (*url.URL, error) {
 	return url.Parse(fmt.Sprintf("%s%s%s", schema, hname, port))
 }
 
-func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, validateTemplate bool) (notifier.AlertURLGenerator, error) {
-	if externalAlertSource == "" {
-		return func(a notifier.Alert) string {
-			gID, aID := strconv.FormatUint(a.GroupID, 10), strconv.FormatUint(a.ID, 10)
-			return fmt.Sprintf("%s/vmalert/alert?%s=%s&%s=%s", externalURL, paramGroupID, gID, paramAlertID, aID)
-		}, nil
-	}
-	if validateTemplate {
-		if err := notifier.ValidateTemplates(map[string]string{
-			"tpl": externalAlertSource,
-		}); err != nil {
-			return nil, fmt.Errorf("error validating source template %s: %w", externalAlertSource, err)
-		}
-	}
-	m := map[string]string{
-		"tpl": externalAlertSource,
-	}
-	return func(alert notifier.Alert) string {
-		qFn := func(_ string) ([]datasource.Metric, error) {
-			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
-		}
-		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
-		if err != nil {
-			logger.Errorf("can not exec source template %s", err)
-		}
-		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
-	}, nil
-}
-
 func usage() {
 	const s = `
 vmalert processes alerts and recording rules.
 
-See the docs at https://docs.victoriametrics.com/vmalert/ .
+See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
 `
 	flagutil.Usage(s)
 }
@@ -365,7 +339,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to reload notifier config: %s", err)
 			continue
 		}
-		err := templates.Load(*ruleTemplatesPath, false)
+		err := templates.Load(*ruleTemplatesPath, *extURL)
 		if err != nil {
 			setConfigError(err)
 			logger.Errorf("failed to load new templates: %s", err)
@@ -403,8 +377,26 @@ func configsEqual(a, b []config.Group) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
+	// sort both slices by file and name before comparing them
+	sort.SliceStable(a, func(i, j int) bool {
+		if a[i].File != a[j].File {
+			return a[i].File < a[j].File
+		}
+		return a[i].Name < a[j].Name
+	})
+	sort.SliceStable(b, func(i, j int) bool {
+		if b[i].File != b[j].File {
+			return b[i].File < b[j].File
+		}
+		return b[i].Name < b[j].Name
+	})
+
 	for i := range a {
 		if a[i].Checksum != b[i].Checksum {
+			return false
+		}
+		if a[i].File != b[i].File {
 			return false
 		}
 	}

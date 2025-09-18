@@ -8,47 +8,23 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
-func newTimeSeries(values []float64, timestamps []int64, labels map[string]string) prompbmarshal.TimeSeries {
-	ts := prompbmarshal.TimeSeries{
-		Samples: make([]prompbmarshal.Sample, len(values)),
+// newTimeSeries first sorts given labels, then returns new time series.
+func newTimeSeries(values []float64, timestamps []int64, labels []prompb.Label) prompb.TimeSeries {
+	promrelabel.SortLabels(labels)
+	ts := prompb.TimeSeries{
+		Labels:  labels,
+		Samples: make([]prompb.Sample, len(values)),
 	}
 	for i := range values {
-		ts.Samples[i] = prompbmarshal.Sample{
+		ts.Samples[i] = prompb.Sample{
 			Value:     values[i],
 			Timestamp: time.Unix(timestamps[i], 0).UnixNano() / 1e6,
 		}
 	}
-	keys := make([]string, 0, len(labels))
-	for k := range labels {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys) // make order deterministic
-	for _, key := range keys {
-		ts.Labels = append(ts.Labels, prompbmarshal.Label{
-			Name:  key,
-			Value: labels[key],
-		})
-	}
-	return ts
-}
-
-// newTimeSeriesPB creates prompbmarshal.TimeSeries with given
-// values, timestamps and labels.
-// It expects that labels are already sorted.
-func newTimeSeriesPB(values []float64, timestamps []int64, labels []prompbmarshal.Label) prompbmarshal.TimeSeries {
-	ts := prompbmarshal.TimeSeries{
-		Samples: make([]prompbmarshal.Sample, len(values)),
-	}
-	for i := range values {
-		ts.Samples[i] = prompbmarshal.Sample{
-			Value:     values[i],
-			Timestamp: time.Unix(timestamps[i], 0).UnixNano() / 1e6,
-		}
-	}
-	ts.Labels = labels
 	return ts
 }
 
@@ -63,7 +39,7 @@ func (cw *curlWriter) string() string {
 }
 
 func (cw *curlWriter) addWithEsc(str string) {
-	escStr := `'` + strings.Replace(str, `'`, `'\''`, -1) + `'`
+	escStr := `'` + strings.ReplaceAll(str, `'`, `'\''`) + `'`
 	cw.add(escStr)
 }
 
@@ -126,6 +102,13 @@ func isSecreteHeader(str string) bool {
 		if strings.Contains(s, secret) {
 			return true
 		}
+	}
+	return false
+}
+
+func isPartialResponse(res datasource.Result) bool {
+	if res.IsPartial != nil && *res.IsPartial {
+		return true
 	}
 	return false
 }

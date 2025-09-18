@@ -1,4 +1,4 @@
-import React, { FC, useRef } from "preact/compat";
+import { FC, useRef } from "preact/compat";
 import ServerConfigurator from "./ServerConfigurator/ServerConfigurator";
 import { ArrowDownIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
@@ -12,12 +12,8 @@ import Timezones from "./Timezones/Timezones";
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
-import { AppType } from "../../../types/appType";
 
 const title = "Settings";
-
-const { REACT_APP_TYPE } = process.env;
-const isLogsApp = REACT_APP_TYPE === AppType.logs;
 
 export interface ChildComponentHandle {
   handleApply: () => void;
@@ -47,14 +43,14 @@ const GlobalSettings: FC = () => {
 
   const controls = [
     {
-      show: !appModeEnable && !isLogsApp,
+      show: !appModeEnable,
       component: <ServerConfigurator
         ref={serverSettingRef}
         onClose={handleClose}
       />
     },
     {
-      show: !isLogsApp,
+      show: true,
       component: <LimitsConfigurator
         ref={limitsSettingRef}
         onClose={handleClose}

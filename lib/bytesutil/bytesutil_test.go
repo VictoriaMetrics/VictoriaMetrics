@@ -195,6 +195,6 @@ func TestResizeWithCopyMayOverallocate(t *testing.T) {
 func TestToUnsafeString(t *testing.T) {
 	s := "str"
 	if !bytes.Equal([]byte("str"), ToUnsafeBytes(s)) {
-		t.Fatalf(`[]bytes(%s) doesnt equal to %s `, s, s)
+		t.Fatalf(`[]bytes(%s) is not equal to %s`, s, s)
 	}
 }

@@ -6,11 +6,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv1"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogv1/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -23,7 +23,7 @@ var (
 
 // InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series request.
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	})
 }
 
-func insertRows(at *auth.Token, series []datadogv1.Series, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, series []datadogv1.Series, extraLabels []prompb.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -45,28 +45,28 @@ func insertRows(at *auth.Token, series []datadogv1.Series, extraLabels []prompbm
 		ss := &series[i]
 		rowsTotal += len(ss.Points)
 		labelsLen := len(labels)
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  "__name__",
 			Value: ss.Metric,
 		})
 		if ss.Host != "" {
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  "host",
 				Value: ss.Host,
 			})
 		}
 		if ss.Device != "" {
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  "device",
 				Value: ss.Device,
 			})
 		}
 		for _, tag := range ss.Tags {
-			name, value := datadogutils.SplitTag(tag)
+			name, value := datadogutil.SplitTag(tag)
 			if name == "host" {
 				name = "exported_host"
 			}
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  name,
 				Value: value,
 			})
@@ -74,12 +74,12 @@ func insertRows(at *auth.Token, series []datadogv1.Series, extraLabels []prompbm
 		labels = append(labels, extraLabels...)
 		samplesLen := len(samples)
 		for _, pt := range ss.Points {
-			samples = append(samples, prompbmarshal.Sample{
+			samples = append(samples, prompb.Sample{
 				Timestamp: pt.Timestamp(),
 				Value:     pt.Value(),
 			})
 		}
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
+		tssDst = append(tssDst, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],
 		})

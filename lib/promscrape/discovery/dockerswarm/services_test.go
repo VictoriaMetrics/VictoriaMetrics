@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseServicesResponse(t *testing.T) {
@@ -126,11 +126,11 @@ func TestParseServicesResponse(t *testing.T) {
 }
 
 func TestAddServicesLabels(t *testing.T) {
-	f := func(services []service, networksLabels map[string]*promutils.Labels, labelssExpected []*promutils.Labels) {
+	f := func(services []service, networksLabels map[string]*promutil.Labels, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
 		labelss := addServicesLabels(services, networksLabels, 9100)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	// add 2 services with network labels join
@@ -167,8 +167,8 @@ func TestAddServicesLabels(t *testing.T) {
 			},
 		},
 	}
-	networksLabels := map[string]*promutils.Labels{
-		"qs0hog6ldlei9ct11pr3c77v1": promutils.NewLabelsFromMap(map[string]string{
+	networksLabels := map[string]*promutil.Labels{
+		"qs0hog6ldlei9ct11pr3c77v1": promutil.NewLabelsFromMap(map[string]string{
 			"__meta_dockerswarm_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
 			"__meta_dockerswarm_network_ingress":    "true",
 			"__meta_dockerswarm_network_internal":   "false",
@@ -177,8 +177,8 @@ func TestAddServicesLabels(t *testing.T) {
 			"__meta_dockerswarm_network_scope":      "swarm",
 		}),
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                           "10.0.0.3:0",
 			"__meta_dockerswarm_network_id":                         "qs0hog6ldlei9ct11pr3c77v1",
 			"__meta_dockerswarm_network_ingress":                    "true",

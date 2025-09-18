@@ -1,13 +1,17 @@
 package workingsetcache
 
 import (
+	"errors"
 	"flag"
+	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/fastcache"
 )
@@ -37,6 +41,15 @@ type Cache struct {
 	// csHistory holds cache stats history
 	csHistory fastcache.Stats
 
+	ExpireEvictionBytes atomic.Uint64
+	MissEvictionBytes   atomic.Uint64
+	SizeEvictionBytes   atomic.Uint64
+
+	getCalls       atomic.Uint64
+	setCalls       atomic.Uint64
+	misses         atomic.Uint64
+	copiedFromPrev atomic.Uint64
+
 	// mode indicates whether to use only curr and skip prev.
 	//
 	// This flag is set to switching if curr is filled for more than 50% space.
@@ -64,8 +77,29 @@ func Load(filePath string, maxBytes int) *Cache {
 	return loadWithExpire(filePath, maxBytes, *cacheExpireDuration)
 }
 
+// loadFromFileOrNew attempts to load a fastcache.Cache from the given file path
+// If loading fails due to an error (e.g. corrupted or unreadable file), the error is logged
+// and a new cache is created with the specified maxBytes size.
+func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
+	cache, err := fastcache.LoadFromFileMaxBytes(filePath, maxBytes)
+	if err == nil {
+		return cache
+	}
+
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Infof("cache at path %s missing files; init new cache", filePath)
+	} else if strings.Contains(err.Error(), "contains maxBytes") {
+		// covers the cache reset due to max memory size change at
+		// https://github.com/VictoriaMetrics/fastcache/blob/198c85ee90a1f65127126b5904c191e70f083cbf/file.go#L133
+		logger.Warnf("%s; init new cache", err)
+	} else {
+		logger.Errorf("cache at path %s is invalid: %s; init new cache", filePath, err)
+	}
+	return fastcache.New(maxBytes)
+}
+
 func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
-	curr := fastcache.LoadFromFileOrNew(filePath, maxBytes)
+	curr := loadFromFileOrNew(filePath, maxBytes)
 	var cs fastcache.Stats
 	curr.UpdateStats(&cs)
 	if cs.EntriesCount == 0 {
@@ -75,7 +109,7 @@ func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 		// Try loading it again with maxBytes / 2 size.
 		// Put the loaded cache into `prev` instead of `curr`
 		// in order to limit the growth of the cache for the current period of time.
-		prev := fastcache.LoadFromFileOrNew(filePath, maxBytes/2)
+		prev := loadFromFileOrNew(filePath, maxBytes/2)
 		curr := fastcache.New(maxBytes / 2)
 		c := newCacheInternal(curr, prev, split, maxBytes)
 		c.runWatchers(expireDuration)
@@ -155,8 +189,10 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		var cs fastcache.Stats
 		prev.UpdateStats(&cs)
 		updateCacheStatsHistory(&c.csHistory, &cs)
+		c.ExpireEvictionBytes.Add(cs.BytesSize)
 		prev.Reset()
 		c.curr.Store(prev)
+		c.copiedFromPrev.Store(0)
 		c.mu.Unlock()
 	}
 }
@@ -208,6 +244,7 @@ func (c *Cache) prevCacheWatcher() {
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {
 				updateCacheStatsHistory(&c.csHistory, &csPrev)
+				c.MissEvictionBytes.Add(csPrev.BytesSize)
 				prev.Reset()
 			}
 		}
@@ -259,6 +296,7 @@ func (c *Cache) cacheSizeWatcher() {
 	var cs fastcache.Stats
 	prev.UpdateStats(&cs)
 	updateCacheStatsHistory(&c.csHistory, &cs)
+	c.SizeEvictionBytes.Add(cs.BytesSize)
 	prev.Reset()
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.
@@ -319,6 +357,7 @@ func (c *Cache) Reset() {
 	curr.Reset()
 	// Reset the mode to `split` in the hope the working set size becomes smaller after the reset.
 	c.mode.Store(split)
+	c.copiedFromPrev.Store(0)
 }
 
 // UpdateStats updates fcs with cache stats.
@@ -334,12 +373,14 @@ func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
 	cs.Reset()
 	prev.UpdateStats(&cs)
 	updateCacheStats(fcs, &cs)
+
+	fcs.GetCalls += c.getCalls.Load()
+	fcs.SetCalls += c.setCalls.Load()
+	fcs.Misses += c.misses.Load()
+	fcs.EntriesCount -= c.copiedFromPrev.Load()
 }
 
 func updateCacheStats(dst, src *fastcache.Stats) {
-	dst.GetCalls += src.GetCalls
-	dst.SetCalls += src.SetCalls
-	dst.Misses += src.Misses
 	dst.Collisions += src.Collisions
 	dst.Corruptions += src.Corruptions
 	dst.EntriesCount += src.EntriesCount
@@ -348,9 +389,6 @@ func updateCacheStats(dst, src *fastcache.Stats) {
 }
 
 func updateCacheStatsHistory(dst, src *fastcache.Stats) {
-	atomic.AddUint64(&dst.GetCalls, atomic.LoadUint64(&src.GetCalls))
-	atomic.AddUint64(&dst.SetCalls, atomic.LoadUint64(&src.SetCalls))
-	atomic.AddUint64(&dst.Misses, atomic.LoadUint64(&src.Misses))
 	atomic.AddUint64(&dst.Collisions, atomic.LoadUint64(&src.Collisions))
 	atomic.AddUint64(&dst.Corruptions, atomic.LoadUint64(&src.Corruptions))
 
@@ -360,6 +398,8 @@ func updateCacheStatsHistory(dst, src *fastcache.Stats) {
 
 // Get appends the found value for the given key to dst and returns the result.
 func (c *Cache) Get(dst, key []byte) []byte {
+	c.getCalls.Add(1)
+
 	curr := c.curr.Load()
 	result := curr.Get(dst, key)
 	if len(result) > len(dst) {
@@ -368,6 +408,7 @@ func (c *Cache) Get(dst, key []byte) []byte {
 	}
 	if c.mode.Load() == whole {
 		// Nothing found.
+		c.misses.Add(1)
 		return result
 	}
 
@@ -376,10 +417,12 @@ func (c *Cache) Get(dst, key []byte) []byte {
 	result = prev.Get(dst, key)
 	if len(result) <= len(dst) {
 		// Nothing found.
+		c.misses.Add(1)
 		return result
 	}
 	// Cache the found entry in the current cache.
 	curr.Set(key, result[len(dst):])
+	c.copiedFromPrev.Add(1)
 	return result
 }
 
@@ -408,12 +451,22 @@ var tmpBufPool bytesutil.ByteBufferPool
 
 // Set sets the given value for the given key.
 func (c *Cache) Set(key, value []byte) {
+	c.setCalls.Add(1)
 	curr := c.curr.Load()
 	curr.Set(key, value)
 }
 
+// maxSubvalueLen is used for calculating how many big entries have been copied
+// from previous to current fastcache instance.
+//
+// This value is implementation detail of fastcache (see fastcache/bigcache.go).
+// However it needs to be known here in order to accurately calculate the number
+// of copied entries.
+const maxSubvalueLen = 64*1024 - 16 - 4 - 1
+
 // GetBig appends the found value for the given key to dst and returns the result.
 func (c *Cache) GetBig(dst, key []byte) []byte {
+	c.getCalls.Add(1)
 	curr := c.curr.Load()
 	result := curr.GetBig(dst, key)
 	if len(result) > len(dst) {
@@ -421,6 +474,7 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 		return result
 	}
 	if c.mode.Load() == whole {
+		c.misses.Add(1)
 		// Nothing found.
 		return result
 	}
@@ -429,16 +483,38 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 	prev := c.prev.Load()
 	result = prev.GetBig(dst, key)
 	if len(result) <= len(dst) {
+		c.misses.Add(1)
 		// Nothing found.
 		return result
 	}
 	// Cache the found entry in the current cache.
-	curr.SetBig(key, result[len(dst):])
+	value := result[len(dst):]
+	curr.SetBig(key, value)
+
+	// SetBig() creates at least two entries. I.e. if
+	// len(value) <= maxSubvalueLen, the following 2 entries will be created:
+	// (key, subkey1), (subkey1, subvalue1).
+	//
+	// If len(value) > maxSubvalueLen, then > 2 entries will be created.
+	// For example if len(value) == maxSubvalueLen+100, then 3 entries will be
+	// created: (key, subkey1), (subkey1, subvalue1), (subkey2, subvalue2).
+	// Where len(subvalue1) == maxSubvalueLen and len(subvalue2) == 100.
+	//
+	// See SetBig() in fastcache/bigcache.go.
+	numCopiedEntries := len(value) / maxSubvalueLen
+	if numCopiedEntries*maxSubvalueLen < len(value) {
+		numCopiedEntries++
+	}
+	// Account for storing the (key,subkey1) mapping.
+	numCopiedEntries++
+	c.copiedFromPrev.Add(uint64(numCopiedEntries))
+
 	return result
 }
 
 // SetBig sets the given value for the given key.
 func (c *Cache) SetBig(key, value []byte) {
+	c.setCalls.Add(1)
 	curr := c.curr.Load()
 	curr.SetBig(key, value)
 }

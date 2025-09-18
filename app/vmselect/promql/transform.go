@@ -13,7 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/metricsql"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -244,7 +244,7 @@ func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {
 	if !ok {
 		return rvs
 	}
-	tfss := searchutils.ToTagFilterss(me.LabelFilterss)
+	tfss := searchutil.ToTagFilterss(me.LabelFilterss)
 	if len(tfss) != 1 {
 		return rvs
 	}
@@ -903,7 +903,6 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 
 	// Convert buckets with `vmrange` labels to buckets with `le` labels.
 	tss := vmrangeBucketsToLE(args[1])
-
 	// Parse boundsLabel. See https://github.com/prometheus/prometheus/issues/5706 for details.
 	var boundsLabel string
 	if len(args) > 2 {
@@ -1050,9 +1049,15 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 		return
 	}
 
+	vNext := xss[0].ts.Values[i]
+	// Set the lowest bucket to 0 if its value is NaN, so it can be properly
+	// compared with upper buckets in the loop below.
+	if math.IsNaN(vNext) {
+		vNext = 0
+		xss[0].ts.Values[i] = vNext
+	}
 	// Substitute upper bucket values with lower bucket values if the upper values are NaN
 	// or are bigger than the lower bucket values.
-	vNext := xss[0].ts.Values[0]
 	for j := 1; j < len(xss); j++ {
 		v := xss[j].ts.Values[i]
 		if math.IsNaN(v) || vNext > v {
@@ -1544,10 +1549,8 @@ func transformRangeFirst(tfa *transformFuncArg) ([]*timeseries, error) {
 			continue
 		}
 		vFirst := values[0]
-		for i, v := range values {
-			if math.IsNaN(v) {
-				continue
-			}
+		values = ts.Values
+		for i := range values {
 			values[i] = vFirst
 		}
 	}
@@ -1571,10 +1574,8 @@ func setLastValues(tss []*timeseries) {
 			continue
 		}
 		vLast := values[len(values)-1]
-		for i, v := range values {
-			if math.IsNaN(v) {
-				continue
-			}
+		values = ts.Values
+		for i := range values {
 			values[i] = vLast
 		}
 	}

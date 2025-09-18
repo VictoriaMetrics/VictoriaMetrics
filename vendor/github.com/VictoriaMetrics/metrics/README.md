@@ -108,7 +108,9 @@ instead of `CounterVec.With`. See [this example](https://pkg.go.dev/github.com/V
 
 #### Why [Histogram](http://godoc.org/github.com/VictoriaMetrics/metrics#Histogram) buckets contain `vmrange` labels instead of `le` labels like in Prometheus histograms?
 
-Buckets with `vmrange` labels occupy less disk space compared to Promethes-style buckets with `le` labels,
+Buckets with `vmrange` labels occupy less disk space compared to Prometheus-style buckets with `le` labels,
 because `vmrange` buckets don't include counters for the previous ranges. [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) provides `prometheus_buckets`
 function, which converts `vmrange` buckets to Prometheus-style buckets with `le` labels. This is useful for building heatmaps in Grafana.
-Additionally, its' `histogram_quantile` function transparently handles histogram buckets with `vmrange` labels.
+Additionally, its `histogram_quantile` function transparently handles histogram buckets with `vmrange` labels.
+
+However, for compatibility purposes package provides classic [Prometheus Histograms](http://godoc.org/github.com/VictoriaMetrics/metrics#PrometheusHistogram) with `le` labels.

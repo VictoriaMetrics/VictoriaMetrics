@@ -1,0 +1,40 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "matrix",
+    "result": [
+      {
+        "metric": {
+          "__name__": "vm_log_messages_total",
+          "job": "victoriametrics",
+          "instance": "victoriametrics:8428",
+          "app_version": "victoria-metrics-20250523-133235-tags-v1.118.0-0-gaa3171cf4b",
+          "level": "info",
+          "location": "VictoriaMetrics/lib/ingestserver/opentsdb/server.go:48"
+        },
+        "values": [
+          [
+            1748897918.112,
+            "1"
+          ]
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "vm_log_messages_total",
+          "job": "victoriametrics",
+          "instance": "victoriametrics:8428",
+          "app_version": "victoria-metrics-20250523-133235-tags-v1.118.0-0-gaa3171cf4b",
+          "level": "info",
+          "location": "VictoriaMetrics/lib/ingestserver/opentsdb/server.go:59"
+        },
+        "values": [
+          [
+            1748897918.112,
+            "1"
+          ]
+        ]
+      }
+    ]
+  }
+}

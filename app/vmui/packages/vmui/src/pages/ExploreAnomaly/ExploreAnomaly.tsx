@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useRef, useState } from "preact/compat";
+import { FC, useMemo, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import { ForecastType } from "../../types";
@@ -87,7 +87,14 @@ const ExploreAnomaly: FC = () => {
         setHideError={setHideError}
         stats={queryStats}
         onRunQuery={handleRunQuery}
-        hideButtons={{ addQuery: true, prettify: false, autocomplete: false, traceQuery: true, anomalyConfig: true }}
+        hideButtons={{
+          addQuery: true,
+          prettify: false,
+          autocomplete: false,
+          traceQuery: true,
+          anomalyConfig: true,
+          reduceMemUsage: true,
+        }}
       />
       {isLoading && <Spinner/>}
       {(!hideError && error) && <Alert variant="error">{error}</Alert>}

@@ -1,7 +1,5 @@
-import React, { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
-import { MouseEvent as ReactMouseEvent } from "react";
+import { FC, useCallback, useEffect, useRef, useState, createPortal, ReactNode, MouseEvent as ReactMouseEvent } from "preact/compat";
 import useEventListener from "../../../hooks/useEventListener";
-import ReactDOM from "react-dom";
 import classNames from "classnames";
 import uPlot from "uplot";
 import Button from "../../Main/Button/Button";
@@ -19,7 +17,7 @@ export interface ChartTooltipProps {
   unit?: string;
   statsFormatted?: SeriesItemStatsFormatted;
   isSticky?: boolean;
-  info?: string;
+  info?: ReactNode;
   marker?: string;
   show?: boolean;
   onClose?: (id: string) => void;
@@ -49,7 +47,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     onClose && onClose(id);
   };
 
-  const handleMouseDown = (e: ReactMouseEvent) => {
+  const handleMouseDown = (e: ReactMouseEvent<HTMLButtonElement>) => {
     setMoved(true);
     setMoving(true);
     const { clientX, clientY } = e;
@@ -107,7 +105,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
 
   if (!u) return null;
 
-  return ReactDOM.createPortal((
+  return createPortal((
     <div
       className={classNames({
         "vm-chart-tooltip": true,

@@ -3,11 +3,11 @@ package storage
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func BenchmarkTableAddRows(b *testing.B) {
@@ -100,9 +100,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 		tb.MustClose()
 
 		// Remove the table.
-		if err := os.RemoveAll(tablePath); err != nil {
-			b.Fatalf("cannot remove table %q: %s", tablePath, err)
-		}
+		fs.MustRemoveDir(tablePath)
 	}
 	stopTestStorage(strg)
 }

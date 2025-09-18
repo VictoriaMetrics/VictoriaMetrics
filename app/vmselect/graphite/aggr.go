@@ -98,13 +98,13 @@ func aggrMin(values []float64) float64 {
 	if pos < 0 {
 		return nan
 	}
-	min := values[pos]
+	minV := values[pos]
 	for _, v := range values[pos+1:] {
-		if !math.IsNaN(v) && v < min {
-			min = v
+		if !math.IsNaN(v) && v < minV {
+			minV = v
 		}
 	}
-	return min
+	return minV
 }
 
 func aggrMax(values []float64) float64 {
@@ -112,13 +112,13 @@ func aggrMax(values []float64) float64 {
 	if pos < 0 {
 		return nan
 	}
-	max := values[pos]
+	maxV := values[pos]
 	for _, v := range values[pos+1:] {
-		if !math.IsNaN(v) && v > max {
-			max = v
+		if !math.IsNaN(v) && v > maxV {
+			maxV = v
 		}
 	}
-	return max
+	return maxV
 }
 
 func aggrDiff(values []float64) float64 {
@@ -177,12 +177,12 @@ func aggrCount(values []float64) float64 {
 }
 
 func aggrRange(values []float64) float64 {
-	min := aggrMin(values)
-	if math.IsNaN(min) {
+	minV := aggrMin(values)
+	if math.IsNaN(minV) {
 		return nan
 	}
-	max := aggrMax(values)
-	return max - min
+	maxV := aggrMax(values)
+	return maxV - minV
 }
 
 func aggrMultiply(values []float64) float64 {

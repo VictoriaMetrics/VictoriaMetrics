@@ -25,7 +25,13 @@ $sidebar-transition: cubic-bezier(0.280, 0.840, 0.420, 1);
       z-index: 102;
     }
   }
-
+  &-scrollable {
+    overflow-y: scroll;
+    scrollbar-width: none;
+  }
+  &-scrollable::-webkit-scrollbar {
+    display: none;
+  }
   &-menu {
     position: fixed;
     top: 0;

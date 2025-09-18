@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "preact/compat";
 import { MouseEvent as ReactMouseEvent, useCallback } from "react";
 import { DashboardRow } from "../../../types";
 import PredefinedPanel from "../PredefinedPanel/PredefinedPanel";
@@ -44,7 +44,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
     setPanelsWidth(width);
   }, [resize, sizeSection]);
 
-  const handleMouseDown = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>, i: number) => {
+  const handleMouseDown = (e: ReactMouseEvent<HTMLButtonElement>, i: number) => {
     setResize({
       start: e.clientX,
       target: i,

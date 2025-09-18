@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"gopkg.in/yaml.v2"
 )
 
@@ -153,7 +153,7 @@ func TestIfExpressionString(t *testing.T) {
 	// empty filters
 	f(`'{}'`, `{}`)
 
-	// multiple fiters
+	// multiple filters
 	f(`foo{bar="baz",a=~"bc.+",d!="e",g!~".*qwe"}`, `foo{bar="baz",a=~"bc.+",d!="e",g!~".*qwe"}`)
 
 	// multiple if expressions
@@ -169,7 +169,7 @@ func TestIfExpressionMatch(t *testing.T) {
 		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
-		labels := promutils.MustNewLabelsFromString(metricWithLabels)
+		labels := promutil.MustNewLabelsFromString(metricWithLabels)
 		if !ie.Match(labels.GetLabels()) {
 			t.Fatalf("unexpected mismatch of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}
@@ -207,7 +207,7 @@ func TestIfExpressionMismatch(t *testing.T) {
 		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
-		labels := promutils.MustNewLabelsFromString(metricWithLabels)
+		labels := promutil.MustNewLabelsFromString(metricWithLabels)
 		if ie.Match(labels.GetLabels()) {
 			t.Fatalf("unexpected match of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}

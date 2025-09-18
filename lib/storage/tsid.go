@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"container/heap"
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -98,4 +99,64 @@ func (t *TSID) Less(b *TSID) bool {
 		return t.InstanceID < b.InstanceID
 	}
 	return t.MetricID < b.MetricID
+}
+
+// mergeSortedTSIDs merges sorted TSID slices into one. Duplicates are removed.
+func mergeSortedTSIDs(tsidss [][]TSID) []TSID {
+	var h tsidHeap
+	var n int
+	for _, tsids := range tsidss {
+		if len(tsids) > 0 {
+			h = append(h, tsids)
+			n += len(tsids)
+		}
+	}
+	all := make([]TSID, 0, n)
+
+	heap.Init(&h)
+	for h.Len() > 0 {
+		top := h[0]
+		tsid := top[0]
+		if len(all) == 0 || tsid != all[len(all)-1] {
+			all = append(all, tsid)
+		}
+		if len(top) == 1 {
+			heap.Pop(&h)
+		} else {
+			h[0] = top[1:]
+			heap.Fix(&h, 0)
+		}
+	}
+
+	return all
+}
+
+// tsidHeap is a slice of tsidItems that implements methods that allow to use it
+// as a heap. It is used for implementing N-way merge of N sorted TSID slices.
+// See mergeSortedTSIDs().
+//
+// Slice elements initially must not be empty.
+type tsidHeap [][]TSID
+
+func (h tsidHeap) Len() int {
+	return len(h)
+}
+
+func (h tsidHeap) Less(i, j int) bool {
+	return h[i][0].Less(&h[j][0])
+}
+
+func (h tsidHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *tsidHeap) Push(_ any) {
+	panic(fmt.Errorf("BUG: Push shouldn't be called"))
+}
+
+func (h *tsidHeap) Pop() any {
+	a := *h
+	x := a[len(a)-1]
+	*h = a[:len(a)-1]
+	return x
 }

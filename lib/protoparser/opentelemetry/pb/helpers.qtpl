@@ -1,0 +1,65 @@
+{% import (
+	"strconv"
+	"encoding/base64"
+)%}
+
+{% stripspace %}
+{% func (kvl *KeyValueList) FormatString() %}
+{% if len(kvl.Values) > 0 %}
+{
+	{% for i, v := range kvl.Values %}
+		{%q= v.Key %}: {%s= v.Value.FormatString(false) %}
+		{% if i + 1 < len(kvl.Values) %},{% endif %}
+	{% endfor %}
+}
+{% else %}
+{}
+{% endif %}
+{% endfunc %}
+{% endstripspace %}
+
+{% stripspace %}
+{% func (av *ArrayValue) FormatString() %}
+{% if len(av.Values) > 0 %}
+[      
+        {% for i, v := range av.Values %}
+                {%s= v.FormatString(false) %}
+                {% if i + 1 < len(av.Values) %},{% endif %}
+        {% endfor %}
+]
+{% else %}
+[]
+{% endif %}
+{% endfunc %}
+{% endstripspace %}
+
+{% stripspace %}
+{% func (av *AnyValue) FormatString(toplevel bool) %}
+{% if av == nil %}
+  {% if !toplevel %}
+       null
+  {% endif %}
+  {% return %}
+{% endif %}
+{% switch %}
+{% case av.StringValue != nil %}
+	{% if toplevel %}
+		{%s= *av.StringValue %}
+	{% else %}
+		{%q= *av.StringValue %}
+	{% endif %}
+{% case av.BoolValue != nil %}
+	{%s= strconv.FormatBool(*av.BoolValue) %}
+{% case av.IntValue != nil %}
+	{%dl= *av.IntValue %}
+{% case av.DoubleValue != nil %}
+	{%s= float64AsString(*av.DoubleValue) %}
+{% case av.ArrayValue != nil %}
+	{%s= av.ArrayValue.FormatString() %}
+{% case av.KeyValueList != nil %}
+	{%s= av.KeyValueList.FormatString() %}
+{% case av.BytesValue != nil %}
+	{%s= base64.StdEncoding.EncodeToString(*av.BytesValue) %}
+{% endswitch %}
+{% endfunc %}
+{% endstripspace %}

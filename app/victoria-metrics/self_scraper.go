@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
 var (
@@ -56,7 +57,8 @@ func selfScraper(scrapeInterval time.Duration) {
 		appmetrics.WritePrometheusMetrics(&bb)
 		s := bytesutil.ToUnsafeString(bb.B)
 		rows.Reset()
-		rows.Unmarshal(s)
+		// VictoriaMetrics components don't expose metadata yet, only need to parse samples
+		rows.UnmarshalWithErrLogger(s, nil)
 		mrs = mrs[:0]
 		for i := range rows.Rows {
 			r := &rows.Rows[i]
@@ -67,6 +69,10 @@ func selfScraper(scrapeInterval time.Duration) {
 			for j := range r.Tags {
 				t := &r.Tags[j]
 				labels = addLabel(labels, t.Key, t.Value)
+			}
+			if timeserieslimits.IsExceeding(labels) {
+				// Skip metric with exceeding labels.
+				continue
 			}
 			if len(mrs) < cap(mrs) {
 				mrs = mrs[:len(mrs)+1]

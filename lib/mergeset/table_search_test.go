@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestMain(m *testing.M) {
@@ -17,12 +19,8 @@ func TestMain(m *testing.M) {
 
 func TestTableSearchSerial(t *testing.T) {
 	const path = "TestTableSearchSerial"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	const itemsCount = 1e5
 
@@ -42,7 +40,7 @@ func TestTableSearchSerial(t *testing.T) {
 	func() {
 		// Re-open the table and verify the search works.
 		var isReadOnly atomic.Bool
-		tb := MustOpenTable(path, nil, nil, &isReadOnly)
+		tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchSerial(tb, items); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -52,12 +50,8 @@ func TestTableSearchSerial(t *testing.T) {
 
 func TestTableSearchConcurrent(t *testing.T) {
 	const path = "TestTableSearchConcurrent"
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
 
 	const itemsCount = 1e5
 	items := func() []string {
@@ -76,7 +70,7 @@ func TestTableSearchConcurrent(t *testing.T) {
 	// Re-open the table and verify the search works.
 	func() {
 		var isReadOnly atomic.Bool
-		tb := MustOpenTable(path, nil, nil, &isReadOnly)
+		tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchConcurrent(tb, items); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -107,7 +101,7 @@ func testTableSearchConcurrent(tb *Table, items []string) error {
 
 func testTableSearchSerial(tb *Table, items []string) error {
 	var ts TableSearch
-	ts.Init(tb)
+	ts.Init(tb, false)
 	for _, key := range []string{
 		"",
 		"123",
@@ -150,7 +144,7 @@ func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, 
 		flushes.Add(1)
 	}
 	var isReadOnly atomic.Bool
-	tb := MustOpenTable(path, flushCallback, nil, &isReadOnly)
+	tb := MustOpenTable(path, 0, flushCallback, nil, &isReadOnly)
 	items := make([]string, itemsCount)
 	for i := 0; i < itemsCount; i++ {
 		item := fmt.Sprintf("%d:%d", r.Intn(1e9), i)
@@ -159,7 +153,7 @@ func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, 
 	}
 	tb.DebugFlush()
 	if itemsCount > 0 && flushes.Load() == 0 {
-		return nil, nil, fmt.Errorf("unexpeted zero flushes for itemsCount=%d", itemsCount)
+		return nil, nil, fmt.Errorf("unexpected zero flushes for itemsCount=%d", itemsCount)
 	}
 
 	sort.Strings(items)

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseNodeListFailure(t *testing.T) {
@@ -241,8 +241,8 @@ func TestParseNodeListSuccess(t *testing.T) {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabelss := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"instance":                           "m01",
 			"__address__":                        "172.17.0.2:10250",
 			"__meta_kubernetes_node_name":        "m01",
@@ -287,9 +287,9 @@ func TestParseNodeListSuccess(t *testing.T) {
 	}
 }
 
-func getSortedLabelss(objectsByKey map[string]object) []*promutils.Labels {
+func getSortedLabelss(objectsByKey map[string]object) []*promutil.Labels {
 	gw := newTestGroupWatcher()
-	var result []*promutils.Labels
+	var result []*promutil.Labels
 	for _, o := range objectsByKey {
 		labelss := o.getTargetLabels(gw)
 		for _, labels := range labelss {
@@ -308,7 +308,7 @@ func newTestGroupWatcher() *groupWatcher {
 			objectsByKey: map[string]object{
 				"/test-node": &Node{
 					Metadata: ObjectMeta{
-						Labels: promutils.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
+						Labels: promutil.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 					},
 				},
 			},
@@ -318,19 +318,19 @@ func newTestGroupWatcher() *groupWatcher {
 	return &gw
 }
 
-func areEqualLabelss(a, b []*promutils.Labels) bool {
+func areEqualLabelss(a, b []*promutil.Labels) bool {
 	sortLabelss(a)
 	sortLabelss(b)
 	return reflect.DeepEqual(a, b)
 }
 
-func sortLabelss(a []*promutils.Labels) {
+func sortLabelss(a []*promutil.Labels) {
 	sort.Slice(a, func(i, j int) bool {
 		return marshalLabels(a[i]) < marshalLabels(a[j])
 	})
 }
 
-func marshalLabels(a *promutils.Labels) string {
+func marshalLabels(a *promutil.Labels) string {
 	var b []byte
 	for _, label := range a.Labels {
 		b = strconv.AppendQuote(b, label.Name)

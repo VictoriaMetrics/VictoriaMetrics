@@ -34,33 +34,42 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
+	// Metadata to be set for uploaded objects.
+	Metadata map[string]string
+
 	bkt *storage.BucketHandle
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // Init initializes fs.
 //
 // The returned fs must be stopped when no long needed with MustStop call.
-func (fs *FS) Init() error {
+func (fs *FS) Init(ctx context.Context) error {
 	if fs.bkt != nil {
 		logger.Panicf("BUG: fs.Init has been already called")
 	}
+
+	fs.ctx, fs.cancel = context.WithCancel(ctx)
+
 	for strings.HasPrefix(fs.Dir, "/") {
 		fs.Dir = fs.Dir[1:]
 	}
 	if !strings.HasSuffix(fs.Dir, "/") {
 		fs.Dir += "/"
 	}
-	ctx := context.Background()
+
 	var client *storage.Client
 	if len(fs.CredsFilePath) > 0 {
 		creds := option.WithCredentialsFile(fs.CredsFilePath)
-		c, err := storage.NewClient(ctx, creds)
+		c, err := storage.NewClient(fs.ctx, creds)
 		if err != nil {
 			return fmt.Errorf("cannot create gcs client with credsFile %q: %w", fs.CredsFilePath, err)
 		}
 		client = c
 	} else {
-		c, err := storage.NewClient(ctx)
+		c, err := storage.NewClient(fs.ctx)
 		if err != nil {
 			return fmt.Errorf("cannot create default gcs client: %w", err)
 		}
@@ -80,6 +89,9 @@ func (fs *FS) Init() error {
 
 // MustStop stops fs.
 func (fs *FS) MustStop() {
+	if fs.cancel != nil {
+		fs.cancel()
+	}
 	fs.bkt = nil
 }
 
@@ -97,18 +109,17 @@ var selectAttrs = []string{
 // ListParts returns all the parts for fs.
 func (fs *FS) ListParts() ([]common.Part, error) {
 	dir := fs.Dir
-	ctx := context.Background()
 	q := &storage.Query{
 		Prefix: dir,
 	}
 	if err := q.SetAttrSelection(selectAttrs); err != nil {
 		return nil, fmt.Errorf("error in SetAttrSelection: %w", err)
 	}
-	it := fs.bkt.Objects(ctx, q)
+	it := fs.bkt.Objects(fs.ctx, q)
 	var parts []common.Part
 	for {
 		attr, err := it.Next()
-		if err == iterator.Done {
+		if errors.Is(err, iterator.Done) {
 			return parts, nil
 		}
 		if err != nil {
@@ -153,8 +164,10 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	dstObj := fs.object(p)
 
 	copier := dstObj.CopierFrom(srcObj)
-	ctx := context.Background()
-	attr, err := copier.Run(ctx)
+	if len(fs.Metadata) > 0 {
+		copier.Metadata = fs.Metadata
+	}
+	attr, err := copier.Run(fs.ctx)
 	if err != nil {
 		return fmt.Errorf("cannot copy %q from %s to %s: %w", p.Path, src, fs, err)
 	}
@@ -167,8 +180,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 // DownloadPart downloads part p from fs to w.
 func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 	o := fs.object(p)
-	ctx := context.Background()
-	r, err := o.NewReader(ctx)
+	r, err := o.NewReader(fs.ctx)
 	if err != nil {
 		return fmt.Errorf("cannot open reader for %q at %s (remote path %q): %w", p.Path, fs, o.ObjectName(), err)
 	}
@@ -188,8 +200,10 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 // UploadPart uploads part p from r to fs.
 func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	o := fs.object(p)
-	ctx := context.Background()
-	w := o.NewWriter(ctx)
+	w := o.NewWriter(fs.ctx)
+	if len(fs.Metadata) > 0 {
+		w.Metadata = fs.Metadata
+	}
 	n, err := io.Copy(w, r)
 	if err1 := w.Close(); err1 != nil && err == nil {
 		err = err1
@@ -225,11 +239,10 @@ func (fs *FS) delete(path string) error {
 
 // deleteObjectWithGenerations deletes object at path and all its generations.
 func (fs *FS) deleteObjectWithGenerations(path string) error {
-	it := fs.bkt.Objects(context.Background(), &storage.Query{
+	it := fs.bkt.Objects(fs.ctx, &storage.Query{
 		Versions: true,
 		Prefix:   path,
 	})
-	ctx := context.Background()
 	for {
 		attrs, err := it.Next()
 		if errors.Is(err, iterator.Done) {
@@ -240,7 +253,7 @@ func (fs *FS) deleteObjectWithGenerations(path string) error {
 			return fmt.Errorf("cannot read %q at %s: %w", path, fs, err)
 		}
 
-		if err := fs.bkt.Object(path).Generation(attrs.Generation).Delete(ctx); err != nil {
+		if err := fs.bkt.Object(path).Generation(attrs.Generation).Delete(fs.ctx); err != nil {
 			if !errors.Is(err, storage.ErrObjectNotExist) {
 				return fmt.Errorf("cannot delete %q at %s: %w", path, fs, err)
 			}
@@ -252,8 +265,7 @@ func (fs *FS) deleteObjectWithGenerations(path string) error {
 // It does not specify a Generation, so it will delete the latest generation of the object.
 func (fs *FS) deleteObject(path string) error {
 	o := fs.bkt.Object(path)
-	ctx := context.Background()
-	if err := o.Delete(ctx); err != nil {
+	if err := o.Delete(fs.ctx); err != nil {
 		if !errors.Is(err, storage.ErrObjectNotExist) {
 			return fmt.Errorf("cannot delete %q at %s: %w", o.ObjectName(), fs, err)
 		}
@@ -268,8 +280,10 @@ func (fs *FS) deleteObject(path string) error {
 func (fs *FS) CreateFile(filePath string, data []byte) error {
 	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)
-	ctx := context.Background()
-	w := o.NewWriter(ctx)
+	w := o.NewWriter(fs.ctx)
+	if len(fs.Metadata) > 0 {
+		w.Metadata = fs.Metadata
+	}
 	n, err := w.Write(data)
 	if err != nil {
 		_ = w.Close()
@@ -285,14 +299,13 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	return nil
 }
 
-// HasFile returns ture if filePath exists at fs.
+// HasFile returns true if filePath exists at fs.
 func (fs *FS) HasFile(filePath string) (bool, error) {
 	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)
-	ctx := context.Background()
-	_, err := o.Attrs(ctx)
+	_, err := o.Attrs(fs.ctx)
 	if err != nil {
-		if err == storage.ErrObjectNotExist {
+		if errors.Is(err, storage.ErrObjectNotExist) {
 			return false, nil
 		}
 		return false, fmt.Errorf("unexpected error when obtaining attributes for %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
@@ -304,8 +317,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 func (fs *FS) ReadFile(filePath string) ([]byte, error) {
 	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)
-	ctx := context.Background()
-	r, err := o.NewReader(ctx)
+	r, err := o.NewReader(fs.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %q at %s (remote path %q): %w", filePath, fs, o.ObjectName(), err)
 	}

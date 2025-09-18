@@ -21,7 +21,7 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 // Parse parses Prometheus remote_write message from reader and calls callback for the parsed timeseries.
 //
 // callback shouldn't hold tss after returning.
-func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSeries) error) error {
+func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -44,6 +44,10 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 			// Fall back to Snappy decompression, since vmagent may send snappy-encoded messages
 			// with 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301
+			//
+			// Newer vmagent sends proper 'Content-Encoding' header.
+			// The logic is preserved for backwards compatibility.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650
 			zstdErr := err
 			bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
 			if err != nil {
@@ -56,6 +60,10 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 			// Fall back to zstd decompression, since vmagent may send zstd-encoded messages
 			// without 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5301#issuecomment-1815871992
+			//
+			// Newer vmagent sends proper 'Content-Encoding' header.
+			// The logic is preserved for backwards compatibility.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650
 			snappyErr := err
 			bb.B, err = zstd.Decompress(bb.B[:0], ctx.reqBuf.B)
 			if err != nil {
@@ -66,9 +74,10 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 	if int64(len(bb.B)) > maxInsertRequestSize.N {
 		return fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(bb.B))
 	}
-	wr := getWriteRequest()
-	defer putWriteRequest(wr)
-	if err := wr.UnmarshalProtobuf(bb.B); err != nil {
+	wru := getWriteRequestUnmarshaler()
+	defer putWriteRequestUnmarshaler(wru)
+	wr, err := wru.UnmarshalProtobuf(bb.B)
+	if err != nil {
 		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot unmarshal prompb.WriteRequest with size %d bytes: %w", len(bb.B), err)
 	}
@@ -79,8 +88,10 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 		rows += len(tss[i].Samples)
 	}
 	rowsRead.Add(rows)
+	mms := wr.Metadata
+	metadataRead.Add(len(mms))
 
-	if err := callback(tss); err != nil {
+	if err := callback(tss, mms); err != nil {
 		return fmt.Errorf("error when processing imported data: %w", err)
 	}
 	return nil
@@ -118,6 +129,7 @@ var (
 	readCalls       = metrics.NewCounter(`vm_protoparser_read_calls_total{type="promremotewrite"}`)
 	readErrors      = metrics.NewCounter(`vm_protoparser_read_errors_total{type="promremotewrite"}`)
 	rowsRead        = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promremotewrite"}`)
+	metadataRead    = metrics.NewCounter(`vm_protoparser_metadata_read_total{type="promremotewrite"}`)
 	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="promremotewrite"}`)
 )
 
@@ -139,17 +151,17 @@ func putPushCtx(ctx *pushCtx) {
 
 var pushCtxPool sync.Pool
 
-func getWriteRequest() *prompb.WriteRequest {
-	v := writeRequestPool.Get()
+func getWriteRequestUnmarshaler() *prompb.WriteRequestUnmarshaler {
+	v := writeRequestUnmarshallerPool.Get()
 	if v == nil {
-		return &prompb.WriteRequest{}
+		return &prompb.WriteRequestUnmarshaler{}
 	}
-	return v.(*prompb.WriteRequest)
+	return v.(*prompb.WriteRequestUnmarshaler)
 }
 
-func putWriteRequest(wr *prompb.WriteRequest) {
-	wr.Reset()
-	writeRequestPool.Put(wr)
+func putWriteRequestUnmarshaler(wru *prompb.WriteRequestUnmarshaler) {
+	wru.Reset()
+	writeRequestUnmarshallerPool.Put(wru)
 }
 
-var writeRequestPool sync.Pool
+var writeRequestUnmarshallerPool sync.Pool

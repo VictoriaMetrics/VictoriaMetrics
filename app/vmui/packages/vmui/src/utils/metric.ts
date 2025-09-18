@@ -2,16 +2,27 @@ import { MetricBase } from "../api/types";
 
 export const getNameForMetric = (result: MetricBase, alias?: string, showQueryNum = true): string => {
   const { __name__, ...freeFormFields } = result.metric;
-  const name = alias || `${showQueryNum ? `[Query ${result.group}] ` : ""}${__name__ || ""}`;
-  if (Object.keys(freeFormFields).length == 0) {
-    if (!name) {
-      return "value";
-    }
-    return name;
+  const queryPrefix = showQueryNum ? `[Query ${result.group}] ` : "";
+
+  if (alias) {
+    return getLabelAlias(result.metric, alias);
   }
-  return `${name}{${Object.entries(freeFormFields).map(e =>
-    `${e[0]}=${JSON.stringify(e[1])}`
-  ).join(", ")}}`;
+
+  const name = `${queryPrefix}${__name__ || ""}`;
+
+  if (Object.keys(freeFormFields).length === 0) {
+    return name || "value";
+  }
+
+  const fieldsString = Object.entries(freeFormFields)
+    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+    .join(", ");
+
+  return `${name}{${fieldsString}}`;
+};
+
+export const getLabelAlias = (fields: { [p: string]: string }, alias: string) => {
+  return alias.replace(/\{\{(\w+)}}/g, (_, key) => fields[key] || "");
 };
 
 export const promValueToNumber = (s: string): number => {

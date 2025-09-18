@@ -6,4 +6,8 @@
   gap: $padding-global;
   align-items: center;
   justify-content: center;
+
+  &__upload {
+    position: relative;
+  }
 }

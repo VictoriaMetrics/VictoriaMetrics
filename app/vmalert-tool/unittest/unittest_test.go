@@ -1,46 +1,39 @@
 package unittest
 
 import (
-	"os"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 )
-
-func TestMain(m *testing.M) {
-	if err := templates.Load([]string{}, true); err != nil {
-		os.Exit(1)
-	}
-	os.Exit(m.Run())
-}
 
 func TestUnitTest_Failure(t *testing.T) {
 	f := func(files []string) {
 		t.Helper()
 
-		failed := UnitTest(files, false)
+		failed := UnitTest(files, false, nil, "", "", "")
 		if !failed {
 			t.Fatalf("expecting failed test")
 		}
 	}
 
-	// failing test
+	f([]string{"./testdata/failed-test-with-missing-rulefile.yaml"})
+
 	f([]string{"./testdata/failed-test.yaml"})
 }
 
 func TestUnitTest_Success(t *testing.T) {
-	f := func(disableGroupLabel bool, files []string) {
+	f := func(disableGroupLabel bool, files []string, externalLabels []string, externalURL, httpPort string) {
 		t.Helper()
 
-		failed := UnitTest(files, disableGroupLabel)
+		failed := UnitTest(files, disableGroupLabel, externalLabels, externalURL, httpPort, "")
 		if failed {
 			t.Fatalf("unexpected failed test")
 		}
 	}
 
-	// run multi files
-	f(false, []string{"./testdata/test1.yaml", "./testdata/test2.yaml"})
+	// run multi files with random http port
+	f(false, []string{"./testdata/test1.yaml", "./testdata/test2.yaml"}, []string{"cluster=prod"}, "http://grafana:3000", "")
 
 	// disable group label
-	f(true, []string{"./testdata/disable-group-label.yaml"})
+	// template with null external values
+	// specify httpListenAddr
+	f(true, []string{"./testdata/disable-group-label.yaml"}, nil, "", "8880")
 }

@@ -8,6 +8,6 @@ export const escapeDoubleQuotes = (s: string) => {
 };
 
 export const hasUnclosedQuotes = (str: string) => {
-  const matches = str.match(/"/g);
+  const matches = str.match(/["`']/g);
   return matches ? matches.length % 2 !== 0 : false;
 };

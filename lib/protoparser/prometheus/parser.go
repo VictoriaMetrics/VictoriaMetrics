@@ -7,10 +7,65 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
+
+// UnmarshalWithMetadata unmarshals Prometheus exposition text into dstRows and dstMeta.
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#comments-help-text-and-type-information.
+//
+// s shouldn't be modified while dstRows and dstMeta are in use.
+func UnmarshalWithMetadata(dstRows Rows, dstMeta MetadataRows, s string, errLogger func(s string)) (Rows, MetadataRows) {
+	rows := dstRows.Rows[:0]
+	tags := dstRows.tagsPool[:0]
+	mds := dstMeta.Rows[:0]
+	rowsLen := len(rows)
+	mdLen := len(mds)
+
+	if errLogger == nil {
+		errLogger = stdErrLogger
+	}
+	noEscapes := strings.IndexByte(s, '\\') < 0
+
+	for len(s) > 0 {
+		n := strings.IndexByte(s, '\n')
+		if n < 0 {
+			// The last line.
+			if isMetadataLine(s) {
+				mds = unmarshalMetadata(mds, s, errLogger)
+				break
+			}
+			rows, tags = unmarshalRow(rows, s, tags, noEscapes, errLogger)
+			break
+		}
+		if isMetadataLine(s[:n]) {
+			mds = unmarshalMetadata(mds, s[:n], errLogger)
+			s = s[n+1:]
+			continue
+		}
+		rows, tags = unmarshalRow(rows, s[:n], tags, noEscapes, errLogger)
+
+		s = s[n+1:]
+	}
+	rowsReadScrape.Add(len(rows) - rowsLen)
+	metadataReadScrape.Add(len(mds) - mdLen)
+
+	dstRows.Rows = rows
+	dstRows.tagsPool = tags
+	dstMeta.Rows = mds
+	return dstRows, dstMeta
+}
+
+func isMetadataLine(s string) bool {
+	s = skipLeadingWhitespace(s)
+	if len(s) > 0 && s[0] == '#' {
+		return true
+	}
+	return false
+}
 
 // Rows contains parsed Prometheus rows.
 type Rows struct {
@@ -23,36 +78,26 @@ type Rows struct {
 func (rs *Rows) Reset() {
 	// Reset items, so they can be GC'ed
 
-	for i := range rs.Rows {
-		rs.Rows[i].reset()
-	}
+	clear(rs.Rows)
 	rs.Rows = rs.Rows[:0]
 
-	for i := range rs.tagsPool {
-		rs.tagsPool[i].reset()
-	}
+	clear(rs.tagsPool)
 	rs.tagsPool = rs.tagsPool[:0]
-}
-
-// Unmarshal unmarshals Prometheus exposition text rows from s.
-//
-// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
-//
-// s shouldn't be modified while rs is in use.
-func (rs *Rows) Unmarshal(s string) {
-	rs.UnmarshalWithErrLogger(s, stdErrLogger)
 }
 
 func stdErrLogger(s string) {
 	logger.ErrorfSkipframes(1, "%s", s)
 }
 
-// UnmarshalWithErrLogger unmarshal Prometheus exposition text rows from s.
+// UnmarshalWithErrLogger unmarshals only samples from Prometheus exposition text.
 //
-// It calls errLogger for logging parsing errors.
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 //
 // s shouldn't be modified while rs is in use.
 func (rs *Rows) UnmarshalWithErrLogger(s string, errLogger func(s string)) {
+	if errLogger == nil {
+		errLogger = stdErrLogger
+	}
 	noEscapes := strings.IndexByte(s, '\\') < 0
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], noEscapes, errLogger)
 }
@@ -66,10 +111,7 @@ type Row struct {
 }
 
 func (r *Row) reset() {
-	r.Metric = ""
-	r.Tags = nil
-	r.Value = 0
-	r.Timestamp = 0
+	*r = Row{}
 }
 
 func skipTrailingComment(s string) string {
@@ -82,7 +124,7 @@ func skipTrailingComment(s string) string {
 
 func skipLeadingWhitespace(s string) string {
 	// Prometheus treats ' ' and '\t' as whitespace
-	// according to https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
+	// according to https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 	for len(s) > 0 && (s[0] == ' ' || s[0] == '\t') {
 		s = s[1:]
 	}
@@ -91,13 +133,16 @@ func skipLeadingWhitespace(s string) string {
 
 func skipTrailingWhitespace(s string) string {
 	// Prometheus treats ' ' and '\t' as whitespace
-	// according to https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-format-details
+	// https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 	for len(s) > 0 && (s[len(s)-1] == ' ' || s[len(s)-1] == '\t') {
 		s = s[:len(s)-1]
 	}
 	return s
 }
 
+// Within a line, tokens can be separated by any number of blanks and/or tabs,
+// and must be separated by at least one if they would otherwise merge with the previous token.
+// https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#line-format
 func nextWhitespace(s string) int {
 	n := strings.IndexByte(s, ' ')
 	if n < 0 {
@@ -120,7 +165,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 		s = s[n+1:]
 		tagsStart := len(tagsPool)
 		var err error
-		s, tagsPool, err = unmarshalTags(tagsPool, s, noEscapes)
+		s, tagsPool, err = r.unmarshalTags(tagsPool, s, noEscapes)
 		if err != nil {
 			return tagsPool, fmt.Errorf("cannot unmarshal tags: %w", err)
 		}
@@ -186,6 +231,7 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, noEscapes bool) ([]Tag, error)
 }
 
 var rowsReadScrape = metrics.NewCounter(`vm_protoparser_rows_read_total{type="promscrape"}`)
+var metadataReadScrape = metrics.NewCounter(`vm_protoparser_metadata_read_total{type="promscrape"}`)
 
 func unmarshalRows(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger func(s string)) ([]Row, []Tag) {
 	dstLen := len(dst)
@@ -237,43 +283,91 @@ func unmarshalRow(dst []Row, s string, tagsPool []Tag, noEscapes bool, errLogger
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="prometheus"}`)
 
-func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
+// unmarshalQuotedString parses quoted string tags
+// prometheus added support of utf-8 encoding for the text exposition format
+// https://github.com/prometheus/proposals/blob/main/proposals/2023-08-21-utf8.md#syntax-examples
+func unmarshalQuotedString(s string, noEscapes bool) (string, string, error) {
+	if len(s) == 0 || s[0] != '"' {
+		return "", s, fmt.Errorf("missing starting double quote in string: %q", s)
+	}
+	var n int
+	if noEscapes {
+		n = strings.IndexByte(s[1:], '"')
+		if n == -1 {
+			return "", s, fmt.Errorf("missing closing double quote in string: %q", s)
+		}
+		// Add 2 to account for both quotes
+		return s[1 : n+1], s[n+2:], nil
+	}
+	n = findClosingQuote(s)
+	if n == -1 {
+		return "", s, fmt.Errorf("missing closing double quote in string: %q", s)
+	}
+	return unescapeValue(s[1:n]), s[n+1:], nil
+}
+
+func (r *Row) unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
+	var err error
 	for {
 		s = skipLeadingWhitespace(s)
-		if len(s) > 0 && s[0] == '}' {
-			// End of tags found.
-			return s[1:], dst, nil
-		}
-		n := strings.IndexByte(s, '=')
+		n := strings.IndexByte(s, '"')
 		if n < 0 {
+			// end of tags
+			if len(s) > 0 && s[0] == '}' {
+				return s[1:], dst, nil
+			}
 			return s, dst, fmt.Errorf("missing value for tag %q", s)
 		}
-		key := skipTrailingWhitespace(s[:n])
-		if strings.IndexByte(key, '"') >= 0 {
-			return s, dst, fmt.Errorf("tag key %q cannot contain double quotes", key)
-		}
-		s = skipLeadingWhitespace(s[n+1:])
-		if len(s) == 0 || s[0] != '"' {
-			return s, dst, fmt.Errorf("expecting quoted value for tag %q; got %q", key, s)
-		}
-		value := s[1:]
-		if noEscapes {
-			// Fast path - the line has no escape chars
-			n = strings.IndexByte(value, '"')
-			if n < 0 {
-				return s, dst, fmt.Errorf("missing closing quote for tag value %q", s)
+		// Determine if this is a value or quoted label
+		possibleKey := skipTrailingWhitespace(s[:n])
+		possibleKeyLen := len(possibleKey)
+		key := ""
+		if possibleKeyLen == 0 {
+			// Parse quoted label - {"label"="value"} or {"metric"}
+			key, s, err = unmarshalQuotedString(s, noEscapes)
+			if err != nil {
+				return s, dst, err
 			}
-			s = value[n+1:]
-			value = value[:n]
+			s = skipLeadingWhitespace(s)
+			if len(s) > 0 {
+				if s[0] == ',' || s[0] == '}' {
+					// quoted metric name {"metric_name"}
+					if r.Metric != "" {
+						return s, dst, fmt.Errorf("metric name %q already set, duplicate metric name  %q", r.Metric, key)
+					}
+					r.Metric = key
+					if len(s) > 1 && s[0] == ',' {
+						s = s[1:]
+					}
+					continue
+				} else if s[0] != '=' {
+					// We are a quoted label that isn't preceded by a comma or at the end
+					// of the tags so we must have a value
+					return s, dst, fmt.Errorf("missing value for quoted tag %q", key)
+				}
+				s = skipLeadingWhitespace(s[1:])
+			}
+			// Fall through to parsing value
 		} else {
-			// Slow path - the line contains escape chars
-			n = findClosingQuote(s)
-			if n < 0 {
-				return s, dst, fmt.Errorf("missing closing quote for tag value %q", s)
+			c := possibleKey[len(possibleKey)-1]
+			// unquoted label {label="value"}
+			if c == '=' {
+				// Parse unquoted label
+				key = skipLeadingWhitespace(s[:possibleKeyLen-1])
+				key = skipTrailingWhitespace(key)
+				s = skipLeadingWhitespace(s[possibleKeyLen:])
+			} else {
+				// unquoted tag without a value
+				return s, dst, fmt.Errorf("missing value for unquoted tag %q", s)
 			}
-			value = unescapeValue(s[1:n])
-			s = s[n+1:]
 		}
+		// Parse value
+		var value string
+		value, s, err = unmarshalQuotedString(s, noEscapes)
+		if err != nil {
+			return s, dst, err
+		}
+
 		if len(key) > 0 {
 			// Allow empty values (len(value)==0) - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/453
 			if cap(dst) > len(dst) {
@@ -301,11 +395,6 @@ func unmarshalTags(dst []Tag, s string, noEscapes bool) (string, []Tag, error) {
 type Tag struct {
 	Key   string
 	Value string
-}
-
-func (t *Tag) reset() {
-	t.Key = ""
-	t.Value = ""
 }
 
 func findClosingQuote(s string) int {
@@ -343,7 +432,7 @@ func unescapeValue(s string) string {
 		}
 		// label_value can be any sequence of UTF-8 characters, but the backslash (\), double-quote ("),
 		// and line feed (\n) characters have to be escaped as \\, \", and \n, respectively.
-		// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
+		// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md
 		switch s[0] {
 		case '\\':
 			b = append(b, '\\')
@@ -367,7 +456,7 @@ func unescapeValue(s string) string {
 func appendEscapedValue(dst []byte, s string) []byte {
 	// label_value can be any sequence of UTF-8 characters, but the backslash (\), double-quote ("),
 	// and line feed (\n) characters have to be escaped as \\, \", and \n, respectively.
-	// See https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
+	// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md
 	for {
 		n := strings.IndexAny(s, "\\\"\n")
 		if n < 0 {
@@ -526,6 +615,9 @@ func marshalMetricNameWithTags(dst []byte, r *Row) []byte {
 //
 // This function is optimized for speed.
 func AreIdenticalSeriesFast(s1, s2 string) bool {
+	if s1 == s2 {
+		return true
+	}
 	for {
 		if len(s1) == 0 {
 			// The last byte on the line reached.
@@ -686,4 +778,120 @@ var numericChars = [256]bool{
 	'e': true,
 	'E': true,
 	'.': true,
+}
+
+// Metadata contains HELP or TYPE message in prometheus exposition format.
+// See https://github.com/prometheus/docs/blob/e39897e4ee6e67d49d47204a34d120e3314e82f9/docs/instrumenting/exposition_formats.md#comments-help-text-and-type-information.
+//
+// For example:
+// # HELP alertmanager_alerts How many alerts by state.
+// # TYPE alertmanager_alerts gauge
+type Metadata struct {
+	Metric string
+	Type   uint32
+	Help   string
+}
+
+// MetadataRows contains parsed Prometheus metadata rows.
+type MetadataRows struct {
+	Rows []Metadata
+}
+
+// Reset resets ms.
+func (ms *MetadataRows) Reset() {
+	clear(ms.Rows)
+	ms.Rows = ms.Rows[:0]
+}
+
+// unmarshalMetadata parses a single metadata line,
+// and attempts to merge it with the last entry in dst if they belong to the same metric family
+// since TYPE and HELP are usually exposed sequentially.
+// For example,
+// # HELP apiserver_audit_event_total [ALPHA] Counter of audit events generated and sent to the audit backend.
+// # TYPE apiserver_audit_event_total counter
+func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Metadata {
+	fullLine := s
+	if len(s) > 0 && s[len(s)-1] == '\r' {
+		s = s[:len(s)-1]
+	}
+	s = skipLeadingWhitespace(s)
+
+	if len(s) < 2 || s[0] != '#' || s[1] != ' ' {
+		// Skip non-comment
+		return dst
+	}
+	s = s[2:]
+	idx := nextWhitespace(s)
+	if idx < 0 {
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: wrong exposition format", fullLine))
+		}
+		return dst
+	}
+
+	commentType := s[:idx]
+	var isType, isHelp bool
+	switch commentType {
+	case "HELP":
+		isHelp = true
+	case "TYPE":
+		isType = true
+	default:
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: invalid comment", fullLine))
+		}
+		return dst
+	}
+
+	s = s[idx+1:]
+	idx = nextWhitespace(s)
+	if idx < 0 {
+		if errLogger != nil {
+			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: wrong exposition format", fullLine))
+		}
+		return dst
+	}
+	metricName := s[:idx]
+	commentData := s[idx+1:]
+
+	// check if the current metadata line has the same metric name as the last entry in dst
+	// if so, then they can be merged into a single Metadata entry
+	if len(dst) == 0 || dst[len(dst)-1].Metric != metricName {
+		if len(dst) < cap(dst) {
+			dst = dst[:len(dst)+1]
+		} else {
+			dst = append(dst, Metadata{})
+		}
+	}
+	md := &dst[len(dst)-1]
+	md.Metric = metricName
+
+	// HELP can have null content, TYPE can't
+	if isType {
+		switch commentData {
+		case "counter":
+			md.Type = uint32(prompb.MetricMetadataCOUNTER)
+		case "gauge":
+			md.Type = uint32(prompb.MetricMetadataGAUGE)
+		case "histogram":
+			md.Type = uint32(prompb.MetricMetadataHISTOGRAM)
+		case "summary":
+			md.Type = uint32(prompb.MetricMetadataSUMMARY)
+		case "untyped":
+			md.Type = uint32(prompb.MetricMetadataUNKNOWN)
+		default:
+			if errLogger != nil {
+				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: TYPE is invalid", fullLine))
+			}
+			dst = dst[:len(dst)-1]
+		}
+		return dst
+	}
+	if isHelp {
+		// HELP lines may contain any sequence of UTF-8 characters (after the metric name),
+		// but the backslash and the line feed characters have to be escaped as \\ and \n, respectively.
+		md.Help = unescapeValue(commentData)
+	}
+
+	return dst
 }

@@ -54,11 +54,13 @@ type Config struct {
 	// RateLimit defines a data transfer speed in bytes per second.
 	// Is applied to each worker (see Concurrency) independently.
 	RateLimit int64
+	// Backoff defines backoff policy for retries
+	Backoff *backoff.Backoff
 }
 
 // Importer performs insertion of timeseries
 // via VictoriaMetrics import protocol
-// see https://docs.victoriametrics.com/#how-to-import-time-series-data
+// see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data
 type Importer struct {
 	addr       string
 	client     *http.Client
@@ -116,11 +118,11 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 
 	addr := strings.TrimRight(cfg.Addr, "/")
 	// if single version
-	// see https://docs.victoriametrics.com/#how-to-import-time-series-data
+	// see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data
 	importPath := addr + "/api/v1/import"
 	if cfg.AccountID != "" {
 		// if cluster version
-		// see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+		// see https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
 		importPath = fmt.Sprintf("%s/insert/%s/prometheus/api/v1/import", addr, cfg.AccountID)
 	}
 	importPath, err := AddExtraLabelsToImportPath(importPath, cfg.ExtraLabels)
@@ -144,7 +146,7 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
-		backoff:    backoff.New(),
+		backoff:    cfg.Backoff,
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
@@ -297,6 +299,8 @@ func (im *Importer) Ping() error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status code: %d", resp.StatusCode)
 	}

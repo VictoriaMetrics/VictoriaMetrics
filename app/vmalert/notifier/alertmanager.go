@@ -10,43 +10,58 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 // AlertManager represents integration provider with Prometheus alert manager
 // https://github.com/prometheus/alertmanager
 type AlertManager struct {
-	addr    *url.URL
-	argFunc AlertURLGenerator
-	client  *http.Client
-	timeout time.Duration
+	addr      *url.URL
+	argFunc   AlertURLGenerator
+	client    *http.Client
+	timeout   time.Duration
+	lastError string
 
 	authCfg *promauth.Config
 	// stores already parsed RelabelConfigs object
 	relabelConfigs *promrelabel.ParsedConfigs
 
-	metrics *metrics
+	metrics *notifierMetrics
 }
 
-type metrics struct {
-	alertsSent       *utils.Counter
-	alertsSendErrors *utils.Counter
+type notifierMetrics struct {
+	set *metrics.Set
+
+	alertsSent         *metrics.Counter
+	alertsSendErrors   *metrics.Counter
+	alertsSendDuration *metrics.Histogram
 }
 
-func newMetrics(addr string) *metrics {
-	return &metrics{
-		alertsSent:       utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
-		alertsSendErrors: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+func newNotifierMetrics(addr string) *notifierMetrics {
+	set := metrics.NewSet()
+	metrics.RegisterSet(set)
+
+	return &notifierMetrics{
+		set:                set,
+		alertsSent:         set.NewCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
+		alertsSendErrors:   set.NewCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+		alertsSendDuration: set.NewHistogram(fmt.Sprintf("vmalert_alerts_send_duration_seconds{addr=%q}", addr)),
 	}
+}
+
+func (nm *notifierMetrics) close() {
+	metrics.UnregisterSet(nm.set, true)
 }
 
 // Close is a destructor method for AlertManager
 func (am *AlertManager) Close() {
-	am.metrics.alertsSent.Unregister()
-	am.metrics.alertsSendErrors.Unregister()
+	am.metrics.close()
 }
 
 // Addr returns address where alerts are sent.
@@ -57,28 +72,44 @@ func (am AlertManager) Addr() string {
 	return am.addr.Redacted()
 }
 
+func (am *AlertManager) LastError() string {
+	return am.lastError
+}
+
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	am.metrics.alertsSent.Add(len(alerts))
+	startTime := time.Now()
 	err := am.send(ctx, alerts, headers)
+	am.metrics.alertsSendDuration.UpdateDuration(startTime)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
+		am.lastError = err.Error()
+	} else {
+		am.lastError = ""
 	}
 	return err
 }
 
 func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	b := &bytes.Buffer{}
-	writeamRequest(b, alerts, am.argFunc, am.relabelConfigs)
+	alertsToSend := make([]Alert, 0, len(alerts))
+	lblss := make([][]prompb.Label, 0, len(alerts))
+	for _, a := range alerts {
+		lbls := a.applyRelabelingIfNeeded(am.relabelConfigs)
+		if len(lbls) == 0 {
+			continue
+		}
+		alertsToSend = append(alertsToSend, a)
+		lblss = append(lblss, lbls)
+	}
+	writeamRequest(b, alertsToSend, am.argFunc, lblss)
 
 	req, err := http.NewRequest(http.MethodPost, am.addr.String(), b)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
 
 	if am.timeout > 0 {
 		var cancel context.CancelFunc
@@ -94,6 +125,11 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[st
 			return err
 		}
 	}
+	// external headers have higher priority
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
 	resp, err := am.client.Do(req)
 	if err != nil {
 		return err
@@ -124,13 +160,19 @@ const alertManagerPath = "/api/v2/alerts"
 func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg promauth.HTTPClientConfig,
 	relabelCfg *promrelabel.ParsedConfigs, timeout time.Duration,
 ) (*AlertManager, error) {
+
+	if err := httputil.CheckURL(alertManagerURL); err != nil {
+		return nil, fmt.Errorf("invalid alertmanager URL: %w", err)
+	}
+
 	tls := &promauth.TLSConfig{}
 	if authCfg.TLSConfig != nil {
 		tls = authCfg.TLSConfig
 	}
-	tr, err := httputils.Transport(alertManagerURL, tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify)
+	tr, err := promauth.NewTLSTransport(tls.CertFile, tls.KeyFile, tls.CAFile, tls.ServerName, tls.InsecureSkipVerify, "vmalert_notifier")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %w", err)
+		return nil, fmt.Errorf("failed to create transport for alertmanager URL=%q: %w", alertManagerURL, err)
+
 	}
 
 	ba := new(promauth.BasicAuthConfig)
@@ -142,10 +184,12 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 		oauth = authCfg.OAuth2
 	}
 
-	aCfg, err := utils.AuthConfig(
-		utils.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
-		utils.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
-		utils.WithOAuth(oauth.ClientID, oauth.ClientSecret.String(), oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams))
+	aCfg, err := vmalertutil.AuthConfig(
+		vmalertutil.WithBasicAuth(ba.Username, ba.Password.String(), ba.PasswordFile),
+		vmalertutil.WithBearer(authCfg.BearerToken.String(), authCfg.BearerTokenFile),
+		vmalertutil.WithOAuth(oauth.ClientID, oauth.ClientSecret.String(), oauth.ClientSecretFile, oauth.TokenURL, strings.Join(oauth.Scopes, ";"), oauth.EndpointParams),
+		vmalertutil.WithHeaders(strings.Join(authCfg.Headers, "^^")),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
@@ -162,8 +206,10 @@ func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg proma
 		argFunc:        fn,
 		authCfg:        aCfg,
 		relabelConfigs: relabelCfg,
-		client:         &http.Client{Transport: tr},
-		timeout:        timeout,
-		metrics:        newMetrics(alertManagerURL),
+		client: &http.Client{
+			Transport: tr,
+		},
+		timeout: timeout,
+		metrics: newNotifierMetrics(alertManagerURL),
 	}, nil
 }

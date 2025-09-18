@@ -115,11 +115,12 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 			if !isSpecialValue(v) {
 				continue
 			}
-			if v == vInfPos {
+			switch v {
+			case vInfPos:
 				a[i] = infPos
-			} else if v == vInfNeg {
+			case vInfNeg:
 				a[i] = infNeg
-			} else {
+			default:
 				a[i] = StaleNaN
 			}
 		}
@@ -135,11 +136,12 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 			if !isSpecialValue(v) {
 				continue
 			}
-			if v == vInfPos {
+			switch v {
+			case vInfPos:
 				a[i] = infPos
-			} else if v == vInfNeg {
+			case vInfNeg:
 				a[i] = infNeg
-			} else {
+			default:
 				a[i] = StaleNaN
 			}
 		}
@@ -152,11 +154,12 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 		if !isSpecialValue(v) {
 			continue
 		}
-		if v == vInfPos {
+		switch v {
+		case vInfPos:
 			a[i] = infPos
-		} else if v == vInfNeg {
+		case vInfNeg:
 			a[i] = infNeg
-		} else {
+		default:
 			a[i] = StaleNaN
 		}
 	}
@@ -418,6 +421,11 @@ func isSpecialValue(v int64) bool {
 // IsStaleNaN returns true if f represents Prometheus staleness mark.
 func IsStaleNaN(f float64) bool {
 	return math.Float64bits(f) == staleNaNBits
+}
+
+// IsStaleNaNInt64 returns true if i represents Prometheus staleness mark.
+func IsStaleNaNInt64(i int64) bool {
+	return i == vStaleNaN
 }
 
 // FromFloat converts f to v*10^e.

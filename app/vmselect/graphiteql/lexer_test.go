@@ -17,7 +17,7 @@ func TestScanStringSuccess(t *testing.T) {
 			t.Fatalf("unexpected string scanned from %s; got %s; want %s", s, result, sExpected)
 		}
 		if !strings.HasPrefix(s, result) {
-			t.Fatalf("invalid prefix for scanne string %s: %s", s, result)
+			t.Fatalf("invalid prefix for scanned string %s: %s", s, result)
 		}
 	}
 	f(`""`, `""`)

@@ -1,6 +1,7 @@
 package writeconcurrencylimiter
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -76,6 +77,13 @@ func (r *Reader) Read(p []byte) (int, error) {
 		}
 		r.increasedConcurrency = true
 	}
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8704
+		err = fmt.Errorf("%w: while reading the request body. This might be caused by a timeout on the client side. "+
+			"Possible solutions: to lower -insert.maxQueueDuration below the client’s timeout; to increase the client-side timeout; "+
+			"to scale up vmagent (e.g., adding more CPU resources); to increase -maxConcurrentInserts if CPU capacity allows", err)
+	}
+
 	return n, err
 }
 
@@ -107,12 +115,11 @@ func incConcurrency() bool {
 
 	concurrencyLimitReached.Inc()
 	t := timerpool.Get(*maxQueueDuration)
+	defer timerpool.Put(t)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
-		timerpool.Put(t)
 		return true
 	case <-t.C:
-		timerpool.Put(t)
 		concurrencyLimitTimeout.Inc()
 		return false
 	}

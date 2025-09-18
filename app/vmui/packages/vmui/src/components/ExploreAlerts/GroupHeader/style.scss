@@ -1,0 +1,65 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-group-header {
+  display: flex;
+  align-items: center;
+  padding: $padding-tiny 0 $padding-tiny $padding-global;
+  justify-content: space-between;
+
+  .vm-button_small {
+    padding: 4px;
+  }
+
+  .vm-button-borderless {
+    border: 0;
+  }
+
+  @media(max-width: 768px) {
+    .vm-button-text {
+      display: none;
+    }
+  }
+
+  &_mobile {
+    .vm-button-text {
+      display: none;
+    }
+  }
+
+  &__desc {
+    display: flex;
+    flex-direction: column;
+    gap: $padding-tiny;
+  }
+
+  &__index {
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+  }
+
+  &__name {
+    flex-grow: 1;
+    font-weight: bold;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 130%;
+    word-break: break-word;
+  }
+
+  &__file {
+    color: $color-text-disabled;
+  }
+
+  code {
+    padding: 0.2em 0.4em;
+    font-size: 85%;
+    background-color: $color-hover-black;
+    border-radius: 6px;
+  }
+}
+
+.vm-explore-alerts-controls {
+  display: flex;
+  column-gap: $padding-global;
+}

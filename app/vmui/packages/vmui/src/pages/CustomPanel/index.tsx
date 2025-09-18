@@ -1,9 +1,9 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState, useMemo, useRef, useCallback } from "preact/compat";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
 import { DisplayTypeSwitch } from "./DisplayTypeSwitch";
 import { useGraphDispatch, useGraphState } from "../../state/graph/GraphStateContext";
-import Spinner from "../../components/Main/Spinner/Spinner";
+import LineLoader from "../../components/Main/LineLoader/LineLoader";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
@@ -12,12 +12,17 @@ import Alert from "../../components/Main/Alert/Alert";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
-import { useRef } from "react";
 import CustomPanelTraces from "./CustomPanelTraces/CustomPanelTraces";
 import WarningLimitSeries from "./WarningLimitSeries/WarningLimitSeries";
 import CustomPanelTabs from "./CustomPanelTabs";
 import { DisplayType } from "../../types";
 import DownloadReport from "./DownloadReport/DownloadReport";
+import WarningHeatmapToLine from "./WarningHeatmapToLine/WarningHeatmapToLine";
+import DownloadButton from "../../components/DownloadButton/DownloadButton";
+import { downloadCSV, downloadJSON } from "../../utils/file";
+import { convertMetricsDataToCSV } from "./utils";
+
+type ExportFormats = "csv" | "json";
 
 const CustomPanel: FC = () => {
   useSetQueryParams();
@@ -45,13 +50,35 @@ const CustomPanel: FC = () => {
     queryStats,
     warning,
     traces,
-    isHistogram
+    isHistogram,
+    abortFetch,
   } = useFetchQuery({
     visible: true,
     customStep,
     hideQuery,
     showAllSeries
   });
+
+  const fileDownloaders = useMemo(() => {
+    const getFilename = (format: ExportFormats) => {
+      return `vmui_export_${query.join("_")}.${format}`;
+    };
+
+    return {
+      csv: async () => {
+        if(!liveData) return;
+        const csvData = convertMetricsDataToCSV(liveData);
+        downloadCSV(csvData, getFilename("csv"));
+      },
+      json: async () => {
+        downloadJSON(JSON.stringify(liveData), getFilename("json"));
+      },
+    };
+  }, [liveData, query]);
+
+  const onDownloadClick = useCallback((format?: ExportFormats) => {
+    format && fileDownloaders[format]();
+  }, [fileDownloaders]);
 
   const showInstantQueryTip = !liveData?.length && (displayType !== DisplayType.chart);
   const showError = !hideError && error;
@@ -80,16 +107,19 @@ const CustomPanel: FC = () => {
         setQueryErrors={setQueryErrors}
         setHideError={setHideError}
         stats={queryStats}
+        isLoading={isLoading}
         onHideQuery={handleHideQuery}
         onRunQuery={handleRunQuery}
+        abortFetch={abortFetch}
+        hideButtons={{ reduceMemUsage: true }}
       />
       <CustomPanelTraces
         traces={traces}
         displayType={displayType}
       />
-      {isLoading && <Spinner />}
       {showError && <Alert variant="error">{error}</Alert>}
       {showInstantQueryTip && <Alert variant="info"><InstantQueryTip/></Alert>}
+      <WarningHeatmapToLine/>
       {warning && (
         <WarningLimitSeries
           warning={warning}
@@ -105,6 +135,7 @@ const CustomPanel: FC = () => {
           "vm-block_mobile": isMobile,
         })}
       >
+        {isLoading && <LineLoader/>}
         <div
           className="vm-custom-panel-body-header"
           ref={controlsRef}
@@ -112,7 +143,13 @@ const CustomPanel: FC = () => {
           <div className="vm-custom-panel-body-header__tabs">
             <DisplayTypeSwitch/>
           </div>
-          {(graphData || liveData) && <DownloadReport fetchUrl={fetchUrl}/>}
+          {displayType === "table" && (
+            <DownloadButton
+              title={"Export query"}
+              onDownload={onDownloadClick}
+              downloadFormatOptions={["json", "csv"]}
+            />)}
+          {(graphData || liveData) && displayType !== "code" && <DownloadReport fetchUrl={fetchUrl}/>}
         </div>
         <CustomPanelTabs
           graphData={graphData}

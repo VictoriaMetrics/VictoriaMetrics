@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
@@ -18,9 +18,9 @@ import (
 func TestMergeLabels(t *testing.T) {
 	f := func(swc *scrapeWorkConfig, target string, extraLabelsMap, metaLabelsMap map[string]string, resultExpected string) {
 		t.Helper()
-		extraLabels := promutils.NewLabelsFromMap(extraLabelsMap)
-		metaLabels := promutils.NewLabelsFromMap(metaLabelsMap)
-		labels := promutils.NewLabels(0)
+		extraLabels := promutil.NewLabelsFromMap(extraLabelsMap)
+		metaLabels := promutil.NewLabelsFromMap(metaLabelsMap)
+		labels := promutil.NewLabels(0)
 		mergeLabels(labels, swc, target, extraLabels, metaLabels)
 		result := labels.String()
 		if result != resultExpected {
@@ -107,6 +107,18 @@ scrape_configs:
   proxy_bearer_token_file: file.txt
   proxy_headers:
   - 'My-Auth-Header: top-secret'
+`)
+	f(`
+global:
+  scrape_interval: 10s
+  relabel_configs:
+  - source_labels: [job]
+    target_label: job
+    regex: (.+)
+    replacement: prefix-${1}
+  metric_relabel_configs:
+  - action: labeldrop
+    source_labels: [id]
 `)
 }
 
@@ -219,27 +231,27 @@ scrape_configs:
 `
 	var cfg Config
 	if err := cfg.parseData([]byte(data), "sss"); err != nil {
-		t.Fatalf("cannot parase data: %s", err)
+		t.Fatalf("cannot parse data: %s", err)
 	}
 	sws := cfg.getStaticScrapeWork()
 	swsExpected := []*ScrapeWork{
 		{
-			ScrapeURL:      "http://host1:80/metric/path1?x=y",
+			ScrapeURL:      "http://host1/metric/path1?x=y",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "host1:80",
 				"job":      "abc",
 			}),
 			jobNameOriginal: "abc",
 		},
 		{
-			ScrapeURL:      "https://host2:443/metric/path2?x=y",
+			ScrapeURL:      "https://host2/metric/path2?x=y",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "host2:443",
 				"job":      "abc",
 			}),
@@ -250,7 +262,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "host3:1234",
 				"job":      "abc",
 			}),
@@ -261,7 +273,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "host4:1234",
 				"job":      "abc",
 			}),
@@ -292,7 +304,7 @@ scrape_configs:
 `
 	var cfg Config
 	if err := cfg.parseData([]byte(data), "sss"); err != nil {
-		t.Fatalf("cannot parase data: %s", err)
+		t.Fatalf("cannot parse data: %s", err)
 	}
 	sws := cfg.getStaticScrapeWork()
 	swsExpected := []*ScrapeWork{{
@@ -300,7 +312,7 @@ scrape_configs:
 		ScrapeInterval: defaultScrapeInterval,
 		ScrapeTimeout:  defaultScrapeTimeout,
 		MaxScrapeSize:  maxScrapeSize.N,
-		Labels: promutils.NewLabelsFromMap(map[string]string{
+		Labels: promutil.NewLabelsFromMap(map[string]string{
 			"instance": "8.8.8.8",
 			"job":      "blackbox",
 		}),
@@ -318,7 +330,7 @@ scrape_configs:
 `
 	var cfg Config
 	if err := cfg.parseData([]byte(data), "sss"); err != nil {
-		t.Fatalf("cannot parase data: %s", err)
+		t.Fatalf("cannot parse data: %s", err)
 	}
 	sws := cfg.getFileSDScrapeWork(nil)
 	if !equalStaticConfigForScrapeWorks(sws, sws) {
@@ -459,11 +471,11 @@ scrape_configs:
   - files: ["testdata/file_sd.json", "testdata/file_sd*.yml"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://host1:80/abc/de",
+			ScrapeURL:      "http://host1/abc/de",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "host1:80",
 				"job":      "foo",
 				"qwe":      "rty",
@@ -471,11 +483,11 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://host2:80/abc/de",
+			ScrapeURL:      "http://host2/abc/de",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "host2:80",
 				"job":      "foo",
 				"qwe":      "rty",
@@ -487,7 +499,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "localhost:9090",
 				"job":      "foo",
 				"yml":      "test",
@@ -690,11 +702,11 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s:80/metrics",
+			ScrapeURL:      "http://s/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "s:80",
 				"job":      "aa",
 			}),
@@ -712,11 +724,11 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s:80/metrics",
+			ScrapeURL:      "http://s/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "s:80",
 				"job":      "aa",
 			}),
@@ -734,11 +746,11 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s:80/metrics",
+			ScrapeURL:      "http://s/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "s:80",
 				"job":      "aa",
 			}),
@@ -756,11 +768,11 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s:80/metrics",
+			ScrapeURL:      "http://s/metrics",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "s:80",
 				"job":      "aa",
 			}),
@@ -779,7 +791,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
@@ -801,11 +813,11 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"datacenter": "foobar",
 				"jobs":       "xxx",
 			}),
@@ -845,14 +857,14 @@ scrape_configs:
   - targets: [foobar]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:       "https://foo.bar:443/foo/bar?p=x%26y&p=%3D",
+			ScrapeURL:       "https://foo.bar/foo/bar?p=x%26y&p=%3D",
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
 			MaxScrapeSize:   maxScrapeSize.N,
 			HonorLabels:     true,
 			HonorTimestamps: true,
 			DenyRedirects:   true,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:443",
 				"job":      "foo",
 				"x":        "y",
@@ -861,14 +873,14 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:       "https://aaa:443/foo/bar?p=x%26y&p=%3D",
+			ScrapeURL:       "https://aaa/foo/bar?p=x%26y&p=%3D",
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
 			MaxScrapeSize:   maxScrapeSize.N,
 			HonorLabels:     true,
 			HonorTimestamps: true,
 			DenyRedirects:   true,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "aaa:443",
 				"job":      "foo",
 				"x":        "y",
@@ -877,22 +889,22 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://1.2.3.4:80/metrics",
+			ScrapeURL:      "http://1.2.3.4/metrics",
 			ScrapeInterval: 8 * time.Second,
 			ScrapeTimeout:  8 * time.Second,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "1.2.3.4:80",
 				"job":      "qwer",
 			}),
 			jobNameOriginal: "qwer",
 		},
 		{
-			ScrapeURL:      "http://foobar:80/metrics",
+			ScrapeURL:      "http://foobar/metrics",
 			ScrapeInterval: 8 * time.Second,
 			ScrapeTimeout:  8 * time.Second,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foobar:80",
 				"job":      "asdf",
 			}),
@@ -940,7 +952,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"hash":       "82",
 				"instance":   "foo.bar:1234",
 				"prefix:url": "http://foo.bar:1234/metrics",
@@ -982,7 +994,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "fake.addr",
 				"job":      "https",
 			}),
@@ -1016,7 +1028,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  1,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "3",
 			}),
@@ -1039,7 +1051,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  8 * 1024 * 1024,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
@@ -1057,7 +1069,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
@@ -1075,7 +1087,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
@@ -1103,16 +1115,16 @@ scrape_configs:
       job: yyy
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://pp:80/metrics?a=c&a=xy",
+			ScrapeURL:      "http://pp/metrics?a=c&a=xy",
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"foo":      "bar",
 				"instance": "pp:80",
 				"job":      "yyy",
 			}),
-			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+			ExternalLabels: promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "aaasdf",
 				"__param_a":   "jlfd",
 				"foo":         "xx",
@@ -1150,6 +1162,10 @@ scrape_configs:
         replacement: 127.0.0.1:9116  # The SNMP exporter's real hostname:port.
       - target_label: __series_limit__
         replacement: 1234
+      - target_label: __sample_limit__
+        replacement: 5678
+      - target_label: __label_limit__
+        replacement: 42
       - target_label: __stream_parse__
         replacement: true
 `, []*ScrapeWork{
@@ -1158,11 +1174,12 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "192.168.1.2",
 				"job":      "snmp",
 			}),
-			SampleLimit:         100,
+			SampleLimit:         5678,
+			LabelLimit:          42,
 			DisableKeepAlive:    true,
 			DisableCompression:  true,
 			StreamParse:         true,
@@ -1176,7 +1193,7 @@ scrape_configs:
 scrape_configs:
 - job_name: path wo slash
   enable_compression: false
-  static_configs: 
+  static_configs:
   - targets: ["foo.bar:1234"]
   relabel_configs:
   - replacement: metricspath
@@ -1187,7 +1204,7 @@ scrape_configs:
 			ScrapeInterval: defaultScrapeInterval,
 			ScrapeTimeout:  defaultScrapeTimeout,
 			MaxScrapeSize:  maxScrapeSize.N,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "path wo slash",
 			}),
@@ -1215,7 +1232,7 @@ scrape_configs:
 			ScrapeOffset:        time.Hour * 24 * 2,
 			MaxScrapeSize:       maxScrapeSize.N,
 			NoStaleMarkers:      true,
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
@@ -1238,7 +1255,7 @@ scrape_configs:
 			ScrapeTimeout:   defaultScrapeTimeout,
 			MaxScrapeSize:   maxScrapeSize.N,
 			jobNameOriginal: "foo",
-			Labels: promutils.NewLabelsFromMap(map[string]string{
+			Labels: promutil.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
 			}),
@@ -1281,7 +1298,7 @@ func TestScrapeConfigClone(t *testing.T) {
 	}
 	f(&ScrapeConfig{
 		JobName:        "foo",
-		ScrapeInterval: promutils.NewDuration(time.Second * 47),
+		ScrapeInterval: promutil.NewDuration(time.Second * 47),
 		HonorLabels:    true,
 		Params: map[string][]string{
 			"foo": {"bar", "baz"},
@@ -1349,4 +1366,139 @@ func checkEqualScrapeWorks(t *testing.T, got, want []*ScrapeWork) {
 			t.Fatalf("unexpected scrapeWork at position %d out of %d;\ngot\n%#v\nwant\n%#v", i, len(got), &gotItem, wantItem)
 		}
 	}
+}
+
+func TestStaticConfigWithGlobalRelabelConfigs(t *testing.T) {
+	f := func(data string, want []*ScrapeWork) {
+		t.Helper()
+		got, err := getStaticScrapeWork([]byte(data), "non-exsiting-file")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if len(got) != len(want) {
+			t.Fatalf("unexpected number of ScrapeWork items; got %d; want %d", len(got), len(want))
+		}
+
+		for i := range got {
+			gotItem := got[i]
+			wantItem := want[i]
+			if wantItem.RelabelConfigs.String() != gotItem.RelabelConfigs.String() {
+				t.Fatalf("unexpected relabel_config at scrape work idx=%d, want:\n%s\ngot:\n%s",
+					i, wantItem.RelabelConfigs.String(), gotItem.RelabelConfigs.String())
+			}
+			if wantItem.RelabelConfigs.String() != gotItem.RelabelConfigs.String() {
+				t.Fatalf("unexpected metric_relabel_config at scrape work idx=%d, want:\n%s\ngot:\n%s",
+					i, wantItem.MetricRelabelConfigs.String(), gotItem.MetricRelabelConfigs.String())
+			}
+		}
+	}
+	f(`
+global:
+  relabel_configs:
+  - target_label: job
+    replacement: bar
+scrape_configs:
+- job_name: foo
+  relabel_configs:
+  - target_label: bar
+    replacement: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+`, []*ScrapeWork{
+		{
+			jobNameOriginal: "foo",
+			ScrapeURL:       "foo.bar:1234",
+			RelabelConfigs: mustParseRelabelConfigs(`
+  - target_label: job
+    replacement: bar
+  - target_label: bar
+    replacement: foo
+          `),
+		},
+	})
+	f(`
+global:
+  relabel_configs:
+  - target_label: job
+    replacement: prefix_${1}
+    source_labels: [job]
+    regex: (.+)
+  metric_relabel_configs:
+  - source_labels: [id]
+    action: labeldrop
+scrape_configs:
+- job_name: foo
+  relabel_configs:
+  - target_label: bar
+    replacement: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+- job_name: bar
+  relabel_configs:
+  - target_label: baz
+    replacement: bar
+  metric_relabel_configs:
+  - source_labels: [mount_path]
+    replacement: ${2}
+    regex: '(\/.+)?\/(.+)'
+    target_label: mount_path
+  static_configs:
+  - targets: ["baz.bar:1235"]
+- job_name: baz
+  static_configs:
+  - targets: ["baz.bar:1235"]
+
+`, []*ScrapeWork{
+		{
+			jobNameOriginal: "foo",
+			ScrapeURL:       "foo.bar:1234",
+			RelabelConfigs: mustParseRelabelConfigs(`
+  - target_label: job
+    replacement: prefix_${1}
+    source_labels: [job]
+    regex: (.+)
+  - target_label: bar
+    replacement: foo
+          `),
+			MetricRelabelConfigs: mustParseRelabelConfigs(`
+  - source_labels: [id]
+    action: labeldrop
+          `),
+		},
+		{
+			jobNameOriginal: "bar",
+			ScrapeURL:       "baz.bar:1235",
+			RelabelConfigs: mustParseRelabelConfigs(`
+  - target_label: job
+    replacement: prefix_${1}
+    source_labels: [job]
+    regex: (.+)
+  - target_label: baz
+    replacement: bar
+          `),
+			MetricRelabelConfigs: mustParseRelabelConfigs(`
+  - source_labels: [id]
+    action: labeldrop
+  - source_labels: [mount_path]
+    replacement: ${2}
+    regex: '(\/.+)?\/(.+)'
+    target_label: mount_path
+          `),
+		},
+		{
+			jobNameOriginal: "baz",
+			ScrapeURL:       "baz.bar:1235",
+			RelabelConfigs: mustParseRelabelConfigs(`
+  - target_label: job
+    replacement: prefix_${1}
+    source_labels: [job]
+    regex: (.+)
+          `),
+			MetricRelabelConfigs: mustParseRelabelConfigs(`
+  - source_labels: [id]
+    action: labeldrop
+`),
+		},
+	})
+
 }

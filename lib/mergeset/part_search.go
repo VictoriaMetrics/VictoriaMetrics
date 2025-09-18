@@ -36,6 +36,19 @@ type partSearch struct {
 
 	ib        *inmemoryBlock
 	ibItemIdx int
+
+	sparse bool
+
+	// tmpIB contains temporary inmemoryBlock reused during partSearch requests
+	// It reduces memory allocations on cache misses
+	//
+	// tmpIB is valid until call to reset.
+	tmpIB *inmemoryBlock
+	// tmpIdB contains temporary indexBlock reused during partSearch requests
+	// It reduces memory allocations on cache misses
+	//
+	// tmpIdB is valid until call to reset.
+	tmpIdB *indexBlock
 }
 
 func (ps *partSearch) reset() {
@@ -50,17 +63,29 @@ func (ps *partSearch) reset() {
 
 	ps.sb.Reset()
 
+	ps.tmpIB.Reset()
+	ps.tmpIdB.buf = ps.tmpIdB.buf[:0]
+	ps.tmpIdB.bhs = ps.tmpIdB.bhs[:0]
+
 	ps.ib = nil
 	ps.ibItemIdx = 0
+	ps.sparse = false
 }
 
 // Init initializes ps for search in the p.
 //
 // Use Seek for search in p.
-func (ps *partSearch) Init(p *part) {
+func (ps *partSearch) Init(p *part, sparse bool) {
+	if ps.tmpIB == nil {
+		ps.tmpIB = &inmemoryBlock{}
+	}
+	if ps.tmpIdB == nil {
+		ps.tmpIdB = &indexBlock{}
+	}
 	ps.reset()
 
 	ps.p = p
+	ps.sparse = sparse
 }
 
 // Seek seeks for the first item greater or equal to k in ps.
@@ -272,7 +297,11 @@ func (ps *partSearch) nextBHS() error {
 			return fmt.Errorf("cannot read index block: %w", err)
 		}
 		b = idxb
-		idxbCache.PutBlock(idxbKey, b)
+		if idxbCache.TryPutBlock(idxbKey, b) {
+			// cannot re-used tmpIdB anymore
+			// it's now owned by idxbCache
+			ps.tmpIdB = &indexBlock{}
+		}
 	}
 	idxb := b.(*indexBlock)
 	ps.bhs = idxb.bhs
@@ -288,9 +317,8 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot decompress index block: %w", err)
 	}
-	idxb := &indexBlock{
-		buf: append([]byte{}, ps.indexBuf...),
-	}
+	idxb := ps.tmpIdB
+	idxb.buf = append(idxb.buf[:0], ps.indexBuf...)
 	idxb.bhs, err = unmarshalBlockHeadersNoCopy(idxb.bhs[:0], idxb.buf, int(mr.blockHeadersCount))
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal block headers from index block (offset=%d, size=%d): %w", mr.indexBlockOffset, mr.indexBlockSize, err)
@@ -299,18 +327,26 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 }
 
 func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) {
+	cache := ibCache
+	if ps.sparse {
+		cache = ibSparseCache
+	}
 	ibKey := blockcache.Key{
 		Part:   ps.p,
 		Offset: bh.itemsBlockOffset,
 	}
-	b := ibCache.GetBlock(ibKey)
+	b := cache.GetBlock(ibKey)
 	if b == nil {
 		ib, err := ps.readInmemoryBlock(bh)
 		if err != nil {
 			return nil, err
 		}
 		b = ib
-		ibCache.PutBlock(ibKey, b)
+		if cache.TryPutBlock(ibKey, b) {
+			// cannot re-used tmpIB anymore
+			// it's now owned by cache
+			ps.tmpIB = &inmemoryBlock{}
+		}
 	}
 	ib := b.(*inmemoryBlock)
 	return ib, nil
@@ -325,7 +361,8 @@ func (ps *partSearch) readInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error)
 	ps.sb.lensData = bytesutil.ResizeNoCopyMayOverallocate(ps.sb.lensData, int(bh.lensBlockSize))
 	ps.p.lensFile.MustReadAt(ps.sb.lensData, int64(bh.lensBlockOffset))
 
-	ib := &inmemoryBlock{}
+	ps.tmpIB.Reset()
+	ib := ps.tmpIB
 	if err := ib.UnmarshalData(&ps.sb, bh.firstItem, bh.commonPrefix, bh.itemsCount, bh.marshalType); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal storage block with %d items: %w", bh.itemsCount, err)
 	}

@@ -1,8 +1,8 @@
 import { ErrorTypes } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
 import { useEffect, useRef, useState } from "preact/compat";
-import { CardinalityRequestsParams, getCardinalityInfo } from "../../../api/tsdb";
-import { TSDBStatus } from "../types";
+import { CardinalityRequestsParams, getCardinalityInfo, getMetricNamesStats } from "../../../api/tsdb";
+import { MetricNameStats, TSDBStatus } from "../types";
 import AppConfigurator from "../appConfigurator";
 import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
@@ -25,20 +25,27 @@ export const useFetchQuery = (): {
   const topN = +(searchParams.get("topN") || 10);
   const date = searchParams.get("date") || dayjs().tz().format(DATE_FORMAT);
   const prevDate = usePrevious(date);
-  const prevTotal = useRef<{data: TSDBStatus}>();
+  const prevTotal = useRef<{ data: TSDBStatus }>();
 
   const { serverUrl } = useAppState();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
   const [tsdbStatus, setTSDBStatus] = useState<TSDBStatus>(appConfigurator.defaultTSDBStatus);
+  const [metricNamesStats, setMetricNamesStats] = useState<MetricNameStats>(appConfigurator.defaultMetricNameStats);
   const [isCluster, setIsCluster] = useState<boolean>(false);
 
   const getResponseJson = async (url: string) => {
     const response = await fetch(url);
+    const json = await response.json();
     if (response.ok) {
-      return await response.json();
+      return json;
     }
-    throw new Error(`Request failed with status ${response.status}`);
+    console.error(`Error fetching ${url}:`, json);
+
+    const errorType = json.errorType || ErrorTypes.unknownType;
+    const errorMessage = json?.error || json?.message || "see console for more details";
+    const error = [errorType, errorMessage].join("\r\n");
+    throw new Error(error);
   };
 
   const calculateDiffs = (result: TSDBStatus, prevResult: TSDBStatus) => {
@@ -50,7 +57,10 @@ export const useFetchQuery = (): {
       if (Array.isArray(entries) && Array.isArray(prevEntries)) {
         entries.forEach((entry) => {
           const valuePrev = prevEntries.find(prevEntry => prevEntry.name === entry.name)?.value;
-          entry.diff = valuePrev ? entry.value - valuePrev : 0;
+          const diff = valuePrev ? entry.value - valuePrev : 0;
+          const diffPercent = valuePrev ? (diff / valuePrev) * 100 : 0;
+          entry.diff = diff;
+          entry.diffPercent = diffPercent;
           entry.valuePrev = valuePrev || 0;
         });
       }
@@ -114,9 +124,31 @@ export const useFetchQuery = (): {
     }
   };
 
+  const fetchMetricNamesStats = async () => {
+    if (!serverUrl) return;
+    setError("");
+    setIsLoading(true);
+
+    const url = getMetricNamesStats(serverUrl, { limit: 1 });
+
+    try {
+      const resp = await getResponseJson(url);
+      setMetricNamesStats(resp);
+      setIsLoading(false);
+    } catch (e) {
+      setIsLoading(false);
+      setMetricNamesStats(appConfigurator.defaultMetricNameStats);
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchCardinalityInfo({ topN, match, date, focusLabel });
   }, [serverUrl, match, focusLabel, topN, date]);
+
+  useEffect(() => {
+    fetchMetricNamesStats();
+  }, [serverUrl]);
 
   useEffect(() => {
     if (error) {
@@ -132,5 +164,6 @@ export const useFetchQuery = (): {
 
 
   appConfigurator.tsdbStatusData = tsdbStatus;
+  appConfigurator.metricNameStatsData = metricNamesStats;
   return { isLoading, appConfigurator: appConfigurator, error, isCluster };
 };

@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import { ChangeEvent } from "react";
 import Button from "../Main/Button/Button";
 import "./style.scss";
@@ -16,17 +16,20 @@ const UploadJsonButtons: FC<Props> = ({ onOpenModal, onChange }) => (
     >
       Paste JSON
     </Button>
-    <Button>
-      Upload Files
+    <div className="vm-upload-json-buttons__upload">
+      <Button>
+        Upload Files
+      </Button>
       <input
         id="json"
+        name="json"
         type="file"
         accept="application/json"
         multiple
         title=" "
         onChange={onChange}
       />
-    </Button>
+    </div>
   </div>
 );
 

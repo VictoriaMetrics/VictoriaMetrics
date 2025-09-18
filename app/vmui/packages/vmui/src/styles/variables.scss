@@ -2,9 +2,17 @@
 $color-primary: var(--color-primary);
 $color-secondary: var(--color-secondary);
 $color-error: var(--color-error);
+$color-background-error: var(--color-background-error);
 $color-warning: var(--color-warning);
+$color-background-warning: var(--color-background-warning);
 $color-info: var(--color-info);
+$color-background-info: var(--color-background-info);
 $color-success: var(--color-success);
+$color-background-success: var(--color-background-success);
+$color-notice: var(--color-notice);
+$color-passive: var(--color-passive);
+$color-broken: var(--color-broken);
+$color-keyword: var(--color-keyword);
 
 $color-primary-text: var(--color-primary-text);
 $color-secondary-text: var(--color-secondary-text);
@@ -12,6 +20,7 @@ $color-error-text: var(--color-error-text);
 $color-warning-text: var(--color-warning-text);
 $color-info-text: var(--color-info-text);
 $color-success-text: var(--color-success-text);
+$color-code: var(--color-code);
 
 $color-text: var(--color-text);
 $color-text-secondary: var(--color-text-secondary);
@@ -28,14 +37,20 @@ $color-tropical-blue: #C9E3F6;
 $color-background-body: var(--color-background-body);
 $color-background-block: var(--color-background-block);
 $color-background-tooltip: var(--color-background-tooltip);
-
+$color-background-item: var(--color-background-item);
+$color-background-badge: var(--color-background-badge);
+$color-background-hover: var(--color-background-hover);
 
 /************* padding *************/
 $padding-global: 12px;
 $padding-large: 16px;
 $padding-medium: 12px;
 $padding-small: 8px;
+$padding-tiny: 6px;
 
+
+/************* line height *************/
+$line-height-table: 40px;
 
 /************* fonts *************/
 $font-family-global: system-ui;
@@ -61,4 +76,5 @@ $box-shadow: var(--box-shadow);
 $box-shadow-popper: var(--box-shadow-popper);
 
 $color-hover-black: var(--color-hover-black);
+$color-hover-darker: var(--color-hover-darker);
 $vh: var(--vh);

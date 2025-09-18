@@ -6,7 +6,7 @@ import "context"
 // to be sent.
 type blackHoleNotifier struct {
 	addr    string
-	metrics *metrics
+	metrics *notifierMetrics
 }
 
 // Send will send no notifications, but increase the metric.
@@ -22,8 +22,12 @@ func (bh blackHoleNotifier) Addr() string {
 
 // Close unregister the metrics
 func (bh *blackHoleNotifier) Close() {
-	bh.metrics.alertsSent.Unregister()
-	bh.metrics.alertsSendErrors.Unregister()
+	bh.metrics.close()
+}
+
+// LastError return last notifier's error
+func (bh *blackHoleNotifier) LastError() string {
+	return ""
 }
 
 // newBlackHoleNotifier creates a new blackHoleNotifier
@@ -31,6 +35,6 @@ func newBlackHoleNotifier() *blackHoleNotifier {
 	address := "blackhole"
 	return &blackHoleNotifier{
 		addr:    address,
-		metrics: newMetrics(address),
+		metrics: newNotifierMetrics(address),
 	}
 }

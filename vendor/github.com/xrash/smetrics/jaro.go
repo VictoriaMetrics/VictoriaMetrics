@@ -75,7 +75,7 @@ func Jaro(a, b string) float64 {
 	}
 
 	// The number of unaligned matches divided by two, is the number of _transpositions_.
-	transpositions := math.Floor(float64(unaligned / 2))
+	transpositions := math.Floor(float64(unaligned) / 2)
 
 	// Jaro distance is the average between these three numbers:
 	// 1. matches / length of string A

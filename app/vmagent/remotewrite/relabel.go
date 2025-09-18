@@ -7,10 +7,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -19,22 +22,69 @@ var (
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabeling configs, which are applied "+
 		"to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. "+
 		"The path can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/vmagent/#relabeling")
+		"See https://docs.victoriametrics.com/victoriametrics/relabeling/")
 	relabelConfigPaths = flagutil.NewArrayString("remoteWrite.urlRelabelConfig", "Optional path to relabel configs for the corresponding -remoteWrite.url. "+
 		"See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/vmagent/#relabeling")
+		"See https://docs.victoriametrics.com/victoriametrics/relabeling/")
 
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
 		"See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels")
 )
 
-var labelsGlobal []prompbmarshal.Label
+var labelsGlobal []prompb.Label
+
+var (
+	relabelConfigReloads      *metrics.Counter
+	relabelConfigReloadErrors *metrics.Counter
+	relabelConfigSuccess      *metrics.Gauge
+	relabelConfigTimestamp    *metrics.Counter
+)
+
+func initRelabelMetrics() {
+	relabelConfigReloads = metrics.NewCounter(`vmagent_relabel_config_reloads_total`)
+	relabelConfigReloadErrors = metrics.NewCounter(`vmagent_relabel_config_reloads_errors_total`)
+	relabelConfigSuccess = metrics.NewGauge(`vmagent_relabel_config_last_reload_successful`, nil)
+	relabelConfigTimestamp = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
+}
 
 // CheckRelabelConfigs checks -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig.
 func CheckRelabelConfigs() error {
 	_, err := loadRelabelConfigs()
 	return err
+}
+
+func initRelabelConfigs() {
+	rcs, err := loadRelabelConfigs()
+	if err != nil {
+		logger.Fatalf("cannot initialize relabel configs: %s", err)
+	}
+	allRelabelConfigs.Store(rcs)
+	if rcs.isSet() {
+		initRelabelMetrics()
+		relabelConfigSuccess.Set(1)
+		relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
+	}
+}
+
+func reloadRelabelConfigs() {
+	rcs := allRelabelConfigs.Load()
+	if !rcs.isSet() {
+		return
+	}
+	relabelConfigReloads.Inc()
+	logger.Infof("reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
+	rcs, err := loadRelabelConfigs()
+	if err != nil {
+		relabelConfigReloadErrors.Inc()
+		relabelConfigSuccess.Set(0)
+		logger.Errorf("cannot reload relabel configs; preserving the previous configs; error: %s", err)
+		return
+	}
+	allRelabelConfigs.Store(rcs)
+	relabelConfigSuccess.Set(1)
+	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
+	logger.Infof("successfully reloaded relabel configs")
 }
 
 func loadRelabelConfigs() (*relabelConfigs, error) {
@@ -70,6 +120,21 @@ type relabelConfigs struct {
 	perURL []*promrelabel.ParsedConfigs
 }
 
+func (rcs *relabelConfigs) isSet() bool {
+	if rcs == nil {
+		return false
+	}
+	if rcs.global.Len() > 0 {
+		return true
+	}
+	for _, pc := range rcs.perURL {
+		if pc.Len() > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // initLabelsGlobal must be called after parsing command-line flags.
 func initLabelsGlobal() {
 	labelsGlobal = nil
@@ -81,14 +146,14 @@ func initLabelsGlobal() {
 		if n < 0 {
 			logger.Fatalf("missing '=' in `-remoteWrite.label`. It must contain label in the form `name=value`; got %q", s)
 		}
-		labelsGlobal = append(labelsGlobal, prompbmarshal.Label{
+		labelsGlobal = append(labelsGlobal, prompb.Label{
 			Name:  s[:n],
 			Value: s[n+1:],
 		})
 	}
 }
 
-func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *promrelabel.ParsedConfigs) []prompbmarshal.TimeSeries {
+func (rctx *relabelCtx) applyRelabeling(tss []prompb.TimeSeries, pcs *promrelabel.ParsedConfigs) []prompb.TimeSeries {
 	if pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// Nothing to change.
 		return tss
@@ -109,7 +174,7 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *pro
 		if *usePromCompatibleNaming {
 			fixPromCompatibleNaming(labels[labelsLen:])
 		}
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
+		tssDst = append(tssDst, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: ts.Samples,
 		})
@@ -118,7 +183,7 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, pcs *pro
 	return tssDst
 }
 
-func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label) {
+func (rctx *relabelCtx) appendExtraLabels(tss []prompb.TimeSeries, extraLabels []prompb.Label) {
 	if len(extraLabels) == 0 {
 		return
 	}
@@ -142,7 +207,7 @@ func (rctx *relabelCtx) appendExtraLabels(tss []prompbmarshal.TimeSeries, extraL
 	rctx.labels = labels
 }
 
-func (rctx *relabelCtx) tenantToLabels(tss []prompbmarshal.TimeSeries, accountID, projectID uint32) {
+func (rctx *relabelCtx) tenantToLabels(tss []prompb.TimeSeries, accountID, projectID uint32) {
 	rctx.reset()
 	accountIDStr := strconv.FormatUint(uint64(accountID), 10)
 	projectIDStr := strconv.FormatUint(uint64(projectID), 10)
@@ -157,11 +222,11 @@ func (rctx *relabelCtx) tenantToLabels(tss []prompbmarshal.TimeSeries, accountID
 			}
 			labels = append(labels, label)
 		}
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  "vm_account_id",
 			Value: accountIDStr,
 		})
-		labels = append(labels, prompbmarshal.Label{
+		labels = append(labels, prompb.Label{
 			Name:  "vm_project_id",
 			Value: projectIDStr,
 		})
@@ -172,7 +237,7 @@ func (rctx *relabelCtx) tenantToLabels(tss []prompbmarshal.TimeSeries, accountID
 
 type relabelCtx struct {
 	// pool for labels, which are used during the relabeling.
-	labels []prompbmarshal.Label
+	labels []prompb.Label
 }
 
 func (rctx *relabelCtx) reset() {
@@ -195,7 +260,7 @@ func putRelabelCtx(rctx *relabelCtx) {
 	relabelCtxPool.Put(rctx)
 }
 
-func fixPromCompatibleNaming(labels []prompbmarshal.Label) {
+func fixPromCompatibleNaming(labels []prompb.Label) {
 	// Replace unsupported Prometheus chars in label names and metric names with underscores.
 	for i := range labels {
 		label := &labels[i]

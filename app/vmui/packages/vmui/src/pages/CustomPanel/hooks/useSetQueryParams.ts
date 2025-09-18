@@ -72,6 +72,16 @@ export const useSetQueryParams = () => {
         newSearchParams.set(`${group}.tenantID`, tenantId);
       }
     });
+
+    // Remove extra parameters that exceed the request size
+    const maxIndex = query.length - 1;
+    Array.from(newSearchParams.keys()).forEach(key => {
+      const match = key.match(/^g(\d+)\./);
+      if (match && parseInt(match[1], 10) > maxIndex) {
+        newSearchParams.delete(key);
+      }
+    });
+
     if (isEqualURLSearchParams(newSearchParams, searchParams) || !newSearchParams.size) return;
     setSearchParams(newSearchParams);
   }, [tenantId, displayType, query, duration, relativeTime, date, step, customStep]);

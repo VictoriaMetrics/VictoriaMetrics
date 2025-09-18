@@ -15,25 +15,28 @@ import (
 
 	"github.com/golang/snappy"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var defaultConcurrency = cgroup.AvailableCPUs() * 2
+
 const (
-	defaultConcurrency   = 4
-	defaultMaxBatchSize  = 1e3
+	defaultMaxBatchSize  = 1e4
 	defaultMaxQueueSize  = 1e5
-	defaultFlushInterval = 5 * time.Second
+	defaultFlushInterval = 2 * time.Second
 	defaultWriteTimeout  = 30 * time.Second
 )
 
 var (
 	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
 	sendTimeout       = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
-	retryMinInterval  = flag.Duration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMinInterval  = flag.Duration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime")
 	retryMaxTime      = flag.Duration("remoteWrite.retryMaxTime", time.Second*30, "The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 )
 
@@ -43,7 +46,7 @@ type Client struct {
 	addr          string
 	c             *http.Client
 	authCfg       *promauth.Config
-	input         chan prompbmarshal.TimeSeries
+	input         chan prompb.TimeSeries
 	flushInterval time.Duration
 	maxBatchSize  int
 	maxQueueSize  int
@@ -90,7 +93,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		cfg.FlushInterval = defaultFlushInterval
 	}
 	if cfg.Transport == nil {
-		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
+		cfg.Transport = httputil.NewTransport(false, "vmalert_remotewrite")
 	}
 	cc := defaultConcurrency
 	if cfg.Concurrency > 0 {
@@ -107,7 +110,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		maxBatchSize:  cfg.MaxBatchSize,
 		maxQueueSize:  cfg.MaxQueueSize,
 		doneCh:        make(chan struct{}),
-		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
+		input:         make(chan prompb.TimeSeries, cfg.MaxQueueSize),
 	}
 
 	for i := 0; i < cc; i++ {
@@ -118,7 +121,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 
 // Push adds timeseries into queue for writing into remote storage.
 // Push returns and error if client is stopped or if queue is full.
-func (c *Client) Push(s prompbmarshal.TimeSeries) error {
+func (c *Client) Push(s prompb.TimeSeries) error {
 	rwTotal.Inc()
 	select {
 	case <-c.doneCh:
@@ -143,31 +146,31 @@ func (c *Client) Close() error {
 		return fmt.Errorf("client is already closed")
 	}
 	close(c.input)
+
+	start := time.Now()
+	logger.Infof("shutting down remote write client: flushing remained series")
 	close(c.doneCh)
 	c.wg.Wait()
+	logger.Infof("shutting down remote write client: finished in %v", time.Since(start))
+
 	return nil
 }
 
 func (c *Client) run(ctx context.Context) {
 	ticker := time.NewTicker(c.flushInterval)
-	wr := &prompbmarshal.WriteRequest{}
+	wr := &prompb.WriteRequest{}
 	shutdown := func() {
 		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
-		logger.Infof("shutting down remote write client and flushing remained series")
 
-		shutdownFlushCnt := 0
 		for ts := range c.input {
 			wr.Timeseries = append(wr.Timeseries, ts)
 			if len(wr.Timeseries) >= c.maxBatchSize {
-				shutdownFlushCnt += len(wr.Timeseries)
 				c.flush(lastCtx, wr)
 			}
 		}
 		// flush the last batch. `flush` will re-check and avoid flushing empty batch.
-		shutdownFlushCnt += len(wr.Timeseries)
 		c.flush(lastCtx, wr)
 
-		logger.Infof("shutting down remote write client flushed %d series", shutdownFlushCnt)
 		cancel()
 	}
 	c.wg.Add(1)
@@ -213,12 +216,12 @@ var (
 )
 
 // GetDroppedRows returns value of droppedRows metric
-func GetDroppedRows() int64 { return int64(droppedRows.Get()) }
+func GetDroppedRows() int { return int(droppedRows.Get()) }
 
 // flush is a blocking function that marshals WriteRequest and sends
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
-func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
+func (c *Client) flush(ctx context.Context, wr *prompb.WriteRequest) {
 	if len(wr.Timeseries) < 1 {
 		return
 	}

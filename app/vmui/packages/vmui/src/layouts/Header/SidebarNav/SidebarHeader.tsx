@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef } from "preact/compat";
+import { FC, useEffect, useRef } from "preact/compat";
 import { useLocation } from "react-router-dom";
 import ShortcutKeys from "../../../components/Main/ShortcutKeys/ShortcutKeys";
 import classNames from "classnames";
@@ -8,15 +8,11 @@ import MenuBurger from "../../../components/Main/MenuBurger/MenuBurger";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
-import { AppType } from "../../../types/appType";
 
 interface SidebarHeaderProps {
   background: string
   color: string
 }
-
-const { REACT_APP_TYPE } = process.env;
-const isLogsApp = REACT_APP_TYPE === AppType.logs;
 
 const SidebarHeader: FC<SidebarHeaderProps> = ({
   background,
@@ -56,7 +52,7 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         "vm-header-sidebar-menu_open": openMenu
       })}
     >
-      <div>
+      <div className="vm-header-sidebar-scrollable">
         <HeaderNav
           color={color}
           background={background}
@@ -64,7 +60,7 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         />
       </div>
       <div className="vm-header-sidebar-menu-settings">
-        {!isMobile && !isLogsApp && <ShortcutKeys showTitle={true}/>}
+        {!isMobile && <ShortcutKeys showTitle={true}/>}
       </div>
     </div>
   </div>;

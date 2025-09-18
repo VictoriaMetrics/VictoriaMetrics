@@ -122,6 +122,14 @@ again:
 		}
 		goto tokenFoundLabel
 	}
+	if strings.HasPrefix(s, "$__interval") {
+		lex.sTail = s[len("$__interval"):]
+		return "$__interval", nil
+	}
+	if strings.HasPrefix(s, "$__rate_interval") {
+		lex.sTail = s[len("$__rate_interval"):]
+		return "$__interval", nil
+	}
 	return "", fmt.Errorf("cannot recognize %q", s)
 
 tokenFoundLabel:
@@ -387,6 +395,29 @@ func unescapeIdent(s string) string {
 	}
 }
 
+func hasEscapedChars(s string) bool {
+	i := 0
+	for i < len(s) {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if i == 0 && !isFirstIdentChar(r) || i > 0 && !isIdentChar(r) {
+			return true
+		}
+		i += size
+	}
+	return false
+}
+
+func appendQuotedIdent(dst []byte, s string) []byte {
+	dst = utf8.AppendRune(dst, '"')
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		dst = utf8.AppendRune(dst, r)
+		i += size
+	}
+	dst = utf8.AppendRune(dst, '"')
+	return dst
+}
+
 func appendEscapedIdent(dst []byte, s string) []byte {
 	i := 0
 	for i < len(s) {
@@ -399,6 +430,13 @@ func appendEscapedIdent(dst []byte, s string) []byte {
 		i += size
 	}
 	return dst
+}
+
+func ifEscapedCharsAppendQuotedIdent(dst []byte, s string) []byte {
+	if hasEscapedChars(s) {
+		return appendQuotedIdent(dst, s)
+	}
+	return appendEscapedIdent(dst, s)
 }
 
 func (lex *lexer) Prev() {
@@ -496,6 +534,9 @@ func scanSpecialIntegerPrefix(s string) (skipChars int, isHex bool) {
 }
 
 func isPositiveDuration(s string) bool {
+	if s == "$__interval" {
+		return true
+	}
 	n := scanDuration(s)
 	return n == len(s)
 }
@@ -557,13 +598,22 @@ func DurationValue(s string, step int64) (int64, error) {
 			isMinus = true
 		}
 	}
-	if math.Abs(d) > 1<<63-1 {
-		return 0, fmt.Errorf("too big duration %.0fms", d)
+	if d > math.MaxInt64 {
+		// Truncate too big durations. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8447
+		return math.MaxInt64, nil
+	}
+	if d < math.MinInt64 {
+		// Truncate too small durations. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8447
+		return math.MinInt64, nil
 	}
 	return int64(d), nil
 }
 
 func parseSingleDuration(s string, step int64) (float64, error) {
+	if s == "$__interval" {
+		return float64(step), nil
+	}
+
 	s = strings.ToLower(s)
 	numPart := s[:len(s)-1]
 	// Strip trailing m if the duration is in ms
@@ -575,25 +625,25 @@ func parseSingleDuration(s string, step int64) (float64, error) {
 	var mp float64
 	switch s[len(numPart):] {
 	case "ms":
-		mp = 1e-3
-	case "s":
 		mp = 1
+	case "s":
+		mp = 1000
 	case "m":
-		mp = 60
+		mp = 60 * 1000
 	case "h":
-		mp = 60 * 60
+		mp = 60 * 60 * 1000
 	case "d":
-		mp = 24 * 60 * 60
+		mp = 24 * 60 * 60 * 1000
 	case "w":
-		mp = 7 * 24 * 60 * 60
+		mp = 7 * 24 * 60 * 60 * 1000
 	case "y":
-		mp = 365 * 24 * 60 * 60
+		mp = 365 * 24 * 60 * 60 * 1000
 	case "i":
-		mp = float64(step) / 1e3
+		mp = float64(step)
 	default:
 		return 0, fmt.Errorf("invalid duration suffix in %q", s)
 	}
-	return mp * f * 1e3, nil
+	return mp * f, nil
 }
 
 // scanDuration scans duration, which must start with positive num.
@@ -625,6 +675,9 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 	i := 0
 	if s[0] == '-' && canBeNegative {
 		i++
+	}
+	if s[i:] == "$__interval" {
+		return i + len("$__interval")
 	}
 	for i < len(s) && isDecimalChar(s[i]) {
 		i++

@@ -1,4 +1,3 @@
-import React from "preact/compat";
 import classNames from "classnames";
 import "./style.scss";
 

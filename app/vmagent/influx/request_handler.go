@@ -10,11 +10,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -35,8 +35,8 @@ var (
 // InsertHandlerForReader processes remote write for influx line protocol.
 //
 // See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
-func InsertHandlerForReader(at *auth.Token, r io.Reader, isGzipped bool) error {
-	return stream.Parse(r, isGzipped, "", "", func(db string, rows []parser.Row) error {
+func InsertHandlerForReader(at *auth.Token, r io.Reader, encoding string) error {
+	return stream.Parse(r, encoding, true, "", "", func(db string, rows []influx.Row) error {
 		return insertRows(at, db, rows, nil)
 	})
 }
@@ -45,21 +45,22 @@ func InsertHandlerForReader(at *auth.Token, r io.Reader, isGzipped bool) error {
 //
 // See https://github.com/influxdata/influxdb/blob/4cbdc197b8117fee648d62e2e5be75c6575352f0/tsdb/README.md
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 	q := req.URL.Query()
 	precision := q.Get("precision")
 	// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
 	db := q.Get("db")
-	return stream.Parse(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	isStreamMode := req.Header.Get("Stream-Mode") == "1"
+	return stream.Parse(req.Body, encoding, isStreamMode, precision, db, func(db string, rows []influx.Row) error {
 		return insertRows(at, db, rows, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prompb.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -79,13 +80,13 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 			if tag.Key == *dbLabel {
 				hasDBKey = true
 			}
-			commonLabels = append(commonLabels, prompbmarshal.Label{
+			commonLabels = append(commonLabels, prompb.Label{
 				Name:  tag.Key,
 				Value: tag.Value,
 			})
 		}
 		if len(db) > 0 && !hasDBKey {
-			commonLabels = append(commonLabels, prompbmarshal.Label{
+			commonLabels = append(commonLabels, prompb.Label{
 				Name:  *dbLabel,
 				Value: db,
 			})
@@ -109,16 +110,16 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 			}
 			metricGroup := bytesutil.ToUnsafeString(buf[bufLen:])
 			labelsLen := len(labels)
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  "__name__",
 				Value: metricGroup,
 			})
 			labels = append(labels, commonLabels...)
-			samples = append(samples, prompbmarshal.Sample{
+			samples = append(samples, prompb.Sample{
 				Timestamp: r.Timestamp,
 				Value:     f.Value,
 			})
-			tssDst = append(tssDst, prompbmarshal.TimeSeries{
+			tssDst = append(tssDst, prompb.TimeSeries{
 				Labels:  labels[labelsLen:],
 				Samples: samples[len(samples)-1:],
 			})
@@ -143,7 +144,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 
 type pushCtx struct {
 	ctx            common.PushCtx
-	commonLabels   []prompbmarshal.Label
+	commonLabels   []prompb.Label
 	metricGroupBuf []byte
 	buf            []byte
 }

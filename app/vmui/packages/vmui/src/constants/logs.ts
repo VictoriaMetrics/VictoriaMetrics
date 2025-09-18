@@ -1,2 +1,3 @@
-export const LOGS_ENTRIES_LIMIT = 50;
-export const LOGS_BARS_VIEW = 20;
+// "Ungrouped" is a string that is used as a value for the "groupBy" parameter.
+export const WITHOUT_GROUPING = "Ungrouped";
+

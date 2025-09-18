@@ -3,10 +3,10 @@ GOARCH ?= $(shell go env GOARCH)
 GOOS_GOARCH := $(GOOS)_$(GOARCH)
 GOOS_GOARCH_NATIVE := $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 LIBZSTD_NAME := libzstd_$(GOOS_GOARCH).a
-ZSTD_VERSION ?= v1.5.6
-ZIG_BUILDER_IMAGE=euantorano/zig:0.10.1
-BUILDER_IMAGE := local/builder_musl:2.0.0-$(shell echo $(ZIG_BUILDER_IMAGE) | tr : _ | tr / _)-1
-
+ZSTD_VERSION ?= v1.5.7
+ZIG_VERSION ?= 0.15.1
+BASE_IMAGE ?= alpine:latest
+BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(BASE_IMAGE) | tr : _ | tr / _)-zig-$(ZIG_VERSION)
 .PHONY: libzstd.a $(LIBZSTD_NAME)
 
 libzstd.a: $(LIBZSTD_NAME)
@@ -21,6 +21,8 @@ else ifeq ($(GOOS_GOARCH),linux_arm)
 	TARGET=arm-linux-gnueabi GOARCH=arm GOOS=linux $(MAKE) package-arch
 else ifeq ($(GOOS_GOARCH),linux_arm64)
 	TARGET=aarch64-linux GOARCH=arm64 GOOS=linux $(MAKE) package-arch
+else ifeq ($(GOOS_GOARCH),linux_ppc64le)
+	TARGET=x86_64-linux GOARCH=ppc64le GOOS=linux $(MAKE) package-arch
 else ifeq ($(GOOS_GOARCH),linux_musl_amd64)
 	TARGET=x86_64-linux-musl GOARCH=amd64 GOOS=linux_musl $(MAKE) package-arch
 else ifeq ($(GOOS_GOARCH),linux_musl_arm64)
@@ -30,13 +32,16 @@ else ifeq ($(GOOS_GOARCH),darwin_arm64)
 else ifeq ($(GOOS_GOARCH),darwin_amd64)
 	TARGET=x86_64-macos GOARCH=amd64 GOOS=darwin $(MAKE) package-arch
 else ifeq ($(GOOS_GOARCH),windows_amd64)
-	TARGET=x86_64-windows GOARCH=amd64 GOOS=windows GOARCH=amd64 $(MAKE) package-arch
+	TARGET=x86_64-windows GOARCH=amd64 GOOS=windows $(MAKE) package-arch
+else ifeq ($(GOOS_GOARCH),freebsd_amd64)
+	TARGET=x86_64-freebsd GOARCH=amd64 GOOS=freebsd $(MAKE) package-arch
 endif
 
 package-builder:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BUILDER_IMAGE)$$') \
 		|| docker build \
-			--build-arg builder_image=$(ZIG_BUILDER_IMAGE) \
+			--build-arg builder_image=$(BASE_IMAGE) \
+			--build-arg zig_version=$(ZIG_VERSION) \
 			--tag $(BUILDER_IMAGE) \
 			builder
 
@@ -52,19 +57,22 @@ package-arch: package-builder
 			CC="zig cc -target $(TARGET)" \
 			CXX="zig cc -target $(TARGET)" \
 			MOREFLAGS=$(MOREFLAGS) \
-			$(MAKE) clean libzstd.a'
+			RM="rm -rf --" \
+			make clean libzstd.a'
 	mv -f zstd/lib/libzstd.a $(LIBZSTD_NAME)
 
-# freebsd and illumos aren't supported by zig compiler atm.
+# illumos isn't supported by zig compiler atm.
 release:
 	GOOS=linux GOARCH=amd64 $(MAKE) libzstd.a
 	GOOS=linux GOARCH=arm64 $(MAKE) libzstd.a
 	GOOS=linux GOARCH=arm $(MAKE) libzstd.a
+	GOOS=linux GOARCH=ppc64le $(MAKE) libzstd.a
 	GOOS=linux_musl GOARCH=amd64 $(MAKE) libzstd.a
 	GOOS=linux_musl GOARCH=arm64 $(MAKE) libzstd.a
 	GOOS=darwin GOARCH=arm64 $(MAKE) libzstd.a
 	GOOS=darwin GOARCH=amd64 $(MAKE) libzstd.a
 	GOOS=windows GOARCH=amd64 $(MAKE) libzstd.a
+	GOOS=freebsd GOARCH=amd64 $(MAKE) libzstd.a
 
 clean:
 	rm -f $(LIBZSTD_NAME)
@@ -76,10 +84,10 @@ update-zstd:
 	rm -rf zstd-tmp/.git
 	rm -rf zstd
 	mv zstd-tmp zstd
-	$(MAKE) clean libzstd.a
 	cp zstd/lib/zstd.h .
 	cp zstd/lib/zdict.h .
 	cp zstd/lib/zstd_errors.h .
+	$(MAKE) release
 
 test:
 	CGO_ENABLED=1 GOEXPERIMENT=cgocheck2 go test -v

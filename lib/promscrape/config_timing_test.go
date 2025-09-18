@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func BenchmarkGetScrapeWork(b *testing.B) {
@@ -16,11 +16,11 @@ func BenchmarkGetScrapeWork(b *testing.B) {
 		scrapeTimeoutString:  "10s",
 	}
 	target := "host1.com:1234"
-	extraLabels := promutils.NewLabelsFromMap(map[string]string{
+	extraLabels := promutil.NewLabelsFromMap(map[string]string{
 		"env":        "prod",
 		"datacenter": "dc-foo",
 	})
-	metaLabels := promutils.NewLabelsFromMap(map[string]string{
+	metaLabels := promutil.NewLabelsFromMap(map[string]string{
 		"__meta_foo":                         "bar",
 		"__meta_kubernetes_namespace":        "default",
 		"__address__":                        "foobar.com",

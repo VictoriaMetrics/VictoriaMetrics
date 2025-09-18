@@ -29,25 +29,37 @@ type manager struct {
 	groups   map[uint64]*rule.Group
 }
 
-// ruleAPI generates apiRule object from alert by its ID(hash)
-func (m *manager) ruleAPI(gID, rID uint64) (apiRule, error) {
+// groupAPI generates apiGroup object from group by its ID(hash)
+func (m *manager) groupAPI(gID uint64) (*rule.ApiGroup, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
 	g, ok := m.groups[gID]
 	if !ok {
-		return apiRule{}, fmt.Errorf("can't find group with id %d", gID)
+		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
-	for _, rule := range g.Rules {
-		if rule.ID() == rID {
-			return ruleToAPI(rule), nil
+	return g.ToAPI(), nil
+}
+
+// ruleAPI generates apiRule object from alert by its ID(hash)
+func (m *manager) ruleAPI(gID, rID uint64) (rule.ApiRule, error) {
+	m.groupsMu.RLock()
+	defer m.groupsMu.RUnlock()
+
+	g, ok := m.groups[gID]
+	if !ok {
+		return rule.ApiRule{}, fmt.Errorf("can't find group with id %d", gID)
+	}
+	for _, r := range g.Rules {
+		if r.ID() == rID {
+			return r.ToAPI(), nil
 		}
 	}
-	return apiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
+	return rule.ApiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
 }
 
 // alertAPI generates apiAlert object from alert by its ID(hash)
-func (m *manager) alertAPI(gID, aID uint64) (*apiAlert, error) {
+func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
@@ -60,7 +72,7 @@ func (m *manager) alertAPI(gID, aID uint64) (*apiAlert, error) {
 		if !ok {
 			continue
 		}
-		if apiAlert := alertToAPI(ar, aID); apiAlert != nil {
+		if apiAlert := ar.AlertToAPI(aID); apiAlert != nil {
 			return apiAlert, nil
 		}
 	}
@@ -83,7 +95,8 @@ func (m *manager) close() {
 
 func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
 	m.wg.Add(1)
-	id := g.ID()
+	id := g.GetID()
+	g.Init()
 	go func() {
 		defer m.wg.Done()
 		if restore {
@@ -112,7 +125,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 			}
 		}
 		ng := rule.NewGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
-		groupsRegistry[ng.ID()] = ng
+		groupsRegistry[ng.GetID()] = ng
 	}
 
 	if rrPresent && m.rw == nil {
@@ -130,17 +143,17 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 
 	m.groupsMu.Lock()
 	for _, og := range m.groups {
-		ng, ok := groupsRegistry[og.ID()]
+		ng, ok := groupsRegistry[og.GetID()]
 		if !ok {
 			// old group is not present in new list,
 			// so must be stopped and deleted
 			og.Close()
-			delete(m.groups, og.ID())
+			delete(m.groups, og.GetID())
 			og = nil
 			continue
 		}
-		delete(groupsRegistry, ng.ID())
-		if og.Checksum != ng.Checksum {
+		delete(groupsRegistry, ng.GetID())
+		if og.GetCheckSum() != ng.GetCheckSum() {
 			toUpdate = append(toUpdate, updateItem{old: og, new: ng})
 		}
 	}
@@ -160,8 +173,8 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 			// it is important to call InterruptEval before the update, because cancel fn
 			// can be re-assigned during the update.
 			item.old.InterruptEval()
-			go func(old *rule.Group, new *rule.Group) {
-				old.UpdateWith(new)
+			go func(oldGroup *rule.Group, newGroup *rule.Group) {
+				oldGroup.UpdateWith(newGroup)
 				wg.Done()
 			}(item.old, item.new)
 		}

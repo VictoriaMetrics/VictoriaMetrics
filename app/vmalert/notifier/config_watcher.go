@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 // configWatcher supports dynamic reload of Notifier objects
@@ -53,8 +54,11 @@ func (cw *configWatcher) notifiers() []Notifier {
 		for _, n := range ns {
 			notifiers = append(notifiers, n.Notifier)
 		}
-
 	}
+	// deterministically sort the output
+	sort.Slice(notifiers, func(i, j int) bool {
+		return notifiers[i].Addr() < notifiers[j].Addr()
+	})
 	return notifiers
 }
 
@@ -85,12 +89,12 @@ func (cw *configWatcher) reload(path string) error {
 }
 
 func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn getLabels) error {
-	targets, errors := targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
+	targetMetadata, errors := getTargetMetadata(labelsFn, cw.cfg)
 	for _, err := range errors {
 		return fmt.Errorf("failed to init notifier for %q: %w", typeK, err)
 	}
 
-	cw.setTargets(typeK, targets)
+	cw.updateTargets(typeK, targetMetadata, cw.cfg, cw.genFn)
 
 	cw.wg.Add(1)
 	go func() {
@@ -105,22 +109,22 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, labelsFn 
 				return
 			case <-ticker.C:
 			}
-			updateTargets, errors := targetsFromLabels(labelsFn, cw.cfg, cw.genFn)
+			targetMetadata, errors := getTargetMetadata(labelsFn, cw.cfg)
 			for _, err := range errors {
 				logger.Errorf("failed to init notifier for %q: %w", typeK, err)
 			}
-			cw.setTargets(typeK, updateTargets)
+			cw.updateTargets(typeK, targetMetadata, cw.cfg, cw.genFn)
 		}
 	}()
 	return nil
 }
 
-func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator) ([]Target, []error) {
+func getTargetMetadata(labelsFn getLabels, cfg *Config) (map[string]*promutil.Labels, []error) {
 	metaLabels, err := labelsFn()
 	if err != nil {
 		return nil, []error{fmt.Errorf("failed to get labels: %w", err)}
 	}
-	var targets []Target
+	targetMetadata := make(map[string]*promutil.Labels, len(metaLabels))
 	var errors []error
 	duplicates := make(map[string]struct{})
 	for _, labels := range metaLabels {
@@ -143,21 +147,12 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 			continue
 		}
 		duplicates[u] = struct{}{}
-
-		am, err := NewAlertManager(u, genFn, cfg.HTTPClientConfig, cfg.parsedAlertRelabelConfigs, cfg.Timeout.Duration())
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
-		targets = append(targets, Target{
-			Notifier: am,
-			Labels:   processedLabels,
-		})
+		targetMetadata[u] = processedLabels
 	}
-	return targets, errors
+	return targetMetadata, errors
 }
 
-type getLabels func() ([]*promutils.Labels, error)
+type getLabels func() ([]*promutil.Labels, error)
 
 func (cw *configWatcher) start() error {
 	if len(cw.cfg.StaticConfigs) > 0 {
@@ -183,8 +178,8 @@ func (cw *configWatcher) start() error {
 	}
 
 	if len(cw.cfg.ConsulSDConfigs) > 0 {
-		err := cw.add(TargetConsul, *consul.SDCheckInterval, func() ([]*promutils.Labels, error) {
-			var labels []*promutils.Labels
+		err := cw.add(TargetConsul, *consul.SDCheckInterval, func() ([]*promutil.Labels, error) {
+			var labels []*promutil.Labels
 			for i := range cw.cfg.ConsulSDConfigs {
 				sdc := &cw.cfg.ConsulSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
@@ -201,8 +196,8 @@ func (cw *configWatcher) start() error {
 	}
 
 	if len(cw.cfg.DNSSDConfigs) > 0 {
-		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]*promutils.Labels, error) {
-			var labels []*promutils.Labels
+		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]*promutil.Labels, error) {
+			var labels []*promutil.Labels
 			for i := range cw.cfg.DNSSDConfigs {
 				sdc := &cw.cfg.DNSSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
@@ -241,19 +236,38 @@ func (cw *configWatcher) mustStop() {
 
 func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
 	cw.targetsMu.Lock()
-	newT := make(map[string]Target)
-	for _, t := range targets {
-		newT[t.Addr()] = t
-	}
-	oldT := cw.targets[key]
-
-	for _, ot := range oldT {
-		if _, ok := newT[ot.Addr()]; !ok {
-			ot.Notifier.Close()
-		}
-	}
 	cw.targets[key] = targets
 	cw.targetsMu.Unlock()
+}
+
+func (cw *configWatcher) updateTargets(key TargetType, targetMetadata map[string]*promutil.Labels, cfg *Config, genFn AlertURLGenerator) {
+	cw.targetsMu.Lock()
+	defer cw.targetsMu.Unlock()
+	oldTargets := cw.targets[key]
+	var updatedTargets []Target
+	for _, ot := range oldTargets {
+		if _, ok := targetMetadata[ot.Addr()]; !ok {
+			// if target not exists in currentTargets, close it
+			ot.Close()
+		} else {
+			updatedTargets = append(updatedTargets, ot)
+			delete(targetMetadata, ot.Addr())
+		}
+	}
+	// create new resources for the new targets
+	for addr, labels := range targetMetadata {
+		am, err := NewAlertManager(addr, genFn, cfg.HTTPClientConfig, cfg.parsedAlertRelabelConfigs, cfg.Timeout.Duration())
+		if err != nil {
+			logger.Errorf("failed to init %s notifier with addr %q: %w", key, addr, err)
+			continue
+		}
+		updatedTargets = append(updatedTargets, Target{
+			Notifier: am,
+			Labels:   labels,
+		})
+	}
+
+	cw.targets[key] = updatedTargets
 }
 
 // mergeHTTPClientConfigs merges fields between child and parent params

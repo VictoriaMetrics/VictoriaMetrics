@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import { FC, useRef, useState } from "preact/compat";
 import { useLocation } from "react-router-dom";
 import classNames from "classnames";
 import { ArrowDropDownIcon } from "../../../components/Main/Icons";
@@ -6,7 +6,7 @@ import Popper from "../../../components/Main/Popper/Popper";
 import NavItem from "./NavItem";
 import { useEffect } from "react";
 import useBoolean from "../../../hooks/useBoolean";
-import { NavigationItem } from "../../../constants/navigation";
+import { NavigationItem, NavigationItemType } from "../../../router/navigation";
 
 interface NavItemProps {
   activeMenu: string,
@@ -23,7 +23,7 @@ const NavSubItem: FC<NavItemProps> = ({
   color,
   background,
   submenu,
-  direction
+  direction = "row"
 }) => {
   const { pathname } = useLocation();
 
@@ -37,8 +37,9 @@ const NavSubItem: FC<NavItemProps> = ({
   } = useBoolean(false);
 
   const handleOpenSubmenu = () => {
-    setOpenSubmenu();
-    if (menuTimeout) clearTimeout(menuTimeout);
+    if (direction === "row" || !openSubmenu) setOpenSubmenu();
+    if (direction === "column" && openSubmenu) handleCloseSubmenu();
+    if (direction === "row" && menuTimeout) clearTimeout(menuTimeout);
   };
 
   const handleMouseLeave = () => {
@@ -55,49 +56,31 @@ const NavSubItem: FC<NavItemProps> = ({
     handleCloseSubmenu();
   }, [pathname]);
 
-  if (direction === "column") {
-    return (
-      <>
-        {submenu.map(sm => (
-          <NavItem
-            key={sm.value}
-            activeMenu={activeMenu}
-            value={sm.value || ""}
-            label={sm.label || ""}
-          />
-        ))}
-      </>
-    );
-  }
-
   return (
     <div
       className={classNames({
-        "vm-header-nav-item": true,
-        "vm-header-nav-item_sub": true,
         "vm-header-nav-item_open": openSubmenu,
-        "vm-header-nav-item_active": submenu.find(m => m.value === activeMenu)
       })}
       style={{ color }}
-      onMouseEnter={handleOpenSubmenu}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={direction === "column" ? undefined : handleOpenSubmenu}
+      onMouseLeave={direction === "column" ? undefined : handleMouseLeave}
+      onClick={direction === "column" ? handleOpenSubmenu : undefined}
       ref={buttonRef}
     >
-      {label}
-      <ArrowDropDownIcon/>
-
-      <Popper
-        open={openSubmenu}
-        placement="bottom-left"
-        offset={{ top: 12, left: 0 }}
-        onClose={handleCloseSubmenu}
-        buttonRef={buttonRef}
+      <div
+        className={classNames({
+          "vm-header-nav-item": true,
+          "vm-header-nav-item_sub": true,
+          "vm-header-nav-item_active": submenu.find(m => m.value === activeMenu),
+        })}
       >
+        {label}
+        <ArrowDropDownIcon/>
+      </div>
+      {direction === "column" ? (
         <div
           className="vm-header-nav-item-submenu"
           style={{ background }}
-          onMouseLeave={handleMouseLeave}
-          onMouseEnter={handleMouseEnterPopup}
         >
           {submenu.map(sm => (
             <NavItem
@@ -106,10 +89,37 @@ const NavSubItem: FC<NavItemProps> = ({
               value={sm.value || ""}
               label={sm.label || ""}
               color={color}
+              type={sm.type || NavigationItemType.internalLink}
             />
           ))}
         </div>
-      </Popper>
+      ) : (
+        <Popper
+          open={openSubmenu}
+          placement="bottom-left"
+          offset={{ top: 12, left: 0 }}
+          onClose={handleCloseSubmenu}
+          buttonRef={buttonRef}
+        >
+          <div
+            className="vm-header-nav-item-submenu"
+            style={{ background }}
+            onMouseLeave={handleMouseLeave}
+            onMouseEnter={handleMouseEnterPopup}
+          >
+            {submenu.map(sm => (
+              <NavItem
+                key={sm.value}
+                activeMenu={activeMenu}
+                value={sm.value || ""}
+                label={sm.label || ""}
+                color={color}
+                type={sm.type || NavigationItemType.internalLink}
+              />
+            ))}
+          </div>
+        </Popper>
+      )}
     </div>
   );
 };

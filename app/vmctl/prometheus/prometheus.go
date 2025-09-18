@@ -16,7 +16,8 @@ type Config struct {
 	// Path to snapshot directory
 	Snapshot string
 
-	Filter Filter
+	Filter       Filter
+	TemporaryDir string
 }
 
 // Filter contains configuration for filtering
@@ -40,32 +41,32 @@ type filter struct {
 	labelValue string
 }
 
-func (f filter) inRange(min, max int64) bool {
+func (f filter) inRange(minV, maxV int64) bool {
 	fmin, fmax := f.min, f.max
-	if min == 0 {
-		fmin = min
+	if minV == 0 {
+		fmin = minV
 	}
 	if fmax == 0 {
-		fmax = max
+		fmax = maxV
 	}
-	return min <= fmax && fmin <= max
+	return minV <= fmax && fmin <= maxV
 }
 
 // NewClient creates and validates new Client
 // with given Config
 func NewClient(cfg Config) (*Client, error) {
-	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, "", nil)
+	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, cfg.TemporaryDir, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
 	}
 	c := &Client{DBReadOnly: db}
-	min, max, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
+	minTime, maxTime, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse time in filter: %s", err)
 	}
 	c.filter = filter{
-		min:        min,
-		max:        max,
+		min:        minTime,
+		max:        maxTime,
 		label:      cfg.Filter.Label,
 		labelValue: cfg.Filter.LabelValue,
 	}

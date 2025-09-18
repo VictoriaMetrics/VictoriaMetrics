@@ -31,7 +31,7 @@ func BenchmarkCacheGet(b *testing.B) {
 	blocks := make([]*testBlock, blocksCount)
 	for i := 0; i < blocksCount; i++ {
 		blocks[i] = &testBlock{}
-		c.PutBlock(Key{Offset: uint64(i)}, blocks[i])
+		c.TryPutBlock(Key{Offset: uint64(i)}, blocks[i])
 	}
 	b.ReportAllocs()
 	b.SetBytes(int64(len(blocks)))

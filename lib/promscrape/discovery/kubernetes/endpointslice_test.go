@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseEndpointSliceListFail(t *testing.T) {
@@ -15,7 +15,7 @@ func TestParseEndpointSliceListFail(t *testing.T) {
 			t.Fatalf("unexpected result, test must fail! data: %s", data)
 		}
 		if len(objectsByKey) != 0 {
-			t.Fatalf("EndpointSliceList must be emptry, got: %v", objectsByKey)
+			t.Fatalf("EndpointSliceList must be empty, got: %v", objectsByKey)
 		}
 	}
 
@@ -67,7 +67,9 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
             "172.18.0.2"
           ],
           "conditions": {
-            "ready": true
+            "ready": false,
+            "serving": false,
+            "terminating": true
           }
         }
       ],
@@ -124,7 +126,9 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
             "10.244.0.3"
           ],
           "conditions": {
-            "ready": true
+            "ready": true,
+            "serving": true,
+            "terminating": false
           },
           "targetRef": {
             "kind": "Pod",
@@ -163,8 +167,8 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	expectedLabelss := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "10.244.0.3:53",
 			"__meta_kubernetes_endpointslice_address_target_kind":                                                "Pod",
 			"__meta_kubernetes_endpointslice_address_target_name":                                                "coredns-66bff467f8-z8czk",
@@ -172,6 +176,8 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_annotation_endpoints_kubernetes_io_last_change_trigger_time":        "2020-09-07T14:28:35Z",
 			"__meta_kubernetes_endpointslice_annotationpresent_endpoints_kubernetes_io_last_change_trigger_time": "true",
 			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                                          "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_serving":                                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":                                    "false",
 			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":                           "kind-control-plane",
 			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname":                   "true",
 			"__meta_kubernetes_endpointslice_label_endpointslice_kubernetes_io_managed_by":                       "endpointslice-controller.k8s.io",
@@ -184,7 +190,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_port_protocol":                                                      "UDP",
 			"__meta_kubernetes_namespace":                                                                        "kube-system",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "10.244.0.3:9153",
 			"__meta_kubernetes_endpointslice_address_target_kind":                                                "Pod",
 			"__meta_kubernetes_endpointslice_address_target_name":                                                "coredns-66bff467f8-z8czk",
@@ -192,6 +198,8 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_annotation_endpoints_kubernetes_io_last_change_trigger_time":        "2020-09-07T14:28:35Z",
 			"__meta_kubernetes_endpointslice_annotationpresent_endpoints_kubernetes_io_last_change_trigger_time": "true",
 			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                                          "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_serving":                                        "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":                                    "false",
 			"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":                           "kind-control-plane",
 			"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname":                   "true",
 			"__meta_kubernetes_endpointslice_label_endpointslice_kubernetes_io_managed_by":                       "endpointslice-controller.k8s.io",
@@ -204,10 +212,12 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_port_protocol":                                                      "TCP",
 			"__meta_kubernetes_namespace":                                                                        "kube-system",
 		}),
-		promutils.NewLabelsFromMap(map[string]string{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__": "172.18.0.2:6443",
 			"__meta_kubernetes_endpointslice_address_type":                            "IPv4",
-			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "false",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "false",
+			"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "true",
 			"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "kubernetes",
 			"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name": "true",
 			"__meta_kubernetes_endpointslice_name":                                    "kubernetes",
@@ -225,16 +235,17 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 
 func TestGetEndpointsliceLabels(t *testing.T) {
 	type testArgs struct {
-		containerPorts map[string][]ContainerPort
-		endpointPorts  []EndpointPort
+		initContainerPorts map[string][]ContainerPort
+		containerPorts     map[string][]ContainerPort
+		endpointPorts      []EndpointPort
 	}
-	f := func(t *testing.T, args testArgs, wantLabels []*promutils.Labels) {
+	f := func(t *testing.T, args testArgs, wantLabels []*promutil.Labels) {
 		t.Helper()
 		eps := EndpointSlice{
 			Metadata: ObjectMeta{
 				Name:      "test-eps",
 				Namespace: "default",
-				Labels: promutils.NewLabelsFromMap(map[string]string{
+				Labels: promutil.NewLabelsFromMap(map[string]string{
 					"kubernetes.io/service-name": "test-svc",
 				}),
 			},
@@ -244,9 +255,12 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 						"10.13.15.15",
 					},
 					Conditions: EndpointConditions{
-						Ready: true,
+						Ready:       true,
+						Serving:     true,
+						Terminating: false,
 					},
 					Hostname: "foo.bar",
+					NodeName: "test-node",
 					TargetRef: ObjectReference{
 						Kind:      "Pod",
 						Namespace: "default",
@@ -293,8 +307,16 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		}
 		node := Node{
 			Metadata: ObjectMeta{
-				Labels: promutils.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
+				Labels: promutil.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 			},
+		}
+		for cn, ports := range args.initContainerPorts {
+			pod.Spec.InitContainers = append(pod.Spec.InitContainers, Container{
+				Name:          cn,
+				Image:         "test-init-image",
+				Ports:         ports,
+				RestartPolicy: "Always",
+			})
 		}
 		for cn, ports := range args.containerPorts {
 			pod.Spec.Containers = append(pod.Spec.Containers, Container{
@@ -325,7 +347,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 			},
 		}
 		gw.attachNodeMetadata = true
-		var sortedLabelss []*promutils.Labels
+		var sortedLabelss []*promutil.Labels
 		gotLabels := eps.getTargetLabels(&gw)
 		for _, lbs := range gotLabels {
 			lbs.Sort()
@@ -345,14 +367,17 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 					Protocol: "foobar",
 				},
 			},
-		}, []*promutils.Labels{
-			promutils.NewLabelsFromMap(map[string]string{
+		}, []*promutil.Labels{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
 				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
 				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
 				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "false",
 				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_node_name":                      "test-node",
 				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
 				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
 				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
@@ -393,14 +418,17 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 					Protocol: "https",
 				},
 			},
-		}, []*promutils.Labels{
-			promutils.NewLabelsFromMap(map[string]string{
+		}, []*promutil.Labels{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
 				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
 				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
 				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "false",
 				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_node_name":                      "test-node",
 				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
 				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
 				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
@@ -424,7 +452,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_service_name":                                          "test-svc",
 				"__meta_kubernetes_service_type":                                          "service-type",
 			}),
-			promutils.NewLabelsFromMap(map[string]string{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "192.168.15.1:8428",
 				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
@@ -437,6 +465,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
 				"__meta_kubernetes_node_name":                                             "test-node",
 				"__meta_kubernetes_pod_container_image":                                   "test-image",
+				"__meta_kubernetes_pod_container_init":                                    "false",
 				"__meta_kubernetes_pod_container_name":                                    "metrics",
 				"__meta_kubernetes_pod_container_port_name":                               "http-metrics",
 				"__meta_kubernetes_pod_container_port_number":                             "8428",
@@ -469,14 +498,17 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 					Protocol: "xabc",
 				},
 			},
-		}, []*promutils.Labels{
-			promutils.NewLabelsFromMap(map[string]string{
+		}, []*promutil.Labels{
+			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8428",
 				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
 				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
 				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "false",
 				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_node_name":                      "test-node",
 				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
 				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
 				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
@@ -490,6 +522,64 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
 				"__meta_kubernetes_node_name":                                             "test-node",
 				"__meta_kubernetes_pod_container_image":                                   "test-image",
+				"__meta_kubernetes_pod_container_init":                                    "false",
+				"__meta_kubernetes_pod_container_name":                                    "metrics",
+				"__meta_kubernetes_pod_container_port_name":                               "web",
+				"__meta_kubernetes_pod_container_port_number":                             "8428",
+				"__meta_kubernetes_pod_container_port_protocol":                           "sdc",
+				"__meta_kubernetes_pod_host_ip":                                           "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                                                "192.168.15.1",
+				"__meta_kubernetes_pod_name":                                              "test-pod",
+				"__meta_kubernetes_pod_node_name":                                         "test-node",
+				"__meta_kubernetes_pod_phase":                                             "abc",
+				"__meta_kubernetes_pod_ready":                                             "unknown",
+				"__meta_kubernetes_pod_uid":                                               "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":                                    "1.2.3.4",
+				"__meta_kubernetes_service_name":                                          "test-svc",
+				"__meta_kubernetes_service_type":                                          "service-type",
+			}),
+		})
+	})
+
+	t.Run("1 init container port from endpoint", func(t *testing.T) {
+		f(t, testArgs{
+			initContainerPorts: map[string][]ContainerPort{"metrics": {{
+				Name:          "web",
+				ContainerPort: 8428,
+				Protocol:      "sdc",
+			}}},
+			endpointPorts: []EndpointPort{
+				{
+					Name:     "web",
+					Port:     8428,
+					Protocol: "xabc",
+				},
+			},
+		}, []*promutil.Labels{
+			promutil.NewLabelsFromMap(map[string]string{
+				"__address__": "10.13.15.15:8428",
+				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
+				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
+				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_serving":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_terminating":         "false",
+				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_node_name":                      "test-node",
+				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
+				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
+				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
+				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name": "true",
+				"__meta_kubernetes_endpointslice_name":                                    "test-eps",
+				"__meta_kubernetes_endpointslice_port":                                    "8428",
+				"__meta_kubernetes_endpointslice_port_name":                               "web",
+				"__meta_kubernetes_endpointslice_port_protocol":                           "xabc",
+				"__meta_kubernetes_namespace":                                             "default",
+				"__meta_kubernetes_node_label_node_label":                                 "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
+				"__meta_kubernetes_node_name":                                             "test-node",
+				"__meta_kubernetes_pod_container_image":                                   "test-init-image",
+				"__meta_kubernetes_pod_container_init":                                    "true",
 				"__meta_kubernetes_pod_container_name":                                    "metrics",
 				"__meta_kubernetes_pod_container_port_name":                               "web",
 				"__meta_kubernetes_pod_container_port_number":                             "8428",

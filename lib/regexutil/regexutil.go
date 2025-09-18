@@ -152,7 +152,7 @@ const maxOrValues = 100
 
 // SimplifyRegex simplifies the given regexp expr.
 //
-// It returns plaintext pefix and the remaining regular expression
+// It returns plaintext prefix and the remaining regular expression
 // without capturing parens.
 func SimplifyRegex(expr string) (string, string) {
 	prefix, suffix := simplifyRegex(expr, true)
@@ -282,7 +282,7 @@ func simplifyRegexpExt(sre *syntax.Regexp, keepBeginOp, keepEndOp bool) *syntax.
 			}
 		}
 		sre.Sub = subs
-		// Remove anchros from the beginning and the end of regexp, since they
+		// Remove anchors from the beginning and the end of regexp, since they
 		// will be added later.
 		if !keepBeginOp {
 			for len(sre.Sub) > 0 && sre.Sub[0].Op == syntax.OpBeginText {

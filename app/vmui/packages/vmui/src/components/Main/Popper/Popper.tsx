@@ -1,6 +1,15 @@
-import React, { FC, MouseEvent as ReactMouseEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FC,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  createPortal
+} from "react";
 import classNames from "classnames";
-import ReactDOM from "react-dom";
 import "./style.scss";
 import useClickOutside from "../../../hooks/useClickOutside";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
@@ -8,27 +17,29 @@ import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import useEventListener from "../../../hooks/useEventListener";
-import { useCallback } from "preact/compat";
 
 interface PopperProps {
   children: ReactNode
   open: boolean
   onClose: () => void
-  buttonRef: React.RefObject<HTMLElement>
-  placement?: "bottom-right" | "bottom-left" | "top-left" | "top-right"
+  buttonRef?: React.RefObject<HTMLElement>
+  placement?: "bottom-right" | "bottom-left" | "top-left" | "top-right" | "center-left" | "center-right" | "fixed"
+  placementPosition?: { top: number, left: number } | null
   animation?: string
-  offset?: {top: number, left: number}
+  offset?: { top: number, left: number }
   clickOutside?: boolean,
   fullWidth?: boolean
   title?: string
   disabledFullScreen?: boolean
   variant?: "default" | "dark"
+  classes?: string[]
 }
 
 const Popper: FC<PopperProps> = ({
   children,
   buttonRef,
   placement = "bottom-left",
+  placementPosition,
   open = false,
   onClose,
   offset = { top: 6, left: 0 },
@@ -36,6 +47,7 @@ const Popper: FC<PopperProps> = ({
   fullWidth,
   title,
   disabledFullScreen,
+  classes,
   variant
 }) => {
   const { isMobile } = useDeviceDetect();
@@ -68,6 +80,7 @@ const Popper: FC<PopperProps> = ({
   }, [popperRef]);
 
   const popperStyle = useMemo(() => {
+    if (!buttonRef) return {};
     const buttonEl = buttonRef.current;
 
     if (!buttonEl || !isOpen) return {};
@@ -80,8 +93,9 @@ const Popper: FC<PopperProps> = ({
       width: "auto"
     };
 
-    const needAlignRight = placement === "bottom-right" || placement === "top-right";
+    const needAlignRight = placement?.includes("right");
     const needAlignTop = placement?.includes("top");
+    const needAlignCenter = placement?.includes("center");
 
     const offsetTop = offset?.top || 0;
     const offsetLeft = offset?.left || 0;
@@ -91,14 +105,20 @@ const Popper: FC<PopperProps> = ({
 
     if (needAlignRight) position.left = buttonPos.right - popperSize.width;
     if (needAlignTop) position.top = buttonPos.top - popperSize.height - offsetTop;
+    if (needAlignCenter) position.top = buttonPos.top + (buttonPos.height - popperSize.height) / 2 - offsetTop;
+
+    if (placement === "fixed" && placementPosition) {
+      position.top = Math.max(placementPosition.top + offset.top, 0);
+      position.left = Math.max(placementPosition.left + offset.left, 0);
+      return position;
+    }
 
     const { innerWidth, innerHeight } = window;
-    const margin = 20;
 
-    const isOverflowBottom = (position.top + popperSize.height + margin) > innerHeight;
-    const isOverflowTop = (position.top - margin) < 0;
-    const isOverflowRight = (position.left + popperSize.width + margin) > innerWidth;
-    const isOverflowLeft = (position.left - margin) < 0;
+    const isOverflowBottom = (position.top + popperSize.height) > innerHeight;
+    const isOverflowTop = (position.top) < 0;
+    const isOverflowRight = (position.left + popperSize.width) > innerWidth;
+    const isOverflowLeft = (position.left) < 0;
 
     if (isOverflowBottom) position.top = buttonPos.top - popperSize.height - offsetTop;
     if (isOverflowTop) position.top = buttonPos.height + buttonPos.top + offsetTop;
@@ -106,13 +126,13 @@ const Popper: FC<PopperProps> = ({
     if (isOverflowLeft) position.left = buttonPos.left + offsetLeft;
 
     if (fullWidth) position.width = `${buttonPos.width}px`;
-    if (position.top < 0) position.top = 20;
-    if (position.left < 0) position.left = 20;
+    if (position.top < 0) position.top = 0;
+    if (position.left < 0) position.left = 0;
 
     return position;
-  },[buttonRef, placement, isOpen, children, fullWidth]);
+  }, [buttonRef, placement, isOpen, children, fullWidth]);
 
-  const handleClickClose = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
+  const handleClickClose = (e: ReactMouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onClose();
   };
@@ -131,10 +151,10 @@ const Popper: FC<PopperProps> = ({
     if (!popperRef.current || !isOpen || (isMobile && !disabledFullScreen)) return;
     const { right, width } = popperRef.current.getBoundingClientRect();
     if (right > window.innerWidth) {
-      const left = window.innerWidth - 20 - width;
-      popperRef.current.style.left = left < window.innerWidth ? "0" : `${left}px`;
+      const left = window.innerWidth - width;
+      popperRef.current.style.left = `${left}px`;
     }
-  }, [isOpen, popperRef]);
+  }, [isOpen, popperRef, placementPosition]);
 
   const handlePopstate = useCallback(() => {
     if (isOpen && isMobile && !disabledFullScreen) {
@@ -146,16 +166,21 @@ const Popper: FC<PopperProps> = ({
   useEventListener("scroll", handleClose);
   useEventListener("popstate", handlePopstate);
   useClickOutside(popperRef, handleClickOutside, buttonRef);
+  const classMap: Record<string, boolean> = {};
+  (classes || []).forEach((cls) => {
+    classMap[cls] = true;
+  });
 
   return (
     <>
-      {(isOpen || !popperSize.width) && ReactDOM.createPortal((
+      {(isOpen || !popperSize.width) && createPortal((
         <div
           className={classNames({
             "vm-popper": true,
             [`vm-popper_${variant}`]: variant,
             "vm-popper_mobile": isMobile && !disabledFullScreen,
             "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
+            ...classMap,
           })}
           ref={popperRef}
           style={(isMobile && !disabledFullScreen) ? {} : popperStyle}

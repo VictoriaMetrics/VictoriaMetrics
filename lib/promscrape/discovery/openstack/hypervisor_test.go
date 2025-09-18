@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseHypervisorDetail_Failure(t *testing.T) {
@@ -95,11 +95,11 @@ func TestParseHypervisorDetail_Success(t *testing.T) {
 }
 
 func TestAddHypervisorLabels(t *testing.T) {
-	f := func(hvs []hypervisor, labelssExpected []*promutils.Labels) {
+	f := func(hvs []hypervisor, labelssExpected []*promutil.Labels) {
 		t.Helper()
 
 		labelss := addHypervisorLabels(hvs, 9100)
-		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+		discoveryutil.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
 	hvs := []hypervisor{
@@ -112,8 +112,8 @@ func TestAddHypervisorLabels(t *testing.T) {
 			HostIP:   "1.2.2.2",
 		},
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                          "1.2.2.2:9100",
 			"__meta_openstack_hypervisor_host_ip":  "1.2.2.2",
 			"__meta_openstack_hypervisor_hostname": "fakehost",

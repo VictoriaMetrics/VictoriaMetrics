@@ -201,6 +201,10 @@ func (qv *quantileValue) marshalTo(prefix string, w io.Writer) {
 }
 
 func (qv *quantileValue) metricType() string {
+	// this metricsType should not be printed, because summary (sum and count) of the same metric family will be printed first,
+	// and if metadata is needed, the metadata from summary should be used.
+	// quantile will be printed later, so its metrics type won't be printed as metadata.
+	// See: https://github.com/VictoriaMetrics/metrics/pull/99
 	return "unsupported"
 }
 
@@ -208,7 +212,15 @@ func addTag(name, tag string) string {
 	if len(name) == 0 || name[len(name)-1] != '}' {
 		return fmt.Sprintf("%s{%s}", name, tag)
 	}
-	return fmt.Sprintf("%s,%s}", name[:len(name)-1], tag)
+	name = name[:len(name)-1]
+	if len(name) == 0 {
+		panic(fmt.Errorf("BUG: metric name cannot be empty"))
+	}
+	if name[len(name)-1] == '{' {
+		// case for empty labels set metric_name{}
+		return fmt.Sprintf("%s%s}", name, tag)
+	}
+	return fmt.Sprintf("%s,%s}", name, tag)
 }
 
 func registerSummaryLocked(sm *Summary) {

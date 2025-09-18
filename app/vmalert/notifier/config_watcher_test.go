@@ -8,8 +8,11 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 )
 
 func TestConfigWatcherReload(t *testing.T) {
@@ -17,9 +20,9 @@ func TestConfigWatcherReload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(f.Name()) }()
+	defer fs.MustRemovePath(f.Name())
 
-	writeToFile(t, f.Name(), `
+	writeToFile(f.Name(), `
 static_configs:
   - targets:
       - localhost:9093
@@ -39,9 +42,9 @@ static_configs:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(f2.Name()) }()
+	defer fs.MustRemovePath(f2.Name())
 
-	writeToFile(t, f2.Name(), `
+	writeToFile(f2.Name(), `
 static_configs:
   - targets:
       - 127.0.0.1:9093
@@ -59,6 +62,11 @@ static_configs:
 }
 
 func TestConfigWatcherStart(t *testing.T) {
+	oldSDCheckInterval := consul.SDCheckInterval
+	defer func() { consul.SDCheckInterval = oldSDCheckInterval }()
+	consulCheckInterval := 100 * time.Millisecond
+	consul.SDCheckInterval = &consulCheckInterval
+
 	consulSDServer := newFakeConsulServer()
 	defer consulSDServer.Close()
 
@@ -66,9 +74,9 @@ func TestConfigWatcherStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(consulSDFile.Name()) }()
+	defer fs.MustRemovePath(consulSDFile.Name())
 
-	writeToFile(t, consulSDFile.Name(), fmt.Sprintf(`
+	writeToFile(consulSDFile.Name(), fmt.Sprintf(`
 scheme: https
 path_prefix: proxy
 consul_sd_configs:
@@ -97,6 +105,11 @@ consul_sd_configs:
 	if n2.Addr() != expAddr2 {
 		t.Fatalf("exp address %q; got %q", expAddr2, n2.Addr())
 	}
+
+	f := func() bool { return len(cw.notifiers()) == 1 }
+	if !waitFor(f, time.Second) {
+		t.Fatalf("expected to get 1 notifiers; got %d", len(cw.notifiers()))
+	}
 }
 
 // TestConfigWatcherReloadConcurrent supposed to test concurrent
@@ -112,9 +125,9 @@ func TestConfigWatcherReloadConcurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(consulSDFile.Name()) }()
+	defer fs.MustRemovePath(consulSDFile.Name())
 
-	writeToFile(t, consulSDFile.Name(), fmt.Sprintf(`
+	writeToFile(consulSDFile.Name(), fmt.Sprintf(`
 consul_sd_configs:
   - server: %s
     services:
@@ -128,9 +141,9 @@ consul_sd_configs:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Remove(staticAndConsulSDFile.Name()) }()
+	defer fs.MustRemovePath(staticAndConsulSDFile.Name())
 
-	writeToFile(t, staticAndConsulSDFile.Name(), fmt.Sprintf(`
+	writeToFile(staticAndConsulSDFile.Name(), fmt.Sprintf(`
 static_configs:
   - targets:
       - localhost:9093
@@ -175,9 +188,8 @@ consul_sd_configs:
 	wg.Wait()
 }
 
-func writeToFile(t *testing.T, file, b string) {
-	t.Helper()
-	checkErr(t, os.WriteFile(file, []byte(b), 0644))
+func writeToFile(file, b string) {
+	fs.MustWriteSync(file, []byte(b))
 }
 
 func checkErr(t *testing.T, err error) {
@@ -193,6 +205,7 @@ const (
 )
 
 func newFakeConsulServer() *httptest.Server {
+	requestCount := 0
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/agent/self", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Write([]byte(`{"Config": {"Datacenter": "dc1"}}`))
@@ -207,8 +220,9 @@ func newFakeConsulServer() *httptest.Server {
 }`))
 	})
 	mux.HandleFunc("/v1/health/service/alertmanager", func(rw http.ResponseWriter, _ *http.Request) {
-		rw.Header().Set("X-Consul-Index", "1")
-		rw.Write([]byte(`
+		if requestCount == 0 {
+			rw.Header().Set("X-Consul-Index", "1")
+			rw.Write([]byte(`
 [
     {
         "Node": {
@@ -297,6 +311,56 @@ func newFakeConsulServer() *httptest.Server {
         }
     }
 ]`))
+		} else {
+			rw.Header().Set("X-Consul-Index", "2")
+			rw.Write([]byte(`
+[
+    {
+        "Node": {
+            "ID": "e8e3629a-3f50-9d6e-aaf8-f173b5b05c72",
+            "Node": "machine",
+            "Address": "127.0.0.1",
+            "Datacenter": "dc1",
+            "TaggedAddresses": {
+                "lan": "127.0.0.1",
+                "lan_ipv4": "127.0.0.1",
+                "wan": "127.0.0.1",
+                "wan_ipv4": "127.0.0.1"
+            },
+            "Meta": {
+                "consul-network-segment": ""
+            },
+            "CreateIndex": 13,
+            "ModifyIndex": 14
+        },
+        "Service": {
+            "ID": "am3",
+            "Service": "alertmanager",
+            "Tags": [
+                "alertmanager",
+                "__scheme__=http"
+            ],
+            "Address": "",
+            "Meta": null,
+            "Port": 9097,
+            "Weights": {
+                "Passing": 1,
+                "Warning": 1
+            },
+            "EnableTagOverride": false,
+            "Proxy": {
+                "Mode": "",
+                "MeshGateway": {},
+                "Expose": {}
+            },
+            "Connect": {},
+            "CreateIndex": 16,
+            "ModifyIndex": 16
+        }
+    }
+]`))
+		}
+		requestCount++
 	})
 
 	return httptest.NewServer(mux)
@@ -356,4 +420,14 @@ func TestParseLabels_Success(t *testing.T) {
 		Scheme:     "http",
 		PathPrefix: "test",
 	}, "https://alertmanager:9093/api/v1/alerts")
+}
+
+func waitFor(f func() bool, timeout time.Duration) bool {
+	for start := time.Now(); time.Since(start) < timeout; {
+		if f() == true {
+			return true
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return false
 }

@@ -1,16 +1,19 @@
-import React, { FC, useEffect } from "preact/compat";
+import { FC, useEffect } from "preact/compat";
 import "./style.scss";
 import { useState } from "react";
 import Tooltip from "../Tooltip/Tooltip";
 import Button from "../Button/Button";
 import { CopyIcon } from "../Icons";
+import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 
 enum CopyState { copy = "Copy", copied = "Copied" }
 
 const CodeExample: FC<{code: string}> = ({ code }) => {
+  const copyToClipboard = useCopyToClipboard();
+
   const [tooltip, setTooltip] = useState(CopyState.copy);
-  const handlerCopy = () => {
-    navigator.clipboard.writeText(code);
+  const handlerCopy = async () => {
+    await copyToClipboard(code);
     setTooltip(CopyState.copied);
   };
 

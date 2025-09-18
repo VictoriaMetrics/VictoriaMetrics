@@ -1,0 +1,15 @@
+@use "src/styles/variables" as *;
+
+.vm-download-button {
+  &__format-option {
+    padding: 4px;
+    &:first-child {
+      padding-bottom: 0;
+    }
+
+    &-button {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+}

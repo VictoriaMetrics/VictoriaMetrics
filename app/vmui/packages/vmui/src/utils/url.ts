@@ -25,3 +25,13 @@ export const isEqualURLSearchParams = (params1: URLSearchParams, params2: URLSea
 
   return true;
 };
+
+export const getApiEndpoint = (url: string): string | null => {
+  try {
+    const match = url.match(/\/api\/v1\/[^?]+/);
+    return match ? match[0] : null;
+  } catch (error) {
+    console.error("Invalid URL:", error);
+    return null;
+  }
+};

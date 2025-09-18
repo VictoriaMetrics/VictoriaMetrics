@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestDedupAggrSerial(t *testing.T) {
@@ -12,16 +13,14 @@ func TestDedupAggrSerial(t *testing.T) {
 
 	const seriesCount = 100_000
 	expectedSamplesMap := make(map[string]pushSample)
-	for i := 0; i < 2; i++ {
-		samples := make([]pushSample, seriesCount)
-		for j := range samples {
-			sample := &samples[j]
-			sample.key = fmt.Sprintf("key_%d", j)
-			sample.value = float64(i + j)
-			expectedSamplesMap[sample.key] = *sample
-		}
-		da.pushSamples(samples)
+	samples := make([]pushSample, seriesCount)
+	for j := range samples {
+		sample := &samples[j]
+		sample.key = fmt.Sprintf("key_%d", j)
+		sample.value = float64(j)
+		expectedSamplesMap[sample.key] = *sample
 	}
+	da.pushSamples(samples, 0, false)
 
 	if n := da.sizeBytes(); n > 5_000_000 {
 		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 5_000_000 bytes", n)
@@ -32,14 +31,16 @@ func TestDedupAggrSerial(t *testing.T) {
 
 	flushedSamplesMap := make(map[string]pushSample)
 	var mu sync.Mutex
-	flushSamples := func(samples []pushSample) {
+	flushSamples := func(samples []pushSample, _ int64, _ bool) {
 		mu.Lock()
 		for _, sample := range samples {
 			flushedSamplesMap[sample.key] = sample
 		}
 		mu.Unlock()
 	}
-	da.flush(flushSamples)
+
+	flushTimestamp := time.Now().UnixMilli()
+	da.flush(flushSamples, flushTimestamp, false)
 
 	if !reflect.DeepEqual(expectedSamplesMap, flushedSamplesMap) {
 		t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", flushedSamplesMap, expectedSamplesMap)
@@ -70,7 +71,7 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 					sample.key = fmt.Sprintf("key_%d", j)
 					sample.value = float64(i + j)
 				}
-				da.pushSamples(samples)
+				da.pushSamples(samples, 0, false)
 			}
 		}()
 	}

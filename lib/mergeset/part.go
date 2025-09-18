@@ -14,6 +14,7 @@ import (
 
 var idxbCache = blockcache.NewCache(getMaxIndexBlocksCacheSize)
 var ibCache = blockcache.NewCache(getMaxInmemoryBlocksCacheSize)
+var ibSparseCache = blockcache.NewCache(getMaxInmemoryBlocksSparseCacheSize)
 
 // SetIndexBlocksCacheSize overrides the default size of indexdb/indexBlocks cache
 func SetIndexBlocksCacheSize(size int) {
@@ -48,9 +49,26 @@ func getMaxInmemoryBlocksCacheSize() int {
 	return maxInmemoryBlockCacheSize
 }
 
+// SetDataBlocksSparseCacheSize overrides the default size of indexdb/dataBlocksSparse cache
+func SetDataBlocksSparseCacheSize(size int) {
+	maxInmemorySparseMergeCacheSize = size
+}
+
+func getMaxInmemoryBlocksSparseCacheSize() int {
+	maxInmemoryBlockSparseCacheSizeOnce.Do(func() {
+		if maxInmemorySparseMergeCacheSize <= 0 {
+			maxInmemorySparseMergeCacheSize = int(0.05 * float64(memory.Allowed()))
+		}
+	})
+	return maxInmemorySparseMergeCacheSize
+}
+
 var (
 	maxInmemoryBlockCacheSize     int
 	maxInmemoryBlockCacheSizeOnce sync.Once
+
+	maxInmemorySparseMergeCacheSize     int
+	maxInmemoryBlockSparseCacheSizeOnce sync.Once
 )
 
 type part struct {
@@ -75,17 +93,28 @@ func mustOpenFilePart(path string) *part {
 	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
+	// Open part files in parallel in order to speed up this process
+	// on high-latency storage systems such as NFS or Ceph.
+
+	var pro fs.ParallelReaderAtOpener
+
 	indexPath := filepath.Join(path, indexFilename)
-	indexFile := fs.MustOpenReaderAt(indexPath)
-	indexSize := fs.MustFileSize(indexPath)
-
 	itemsPath := filepath.Join(path, itemsFilename)
-	itemsFile := fs.MustOpenReaderAt(itemsPath)
-	itemsSize := fs.MustFileSize(itemsPath)
-
 	lensPath := filepath.Join(path, lensFilename)
-	lensFile := fs.MustOpenReaderAt(lensPath)
-	lensSize := fs.MustFileSize(lensPath)
+
+	var indexFile fs.MustReadAtCloser
+	var indexSize uint64
+	pro.Add(indexPath, &indexFile, &indexSize)
+
+	var itemsFile fs.MustReadAtCloser
+	var itemsSize uint64
+	pro.Add(itemsPath, &itemsFile, &itemsSize)
+
+	var lensFile fs.MustReadAtCloser
+	var lensSize uint64
+	pro.Add(lensPath, &lensFile, &lensSize)
+
+	pro.Run()
 
 	size := metaindexSize + indexSize + itemsSize + lensSize
 	return newPart(&ph, path, size, metaindexFile, indexFile, itemsFile, lensFile)
@@ -112,18 +141,24 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 }
 
 func (p *part) MustClose() {
-	p.indexFile.MustClose()
-	p.itemsFile.MustClose()
-	p.lensFile.MustClose()
+	// Close files in parallel in order to speed up this process on storage systems with high latency
+	// such as NFS or Ceph.
+	cs := []fs.MustCloser{
+		p.indexFile,
+		p.itemsFile,
+		p.lensFile,
+	}
+	fs.MustCloseParallel(cs)
 
 	idxbCache.RemoveBlocksForPart(p)
 	ibCache.RemoveBlocksForPart(p)
+	ibSparseCache.RemoveBlocksForPart(p)
 }
 
 type indexBlock struct {
 	bhs []blockHeader
 
-	// The buffer for holding the data referrred by bhs
+	// The buffer for holding the data referred by bhs
 	buf []byte
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC.
+// Copyright 2025 Google LLC.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -64,12 +64,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/googleapis/gax-go/v2"
+	"github.com/googleapis/gax-go/v2/internallog"
 	googleapi "google.golang.org/api/googleapi"
 	internal "google.golang.org/api/internal"
 	gensupport "google.golang.org/api/internal/gensupport"
@@ -93,6 +95,8 @@ var _ = strings.Replace
 var _ = context.Canceled
 var _ = internaloption.WithDefaultEndpoint
 var _ = internal.Version
+var _ = internallog.New
+var _ = gax.Version
 
 const apiId = "storage:v1"
 const apiName = "storage"
@@ -133,14 +137,24 @@ func NewService(ctx context.Context, opts ...option.ClientOption) (*Service, err
 	opts = append(opts, internaloption.WithDefaultEndpoint(basePath))
 	opts = append(opts, internaloption.WithDefaultEndpointTemplate(basePathTemplate))
 	opts = append(opts, internaloption.WithDefaultMTLSEndpoint(mtlsBasePath))
+	opts = append(opts, internaloption.EnableNewAuthLibrary())
 	client, endpoint, err := htransport.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-	s, err := New(client)
-	if err != nil {
-		return nil, err
-	}
+	s := &Service{client: client, BasePath: basePath, logger: internaloption.GetLogger(opts)}
+	s.AnywhereCaches = NewAnywhereCachesService(s)
+	s.BucketAccessControls = NewBucketAccessControlsService(s)
+	s.Buckets = NewBucketsService(s)
+	s.Channels = NewChannelsService(s)
+	s.DefaultObjectAccessControls = NewDefaultObjectAccessControlsService(s)
+	s.Folders = NewFoldersService(s)
+	s.ManagedFolders = NewManagedFoldersService(s)
+	s.Notifications = NewNotificationsService(s)
+	s.ObjectAccessControls = NewObjectAccessControlsService(s)
+	s.Objects = NewObjectsService(s)
+	s.Operations = NewOperationsService(s)
+	s.Projects = NewProjectsService(s)
 	if endpoint != "" {
 		s.BasePath = endpoint
 	}
@@ -156,24 +170,12 @@ func New(client *http.Client) (*Service, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")
 	}
-	s := &Service{client: client, BasePath: basePath}
-	s.AnywhereCaches = NewAnywhereCachesService(s)
-	s.BucketAccessControls = NewBucketAccessControlsService(s)
-	s.Buckets = NewBucketsService(s)
-	s.Channels = NewChannelsService(s)
-	s.DefaultObjectAccessControls = NewDefaultObjectAccessControlsService(s)
-	s.Folders = NewFoldersService(s)
-	s.ManagedFolders = NewManagedFoldersService(s)
-	s.Notifications = NewNotificationsService(s)
-	s.ObjectAccessControls = NewObjectAccessControlsService(s)
-	s.Objects = NewObjectsService(s)
-	s.Operations = NewOperationsService(s)
-	s.Projects = NewProjectsService(s)
-	return s, nil
+	return NewService(context.TODO(), option.WithHTTPClient(client))
 }
 
 type Service struct {
 	client    *http.Client
+	logger    *slog.Logger
 	BasePath  string // API endpoint base URL
 	UserAgent string // optional additional User-Agent fragment
 
@@ -341,6 +343,34 @@ type ProjectsServiceAccountService struct {
 	s *Service
 }
 
+// AdvanceRelocateBucketOperationRequest: An AdvanceRelocateBucketOperation
+// request.
+type AdvanceRelocateBucketOperationRequest struct {
+	// ExpireTime: Specifies the time when the relocation will revert to the sync
+	// stage if the relocation hasn't succeeded.
+	ExpireTime string `json:"expireTime,omitempty"`
+	// Ttl: Specifies the duration after which the relocation will revert to the
+	// sync stage if the relocation hasn't succeeded. Optional, if not supplied, a
+	// default value of 12h will be used.
+	Ttl string `json:"ttl,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "ExpireTime") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "ExpireTime") to include in API
+	// requests with the JSON null value. By default, fields with empty values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s AdvanceRelocateBucketOperationRequest) MarshalJSON() ([]byte, error) {
+	type NoMethod AdvanceRelocateBucketOperationRequest
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
 // AnywhereCache: An Anywhere Cache instance.
 type AnywhereCache struct {
 	// AdmissionPolicy: The cache-level entry admission policy.
@@ -459,6 +489,10 @@ type Bucket struct {
 	Encryption *BucketEncryption `json:"encryption,omitempty"`
 	// Etag: HTTP 1.1 Entity tag for the bucket.
 	Etag string `json:"etag,omitempty"`
+	// Generation: The generation of this bucket.
+	Generation int64 `json:"generation,omitempty,string"`
+	// HardDeleteTime: The hard delete time of the bucket in RFC 3339 format.
+	HardDeleteTime string `json:"hardDeleteTime,omitempty"`
 	// HierarchicalNamespace: The bucket's hierarchical namespace configuration.
 	HierarchicalNamespace *BucketHierarchicalNamespace `json:"hierarchicalNamespace,omitempty"`
 	// IamConfiguration: The bucket's IAM configuration.
@@ -466,16 +500,21 @@ type Bucket struct {
 	// Id: The ID of the bucket. For buckets, the id and name properties are the
 	// same.
 	Id string `json:"id,omitempty"`
+	// IpFilter: The bucket's IP filter configuration. Specifies the network
+	// sources that are allowed to access the operations on the bucket, as well as
+	// its underlying objects. Only enforced when the mode is set to 'Enabled'.
+	IpFilter *BucketIpFilter `json:"ipFilter,omitempty"`
 	// Kind: The kind of item this is. For buckets, this is always storage#bucket.
 	Kind string `json:"kind,omitempty"`
 	// Labels: User-provided labels, in key/value pairs.
 	Labels map[string]string `json:"labels,omitempty"`
-	// Lifecycle: The bucket's lifecycle configuration. See lifecycle management
-	// for more information.
+	// Lifecycle: The bucket's lifecycle configuration. See Lifecycle Management
+	// (https://cloud.google.com/storage/docs/lifecycle) for more information.
 	Lifecycle *BucketLifecycle `json:"lifecycle,omitempty"`
 	// Location: The location of the bucket. Object data for objects in the bucket
 	// resides in physical storage within this region. Defaults to US. See the
-	// developer's guide for the authoritative list.
+	// Developer's Guide (https://cloud.google.com/storage/docs/locations) for the
+	// authoritative list.
 	Location string `json:"location,omitempty"`
 	// LocationType: The type of the bucket location.
 	LocationType string `json:"locationType,omitempty"`
@@ -506,6 +545,8 @@ type Bucket struct {
 	// Rpo: The Recovery Point Objective (RPO) of this bucket. Set to ASYNC_TURBO
 	// to turn on Turbo Replication on a bucket.
 	Rpo string `json:"rpo,omitempty"`
+	// SatisfiesPZI: Reserved for future use.
+	SatisfiesPZI bool `json:"satisfiesPZI,omitempty"`
 	// SatisfiesPZS: Reserved for future use.
 	SatisfiesPZS bool `json:"satisfiesPZS,omitempty"`
 	// SelfLink: The URI of this bucket.
@@ -514,13 +555,16 @@ type Bucket struct {
 	// of time that soft-deleted objects will be retained, and cannot be
 	// permanently deleted.
 	SoftDeletePolicy *BucketSoftDeletePolicy `json:"softDeletePolicy,omitempty"`
+	// SoftDeleteTime: The soft delete time of the bucket in RFC 3339 format.
+	SoftDeleteTime string `json:"softDeleteTime,omitempty"`
 	// StorageClass: The bucket's default storage class, used whenever no
 	// storageClass is specified for a newly-created object. This defines how
 	// objects in the bucket are stored and determines the SLA and the cost of
 	// storage. Values include MULTI_REGIONAL, REGIONAL, STANDARD, NEARLINE,
 	// COLDLINE, ARCHIVE, and DURABLE_REDUCED_AVAILABILITY. If this value is not
 	// specified when the bucket is created, it will default to STANDARD. For more
-	// information, see storage classes.
+	// information, see Storage Classes
+	// (https://cloud.google.com/storage/docs/storage-classes).
 	StorageClass string `json:"storageClass,omitempty"`
 	// TimeCreated: The creation time of the bucket in RFC 3339 format.
 	TimeCreated string `json:"timeCreated,omitempty"`
@@ -530,7 +574,8 @@ type Bucket struct {
 	Versioning *BucketVersioning `json:"versioning,omitempty"`
 	// Website: The bucket's website configuration, controlling how the service
 	// behaves when accessing bucket contents as a web site. See the Static Website
-	// Examples for more information.
+	// Examples (https://cloud.google.com/storage/docs/static-website) for more
+	// information.
 	Website *BucketWebsite `json:"website,omitempty"`
 
 	// ServerResponse contains the HTTP response code and headers from the server.
@@ -664,24 +709,152 @@ func (s BucketCustomPlacementConfig) MarshalJSON() ([]byte, error) {
 
 // BucketEncryption: Encryption configuration for a bucket.
 type BucketEncryption struct {
+	// CustomerManagedEncryptionEnforcementConfig: If set, the new objects created
+	// in this bucket must comply with this enforcement config. Changing this has
+	// no effect on existing objects; it applies to new objects only. If omitted,
+	// the new objects are allowed to be encrypted with Customer Managed Encryption
+	// type by default.
+	CustomerManagedEncryptionEnforcementConfig *BucketEncryptionCustomerManagedEncryptionEnforcementConfig `json:"customerManagedEncryptionEnforcementConfig,omitempty"`
+	// CustomerSuppliedEncryptionEnforcementConfig: If set, the new objects created
+	// in this bucket must comply with this enforcement config. Changing this has
+	// no effect on existing objects; it applies to new objects only. If omitted,
+	// the new objects are allowed to be encrypted with Customer Supplied
+	// Encryption type by default.
+	CustomerSuppliedEncryptionEnforcementConfig *BucketEncryptionCustomerSuppliedEncryptionEnforcementConfig `json:"customerSuppliedEncryptionEnforcementConfig,omitempty"`
 	// DefaultKmsKeyName: A Cloud KMS key that will be used to encrypt objects
 	// inserted into this bucket, if no encryption method is specified.
 	DefaultKmsKeyName string `json:"defaultKmsKeyName,omitempty"`
-	// ForceSendFields is a list of field names (e.g. "DefaultKmsKeyName") to
-	// unconditionally include in API requests. By default, fields with empty or
-	// default values are omitted from API requests. See
+	// GoogleManagedEncryptionEnforcementConfig: If set, the new objects created in
+	// this bucket must comply with this enforcement config. Changing this has no
+	// effect on existing objects; it applies to new objects only. If omitted, the
+	// new objects are allowed to be encrypted with Google Managed Encryption type
+	// by default.
+	GoogleManagedEncryptionEnforcementConfig *BucketEncryptionGoogleManagedEncryptionEnforcementConfig `json:"googleManagedEncryptionEnforcementConfig,omitempty"`
+	// ForceSendFields is a list of field names (e.g.
+	// "CustomerManagedEncryptionEnforcementConfig") to unconditionally include in
+	// API requests. By default, fields with empty or default values are omitted
+	// from API requests. See
 	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
 	// details.
 	ForceSendFields []string `json:"-"`
-	// NullFields is a list of field names (e.g. "DefaultKmsKeyName") to include in
-	// API requests with the JSON null value. By default, fields with empty values
-	// are omitted from API requests. See
+	// NullFields is a list of field names (e.g.
+	// "CustomerManagedEncryptionEnforcementConfig") to include in API requests
+	// with the JSON null value. By default, fields with empty values are omitted
+	// from API requests. See
 	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
 	NullFields []string `json:"-"`
 }
 
 func (s BucketEncryption) MarshalJSON() ([]byte, error) {
 	type NoMethod BucketEncryption
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// BucketEncryptionCustomerManagedEncryptionEnforcementConfig: If set, the new
+// objects created in this bucket must comply with this enforcement config.
+// Changing this has no effect on existing objects; it applies to new objects
+// only. If omitted, the new objects are allowed to be encrypted with Customer
+// Managed Encryption type by default.
+type BucketEncryptionCustomerManagedEncryptionEnforcementConfig struct {
+	// EffectiveTime: Server-determined value that indicates the time from which
+	// configuration was enforced and effective. This value is in RFC 3339 format.
+	EffectiveTime string `json:"effectiveTime,omitempty"`
+	// RestrictionMode: Restriction mode for Customer-Managed Encryption Keys.
+	// Defaults to NotRestricted.
+	//
+	// Possible values:
+	//   "NotRestricted" - Creation of new objects with Customer-Managed Encryption
+	// is not restricted.
+	//   "FullyRestricted" - Creation of new objects with Customer-Managed
+	// Encryption is fully restricted.
+	RestrictionMode string `json:"restrictionMode,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "EffectiveTime") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "EffectiveTime") to include in API
+	// requests with the JSON null value. By default, fields with empty values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketEncryptionCustomerManagedEncryptionEnforcementConfig) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketEncryptionCustomerManagedEncryptionEnforcementConfig
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// BucketEncryptionCustomerSuppliedEncryptionEnforcementConfig: If set, the new
+// objects created in this bucket must comply with this enforcement config.
+// Changing this has no effect on existing objects; it applies to new objects
+// only. If omitted, the new objects are allowed to be encrypted with Customer
+// Supplied Encryption type by default.
+type BucketEncryptionCustomerSuppliedEncryptionEnforcementConfig struct {
+	// EffectiveTime: Server-determined value that indicates the time from which
+	// configuration was enforced and effective. This value is in RFC 3339 format.
+	EffectiveTime string `json:"effectiveTime,omitempty"`
+	// RestrictionMode: Restriction mode for Customer-Supplied Encryption Keys.
+	// Defaults to NotRestricted.
+	//
+	// Possible values:
+	//   "NotRestricted" - Creation of new objects with Customer-Supplied
+	// Encryption is not restricted.
+	//   "FullyRestricted" - Creation of new objects with Customer-Supplied
+	// Encryption is fully restricted.
+	RestrictionMode string `json:"restrictionMode,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "EffectiveTime") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "EffectiveTime") to include in API
+	// requests with the JSON null value. By default, fields with empty values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketEncryptionCustomerSuppliedEncryptionEnforcementConfig) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketEncryptionCustomerSuppliedEncryptionEnforcementConfig
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// BucketEncryptionGoogleManagedEncryptionEnforcementConfig: If set, the new
+// objects created in this bucket must comply with this enforcement config.
+// Changing this has no effect on existing objects; it applies to new objects
+// only. If omitted, the new objects are allowed to be encrypted with Google
+// Managed Encryption type by default.
+type BucketEncryptionGoogleManagedEncryptionEnforcementConfig struct {
+	// EffectiveTime: Server-determined value that indicates the time from which
+	// configuration was enforced and effective. This value is in RFC 3339 format.
+	EffectiveTime string `json:"effectiveTime,omitempty"`
+	// RestrictionMode: Restriction mode for Google-Managed Encryption Keys.
+	// Defaults to NotRestricted.
+	//
+	// Possible values:
+	//   "NotRestricted" - Creation of new objects with Google Managed Encryption
+	// is not restricted.
+	//   "FullyRestricted" - Creation of new objects with Google Managed Encryption
+	// is fully restricted.
+	RestrictionMode string `json:"restrictionMode,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "EffectiveTime") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "EffectiveTime") to include in API
+	// requests with the JSON null value. By default, fields with empty values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketEncryptionGoogleManagedEncryptionEnforcementConfig) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketEncryptionGoogleManagedEncryptionEnforcementConfig
 	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
@@ -803,8 +976,93 @@ func (s BucketIamConfigurationUniformBucketLevelAccess) MarshalJSON() ([]byte, e
 	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
-// BucketLifecycle: The bucket's lifecycle configuration. See lifecycle
-// management for more information.
+// BucketIpFilter: The bucket's IP filter configuration. Specifies the network
+// sources that are allowed to access the operations on the bucket, as well as
+// its underlying objects. Only enforced when the mode is set to 'Enabled'.
+type BucketIpFilter struct {
+	// AllowAllServiceAgentAccess: Whether to allow all service agents to access
+	// the bucket regardless of the IP filter configuration.
+	AllowAllServiceAgentAccess bool `json:"allowAllServiceAgentAccess,omitempty"`
+	// AllowCrossOrgVpcs: Whether to allow cross-org VPCs in the bucket's IP filter
+	// configuration.
+	AllowCrossOrgVpcs bool `json:"allowCrossOrgVpcs,omitempty"`
+	// Mode: The mode of the IP filter. Valid values are 'Enabled' and 'Disabled'.
+	Mode string `json:"mode,omitempty"`
+	// PublicNetworkSource: The public network source of the bucket's IP filter.
+	PublicNetworkSource *BucketIpFilterPublicNetworkSource `json:"publicNetworkSource,omitempty"`
+	// VpcNetworkSources: The list of VPC network
+	// (https://cloud.google.com/vpc/docs/vpc) sources of the bucket's IP filter.
+	VpcNetworkSources []*BucketIpFilterVpcNetworkSources `json:"vpcNetworkSources,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "AllowAllServiceAgentAccess")
+	// to unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "AllowAllServiceAgentAccess") to
+	// include in API requests with the JSON null value. By default, fields with
+	// empty values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketIpFilter) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketIpFilter
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// BucketIpFilterPublicNetworkSource: The public network source of the bucket's
+// IP filter.
+type BucketIpFilterPublicNetworkSource struct {
+	// AllowedIpCidrRanges: The list of public IPv4, IPv6 cidr ranges that are
+	// allowed to access the bucket.
+	AllowedIpCidrRanges []string `json:"allowedIpCidrRanges,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "AllowedIpCidrRanges") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "AllowedIpCidrRanges") to include
+	// in API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketIpFilterPublicNetworkSource) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketIpFilterPublicNetworkSource
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+type BucketIpFilterVpcNetworkSources struct {
+	// AllowedIpCidrRanges: The list of IPv4, IPv6 cidr ranges subnetworks that are
+	// allowed to access the bucket.
+	AllowedIpCidrRanges []string `json:"allowedIpCidrRanges,omitempty"`
+	// Network: Name of the network. Format:
+	// projects/{PROJECT_ID}/global/networks/{NETWORK_NAME}
+	Network string `json:"network,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "AllowedIpCidrRanges") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "AllowedIpCidrRanges") to include
+	// in API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s BucketIpFilterVpcNetworkSources) MarshalJSON() ([]byte, error) {
+	type NoMethod BucketIpFilterVpcNetworkSources
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// BucketLifecycle: The bucket's lifecycle configuration. See Lifecycle
+// Management (https://cloud.google.com/storage/docs/lifecycle) for more
+// information.
 type BucketLifecycle struct {
 	// Rule: A lifecycle management rule, which is made of an action to take and
 	// the condition(s) under which the action will be taken.
@@ -1116,7 +1374,8 @@ func (s BucketVersioning) MarshalJSON() ([]byte, error) {
 
 // BucketWebsite: The bucket's website configuration, controlling how the
 // service behaves when accessing bucket contents as a web site. See the Static
-// Website Examples for more information.
+// Website Examples (https://cloud.google.com/storage/docs/static-website) for
+// more information.
 type BucketWebsite struct {
 	// MainPageSuffix: If the requested object path is missing, the service will
 	// ensure the path has a trailing '/', append this suffix, and attempt to
@@ -2081,9 +2340,14 @@ type Object struct {
 	// ContentType: Content-Type of the object data. If an object is stored without
 	// a Content-Type, it is served as application/octet-stream.
 	ContentType string `json:"contentType,omitempty"`
+	// Contexts: User-defined or system-defined object contexts. Each object
+	// context is a key-payload pair, where the key provides the identification and
+	// the payload holds the associated value and additional metadata.
+	Contexts *ObjectContexts `json:"contexts,omitempty"`
 	// Crc32c: CRC32c checksum, as described in RFC 4960, Appendix B; encoded using
 	// base64 in big-endian byte order. For more information about using the CRC32c
-	// checksum, see Hashes and ETags: Best Practices.
+	// checksum, see Data Validation and Change Detection
+	// (https://cloud.google.com/storage/docs/data-validation).
 	Crc32c string `json:"crc32c,omitempty"`
 	// CustomTime: A timestamp in RFC 3339 format specified by the user for an
 	// object.
@@ -2121,7 +2385,8 @@ type Object struct {
 	// request to fail with status code 400 - Bad Request.
 	KmsKeyName string `json:"kmsKeyName,omitempty"`
 	// Md5Hash: MD5 hash of the data; encoded using base64. For more information
-	// about using the MD5 hash, see Hashes and ETags: Best Practices.
+	// about using the MD5 hash, see Data Validation and Change Detection
+	// (https://cloud.google.com/storage/docs/data-validation).
 	Md5Hash string `json:"md5Hash,omitempty"`
 	// MediaLink: Media download link.
 	MediaLink string `json:"mediaLink,omitempty"`
@@ -2137,6 +2402,10 @@ type Object struct {
 	// Owner: The owner of the object. This will always be the uploader of the
 	// object.
 	Owner *ObjectOwner `json:"owner,omitempty"`
+	// RestoreToken: Restore token used to differentiate deleted objects with the
+	// same name and generation. This field is only returned for deleted objects in
+	// hierarchical namespace buckets.
+	RestoreToken string `json:"restoreToken,omitempty"`
 	// Retention: A collection of object level retention parameters.
 	Retention *ObjectRetention `json:"retention,omitempty"`
 	// RetentionExpirationTime: A server-determined value that specifies the
@@ -2169,6 +2438,8 @@ type Object struct {
 	// format. Will be returned if and only if this version of the object has been
 	// deleted.
 	TimeDeleted string `json:"timeDeleted,omitempty"`
+	// TimeFinalized: The time when the object was finalized.
+	TimeFinalized string `json:"timeFinalized,omitempty"`
 	// TimeStorageClassUpdated: The time at which the object's storage class was
 	// last changed. When the object is initially created, it will be set to
 	// timeCreated.
@@ -2198,6 +2469,30 @@ type Object struct {
 
 func (s Object) MarshalJSON() ([]byte, error) {
 	type NoMethod Object
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// ObjectContexts: User-defined or system-defined object contexts. Each object
+// context is a key-payload pair, where the key provides the identification and
+// the payload holds the associated value and additional metadata.
+type ObjectContexts struct {
+	// Custom: User-defined object contexts.
+	Custom map[string]ObjectCustomContextPayload `json:"custom,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "Custom") to unconditionally
+	// include in API requests. By default, fields with empty or default values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "Custom") to include in API
+	// requests with the JSON null value. By default, fields with empty values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s ObjectContexts) MarshalJSON() ([]byte, error) {
+	type NoMethod ObjectContexts
 	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
@@ -2392,6 +2687,35 @@ func (s ObjectAccessControls) MarshalJSON() ([]byte, error) {
 	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
+// ObjectCustomContextPayload: The payload of a single user-defined object
+// context.
+type ObjectCustomContextPayload struct {
+	// CreateTime: The time at which the object context was created in RFC 3339
+	// format.
+	CreateTime string `json:"createTime,omitempty"`
+	// UpdateTime: The time at which the object context was last updated in RFC
+	// 3339 format.
+	UpdateTime string `json:"updateTime,omitempty"`
+	// Value: The value of the object context.
+	Value string `json:"value,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "CreateTime") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "CreateTime") to include in API
+	// requests with the JSON null value. By default, fields with empty values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s ObjectCustomContextPayload) MarshalJSON() ([]byte, error) {
+	type NoMethod ObjectCustomContextPayload
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
 // Objects: A list of objects.
 type Objects struct {
 	// Items: The list of items.
@@ -2475,24 +2799,24 @@ type PolicyBindings struct {
 	Condition *Expr `json:"condition,omitempty"`
 	// Members: A collection of identifiers for members who may assume the provided
 	// role. Recognized identifiers are as follows:
-	// - allUsers — A special identifier that represents anyone on the internet;
+	// - allUsers - A special identifier that represents anyone on the internet;
 	// with or without a Google account.
-	// - allAuthenticatedUsers — A special identifier that represents anyone who
-	// is authenticated with a Google account or a service account.
-	// - user:emailid — An email address that represents a specific account. For
+	// - allAuthenticatedUsers - A special identifier that represents anyone who is
+	// authenticated with a Google account or a service account.
+	// - user:emailid - An email address that represents a specific account. For
 	// example, user:alice@gmail.com or user:joe@example.com.
-	// - serviceAccount:emailid — An email address that represents a service
+	// - serviceAccount:emailid - An email address that represents a service
 	// account. For example,
 	// serviceAccount:my-other-app@appspot.gserviceaccount.com .
-	// - group:emailid — An email address that represents a Google group. For
+	// - group:emailid - An email address that represents a Google group. For
 	// example, group:admins@example.com.
-	// - domain:domain — A Google Apps domain name that represents all the users
-	// of that domain. For example, domain:google.com or domain:example.com.
-	// - projectOwner:projectid — Owners of the given project. For example,
+	// - domain:domain - A Google Apps domain name that represents all the users of
+	// that domain. For example, domain:google.com or domain:example.com.
+	// - projectOwner:projectid - Owners of the given project. For example,
 	// projectOwner:my-example-project
-	// - projectEditor:projectid — Editors of the given project. For example,
+	// - projectEditor:projectid - Editors of the given project. For example,
 	// projectEditor:my-example-project
-	// - projectViewer:projectid — Viewers of the given project. For example,
+	// - projectViewer:projectid - Viewers of the given project. For example,
 	// projectViewer:my-example-project
 	Members []string `json:"members,omitempty"`
 	// Role: The role to which members belong. Two types of roles are supported:
@@ -2500,25 +2824,24 @@ type PolicyBindings struct {
 	// provided by ACLs, and legacy IAM roles, which do map directly to ACL
 	// permissions. All roles are of the format roles/storage.specificRole.
 	// The new IAM roles are:
-	// - roles/storage.admin — Full control of Google Cloud Storage resources.
-	//
-	// - roles/storage.objectViewer — Read-Only access to Google Cloud Storage
+	// - roles/storage.admin - Full control of Google Cloud Storage resources.
+	// - roles/storage.objectViewer - Read-Only access to Google Cloud Storage
 	// objects.
-	// - roles/storage.objectCreator — Access to create objects in Google Cloud
+	// - roles/storage.objectCreator - Access to create objects in Google Cloud
 	// Storage.
-	// - roles/storage.objectAdmin — Full control of Google Cloud Storage
-	// objects.   The legacy IAM roles are:
-	// - roles/storage.legacyObjectReader — Read-only access to objects without
+	// - roles/storage.objectAdmin - Full control of Google Cloud Storage objects.
+	//  The legacy IAM roles are:
+	// - roles/storage.legacyObjectReader - Read-only access to objects without
 	// listing. Equivalent to an ACL entry on an object with the READER role.
-	// - roles/storage.legacyObjectOwner — Read/write access to existing objects
+	// - roles/storage.legacyObjectOwner - Read/write access to existing objects
 	// without listing. Equivalent to an ACL entry on an object with the OWNER
 	// role.
-	// - roles/storage.legacyBucketReader — Read access to buckets with object
+	// - roles/storage.legacyBucketReader - Read access to buckets with object
 	// listing. Equivalent to an ACL entry on a bucket with the READER role.
-	// - roles/storage.legacyBucketWriter — Read access to buckets with object
+	// - roles/storage.legacyBucketWriter - Read access to buckets with object
 	// listing/creation/deletion. Equivalent to an ACL entry on a bucket with the
 	// WRITER role.
-	// - roles/storage.legacyBucketOwner — Read and write access to existing
+	// - roles/storage.legacyBucketOwner - Read and write access to existing
 	// buckets with object listing/creation/deletion. Equivalent to an ACL entry on
 	// a bucket with the OWNER role.
 	Role string `json:"role,omitempty"`
@@ -2537,6 +2860,59 @@ type PolicyBindings struct {
 
 func (s PolicyBindings) MarshalJSON() ([]byte, error) {
 	type NoMethod PolicyBindings
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// RelocateBucketRequest: A Relocate Bucket request.
+type RelocateBucketRequest struct {
+	// DestinationCustomPlacementConfig: The bucket's new custom placement
+	// configuration if relocating to a Custom Dual Region.
+	DestinationCustomPlacementConfig *RelocateBucketRequestDestinationCustomPlacementConfig `json:"destinationCustomPlacementConfig,omitempty"`
+	// DestinationLocation: The new location the bucket will be relocated to.
+	DestinationLocation string `json:"destinationLocation,omitempty"`
+	// ValidateOnly: If true, validate the operation, but do not actually relocate
+	// the bucket.
+	ValidateOnly bool `json:"validateOnly,omitempty"`
+	// ForceSendFields is a list of field names (e.g.
+	// "DestinationCustomPlacementConfig") to unconditionally include in API
+	// requests. By default, fields with empty or default values are omitted from
+	// API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g.
+	// "DestinationCustomPlacementConfig") to include in API requests with the JSON
+	// null value. By default, fields with empty values are omitted from API
+	// requests. See https://pkg.go.dev/google.golang.org/api#hdr-NullFields for
+	// more details.
+	NullFields []string `json:"-"`
+}
+
+func (s RelocateBucketRequest) MarshalJSON() ([]byte, error) {
+	type NoMethod RelocateBucketRequest
+	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
+}
+
+// RelocateBucketRequestDestinationCustomPlacementConfig: The bucket's new
+// custom placement configuration if relocating to a Custom Dual Region.
+type RelocateBucketRequestDestinationCustomPlacementConfig struct {
+	// DataLocations: The list of regional locations in which data is placed.
+	DataLocations []string `json:"dataLocations,omitempty"`
+	// ForceSendFields is a list of field names (e.g. "DataLocations") to
+	// unconditionally include in API requests. By default, fields with empty or
+	// default values are omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-ForceSendFields for more
+	// details.
+	ForceSendFields []string `json:"-"`
+	// NullFields is a list of field names (e.g. "DataLocations") to include in API
+	// requests with the JSON null value. By default, fields with empty values are
+	// omitted from API requests. See
+	// https://pkg.go.dev/google.golang.org/api#hdr-NullFields for more details.
+	NullFields []string `json:"-"`
+}
+
+func (s RelocateBucketRequestDestinationCustomPlacementConfig) MarshalJSON() ([]byte, error) {
+	type NoMethod RelocateBucketRequestDestinationCustomPlacementConfig
 	return gensupport.MarshalJSON(NoMethod(s), s.ForceSendFields, s.NullFields)
 }
 
@@ -2618,27 +2994,26 @@ type TestIamPermissionsResponse struct {
 	// Permissions: The permissions held by the caller. Permissions are always of
 	// the format storage.resource.capability, where resource is one of buckets,
 	// objects, or managedFolders. The supported permissions are as follows:
-	// - storage.buckets.delete — Delete bucket.
-	// - storage.buckets.get — Read bucket metadata.
-	// - storage.buckets.getIamPolicy — Read bucket IAM policy.
-	// - storage.buckets.create — Create bucket.
-	// - storage.buckets.list — List buckets.
-	// - storage.buckets.setIamPolicy — Update bucket IAM policy.
-	// - storage.buckets.update — Update bucket metadata.
-	// - storage.objects.delete — Delete object.
-	// - storage.objects.get — Read object data and metadata.
-	// - storage.objects.getIamPolicy — Read object IAM policy.
-	// - storage.objects.create — Create object.
-	// - storage.objects.list — List objects.
-	// - storage.objects.setIamPolicy — Update object IAM policy.
-	// - storage.objects.update — Update object metadata.
-	// - storage.managedFolders.delete — Delete managed folder.
-	// - storage.managedFolders.get — Read managed folder metadata.
-	// - storage.managedFolders.getIamPolicy — Read managed folder IAM policy.
-	//
-	// - storage.managedFolders.create — Create managed folder.
-	// - storage.managedFolders.list — List managed folders.
-	// - storage.managedFolders.setIamPolicy — Update managed folder IAM policy.
+	// - storage.buckets.delete - Delete bucket.
+	// - storage.buckets.get - Read bucket metadata.
+	// - storage.buckets.getIamPolicy - Read bucket IAM policy.
+	// - storage.buckets.create - Create bucket.
+	// - storage.buckets.list - List buckets.
+	// - storage.buckets.setIamPolicy - Update bucket IAM policy.
+	// - storage.buckets.update - Update bucket metadata.
+	// - storage.objects.delete - Delete object.
+	// - storage.objects.get - Read object data and metadata.
+	// - storage.objects.getIamPolicy - Read object IAM policy.
+	// - storage.objects.create - Create object.
+	// - storage.objects.list - List objects.
+	// - storage.objects.setIamPolicy - Update object IAM policy.
+	// - storage.objects.update - Update object metadata.
+	// - storage.managedFolders.delete - Delete managed folder.
+	// - storage.managedFolders.get - Read managed folder metadata.
+	// - storage.managedFolders.getIamPolicy - Read managed folder IAM policy.
+	// - storage.managedFolders.create - Create managed folder.
+	// - storage.managedFolders.list - List managed folders.
+	// - storage.managedFolders.setIamPolicy - Update managed folder IAM policy.
 	Permissions []string `json:"permissions,omitempty"`
 
 	// ServerResponse contains the HTTP response code and headers from the server.
@@ -2706,12 +3081,11 @@ func (c *AnywhereCachesDisableCall) Header() http.Header {
 
 func (c *AnywhereCachesDisableCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/anywhereCaches/{anywhereCacheId}/disable")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2720,6 +3094,7 @@ func (c *AnywhereCachesDisableCall) doRequest(alt string) (*http.Response, error
 		"bucket":          c.bucket,
 		"anywhereCacheId": c.anywhereCacheId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.anywhereCaches.disable", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -2754,9 +3129,11 @@ func (c *AnywhereCachesDisableCall) Do(opts ...googleapi.CallOption) (*AnywhereC
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.anywhereCaches.disable", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -2817,12 +3194,11 @@ func (c *AnywhereCachesGetCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/anywhereCaches/{anywhereCacheId}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -2831,6 +3207,7 @@ func (c *AnywhereCachesGetCall) doRequest(alt string) (*http.Response, error) {
 		"bucket":          c.bucket,
 		"anywhereCacheId": c.anywhereCacheId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.anywhereCaches.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -2865,9 +3242,11 @@ func (c *AnywhereCachesGetCall) Do(opts ...googleapi.CallOption) (*AnywhereCache
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.anywhereCaches.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -2915,8 +3294,7 @@ func (c *AnywhereCachesInsertCall) Header() http.Header {
 
 func (c *AnywhereCachesInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.anywherecache)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.anywherecache)
 	if err != nil {
 		return nil, err
 	}
@@ -2932,6 +3310,7 @@ func (c *AnywhereCachesInsertCall) doRequest(alt string) (*http.Response, error)
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.anywhereCaches.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -2967,9 +3346,11 @@ func (c *AnywhereCachesInsertCall) Do(opts ...googleapi.CallOption) (*GoogleLong
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.anywhereCaches.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -3042,12 +3423,11 @@ func (c *AnywhereCachesListCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/anywhereCaches")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3055,6 +3435,7 @@ func (c *AnywhereCachesListCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.anywhereCaches.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3089,9 +3470,11 @@ func (c *AnywhereCachesListCall) Do(opts ...googleapi.CallOption) (*AnywhereCach
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.anywhereCaches.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -3161,12 +3544,11 @@ func (c *AnywhereCachesPauseCall) Header() http.Header {
 
 func (c *AnywhereCachesPauseCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/anywhereCaches/{anywhereCacheId}/pause")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3175,6 +3557,7 @@ func (c *AnywhereCachesPauseCall) doRequest(alt string) (*http.Response, error) 
 		"bucket":          c.bucket,
 		"anywhereCacheId": c.anywhereCacheId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.anywhereCaches.pause", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3209,9 +3592,11 @@ func (c *AnywhereCachesPauseCall) Do(opts ...googleapi.CallOption) (*AnywhereCac
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.anywhereCaches.pause", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -3260,12 +3645,11 @@ func (c *AnywhereCachesResumeCall) Header() http.Header {
 
 func (c *AnywhereCachesResumeCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/anywhereCaches/{anywhereCacheId}/resume")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3274,6 +3658,7 @@ func (c *AnywhereCachesResumeCall) doRequest(alt string) (*http.Response, error)
 		"bucket":          c.bucket,
 		"anywhereCacheId": c.anywhereCacheId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.anywhereCaches.resume", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3308,9 +3693,11 @@ func (c *AnywhereCachesResumeCall) Do(opts ...googleapi.CallOption) (*AnywhereCa
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.anywhereCaches.resume", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -3362,8 +3749,7 @@ func (c *AnywhereCachesUpdateCall) Header() http.Header {
 
 func (c *AnywhereCachesUpdateCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.anywherecache)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.anywherecache)
 	if err != nil {
 		return nil, err
 	}
@@ -3380,6 +3766,7 @@ func (c *AnywhereCachesUpdateCall) doRequest(alt string) (*http.Response, error)
 		"bucket":          c.bucket,
 		"anywhereCacheId": c.anywhereCacheId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.anywhereCaches.update", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3415,9 +3802,11 @@ func (c *AnywhereCachesUpdateCall) Do(opts ...googleapi.CallOption) (*GoogleLong
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.anywhereCaches.update", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -3476,12 +3865,11 @@ func (c *BucketAccessControlsDeleteCall) Header() http.Header {
 
 func (c *BucketAccessControlsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/acl/{entity}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3490,6 +3878,7 @@ func (c *BucketAccessControlsDeleteCall) doRequest(alt string) (*http.Response, 
 		"bucket": c.bucket,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3504,6 +3893,7 @@ func (c *BucketAccessControlsDeleteCall) Do(opts ...googleapi.CallOption) error 
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -3573,12 +3963,11 @@ func (c *BucketAccessControlsGetCall) doRequest(alt string) (*http.Response, err
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/acl/{entity}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3587,6 +3976,7 @@ func (c *BucketAccessControlsGetCall) doRequest(alt string) (*http.Response, err
 		"bucket": c.bucket,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3622,9 +4012,11 @@ func (c *BucketAccessControlsGetCall) Do(opts ...googleapi.CallOption) (*BucketA
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -3679,8 +4071,7 @@ func (c *BucketAccessControlsInsertCall) Header() http.Header {
 
 func (c *BucketAccessControlsInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucketaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.bucketaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -3696,6 +4087,7 @@ func (c *BucketAccessControlsInsertCall) doRequest(alt string) (*http.Response, 
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3731,9 +4123,11 @@ func (c *BucketAccessControlsInsertCall) Do(opts ...googleapi.CallOption) (*Buck
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -3798,12 +4192,11 @@ func (c *BucketAccessControlsListCall) doRequest(alt string) (*http.Response, er
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/acl")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3811,6 +4204,7 @@ func (c *BucketAccessControlsListCall) doRequest(alt string) (*http.Response, er
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3846,9 +4240,11 @@ func (c *BucketAccessControlsListCall) Do(opts ...googleapi.CallOption) (*Bucket
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -3908,8 +4304,7 @@ func (c *BucketAccessControlsPatchCall) Header() http.Header {
 
 func (c *BucketAccessControlsPatchCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucketaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.bucketaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -3926,6 +4321,7 @@ func (c *BucketAccessControlsPatchCall) doRequest(alt string) (*http.Response, e
 		"bucket": c.bucket,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.patch", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -3961,9 +4357,11 @@ func (c *BucketAccessControlsPatchCall) Do(opts ...googleapi.CallOption) (*Bucke
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.patch", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -4023,8 +4421,7 @@ func (c *BucketAccessControlsUpdateCall) Header() http.Header {
 
 func (c *BucketAccessControlsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucketaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.bucketaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -4041,6 +4438,7 @@ func (c *BucketAccessControlsUpdateCall) doRequest(alt string) (*http.Response, 
 		"bucket": c.bucket,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.update", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -4076,9 +4474,11 @@ func (c *BucketAccessControlsUpdateCall) Do(opts ...googleapi.CallOption) (*Buck
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.bucketAccessControls.update", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -4090,7 +4490,8 @@ type BucketsDeleteCall struct {
 	header_    http.Header
 }
 
-// Delete: Permanently deletes an empty bucket.
+// Delete: Deletes an empty bucket. Deletions are permanent unless soft delete
+// is enabled on the bucket.
 //
 // - bucket: Name of a bucket.
 func (r *BucketsService) Delete(bucket string) *BucketsDeleteCall {
@@ -4146,12 +4547,11 @@ func (c *BucketsDeleteCall) Header() http.Header {
 
 func (c *BucketsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -4159,6 +4559,7 @@ func (c *BucketsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -4173,6 +4574,7 @@ func (c *BucketsDeleteCall) Do(opts ...googleapi.CallOption) error {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -4191,6 +4593,13 @@ type BucketsGetCall struct {
 func (r *BucketsService) Get(bucket string) *BucketsGetCall {
 	c := &BucketsGetCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.bucket = bucket
+	return c
+}
+
+// Generation sets the optional parameter "generation": If present, specifies
+// the generation of the bucket. This is required if softDeleted is true.
+func (c *BucketsGetCall) Generation(generation int64) *BucketsGetCall {
+	c.urlParams_.Set("generation", fmt.Sprint(generation))
 	return c
 }
 
@@ -4220,6 +4629,15 @@ func (c *BucketsGetCall) IfMetagenerationNotMatch(ifMetagenerationNotMatch int64
 //	"noAcl" - Omit owner, acl and defaultObjectAcl properties.
 func (c *BucketsGetCall) Projection(projection string) *BucketsGetCall {
 	c.urlParams_.Set("projection", projection)
+	return c
+}
+
+// SoftDeleted sets the optional parameter "softDeleted": If true, return the
+// soft-deleted version of this bucket. The default is false. For more
+// information, see Soft Delete
+// (https://cloud.google.com/storage/docs/soft-delete).
+func (c *BucketsGetCall) SoftDeleted(softDeleted bool) *BucketsGetCall {
+	c.urlParams_.Set("softDeleted", fmt.Sprint(softDeleted))
 	return c
 }
 
@@ -4266,12 +4684,11 @@ func (c *BucketsGetCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -4279,6 +4696,7 @@ func (c *BucketsGetCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -4313,9 +4731,11 @@ func (c *BucketsGetCall) Do(opts ...googleapi.CallOption) (*Bucket, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -4389,12 +4809,11 @@ func (c *BucketsGetIamPolicyCall) doRequest(alt string) (*http.Response, error) 
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/iam")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -4402,6 +4821,7 @@ func (c *BucketsGetIamPolicyCall) doRequest(alt string) (*http.Response, error) 
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.getIamPolicy", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -4436,9 +4856,11 @@ func (c *BucketsGetIamPolicyCall) Do(opts ...googleapi.CallOption) (*Policy, err
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.getIamPolicy", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -4505,12 +4927,11 @@ func (c *BucketsGetStorageLayoutCall) doRequest(alt string) (*http.Response, err
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/storageLayout")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -4518,6 +4939,7 @@ func (c *BucketsGetStorageLayoutCall) doRequest(alt string) (*http.Response, err
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.getStorageLayout", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -4553,9 +4975,11 @@ func (c *BucketsGetStorageLayoutCall) Do(opts ...googleapi.CallOption) (*BucketS
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.getStorageLayout", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -4686,8 +5110,7 @@ func (c *BucketsInsertCall) Header() http.Header {
 
 func (c *BucketsInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucket)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.bucket)
 	if err != nil {
 		return nil, err
 	}
@@ -4700,6 +5123,7 @@ func (c *BucketsInsertCall) doRequest(alt string) (*http.Response, error) {
 		return nil, err
 	}
 	req.Header = reqHeaders
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -4734,9 +5158,11 @@ func (c *BucketsInsertCall) Do(opts ...googleapi.CallOption) (*Bucket, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -4791,6 +5217,15 @@ func (c *BucketsListCall) Projection(projection string) *BucketsListCall {
 	return c
 }
 
+// SoftDeleted sets the optional parameter "softDeleted": If true, only
+// soft-deleted bucket versions will be returned. The default is false. For
+// more information, see Soft Delete
+// (https://cloud.google.com/storage/docs/soft-delete).
+func (c *BucketsListCall) SoftDeleted(softDeleted bool) *BucketsListCall {
+	c.urlParams_.Set("softDeleted", fmt.Sprint(softDeleted))
+	return c
+}
+
 // UserProject sets the optional parameter "userProject": The project to be
 // billed for this request.
 func (c *BucketsListCall) UserProject(userProject string) *BucketsListCall {
@@ -4834,16 +5269,16 @@ func (c *BucketsListCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header = reqHeaders
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -4878,9 +5313,11 @@ func (c *BucketsListCall) Do(opts ...googleapi.CallOption) (*Buckets, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -4957,12 +5394,11 @@ func (c *BucketsLockRetentionPolicyCall) Header() http.Header {
 
 func (c *BucketsLockRetentionPolicyCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/lockRetentionPolicy")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -4970,6 +5406,7 @@ func (c *BucketsLockRetentionPolicyCall) doRequest(alt string) (*http.Response, 
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.lockRetentionPolicy", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -5004,9 +5441,11 @@ func (c *BucketsLockRetentionPolicyCall) Do(opts ...googleapi.CallOption) (*Buck
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.lockRetentionPolicy", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -5148,8 +5587,7 @@ func (c *BucketsPatchCall) Header() http.Header {
 
 func (c *BucketsPatchCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucket2)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.bucket2)
 	if err != nil {
 		return nil, err
 	}
@@ -5165,6 +5603,7 @@ func (c *BucketsPatchCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.patch", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -5199,9 +5638,234 @@ func (c *BucketsPatchCall) Do(opts ...googleapi.CallOption) (*Bucket, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.patch", "response", internallog.HTTPResponse(res, b))
+	return ret, nil
+}
+
+type BucketsRelocateCall struct {
+	s                     *Service
+	bucket                string
+	relocatebucketrequest *RelocateBucketRequest
+	urlParams_            gensupport.URLParams
+	ctx_                  context.Context
+	header_               http.Header
+}
+
+// Relocate: Initiates a long-running Relocate Bucket operation on the
+// specified bucket.
+//
+// - bucket: Name of the bucket to be moved.
+func (r *BucketsService) Relocate(bucket string, relocatebucketrequest *RelocateBucketRequest) *BucketsRelocateCall {
+	c := &BucketsRelocateCall{s: r.s, urlParams_: make(gensupport.URLParams)}
+	c.bucket = bucket
+	c.relocatebucketrequest = relocatebucketrequest
+	return c
+}
+
+// Fields allows partial responses to be retrieved. See
+// https://developers.google.com/gdata/docs/2.0/basics#PartialResponse for more
+// details.
+func (c *BucketsRelocateCall) Fields(s ...googleapi.Field) *BucketsRelocateCall {
+	c.urlParams_.Set("fields", googleapi.CombineFields(s))
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+func (c *BucketsRelocateCall) Context(ctx context.Context) *BucketsRelocateCall {
+	c.ctx_ = ctx
+	return c
+}
+
+// Header returns a http.Header that can be modified by the caller to add
+// headers to the request.
+func (c *BucketsRelocateCall) Header() http.Header {
+	if c.header_ == nil {
+		c.header_ = make(http.Header)
+	}
+	return c.header_
+}
+
+func (c *BucketsRelocateCall) doRequest(alt string) (*http.Response, error) {
+	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.relocatebucketrequest)
+	if err != nil {
+		return nil, err
+	}
+	c.urlParams_.Set("alt", alt)
+	c.urlParams_.Set("prettyPrint", "false")
+	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/relocate")
+	urls += "?" + c.urlParams_.Encode()
+	req, err := http.NewRequest("POST", urls, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header = reqHeaders
+	googleapi.Expand(req.URL, map[string]string{
+		"bucket": c.bucket,
+	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.relocate", "request", internallog.HTTPRequest(req, body.Bytes()))
+	return gensupport.SendRequest(c.ctx_, c.s.client, req)
+}
+
+// Do executes the "storage.buckets.relocate" call.
+// Any non-2xx status code is an error. Response headers are in either
+// *GoogleLongrunningOperation.ServerResponse.Header or (if a response was
+// returned at all) in error.(*googleapi.Error).Header. Use
+// googleapi.IsNotModified to check whether the returned error was because
+// http.StatusNotModified was returned.
+func (c *BucketsRelocateCall) Do(opts ...googleapi.CallOption) (*GoogleLongrunningOperation, error) {
+	gensupport.SetOptions(c.urlParams_, opts...)
+	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, gensupport.WrapError(&googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer googleapi.CloseBody(res)
+	if err := googleapi.CheckResponse(res); err != nil {
+		return nil, gensupport.WrapError(err)
+	}
+	ret := &GoogleLongrunningOperation{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
+	target := &ret
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
+		return nil, err
+	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.relocate", "response", internallog.HTTPResponse(res, b))
+	return ret, nil
+}
+
+type BucketsRestoreCall struct {
+	s          *Service
+	bucket     string
+	urlParams_ gensupport.URLParams
+	ctx_       context.Context
+	header_    http.Header
+}
+
+// Restore: Restores a soft-deleted bucket.
+//
+// - bucket: Name of a bucket.
+// - generation: Generation of a bucket.
+func (r *BucketsService) Restore(bucket string, generation int64) *BucketsRestoreCall {
+	c := &BucketsRestoreCall{s: r.s, urlParams_: make(gensupport.URLParams)}
+	c.bucket = bucket
+	c.urlParams_.Set("generation", fmt.Sprint(generation))
+	return c
+}
+
+// Projection sets the optional parameter "projection": Set of properties to
+// return. Defaults to full.
+//
+// Possible values:
+//
+//	"full" - Include all properties.
+//	"noAcl" - Omit owner, acl and defaultObjectAcl properties.
+func (c *BucketsRestoreCall) Projection(projection string) *BucketsRestoreCall {
+	c.urlParams_.Set("projection", projection)
+	return c
+}
+
+// UserProject sets the optional parameter "userProject": The project to be
+// billed for this request. Required for Requester Pays buckets.
+func (c *BucketsRestoreCall) UserProject(userProject string) *BucketsRestoreCall {
+	c.urlParams_.Set("userProject", userProject)
+	return c
+}
+
+// Fields allows partial responses to be retrieved. See
+// https://developers.google.com/gdata/docs/2.0/basics#PartialResponse for more
+// details.
+func (c *BucketsRestoreCall) Fields(s ...googleapi.Field) *BucketsRestoreCall {
+	c.urlParams_.Set("fields", googleapi.CombineFields(s))
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+func (c *BucketsRestoreCall) Context(ctx context.Context) *BucketsRestoreCall {
+	c.ctx_ = ctx
+	return c
+}
+
+// Header returns a http.Header that can be modified by the caller to add
+// headers to the request.
+func (c *BucketsRestoreCall) Header() http.Header {
+	if c.header_ == nil {
+		c.header_ = make(http.Header)
+	}
+	return c.header_
+}
+
+func (c *BucketsRestoreCall) doRequest(alt string) (*http.Response, error) {
+	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
+	c.urlParams_.Set("alt", alt)
+	c.urlParams_.Set("prettyPrint", "false")
+	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/restore")
+	urls += "?" + c.urlParams_.Encode()
+	req, err := http.NewRequest("POST", urls, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header = reqHeaders
+	googleapi.Expand(req.URL, map[string]string{
+		"bucket": c.bucket,
+	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.restore", "request", internallog.HTTPRequest(req, nil))
+	return gensupport.SendRequest(c.ctx_, c.s.client, req)
+}
+
+// Do executes the "storage.buckets.restore" call.
+// Any non-2xx status code is an error. Response headers are in either
+// *Bucket.ServerResponse.Header or (if a response was returned at all) in
+// error.(*googleapi.Error).Header. Use googleapi.IsNotModified to check
+// whether the returned error was because http.StatusNotModified was returned.
+func (c *BucketsRestoreCall) Do(opts ...googleapi.CallOption) (*Bucket, error) {
+	gensupport.SetOptions(c.urlParams_, opts...)
+	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, gensupport.WrapError(&googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer googleapi.CloseBody(res)
+	if err := googleapi.CheckResponse(res); err != nil {
+		return nil, gensupport.WrapError(err)
+	}
+	ret := &Bucket{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
+	target := &ret
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
+		return nil, err
+	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.restore", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -5256,8 +5920,7 @@ func (c *BucketsSetIamPolicyCall) Header() http.Header {
 
 func (c *BucketsSetIamPolicyCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.policy)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.policy)
 	if err != nil {
 		return nil, err
 	}
@@ -5273,6 +5936,7 @@ func (c *BucketsSetIamPolicyCall) doRequest(alt string) (*http.Response, error) 
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.setIamPolicy", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -5307,9 +5971,11 @@ func (c *BucketsSetIamPolicyCall) Do(opts ...googleapi.CallOption) (*Policy, err
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.setIamPolicy", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -5377,12 +6043,11 @@ func (c *BucketsTestIamPermissionsCall) doRequest(alt string) (*http.Response, e
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/iam/testPermissions")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -5390,6 +6055,7 @@ func (c *BucketsTestIamPermissionsCall) doRequest(alt string) (*http.Response, e
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.testIamPermissions", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -5425,9 +6091,11 @@ func (c *BucketsTestIamPermissionsCall) Do(opts ...googleapi.CallOption) (*TestI
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.testIamPermissions", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -5569,8 +6237,7 @@ func (c *BucketsUpdateCall) Header() http.Header {
 
 func (c *BucketsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bucket2)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.bucket2)
 	if err != nil {
 		return nil, err
 	}
@@ -5586,6 +6253,7 @@ func (c *BucketsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.update", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -5620,9 +6288,11 @@ func (c *BucketsUpdateCall) Do(opts ...googleapi.CallOption) (*Bucket, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.update", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -5666,8 +6336,7 @@ func (c *ChannelsStopCall) Header() http.Header {
 
 func (c *ChannelsStopCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.channel)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.channel)
 	if err != nil {
 		return nil, err
 	}
@@ -5680,6 +6349,7 @@ func (c *ChannelsStopCall) doRequest(alt string) (*http.Response, error) {
 		return nil, err
 	}
 	req.Header = reqHeaders
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.channels.stop", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -5694,6 +6364,7 @@ func (c *ChannelsStopCall) Do(opts ...googleapi.CallOption) error {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.channels.stop", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -5752,12 +6423,11 @@ func (c *DefaultObjectAccessControlsDeleteCall) Header() http.Header {
 
 func (c *DefaultObjectAccessControlsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/defaultObjectAcl/{entity}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -5766,6 +6436,7 @@ func (c *DefaultObjectAccessControlsDeleteCall) doRequest(alt string) (*http.Res
 		"bucket": c.bucket,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -5780,6 +6451,7 @@ func (c *DefaultObjectAccessControlsDeleteCall) Do(opts ...googleapi.CallOption)
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -5850,12 +6522,11 @@ func (c *DefaultObjectAccessControlsGetCall) doRequest(alt string) (*http.Respon
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/defaultObjectAcl/{entity}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -5864,6 +6535,7 @@ func (c *DefaultObjectAccessControlsGetCall) doRequest(alt string) (*http.Respon
 		"bucket": c.bucket,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -5899,9 +6571,11 @@ func (c *DefaultObjectAccessControlsGetCall) Do(opts ...googleapi.CallOption) (*
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -5956,8 +6630,7 @@ func (c *DefaultObjectAccessControlsInsertCall) Header() http.Header {
 
 func (c *DefaultObjectAccessControlsInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.objectaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -5973,6 +6646,7 @@ func (c *DefaultObjectAccessControlsInsertCall) doRequest(alt string) (*http.Res
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6008,9 +6682,11 @@ func (c *DefaultObjectAccessControlsInsertCall) Do(opts ...googleapi.CallOption)
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -6091,12 +6767,11 @@ func (c *DefaultObjectAccessControlsListCall) doRequest(alt string) (*http.Respo
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/defaultObjectAcl")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -6104,6 +6779,7 @@ func (c *DefaultObjectAccessControlsListCall) doRequest(alt string) (*http.Respo
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6139,9 +6815,11 @@ func (c *DefaultObjectAccessControlsListCall) Do(opts ...googleapi.CallOption) (
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -6201,8 +6879,7 @@ func (c *DefaultObjectAccessControlsPatchCall) Header() http.Header {
 
 func (c *DefaultObjectAccessControlsPatchCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.objectaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -6219,6 +6896,7 @@ func (c *DefaultObjectAccessControlsPatchCall) doRequest(alt string) (*http.Resp
 		"bucket": c.bucket,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.patch", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6254,9 +6932,11 @@ func (c *DefaultObjectAccessControlsPatchCall) Do(opts ...googleapi.CallOption) 
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.patch", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -6316,8 +6996,7 @@ func (c *DefaultObjectAccessControlsUpdateCall) Header() http.Header {
 
 func (c *DefaultObjectAccessControlsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.objectaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -6334,6 +7013,7 @@ func (c *DefaultObjectAccessControlsUpdateCall) doRequest(alt string) (*http.Res
 		"bucket": c.bucket,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.update", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6369,9 +7049,11 @@ func (c *DefaultObjectAccessControlsUpdateCall) Do(opts ...googleapi.CallOption)
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.defaultObjectAccessControls.update", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -6436,12 +7118,11 @@ func (c *FoldersDeleteCall) Header() http.Header {
 
 func (c *FoldersDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/folders/{folder}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -6450,6 +7131,7 @@ func (c *FoldersDeleteCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 		"folder": c.folder,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.folders.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6464,6 +7146,7 @@ func (c *FoldersDeleteCall) Do(opts ...googleapi.CallOption) error {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.folders.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -6542,12 +7225,11 @@ func (c *FoldersGetCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/folders/{folder}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -6556,6 +7238,7 @@ func (c *FoldersGetCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 		"folder": c.folder,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.folders.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6590,9 +7273,11 @@ func (c *FoldersGetCall) Do(opts ...googleapi.CallOption) (*Folder, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.folders.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -6617,7 +7302,7 @@ func (r *FoldersService) Insert(bucket string, folder *Folder) *FoldersInsertCal
 }
 
 // Recursive sets the optional parameter "recursive": If true, any parent
-// folder which doesn’t exist will be created automatically.
+// folder which doesn't exist will be created automatically.
 func (c *FoldersInsertCall) Recursive(recursive bool) *FoldersInsertCall {
 	c.urlParams_.Set("recursive", fmt.Sprint(recursive))
 	return c
@@ -6648,8 +7333,7 @@ func (c *FoldersInsertCall) Header() http.Header {
 
 func (c *FoldersInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.folder)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.folder)
 	if err != nil {
 		return nil, err
 	}
@@ -6665,6 +7349,7 @@ func (c *FoldersInsertCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.folders.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6699,9 +7384,11 @@ func (c *FoldersInsertCall) Do(opts ...googleapi.CallOption) (*Folder, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.folders.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -6809,12 +7496,11 @@ func (c *FoldersListCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/folders")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -6822,6 +7508,7 @@ func (c *FoldersListCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.folders.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6856,9 +7543,11 @@ func (c *FoldersListCall) Do(opts ...googleapi.CallOption) (*Folders, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.folders.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -6948,12 +7637,11 @@ func (c *FoldersRenameCall) Header() http.Header {
 
 func (c *FoldersRenameCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/folders/{sourceFolder}/renameTo/folders/{destinationFolder}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -6963,6 +7651,7 @@ func (c *FoldersRenameCall) doRequest(alt string) (*http.Response, error) {
 		"sourceFolder":      c.sourceFolder,
 		"destinationFolder": c.destinationFolder,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.folders.rename", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -6998,9 +7687,11 @@ func (c *FoldersRenameCall) Do(opts ...googleapi.CallOption) (*GoogleLongrunning
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.folders.rename", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -7074,12 +7765,11 @@ func (c *ManagedFoldersDeleteCall) Header() http.Header {
 
 func (c *ManagedFoldersDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/managedFolders/{managedFolder}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7088,6 +7778,7 @@ func (c *ManagedFoldersDeleteCall) doRequest(alt string) (*http.Response, error)
 		"bucket":        c.bucket,
 		"managedFolder": c.managedFolder,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.managedFolders.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -7102,6 +7793,7 @@ func (c *ManagedFoldersDeleteCall) Do(opts ...googleapi.CallOption) error {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.managedFolders.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -7179,12 +7871,11 @@ func (c *ManagedFoldersGetCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/managedFolders/{managedFolder}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7193,6 +7884,7 @@ func (c *ManagedFoldersGetCall) doRequest(alt string) (*http.Response, error) {
 		"bucket":        c.bucket,
 		"managedFolder": c.managedFolder,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.managedFolders.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -7227,9 +7919,11 @@ func (c *ManagedFoldersGetCall) Do(opts ...googleapi.CallOption) (*ManagedFolder
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.managedFolders.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -7306,12 +8000,11 @@ func (c *ManagedFoldersGetIamPolicyCall) doRequest(alt string) (*http.Response, 
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/managedFolders/{managedFolder}/iam")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7320,6 +8013,7 @@ func (c *ManagedFoldersGetIamPolicyCall) doRequest(alt string) (*http.Response, 
 		"bucket":        c.bucket,
 		"managedFolder": c.managedFolder,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.managedFolders.getIamPolicy", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -7354,9 +8048,11 @@ func (c *ManagedFoldersGetIamPolicyCall) Do(opts ...googleapi.CallOption) (*Poli
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.managedFolders.getIamPolicy", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -7404,8 +8100,7 @@ func (c *ManagedFoldersInsertCall) Header() http.Header {
 
 func (c *ManagedFoldersInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.managedfolder)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.managedfolder)
 	if err != nil {
 		return nil, err
 	}
@@ -7421,6 +8116,7 @@ func (c *ManagedFoldersInsertCall) doRequest(alt string) (*http.Response, error)
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.managedFolders.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -7455,9 +8151,11 @@ func (c *ManagedFoldersInsertCall) Do(opts ...googleapi.CallOption) (*ManagedFol
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.managedFolders.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -7536,12 +8234,11 @@ func (c *ManagedFoldersListCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/managedFolders")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7549,6 +8246,7 @@ func (c *ManagedFoldersListCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.managedFolders.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -7583,9 +8281,11 @@ func (c *ManagedFoldersListCall) Do(opts ...googleapi.CallOption) (*ManagedFolde
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.managedFolders.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -7664,8 +8364,7 @@ func (c *ManagedFoldersSetIamPolicyCall) Header() http.Header {
 
 func (c *ManagedFoldersSetIamPolicyCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.policy)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.policy)
 	if err != nil {
 		return nil, err
 	}
@@ -7682,6 +8381,7 @@ func (c *ManagedFoldersSetIamPolicyCall) doRequest(alt string) (*http.Response, 
 		"bucket":        c.bucket,
 		"managedFolder": c.managedFolder,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.managedFolders.setIamPolicy", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -7716,9 +8416,11 @@ func (c *ManagedFoldersSetIamPolicyCall) Do(opts ...googleapi.CallOption) (*Poli
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.managedFolders.setIamPolicy", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -7789,12 +8491,11 @@ func (c *ManagedFoldersTestIamPermissionsCall) doRequest(alt string) (*http.Resp
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/managedFolders/{managedFolder}/iam/testPermissions")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7803,6 +8504,7 @@ func (c *ManagedFoldersTestIamPermissionsCall) doRequest(alt string) (*http.Resp
 		"bucket":        c.bucket,
 		"managedFolder": c.managedFolder,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.managedFolders.testIamPermissions", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -7838,9 +8540,11 @@ func (c *ManagedFoldersTestIamPermissionsCall) Do(opts ...googleapi.CallOption) 
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.managedFolders.testIamPermissions", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -7896,12 +8600,11 @@ func (c *NotificationsDeleteCall) Header() http.Header {
 
 func (c *NotificationsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/notificationConfigs/{notification}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7910,6 +8613,7 @@ func (c *NotificationsDeleteCall) doRequest(alt string) (*http.Response, error) 
 		"bucket":       c.bucket,
 		"notification": c.notification,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.notifications.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -7924,6 +8628,7 @@ func (c *NotificationsDeleteCall) Do(opts ...googleapi.CallOption) error {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.notifications.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -7991,12 +8696,11 @@ func (c *NotificationsGetCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/notificationConfigs/{notification}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -8005,6 +8709,7 @@ func (c *NotificationsGetCall) doRequest(alt string) (*http.Response, error) {
 		"bucket":       c.bucket,
 		"notification": c.notification,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.notifications.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -8039,9 +8744,11 @@ func (c *NotificationsGetCall) Do(opts ...googleapi.CallOption) (*Notification, 
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.notifications.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -8096,8 +8803,7 @@ func (c *NotificationsInsertCall) Header() http.Header {
 
 func (c *NotificationsInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.notification)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.notification)
 	if err != nil {
 		return nil, err
 	}
@@ -8113,6 +8819,7 @@ func (c *NotificationsInsertCall) doRequest(alt string) (*http.Response, error) 
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.notifications.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -8147,9 +8854,11 @@ func (c *NotificationsInsertCall) Do(opts ...googleapi.CallOption) (*Notificatio
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.notifications.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -8214,12 +8923,11 @@ func (c *NotificationsListCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/notificationConfigs")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -8227,6 +8935,7 @@ func (c *NotificationsListCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.notifications.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -8261,9 +8970,11 @@ func (c *NotificationsListCall) Do(opts ...googleapi.CallOption) (*Notifications
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.notifications.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -8335,12 +9046,11 @@ func (c *ObjectAccessControlsDeleteCall) Header() http.Header {
 
 func (c *ObjectAccessControlsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}/acl/{entity}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -8350,6 +9060,7 @@ func (c *ObjectAccessControlsDeleteCall) doRequest(alt string) (*http.Response, 
 		"object": c.object,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objectAccessControls.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -8364,6 +9075,7 @@ func (c *ObjectAccessControlsDeleteCall) Do(opts ...googleapi.CallOption) error 
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objectAccessControls.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -8446,12 +9158,11 @@ func (c *ObjectAccessControlsGetCall) doRequest(alt string) (*http.Response, err
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}/acl/{entity}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -8461,6 +9172,7 @@ func (c *ObjectAccessControlsGetCall) doRequest(alt string) (*http.Response, err
 		"object": c.object,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objectAccessControls.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -8496,9 +9208,11 @@ func (c *ObjectAccessControlsGetCall) Do(opts ...googleapi.CallOption) (*ObjectA
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objectAccessControls.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -8566,8 +9280,7 @@ func (c *ObjectAccessControlsInsertCall) Header() http.Header {
 
 func (c *ObjectAccessControlsInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.objectaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -8584,6 +9297,7 @@ func (c *ObjectAccessControlsInsertCall) doRequest(alt string) (*http.Response, 
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objectAccessControls.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -8619,9 +9333,11 @@ func (c *ObjectAccessControlsInsertCall) Do(opts ...googleapi.CallOption) (*Obje
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objectAccessControls.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -8699,12 +9415,11 @@ func (c *ObjectAccessControlsListCall) doRequest(alt string) (*http.Response, er
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}/acl")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -8713,6 +9428,7 @@ func (c *ObjectAccessControlsListCall) doRequest(alt string) (*http.Response, er
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objectAccessControls.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -8748,9 +9464,11 @@ func (c *ObjectAccessControlsListCall) Do(opts ...googleapi.CallOption) (*Object
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objectAccessControls.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -8823,8 +9541,7 @@ func (c *ObjectAccessControlsPatchCall) Header() http.Header {
 
 func (c *ObjectAccessControlsPatchCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.objectaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -8842,6 +9559,7 @@ func (c *ObjectAccessControlsPatchCall) doRequest(alt string) (*http.Response, e
 		"object": c.object,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objectAccessControls.patch", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -8877,9 +9595,11 @@ func (c *ObjectAccessControlsPatchCall) Do(opts ...googleapi.CallOption) (*Objec
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objectAccessControls.patch", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -8952,8 +9672,7 @@ func (c *ObjectAccessControlsUpdateCall) Header() http.Header {
 
 func (c *ObjectAccessControlsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.objectaccesscontrol)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.objectaccesscontrol)
 	if err != nil {
 		return nil, err
 	}
@@ -8971,6 +9690,7 @@ func (c *ObjectAccessControlsUpdateCall) doRequest(alt string) (*http.Response, 
 		"object": c.object,
 		"entity": c.entity,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objectAccessControls.update", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -9006,9 +9726,11 @@ func (c *ObjectAccessControlsUpdateCall) Do(opts ...googleapi.CallOption) (*Obje
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objectAccessControls.update", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -9057,8 +9779,7 @@ func (c *ObjectsBulkRestoreCall) Header() http.Header {
 
 func (c *ObjectsBulkRestoreCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.bulkrestoreobjectsrequest)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.bulkrestoreobjectsrequest)
 	if err != nil {
 		return nil, err
 	}
@@ -9074,6 +9795,7 @@ func (c *ObjectsBulkRestoreCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.bulkRestore", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -9109,9 +9831,11 @@ func (c *ObjectsBulkRestoreCall) Do(opts ...googleapi.CallOption) (*GoogleLongru
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.bulkRestore", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -9231,8 +9955,7 @@ func (c *ObjectsComposeCall) Header() http.Header {
 
 func (c *ObjectsComposeCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.composerequest)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.composerequest)
 	if err != nil {
 		return nil, err
 	}
@@ -9249,6 +9972,7 @@ func (c *ObjectsComposeCall) doRequest(alt string) (*http.Response, error) {
 		"destinationBucket": c.destinationBucket,
 		"destinationObject": c.destinationObject,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.compose", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -9283,9 +10007,11 @@ func (c *ObjectsComposeCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.compose", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -9487,8 +10213,7 @@ func (c *ObjectsCopyCall) Header() http.Header {
 
 func (c *ObjectsCopyCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.object)
 	if err != nil {
 		return nil, err
 	}
@@ -9507,6 +10232,7 @@ func (c *ObjectsCopyCall) doRequest(alt string) (*http.Response, error) {
 		"destinationBucket": c.destinationBucket,
 		"destinationObject": c.destinationObject,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.copy", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -9541,9 +10267,11 @@ func (c *ObjectsCopyCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.copy", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -9646,12 +10374,11 @@ func (c *ObjectsDeleteCall) Header() http.Header {
 
 func (c *ObjectsDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -9660,6 +10387,7 @@ func (c *ObjectsDeleteCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -9674,6 +10402,7 @@ func (c *ObjectsDeleteCall) Do(opts ...googleapi.CallOption) error {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -9755,9 +10484,21 @@ func (c *ObjectsGetCall) Projection(projection string) *ObjectsGetCall {
 	return c
 }
 
+// RestoreToken sets the optional parameter "restoreToken": Restore token used
+// to differentiate soft-deleted objects with the same name and generation.
+// Only applicable for hierarchical namespace buckets and if softDeleted is set
+// to true. This parameter is optional, and is only required in the rare case
+// when there are multiple soft-deleted objects with the same name and
+// generation.
+func (c *ObjectsGetCall) RestoreToken(restoreToken string) *ObjectsGetCall {
+	c.urlParams_.Set("restoreToken", restoreToken)
+	return c
+}
+
 // SoftDeleted sets the optional parameter "softDeleted": If true, only
 // soft-deleted object versions will be listed. The default is false. For more
-// information, see Soft Delete.
+// information, see Soft Delete
+// (https://cloud.google.com/storage/docs/soft-delete).
 func (c *ObjectsGetCall) SoftDeleted(softDeleted bool) *ObjectsGetCall {
 	c.urlParams_.Set("softDeleted", fmt.Sprint(softDeleted))
 	return c
@@ -9806,12 +10547,11 @@ func (c *ObjectsGetCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -9820,6 +10560,7 @@ func (c *ObjectsGetCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -9870,9 +10611,11 @@ func (c *ObjectsGetCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -9950,12 +10693,11 @@ func (c *ObjectsGetIamPolicyCall) doRequest(alt string) (*http.Response, error) 
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}/iam")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -9964,6 +10706,7 @@ func (c *ObjectsGetIamPolicyCall) doRequest(alt string) (*http.Response, error) 
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.getIamPolicy", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -9998,9 +10741,11 @@ func (c *ObjectsGetIamPolicyCall) Do(opts ...googleapi.CallOption) (*Policy, err
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.getIamPolicy", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -10232,8 +10977,7 @@ func (c *ObjectsInsertCall) Header() http.Header {
 
 func (c *ObjectsInsertCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.object)
 	if err != nil {
 		return nil, err
 	}
@@ -10244,14 +10988,10 @@ func (c *ObjectsInsertCall) doRequest(alt string) (*http.Response, error) {
 		urls = googleapi.ResolveRelative(c.s.BasePath, "/upload/storage/v1/b/{bucket}/o")
 		c.urlParams_.Set("uploadType", c.mediaInfo_.UploadType())
 	}
-	if body == nil {
-		body = new(bytes.Buffer)
-		reqHeaders.Set("Content-Type", "application/json")
-	}
-	body, getBody, cleanup := c.mediaInfo_.UploadRequest(reqHeaders, body)
+	newBody, getBody, cleanup := c.mediaInfo_.UploadRequest(reqHeaders, body)
 	defer cleanup()
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, newBody)
 	if err != nil {
 		return nil, err
 	}
@@ -10260,6 +11000,7 @@ func (c *ObjectsInsertCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.insert", "request", internallog.HTTPRequest(req, body.Bytes()))
 	if c.retry != nil {
 		return gensupport.SendRequestWithRetry(c.ctx_, c.s.client, req, c.retry)
 	}
@@ -10315,9 +11056,11 @@ func (c *ObjectsInsertCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.insert", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -10355,6 +11098,14 @@ func (c *ObjectsListCall) Delimiter(delimiter string) *ObjectsListCall {
 // endOffset (exclusive).
 func (c *ObjectsListCall) EndOffset(endOffset string) *ObjectsListCall {
 	c.urlParams_.Set("endOffset", endOffset)
+	return c
+}
+
+// Filter sets the optional parameter "filter": Filter the returned objects.
+// Currently only supported for the contexts field. If delimiter is set, the
+// returned prefixes are exempt from this filter.
+func (c *ObjectsListCall) Filter(filter string) *ObjectsListCall {
+	c.urlParams_.Set("filter", filter)
 	return c
 }
 
@@ -10420,7 +11171,8 @@ func (c *ObjectsListCall) Projection(projection string) *ObjectsListCall {
 
 // SoftDeleted sets the optional parameter "softDeleted": If true, only
 // soft-deleted object versions will be listed. The default is false. For more
-// information, see Soft Delete.
+// information, see Soft Delete
+// (https://cloud.google.com/storage/docs/soft-delete).
 func (c *ObjectsListCall) SoftDeleted(softDeleted bool) *ObjectsListCall {
 	c.urlParams_.Set("softDeleted", fmt.Sprint(softDeleted))
 	return c
@@ -10444,7 +11196,8 @@ func (c *ObjectsListCall) UserProject(userProject string) *ObjectsListCall {
 
 // Versions sets the optional parameter "versions": If true, lists all versions
 // of an object as distinct results. The default is false. For more
-// information, see Object Versioning.
+// information, see Object Versioning
+// (https://cloud.google.com/storage/docs/object-versioning).
 func (c *ObjectsListCall) Versions(versions bool) *ObjectsListCall {
 	c.urlParams_.Set("versions", fmt.Sprint(versions))
 	return c
@@ -10486,12 +11239,11 @@ func (c *ObjectsListCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -10499,6 +11251,7 @@ func (c *ObjectsListCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -10533,9 +11286,11 @@ func (c *ObjectsListCall) Do(opts ...googleapi.CallOption) (*Objects, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -10558,6 +11313,219 @@ func (c *ObjectsListCall) Pages(ctx context.Context, f func(*Objects) error) err
 		}
 		c.PageToken(x.NextPageToken)
 	}
+}
+
+type ObjectsMoveCall struct {
+	s                 *Service
+	bucket            string
+	sourceObject      string
+	destinationObject string
+	urlParams_        gensupport.URLParams
+	ctx_              context.Context
+	header_           http.Header
+}
+
+// Move: Moves the source object to the destination object in the same bucket.
+//
+//   - bucket: Name of the bucket in which the object resides.
+//   - destinationObject: Name of the destination object. For information about
+//     how to URL encode object names to be path safe, see Encoding URI Path
+//     Parts (https://cloud.google.com/storage/docs/request-endpoints#encoding).
+//   - sourceObject: Name of the source object. For information about how to URL
+//     encode object names to be path safe, see Encoding URI Path Parts
+//     (https://cloud.google.com/storage/docs/request-endpoints#encoding).
+func (r *ObjectsService) Move(bucket string, sourceObject string, destinationObject string) *ObjectsMoveCall {
+	c := &ObjectsMoveCall{s: r.s, urlParams_: make(gensupport.URLParams)}
+	c.bucket = bucket
+	c.sourceObject = sourceObject
+	c.destinationObject = destinationObject
+	return c
+}
+
+// IfGenerationMatch sets the optional parameter "ifGenerationMatch": Makes the
+// operation conditional on whether the destination object's current generation
+// matches the given value. Setting to 0 makes the operation succeed only if
+// there are no live versions of the object. `ifGenerationMatch` and
+// `ifGenerationNotMatch` conditions are mutually exclusive: it's an error for
+// both of them to be set in the request.
+func (c *ObjectsMoveCall) IfGenerationMatch(ifGenerationMatch int64) *ObjectsMoveCall {
+	c.urlParams_.Set("ifGenerationMatch", fmt.Sprint(ifGenerationMatch))
+	return c
+}
+
+// IfGenerationNotMatch sets the optional parameter "ifGenerationNotMatch":
+// Makes the operation conditional on whether the destination object's current
+// generation does not match the given value. If no live object exists, the
+// precondition fails. Setting to 0 makes the operation succeed only if there
+// is a live version of the object.`ifGenerationMatch` and
+// `ifGenerationNotMatch` conditions are mutually exclusive: it's an error for
+// both of them to be set in the request.
+func (c *ObjectsMoveCall) IfGenerationNotMatch(ifGenerationNotMatch int64) *ObjectsMoveCall {
+	c.urlParams_.Set("ifGenerationNotMatch", fmt.Sprint(ifGenerationNotMatch))
+	return c
+}
+
+// IfMetagenerationMatch sets the optional parameter "ifMetagenerationMatch":
+// Makes the operation conditional on whether the destination object's current
+// metageneration matches the given value. `ifMetagenerationMatch` and
+// `ifMetagenerationNotMatch` conditions are mutually exclusive: it's an error
+// for both of them to be set in the request.
+func (c *ObjectsMoveCall) IfMetagenerationMatch(ifMetagenerationMatch int64) *ObjectsMoveCall {
+	c.urlParams_.Set("ifMetagenerationMatch", fmt.Sprint(ifMetagenerationMatch))
+	return c
+}
+
+// IfMetagenerationNotMatch sets the optional parameter
+// "ifMetagenerationNotMatch": Makes the operation conditional on whether the
+// destination object's current metageneration does not match the given value.
+// `ifMetagenerationMatch` and `ifMetagenerationNotMatch` conditions are
+// mutually exclusive: it's an error for both of them to be set in the request.
+func (c *ObjectsMoveCall) IfMetagenerationNotMatch(ifMetagenerationNotMatch int64) *ObjectsMoveCall {
+	c.urlParams_.Set("ifMetagenerationNotMatch", fmt.Sprint(ifMetagenerationNotMatch))
+	return c
+}
+
+// IfSourceGenerationMatch sets the optional parameter
+// "ifSourceGenerationMatch": Makes the operation conditional on whether the
+// source object's current generation matches the given value.
+// `ifSourceGenerationMatch` and `ifSourceGenerationNotMatch` conditions are
+// mutually exclusive: it's an error for both of them to be set in the request.
+func (c *ObjectsMoveCall) IfSourceGenerationMatch(ifSourceGenerationMatch int64) *ObjectsMoveCall {
+	c.urlParams_.Set("ifSourceGenerationMatch", fmt.Sprint(ifSourceGenerationMatch))
+	return c
+}
+
+// IfSourceGenerationNotMatch sets the optional parameter
+// "ifSourceGenerationNotMatch": Makes the operation conditional on whether the
+// source object's current generation does not match the given value.
+// `ifSourceGenerationMatch` and `ifSourceGenerationNotMatch` conditions are
+// mutually exclusive: it's an error for both of them to be set in the request.
+func (c *ObjectsMoveCall) IfSourceGenerationNotMatch(ifSourceGenerationNotMatch int64) *ObjectsMoveCall {
+	c.urlParams_.Set("ifSourceGenerationNotMatch", fmt.Sprint(ifSourceGenerationNotMatch))
+	return c
+}
+
+// IfSourceMetagenerationMatch sets the optional parameter
+// "ifSourceMetagenerationMatch": Makes the operation conditional on whether
+// the source object's current metageneration matches the given value.
+// `ifSourceMetagenerationMatch` and `ifSourceMetagenerationNotMatch`
+// conditions are mutually exclusive: it's an error for both of them to be set
+// in the request.
+func (c *ObjectsMoveCall) IfSourceMetagenerationMatch(ifSourceMetagenerationMatch int64) *ObjectsMoveCall {
+	c.urlParams_.Set("ifSourceMetagenerationMatch", fmt.Sprint(ifSourceMetagenerationMatch))
+	return c
+}
+
+// IfSourceMetagenerationNotMatch sets the optional parameter
+// "ifSourceMetagenerationNotMatch": Makes the operation conditional on whether
+// the source object's current metageneration does not match the given value.
+// `ifSourceMetagenerationMatch` and `ifSourceMetagenerationNotMatch`
+// conditions are mutually exclusive: it's an error for both of them to be set
+// in the request.
+func (c *ObjectsMoveCall) IfSourceMetagenerationNotMatch(ifSourceMetagenerationNotMatch int64) *ObjectsMoveCall {
+	c.urlParams_.Set("ifSourceMetagenerationNotMatch", fmt.Sprint(ifSourceMetagenerationNotMatch))
+	return c
+}
+
+// Projection sets the optional parameter "projection": Set of properties to
+// return. Defaults to noAcl.
+//
+// Possible values:
+//
+//	"full" - Include all properties.
+//	"noAcl" - Omit the owner, acl property.
+func (c *ObjectsMoveCall) Projection(projection string) *ObjectsMoveCall {
+	c.urlParams_.Set("projection", projection)
+	return c
+}
+
+// UserProject sets the optional parameter "userProject": The project to be
+// billed for this request. Required for Requester Pays buckets.
+func (c *ObjectsMoveCall) UserProject(userProject string) *ObjectsMoveCall {
+	c.urlParams_.Set("userProject", userProject)
+	return c
+}
+
+// Fields allows partial responses to be retrieved. See
+// https://developers.google.com/gdata/docs/2.0/basics#PartialResponse for more
+// details.
+func (c *ObjectsMoveCall) Fields(s ...googleapi.Field) *ObjectsMoveCall {
+	c.urlParams_.Set("fields", googleapi.CombineFields(s))
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+func (c *ObjectsMoveCall) Context(ctx context.Context) *ObjectsMoveCall {
+	c.ctx_ = ctx
+	return c
+}
+
+// Header returns a http.Header that can be modified by the caller to add
+// headers to the request.
+func (c *ObjectsMoveCall) Header() http.Header {
+	if c.header_ == nil {
+		c.header_ = make(http.Header)
+	}
+	return c.header_
+}
+
+func (c *ObjectsMoveCall) doRequest(alt string) (*http.Response, error) {
+	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
+	c.urlParams_.Set("alt", alt)
+	c.urlParams_.Set("prettyPrint", "false")
+	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{sourceObject}/moveTo/o/{destinationObject}")
+	urls += "?" + c.urlParams_.Encode()
+	req, err := http.NewRequest("POST", urls, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header = reqHeaders
+	googleapi.Expand(req.URL, map[string]string{
+		"bucket":            c.bucket,
+		"sourceObject":      c.sourceObject,
+		"destinationObject": c.destinationObject,
+	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.move", "request", internallog.HTTPRequest(req, nil))
+	return gensupport.SendRequest(c.ctx_, c.s.client, req)
+}
+
+// Do executes the "storage.objects.move" call.
+// Any non-2xx status code is an error. Response headers are in either
+// *Object.ServerResponse.Header or (if a response was returned at all) in
+// error.(*googleapi.Error).Header. Use googleapi.IsNotModified to check
+// whether the returned error was because http.StatusNotModified was returned.
+func (c *ObjectsMoveCall) Do(opts ...googleapi.CallOption) (*Object, error) {
+	gensupport.SetOptions(c.urlParams_, opts...)
+	res, err := c.doRequest("json")
+	if res != nil && res.StatusCode == http.StatusNotModified {
+		if res.Body != nil {
+			res.Body.Close()
+		}
+		return nil, gensupport.WrapError(&googleapi.Error{
+			Code:   res.StatusCode,
+			Header: res.Header,
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer googleapi.CloseBody(res)
+	if err := googleapi.CheckResponse(res); err != nil {
+		return nil, gensupport.WrapError(err)
+	}
+	ret := &Object{
+		ServerResponse: googleapi.ServerResponse{
+			Header:         res.Header,
+			HTTPStatusCode: res.StatusCode,
+		},
+	}
+	target := &ret
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
+		return nil, err
+	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.move", "response", internallog.HTTPResponse(res, b))
+	return ret, nil
 }
 
 type ObjectsPatchCall struct {
@@ -10710,8 +11678,7 @@ func (c *ObjectsPatchCall) Header() http.Header {
 
 func (c *ObjectsPatchCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object2)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.object2)
 	if err != nil {
 		return nil, err
 	}
@@ -10728,6 +11695,7 @@ func (c *ObjectsPatchCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.patch", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -10762,9 +11730,11 @@ func (c *ObjectsPatchCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.patch", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -10782,7 +11752,8 @@ type ObjectsRestoreCall struct {
 //   - bucket: Name of the bucket in which the object resides.
 //   - generation: Selects a specific revision of this object.
 //   - object: Name of the object. For information about how to URL encode object
-//     names to be path safe, see Encoding URI Path Parts.
+//     names to be path safe, see Encoding URI Path Parts
+//     (https://cloud.google.com/storage/docs/request-endpoints#encoding).
 func (r *ObjectsService) Restore(bucket string, object string, generation int64) *ObjectsRestoreCall {
 	c := &ObjectsRestoreCall{s: r.s, urlParams_: make(gensupport.URLParams)}
 	c.bucket = bucket
@@ -10846,6 +11817,16 @@ func (c *ObjectsRestoreCall) Projection(projection string) *ObjectsRestoreCall {
 	return c
 }
 
+// RestoreToken sets the optional parameter "restoreToken": Restore token used
+// to differentiate sof-deleted objects with the same name and generation. Only
+// applicable for hierarchical namespace buckets. This parameter is optional,
+// and is only required in the rare case when there are multiple soft-deleted
+// objects with the same name and generation.
+func (c *ObjectsRestoreCall) RestoreToken(restoreToken string) *ObjectsRestoreCall {
+	c.urlParams_.Set("restoreToken", restoreToken)
+	return c
+}
+
 // UserProject sets the optional parameter "userProject": The project to be
 // billed for this request. Required for Requester Pays buckets.
 func (c *ObjectsRestoreCall) UserProject(userProject string) *ObjectsRestoreCall {
@@ -10878,12 +11859,11 @@ func (c *ObjectsRestoreCall) Header() http.Header {
 
 func (c *ObjectsRestoreCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}/restore")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -10892,6 +11872,7 @@ func (c *ObjectsRestoreCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.restore", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -10926,9 +11907,11 @@ func (c *ObjectsRestoreCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.restore", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -11152,8 +12135,7 @@ func (c *ObjectsRewriteCall) Header() http.Header {
 
 func (c *ObjectsRewriteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.object)
 	if err != nil {
 		return nil, err
 	}
@@ -11172,6 +12154,7 @@ func (c *ObjectsRewriteCall) doRequest(alt string) (*http.Response, error) {
 		"destinationBucket": c.destinationBucket,
 		"destinationObject": c.destinationObject,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.rewrite", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -11207,9 +12190,11 @@ func (c *ObjectsRewriteCall) Do(opts ...googleapi.CallOption) (*RewriteResponse,
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.rewrite", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -11277,8 +12262,7 @@ func (c *ObjectsSetIamPolicyCall) Header() http.Header {
 
 func (c *ObjectsSetIamPolicyCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.policy)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.policy)
 	if err != nil {
 		return nil, err
 	}
@@ -11295,6 +12279,7 @@ func (c *ObjectsSetIamPolicyCall) doRequest(alt string) (*http.Response, error) 
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.setIamPolicy", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -11329,9 +12314,11 @@ func (c *ObjectsSetIamPolicyCall) Do(opts ...googleapi.CallOption) (*Policy, err
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.setIamPolicy", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -11412,12 +12399,11 @@ func (c *ObjectsTestIamPermissionsCall) doRequest(alt string) (*http.Response, e
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/o/{object}/iam/testPermissions")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -11426,6 +12412,7 @@ func (c *ObjectsTestIamPermissionsCall) doRequest(alt string) (*http.Response, e
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.testIamPermissions", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -11461,9 +12448,11 @@ func (c *ObjectsTestIamPermissionsCall) Do(opts ...googleapi.CallOption) (*TestI
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.testIamPermissions", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -11617,8 +12606,7 @@ func (c *ObjectsUpdateCall) Header() http.Header {
 
 func (c *ObjectsUpdateCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.object2)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.object2)
 	if err != nil {
 		return nil, err
 	}
@@ -11635,6 +12623,7 @@ func (c *ObjectsUpdateCall) doRequest(alt string) (*http.Response, error) {
 		"bucket": c.bucket,
 		"object": c.object,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.update", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -11669,9 +12658,11 @@ func (c *ObjectsUpdateCall) Do(opts ...googleapi.CallOption) (*Object, error) {
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.update", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -11775,7 +12766,8 @@ func (c *ObjectsWatchAllCall) UserProject(userProject string) *ObjectsWatchAllCa
 
 // Versions sets the optional parameter "versions": If true, lists all versions
 // of an object as distinct results. The default is false. For more
-// information, see Object Versioning.
+// information, see Object Versioning
+// (https://cloud.google.com/storage/docs/object-versioning).
 func (c *ObjectsWatchAllCall) Versions(versions bool) *ObjectsWatchAllCall {
 	c.urlParams_.Set("versions", fmt.Sprint(versions))
 	return c
@@ -11806,8 +12798,7 @@ func (c *ObjectsWatchAllCall) Header() http.Header {
 
 func (c *ObjectsWatchAllCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.channel)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.channel)
 	if err != nil {
 		return nil, err
 	}
@@ -11823,6 +12814,7 @@ func (c *ObjectsWatchAllCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.objects.watchAll", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -11857,10 +12849,99 @@ func (c *ObjectsWatchAllCall) Do(opts ...googleapi.CallOption) (*Channel, error)
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.objects.watchAll", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
+}
+
+type OperationsAdvanceRelocateBucketCall struct {
+	s                                     *Service
+	bucket                                string
+	operationId                           string
+	advancerelocatebucketoperationrequest *AdvanceRelocateBucketOperationRequest
+	urlParams_                            gensupport.URLParams
+	ctx_                                  context.Context
+	header_                               http.Header
+}
+
+// AdvanceRelocateBucket: Starts asynchronous advancement of the relocate
+// bucket operation in the case of required write downtime, to allow it to lock
+// the bucket at the source location, and proceed with the bucket location
+// swap. The server makes a best effort to advance the relocate bucket
+// operation, but success is not guaranteed.
+//
+// - bucket: Name of the bucket to advance the relocate for.
+// - operationId: ID of the operation resource.
+func (r *OperationsService) AdvanceRelocateBucket(bucket string, operationId string, advancerelocatebucketoperationrequest *AdvanceRelocateBucketOperationRequest) *OperationsAdvanceRelocateBucketCall {
+	c := &OperationsAdvanceRelocateBucketCall{s: r.s, urlParams_: make(gensupport.URLParams)}
+	c.bucket = bucket
+	c.operationId = operationId
+	c.advancerelocatebucketoperationrequest = advancerelocatebucketoperationrequest
+	return c
+}
+
+// Fields allows partial responses to be retrieved. See
+// https://developers.google.com/gdata/docs/2.0/basics#PartialResponse for more
+// details.
+func (c *OperationsAdvanceRelocateBucketCall) Fields(s ...googleapi.Field) *OperationsAdvanceRelocateBucketCall {
+	c.urlParams_.Set("fields", googleapi.CombineFields(s))
+	return c
+}
+
+// Context sets the context to be used in this call's Do method.
+func (c *OperationsAdvanceRelocateBucketCall) Context(ctx context.Context) *OperationsAdvanceRelocateBucketCall {
+	c.ctx_ = ctx
+	return c
+}
+
+// Header returns a http.Header that can be modified by the caller to add
+// headers to the request.
+func (c *OperationsAdvanceRelocateBucketCall) Header() http.Header {
+	if c.header_ == nil {
+		c.header_ = make(http.Header)
+	}
+	return c.header_
+}
+
+func (c *OperationsAdvanceRelocateBucketCall) doRequest(alt string) (*http.Response, error) {
+	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.advancerelocatebucketoperationrequest)
+	if err != nil {
+		return nil, err
+	}
+	c.urlParams_.Set("alt", alt)
+	c.urlParams_.Set("prettyPrint", "false")
+	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/operations/{operationId}/advanceRelocateBucket")
+	urls += "?" + c.urlParams_.Encode()
+	req, err := http.NewRequest("POST", urls, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header = reqHeaders
+	googleapi.Expand(req.URL, map[string]string{
+		"bucket":      c.bucket,
+		"operationId": c.operationId,
+	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.operations.advanceRelocateBucket", "request", internallog.HTTPRequest(req, body.Bytes()))
+	return gensupport.SendRequest(c.ctx_, c.s.client, req)
+}
+
+// Do executes the "storage.buckets.operations.advanceRelocateBucket" call.
+func (c *OperationsAdvanceRelocateBucketCall) Do(opts ...googleapi.CallOption) error {
+	gensupport.SetOptions(c.urlParams_, opts...)
+	res, err := c.doRequest("json")
+	if err != nil {
+		return err
+	}
+	defer googleapi.CloseBody(res)
+	if err := googleapi.CheckResponse(res); err != nil {
+		return gensupport.WrapError(err)
+	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.operations.advanceRelocateBucket", "response", internallog.HTTPResponse(res, nil))
+	return nil
 }
 
 type OperationsCancelCall struct {
@@ -11910,12 +12991,11 @@ func (c *OperationsCancelCall) Header() http.Header {
 
 func (c *OperationsCancelCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/operations/{operationId}/cancel")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -11924,6 +13004,7 @@ func (c *OperationsCancelCall) doRequest(alt string) (*http.Response, error) {
 		"bucket":      c.bucket,
 		"operationId": c.operationId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.operations.cancel", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -11938,6 +13019,7 @@ func (c *OperationsCancelCall) Do(opts ...googleapi.CallOption) error {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.operations.cancel", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -11998,12 +13080,11 @@ func (c *OperationsGetCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/operations/{operationId}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -12012,6 +13093,7 @@ func (c *OperationsGetCall) doRequest(alt string) (*http.Response, error) {
 		"bucket":      c.bucket,
 		"operationId": c.operationId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.operations.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -12047,9 +13129,11 @@ func (c *OperationsGetCall) Do(opts ...googleapi.CallOption) (*GoogleLongrunning
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.operations.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -12131,12 +13215,11 @@ func (c *OperationsListCall) doRequest(alt string) (*http.Response, error) {
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "b/{bucket}/operations")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -12144,6 +13227,7 @@ func (c *OperationsListCall) doRequest(alt string) (*http.Response, error) {
 	googleapi.Expand(req.URL, map[string]string{
 		"bucket": c.bucket,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.buckets.operations.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -12179,9 +13263,11 @@ func (c *OperationsListCall) Do(opts ...googleapi.CallOption) (*GoogleLongrunnin
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.buckets.operations.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -12257,12 +13343,11 @@ func (c *ProjectsHmacKeysCreateCall) Header() http.Header {
 
 func (c *ProjectsHmacKeysCreateCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "projects/{projectId}/hmacKeys")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("POST", urls, body)
+	req, err := http.NewRequest("POST", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -12270,6 +13355,7 @@ func (c *ProjectsHmacKeysCreateCall) doRequest(alt string) (*http.Response, erro
 	googleapi.Expand(req.URL, map[string]string{
 		"projectId": c.projectId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.create", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -12304,9 +13390,11 @@ func (c *ProjectsHmacKeysCreateCall) Do(opts ...googleapi.CallOption) (*HmacKey,
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.create", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -12362,12 +13450,11 @@ func (c *ProjectsHmacKeysDeleteCall) Header() http.Header {
 
 func (c *ProjectsHmacKeysDeleteCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "", c.header_)
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "projects/{projectId}/hmacKeys/{accessId}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("DELETE", urls, body)
+	req, err := http.NewRequest("DELETE", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -12376,6 +13463,7 @@ func (c *ProjectsHmacKeysDeleteCall) doRequest(alt string) (*http.Response, erro
 		"projectId": c.projectId,
 		"accessId":  c.accessId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.delete", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -12390,6 +13478,7 @@ func (c *ProjectsHmacKeysDeleteCall) Do(opts ...googleapi.CallOption) error {
 	if err := googleapi.CheckResponse(res); err != nil {
 		return gensupport.WrapError(err)
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.delete", "response", internallog.HTTPResponse(res, nil))
 	return nil
 }
 
@@ -12457,12 +13546,11 @@ func (c *ProjectsHmacKeysGetCall) doRequest(alt string) (*http.Response, error) 
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "projects/{projectId}/hmacKeys/{accessId}")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -12471,6 +13559,7 @@ func (c *ProjectsHmacKeysGetCall) doRequest(alt string) (*http.Response, error) 
 		"projectId": c.projectId,
 		"accessId":  c.accessId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -12506,9 +13595,11 @@ func (c *ProjectsHmacKeysGetCall) Do(opts ...googleapi.CallOption) (*HmacKeyMeta
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -12605,12 +13696,11 @@ func (c *ProjectsHmacKeysListCall) doRequest(alt string) (*http.Response, error)
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "projects/{projectId}/hmacKeys")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -12618,6 +13708,7 @@ func (c *ProjectsHmacKeysListCall) doRequest(alt string) (*http.Response, error)
 	googleapi.Expand(req.URL, map[string]string{
 		"projectId": c.projectId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.list", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -12653,9 +13744,11 @@ func (c *ProjectsHmacKeysListCall) Do(opts ...googleapi.CallOption) (*HmacKeysMe
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.list", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -12691,7 +13784,9 @@ type ProjectsHmacKeysUpdateCall struct {
 }
 
 // Update: Updates the state of an HMAC key. See the HMAC Key resource
-// descriptor for valid states.
+// descriptor
+// (https://cloud.google.com/storage/docs/json_api/v1/projects/hmacKeys/update#request-body)
+// for valid states.
 //
 // - accessId: Name of the HMAC key being updated.
 // - projectId: Project ID owning the service account of the updated key.
@@ -12735,8 +13830,7 @@ func (c *ProjectsHmacKeysUpdateCall) Header() http.Header {
 
 func (c *ProjectsHmacKeysUpdateCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := gensupport.SetHeaders(c.s.userAgent(), "application/json", c.header_)
-	var body io.Reader = nil
-	body, err := googleapi.WithoutDataWrapper.JSONReader(c.hmackeymetadata)
+	body, err := googleapi.WithoutDataWrapper.JSONBuffer(c.hmackeymetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -12753,6 +13847,7 @@ func (c *ProjectsHmacKeysUpdateCall) doRequest(alt string) (*http.Response, erro
 		"projectId": c.projectId,
 		"accessId":  c.accessId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.update", "request", internallog.HTTPRequest(req, body.Bytes()))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -12788,9 +13883,11 @@ func (c *ProjectsHmacKeysUpdateCall) Do(opts ...googleapi.CallOption) (*HmacKeyM
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.projects.hmacKeys.update", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }
 
@@ -12856,12 +13953,11 @@ func (c *ProjectsServiceAccountGetCall) doRequest(alt string) (*http.Response, e
 	if c.ifNoneMatch_ != "" {
 		reqHeaders.Set("If-None-Match", c.ifNoneMatch_)
 	}
-	var body io.Reader = nil
 	c.urlParams_.Set("alt", alt)
 	c.urlParams_.Set("prettyPrint", "false")
 	urls := googleapi.ResolveRelative(c.s.BasePath, "projects/{projectId}/serviceAccount")
 	urls += "?" + c.urlParams_.Encode()
-	req, err := http.NewRequest("GET", urls, body)
+	req, err := http.NewRequest("GET", urls, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -12869,6 +13965,7 @@ func (c *ProjectsServiceAccountGetCall) doRequest(alt string) (*http.Response, e
 	googleapi.Expand(req.URL, map[string]string{
 		"projectId": c.projectId,
 	})
+	c.s.logger.DebugContext(c.ctx_, "api request", "serviceName", apiName, "rpcName", "storage.projects.serviceAccount.get", "request", internallog.HTTPRequest(req, nil))
 	return gensupport.SendRequest(c.ctx_, c.s.client, req)
 }
 
@@ -12903,8 +14000,10 @@ func (c *ProjectsServiceAccountGetCall) Do(opts ...googleapi.CallOption) (*Servi
 		},
 	}
 	target := &ret
-	if err := gensupport.DecodeResponse(target, res); err != nil {
+	b, err := gensupport.DecodeResponseBytes(target, res)
+	if err != nil {
 		return nil, err
 	}
+	c.s.logger.DebugContext(c.ctx_, "api response", "serviceName", apiName, "rpcName", "storage.projects.serviceAccount.get", "response", internallog.HTTPResponse(res, b))
 	return ret, nil
 }

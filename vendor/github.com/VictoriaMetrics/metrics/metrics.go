@@ -155,6 +155,18 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 //
 //   - process_io_storage_written_bytes_total - the number of bytes actually written to disk
 //
+//   - process_pressure_cpu_waiting_seconds_total - the number of seconds processes in the current cgroup v2 were waiting to be executed
+//
+//   - process_pressure_cpu_stalled_seconds_total - the number of seconds all the processes in the current cgroup v2 were stalled
+//
+//   - process_pressure_io_waiting_seconds_total - the number of seconds processes in the current cgroup v2 were waiting for io to complete
+//
+//   - process_pressure_io_stalled_seconds_total - the number of seconds all the processes in the current cgroup v2 were waiting for io to complete
+//
+//   - process_pressure_memory_waiting_seconds_total - the number of seconds processes in the current cgroup v2 were waiting for memory access to complete
+//
+//   - process_pressure_memory_stalled_seconds_total - the number of seconds all the processes in the current cgroup v2 were waiting for memory access to complete
+//
 //   - go_sched_latencies_seconds - time spent by goroutines in ready state before they start execution
 //
 //   - go_mutex_wait_seconds_total - summary time spent by all the goroutines while waiting for locked mutex
@@ -326,6 +338,10 @@ func WriteMetadataIfNeeded(w io.Writer, metricName, metricType string) {
 		return
 	}
 	metricFamily := getMetricFamily(metricName)
+	writeMetadata(w, metricFamily, metricType)
+}
+
+func writeMetadata(w io.Writer, metricFamily, metricType string) {
 	fmt.Fprintf(w, "# HELP %s\n", metricFamily)
 	fmt.Fprintf(w, "# TYPE %s %s\n", metricFamily, metricType)
 }

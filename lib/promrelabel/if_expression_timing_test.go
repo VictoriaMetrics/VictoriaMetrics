@@ -5,14 +5,14 @@ import (
 	"gopkg.in/yaml.v2"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 func BenchmarkIfExpression(b *testing.B) {
 	const maxLabels = 100
-	labels := make([]prompbmarshal.Label, maxLabels)
+	labels := make([]prompb.Label, maxLabels)
 	for i := 0; i < maxLabels; i++ {
-		label := prompbmarshal.Label{
+		label := prompb.Label{
 			Name:  fmt.Sprintf("foo%d", i),
 			Value: fmt.Sprintf("bar%d", i),
 		}
@@ -34,7 +34,7 @@ func BenchmarkIfExpression(b *testing.B) {
 		benchIfExpr(b, ifExpr, labels)
 	})
 
-	labels[maxLabels-1] = prompbmarshal.Label{
+	labels[maxLabels-1] = prompb.Label{
 		Name:  "__name__",
 		Value: "foo",
 	}
@@ -43,7 +43,7 @@ func BenchmarkIfExpression(b *testing.B) {
 		benchIfExpr(b, ifExpr, labels)
 	})
 
-	labels[maxLabels/2] = prompbmarshal.Label{
+	labels[maxLabels/2] = prompb.Label{
 		Name:  "__name__",
 		Value: "foo",
 	}
@@ -52,7 +52,7 @@ func BenchmarkIfExpression(b *testing.B) {
 		benchIfExpr(b, ifExpr, labels)
 	})
 
-	labels[0] = prompbmarshal.Label{
+	labels[0] = prompb.Label{
 		Name:  "__name__",
 		Value: "foo",
 	}
@@ -62,7 +62,7 @@ func BenchmarkIfExpression(b *testing.B) {
 	})
 }
 
-func benchIfExpr(b *testing.B, expr string, labels []prompbmarshal.Label) {
+func benchIfExpr(b *testing.B, expr string, labels []prompb.Label) {
 	b.Helper()
 	var ie IfExpression
 	if err := yaml.UnmarshalStrict([]byte(expr), &ie); err != nil {

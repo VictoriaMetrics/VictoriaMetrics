@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -19,20 +19,18 @@ import (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold block after returning.
-func Parse(r io.Reader, isGzip bool, callback func(block *Block) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
-
-	if isGzip {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped vmimport data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
+func Parse(r io.Reader, contentEncoding string, callback func(block *Block) error) error {
+	reader, err := protoparserutil.GetUncompressedReader(r, contentEncoding)
+	if err != nil {
+		return fmt.Errorf("cannot decode vmimport data: %w", err)
 	}
-	br := getBufferedReader(r)
+	defer protoparserutil.PutUncompressedReader(reader)
+
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	reader = wcr
+
+	br := getBufferedReader(reader)
 	defer putBufferedReader(br)
 
 	// Read time range (tr)
@@ -105,7 +103,7 @@ func Parse(r io.Reader, isGzip bool, callback func(block *Block) error) error {
 		blocksRead.Inc()
 
 		ctx.wg.Add(1)
-		common.ScheduleUnmarshalWork(uw)
+		protoparserutil.ScheduleUnmarshalWork(uw)
 		wcr.DecConcurrency()
 	}
 }
@@ -156,7 +154,7 @@ func (uw *unmarshalWork) reset() {
 	uw.block.reset()
 }
 
-// Unmarshal implements common.UnmarshalWork
+// Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	err := uw.unmarshal()
 	if err != nil {

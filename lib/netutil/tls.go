@@ -12,9 +12,14 @@ import (
 
 // GetServerTLSConfig returns TLS config for the server.
 func GetServerTLSConfig(tlsCertFile, tlsKeyFile, tlsMinVersion string, tlsCipherSuites []string) (*tls.Config, error) {
+	_, err := tls.LoadX509KeyPair(tlsCertFile, tlsKeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load TLS certificate and key files: %w", err)
+	}
+
 	minVersion, err := ParseTLSVersion(tlsMinVersion)
 	if err != nil {
-		return nil, fmt.Errorf("cannnot use TLS min version from tlsMinVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", tlsMinVersion, err)
+		return nil, fmt.Errorf("cannot use TLS min version from tlsMinVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", tlsMinVersion, err)
 	}
 	cipherSuites, err := cipherSuitesFromNames(tlsCipherSuites)
 	if err != nil {

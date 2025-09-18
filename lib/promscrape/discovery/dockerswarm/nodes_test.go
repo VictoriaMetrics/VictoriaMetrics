@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseNodes(t *testing.T) {
@@ -80,11 +80,11 @@ func TestParseNodes(t *testing.T) {
 }
 
 func TestAddNodeLabels(t *testing.T) {
-	f := func(nodes []node, port int, resultExpected []*promutils.Labels) {
+	f := func(nodes []node, port int, resultExpected []*promutil.Labels) {
 		t.Helper()
 
 		result := addNodeLabels(nodes, port)
-		discoveryutils.TestEqualLabelss(t, result, resultExpected)
+		discoveryutil.TestEqualLabelss(t, result, resultExpected)
 	}
 
 	// add labels to one node
@@ -111,8 +111,8 @@ func TestAddNodeLabels(t *testing.T) {
 			},
 		},
 	}
-	labelssExpected := []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	labelssExpected := []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                                   "172.31.40.97:9100",
 			"__meta_dockerswarm_node_address":               "172.31.40.97",
 			"__meta_dockerswarm_node_availability":          "active",

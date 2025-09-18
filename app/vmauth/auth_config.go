@@ -7,11 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,15 +34,18 @@ import (
 
 var (
 	authConfigPath = flag.String("auth.config", "", "Path to auth config. It can point either to local file or to http url. "+
-		"See https://docs.victoriametrics.com/vmauth/ for details on the format of this auth config")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/ for details on the format of this auth config")
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "interval for config file re-read. "+
 		"Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.")
 	defaultRetryStatusCodes = flagutil.NewArrayInt("retryStatusCodes", 0, "Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. "+
-		"See https://docs.victoriametrics.com/vmauth/#load-balancing for details")
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing for details")
 	defaultLoadBalancingPolicy = flag.String("loadBalancingPolicy", "least_loaded", "The default load balancing policy to use for backend urls specified inside url_prefix section. "+
-		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/vmauth/#load-balancing")
+		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing")
+	defaultMergeQueryArgs = flagutil.NewArrayString("mergeQueryArgs", "An optional list of client query arg names, which must be merged with args at backend urls. "+
+		"The rest of client query args are replaced by the corresponding query args from backend urls for security reasons; "+
+		"see https://docs.victoriametrics.com/victoriametrics/vmauth/#query-args-handling")
 	discoverBackendIPsGlobal = flag.Bool("discoverBackendIPs", false, "Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. "+
-		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth/#discovering-backend-ips")
+		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips")
 	discoverBackendIPsInterval = flag.Duration("discoverBackendIPsInterval", 10*time.Second, "The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. "+
 		"Too low value may lead to DNS errors")
 	httpAuthHeader = flagutil.NewArrayString("httpAuthHeader", "HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header")
@@ -67,11 +72,13 @@ type UserInfo struct {
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
 	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
+	DumpRequestOnErrors    bool        `yaml:"dump_request_on_errors,omitempty"`
 	HeadersConf            HeadersConf `yaml:",inline"`
 	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
 	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
+	MergeQueryArgs         []string    `yaml:"merge_query_args,omitempty"`
 	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
 	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
 	TLSCertFile            string      `yaml:"tls_cert_file,omitempty"`
@@ -138,7 +145,7 @@ func (h *Header) UnmarshalYAML(f func(any) error) error {
 
 	n := strings.IndexByte(s, ':')
 	if n < 0 {
-		return fmt.Errorf("missing speparator char ':' between Name and Value in the header %q; expected format - 'Name: Value'", s)
+		return fmt.Errorf("missing separator char ':' between Name and Value in the header %q; expected format - 'Name: Value'", s)
 	}
 	h.Name = strings.TrimSpace(s[:n])
 	h.Value = strings.TrimSpace(s[n+1:])
@@ -170,7 +177,7 @@ type URLMap struct {
 	// DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS.
 	DiscoverBackendIPs *bool `yaml:"discover_backend_ips,omitempty"`
 
-	// HeadersConf is the config for augumenting request and response headers.
+	// HeadersConf is the config for augmenting request and response headers.
 	HeadersConf HeadersConf `yaml:",inline"`
 
 	// RetryStatusCodes is the list of response status codes used for retrying requests.
@@ -178,6 +185,11 @@ type URLMap struct {
 
 	// LoadBalancingPolicy is load balancing policy among UrlPrefix backends.
 	LoadBalancingPolicy string `yaml:"load_balancing_policy,omitempty"`
+
+	// MergeQueryArgs is a list of client query args, which must be merged with the existing backend query args.
+	//
+	// The rest of client query args are replaced with the corresponding backend query args for security reasons.
+	MergeQueryArgs []string `yaml:"merge_query_args,omitempty"`
 
 	// DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.
 	DropSrcPathPrefixParts *int `yaml:"drop_src_path_prefix_parts,omitempty"`
@@ -225,13 +237,18 @@ func (qa *QueryArg) MarshalYAML() (any, error) {
 	return qa.sOriginal, nil
 }
 
-// URLPrefix represents passed `url_prefix`
+// URLPrefix represents the `url_prefix` from auth config.
 type URLPrefix struct {
 	// requests are re-tried on other backend urls for these http response status codes
 	retryStatusCodes []int
 
 	// load balancing policy used
 	loadBalancingPolicy string
+
+	// the list of client query args, which must be merged with backend query args.
+	//
+	// By default backend query args replace all the client query args for security reasons.
+	mergeQueryArgs []string
 
 	// how many request path prefix parts to drop before routing the request to backendURL
 	dropSrcPathPrefixParts int
@@ -347,6 +364,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	hostToAddrs := make(map[string][]string)
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
+		port := bu.Port()
 		if hostToAddrs[host] != nil {
 			// ips for the given host have been already discovered
 			continue
@@ -363,7 +381,11 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+					hostPort := port
+					if hostPort == "" && addr.Port > 0 {
+						hostPort = strconv.FormatUint(uint64(addr.Port), 10)
+					}
+					resolvedAddrs[i] = net.JoinHostPort(addr.Target, hostPort)
 				}
 			}
 		} else {
@@ -374,7 +396,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					resolvedAddrs[i] = addr.String()
+					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
 				}
 			}
 		}
@@ -388,17 +410,9 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	var busNew []*backendURL
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
-		port := bu.Port()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
 			buCopy.Host = addr
-			if port != "" {
-				if n := strings.IndexByte(buCopy.Host, ':'); n >= 0 {
-					// Drop the discovered port and substitute it the port specified in bu.
-					buCopy.Host = buCopy.Host[:n]
-				}
-				buCopy.Host += ":" + port
-			}
 			busNew = append(busNew, &backendURL{
 				url: &buCopy,
 			})
@@ -438,7 +452,7 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 		return bu
 	}
 
-	// Slow path - the first url is temporarily unavailabel. Fall back to the remaining urls.
+	// Slow path - the first url is temporarily unavailable. Fall back to the remaining urls.
 	for i := 1; i < len(bus); i++ {
 		if !bus[i].isBroken() {
 			bu = bus[i]
@@ -462,7 +476,6 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 
 	// Slow path - select other backend urls.
 	n := atomicCounter.Add(1) - 1
-
 	for i := uint32(0); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
@@ -484,7 +497,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 		if bu.isBroken() {
 			continue
 		}
-		if n := bu.concurrentRequests.Load(); n < minRequests {
+		if n := bu.concurrentRequests.Load(); n < minRequests || buMin.isBroken() {
 			buMin = bu
 			minRequests = n
 		}
@@ -724,14 +737,11 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 }
 
 func parseAuthConfig(data []byte) (*AuthConfig, error) {
-	data, err := envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 	ac := &AuthConfig{
 		ms: metrics.NewSet(),
 	}
-	if err = yaml.UnmarshalStrict(data, ac); err != nil {
+	if err := yaml.UnmarshalStrict(data, ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
 
@@ -783,10 +793,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 
 func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	uis := ac.Users
-	if len(uis) == 0 && ac.UnauthorizedUser == nil {
-		return nil, fmt.Errorf("Missing `users` or `unauthorized_user` sections")
-	}
 	byAuthToken := make(map[string]*UserInfo, len(uis))
+	if len(uis) == 0 && ac.UnauthorizedUser == nil {
+		// fast path for empty configuration
+		return byAuthToken, nil
+	}
 	for i := range uis {
 		ui := &uis[i]
 		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
@@ -859,30 +870,37 @@ func (ui *UserInfo) getMetricLabels() (string, error) {
 func (ui *UserInfo) initURLs() error {
 	retryStatusCodes := defaultRetryStatusCodes.Values()
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
+	mergeQueryArgs := *defaultMergeQueryArgs
 	dropSrcPathPrefixParts := 0
 	discoverBackendIPs := *discoverBackendIPsGlobal
-	if ui.URLPrefix != nil {
-		if err := ui.URLPrefix.sanitizeAndInitialize(); err != nil {
+	if ui.RetryStatusCodes != nil {
+		retryStatusCodes = ui.RetryStatusCodes
+	}
+	if ui.LoadBalancingPolicy != "" {
+		loadBalancingPolicy = ui.LoadBalancingPolicy
+	}
+	if len(ui.MergeQueryArgs) != 0 {
+		mergeQueryArgs = ui.MergeQueryArgs
+	}
+	if ui.DropSrcPathPrefixParts != nil {
+		dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
+	}
+	if ui.DiscoverBackendIPs != nil {
+		discoverBackendIPs = *ui.DiscoverBackendIPs
+	}
+
+	up := ui.URLPrefix
+	if up != nil {
+		if err := up.sanitizeAndInitialize(); err != nil {
 			return err
 		}
-		if ui.RetryStatusCodes != nil {
-			retryStatusCodes = ui.RetryStatusCodes
-		}
-		if ui.LoadBalancingPolicy != "" {
-			loadBalancingPolicy = ui.LoadBalancingPolicy
-		}
-		if ui.DropSrcPathPrefixParts != nil {
-			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
-		}
-		if ui.DiscoverBackendIPs != nil {
-			discoverBackendIPs = *ui.DiscoverBackendIPs
-		}
-		ui.URLPrefix.retryStatusCodes = retryStatusCodes
-		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts
-		ui.URLPrefix.discoverBackendIPs = discoverBackendIPs
-		if err := ui.URLPrefix.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
+		up.retryStatusCodes = retryStatusCodes
+		up.dropSrcPathPrefixParts = dropSrcPathPrefixParts
+		up.discoverBackendIPs = discoverBackendIPs
+		if err := up.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
 			return err
 		}
+		up.mergeQueryArgs = mergeQueryArgs
 	}
 	if ui.DefaultURL != nil {
 		if err := ui.DefaultURL.sanitizeAndInitialize(); err != nil {
@@ -901,6 +919,7 @@ func (ui *UserInfo) initURLs() error {
 		}
 		rscs := retryStatusCodes
 		lbp := loadBalancingPolicy
+		mqa := mergeQueryArgs
 		dsp := dropSrcPathPrefixParts
 		dbd := discoverBackendIPs
 		if e.RetryStatusCodes != nil {
@@ -908,6 +927,9 @@ func (ui *UserInfo) initURLs() error {
 		}
 		if e.LoadBalancingPolicy != "" {
 			lbp = e.LoadBalancingPolicy
+		}
+		if len(e.MergeQueryArgs) != 0 {
+			mqa = e.MergeQueryArgs
 		}
 		if e.DropSrcPathPrefixParts != nil {
 			dsp = *e.DropSrcPathPrefixParts
@@ -919,6 +941,7 @@ func (ui *UserInfo) initURLs() error {
 		if err := e.URLPrefix.setLoadBalancingPolicy(lbp); err != nil {
 			return err
 		}
+		e.URLPrefix.mergeQueryArgs = mqa
 		e.URLPrefix.dropSrcPathPrefixParts = dsp
 		e.URLPrefix.discoverBackendIPs = dbd
 	}

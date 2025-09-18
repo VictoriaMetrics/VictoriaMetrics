@@ -3,15 +3,15 @@ package azure
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestAppendMachineLabels(t *testing.T) {
-	f := func(name string, vms []virtualMachine, expectedLabels []*promutils.Labels) {
+	f := func(name string, vms []virtualMachine, expectedLabels []*promutil.Labels) {
 		t.Run(name, func(t *testing.T) {
 			labelss := appendMachineLabels(vms, 80, &SDConfig{SubscriptionID: "some-id"})
-			discoveryutils.TestEqualLabelss(t, labelss, expectedLabels)
+			discoveryutil.TestEqualLabelss(t, labelss, expectedLabels)
 		})
 	}
 	f("single vm", []virtualMachine{
@@ -30,8 +30,8 @@ func TestAppendMachineLabels(t *testing.T) {
 				{privateIP: "10.10.10.1"},
 			},
 		},
-	}, []*promutils.Labels{
-		promutils.NewLabelsFromMap(map[string]string{
+	}, []*promutil.Labels{
+		promutil.NewLabelsFromMap(map[string]string{
 			"__address__":                        "10.10.10.1:80",
 			"__meta_azure_machine_id":            "id-2",
 			"__meta_azure_subscription_id":       "some-id",

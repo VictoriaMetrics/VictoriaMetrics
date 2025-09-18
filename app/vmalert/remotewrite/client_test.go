@@ -15,7 +15,6 @@ import (
 	"github.com/golang/snappy"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 func TestClient_Push(t *testing.T) {
@@ -46,8 +45,8 @@ func TestClient_Push(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	const rowsN = int(1e4)
 	for i := 0; i < rowsN; i++ {
-		s := prompbmarshal.TimeSeries{
-			Samples: []prompbmarshal.Sample{{
+		s := prompb.TimeSeries{
+			Samples: []prompb.Sample{{
 				Value:     r.Float64(),
 				Timestamp: time.Now().Unix(),
 			}},
@@ -104,7 +103,7 @@ func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
 
 		// push time series to the client.
 		for i := 0; i < pushCnt; i++ {
-			if err = rwClient.Push(prompbmarshal.TimeSeries{}); err != nil {
+			if err = rwClient.Push(prompb.TimeSeries{}); err != nil {
 				t.Fatalf("cannot time series to the client: %s", err)
 			}
 		}
@@ -183,8 +182,9 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 		rw.err(w, fmt.Errorf("decode err: %w", err))
 		return
 	}
-	wr := &prompb.WriteRequest{}
-	if err := wr.UnmarshalProtobuf(b); err != nil {
+	wru := &prompb.WriteRequestUnmarshaler{}
+	wr, err := wru.UnmarshalProtobuf(b)
+	if err != nil {
 		rw.err(w, fmt.Errorf("unmarhsal err: %w", err))
 		return
 	}

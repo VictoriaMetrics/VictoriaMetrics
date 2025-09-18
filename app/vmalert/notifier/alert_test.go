@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -20,7 +20,7 @@ func TestAlertExecTemplate(t *testing.T) {
 	)
 	extLabels["cluster"] = extCluster
 	extLabels["dc"] = extDC
-	_, err := Init(nil, extLabels, extURL)
+	_, err := Init(extLabels, extURL)
 	checkErr(t, err)
 
 	f := func(alert *Alert, annotations map[string]string, tplExpected map[string]string) {
@@ -33,7 +33,7 @@ func TestAlertExecTemplate(t *testing.T) {
 		qFn := func(_ string) ([]datasource.Metric, error) {
 			return []datasource.Metric{
 				{
-					Labels: []datasource.Label{
+					Labels: []prompb.Label{
 						{Name: "foo", Value: "bar"},
 						{Name: "baz", Value: "qux"},
 					},
@@ -41,7 +41,7 @@ func TestAlertExecTemplate(t *testing.T) {
 					Timestamps: []int64{1},
 				},
 				{
-					Labels: []datasource.Label{
+					Labels: []prompb.Label{
 						{Name: "foo", Value: "garply"},
 						{Name: "baz", Value: "fred"},
 					},
@@ -61,7 +61,7 @@ func TestAlertExecTemplate(t *testing.T) {
 		for k := range tplExpected {
 			got, exp := tpl[k], tplExpected[k]
 			if got != exp {
-				t.Fatalf("unexpected template for key=%q; got %q; want %q", k, got, exp)
+				t.Fatalf("unexpected template for key=%q; \ngot %q; \nwant %q", k, got, exp)
 			}
 		}
 	}
@@ -75,7 +75,13 @@ func TestAlertExecTemplate(t *testing.T) {
 		Labels: map[string]string{
 			"instance": "localhost",
 		},
-	}, map[string]string{}, map[string]string{})
+	}, map[string]string{
+		"summary":     "it's a test summary",
+		"description": "it's a test description",
+	}, map[string]string{
+		"summary":     "it's a test summary",
+		"description": "it's a test description",
+	})
 
 	// label-template
 	f(&Alert{
@@ -91,6 +97,19 @@ func TestAlertExecTemplate(t *testing.T) {
 	}, map[string]string{
 		"summary":     "Too high connection number for localhost for job staging",
 		"description": "It is 10000 connections for localhost for more than 5m0s",
+	})
+
+	// label template override
+	f(&Alert{
+		Value: 1e4,
+	}, map[string]string{
+		"summary":     `{{- define "default.template" -}} {{ printf "summary" }} {{- end -}} {{ template "default.template" . }}`,
+		"description": `{{ template "default.template" . }}`,
+		"value":       `{{$value }}`,
+	}, map[string]string{
+		"summary":     "summary",
+		"description": "",
+		"value":       "10000",
 	})
 
 	// expression-template
@@ -181,13 +200,23 @@ func TestAlertExecTemplate(t *testing.T) {
 	}, map[string]string{
 		"grafana_url": "vm-grafana.com?from=1660944898&to=1660937698",
 	})
+
+	// Datasource type
+	f(&Alert{
+		Type: "vlogs",
+		Expr: "up",
+	}, map[string]string{
+		"grafana_url": `vm-grafana.com/explore?left={"datasource":"{{ if eq .Type "vlogs" }}VictoriaLogs{{ else }}VictoriaMetrics{{ end }}","queries":[{"expr":"{{ .Expr }}"}]}`,
+	}, map[string]string{
+		"grafana_url": `vm-grafana.com/explore?left={"datasource":"VictoriaLogs","queries":[{"expr":"up"}]}`,
+	})
 }
 
 func TestAlert_toPromLabels(t *testing.T) {
-	fn := func(labels map[string]string, exp []prompbmarshal.Label, relabel *promrelabel.ParsedConfigs) {
+	fn := func(labels map[string]string, exp []prompb.Label, relabel *promrelabel.ParsedConfigs) {
 		t.Helper()
 		a := Alert{Labels: labels}
-		got := a.toPromLabels(relabel)
+		got := a.applyRelabelingIfNeeded(relabel)
 		if !reflect.DeepEqual(got, exp) {
 			t.Fatalf("expected to have: \n%v;\ngot:\n%v",
 				exp, got)
@@ -197,12 +226,12 @@ func TestAlert_toPromLabels(t *testing.T) {
 	fn(nil, nil, nil)
 	fn(
 		map[string]string{"foo": "bar", "a": "baz"}, // unsorted
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "bar"}},
+		[]prompb.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "bar"}},
 		nil,
 	)
 	fn(
 		map[string]string{"foo.bar": "baz", "service!name": "qux"},
-		[]prompbmarshal.Label{{Name: "foo_bar", Value: "baz"}, {Name: "service_name", Value: "qux"}},
+		[]prompb.Label{{Name: "foo_bar", Value: "baz"}, {Name: "service_name", Value: "qux"}},
 		nil,
 	)
 
@@ -218,17 +247,17 @@ func TestAlert_toPromLabels(t *testing.T) {
 
 	fn(
 		map[string]string{"a": "baz"},
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
+		[]prompb.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
 		pcs,
 	)
 	fn(
 		map[string]string{"foo": "bar", "a": "baz"},
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
+		[]prompb.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
 		pcs,
 	)
 	fn(
 		map[string]string{"qux": "bar", "env": "prod", "environment": "production"},
-		[]prompbmarshal.Label{{Name: "foo", Value: "aaa"}, {Name: "qux", Value: "bar"}},
+		[]prompb.Label{{Name: "foo", Value: "aaa"}, {Name: "qux", Value: "bar"}},
 		pcs,
 	)
 }

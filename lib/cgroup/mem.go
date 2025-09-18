@@ -13,11 +13,8 @@ func GetGOGC() int {
 	return gogc
 }
 
-func init() {
-	initGOGC()
-}
-
-func initGOGC() {
+// SetGOGC sets GOGC to the given value unless it is already set via environment variable.
+func SetGOGC(gogcNew int) {
 	if v := os.Getenv("GOGC"); v != "" {
 		n, err := strconv.ParseFloat(v, 64)
 		if err != nil {
@@ -25,12 +22,8 @@ func initGOGC() {
 		}
 		gogc = int(n)
 	} else {
-		// Use lower GOGC if it isn't set yet.
-		// This should reduce memory usage for typical workloads for VictoriaMetrics components
-		// at the cost of increased CPU usage.
-		// It is recommended increasing GOGC if go_memstats_gc_cpu_fraction exceeds 0.05 for extended periods of time.
-		gogc = 30
-		debug.SetGCPercent(gogc)
+		gogc = gogcNew
+		debug.SetGCPercent(gogcNew)
 	}
 }
 

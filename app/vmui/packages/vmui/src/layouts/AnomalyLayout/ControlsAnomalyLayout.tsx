@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import classNames from "classnames";
 import TenantsConfiguration
   from "../../components/Configurators/GlobalSettings/TenantsConfiguration/TenantsConfiguration";
@@ -14,7 +14,8 @@ const ControlsAnomalyLayout: FC<ControlsProps> = ({
   displaySidebar,
   isMobile,
   headerSetup,
-  accountIds
+  accountIds,
+  closeModal,
 }) => {
 
   return (
@@ -28,7 +29,11 @@ const ControlsAnomalyLayout: FC<ControlsProps> = ({
       {headerSetup?.stepControl && <StepConfigurator/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
-      {headerSetup?.executionControls && <ExecutionControls/>}
+      {headerSetup?.executionControls && <ExecutionControls
+        tooltip={headerSetup?.executionControls?.tooltip}
+        useAutorefresh={headerSetup?.executionControls?.useAutorefresh}
+        closeModal={closeModal}
+      />}
       <GlobalSettings/>
       {!displaySidebar && <ShortcutKeys/>}
     </div>

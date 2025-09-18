@@ -8,16 +8,10 @@
     text-transform: none;
   }
 
-  &__value {
-    display: inline;
-    margin-left: 3px;
-  }
-
   &-popper {
     display: grid;
     gap: $padding-small;
     max-width: 300px;
-    max-height: 208px;
     overflow: auto;
     padding: $padding-global;
     font-size: $font-size;
@@ -36,13 +30,11 @@
       font-size: $font-size-small;
       line-height: 1.8;
 
-      a {
-        margin: 0 0.4em;
-      }
-
       code {
-        padding: 0.2em 0.4em;
-        margin: 0 0.2em;
+        padding: .2em .4em;
+        margin: 0;
+        font-size: 85%;
+        white-space: break-spaces;
         background-color: $color-hover-black;
         border-radius: 6px;
       }

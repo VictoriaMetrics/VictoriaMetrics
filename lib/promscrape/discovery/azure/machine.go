@@ -96,8 +96,10 @@ func visitAllAPIObjects(ac *apiConfig, apiURL string, cb func(data json.RawMessa
 			return fmt.Errorf("cannot parse nextLink from response %q: %w", lar.NextLink, err)
 		}
 
-		if nextURL.Host != "" && nextURL.Host != ac.c.APIServer() {
-			return fmt.Errorf("unexpected nextLink host %q, expecting %q", nextURL.Host, ac.c.APIServer())
+		// Sometimes Azure will respond a host with a port. Since all possible apiServer defined in cloudEnvironments do not include a port,
+		// it is best to check the host without the port. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6912
+		if nextURL.Host != "" && nextURL.Hostname() != ac.apiServerHost {
+			return fmt.Errorf("unexpected nextLink host %q, expecting %q", nextURL.Hostname(), ac.apiServerHost)
 		}
 
 		nextLinkURI = nextURL.RequestURI()
@@ -188,9 +190,16 @@ type scaleSet struct {
 }
 
 // See https://docs.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-sets/list-all
+// and https://learn.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-sets/list (need resourceGroup)
 func listScaleSetRefs(ac *apiConfig) ([]scaleSet, error) {
 	// https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01
-	apiURL := "/subscriptions/" + ac.subscriptionID + "/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01"
+	apiURL := "/subscriptions/" + ac.subscriptionID
+	if ac.resourceGroup != "" {
+		// special case filter by resourceGroup
+		// https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01
+		apiURL += "/resourceGroups/" + ac.resourceGroup
+	}
+	apiURL += "/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01"
 	var sss []scaleSet
 	err := visitAllAPIObjects(ac, apiURL, func(data json.RawMessage) error {
 		var ss scaleSet

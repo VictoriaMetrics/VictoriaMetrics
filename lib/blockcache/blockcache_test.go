@@ -35,7 +35,7 @@ func TestCache(t *testing.T) {
 	var b testBlock
 	blockSize := b.SizeBytes()
 	// Put a single entry into cache
-	c.PutBlock(k, &b)
+	c.TryPutBlock(k, &b)
 	if n := c.Len(); n != 1 {
 		t.Fatalf("unexpected number of items in the cache; got %d; want %d", n, 1)
 	}
@@ -85,7 +85,7 @@ func TestCache(t *testing.T) {
 	}
 	for i := 0; i < *missesBeforeCaching; i++ {
 		// Store the missed entry to the cache. It shouldn't be stored because of the previous cache miss
-		c.PutBlock(k, &b)
+		c.TryPutBlock(k, &b)
 		if n := c.SizeBytes(); n != 0 {
 			t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, 0)
 		}
@@ -101,7 +101,7 @@ func TestCache(t *testing.T) {
 		}
 	}
 	// Store the entry again. Now it must be stored because of the second cache miss.
-	c.PutBlock(k, &b)
+	c.TryPutBlock(k, &b)
 	if n := c.SizeBytes(); n != blockSize {
 		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, blockSize)
 	}
@@ -151,7 +151,7 @@ func testCacheSetGet(c *Cache, worker int) {
 			Offset: uint64(worker*1000 + i),
 			Part:   part,
 		}
-		c.PutBlock(k, &b)
+		c.TryPutBlock(k, &b)
 		if b1 := c.GetBlock(k); b1 != &b {
 			panic(fmt.Errorf("unexpected block obtained; got %v; want %v", b1, &b))
 		}

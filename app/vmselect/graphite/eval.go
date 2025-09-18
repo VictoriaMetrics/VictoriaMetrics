@@ -7,7 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphiteql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -15,13 +15,16 @@ import (
 )
 
 var maxGraphiteSeries = flag.Int("search.maxGraphiteSeries", 300e3, "The maximum number of time series, which can be scanned during queries to Graphite Render API. "+
-	"See https://docs.victoriametrics.com/#graphite-render-api-usage")
+	"See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#render-api")
+
+var maxGraphitePathExpressionLen = flag.Int("search.maxGraphitePathExpressionLen", 1024, "The maximum length of pathExpression field in Graphite series. "+
+	"Longer expressions are truncated to prevent memory exhaustion on complex nested queries. Set to 0 to disable truncation.")
 
 type evalConfig struct {
 	startTime   int64
 	endTime     int64
 	storageStep int64
-	deadline    searchutils.Deadline
+	deadline    searchutil.Deadline
 
 	currentTime time.Time
 
@@ -53,6 +56,21 @@ func (ec *evalConfig) newTimestamps(step int64) []int64 {
 	return timestamps
 }
 
+// safePathExpression creates a pathExpression string from the given expression,
+// truncating it if it exceeds the maximum allowed length to prevent memory exhaustion.
+func safePathExpression(expr graphiteql.Expr) string {
+	if expr == nil {
+		return ""
+	}
+
+	pathExpr := string(expr.AppendString(nil))
+	maxLen := *maxGraphitePathExpressionLen
+	if maxLen > 0 && len(pathExpr) > maxLen {
+		return pathExpr[:maxLen] + "..."
+	}
+	return pathExpr
+}
+
 type series struct {
 	Name       string
 	Tags       map[string]string
@@ -64,7 +82,7 @@ type series struct {
 
 	expr graphiteql.Expr
 
-	// consolidateFunc is applied to raw samples in order to generate data points algined to the given step.
+	// consolidateFunc is applied to raw samples in order to generate data points aligned to the given step.
 	// see series.consolidate() function for details.
 	consolidateFunc aggrFunc
 
@@ -124,6 +142,12 @@ func (s *series) summarize(aggrFunc aggrFunc, startTime, endTime, step int64, xF
 }
 
 func execExpr(ec *evalConfig, query string) (nextSeriesFunc, error) {
+	// Validate query length to prevent memory exhaustion
+	maxLen := searchutil.GetMaxQueryLen()
+	if len(query) > maxLen {
+		return nil, fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxLen)
+	}
+
 	expr, err := graphiteql.Parse(query)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %q: %w", query, err)
@@ -169,17 +193,17 @@ func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr g
 				Timestamps:     append([]int64{}, rs.Timestamps...),
 				Values:         append([]float64{}, rs.Values...),
 				expr:           expr,
-				pathExpression: string(expr.AppendString(nil)),
+				pathExpression: safePathExpression(expr),
 			}
 			s.summarize(aggrAvg, ec.startTime, ec.endTime, ec.storageStep, 0)
 			t := timerpool.Get(30 * time.Second)
+			defer timerpool.Put(t)
 			select {
 			case seriesCh <- s:
 			case <-t.C:
 				logger.Errorf("resource leak when processing the %s (full query: %s); please report this error to VictoriaMetrics developers",
 					expr.AppendString(nil), ec.originalQuery)
 			}
-			timerpool.Put(t)
 			return nil
 		})
 		close(seriesCh)

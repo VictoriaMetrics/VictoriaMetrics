@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func BenchmarkQueueThroughputSerial(b *testing.B) {
@@ -16,11 +17,11 @@ func BenchmarkQueueThroughputSerial(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-queue-throughput-serial-%d", blockSize)
-			mustDeleteDir(path)
+			fs.MustRemoveDir(path)
 			q := mustOpen(path, "foobar", 0)
 			defer func() {
 				q.MustClose()
-				mustDeleteDir(path)
+				fs.MustRemoveDir(path)
 			}()
 			for i := 0; i < b.N; i++ {
 				writeReadIteration(q, block, iterationsCount)
@@ -37,12 +38,12 @@ func BenchmarkQueueThroughputConcurrent(b *testing.B) {
 			b.ReportAllocs()
 			b.SetBytes(int64(blockSize) * iterationsCount)
 			path := fmt.Sprintf("bench-queue-throughput-concurrent-%d", blockSize)
-			mustDeleteDir(path)
+			fs.MustRemoveDir(path)
 			q := mustOpen(path, "foobar", 0)
 			var qLock sync.Mutex
 			defer func() {
 				q.MustClose()
-				mustDeleteDir(path)
+				fs.MustRemoveDir(path)
 			}()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {

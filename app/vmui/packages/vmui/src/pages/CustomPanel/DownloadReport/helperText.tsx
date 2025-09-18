@@ -1,4 +1,3 @@
-import React from "preact/compat";
 import { DATE_FILENAME_FORMAT } from "../../../constants/date";
 import router, { routerOptions } from "../../../router";
 import { Link } from "react-router-dom";
@@ -8,6 +7,18 @@ const filename = (
     <p>Filename - specify the name for your report file.</p>
     <p>Default format: <code>vmui_report_${DATE_FILENAME_FORMAT}.json</code>.</p>
     <p>This name will be used when saving your report on your device.</p>
+  </>
+);
+
+const title = (
+  <>
+    <p>Title - specify the title that will be displayed on the <Link
+      to={router.queryAnalyzer}
+      target="_blank"
+      rel="noreferrer"
+      className="vm-link vm-link_underlined"
+    >{routerOptions[router.queryAnalyzer].title}</Link> page.</p>
+    <p>This helps identify your report in the interface.</p>
   </>
 );
 
@@ -39,6 +50,7 @@ const generate = (
 
 export default [
   filename,
+  title,
   comment,
   trace,
   generate,

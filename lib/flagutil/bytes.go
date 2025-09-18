@@ -13,6 +13,7 @@ func NewBytes(name string, defaultValue int64, description string) *Bytes {
 	description += "\nSupports the following optional suffixes for `size` values: KB, MB, GB, TB, KiB, MiB, GiB, TiB"
 	b := Bytes{
 		N:           defaultValue,
+		Name:        name,
 		valueString: fmt.Sprintf("%d", defaultValue),
 	}
 	flag.Var(&b, name, description)
@@ -25,6 +26,9 @@ func NewBytes(name string, defaultValue int64, description string) *Bytes {
 type Bytes struct {
 	// N contains parsed value for the given flag.
 	N int64
+
+	// Name contains flag name.
+	Name string
 
 	valueString string
 }

@@ -2,8 +2,9 @@ package prompush
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -15,7 +16,7 @@ var (
 const maxRowsPerBlock = 10000
 
 // Push pushes wr for the given at to storage.
-func Push(wr *prompbmarshal.WriteRequest) {
+func Push(wr *prompb.WriteRequest) {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
@@ -42,13 +43,14 @@ func Push(wr *prompbmarshal.WriteRequest) {
 	}
 }
 
-func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
+func push(ctx *common.InsertCtx, tss []prompb.TimeSeries) {
 	rowsLen := 0
 	for i := range tss {
 		rowsLen += len(tss[i].Samples)
 	}
 	ctx.Reset(rowsLen)
 	rowsTotal := 0
+	hasRelabeling := relabel.HasRelabeling()
 	for i := range tss {
 		ts := &tss[i]
 		rowsTotal += len(ts.Samples)
@@ -57,12 +59,9 @@ func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
 			label := &ts.Labels[j]
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		ctx.ApplyRelabeling()
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		var metricNameRaw []byte
 		var err error
 		for i := range ts.Samples {

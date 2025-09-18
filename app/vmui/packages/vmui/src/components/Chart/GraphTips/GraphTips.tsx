@@ -1,11 +1,11 @@
-import React, { FC } from "preact/compat";
+import { FC } from "preact/compat";
 import "./style.scss";
 import Button from "../../Main/Button/Button";
 import { TipIcon } from "../../Main/Icons";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Modal from "../../Main/Modal/Modal";
 import useBoolean from "../../../hooks/useBoolean";
-import tips from "./contants/tips";
+import tips from "./constants/tips";
 
 const GraphTips: FC = () => {
   const {

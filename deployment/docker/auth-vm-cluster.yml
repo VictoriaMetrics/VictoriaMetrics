@@ -1,0 +1,19 @@
+# balance load among vminsert and vmselect instances,
+# see https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing.
+# Note: if username and password are changes, please update the Grafana datasource configuration
+# and check other places where these credentials are used.
+users:
+  - username: "foo"
+    password: "bar"
+    url_map:
+    - src_paths:
+      - "/select/.*"
+      - "/admin/.*"
+      url_prefix:
+      - http://vmselect-1:8481
+      - http://vmselect-2:8481
+    - src_paths:
+      - "/insert/.*"
+      url_prefix:
+      - http://vminsert-1:8480
+      - http://vminsert-2:8480

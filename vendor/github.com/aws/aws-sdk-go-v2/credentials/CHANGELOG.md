@@ -1,3 +1,110 @@
+# v1.17.52 (2025-01-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.51 (2025-01-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.50 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.49 (2025-01-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.48 (2024-12-19)
+
+* **Bug Fix**: Fix improper use of printf-style functions.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.47 (2024-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.46 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.45 (2024-11-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.44 (2024-11-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.43 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.42 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.41 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.40 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.39 (2024-10-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.38 (2024-10-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.37 (2024-09-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.36 (2024-09-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.35 (2024-09-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.34 (2024-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.33 (2024-09-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.32 (2024-09-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.31 (2024-09-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.30 (2024-08-26)
+
+* **Bug Fix**: Save SSO cached token expiry in UTC to ensure cross-SDK compatibility.
+
+# v1.17.29 (2024-08-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.28 (2024-08-15)
+
+* **Dependency Update**: Bump minimum Go version to 1.21.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.27 (2024-07-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.17.26 (2024-07-10.2)
 
 * **Dependency Update**: Updated to the latest SDK module versions

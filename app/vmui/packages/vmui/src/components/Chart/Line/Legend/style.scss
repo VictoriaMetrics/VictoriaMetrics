@@ -3,27 +3,53 @@
 .vm-legend {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   cursor: default;
+  width: 100%;
 
   &-group {
     min-width: 23%;
     width: 100%;
     margin: 0 $padding-global $padding-global 0;
 
-    &-title {
-      display: flex;
+    &-header {
+      display: grid;
       align-items: center;
-      padding: $padding-small;
+      gap: $padding-small;
       margin-bottom: 1px;
       border-bottom: $border-divider;
+      font-size: $font-size-small;
+      padding: $padding-small;
 
-      &__count {
-        font-weight: bold;
-        margin-right: $padding-small;
+      &-title {
+        display: flex;
+        align-items: center;
+        gap: $padding-small;
+        color: $color-text-secondary;
+
+        b {
+          color: $color-text;
+        }
       }
 
-      &__query {
+      &-labels {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $padding-small;
+        color: $color-text-secondary;
+
+        &__item {
+          color: $color-text;
+          cursor: pointer;
+
+          &:hover {
+            text-decoration: underline;
+          }
+
+          &:not(:last-child):after {
+              content: ",";
+          }
+        }
       }
     }
   }

@@ -1,0 +1,48 @@
+@use "src/styles/variables" as *;
+
+.vm-legend-configs {
+  display: grid;
+  gap: $padding-large;
+
+  &_compact {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: $padding-global;
+    padding: $padding-global;
+  }
+
+  &_compact &-item {
+    &_switch {
+      display: flex;
+    }
+
+    &__label,
+    &__info {
+      display: none;
+    }
+  }
+
+  &-item {
+    display: grid;
+    align-items: center;
+    justify-content: stretch;
+    margin-top: calc($padding-global/2);
+
+    &_switch {
+      grid-template-columns: 1fr 100px;
+      margin-top: 0;
+    }
+
+    &__info {
+      margin-top: calc($padding-global/2);
+      font-size: $font-size-small;
+      color: $color-text-secondary;
+      line-height: 130%;
+
+      &_input {
+        margin-top: 0;
+      }
+    }
+  }
+}

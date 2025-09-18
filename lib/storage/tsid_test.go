@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"testing/quick"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestMarshaledTSIDSize(t *testing.T) {
@@ -148,5 +150,93 @@ func testTSIDMarshalUnmarshal(t *testing.T, tsid *TSID) {
 	}
 	if *tsid != tsid2 {
 		t.Fatalf("unexpected tsid unmarshaled from suffixed dst; got\n%+v; want\n%+v", &tsid2, tsid)
+	}
+}
+
+func TestMergeSortedTSIDs(t *testing.T) {
+	var (
+		tsidss [][]TSID
+		want   []TSID
+	)
+
+	// nil slice
+	tsidss = nil
+	want = []TSID{}
+	if diff := cmp.Diff(want, mergeSortedTSIDs(tsidss)); diff != "" {
+		t.Fatalf("unexpected result (-want, +got):\n%s", diff)
+	}
+
+	// slice of nils
+	tsidss = [][]TSID{nil, nil, nil}
+	want = []TSID{}
+	if diff := cmp.Diff(want, mergeSortedTSIDs(tsidss)); diff != "" {
+		t.Fatalf("unexpected result (-want, +got):\n%s", diff)
+	}
+
+	// empty slice
+	tsidss = [][]TSID{}
+	want = []TSID{}
+	if diff := cmp.Diff(want, mergeSortedTSIDs(tsidss)); diff != "" {
+		t.Fatalf("unexpected result (-want, +got):\n%s", diff)
+	}
+
+	// slice of empty slices
+	tsidss = [][]TSID{{}, {}, {}}
+	want = []TSID{}
+	if diff := cmp.Diff(want, mergeSortedTSIDs(tsidss)); diff != "" {
+		t.Fatalf("unexpected result (-want, +got):\n%s", diff)
+	}
+
+	id := func(metricID uint64) TSID {
+		return TSID{MetricID: metricID}
+	}
+
+	// all unique
+	tsidss = [][]TSID{
+		{id(3), id(7), id(11), id(15)},
+		{id(1), id(5), id(9), id(13)},
+		{id(4), id(8), id(12), id(16)},
+		{id(2), id(6), id(10), id(14)},
+	}
+	want = []TSID{
+		id(1), id(2), id(3), id(4),
+		id(5), id(6), id(7), id(8),
+		id(9), id(10), id(11), id(12),
+		id(13), id(14), id(15), id(16),
+	}
+	if diff := cmp.Diff(want, mergeSortedTSIDs(tsidss)); diff != "" {
+		t.Fatalf("unexpected result (-want, +got):\n%s", diff)
+	}
+
+	// with duplicates
+	tsidss = [][]TSID{
+		{id(3), id(5), id(7), id(11), id(15)},
+		{id(1), id(5), id(8), id(9), id(13)},
+		{id(4), id(6), id(8), id(12), id(16)},
+		{id(2), id(6), id(7), id(10), id(14)},
+	}
+	want = []TSID{
+		id(1), id(2), id(3), id(4),
+		id(5), id(6), id(7), id(8),
+		id(9), id(10), id(11), id(12),
+		id(13), id(14), id(15), id(16),
+	}
+	if diff := cmp.Diff(want, mergeSortedTSIDs(tsidss)); diff != "" {
+		t.Fatalf("unexpected result (-want, +got):\n%s", diff)
+	}
+
+	// variable length
+	tsidss = [][]TSID{
+		{id(3), id(7)},
+		{id(1), id(5), id(9), id(13)},
+		{},
+		{id(4), id(8), id(16)},
+		{id(2)},
+	}
+	want = []TSID{
+		id(1), id(2), id(3), id(4), id(5), id(7), id(8), id(9), id(13), id(16),
+	}
+	if diff := cmp.Diff(want, mergeSortedTSIDs(tsidss)); diff != "" {
+		t.Fatalf("unexpected result (-want, +got):\n%s", diff)
 	}
 }

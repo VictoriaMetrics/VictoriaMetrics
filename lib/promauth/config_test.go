@@ -13,11 +13,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 )
 
 func TestOptionsNewConfigFailure(t *testing.T) {
@@ -240,7 +242,7 @@ func TestOauth2ConfigValidateFailure(t *testing.T) {
 		}
 	}
 
-	// emtpy client_id
+	// empty client_id
 	f(`
 client_secret: some-secret
 token_url: http://some-url
@@ -609,11 +611,9 @@ func TestConfigHeaders(t *testing.T) {
 func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 	// Generate and save a self-signed CA certificate and a certificate signed by the CA
 	caPEM, certPEM, keyPEM := mustGenerateCertificates()
-	_ = os.WriteFile("testdata/ca.pem", caPEM, 0644)
+	fs.MustWriteSync("testdata/ca.pem", caPEM)
 
-	defer func() {
-		_ = os.Remove("testdata/ca.pem")
-	}()
+	defer fs.MustRemovePath("testdata/ca.pem")
 
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
@@ -643,8 +643,9 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 		t.Fatalf("unexpected error when parsing config: %s", err)
 	}
 
+	tr := httputil.NewTransport(false, "test_client")
 	client := http.Client{
-		Transport: ac.NewRoundTripper(&http.Transport{}),
+		Transport: ac.NewRoundTripper(tr),
 	}
 
 	resp, err := client.Do(&http.Request{
@@ -660,7 +661,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 
 	// Update CA file with new CA and get config
 	ca2PEM, _, _ := mustGenerateCertificates()
-	_ = os.WriteFile("testdata/ca.pem", ca2PEM, 0644)
+	fs.MustWriteSync("testdata/ca.pem", ca2PEM)
 
 	// Wait for cert cache expiration
 	time.Sleep(2 * time.Second)
@@ -676,7 +677,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 
 func mustGenerateCertificates() ([]byte, []byte, []byte) {
 	// Small key size for faster tests
-	const testCertificateBits = 1024
+	const testCertificateBits = 4096
 
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2024),
@@ -689,6 +690,7 @@ func mustGenerateCertificates() ([]byte, []byte, []byte) {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
+		SubjectKeyId:          []byte{1, 2, 3, 4},
 	}
 	caPrivKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
 	if err != nil {
@@ -734,4 +736,24 @@ func mustGenerateCertificates() ([]byte, []byte, []byte) {
 	})
 
 	return caPEM, certPEM, keyPEM
+}
+
+func TestConfigHeadersHash(t *testing.T) {
+	f := func(headers []string, resultExpected string) {
+		t.Helper()
+		opts := Options{
+			Headers: headers,
+		}
+		var err error
+		c, err := opts.NewConfig()
+		if err != nil {
+			t.Fatalf("create new config error: %v", err)
+		}
+		if c.headersDigest != resultExpected {
+			t.Fatalf("generate wrong hash; got %s want %s", c.headersDigest, resultExpected)
+		}
+	}
+	f(nil, "digest(headers)=17241709254077376921")
+	f([]string{"foo: bar"}, "digest(headers)=16063449615388042431")
+	f([]string{"foo: bar", "X-Forwarded-For: A-B:c"}, "digest(headers)=8240238594493248512")
 }

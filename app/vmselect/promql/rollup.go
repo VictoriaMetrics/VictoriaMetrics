@@ -71,7 +71,8 @@ var rollupFuncs = map[string]newRollupFunc{
 	"quantile_over_time":      newRollupQuantile,
 	"quantiles_over_time":     newRollupQuantiles,
 	"range_over_time":         newRollupFuncOneArg(rollupRange),
-	"rate":                    newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
+	"rate":                    newRollupFuncOneArg(rollupDerivFast),           // + rollupFuncsRemoveCounterResets
+	"rate_prometheus":         newRollupFuncOneArg(rollupDerivFastPrometheus), // + rollupFuncsRemoveCounterResets
 	"rate_over_sum":           newRollupFuncOneArg(rollupRateOverSum),
 	"resets":                  newRollupFuncOneArg(rollupResets),
 	"rollup":                  newRollupFuncOneOrTwoArgs(rollupFake),
@@ -195,7 +196,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"zscore_over_time":        rollupZScoreOverTime,
 }
 
-// VictoriaMetrics can extends lookbehind window for these functions
+// VictoriaMetrics can extend lookbehind window for these functions
 // in order to make sure it contains enough points for returning non-empty results.
 //
 // This is needed for returning the expected non-empty graphs when zooming in the graph in Grafana,
@@ -225,6 +226,7 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 	"increase_pure":       true,
 	"irate":               true,
 	"rate":                true,
+	"rate_prometheus":     true,
 	"rollup_increase":     true,
 	"rollup_rate":         true,
 }
@@ -252,6 +254,7 @@ var rollupFuncsSamplesScannedPerCall = map[string]int{
 	"lifetime":            2,
 	"present_over_time":   1,
 	"rate":                2,
+	"rate_prometheus":     2,
 	"scrape_interval":     2,
 	"tfirst_over_time":    1,
 	"timestamp":           1,
@@ -373,9 +376,19 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
+
+	stalenessInterval := lookbackDelta
+	if stalenessInterval != 0 {
+		// If stalenessInterval was set, it should additionally account for [window] range to cover following cases:
+		// * window > stalenessInterval, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8342
+		// * window captures prevValue in doInternal while removeCounterResets does not,
+		//   see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935#issuecomment-3000735468
+		stalenessInterval += window
+	}
+
 	if rollupFuncsRemoveCounterResets[funcName] {
-		preFunc = func(values []float64, _ []int64) {
-			removeCounterResets(values)
+		preFunc = func(values []float64, timestamps []int64) {
+			removeCounterResets(values, timestamps, stalenessInterval)
 		}
 	}
 	samplesScannedPerCall := rollupFuncsSamplesScannedPerCall[funcName]
@@ -486,8 +499,8 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		for _, aggrFuncName := range aggrFuncNames {
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {
 				// There is no need to save the previous preFunc, since it is either empty or the same.
-				preFunc = func(values []float64, _ []int64) {
-					removeCounterResets(values)
+				preFunc = func(values []float64, timestamps []int64) {
+					removeCounterResets(values, timestamps, stalenessInterval)
 				}
 			}
 			rf := rollupAggrFuncs[aggrFuncName]
@@ -520,7 +533,8 @@ type rollupFuncArg struct {
 	// Timestamps for values.
 	timestamps []int64
 
-	// Real value preceding values without restrictions on staleness interval.
+	// Real value preceding values.
+	// Is populated if preceding value is within the rc.LookbackDelta.
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -699,8 +713,13 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
-	scrapeInterval := getScrapeInterval(timestamps, rc.Step)
-	maxPrevInterval := getMaxPrevInterval(scrapeInterval)
+	// Use step as the scrape interval for instant queries (when start == end).
+	maxPrevInterval := rc.Step
+	if rc.Start < rc.End {
+		scrapeInterval := getScrapeInterval(timestamps, rc.Step)
+		maxPrevInterval = getMaxPrevInterval(scrapeInterval)
+	}
+
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
 		maxPrevInterval = rc.LookbackDelta
 	}
@@ -759,10 +778,23 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
+		rfa.realPrevValue = nan
 		if i > 0 {
-			rfa.realPrevValue = values[i-1]
-		} else {
-			rfa.realPrevValue = nan
+			prevValue, prevTimestamp := values[i-1], timestamps[i-1]
+			// set realPrevValue if rc.LookbackDelta == 0 or
+			// if distance between datapoint in prev interval and first datapoint in this interval
+			// doesn't exceed LookbackDelta.
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1381
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8045
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8935
+			currTimestamp := tStart
+			if len(rfa.timestamps) > 0 {
+				currTimestamp = rfa.timestamps[0]
+			}
+			if rc.LookbackDelta == 0 || (currTimestamp-prevTimestamp) < rc.LookbackDelta {
+				rfa.realPrevValue = prevValue
+			}
 		}
 		if j < len(values) {
 			rfa.realNextValue = values[j]
@@ -788,17 +820,11 @@ func seekFirstTimestampIdxAfter(timestamps []int64, seekTimestamp int64, nHint i
 	if len(timestamps) == 0 || timestamps[0] > seekTimestamp {
 		return 0
 	}
-	startIdx := nHint - 2
-	if startIdx < 0 {
-		startIdx = 0
-	}
+	startIdx := max(nHint-2, 0)
 	if startIdx >= len(timestamps) {
 		startIdx = len(timestamps) - 1
 	}
-	endIdx := nHint + 2
-	if endIdx > len(timestamps) {
-		endIdx = len(timestamps)
-	}
+	endIdx := min(nHint+2, len(timestamps))
 	if startIdx > 0 && timestamps[startIdx] <= seekTimestamp {
 		timestamps = timestamps[startIdx:]
 		endIdx -= startIdx
@@ -886,7 +912,7 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 	return scrapeInterval + scrapeInterval/8
 }
 
-func removeCounterResets(values []float64) {
+func removeCounterResets(values []float64, timestamps []int64, maxStalenessInterval int64) {
 	// There is no need in handling NaNs here, since they are impossible
 	// on values from vmstorage.
 	if len(values) == 0 {
@@ -903,6 +929,16 @@ func removeCounterResets(values []float64) {
 				correction += prevValue - v
 			} else {
 				correction += prevValue
+			}
+		}
+		if i > 0 && maxStalenessInterval > 0 {
+			gap := timestamps[i] - timestamps[i-1]
+			if gap > maxStalenessInterval {
+				// reset correction if gap between samples exceeds staleness interval
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072
+				correction = 0
+				prevValue = v
+				continue
 			}
 		}
 		prevValue = v
@@ -1677,9 +1713,9 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 }
 
 func rollupRange(rfa *rollupFuncArg) float64 {
-	max := rollupMax(rfa)
-	min := rollupMin(rfa)
-	return max - min
+	maxV := rollupMax(rfa)
+	minV := rollupMin(rfa)
+	return maxV - minV
 }
 
 func rollupSum2(rfa *rollupFuncArg) float64 {
@@ -1794,14 +1830,18 @@ func rollupIncreasePure(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 	values := rfa.values
-	// restore to the real value because of potential staleness reset
-	prevValue := rfa.realPrevValue
+	prevValue := rfa.prevValue
 	if math.IsNaN(prevValue) {
 		if len(values) == 0 {
 			return nan
 		}
 		// Assume the counter starts from 0.
 		prevValue = 0
+		if !math.IsNaN(rfa.realPrevValue) {
+			// Assume that the value didn't change during the current gap
+			// if realPrevValue exists.
+			prevValue = rfa.realPrevValue
+		}
 	}
 	if len(values) == 0 {
 		// Assume the counter didn't change since prevValue.
@@ -1895,6 +1935,14 @@ func rollupDerivSlow(rfa *rollupFuncArg) float64 {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/73
 	_, k := linearRegression(rfa.values, rfa.timestamps, rfa.currTimestamp)
 	return k
+}
+
+func rollupDerivFastPrometheus(rfa *rollupFuncArg) float64 {
+	delta := rollupDeltaPrometheus(rfa)
+	if math.IsNaN(delta) || rfa.window == 0 {
+		return nan
+	}
+	return delta / (float64(rfa.window) / 1e3)
 }
 
 func rollupDerivFast(rfa *rollupFuncArg) float64 {
@@ -2187,38 +2235,38 @@ func rollupClose(rfa *rollupFuncArg) float64 {
 
 func rollupHigh(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	max := getFirstValueForCandlestick(rfa)
-	if math.IsNaN(max) {
+	maxV := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(maxV) {
 		if len(values) == 0 {
 			return nan
 		}
-		max = values[0]
+		maxV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if v > max {
-			max = v
+		if v > maxV {
+			maxV = v
 		}
 	}
-	return max
+	return maxV
 }
 
 func rollupLow(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	min := getFirstValueForCandlestick(rfa)
-	if math.IsNaN(min) {
+	minV := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(minV) {
 		if len(values) == 0 {
 			return nan
 		}
-		min = values[0]
+		minV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if v < min {
-			min = v
+		if v < minV {
+			minV = v
 		}
 	}
-	return min
+	return minV
 }
 
 func rollupModeOverTime(rfa *rollupFuncArg) float64 {
@@ -2389,13 +2437,14 @@ func rollupFake(_ *rollupFuncArg) float64 {
 	return 0
 }
 
+// getScalar expects result from a [scalar](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types).
 func getScalar(arg any, argNum int) ([]float64, error) {
 	ts, ok := arg.([]*timeseries)
 	if !ok {
-		return nil, fmt.Errorf(`unexpected type for arg #%d; got %T; want %T`, argNum+1, arg, ts)
+		return nil, fmt.Errorf(`arg #%d must be a scalar`, argNum+1)
 	}
 	if len(ts) != 1 {
-		return nil, fmt.Errorf(`arg #%d must contain a single timeseries; got %d timeseries`, argNum+1, len(ts))
+		return nil, fmt.Errorf(`arg #%d must be a scalar`, argNum+1)
 	}
 	return ts[0].Values, nil
 }
@@ -2412,14 +2461,15 @@ func getIntNumber(arg any, argNum int) (int, error) {
 	return n, nil
 }
 
+// getString expects result from a string expression, which contains a single timeseries with only NaN values.
 func getString(tss []*timeseries, argNum int) (string, error) {
 	if len(tss) != 1 {
-		return "", fmt.Errorf(`arg #%d must contain a single timeseries; got %d timeseries`, argNum+1, len(tss))
+		return "", fmt.Errorf(`arg #%d must be a string`, argNum+1)
 	}
 	ts := tss[0]
 	for _, v := range ts.Values {
 		if !math.IsNaN(v) {
-			return "", fmt.Errorf(`arg #%d contains non-string timeseries`, argNum+1)
+			return "", fmt.Errorf(`arg #%d must be a string`, argNum+1)
 		}
 	}
 	return string(ts.MetricName.MetricGroup), nil

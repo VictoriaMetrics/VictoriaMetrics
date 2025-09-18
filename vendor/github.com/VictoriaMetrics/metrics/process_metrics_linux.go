@@ -79,8 +79,13 @@ func writeProcessMetrics(w io.Writer) {
 
 	utime := float64(p.Utime) / userHZ
 	stime := float64(p.Stime) / userHZ
+
+	// Calculate totalTime by dividing the sum of p.Utime and p.Stime by userHZ.
+	// This reduces possible floating-point precision loss
+	totalTime := float64(p.Utime+p.Stime) / userHZ
+
 	WriteCounterFloat64(w, "process_cpu_seconds_system_total", stime)
-	WriteCounterFloat64(w, "process_cpu_seconds_total", utime+stime)
+	WriteCounterFloat64(w, "process_cpu_seconds_total", totalTime)
 	WriteCounterFloat64(w, "process_cpu_seconds_user_total", utime)
 	WriteCounterUint64(w, "process_major_pagefaults_total", uint64(p.Majflt))
 	WriteCounterUint64(w, "process_minor_pagefaults_total", uint64(p.Minflt))
@@ -90,6 +95,7 @@ func writeProcessMetrics(w io.Writer) {
 	WriteGaugeUint64(w, "process_virtual_memory_bytes", uint64(p.Vsize))
 	writeProcessMemMetrics(w)
 	writeIOMetrics(w)
+	writePSIMetrics(w)
 }
 
 var procSelfIOErrLogged uint32
@@ -234,7 +240,6 @@ func writeProcessMemMetrics(w io.Writer) {
 	WriteGaugeUint64(w, "process_resident_memory_anon_bytes", ms.rssAnon)
 	WriteGaugeUint64(w, "process_resident_memory_file_bytes", ms.rssFile)
 	WriteGaugeUint64(w, "process_resident_memory_shared_bytes", ms.rssShmem)
-
 }
 
 func getMemStats(path string) (*memStats, error) {
@@ -277,4 +282,138 @@ func getMemStats(path string) (*memStats, error) {
 		}
 	}
 	return &ms, nil
+}
+
+// writePSIMetrics writes PSI total metrics for the current process to w.
+//
+// See https://docs.kernel.org/accounting/psi.html
+func writePSIMetrics(w io.Writer) {
+	if psiMetricsStart == nil {
+		// Failed to initialize PSI metrics
+		return
+	}
+
+	m, err := getPSIMetrics()
+	if err != nil {
+		log.Printf("ERROR: metrics: cannot expose PSI metrics: %s", err)
+		return
+	}
+
+	WriteCounterFloat64(w, "process_pressure_cpu_waiting_seconds_total", psiTotalSecs(m.cpuSome-psiMetricsStart.cpuSome))
+	WriteCounterFloat64(w, "process_pressure_cpu_stalled_seconds_total", psiTotalSecs(m.cpuFull-psiMetricsStart.cpuFull))
+
+	WriteCounterFloat64(w, "process_pressure_io_waiting_seconds_total", psiTotalSecs(m.ioSome-psiMetricsStart.ioSome))
+	WriteCounterFloat64(w, "process_pressure_io_stalled_seconds_total", psiTotalSecs(m.ioFull-psiMetricsStart.ioFull))
+
+	WriteCounterFloat64(w, "process_pressure_memory_waiting_seconds_total", psiTotalSecs(m.memSome-psiMetricsStart.memSome))
+	WriteCounterFloat64(w, "process_pressure_memory_stalled_seconds_total", psiTotalSecs(m.memFull-psiMetricsStart.memFull))
+}
+
+func psiTotalSecs(microsecs uint64) float64 {
+	// PSI total stats is in microseconds according to https://docs.kernel.org/accounting/psi.html
+	// Convert it to seconds.
+	return float64(microsecs) / 1e6
+}
+
+// psiMetricsStart contains the initial PSI metric values on program start.
+// it is needed in order to make sure the exposed PSI metrics start from zero.
+var psiMetricsStart = func() *psiMetrics {
+	m, err := getPSIMetrics()
+	if err != nil {
+		log.Printf("INFO: metrics: disable exposing PSI metrics because of failed init: %s", err)
+		return nil
+	}
+	return m
+}()
+
+type psiMetrics struct {
+	cpuSome uint64
+	cpuFull uint64
+	ioSome  uint64
+	ioFull  uint64
+	memSome uint64
+	memFull uint64
+}
+
+func getPSIMetrics() (*psiMetrics, error) {
+	cgroupPath := getCgroupV2Path()
+	if cgroupPath == "" {
+		// Do nothing, since PSI requires cgroup v2, and the process doesn't run under cgroup v2.
+		return nil, nil
+	}
+
+	cpuSome, cpuFull, err := readPSITotals(cgroupPath, "cpu.pressure")
+	if err != nil {
+		return nil, err
+	}
+
+	ioSome, ioFull, err := readPSITotals(cgroupPath, "io.pressure")
+	if err != nil {
+		return nil, err
+	}
+
+	memSome, memFull, err := readPSITotals(cgroupPath, "memory.pressure")
+	if err != nil {
+		return nil, err
+	}
+
+	m := &psiMetrics{
+		cpuSome: cpuSome,
+		cpuFull: cpuFull,
+		ioSome:  ioSome,
+		ioFull:  ioFull,
+		memSome: memSome,
+		memFull: memFull,
+	}
+	return m, nil
+}
+
+func readPSITotals(cgroupPath, statsName string) (uint64, uint64, error) {
+	filePath := cgroupPath + "/" + statsName
+	data, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	some := uint64(0)
+	full := uint64(0)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "some ") && !strings.HasPrefix(line, "full ") {
+			continue
+		}
+
+		tmp := strings.SplitN(line, "total=", 2)
+		if len(tmp) != 2 {
+			return 0, 0, fmt.Errorf("cannot find total from the line %q at %q", line, filePath)
+		}
+		microsecs, err := strconv.ParseUint(tmp[1], 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("cannot parse total=%q at %q: %w", tmp[1], filePath, err)
+		}
+
+		switch {
+		case strings.HasPrefix(line, "some "):
+			some = microsecs
+		case strings.HasPrefix(line, "full "):
+			full = microsecs
+		}
+	}
+	return some, full, nil
+}
+
+func getCgroupV2Path() string {
+	data, err := ioutil.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return ""
+	}
+	tmp := strings.SplitN(string(data), "::", 2)
+	if len(tmp) != 2 {
+		return ""
+	}
+	path := "/sys/fs/cgroup" + strings.TrimSpace(tmp[1])
+
+	// Drop trailing slash if it exsits. This prevents from '//' in the constructed paths by the caller.
+	return strings.TrimSuffix(path, "/")
 }

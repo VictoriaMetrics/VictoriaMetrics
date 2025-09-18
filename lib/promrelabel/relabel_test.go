@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestSanitizeMetricName(t *testing.T) {
@@ -42,7 +42,7 @@ func TestSanitizeLabelName(t *testing.T) {
 }
 
 func TestLabelsToString(t *testing.T) {
-	f := func(labels []prompbmarshal.Label, sExpected string) {
+	f := func(labels []prompb.Label, sExpected string) {
 		t.Helper()
 		s := LabelsToString(labels)
 		if s != sExpected {
@@ -50,19 +50,19 @@ func TestLabelsToString(t *testing.T) {
 		}
 	}
 	f(nil, "{}")
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "__name__",
 			Value: "foo",
 		},
 	}, "foo")
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "foo",
 			Value: "bar",
 		},
 	}, `{foo="bar"}`)
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "foo",
 			Value: "bar",
@@ -72,7 +72,7 @@ func TestLabelsToString(t *testing.T) {
 			Value: "bc",
 		},
 	}, `{a="bc",foo="bar"}`)
-	f([]prompbmarshal.Label{
+	f([]prompb.Label{
 		{
 			Name:  "foo",
 			Value: "bar",
@@ -95,7 +95,7 @@ func TestParsedRelabelConfigsApplyDebug(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", config, err)
 		}
-		labels := promutils.MustNewLabelsFromString(metric)
+		labels := promutil.MustNewLabelsFromString(metric)
 		_, dss := pcs.ApplyDebug(labels.GetLabels())
 		if !reflect.DeepEqual(dss, dssExpected) {
 			t.Fatalf("unexpected result; got\n%s\nwant\n%s", dss, dssExpected)
@@ -170,7 +170,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", config, err)
 		}
-		labels := promutils.MustNewLabelsFromString(metric)
+		labels := promutil.MustNewLabelsFromString(metric)
 		resultLabels := pcs.Apply(labels.GetLabels(), 0)
 		if isFinalize {
 			resultLabels = FinalizeLabels(resultLabels[:0], resultLabels)
@@ -950,7 +950,7 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
 func TestFinalizeLabels(t *testing.T) {
 	f := func(metric, resultExpected string) {
 		t.Helper()
-		labels := promutils.MustNewLabelsFromString(metric)
+		labels := promutil.MustNewLabelsFromString(metric)
 		resultLabels := FinalizeLabels(nil, labels.GetLabels())
 		result := LabelsToString(resultLabels)
 		if result != resultExpected {
@@ -966,7 +966,7 @@ func TestFinalizeLabels(t *testing.T) {
 func TestFillLabelReferences(t *testing.T) {
 	f := func(replacement, metric, resultExpected string) {
 		t.Helper()
-		labels := promutils.MustNewLabelsFromString(metric)
+		labels := promutil.MustNewLabelsFromString(metric)
 		result := fillLabelReferences(nil, replacement, labels.GetLabels())
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result; got\n%q\nwant\n%q", result, resultExpected)
@@ -1045,9 +1045,9 @@ func TestParsedRelabelConfigsApplyForMultipleSeries(t *testing.T) {
 		}
 
 		totalLabels := 0
-		var labels []prompbmarshal.Label
+		var labels []prompb.Label
 		for _, metric := range metrics {
-			labels = append(labels, promutils.MustNewLabelsFromString(metric).GetLabels()...)
+			labels = append(labels, promutil.MustNewLabelsFromString(metric).GetLabels()...)
 			resultLabels := pcs.Apply(labels, totalLabels)
 			SortLabels(resultLabels)
 			totalLabels += len(resultLabels)

@@ -12,7 +12,7 @@ import (
 var (
 	enable = flag.Bool("envflag.enable", false, "Whether to enable reading flags from environment variables in addition to the command line. "+
 		"Command line flag values have priority over values from environment vars. "+
-		"Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details")
+		"Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details")
 	prefix = flag.String("envflag.prefix", "", "Prefix for environment variables if -envflag.enable is set")
 )
 
@@ -68,11 +68,7 @@ func ParseFlagSet(fs *flag.FlagSet, args []string) {
 func expandArgs(args []string) []string {
 	dstArgs := make([]string, 0, len(args))
 	for _, arg := range args {
-		s, err := envtemplate.ReplaceString(arg)
-		if err != nil {
-			// Do not use lib/logger here, since it is uninitialized yet.
-			log.Fatalf("cannot process arg %q: %s", arg, err)
-		}
+		s := envtemplate.ReplaceString(arg)
 		if len(s) > 0 {
 			dstArgs = append(dstArgs, s)
 		}

@@ -6,13 +6,18 @@ export interface MetricBase {
 }
 
 export interface MetricResult extends MetricBase {
-  values: [number, string][]
+  values: [number, string][];
 }
 
 
 export interface InstantMetricResult extends MetricBase {
-  value?: [number, string]
-  values?: [number, string][]
+  value?: [number, string];
+  values?: [number, string][];
+}
+
+export interface ExportMetricResult extends MetricBase {
+  values: number[];
+  timestamps: number[];
 }
 
 export interface TracingData {
@@ -28,17 +33,10 @@ export interface QueryStats {
   isPartial?: boolean;
 }
 
-export interface Logs {
-  _msg: string;
-  _stream: string;
-  _time: string;
-  [key: string]: string;
-}
-
-export interface LogHits {
-  timestamps: string[];
-  values: number[];
-  fields: {
-    [key: string]: string;
-  };
+export interface ReportMetaData {
+  id: number;
+  title: string;
+  endpoint: string;
+  comment: string;
+  params: Record<string, string>;
 }

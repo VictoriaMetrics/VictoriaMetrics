@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import { FC, useState } from "preact/compat";
 import { MouseEvent } from "react";
 import { Data, Order, TableProps, } from "./types";
 import { EnhancedTableHead } from "./TableHead";
@@ -15,7 +15,7 @@ const EnhancedTable: FC<TableProps> = ({
   const [orderBy, setOrderBy] = useState<keyof Data>(defaultSortColumn);
 
   const handleRequestSort = (
-    event: MouseEvent<unknown>,
+    event: MouseEvent<HTMLTableCellElement>,
     property: keyof Data,
   ) => {
     const isAsc = orderBy === property && order === "asc";

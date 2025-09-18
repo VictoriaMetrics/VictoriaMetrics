@@ -217,7 +217,7 @@ func (pb *ProgressBar) write(finish bool) {
 		if finish && ret == "\r" {
 			if pb.GetBool(CleanOnFinish) {
 				// "Wipe out" progress bar by overwriting one line with blanks
-				result = "\r" + color.New(color.Reset).Sprintf(strings.Repeat(" ", width)) + "\r"
+				result = "\r" + color.New(color.Reset).Sprint(strings.Repeat(" ", width)) + "\r"
 			} else {
 				result += "\n"
 			}

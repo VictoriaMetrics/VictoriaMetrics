@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func (ig *Ingress) key() string {
@@ -91,8 +91,8 @@ type HTTPIngressPath struct {
 // getTargetLabels returns labels for ig.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ingress
-func (ig *Ingress) getTargetLabels(_ *groupWatcher) []*promutils.Labels {
-	var ms []*promutils.Labels
+func (ig *Ingress) getTargetLabels(_ *groupWatcher) []*promutil.Labels {
+	var ms []*promutil.Labels
 	for _, r := range ig.Spec.Rules {
 		paths := getIngressRulePaths(r.HTTP.Paths)
 		scheme := getSchemeForHost(r.Host, ig.Spec.TLS)
@@ -131,8 +131,8 @@ func matchesHostPattern(pattern, host string) bool {
 	return pattern == host
 }
 
-func getLabelsForIngressPath(ig *Ingress, scheme, host, path string) *promutils.Labels {
-	m := promutils.GetLabels()
+func getLabelsForIngressPath(ig *Ingress, scheme, host, path string) *promutil.Labels {
+	m := promutil.GetLabels()
 	m.Add("__address__", host)
 	m.Add("__meta_kubernetes_namespace", ig.Metadata.Namespace)
 	m.Add("__meta_kubernetes_ingress_name", ig.Metadata.Name)

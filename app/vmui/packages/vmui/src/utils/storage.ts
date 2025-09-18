@@ -1,17 +1,23 @@
+/**
+ * Do not use this type in local storage type
+ * @deprecated
+ * */
+type DeprecatedStorageKeys = "QUERY_HISTORY" | "QUERY_FAVORITES";
+
 export type StorageKeys = "AUTOCOMPLETE"
-    | "NO_CACHE"
-    | "QUERY_TRACING"
-    | "SERIES_LIMITS"
-    | "TABLE_COMPACT"
-    | "TIMEZONE"
-    | "DISABLED_DEFAULT_TIMEZONE"
-    | "THEME"
-    | "LOGS_LIMIT"
-    | "LOGS_MARKDOWN"
-    | "EXPLORE_METRICS_TIPS"
-    | "QUERY_HISTORY"
-    | "QUERY_FAVORITES"
-    | "SERVER_URL"
+  | "NO_CACHE"
+  | "QUERY_TRACING"
+  | "SERIES_LIMITS"
+  | "TABLE_COMPACT"
+  | "TIMEZONE"
+  | "DISABLED_DEFAULT_TIMEZONE"
+  | "THEME"
+  | "EXPLORE_METRICS_TIPS"
+  | "METRICS_QUERY_HISTORY"
+  | "SERVER_URL"
+  | "RAW_JSON_LIVE_VIEW"
+  | DeprecatedStorageKeys;
+
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {

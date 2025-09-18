@@ -1,9 +1,11 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import { FC, useState, useEffect } from "preact/compat";
+import { JSX } from "preact";
 import { ArrowDownIcon } from "../Icons";
 import "./style.scss";
 import { ReactNode } from "react";
 
 interface AccordionProps {
+  id?: string
   title: ReactNode
   children: ReactNode
   defaultExpanded?: boolean
@@ -14,37 +16,49 @@ const Accordion: FC<AccordionProps> = ({
   defaultExpanded = false,
   onChange,
   title,
-  children
+  children,
+  id,
 }) => {
   const [isOpen, setIsOpen] = useState(defaultExpanded);
 
-  const toggleOpen = () => {
-    setIsOpen(prev => !prev);
+  const toggleOpen = (event: JSX.TargetedMouseEvent<HTMLElement>) => {
+    const selection = window.getSelection();
+    if ((event.target as HTMLElement).closest("button")) {
+      event.preventDefault();
+      return; // If the text is selected, cancel the execution of toggle.
+    }
+    if (selection && selection.toString()) {
+      event.preventDefault();
+      return; // If the text is selected, cancel the execution of toggle.
+    }
+    const details = event.currentTarget.parentElement as HTMLDetailsElement;
+    onChange && onChange(details.open);
+    setIsOpen(details.open);
   };
 
   useEffect(() => {
-    onChange && onChange(isOpen);
-  }, [isOpen]);
+    setIsOpen(defaultExpanded);
+  }, [defaultExpanded]);
 
   return (
     <>
-      <header
-        className={`vm-accordion-header ${isOpen && "vm-accordion-header_open"}`}
-        onClick={toggleOpen}
+      <details
+        className="vm-accordion-section"
+        key="content"
+        open={isOpen}
+        id={id}
       >
-        {title}
-        <div className={`vm-accordion-header__arrow ${isOpen && "vm-accordion-header__arrow_open"}`}>
-          <ArrowDownIcon />
-        </div>
-      </header>
-      {isOpen && (
-        <section
-          className="vm-accordion-section"
-          key="content"
+        <summary
+          className="vm-accordion-header"
+          onClick={toggleOpen}
         >
-          {children}
-        </section>
-      )}
+          {title}
+          <div className="vm-accordion-header__arrow">
+            <ArrowDownIcon />
+          </div>
+        </summary>
+        {children}
+      </details>
     </>
   );
 };

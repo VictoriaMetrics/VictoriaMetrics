@@ -76,6 +76,16 @@ func (c *Cache) SaveToFileConcurrent(filePath string, concurrency int) error {
 	return nil
 }
 
+// LoadFromFileMaxBytes loads cache data from the specified filePath,
+// enforcing that the cache capacity matches the provided maxBytes value.
+//
+// Returns an error if the stored cache's capacity differs from maxBytes.
+//
+// See SaveToFile* for functions that persist cache data to a file.
+func LoadFromFileMaxBytes(filePath string, maxBytes int) (*Cache, error) {
+	return load(filePath, maxBytes)
+}
+
 // LoadFromFile loads cache data from the given filePath.
 //
 // See SaveToFile* for saving cache data to file.
@@ -141,7 +151,7 @@ func load(filePath string, maxBytes int) (*Cache, error) {
 	// Read bucket files from filePath dir.
 	d, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %s", filePath, err)
+		return nil, fmt.Errorf("cannot open %q: %w", filePath, err)
 	}
 	defer func() {
 		_ = d.Close()
@@ -206,7 +216,7 @@ func loadMetadata(dir string) (uint64, error) {
 	metadataPath := dir + "/metadata.bin"
 	metadataFile, err := os.Open(metadataPath)
 	if err != nil {
-		return 0, fmt.Errorf("cannot open %q: %s", metadataPath, err)
+		return 0, fmt.Errorf("cannot open %q: %w", metadataPath, err)
 	}
 	defer func() {
 		_ = metadataFile.Close()

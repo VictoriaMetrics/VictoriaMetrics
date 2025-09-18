@@ -8,7 +8,7 @@ package notifier
 import (
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:8
@@ -25,36 +25,36 @@ var (
 )
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:8
-func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL func(Alert) string, relabelCfg *promrelabel.ParsedConfigs) {
+func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL func(Alert) string, lblss [][]prompb.Label) {
 //line app/vmalert/notifier/alertmanager_request.qtpl:8
 	qw422016.N().S(`[`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:10
 	for i, alert := range alerts {
-//line app/vmalert/notifier/alertmanager_request.qtpl:10
-		qw422016.N().S(`{"startsAt":`)
-//line app/vmalert/notifier/alertmanager_request.qtpl:12
-		qw422016.N().Q(alert.Start.Format(time.RFC3339Nano))
-//line app/vmalert/notifier/alertmanager_request.qtpl:12
-		qw422016.N().S(`,"generatorURL":`)
-//line app/vmalert/notifier/alertmanager_request.qtpl:13
-		qw422016.N().Q(generatorURL(alert))
-//line app/vmalert/notifier/alertmanager_request.qtpl:13
-		qw422016.N().S(`,`)
-//line app/vmalert/notifier/alertmanager_request.qtpl:14
-		if !alert.End.IsZero() {
-//line app/vmalert/notifier/alertmanager_request.qtpl:14
-			qw422016.N().S(`"endsAt":`)
-//line app/vmalert/notifier/alertmanager_request.qtpl:15
-			qw422016.N().Q(alert.End.Format(time.RFC3339Nano))
-//line app/vmalert/notifier/alertmanager_request.qtpl:15
-			qw422016.N().S(`,`)
-//line app/vmalert/notifier/alertmanager_request.qtpl:16
-		}
-//line app/vmalert/notifier/alertmanager_request.qtpl:16
-		qw422016.N().S(`"labels": {`)
-//line app/vmalert/notifier/alertmanager_request.qtpl:18
-		lbls := alert.toPromLabels(relabelCfg)
+//line app/vmalert/notifier/alertmanager_request.qtpl:11
+		lbls := lblss[i]
 
+//line app/vmalert/notifier/alertmanager_request.qtpl:11
+		qw422016.N().S(`{"startsAt":`)
+//line app/vmalert/notifier/alertmanager_request.qtpl:13
+		qw422016.N().Q(alert.Start.Format(time.RFC3339Nano))
+//line app/vmalert/notifier/alertmanager_request.qtpl:13
+		qw422016.N().S(`,"generatorURL":`)
+//line app/vmalert/notifier/alertmanager_request.qtpl:14
+		qw422016.N().Q(generatorURL(alert))
+//line app/vmalert/notifier/alertmanager_request.qtpl:14
+		qw422016.N().S(`,`)
+//line app/vmalert/notifier/alertmanager_request.qtpl:15
+		if !alert.End.IsZero() {
+//line app/vmalert/notifier/alertmanager_request.qtpl:15
+			qw422016.N().S(`"endsAt":`)
+//line app/vmalert/notifier/alertmanager_request.qtpl:16
+			qw422016.N().Q(alert.End.Format(time.RFC3339Nano))
+//line app/vmalert/notifier/alertmanager_request.qtpl:16
+			qw422016.N().S(`,`)
+//line app/vmalert/notifier/alertmanager_request.qtpl:17
+		}
+//line app/vmalert/notifier/alertmanager_request.qtpl:17
+		qw422016.N().S(`"labels": {`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:19
 		ll := len(lbls)
 
@@ -114,22 +114,22 @@ func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL fun
 }
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
-func writeamRequest(qq422016 qtio422016.Writer, alerts []Alert, generatorURL func(Alert) string, relabelCfg *promrelabel.ParsedConfigs) {
+func writeamRequest(qq422016 qtio422016.Writer, alerts []Alert, generatorURL func(Alert) string, lblss [][]prompb.Label) {
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
-	streamamRequest(qw422016, alerts, generatorURL, relabelCfg)
+	streamamRequest(qw422016, alerts, generatorURL, lblss)
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
 }
 
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
-func amRequest(alerts []Alert, generatorURL func(Alert) string, relabelCfg *promrelabel.ParsedConfigs) string {
+func amRequest(alerts []Alert, generatorURL func(Alert) string, lblss [][]prompb.Label) string {
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
-	writeamRequest(qb422016, alerts, generatorURL, relabelCfg)
+	writeamRequest(qb422016, alerts, generatorURL, lblss)
 //line app/vmalert/notifier/alertmanager_request.qtpl:35
 	qs422016 := string(qb422016.B)
 //line app/vmalert/notifier/alertmanager_request.qtpl:35

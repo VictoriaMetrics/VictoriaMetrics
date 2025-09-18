@@ -6,11 +6,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches/stream"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -23,7 +23,7 @@ var (
 
 // InsertHandlerForHTTP processes remote write for DataDog POST /api/beta/sketches request.
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	})
 }
 
-func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels []prompb.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -45,22 +45,22 @@ func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels 
 		ms := sketch.ToSummary()
 		for _, m := range ms {
 			labelsLen := len(labels)
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  "__name__",
 				Value: m.Name,
 			})
 			for _, label := range m.Labels {
-				labels = append(labels, prompbmarshal.Label{
+				labels = append(labels, prompb.Label{
 					Name:  label.Name,
 					Value: label.Value,
 				})
 			}
 			for _, tag := range sketch.Tags {
-				name, value := datadogutils.SplitTag(tag)
+				name, value := datadogutil.SplitTag(tag)
 				if name == "host" {
 					name = "exported_host"
 				}
-				labels = append(labels, prompbmarshal.Label{
+				labels = append(labels, prompb.Label{
 					Name:  name,
 					Value: value,
 				})
@@ -68,13 +68,13 @@ func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels 
 			labels = append(labels, extraLabels...)
 			samplesLen := len(samples)
 			for _, p := range m.Points {
-				samples = append(samples, prompbmarshal.Sample{
+				samples = append(samples, prompb.Sample{
 					Timestamp: p.Timestamp,
 					Value:     p.Value,
 				})
 			}
 			rowsTotal += len(m.Points)
-			tssDst = append(tssDst, prompbmarshal.TimeSeries{
+			tssDst = append(tssDst, prompb.TimeSeries{
 				Labels:  labels[labelsLen:],
 				Samples: samples[samplesLen:],
 			})
