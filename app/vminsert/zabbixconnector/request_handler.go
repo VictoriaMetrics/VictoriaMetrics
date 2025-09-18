@@ -7,8 +7,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/zabbixconnector"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/zabbixconnector/stream"
 )
@@ -20,17 +20,17 @@ var (
 
 // InsertHandlerForHTTP processes remote write for ZabbixConnector POST /zabbixconnector/v1/history request.
 func InsertHandlerForHTTP(req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return stream.Parse(req.Body, isGzipped, func(rows []zabbixconnector.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, encoding, func(rows []zabbixconnector.Row) error {
 		return insertRows(rows, extraLabels)
 	})
 }
 
-func insertRows(rows []zabbixconnector.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(rows []zabbixconnector.Row, extraLabels []prompb.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 

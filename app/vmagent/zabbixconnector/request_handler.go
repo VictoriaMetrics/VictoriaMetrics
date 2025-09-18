@@ -7,8 +7,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/zabbixconnector"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/zabbixconnector/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
@@ -23,17 +23,17 @@ var (
 
 // InsertHandlerForHTTP processes remote write for ZabbixConnector POST /zabbixconnector/v1/history request.
 func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
-	extraLabels, err := parserCommon.GetExtraLabels(req)
+	extraLabels, err := protoparserutil.GetExtraLabels(req)
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return stream.Parse(req.Body, isGzipped, func(rows []zabbixconnector.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, encoding, func(rows []zabbixconnector.Row) error {
 		return insertRows(at, rows, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, rows []zabbixconnector.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, rows []zabbixconnector.Row, extraLabels []prompb.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -47,7 +47,7 @@ func insertRows(at *auth.Token, rows []zabbixconnector.Row, extraLabels []prompb
 		labelsLen := len(labels)
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			labels = append(labels, prompbmarshal.Label{
+			labels = append(labels, prompb.Label{
 				Name:  bytesutil.ToUnsafeString(tag.Key),
 				Value: bytesutil.ToUnsafeString(tag.Value),
 			})
@@ -55,12 +55,12 @@ func insertRows(at *auth.Token, rows []zabbixconnector.Row, extraLabels []prompb
 		labels = append(labels, extraLabels...)
 
 		samplesLen := len(samples)
-		samples = append(samples, prompbmarshal.Sample{
+		samples = append(samples, prompb.Sample{
 			Value:     r.Value,
 			Timestamp: r.Timestamp,
 		})
 
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
+		tssDst = append(tssDst, prompb.TimeSeries{
 			Labels:  labels[labelsLen:],
 			Samples: samples[samplesLen:],
 		})
