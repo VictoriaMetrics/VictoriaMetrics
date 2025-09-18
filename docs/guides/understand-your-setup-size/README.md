@@ -125,7 +125,7 @@ As a reference, see resource consumption of VictoriaMetrics cluster on our [play
 The Retention Period is the number of days or months for storing data. It affects the disk space usage.
 The formula for calculating required disk space is the following:
 ```
-Bytes Per Sample * Ingestion rate * Replication Factor * (Retention Period in Seconds +1 Retention Cycle(day or month)) * 1.2 (recommended 20% of dree space for merges ) 
+Bytes Per Sample * Ingestion rate * Replication Factor * (Retention Period in Seconds +1 Retention Cycle(day or month)) * 1.2 (recommended 20% of free space for merges ) 
 ```
 
 The **Retention Cycle** is one **day** or one **month**. If the retention period is higher than 30 days cycle is a month; otherwise day.
