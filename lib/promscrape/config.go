@@ -85,7 +85,7 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
 		"Bigger responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs")
-	getScrapeWorkConcurrency = flag.Int("promscrape.getScrapeWorkConcurrency", 1, "The maximum number of concurrent goroutines used to generate scrape work during service discovery. "+
+	maxScrapeDiscoveryConcurrency = flag.Int("promscrape.maxScrapeDiscoveryConcurrency", 1, "The maximum number of concurrent goroutines used to generate scrape work during service discovery. "+
 		"Higher values may speed up target generation for configurations with many scrape_configs, but increase CPU and memory usage. "+
 		"Default is 1 (no concurrency). See https://docs.victoriametrics.com/victoriametrics/vmagent/#concurrent-scrape-target-generation")
 )
@@ -826,9 +826,9 @@ func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visi
 	swsPrevByJob := getSWSByJob(prev)
 	dst := make([]*ScrapeWork, 0, len(prev))
 
-	// Generate ScrapeWork concurrently. The concurrency limit is promscrape.getScrapeWorkConcurrency.
+	// Generate ScrapeWork concurrently. The concurrency limit is -promscrape.maxScrapeDiscoveryConcurrency.
 	// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8838
-	concurrencyLimit := *getScrapeWorkConcurrency
+	concurrencyLimit := *maxScrapeDiscoveryConcurrency
 	if concurrencyLimit < 1 {
 		concurrencyLimit = 1
 	}
@@ -837,10 +837,10 @@ func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visi
 	var wg sync.WaitGroup
 
 	for _, sc := range cfg.ScrapeConfigs {
+		sem <- struct{}{}
 		wg.Add(1)
 		go func(sc *ScrapeConfig) {
 			defer wg.Done()
-			sem <- struct{}{}
 			defer func() { <-sem }()
 
 			dstLocal := make([]*ScrapeWork, 0)
