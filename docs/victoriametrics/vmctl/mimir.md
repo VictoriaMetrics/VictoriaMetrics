@@ -37,7 +37,7 @@ The importing process example for the local installation of Mimir and single-nod
 > Mimir supports [streamed remote read API](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/),
 so it is recommended setting `--remote-read-use-stream=true` flag for better performance and resource usage.
 
-_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl#configuring-victoriametrics)._
+_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl/#configuring-victoriametrics)._
 
 And when the process finishes, you will see the following:
 ```sh

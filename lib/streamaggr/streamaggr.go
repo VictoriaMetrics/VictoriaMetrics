@@ -802,7 +802,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 			return
 		}
 		timer := timerpool.Get(dSleep)
-		defer timer.Stop()
+		defer timerpool.Put(timer)
 		select {
 		case <-a.stopCh:
 		case <-timer.C:

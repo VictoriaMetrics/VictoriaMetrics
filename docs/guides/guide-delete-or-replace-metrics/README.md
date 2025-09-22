@@ -164,7 +164,7 @@ The expected output will be the following:
 
 ### Delete metrics
 
-See [How-to-delete-metrics](https://docs.victoriametrics.com/guides/guide-delete-or-replace-metrics.html#how-to-delete-metrics) from the previous paragraph.
+See [How-to-delete-metrics](https://docs.victoriametrics.com/guides/guide-delete-or-replace-metrics/#how-to-delete-metrics) from the previous paragraph.
 
 ### Import metrics
 

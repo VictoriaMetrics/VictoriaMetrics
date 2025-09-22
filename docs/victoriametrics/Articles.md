@@ -98,6 +98,9 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Optimizing Datadog Costs with VictoriaMetrics: A Practical Step-by-Step Guide](https://medium.com/p/optimizing-datadog-costs-with-victoriametrics-a-practical-step-by-step-guide-c984d32c7423)
 * [Kubernetes Monitoring — A Complete Solution](https://itnext.io/kubernetes-monitoring-a-complete-solution-part-1-architecture-eb5b998658d5)
 * [Why VictoriaMetrics? A Practical Guide to Scalable and Faster Monitoring Than Prometheus](https://amir-shams.medium.com/why-victoriametrics-a-practical-guide-to-scalable-and-faster-monitoring-than-prometheus-54ef21f10465)
+* [How We Saved 80% on Our Observability Bill!](https://blog.devops.dev/how-we-saved-80-on-our-observability-bill-402421edfc1d)
+* [When metrics leak secrets: Kubernetes CTF lessons](https://programmerprodigy.code.blog/2025/09/01/when-metrics-leak-secrets-kubernetes-ctf-lessons/)
+* [K3S and monitoring with VictoriaMetrics, kube-state-metrics, node-exporter and Grafana](https://j.hommet.net/k3s-victoriametrics-kube-state-metrics-node-exporter-grafana/)
 
 ## Third-party articles and slides about VictoriaLogs
 

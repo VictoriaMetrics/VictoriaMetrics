@@ -21,7 +21,7 @@ VictoriaMetrics Anomaly Detection (`vmanomaly`) supports self-monitoring by gene
 
 Self-monitoring metrics are available in both the [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model) models, providing flexibility to fit into different monitoring environments. By specifying relevant parameters in the `monitoring` section of the configuration, `vmanomaly` components can seamlessly integrate with VictoriaMetrics, Prometheus or other monitoring solutions, enabling centralized visibility into both service and anomaly detection outcomes.
 
-> For the detailed overview of self-monitoring metrics that are produced by `vmanomaly` and how to enable their tracking for push/pull models, please refer to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring) section docs.
+> For the detailed overview of self-monitoring metrics that are produced by `vmanomaly` and how to enable their tracking for push/pull models, please refer to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) section docs.
 
 The self-monitoring assets of `vmanomaly` include Grafana dashboard and accompanying alerting rules.
 
@@ -107,7 +107,7 @@ This global panel holds resource utilization (CPU, RAM, File Descriptors) on bot
 
 ### Model Statistics
 
-These panels contain repeated blocks for each unique `model_alias` (a distinct entity defined in the `models` [configuration section](https://docs.victoriametrics.com/anomaly-detection/components/models)), filtered according to the current dashboard settings. They provide information on the number of unique entities (such as queries, schedulers, and instances) that a particular `model_alias` interacts with, as well as the count of active model instances available for inferring new data.
+These panels contain repeated blocks for each unique `model_alias` (a distinct entity defined in the `models` [configuration section](https://docs.victoriametrics.com/anomaly-detection/components/models/)), filtered according to the current dashboard settings. They provide information on the number of unique entities (such as queries, schedulers, and instances) that a particular `model_alias` interacts with, as well as the count of active model instances available for inferring new data.
 
 ![vmanomaly-dashboard-4-model-sections](vmanomaly-dashboard-4-model-sections.webp)
 

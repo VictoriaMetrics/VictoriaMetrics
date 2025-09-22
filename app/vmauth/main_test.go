@@ -514,6 +514,11 @@ func (w *fakeResponseWriter) getResponse() string {
 	return w.bb.String()
 }
 
+// Flush implements net/http.Flusher
+func (w *fakeResponseWriter) Flush() {
+	// Nothing to do.
+}
+
 func (w *fakeResponseWriter) Header() http.Header {
 	if w.h == nil {
 		w.h = http.Header{}

@@ -28,7 +28,7 @@ aliases:
 
 1. Convincing people to use VictoriaMetrics components when there are better suited solutions exist for their tasks,
    since users will become angry at VictoriaMetrics after they discover better solutions.
-1. Breaking links to [VictoriaMetrics docs](https://docs.victoriametrics.com/), since users will be unhappy seeing 404 page
+1. Breaking links to [VictoriaMetrics docs](https://docs.victoriametrics.com/victoriametrics/), since users will be unhappy seeing 404 page
    or unexpected results after they click some old link somewhere on the Internet or in the internal knowledge base.
 1. Breaking backwards compatibility in new releases, since users will be unhappy when their working setup breaks after the upgrade.
 1. Adding non-trivial features, which require significant changes in the code and the architecture,

@@ -19,7 +19,7 @@ To be the best tool for monitoring and observability.
 
 ## Who uses VictoriaMetrics?
 
-See [case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/) and [articles](https://docs.victoriametrics.com/victoriametrics/articles).
+See [case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/) and [articles](https://docs.victoriametrics.com/victoriametrics/articles/).
 
 ## Which features does VictoriaMetrics have?
 
@@ -116,7 +116,7 @@ serve the same purpose – to efficiently scrape Prometheus-compatible targets a
 * vmagent supports [improved relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 * vmagent can limit the number of scraped metrics per target – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
 * vmagent supports loading scrape configs from multiple files – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#loading-scrape-configs-from-multiple-files).
-* vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/kafka).
+* vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/).
 * vmagent has better remote write compression to reduce transferred traffic - [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol).
 * vmagent can read and update scrape configs from http and https URLs, while the Prometheus agent can only read them from the local file system.
 * vmagent supports [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) for performing aggregates on collected or received samples before sending them to remote storage.
