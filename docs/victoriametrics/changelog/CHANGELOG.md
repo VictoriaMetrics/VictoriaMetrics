@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): stream responses from backends to clients without delays. Previously the backend data could be bufferred at `vmauth` side for indefinite amounts of time. This was preventing from using `vmauth` for streaming the data from backends in [live tailing mode](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing). See [#667 at VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/issues/667).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): stream responses from backends to clients without delays. Previously the backend data could be buffered at `vmauth` side for indefinite amounts of time. This was preventing from using `vmauth` for streaming the data from backends in [live tailing mode](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing). See [VictoriaLogs#667](https://github.com/VictoriaMetrics/VictoriaLogs/issues/667).
 
 
 ## [v1.126.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.126.0)
@@ -41,7 +41,7 @@ Released at 2025-09-12
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix possible partial rule update responses in group-related APIs during group updates in hot config reload. See [#9551](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9551)
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): properly apply rollup functions to metrics based on their name in vmui's [metrics explorer](https://docs.victoriametrics.com/victoriametrics/#metrics-explorer). See [#9655](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9655) for details. Thanks to @wbwren-eric for the fix. 
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: fix support for automatic issuing of TLS certificates for HTTPS server via [Let's Encrypt service](https://letsencrypt.org/) using [TLS-ALPN-01 challenge](https://letsencrypt.org/docs/challenge-types/#tls-alpn-01). See [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/victoriametrics/#automatic-issuing-of-tls-certificates) for more info.
-* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix VMUI backend URL, while using multitenant API. See more in [#9703](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9703).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix incorrect backend URL in vmui when using multitenant API. See more in [#9703](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9703).
 * BUGFIX: all components: properly expose metadata for summaries and histograms in VictoriaMetrics components with enabled `-metrics.exposeMetadata` cmd-line flag. See [metrics#98](https://github.com/VictoriaMetrics/metrics/issues/98) for details.
 * BUGFIX: all components: lower severity of the log message for unavailable [Pressure Stall Information (PSI)](https://docs.kernel.org/accounting/psi.html) metrics from `ERROR` to `INFO` level. See [#9161](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9161) for details.
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): properly prepare restore mark contents when using a backup shortname (e.g. `vmbackupmanager restore create daily/2025-09-12`). Previously, restore would fail with `failed to restore backup: cannot initialize remote fs: missing scheme in path` error.
@@ -50,9 +50,9 @@ Released at 2025-09-12
 
 Released at 2025-09-03
 
-* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly route requests for `prometheus/vmui/config.json` API. Follow-up after 7f15e9f64cb8dd2b2f0f1c10d178fd06ac7c636c.
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix `workingsetcache` metrics. Previously, after cache rotation, metrics could be double-counted or inflated. See [9553](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9553) for details.
-* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix the issue where filtering on click does not work on the Explorer Cardinality page. See [#9674](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9674) for details.
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly route requests for `prometheus/vmui/config.json` API. The routing was broken in [v1.125.0](https://docs.victoriametrics.com/CHANGELOG.html#v11250).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix `workingsetcache` metrics. Previously, after cache rotation, metrics could be double-counted or inflated. See [#9553](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9553) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix the issue where filtering on click does not work on the [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) page. See [#9674](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9674) for details.
 
 ## [v1.125.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.125.0)
 
