@@ -275,7 +275,7 @@ See the processing order and corresponding command-line flags for controlling th
 4. [Cardinality limiting](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter):
     - `-remoteWrite.maxHourlySeries`
     - `-remoteWrite.maxDailySeries`
-5. [Stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation):
+5. [Stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/):
     - `-streamAggr.config`
     - `-streamAggr.dedupInterval` 
 
