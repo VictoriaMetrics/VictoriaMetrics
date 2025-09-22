@@ -291,7 +291,7 @@ See the processing order and corresponding command-line flags for controlling th
 **Per-URL Processing: applied separately to each `-remoteWrite.url`**
 1. Per-URL [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
     - `-remoteWrite.urlRelabelConfig`
-2. Per-URL [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation):
+2. Per-URL [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/):
     - `-remoteWrite.streamAggr.config`
     - `-remoteWrite.streamAggr.dedupInterval`
 3. Per-URL extra labels:
