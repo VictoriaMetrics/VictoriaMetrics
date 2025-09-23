@@ -172,7 +172,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.deadline = deadline
 	s.needClosing = true
 
-	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+	tsids, err := storage.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
@@ -184,48 +184,6 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 		return 0
 	}
 	return len(tsids)
-}
-
-// searchTSIDs searches the TSIDs that correspond to filters within the given
-// time range.
-//
-// The method will fail if the number of found TSIDs exceeds maxMetrics or the
-// search has not completed within the specified deadline.
-func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
-	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
-	defer qt.Done()
-
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
-		var tsids []TSID
-		metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
-		if err == nil {
-			tsids, err = idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
-		}
-		return tsids, err
-	}
-
-	merge := func(data [][]TSID) []TSID {
-		tsidss := make([][]TSID, 0, len(data))
-		for _, d := range data {
-			if len(d) > 0 {
-				tsidss = append(tsidss, d)
-			}
-		}
-		if len(tsidss) == 0 {
-			return nil
-		}
-		if len(tsidss) == 1 {
-			return tsidss[0]
-		}
-		return mergeSortedTSIDs(tsidss)
-	}
-
-	tsids, err := searchAndMerge(qt, s.storage, tr, search, merge)
-	if err != nil {
-		return nil, err
-	}
-
-	return tsids, nil
 }
 
 // MustClose closes the Search.

@@ -1362,6 +1362,48 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 	return res, nil
 }
 
+// searchTSIDs searches the TSIDs that correspond to filters within the given
+// time range.
+//
+// The method will fail if the number of found TSIDs exceeds maxMetrics or the
+// search has not completed within the specified deadline.
+func (s *Storage) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
+	defer qt.Done()
+
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
+		var tsids []TSID
+		metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+		if err == nil {
+			tsids, err = idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
+		}
+		return tsids, err
+	}
+
+	merge := func(data [][]TSID) []TSID {
+		tsidss := make([][]TSID, 0, len(data))
+		for _, d := range data {
+			if len(d) > 0 {
+				tsidss = append(tsidss, d)
+			}
+		}
+		if len(tsidss) == 0 {
+			return nil
+		}
+		if len(tsidss) == 1 {
+			return tsidss[0]
+		}
+		return mergeSortedTSIDs(tsidss)
+	}
+
+	tsids, err := searchAndMerge(qt, s, tr, search, merge)
+	if err != nil {
+		return nil, err
+	}
+
+	return tsids, nil
+}
+
 // searchMetricName searches the name of a metric by id in curr and prev
 // indexDBs. If cache is enabled (noCache is false), the name is first
 // searched in metricNameCache and also stored in that cache when found in one
