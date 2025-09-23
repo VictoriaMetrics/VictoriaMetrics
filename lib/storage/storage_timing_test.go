@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -289,337 +290,73 @@ func benchmarkDirSize(path string) int64 {
 	return size
 }
 
-func BenchmarkSearchMetricNames_variableSeries(b *testing.B) {
-	benchmarkSearch_variableSeries(b, false, benchmarkSearchMetricNames)
-}
-
-func BenchmarkSearchMetricNames_variableDeletedSeries(b *testing.B) {
-	benchmarkSearch_variableDeletedSeries(b, false, benchmarkSearchMetricNames)
-}
-
-func BenchmarkSearchMetricNames_variableTimeRange(b *testing.B) {
-	benchmarkSearch_variableTimeRange(b, false, benchmarkSearchMetricNames)
-}
-
-func BenchmarkSearchLabelNames_variableSeries(b *testing.B) {
-	benchmarkSearch_variableSeries(b, false, benchmarkSearchLabelNames)
-}
-
-func BenchmarkSearchLabelNames_variableTimeRange(b *testing.B) {
-	benchmarkSearch_variableTimeRange(b, false, benchmarkSearchLabelNames)
-}
-
-func BenchmarkSearchLabelNames_variableDeletedSeries(b *testing.B) {
-	benchmarkSearch_variableDeletedSeries(b, false, benchmarkSearchLabelNames)
-}
-
-func BenchmarkSearchLabelValues_variableSeries(b *testing.B) {
-	benchmarkSearch_variableSeries(b, false, benchmarkSearchLabelValues)
-}
-
-func BenchmarkSearchLabelValues_variableDeletedSeries(b *testing.B) {
-	benchmarkSearch_variableDeletedSeries(b, false, benchmarkSearchLabelValues)
-}
-
-func BenchmarkSearchLabelValues_variableTimeRange(b *testing.B) {
-	benchmarkSearch_variableTimeRange(b, false, benchmarkSearchLabelValues)
-}
-
-func BenchmarkSearchTagValueSuffixes_variableSeries(b *testing.B) {
-	benchmarkSearch_variableSeries(b, true, benchmarkSearchTagValueSuffixes)
-}
-
-func BenchmarkSearchTagValueSuffixes_variableDeletedSeries(b *testing.B) {
-	benchmarkSearch_variableDeletedSeries(b, true, benchmarkSearchTagValueSuffixes)
-}
-
-func BenchmarkSearchTagValueSuffixes_variableTimeRange(b *testing.B) {
-	benchmarkSearch_variableTimeRange(b, true, benchmarkSearchTagValueSuffixes)
-}
-
-func BenchmarkSearchGraphitePaths_variableSeries(b *testing.B) {
-	benchmarkSearch_variableSeries(b, true, benchmarkSearchGraphitePaths)
-}
-
-func BenchmarkSearchGraphitePaths_variableDeletedSeries(b *testing.B) {
-	benchmarkSearch_variableDeletedSeries(b, true, benchmarkSearchGraphitePaths)
-}
-
-func BenchmarkSearchGraphitePaths_variableTimeRange(b *testing.B) {
-	benchmarkSearch_variableTimeRange(b, true, benchmarkSearchGraphitePaths)
-}
-
-// benchmarkSearch_variableSeries measures the execution time of some search
-// operation on a fixed time trange and variable number of series. The number of
-// deleted series is 0.
-func benchmarkSearch_variableSeries(b *testing.B, graphite bool, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
-	const numDeletedSeries = 0
-	tr := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	// Using only a few numbers that represent orders of magnitude so that
-	// routine running of the benchmarks does not take too long. However, when
-	// debugging it is often helpful to add more numbers in between these
-	// numbers.
-	for _, numSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
-		name := fmt.Sprintf("%d", numSeries)
-		b.Run(name, func(b *testing.B) {
-			benchmarkSearch(b, graphite, numSeries, numDeletedSeries, tr, op)
-		})
-	}
-}
-
-// benchmarkSearch_variableDeletedSeries measures the execution time of some
-// storage operation on a fixed time, fixed number of series and variable
-// number of deleted series.
-func benchmarkSearch_variableDeletedSeries(b *testing.B, graphite bool, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
-	// Deployments that we aware of often have tens and hundreds of thouthands
-	// series in their query results, sometimes even millions. Chosen 100K as
-	// something in the middle.
-	const numSeries = 100_000
-	tr := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	for _, numDeletedSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
-		name := fmt.Sprintf("%d", numDeletedSeries)
-		b.Run(name, func(b *testing.B) {
-			benchmarkSearch(b, graphite, numSeries, numDeletedSeries, tr, op)
-		})
-	}
-}
-
-// benchmarkSearch_variableTimeRange measures the execution time of some search
-// operation on various time trages and fixed number of series. The number of
-// deleted series is 0.
-func benchmarkSearch_variableTimeRange(b *testing.B, graphite bool, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
-	const (
-		numSeries        = 100_000
-		numDeletedSeries = 0
-	)
-	tr1d := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	tr1w := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 7, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	tr1m := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	tr2m := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 2, 28, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	tr6m := TimeRange{
-		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-		MaxTimestamp: time.Date(2025, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-	}
-	trNames := []string{"1d", "1w", "1m", "2m", "6m"}
-	for i, tr := range []TimeRange{tr1d, tr1w, tr2m, tr1m, tr6m} {
-		name := trNames[i]
-		b.Run(name, func(b *testing.B) {
-			benchmarkSearch(b, graphite, numSeries, numDeletedSeries, tr, op)
-		})
-	}
-}
-
-// benchmarkSearchMetricNames is a helper function used in various
-// SearchMetricNames benchmarks.
-func benchmarkSearchMetricNames(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
-	b.Helper()
-	tfss := NewTagFilters()
-	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		b.Fatalf("unexpected error in TagFilters.Add: %v", err)
-	}
-	var (
-		got []string
-		err error
-	)
-	for b.Loop() {
-		got, err = s.SearchMetricNames(nil, []*TagFilters{tfss}, tr, 1e9, noDeadline)
-		if err != nil {
-			b.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
-		}
-	}
-
-	var mn MetricName
-	for i, name := range got {
-		if err := mn.UnmarshalString(name); err != nil {
-			b.Fatalf("Could not unmarshal metric name %q: %v", name, err)
-		}
-		got[i] = string(mn.MetricGroup)
-	}
-	slices.Sort(got)
-	want := make([]string, len(mrs))
-	for i, mr := range mrs {
-		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
-			b.Fatalf("could not unmarshal metric row: %v", err)
-		}
-		want[i] = string(mn.MetricGroup)
-	}
-	slices.Sort(want)
-	if diff := cmp.Diff(want, got); diff != "" {
-		b.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
-	}
-}
-
-// benchmarkSearchLabelNames is a helper function used in various
-// SearchLabelNames benchmarks.
-func benchmarkSearchLabelNames(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
-	b.Helper()
-	var (
-		got []string
-		err error
-	)
-	for b.Loop() {
-		got, err = s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
-		if err != nil {
-			b.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
-		}
-	}
-	slices.Sort(got)
-	var mn MetricName
-	want := make([]string, len(mrs))
-	for i, mr := range mrs {
-		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
-			b.Fatalf("could not unmarshal metric row: %v", err)
-		}
-		for _, tag := range mn.Tags {
-			labelName := string(tag.Key)
-			if labelName != "label" {
-				want[i] = labelName
+// BenchmarkSearch measures various storage search ops with various index and
+// data configurations.
+//
+// Running all of the most probably won't make sense since it will take too long
+// and it will be difficult to make any manual comparisons. However the
+// benchmark can be useful when only a small subset of results is needed. For
+// example, if one wants to compare the search of 100k metric names with
+// different index configurations, then one would need to run the benchmark as
+// follows:
+//
+// go test ./lib/storage --loggerLevel=ERROR -run=^$ -bench=^BenchmarkSearch/MetricNames/.*/VariableSeries/100000$
+//
+// For possible search ops, index configs, and data configs, see searchOpNames,
+// indexConfigNames, and dataConfigs below.
+func BenchmarkSearch(b *testing.B) {
+	for i, search := range searchOps {
+		b.Run(searchOpNames[i], func(b *testing.B) {
+			for j, split := range indexConfigs {
+				b.Run(indexConfigNames[j], func(b *testing.B) {
+					for _, genDataConfig := range dataConfigGenerators {
+						for _, dataConfig := range genDataConfig() {
+							b.Run(dataConfig.name, func(b *testing.B) {
+								benchmarkSearch(b, dataConfig, split, search)
+							})
+						}
+					}
+				})
 			}
-		}
-	}
-	want = append(want, "__name__", "label")
-	slices.Sort(want)
-	if diff := cmp.Diff(want, got); diff != "" {
-		b.Fatalf("unexpected label names (-want, +got):\n%s", diff)
+		})
 	}
 }
 
-// benchmarkSearchLabelValues is a helper function used in various
-// SearchLabelValues benchmarks.
-func benchmarkSearchLabelValues(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
-	b.Helper()
-	var (
-		got []string
-		err error
-	)
-	for b.Loop() {
-		got, err = s.SearchLabelValues(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
-		if err != nil {
-			b.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
-		}
-	}
-	slices.Sort(got)
-	want := make([]string, len(mrs))
-	for i, mr := range mrs {
-		var mn MetricName
-		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
-			b.Fatalf("could not unmarshal metric row: %v", err)
-		}
-		for _, tag := range mn.Tags {
-			if string(tag.Key) == "label" {
-				want[i] = string(tag.Value)
-			}
-		}
-	}
-	slices.Sort(want)
-	if diff := cmp.Diff(want, got); diff != "" {
-		b.Fatalf("unexpected label values (-want, +got):\n%s", diff)
-	}
+// dataConfig holds the test dataset config. Such as now many deleted and visible
+// series to insert and on which time range.
+type dataConfig struct {
+	name             string
+	numSeries        int
+	numDeletedSeries int
+	tr               TimeRange
 }
 
-// benchmarkSearchTagValueSuffixes is a helper function used in various
-// SearchTagValueSuffixes benchmarks.
-func benchmarkSearchTagValueSuffixes(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
-	b.Helper()
-	var (
-		prefix = "graphite."
-		got    []string
-		err    error
-	)
-	for b.Loop() {
-		got, err = s.SearchTagValueSuffixes(nil, tr, "", prefix, '.', 1e9, noDeadline)
-		if err != nil {
-			b.Fatalf("SearchTagValueSuffixes() failed unexpectedly: %v", err)
-		}
-	}
-	slices.Sort(got)
-	want := make([]string, len(mrs))
-	for i, mr := range mrs {
-		var mn MetricName
-		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
-			b.Fatalf("could not unmarshal metric row: %v", err)
-		}
-		var found bool
-		metricName := string(mn.MetricGroup)
-		want[i], found = strings.CutPrefix(metricName, prefix)
-		if !found {
-			b.Fatalf("metric name %q does not have %q prefix", metricName, prefix)
-		}
-	}
-	slices.Sort(want)
-	if diff := cmp.Diff(want, got); diff != "" {
-		b.Fatalf("unexpected tag value suffixes (-want, +got):\n%s", diff)
-	}
-}
+// searchFunc is a func that measures the search of some data on the given time
+// range. It also accepts the metric rows stored in the database to ensure that
+// the search result is correct.
+type searchFunc func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)
 
-// benchmarkSearchGraphitePaths is a helper function used in various
-// SearchGraphitePaths benchmarks.
-func benchmarkSearchGraphitePaths(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
-	b.Helper()
-	var (
-		got []string
-		err error
-	)
-	for b.Loop() {
-		got, err = s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e9, noDeadline)
-		if err != nil {
-			b.Fatalf("SearchGraphitePaths() failed unexpectedly: %v", err)
-		}
-	}
-	slices.Sort(got)
-	want := make([]string, len(mrs))
-	for i, mr := range mrs {
-		var mn MetricName
-		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
-			b.Fatalf("could not unmarshal metric row: %v", err)
-		}
-		want[i] = string(mn.MetricGroup)
-	}
-	slices.Sort(want)
-	if diff := cmp.Diff(want, got); diff != "" {
-		b.Fatalf("unexpected graphite paths (-want, +got):\n%s", diff)
-	}
-}
+// splitFunc split the test data between prev and curr indexDBs.
+type splitFunc func(total dataConfig) (prev, curr dataConfig)
 
 // benchmarkSearch implements the core logic of benchmark of a search operation.
 //
-// It generates the test data, inserts it into the storage and runs the search
-// operation against it. The index data is split evenly across prev and curr
-// indexDBs.
+// It generates the test data, inserts it into the storage, and runs the search
+// op against it.
 //
-// The number of series is controlled with numSeries.
+// The number of series is controlled with dataConfig.numSeries. The function also
+// generates the deleted series and saves them to the storage. If the deleted
+// series are not needed, set dataConfig.numDeletedSeries to 0. The data is spread
+// evenly across the time range provided via dataConfig.tr. The data is split
+// across prev and curr idb using the split callback func.
 //
-// The function also generates the deleted series and saves them to the storage.
-// If the deleted series are not needed, set numDeletedSeries to 0.
-//
-// The data is spread evenly across the provided time range.
-//
-// The test data is designed so that it can be reused by all types of search
-// operations. It is also passes to the search op callback to that the search
-// operation could perform all necessary assertions to make sure that the search
-// result is correct.
-func benchmarkSearch(b *testing.B, graphite bool, numSeries, numDeletedSeries int, tr TimeRange, op func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)) {
+// The generated data is designed so that it can be reused by all types of
+// search ops. It is also passed to the search op so that it could perform all
+// the necessary assertions to make sure that the search result is correct.
+func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, search searchFunc) {
 	b.Helper()
 	graphitePrefix := ""
-	if graphite {
+	if isGraphite(search) {
 		graphitePrefix = "graphite."
 	}
 	genRows := func(n int, prefix string, tr TimeRange) []MetricRow {
@@ -663,41 +400,374 @@ func benchmarkSearch(b *testing.B, graphite bool, numSeries, numDeletedSeries in
 
 	}
 
-	trPrev := TimeRange{
-		MinTimestamp: tr.MinTimestamp,
-		MaxTimestamp: tr.MinTimestamp + (tr.MaxTimestamp-tr.MinTimestamp)/2,
-	}
-	trCurr := TimeRange{
-		MinTimestamp: tr.MinTimestamp + (tr.MaxTimestamp-tr.MinTimestamp)/2 + 1,
-		MaxTimestamp: tr.MaxTimestamp,
-	}
-
-	numDeletedSeriesPrev := numDeletedSeries / 2
-	mrsToDeletePrev := genRows(numDeletedSeriesPrev, "prev", trPrev)
-	mrsPrev := genRows(numSeries/2, "prev", trPrev)
-	numDeletedSeriesCurr := numDeletedSeries / 2
-	mrsToDeleteCurr := genRows(numDeletedSeriesCurr, "curr", trCurr)
-	mrsCurr := genRows(numSeries/2, "curr", trCurr)
+	cfgPrev, cfgCurr := split(dataConfig)
+	mrsToDeletePrev := genRows(cfgPrev.numDeletedSeries, "prev", cfgPrev.tr)
+	mrsToDeleteCurr := genRows(cfgCurr.numDeletedSeries, "curr", cfgCurr.tr)
+	mrsPrev := genRows(cfgPrev.numSeries, "prev", cfgPrev.tr)
+	mrsCurr := genRows(cfgCurr.numSeries, "curr", cfgCurr.tr)
 
 	s := MustOpenStorage(b.Name(), OpenOptions{})
 	s.AddRows(mrsToDeletePrev, defaultPrecisionBits)
 	s.DebugFlush()
-	deleteSeries(s, "prev", numDeletedSeriesPrev)
+	deleteSeries(s, "prev", cfgPrev.numDeletedSeries)
 	s.DebugFlush()
 	s.AddRows(mrsPrev, defaultPrecisionBits)
 	s.DebugFlush()
-	// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+
 	s.mustRotateIndexDB(time.Now())
+
 	s.AddRows(mrsToDeleteCurr, defaultPrecisionBits)
 	s.DebugFlush()
-	deleteSeries(s, "curr", numDeletedSeriesCurr)
+	deleteSeries(s, "curr", cfgCurr.numDeletedSeries)
 	s.DebugFlush()
 	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
 
 	mrs := slices.Concat(mrsPrev, mrsCurr)
-	op(b, s, tr, mrs)
+	search(b, s, dataConfig.tr, mrs)
 
 	s.MustClose()
 	_ = os.RemoveAll(b.Name())
+}
+
+// searchOps is the collection of storage search ops for which BenchmarkSearch()
+// will perform the measurements.
+var searchOps = []searchFunc{
+	benchmarkSearchData,
+	benchmarkSearchMetricNames,
+	benchmarkSearchLabelNames,
+	benchmarkSearchLabelValues,
+	benchmarkSearchTagValueSuffixes,
+	benchmarkSearchGraphitePaths,
+}
+var searchOpNames = []string{
+	"Data",
+	"MetricNames",
+	"LabelNames",
+	"LabelValues",
+	"TagValueSuffixes",
+	"GraphitePaths",
+}
+
+// benchmarkSearchMetricNames measures the search of all metric names on the
+// given time range. It also ensures that the search result is correct by
+// comparing it with metric rows stored in the database.
+func benchmarkSearchMetricNames(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
+	b.Helper()
+	tfss := NewTagFilters()
+	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		b.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	var (
+		got []string
+		err error
+	)
+	for b.Loop() {
+		got, err = s.SearchMetricNames(nil, []*TagFilters{tfss}, tr, 1e9, noDeadline)
+		if err != nil {
+			b.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+		}
+	}
+
+	var mn MetricName
+	for i, name := range got {
+		if err := mn.UnmarshalString(name); err != nil {
+			b.Fatalf("Could not unmarshal metric name %q: %v", name, err)
+		}
+		got[i] = string(mn.MetricGroup)
+	}
+	slices.Sort(got)
+	want := make([]string, len(mrs))
+	for i, mr := range mrs {
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+			b.Fatalf("could not unmarshal metric row: %v", err)
+		}
+		want[i] = string(mn.MetricGroup)
+	}
+	slices.Sort(want)
+	if diff := cmp.Diff(want, got); diff != "" {
+		b.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+	}
+}
+
+// benchmarkSearchLabelNames measures the search of all label names on the
+// given time range. It also ensures that the search result is correct by
+// comparing it with metric rows stored in the database.
+func benchmarkSearchLabelNames(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
+	b.Helper()
+	var (
+		got []string
+		err error
+	)
+	for b.Loop() {
+		got, err = s.SearchLabelNames(nil, nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			b.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
+		}
+	}
+	slices.Sort(got)
+	var mn MetricName
+	want := make([]string, len(mrs))
+	for i, mr := range mrs {
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+			b.Fatalf("could not unmarshal metric row: %v", err)
+		}
+		for _, tag := range mn.Tags {
+			labelName := string(tag.Key)
+			if labelName != "label" {
+				want[i] = labelName
+			}
+		}
+	}
+	want = append(want, "__name__", "label")
+	slices.Sort(want)
+	if diff := cmp.Diff(want, got); diff != "" {
+		b.Fatalf("unexpected label names (-want, +got):\n%s", diff)
+	}
+}
+
+// benchmarkSearchLabelValues measures the search of all label values on the
+// given time range. It also ensures that the search result is correct by
+// comparing it with metric rows stored in the database.
+func benchmarkSearchLabelValues(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
+	b.Helper()
+	var (
+		got []string
+		err error
+	)
+	for b.Loop() {
+		got, err = s.SearchLabelValues(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			b.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
+		}
+	}
+	slices.Sort(got)
+	want := make([]string, len(mrs))
+	for i, mr := range mrs {
+		var mn MetricName
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+			b.Fatalf("could not unmarshal metric row: %v", err)
+		}
+		for _, tag := range mn.Tags {
+			if string(tag.Key) == "label" {
+				want[i] = string(tag.Value)
+			}
+		}
+	}
+	slices.Sort(want)
+	if diff := cmp.Diff(want, got); diff != "" {
+		b.Fatalf("unexpected label values (-want, +got):\n%s", diff)
+	}
+}
+
+// benchmarkSearchTagValueSuffixes measures the search of all tag value suffixes
+// on the given time range. It also ensures that the search result is correct by
+// comparing it with metric rows stored in the database.
+func benchmarkSearchTagValueSuffixes(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
+	b.Helper()
+	var (
+		prefix = "graphite."
+		got    []string
+		err    error
+	)
+	for b.Loop() {
+		got, err = s.SearchTagValueSuffixes(nil, tr, "", prefix, '.', 1e9, noDeadline)
+		if err != nil {
+			b.Fatalf("SearchTagValueSuffixes() failed unexpectedly: %v", err)
+		}
+	}
+	slices.Sort(got)
+	want := make([]string, len(mrs))
+	for i, mr := range mrs {
+		var mn MetricName
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+			b.Fatalf("could not unmarshal metric row: %v", err)
+		}
+		var found bool
+		metricName := string(mn.MetricGroup)
+		want[i], found = strings.CutPrefix(metricName, prefix)
+		if !found {
+			b.Fatalf("metric name %q does not have %q prefix", metricName, prefix)
+		}
+	}
+	slices.Sort(want)
+	if diff := cmp.Diff(want, got); diff != "" {
+		b.Fatalf("unexpected tag value suffixes (-want, +got):\n%s", diff)
+	}
+}
+
+// benchmarkSearchGraphitePaths measures the search of all graphite paths on the
+// given time range. It also ensures that the search result is correct by
+// comparing it with metric rows stored in the database.
+func benchmarkSearchGraphitePaths(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow) {
+	b.Helper()
+	var (
+		got []string
+		err error
+	)
+	for b.Loop() {
+		got, err = s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e9, noDeadline)
+		if err != nil {
+			b.Fatalf("SearchGraphitePaths() failed unexpectedly: %v", err)
+		}
+	}
+	slices.Sort(got)
+	want := make([]string, len(mrs))
+	for i, mr := range mrs {
+		var mn MetricName
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+			b.Fatalf("could not unmarshal metric row: %v", err)
+		}
+		want[i] = string(mn.MetricGroup)
+	}
+	slices.Sort(want)
+	if diff := cmp.Diff(want, got); diff != "" {
+		b.Fatalf("unexpected graphite paths (-want, +got):\n%s", diff)
+	}
+}
+
+// isGraphite returns true if a given belongs to the Graphite API.
+func isGraphite(op searchFunc) bool {
+	opPtr := reflect.ValueOf(op).Pointer()
+	searchTagValueSuffixesPtr := reflect.ValueOf(benchmarkSearchTagValueSuffixes).Pointer()
+	searchGraphitePathsPtr := reflect.ValueOf(benchmarkSearchGraphitePaths).Pointer()
+	return opPtr == searchTagValueSuffixesPtr || opPtr == searchGraphitePathsPtr
+}
+
+// indexConfigs holds the index configurations for which BenchmarkSearch() will
+// perform the measurements.
+var indexConfigs = []splitFunc{prevOnly, currOnly, prevCurr}
+var indexConfigNames = []string{"PrevOnly", "CurrOnly", "PrevCurr"}
+
+// prevOnly is an index config func that puts all index data into prev indexDB.
+// No index data goes to curr indexDB.
+//
+// This config corresponds to a state when indexDBs have just been rotated.
+// I.e. most of the index entries are in the prev indexDB.
+func prevOnly(total dataConfig) (prev, curr dataConfig) {
+	prev = total
+	return prev, curr
+}
+
+// currOnly is an index config func that puts all index data into curr
+// indexDB. No index data goes to prev indexDB.
+//
+// This config corresponds to a state when indexDBs haven't been rotated yet or
+// rotated long time ago. I.e. most of the index entries are in the curr
+// indexDB.
+func currOnly(total dataConfig) (prev, curr dataConfig) {
+	curr = total
+	return prev, curr
+}
+
+// prevCurr is an index config func that splits index data evenly between
+// prev and curr indexDBs.
+//
+// This config corresponds to a state when the indexDB rotation has happened
+// some time ago. I.e. index entries are in both prev and curr indexDBs.
+func prevCurr(total dataConfig) (prev, curr dataConfig) {
+	prev.numSeries = total.numSeries / 2
+	prev.numDeletedSeries = total.numDeletedSeries / 2
+	prev.tr.MinTimestamp = total.tr.MinTimestamp
+	prev.tr.MaxTimestamp = total.tr.MinTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/2
+
+	curr.numSeries = total.numSeries - prev.numSeries
+	curr.numDeletedSeries = total.numDeletedSeries - prev.numDeletedSeries
+	curr.tr.MinTimestamp = prev.tr.MaxTimestamp + 1
+	curr.tr.MaxTimestamp = total.tr.MaxTimestamp
+
+	return prev, curr
+}
+
+// dataConfigFunc generates a collection of data configs. For example, various
+// numbers of timeseries, deleted timeseries, and/or time ranges of various
+// durations.
+type dataConfigGenerator func() []dataConfig
+
+// dataConfigGenerators is the collection of funcs that generate data configs
+// for which BenchmarkSearch() will perform the measurements.
+var dataConfigGenerators = []dataConfigGenerator{
+	variableSeries,
+	variableDeletedSeries,
+	variableTimeRange,
+}
+
+// variableSeries generates a collection of data configs with variable number of
+// series, 0 deleted series, and fixed time range (1d).
+func variableSeries() []dataConfig {
+	var cfgs []dataConfig
+	// Using only a few numbers that represent orders of magnitude so that
+	// routine running of the benchmarks does not take too long. However, when
+	// debugging it is often helpful to add more numbers in between these
+	// numbers.
+	for _, numSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
+		cfgs = append(cfgs, dataConfig{
+			name:             fmt.Sprintf("VariableSeries/%d", numSeries),
+			numSeries:        numSeries,
+			numDeletedSeries: 0,
+			tr: TimeRange{
+				MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+			},
+		})
+	}
+	return cfgs
+}
+
+// variableDeletedSeries generates a collection of data configs with fixed number of
+// series (100k), variable number of deleted series, and fixed time range (1d).
+//
+// Why 100k: the eployments that we are aware of often have tens and hundreds of
+// thouthands series in their query results, sometimes even millions. Chosen
+// 100K as something in the middle.
+func variableDeletedSeries() []dataConfig {
+	var cfgs []dataConfig
+	for _, numDeletedSeries := range []int{100, 1000, 10_000, 100_000, 1_000_000} {
+		cfgs = append(cfgs, dataConfig{
+			name:             fmt.Sprintf("VariableDeletedSeries/%d", numDeletedSeries),
+			numSeries:        100_000,
+			numDeletedSeries: numDeletedSeries,
+			tr: TimeRange{
+				MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+				MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+			},
+		})
+	}
+	return cfgs
+}
+
+// variableTimeRange generates a collection of data configs with fixed number of
+// series (100k), 0 deleted series, and time ranges of various duration.
+func variableTimeRange() []dataConfig {
+	tr1d := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr1w := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 7, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr1m := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr2m := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 2, 28, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	tr6m := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	trNames := []string{"1d", "1w", "1m", "2m", "6m"}
+	var cfgs []dataConfig
+	for i, tr := range []TimeRange{tr1d, tr1w, tr2m, tr1m, tr6m} {
+		cfgs = append(cfgs, dataConfig{
+			name:             fmt.Sprintf("VariableTimeRange/%s", trNames[i]),
+			numSeries:        100_000,
+			numDeletedSeries: 0,
+			tr:               tr,
+		})
+	}
+	return cfgs
 }
