@@ -135,9 +135,8 @@ type Search struct {
 	// data blocks.
 	storage *Storage
 
-	// idbCurr and idbPrev are used for MetricName lookup for the found data blocks.
-	idbCurr *indexDB
-	idbPrev *indexDB
+	// mns is used for searching metricName by metricID.
+	mns *metricNameSearch
 
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
@@ -173,8 +172,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.storage = nil
-	s.idbPrev = nil
-	s.idbCurr = nil
+	s.mns = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -206,7 +204,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 
 	s.reset()
 	s.storage = storage
-	s.idbPrev, s.idbCurr = storage.getPrevAndCurrIndexDBs()
+	s.mns = getMetricNameSearch(storage, false)
 	s.retentionDeadline = retentionDeadline
 	s.metricsTracker = storage.metricsTracker
 	s.tr = tr
@@ -234,7 +232,7 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
-	s.storage.putPrevAndCurrIndexDBs(s.idbPrev, s.idbCurr)
+	putMetricNameSearch(s.mns)
 	s.reset()
 }
 
@@ -266,7 +264,7 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.storage.searchMetricName(s.idbPrev, s.idbCurr, s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID, false)
+			s.MetricBlockRef.MetricName, ok = s.mns.search(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
