@@ -62,7 +62,7 @@ type Cache struct {
 	maxBytes int
 
 	// mu serializes access to curr, prev and mode
-	// in expirationWatcher, prevCacheWatcher and cacheSizeWatcher.
+	// in expirationWatcher, prevCacheWatcher,cacheSizeWatcher and UpdateStats.
 	mu sync.Mutex
 
 	wg     sync.WaitGroup
@@ -362,6 +362,9 @@ func (c *Cache) Reset() {
 
 // UpdateStats updates fcs with cache stats.
 func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	updateCacheStatsHistory(fcs, &c.csHistory)
 
 	var cs fastcache.Stats
