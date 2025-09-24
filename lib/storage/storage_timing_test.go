@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -399,9 +398,6 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 	}
 
 	cfgPrev, cfgCurr, cfgPt := split(dataConfig)
-	logger.Errorf("cfgPrev: %v", cfgPrev)
-	logger.Errorf("cfgCurr: %v", cfgCurr)
-	logger.Errorf("cfgPt: %v", cfgPt)
 	mrsToDeletePrev := genRows(cfgPrev.numDeletedSeries, "prev", cfgPrev.tr)
 	mrsToDeleteCurr := genRows(cfgCurr.numDeletedSeries, "curr", cfgCurr.tr)
 	mrsToDeletePt := genRows(cfgPt.numDeletedSeries, "pt", cfgPt.tr)
