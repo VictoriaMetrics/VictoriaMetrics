@@ -329,7 +329,7 @@ deduplication and stream aggregation for all the received data, scraped or pushe
 The processed data is then stored in local storage and **can't be forwarded further**.
 
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports relabeling, deduplication and stream aggregation for all 
-the received data, scraped or pushed. See the [processing order for vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#routing).
+the received data, scraped or pushed. See the [processing order for vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#life-of-a-sample).
 
 Typical scenarios for data routing with `vmagent`:
 
