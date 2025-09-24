@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -124,6 +125,9 @@ type Search struct {
 
 	prevMetricID uint64
 
+	// metricsTracker is used to collect stats on which metrics are searched.
+	metricsTracker *metricnamestats.Tracker
+
 	// metricGroupBuf holds metricGroup used for metric names tracker
 	metricGroupBuf []byte
 }
@@ -144,6 +148,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metricsTracker = nil
 	s.metricGroupBuf = nil
 }
 
@@ -167,12 +172,13 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.storage = storage
 	s.idbPrev, s.idbCurr = storage.getPrevAndCurrIndexDBs()
 	s.retentionDeadline = retentionDeadline
+	s.metricsTracker = storage.metricsTracker
 	s.tr = tr
 	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
 
-	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+	tsids, err := storage.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
@@ -184,48 +190,6 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 		return 0
 	}
 	return len(tsids)
-}
-
-// searchTSIDs searches the TSIDs that correspond to filters within the given
-// time range.
-//
-// The method will fail if the number of found TSIDs exceeds maxMetrics or the
-// search has not completed within the specified deadline.
-func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
-	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
-	defer qt.Done()
-
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
-		var tsids []TSID
-		metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
-		if err == nil {
-			tsids, err = idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
-		}
-		return tsids, err
-	}
-
-	merge := func(data [][]TSID) []TSID {
-		tsidss := make([][]TSID, 0, len(data))
-		for _, d := range data {
-			if len(d) > 0 {
-				tsidss = append(tsidss, d)
-			}
-		}
-		if len(tsidss) == 0 {
-			return nil
-		}
-		if len(tsidss) == 1 {
-			return tsidss[0]
-		}
-		return mergeSortedTSIDs(tsidss)
-	}
-
-	tsids, err := searchAndMerge(qt, s.storage, tr, search, merge)
-	if err != nil {
-		return nil, err
-	}
-
-	return tsids, nil
 }
 
 // MustClose closes the Search.
@@ -273,7 +237,7 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			// for performance reasons parse metricGroup conditionally
-			if s.storage.metricsTracker != nil {
+			if s.metricsTracker != nil {
 				var err error
 				// MetricName must be sorted and marshalled with MetricName.Marshal()
 				// it guarantees that first tag is metricGroup
@@ -282,7 +246,7 @@ func (s *Search) NextMetricBlock() bool {
 					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
 					return false
 				}
-				s.storage.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
+				s.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
 			}
 			s.prevMetricID = tsid.MetricID
 		}
