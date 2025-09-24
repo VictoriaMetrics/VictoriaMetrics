@@ -27,6 +27,9 @@ Use `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` comm
 For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol)
 or [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol), and handle them accordingly.
 
+ vmagent performs manual commit for each processed kafka message in order to guarantee message delivery. This behavior could be changed with flag `-kafka.consumer.topic.options='enable.auto.commit'`, in this scenario
+kafka client will automatically commit offset based on value of `auto.commit.interval.ms=5000` (5s by default).
+
 Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
 
 `vmagent` consumes messages from Kafka topics specified via `-kafka.consumer.topic` command-line flag. 

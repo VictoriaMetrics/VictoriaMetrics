@@ -19,7 +19,7 @@ read queries made through the [/api/v1/query](https://docs.victoriametrics.com/v
 and [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) APIs.
 
 To enable query statistics logging, add the `-search.logSlowQueryStats=<duration>` command line flag to [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
-or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/).
+or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/).
 Here's how `<duration>` works:
 
 * `-search.logSlowQueryStats=5s` logs statistics for queries that take longer than `5s`;

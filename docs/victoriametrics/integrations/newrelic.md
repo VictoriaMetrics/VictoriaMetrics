@@ -76,7 +76,7 @@ Save this JSON into `newrelic.json` file and then use the following command in o
 curl -X POST -H 'Content-Type: application/json' --data-binary @newrelic.json http://localhost:8428/newrelic/infra/v2/metrics/events/bulk
 ```
 
-Let's fetch the ingested data via [data export API](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format):
+Let's fetch the ingested data via [data export API](https://docs.victoriametrics.com/victoriametrics/#how-to-export-data-in-json-line-format):
 ```sh
 curl http://localhost:8428/api/v1/export -d 'match={eventType="SystemSample"}'
 {"metric":{"__name__":"cpuStealPercent","entityKey":"macbook-pro.local","eventType":"SystemSample"},"values":[0],"timestamps":[1697407970000]}

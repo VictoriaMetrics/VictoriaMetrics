@@ -51,7 +51,7 @@ Found 9 metrics to import. Continue? [Y/n]
 23 / 402200 [>____________________________________________________________________________________________] 0.01% 2 p/s
 ```
 
-_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl#configuring-victoriametrics)._
+_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl/#configuring-victoriametrics)._
 
 ## Retention strings
 

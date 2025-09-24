@@ -70,7 +70,7 @@ Datasource URL address
             </td>
             <td>
 
-For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. multitenant` [endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels){{% available_from "v1.16.2" anomaly %}} is supported, to write data to multiple [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
+For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. multitenant` [endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels){{% available_from "v1.16.2" anomaly %}} is supported, to write data to multiple [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
             </td>
         </tr>
         <!-- Additional rows for metric_format -->
@@ -280,7 +280,7 @@ writer:
 
 ### Multitenancy support
 
-> This feature applies to the VictoriaMetrics Cluster version only. Tenants are identified by either `accountID` or `accountID:projectID`. `multitenant` [endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels){{% available_from "v1.15.9" anomaly %}} is supported for writing data across multiple [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). For more details, refer to the VictoriaMetrics Cluster [multitenancy documentation](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
+> This feature applies to the VictoriaMetrics Cluster version only. Tenants are identified by either `accountID` or `accountID:projectID`. `multitenant` [endpoint](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels){{% available_from "v1.15.9" anomaly %}} is supported for writing data across multiple [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy). For more details, refer to the VictoriaMetrics Cluster [multitenancy documentation](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
 Please note the different behaviors depending on the `tenant_id` value:
 
