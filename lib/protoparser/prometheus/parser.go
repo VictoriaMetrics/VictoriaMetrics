@@ -818,7 +818,7 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 	}
 	s = skipLeadingWhitespace(s)
 
-	// lines with a # as the first non-whitespace character are comments.
+	// lines with "#" character as the first non-whitespace character are comments.
 	if len(s) < 2 || s[0] != '#' || s[1] != ' ' {
 		// Skip non-comment
 		return dst
