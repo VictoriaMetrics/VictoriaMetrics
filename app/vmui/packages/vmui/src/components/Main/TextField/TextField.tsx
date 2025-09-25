@@ -72,7 +72,6 @@ const TextField: FC<TextFieldProps> = ({
     "vm-text-field__input_error": error,
     "vm-text-field__input_warning": !error && warning,
     "vm-text-field__input_icon-start": startIcon,
-    "vm-text-field__input_disabled": disabled,
     "vm-text-field__input_textarea": type === "textarea",
   });
 
@@ -136,7 +135,8 @@ const TextField: FC<TextFieldProps> = ({
     className={classNames({
       "vm-text-field": true,
       "vm-text-field_textarea": type === "textarea",
-      "vm-text-field_dark": isDarkTheme
+      "vm-text-field_dark": isDarkTheme,
+      "vm-text-field_disabled": disabled
     })}
     data-replicated-value={value}
   >

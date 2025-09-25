@@ -803,8 +803,10 @@ func (ms *MetadataRows) Reset() {
 	ms.Rows = ms.Rows[:0]
 }
 
-// unmarshalMetadata parses a single metadata line,
-// and attempts to merge it with the last entry in dst if they belong to the same metric family
+// unmarshalMetadata tries to parses a comment line into metadata,
+// lines with a # as the first non-whitespace character are comments. They are ignored unless the first token after # is either HELP or TYPE.
+//
+// unmarshalMetadata attempts to merge it with the last entry in dst if they belong to the same metric family
 // since TYPE and HELP are usually exposed sequentially.
 // For example,
 // # HELP apiserver_audit_event_total [ALPHA] Counter of audit events generated and sent to the audit backend.
@@ -816,6 +818,7 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 	}
 	s = skipLeadingWhitespace(s)
 
+	// lines with "#" character as the first non-whitespace character are comments.
 	if len(s) < 2 || s[0] != '#' || s[1] != ' ' {
 		// Skip non-comment
 		return dst
@@ -823,9 +826,7 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 	s = s[2:]
 	idx := nextWhitespace(s)
 	if idx < 0 {
-		if errLogger != nil {
-			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: wrong exposition format", fullLine))
-		}
+		// ignore line unless the first token after # is either HELP or TYPE.
 		return dst
 	}
 
@@ -837,15 +838,20 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 	case "TYPE":
 		isType = true
 	default:
-		if errLogger != nil {
-			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: invalid comment", fullLine))
-		}
+		// ignore line unless the first token after # is either HELP or TYPE.
 		return dst
 	}
 
 	s = s[idx+1:]
 	idx = nextWhitespace(s)
 	if idx < 0 {
+		// If the token is HELP, at least one more token is expected, which is the metric name.
+		// "# HELP process_cpu_cores_available" is a valid HELP line, but it contains empty help string and can be skipped.
+		//
+		// If the token is TYPE, exactly two more tokens are expected. The first is the metric name, and the second is valid type.
+		if isHelp && len(s) > 0 {
+			return dst
+		}
 		if errLogger != nil {
 			errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: wrong exposition format", fullLine))
 		}
@@ -866,7 +872,6 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 	md := &dst[len(dst)-1]
 	md.Metric = metricName
 
-	// HELP can have null content, TYPE can't
 	if isType {
 		switch commentData {
 		case "counter":
