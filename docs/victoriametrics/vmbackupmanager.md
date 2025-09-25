@@ -436,7 +436,7 @@ These steps are assuming that [VictoriaMetrics operator](https://docs.victoriame
 Clusters here are referred to as `source` and `destination`.
 
 1. Create a new cluster with access to *source* cluster `vmbackupmanager` storage and same number of storage nodes.
-   Add the following section to enable restore on start (see more about operator's [VMStorage](https://docs.victoriametrics.com/operator/api/#vmstorage) spec):
+   Add the following section to enable restore on start (see operator's [VMStorage spec](https://docs.victoriametrics.com/operator/api/#vmstorage)):
    ```yaml
    vmbackup:
      restore:
