@@ -176,7 +176,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.deadline = deadline
 	s.needClosing = true
 
-	tsids, err := storage.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+	tsids, err := storage.SearchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
