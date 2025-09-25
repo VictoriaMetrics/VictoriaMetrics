@@ -826,7 +826,7 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 	s = s[2:]
 	idx := nextWhitespace(s)
 	if idx < 0 {
-		// ignored line unless the first token after # is either HELP or TYPE.
+		// ignore line unless the first token after # is either HELP or TYPE.
 		return dst
 	}
 
