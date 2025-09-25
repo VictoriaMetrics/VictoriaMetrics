@@ -115,7 +115,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("cannot create backup: %s", err)
 	}
-	pushmetrics.Stop()
+	pushmetrics.StopAndPush()
 
 	startTime := time.Now()
 	logger.Infof("gracefully shutting down http server for metrics at %q", listenAddrs)
