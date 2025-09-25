@@ -31,7 +31,7 @@ echo "put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2" | nc -N localhost 
 ```
 
 An arbitrary number of lines delimited by `\n` (aka newline char) can be sent in one go.
-After that the data may be read via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format) endpoint:
+After that the data may be read via [/api/v1/export](https://docs.victoriametrics.com/victoriametrics/#how-to-export-data-in-json-line-format) endpoint:
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match=foo.bar.baz'
 ```
@@ -60,7 +60,7 @@ Example for writing multiple data points in a single request:
 curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://localhost:4242/api/put
 ```
 
-After that the data may be read via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format) endpoint:
+After that the data may be read via [/api/v1/export](https://docs.victoriametrics.com/victoriametrics/#how-to-export-data-in-json-line-format) endpoint:
 ```sh
 curl -G 'http://localhost:8428/api/v1/export' -d 'match[]=x.y.z' -d 'match[]=foo' -d 'match[]=bar'
 ```

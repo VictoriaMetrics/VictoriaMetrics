@@ -65,7 +65,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
   by specifying different retentions for different datasets.
 - [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery) -
   this feature allows updating the list of `vmstorage` nodes at `vminsert` and `vmselect` without the need to restart these services.
-- [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection) - this feature allows automation and simplification of your alerting rules, covering [complex anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/) found in metrics data.
+- [Anomaly Detection Service](https://docs.victoriametrics.com/anomaly-detection/) - this feature allows automation and simplification of your alerting rules, covering [complex anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/) found in metrics data.
 - [Backup automation](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/).
 - [Advanced per-tenant stats](https://docs.victoriametrics.com/victoriametrics/pertenantstatistic/).
 - [Query execution stats](https://docs.victoriametrics.com/victoriametrics/query-stats/).
@@ -74,7 +74,7 @@ On top of this, Enterprise package of VictoriaMetrics includes the following fea
 - [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#mtls-protection).
 - [mTLS for communications between cluster components](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#mtls-protection).
 - [mTLS-based request routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing).
-- [Kafka integration](https://docs.victoriametrics.com/victoriametrics/integrations/kafka).
+- [Kafka integration](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/).
 - [Google PubSub integration](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#multitenancy).
 - [Ability to read alerting and recording rules from Object Storage](https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage).
@@ -117,7 +117,7 @@ It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [
 
 Binary releases of Enterprise components are available at [the releases page for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 and [the releases page for VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/releases/latest).
-Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.125.1-enterprise.tar.gz`.
+Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.126.0-enterprise.tar.gz`.
 
 In order to run binary release of Enterprise component, please download the `*-enterprise.tar.gz` archive for your OS and architecture
 from the corresponding releases page and unpack it. Then run the unpacked binary.
@@ -135,8 +135,8 @@ For example, the following command runs VictoriaMetrics Enterprise binary with t
 obtained at [this page](https://victoriametrics.com/products/enterprise/trial/):
 
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.125.1/victoria-metrics-linux-amd64-v1.125.1-enterprise.tar.gz
-tar -xzf victoria-metrics-linux-amd64-v1.125.1-enterprise.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.126.0/victoria-metrics-linux-amd64-v1.126.0-enterprise.tar.gz
+tar -xzf victoria-metrics-linux-amd64-v1.126.0-enterprise.tar.gz
 ./victoria-metrics-prod -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
@@ -151,7 +151,7 @@ Alternatively, VictoriaMetrics Enterprise license can be stored in the file and 
 It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
 Docker images for Enterprise components are available at [VictoriaMetrics Docker Hub](https://hub.docker.com/u/victoriametrics) and [VictoriaMetrics Quay](https://quay.io/organization/victoriametrics).
-Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.125.1-enterprise`.
+Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.126.0-enterprise`.
 
 In order to run Docker image of VictoriaMetrics Enterprise component, it is required to provide the license key via the command-line
 flag as described in the [binary-releases](#binary-releases) section.
@@ -161,13 +161,13 @@ Enterprise license key can be obtained at [this page](https://victoriametrics.co
 For example, the following command runs VictoriaMetrics Enterprise Docker image with the specified license key:
 
 ```sh
-docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.125.1-enterprise -license=BASE64_ENCODED_LICENSE_KEY
+docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.126.0-enterprise -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
 Alternatively, the license code can be stored in the file and then referred via `-licenseFile` command-line flag:
 
 ```sh
-docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.125.1-enterprise -licenseFile=/path/to/vm-license
+docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.126.0-enterprise -licenseFile=/path/to/vm-license
 ```
 
 Example docker-compose configuration:
@@ -177,7 +177,7 @@ version: "3.5"
 services:
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.125.1
+    image: victoriametrics/victoria-metrics:v1.126.0
     ports:
       - 8428:8428
     volumes:
@@ -209,7 +209,7 @@ is used to provide the license key in plain-text:
 ```yaml
 server:
   image:
-    tag: v1.125.1-enterprise
+    tag: v1.126.0-enterprise
 
 license:
   key: {BASE64_ENCODED_LICENSE_KEY}
@@ -220,7 +220,7 @@ In order to provide the license key via existing secret, the following values fi
 ```yaml
 server:
   image:
-    tag: v1.125.1-enterprise
+    tag: v1.126.0-enterprise
 
 license:
   secret:
@@ -270,7 +270,7 @@ spec:
   license:
     key: {BASE64_ENCODED_LICENSE_KEY}
   image:
-    tag: v1.125.1-enterprise
+    tag: v1.126.0-enterprise
 ```
 
 In order to provide the license key via existing secret, the following custom resource is used:
@@ -287,7 +287,7 @@ spec:
       name: vm-license
       key: license
   image:
-    tag: v1.125.1-enterprise
+    tag: v1.126.0-enterprise
 ```
 
 Example secret with license key:
@@ -309,7 +309,7 @@ kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_
 ```
 
 Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
-See full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api.html).
+See full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api/).
 
 ### FIPS Compatibility
 
@@ -320,7 +320,7 @@ Builds are available for amd64 and arm64 architectures.
 
 Example archive:
 
-`victoria-metrics-linux-amd64-v1.125.1-enterprise.tar.gz`
+`victoria-metrics-linux-amd64-v1.126.0-enterprise.tar.gz`
 
 Includes:
 
@@ -329,7 +329,7 @@ Includes:
 
 Example Docker image:
 
-`victoriametrics/victoria-metrics:v1.125.1-enterprise-fips` – uses the FIPS-compatible binary and based on `scratch` image.
+`victoriametrics/victoria-metrics:v1.126.0-enterprise-fips` – uses the FIPS-compatible binary and based on `scratch` image.
 
 ## Monitoring license expiration
 

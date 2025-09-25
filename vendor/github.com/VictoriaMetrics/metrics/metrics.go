@@ -338,6 +338,10 @@ func WriteMetadataIfNeeded(w io.Writer, metricName, metricType string) {
 		return
 	}
 	metricFamily := getMetricFamily(metricName)
+	writeMetadata(w, metricFamily, metricType)
+}
+
+func writeMetadata(w io.Writer, metricFamily, metricType string) {
 	fmt.Fprintf(w, "# HELP %s\n", metricFamily)
 	fmt.Fprintf(w, "# TYPE %s %s\n", metricFamily, metricType)
 }

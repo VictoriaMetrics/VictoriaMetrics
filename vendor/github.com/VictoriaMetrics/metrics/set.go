@@ -37,6 +37,25 @@ func (s *Set) WritePrometheus(w io.Writer) {
 	// Collect all the metrics in in-memory buffer in order to prevent from long locking due to slow w.
 	var bb bytes.Buffer
 	lessFunc := func(i, j int) bool {
+		// the sorting must be stable.
+		// see edge cases why we can't simply do `s.a[i].name < s.a[j].name` here:
+		// https://github.com/VictoriaMetrics/metrics/pull/99#issuecomment-3277072175
+
+		// sort by metric family name first, to group the same metric family in one place.
+		fName1, fName2 := getMetricFamily(s.a[i].name), getMetricFamily(s.a[j].name)
+		if fName1 != fName2 {
+			return fName1 < fName2
+		}
+
+		mType1 := s.a[i].metric.metricType()
+		mType2 := s.a[j].metric.metricType()
+
+		// stabilize the order for summary and quantiles.
+		if mType1 != mType2 {
+			return mType1 < mType2
+		}
+
+		// lastly by metric names, which is for quantiles and histogram buckets.
 		return s.a[i].name < s.a[j].name
 	}
 	s.mu.Lock()
@@ -50,18 +69,34 @@ func (s *Set) WritePrometheus(w io.Writer) {
 	metricsWriters := s.metricsWriters
 	s.mu.Unlock()
 
-	prevMetricFamily := ""
+	// metricsWithMetadataBuf is used to hold marshalTo temporary, and decide whether metadata is needed.
+	// it will be written to `bb` at the end and then reset for next *namedMetric in for-loop.
+	var metricsWithMetadataBuf bytes.Buffer
+	var prevMetricFamily string
 	for _, nm := range sa {
-		metricFamily := getMetricFamily(nm.name)
-		if metricFamily != prevMetricFamily {
-			// write meta info only once per metric family
-			metricType := nm.metric.metricType()
-			WriteMetadataIfNeeded(&bb, nm.name, metricType)
-			prevMetricFamily = metricFamily
+		if !isMetadataEnabled() {
+			// Call marshalTo without the global lock, since certain metric types such as Gauge
+			// can call a callback, which, in turn, can try calling s.mu.Lock again.
+			nm.metric.marshalTo(nm.name, &bb)
+			continue
 		}
+
+		metricsWithMetadataBuf.Reset()
 		// Call marshalTo without the global lock, since certain metric types such as Gauge
 		// can call a callback, which, in turn, can try calling s.mu.Lock again.
-		nm.metric.marshalTo(nm.name, &bb)
+		nm.metric.marshalTo(nm.name, &metricsWithMetadataBuf)
+		if metricsWithMetadataBuf.Len() == 0 {
+			continue
+		}
+
+		metricFamily := getMetricFamily(nm.name)
+		if metricFamily != prevMetricFamily {
+			// write metadata only once per metric family
+			metricType := nm.metric.metricType()
+			writeMetadata(&bb, metricFamily, metricType)
+			prevMetricFamily = metricFamily
+		}
+		bb.Write(metricsWithMetadataBuf.Bytes())
 	}
 	w.Write(bb.Bytes())
 

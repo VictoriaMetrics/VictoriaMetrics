@@ -320,7 +320,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 <span style="white-space: nowrap;">`vmanomaly_config_entities`</span>
             </td>
             <td>Gauge</td>
-            <td>Number of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#sub-configuration) **available** (`{scope="total"}`) and **used** for particular [shard](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) (`{scope="shard"}`) {{% available_from "v1.21.0" anomaly %}}</td>
+            <td>Number of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) **available** (`{scope="total"}`) and **used** for particular [shard](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) (`{scope="shard"}`) {{% available_from "v1.21.0" anomaly %}}</td>
         </tr>
         <tr>
             <td>
@@ -708,7 +708,7 @@ Label names [description](#labelnames)
 * `stage` - stage of model - 'fit', 'infer' or 'fit_infer' for models that do it simultaneously, see [model types](https://docs.victoriametrics.com/anomaly-detection/components/models/#model-types).
 * `query_key` - query alias from [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/) config section.
 * `model_alias` - model alias from [`models`](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section{{% available_from "v1.10.0" anomaly %}}.
-* `scheduler_alias` - scheduler alias from [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler) config section{{% available_from "v1.11.0" anomaly %}}.
+* `scheduler_alias` - scheduler alias from [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) config section{{% available_from "v1.11.0" anomaly %}}.
 * `preset` - preset alias for [`preset`](https://docs.victoriametrics.com/anomaly-detection/presets/) mode of `vmanomaly`{{% available_from "v1.12.0" anomaly %}}.
 * `url` - writer or reader url endpoint.
 * `code` - response status code or `connection_error`, `timeout`.
@@ -819,7 +819,7 @@ The `reader` component logs events during the process of querying VictoriaMetric
 ---
 
 
-**No data found (False)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=query_from_last_seen_timestamp#config-parameters) VmReader flag. A `warning` log is generated when no data is found in the requested range. This could indicate that the query was misconfigured or that no new data exists for the time period requested. Log message format:
+**No data found (False)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) VmReader flag. A `warning` log is generated when no data is found in the requested range. This could indicate that the query was misconfigured or that no new data exists for the time period requested. Log message format:
 
 ```text
 [Scheduler {{scheduler_alias}}] No data between {{start_s}} and {{end_s}} for query "{{query_key}}"
@@ -827,7 +827,7 @@ The `reader` component logs events during the process of querying VictoriaMetric
 
 ---
 
-**No unseen data found (True)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=query_from_last_seen_timestamp#config-parameters) VmReader flag. A `warning` log is generated when no new data is returned (i.e., all data has already been seen in a previous inference step(s)). This helps in identifying situations where data for inference has already been processed. Based on VmReader's `adjust` flag. Log messages:
+**No unseen data found (True)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) VmReader flag. A `warning` log is generated when no new data is returned (i.e., all data has already been seen in a previous inference step(s)). This helps in identifying situations where data for inference has already been processed. Based on VmReader's `adjust` flag. Log messages:
 
 ```text
 [Scheduler {{scheduler_alias}}] No unseen data between {{start_s}} and {{end_s}} for query "{{query_key}}"
@@ -887,7 +887,7 @@ The `model` component (wrapped in service) logs operations during the fitting an
 
 **Skipped runs**. When there are insufficient valid data points to fit or infer using a model, the run is skipped and a `warning` log is generated. This can occur when the query returns no new data or when the data contains invalid values (e.g., `NaN`, `INF`). The skipped run is also reflected in the `vmanomaly_model_runs_skipped` metric. Log messages:
 
-When there are insufficient valid data points (at least 1 for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models#online-models) and 2 for [offline models](https://docs.victoriametrics.com/anomaly-detection/components/models#offline-models))
+When there are insufficient valid data points (at least 1 for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) and 2 for [offline models](https://docs.victoriametrics.com/anomaly-detection/components/models/#offline-models))
 ```text
 [Scheduler {{scheduler_alias}}] Skipping run for stage 'fit' for model '{{model_alias}}' (query_key: {{query_key}}): Not enough valid data to fit: {{valid_values_cnt}}
 ```
@@ -913,7 +913,7 @@ When the model fails to produce any valid or finite outputs (such as [`anomaly_s
 
 ---
 
-**Model instance created during inference**. In cases where an [online model](https://docs.victoriametrics.com/anomaly-detection/components/models#online-models) instance is created during the inference stage (without a prior fit{{% available_from "v1.15.2" anomaly %}}), a `debug` log is produced. This helps track models that are created dynamically based on incoming data. Log messages:
+**Model instance created during inference**. In cases where an [online model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) instance is created during the inference stage (without a prior fit{{% available_from "v1.15.2" anomaly %}}), a `debug` log is produced. This helps track models that are created dynamically based on incoming data. Log messages:
 
 ```text
 [Scheduler {{scheduler_alias}}] Model instance '{{model_alias}}' created for '{{query_key}}' during inference.

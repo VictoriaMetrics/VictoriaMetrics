@@ -115,12 +115,11 @@ func incConcurrency() bool {
 
 	concurrencyLimitReached.Inc()
 	t := timerpool.Get(*maxQueueDuration)
+	defer timerpool.Put(t)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
-		timerpool.Put(t)
 		return true
 	case <-t.C:
-		timerpool.Put(t)
 		concurrencyLimitTimeout.Inc()
 		return false
 	}

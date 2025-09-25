@@ -15,7 +15,7 @@ menu:
 - [Cortex](https://docs.victoriametrics.com/victoriametrics/vmctl/cortex/)
 - [Mimir](https://docs.victoriametrics.com/victoriametrics/vmctl/mimir/)
 - [Promscale](https://docs.victoriametrics.com/victoriametrics/vmctl/promscale/)
-- [Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/thanos#remote-read-protocol)
+- [Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/thanos/#remote-read-protocol)
 
 Remote read API has two implementations of remote read API: default (`SAMPLES`) and
 [streamed](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/) (`STREAMED_XOR_CHUNKS`).
@@ -36,7 +36,7 @@ The importing process example for local installation of Prometheus:
 --vm-addr=http://<victoria-metrics>:8428 \
 ```
 
-_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl#configuring-victoriametrics)._
+_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl/#configuring-victoriametrics)._
 
 ## Filtering
 

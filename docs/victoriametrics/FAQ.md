@@ -19,7 +19,7 @@ To be the best tool for monitoring and observability.
 
 ## Who uses VictoriaMetrics?
 
-See [case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/) and [articles](https://docs.victoriametrics.com/victoriametrics/articles).
+See [case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/) and [articles](https://docs.victoriametrics.com/victoriametrics/articles/).
 
 ## Which features does VictoriaMetrics have?
 
@@ -116,7 +116,7 @@ serve the same purpose – to efficiently scrape Prometheus-compatible targets a
 * vmagent supports [improved relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 * vmagent can limit the number of scraped metrics per target – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).
 * vmagent supports loading scrape configs from multiple files – see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#loading-scrape-configs-from-multiple-files).
-* vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/kafka).
+* vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/).
 * vmagent has better remote write compression to reduce transferred traffic - [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol).
 * vmagent can read and update scrape configs from http and https URLs, while the Prometheus agent can only read them from the local file system.
 * vmagent supports [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) for performing aggregates on collected or received samples before sending them to remote storage.
@@ -128,6 +128,12 @@ and new data is available for querying via Prometheus as usual.
 
 It is recommended using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) for scraping Prometheus targets
 and writing data to VictoriaMetrics.
+
+## How does VictoriaMetrics handle backfilling of old (historical) metrics?
+
+VictoriaMetrics has no limitation on backfilling of old (historical) or out-of-order metrics while they're within
+the specified [retention period](https://docs.victoriametrics.com/victoriametrics/#retention).
+See more about [backfilling](https://docs.victoriametrics.com/victoriametrics/#backfilling).
 
 ## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.?
 
