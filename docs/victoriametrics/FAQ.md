@@ -129,6 +129,12 @@ and new data is available for querying via Prometheus as usual.
 It is recommended using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) for scraping Prometheus targets
 and writing data to VictoriaMetrics.
 
+## How does VictoriaMetrics handle backfilling of old (historical) metrics?
+
+VictoriaMetrics has no limitation on backfilling of old (historical) or out-of-order metrics while they're within
+the specified [retention period](https://docs.victoriametrics.com/victoriametrics/#retention).
+See more about [backfilling](https://docs.victoriametrics.com/victoriametrics/#backfilling).
+
 ## How does VictoriaMetrics compare to other remote storage solutions for Prometheus such as [M3DB](https://github.com/m3db/m3), [Thanos](https://github.com/thanos-io/thanos), [Cortex](https://github.com/cortexproject/cortex), [Mimir](https://github.com/grafana/mimir), etc.?
 
 * VictoriaMetrics is easier to configure and operate than competing solutions.
