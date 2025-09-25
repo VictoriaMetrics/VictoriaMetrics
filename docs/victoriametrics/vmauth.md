@@ -322,7 +322,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 ## Dropping request path prefix
 
-By default `vmauth` doesn't drop the path prefix from the original request when proxying the request to the matching backend.
+By default, `vmauth` doesn't drop the path prefix from the original request when proxying the request to the matching backend.
 Sometimes it is needed to drop path prefix before proxying the request to the backend. This can be done by specifying the number of `/`-delimited prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level or [`-auth.config`](#auth-config).
 
 For example, if you need to serve requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) at `/vmalert/` path prefix, while serving requests to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) at `/vmagent/` path prefix,
@@ -508,7 +508,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
   `vmauth` automatically detects temporarily unavailable backends and spreads incoming queries among the remaining available backends.
   This allows restarting the backends and performing maintenance tasks on the backends without the need to remove them from the `url_prefix` list.
 
-  By default `vmauth` returns backend responses with all the http status codes to the client. It is possible to configure automatic retry of requests at other backends if the backend responds with status code specified in the `-retryStatusCodes` command-line flag.
+  By default, `vmauth` returns backend responses with all the http status codes to the client. It is possible to configure automatic retry of requests at other backends if the backend responds with status code specified in the `-retryStatusCodes` command-line flag.
   It is possible to customize the list of http response status codes to retry via `retry_status_codes` list at `user` and `url_map` level of [`-auth.config`](#auth-config).
   For example, the following config re-tries requests on other backends if the current backend returns response with `500` or `502` HTTP status code:
 
@@ -521,7 +521,7 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
     retry_status_codes: [500, 502]
   ```
 
-  By default `vmauth` uses `least_loaded` policy to spread the incoming requests among available backends.
+  By default, `vmauth` uses `least_loaded` policy to spread the incoming requests among available backends.
   The policy can be changed to `first_available` via `-loadBalancingPolicy` command-line flag. In this case `vmauth` sends all the requests to the first specified backend while it is available. `vmauth` starts sending requests to the next specified backend when the first backend is temporarily unavailable.
   It is possible to customize the load balancing policy at the `user` and `url_map` level.
   For example, the following config specifies `first_available` load balancing policy for unauthorized requests:
@@ -567,7 +567,7 @@ See also [discovering backend IPs](#discovering-backend-ips), [authorization](#a
 
 ## Discovering backend IPs
 
-By default `vmauth` spreads load among the listed backends at `url_prefix` as described in [load balancing docs](#load-balancing).
+By default, `vmauth` spreads load among the listed backends at `url_prefix` as described in [load balancing docs](#load-balancing).
 Sometimes multiple backend instances can be hidden behind a single hostname. For example, `vmselect-service` hostname
 may point to a cluster of `vmselect` instances in [VictoriaMetrics cluster setup](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
 So the following config may fail to spread load among available `vmselect` instances, since `vmauth` will send all the requests to the same url, which may end up to a single backend instance:
@@ -665,7 +665,7 @@ See also [`Host` header docs](#host-http-header).
 
 ## Host HTTP header
 
-By default `vmauth` sets the `Host` HTTP header to the backend hostname when proxying requests to the corresponding backend.
+By default, `vmauth` sets the `Host` HTTP header to the backend hostname when proxying requests to the corresponding backend.
 Sometimes it is needed to keep the original `Host` header from the client request sent to `vmauth`. For example, if backends use host-based routing.
 In this case set `keep_original_host: true`. For example, the following config instructs to use the original `Host` header from client requests when proxying requests to the `backend:1234`:
 
@@ -732,7 +732,7 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 
 ## Backend TLS setup
 
-By default `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option in the [`-auth.config`](#auth-config). These settings can be overridden with the following command-line flags:
+By default, `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option in the [`-auth.config`](#auth-config). These settings can be overridden with the following command-line flags:
 
 * `-backend.tlsInsecureSkipVerify` allows skipping TLS verification when connecting to HTTPS backends.
   This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config) via `tls_insecure_skip_verify` option. For example:
@@ -862,7 +862,7 @@ See also [authorization docs](#authorization) and [security docs](#security).
 
 ## Query args handling
 
-By default `vmauth` sends all the query args specified in the `url_prefix` to the backend. It also proxies query args from client requests if they do not clash with the args specified in the `url_prefix`. This is needed for security, e.g. it disallows the client overriding security-sensitive query args specified at the `url_prefix` such as `tenant_id`, `password`, `auth_key`, `extra_filters`, etc.
+By default, `vmauth` sends all the query args specified in the `url_prefix` to the backend. It also proxies query args from client requests if they do not clash with the args specified in the `url_prefix`. This is needed for security, e.g. it disallows the client overriding security-sensitive query args specified at the `url_prefix` such as `tenant_id`, `password`, `auth_key`, `extra_filters`, etc.
 
 `vmauth` provides the ability to specify a list of query args, which can be proxied from the client request to the backend if they clash with the args specified in the `url_prefix`. In this case the client query args are added to the args from the `url_prefix` before being proxied to the backend. This can be done via the following options:
 
@@ -1035,14 +1035,14 @@ This may be useful for passing secrets to the config.
 
 ## mTLS protection
 
-By default `vmauth` accepts http requests at `8427` port (this port can be changed via `-httpListenAddr` command-line flags).
+By default, `vmauth` accepts http requests at `8427` port (this port can be changed via `-httpListenAddr` command-line flags).
 [Enterprise version of vmauth](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmauth`, which accepts only mTLS requests at port `8427`:
 
 ```sh
 ./vmauth -tls -mtls -auth.config=...
 ```
 
-By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used to verify client certificates, if `-mtls` command-line flag is specified.
+By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used to verify client certificates, if `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
 
 See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates) and [mTLS-based request routing](#mtls-based-request-routing).
