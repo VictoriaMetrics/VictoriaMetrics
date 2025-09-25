@@ -73,7 +73,7 @@ services:
       - "/config.yaml"
       - "--licenseFile=/license"
   alertmanager:
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.28.1
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
