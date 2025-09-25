@@ -14,8 +14,7 @@ aliases:
 ---
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
-Restore process can be interrupted at any time. It is automatically resumed from the interruption point
-when restarting `vmrestore` with the same args.
+Restore process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmrestore` with the same args.
 
 ## Usage
 
@@ -42,16 +41,15 @@ Run the following command to restore backup from the given `-src` into the given
 The original `-storageDataPath` directory may contain old files. They will be substituted by the files from backup,
 i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
 
-
 ## Troubleshooting
 
 * See [how to setup credentials via environment variables](https://docs.victoriametrics.com/victoriametrics/vmbackup/#providing-credentials-via-env-variables).
-* If `vmrestore` eats all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
+* If `vmrestore` consumes all the network bandwidth, then set `-maxBytesPerSecond` to the desired value.
 * If `vmrestore` has been interrupted due to temporary error, then just restart it with the same args. It will resume the restore process.
 
 ## Advanced usage
 
-Please, see [vmbackup docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#advanced-usage) for examples of authentication 
+Please, see [vmbackup docs](https://docs.victoriametrics.com/victoriametrics/vmbackup/#advanced-usage) for examples of authentication
 with different storage types.
 
 Run `vmrestore -help` in order to see all the available options:
@@ -235,13 +233,13 @@ Run `vmrestore -help` in order to see all the available options:
 
 ## How to build from sources
 
-It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - see `vmutils-*` archives there.
+It is recommended to use the [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - see `vmutils-*` archives there.
 
 ### Development build
 
 1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmrestore` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmrestore` binary and puts it into the `bin` folder.
+   It builds `vmrestore` binary and places it into the `bin` folder.
 
 ### Production build
 
@@ -255,8 +253,7 @@ Run `make package-vmrestore`. It builds `victoriametrics/vmrestore:<PKG_TAG>` do
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmrestore`.
 
-The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```sh
 ROOT_IMAGE=scratch make package-vmrestore
