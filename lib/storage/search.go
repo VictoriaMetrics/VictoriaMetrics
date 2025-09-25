@@ -131,10 +131,6 @@ type Search struct {
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
 	MetricBlockRef MetricBlockRef
 
-	// storage is used for finding data blocks and MetricName lookup for those
-	// data blocks.
-	storage *Storage
-
 	// mns is used for searching metricName by metricID.
 	mns *metricNameSearch
 
@@ -171,7 +167,6 @@ func (s *Search) reset() {
 	s.MetricBlockRef.MetricName = s.MetricBlockRef.MetricName[:0]
 	s.MetricBlockRef.BlockRef = nil
 
-	s.storage = nil
 	s.mns = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
@@ -203,7 +198,6 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
-	s.storage = storage
 	s.mns = getMetricNameSearch(storage, false)
 	s.retentionDeadline = retentionDeadline
 	s.metricsTracker = storage.metricsTracker
