@@ -83,7 +83,7 @@ services:
     restart: always
 
   node-exporter:
-    image: quay.io/prometheus/node-exporter:v1.7.0
+    image: quay.io/prometheus/node-exporter:v1.9.1
     ports:
       - 9100:9100
     pid: host
