@@ -128,8 +128,14 @@
   }
 
   &_disabled {
+    pointer-events: none;
     * {
-      cursor: not-allowed;
+      color: var(--color-text-disabled);
+      cursor: default;
+    }
+
+    input::placeholder {
+      color: var(--color-text-disabled);
     }
 
     .vm-select-input {

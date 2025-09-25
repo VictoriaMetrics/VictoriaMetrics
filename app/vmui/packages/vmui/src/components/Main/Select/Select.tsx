@@ -155,6 +155,7 @@ const Select: FC<SelectProps> = ({
               onInput={handleChange}
               onFocus={handleFocus}
               onBlur={handleBlur}
+              disabled={disabled}
               ref={inputRef}
               readOnly={isMobile || !searchable}
             />
