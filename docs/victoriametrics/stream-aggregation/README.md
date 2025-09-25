@@ -15,7 +15,7 @@ after applying all the configured [relabeling stages](https://docs.victoriametri
 
 **By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).**
 
-**Old samples can also be treated as duplicates and ignored if the `-streamAggr.dedupInterval` flag is set. See  [de-duplication](#deduplication).**
+**If `-streamAggr.dedupInterval` is enabled, out-of-order samples (older than already received) within the configured interval are treated as duplicates and ignored. See  [de-duplication](#deduplication).**
 
 # Use cases
 
