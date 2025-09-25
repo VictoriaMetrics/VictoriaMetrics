@@ -15,16 +15,16 @@ aliases:
 
 `vmbackup` creates backups of VictoriaMetrics data to protect against hardware failures and accidental data loss.
 Whether you are using a single-node  or a cluster version, it is recommended to use `vmbackup` to perform periodical data backup from instant snapshots.
-More information how to work with them could be found in [instant snapshots documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
+More information on how to work with them could be found in [instant snapshots documentation](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
 Backup process can be interrupted at any time. It is automatically resumed from the interruption point when restarting `vmbackup` with the same args.
 Backed up data can be restored with [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/).
 
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for more details.
 
-If you are running enterprise version, you can also use [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool built on top of `vmbackup`. This tool simplifies
-creation of hourly, daily, weekly and monthly backups.
+If you are running enterprise version, you can also use [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool built on top of `vmbackup`. 
+This tool simplifies the creation of hourly, daily, weekly and monthly backups.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
+See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
 
 ### Single node backup
 To make a complete backup for VictoriaMetrics single node run the following command:
@@ -85,7 +85,7 @@ Full backup can be performed on a single node with the following command:
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
-  There is no need to stop VictoriaMetrics for creating backups since they are performed from immutable [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
+  There is no need to stop VictoriaMetrics to create backups since they are performed from immutable [instant snapshots](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots).
 * `http://victoriametrics:8428/snapshot/create` is the url for creating snapshots according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots). `vmbackup` creates a snapshot by querying the provided `-snapshot.createURL`, then performs the backup and then automatically removes the created snapshot.
 * `<bucket>` is an already existing name for [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets).
 * `<path/to/new/backup>` is the destination path where new backup will be placed.
@@ -123,9 +123,7 @@ In case of VictoriaMetrics smart backups mean storing full daily backups into `Y
 ./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/latest
 ```
 
-This command creates an [instant snapshot](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots)
-and uploads it to `gs://<bucket>/latest`. It uploads only the changed data (aka incremental backup). This saves network bandwidth costs and time
-when backing up large amounts of data.
+This command creates an [instant snapshot](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-work-with-snapshots) and uploads it to `gs://<bucket>/latest`. It uploads only the changed data (aka incremental backup). This saves network bandwidth costs and time when backing up large amounts of data.
 
 * Run the following command once a day:
 
@@ -136,8 +134,7 @@ when backing up large amounts of data.
 This command makes [server-side copy](#server-side-copy-of-the-existing-backup) of the backup from `gs://<bucket>/latest` to `gs://<bucket>/<YYYYMMDD>`,
 were `<YYYYMMDD>` is the current date like `20240125`.
 
-The `smart backups` approach described above saves network bandwidth costs on hourly backups (since they are incremental)
-and allows recovering data from either the last hour (the  `latest` backup) or from any day (`YYYYMMDD` backups).
+The `smart backups` approach described above saves network bandwidth costs on hourly backups (since they are incremental) and allows recovering data from either the last hour (the  `latest` backup) or from any day (`YYYYMMDD` backups).
 
 Note that hourly backup shouldn't run when creating daily backup.
 
@@ -147,9 +144,7 @@ See also [vmbackupmanager tool](https://docs.victoriametrics.com/victoriametrics
 
 ### Server-side copy of the existing backup
 
-Sometimes it is needed to make server-side copy of the existing backup. This can be done by specifying the source backup path via `-origin` command-line flag,
-while the destination path for backup copy must be specified via `-dst` command-line flag. For example, the following command copies backup
-from `gs://bucket/foo` to `gs://bucket/bar`:
+Sometimes it is necessary to make server-side copy of the existing backup. This can be done by specifying the source backup path via `-origin` command-line flag, while the destination path for backup copy must be specified via `-dst` command-line flag. For example, the following command copies backup from `gs://bucket/foo` to `gs://bucket/bar`:
 
 ```sh
 ./vmbackup -origin=gs://bucket/foo -dst=gs://bucket/bar
@@ -178,7 +173,7 @@ The backup algorithm is the following:
 1. Delete the created snapshot.
 
 The algorithm splits source files into 1 GiB chunks in the backup. Each chunk is stored as a separate file in the backup.
-Such splitting balances between the number of files in the backup and the amounts of data that needs to be re-transferred after temporary errors.
+Such splitting balances between the number of files in the backup and the amount of data that needs to be re-transferred after temporary errors.
 
 `vmbackup` relies on [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) properties:
 
@@ -193,8 +188,8 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 ## Troubleshooting
 
-* If the backup is slow, then try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
-* If `vmbackup` eats all the network bandwidth or CPU, then either decrease the `-concurrency` command-line flag value or set `-maxBytesPerSecond` command-line flag value to lower value.
+* If the backup is slow, try setting higher value for `-concurrency` flag. This will increase the number of concurrent workers that upload data to backup storage.
+* If `vmbackup` consumes all the network bandwidth or CPU, then either decrease the `-concurrency` command-line flag value or set `-maxBytesPerSecond` command-line flag value to lower value.
 * If `vmbackup` consumes all the CPU on systems with big number of CPU cores, then try running it with `-filestream.disableFadvise` command-line flag.
 * If `vmbackup` has been interrupted due to temporary error, then just restart it with the same args. It will resume the backup process. After backup process has finished successfully, please [remove old snapshot](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#delete-snapshot) that was created during failed attempt.
 * Backups created from [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) cannot be restored
@@ -203,23 +198,22 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 
 ## Advanced usage
 
-
 ### Providing credentials as a file
 
 Obtaining credentials from a file.
 
 Add flag `-credsFilePath=/etc/credentials` with the following content:
 
-- for S3 (AWS, MinIO or other S3 compatible storages):
-    
+* for S3 (AWS, MinIO or other S3 compatible storages):
+
      ```sh
      [default]
      aws_access_key_id=theaccesskey
      aws_secret_access_key=thesecretaccesskeyvalue
     ```
 
-- for GCP cloud storage:
-    
+* for GCP cloud storage:
+
     ```json
     {
            "type": "service_account",
@@ -235,16 +229,17 @@ Add flag `-credsFilePath=/etc/credentials` with the following content:
     }
     ```
 
-### Providing credentials via env variables 
+### Providing credentials via env variables
 
 Obtaining credentials from env variables.
-- For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. 
+
+* For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
   Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
-- For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
-- For Azure storage use one of these env variables:
-   - `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`: use a connection string (must be either SAS Token or Account/Key)
-   - `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`: use a specific account name and key (either primary or secondary)
-   - `AZURE_USE_DEFAULT_CREDENTIAL` and `AZURE_STORAGE_ACCOUNT_NAME`: use the `DefaultAzureCredential` to allow the Azure library
+* For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
+* For Azure storage use one of these env variables:
+  * `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`: use a connection string (must be either SAS Token or Account/Key)
+  * `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`: use a specific account name and key (either primary or secondary)
+  * `AZURE_USE_DEFAULT_CREDENTIAL` and `AZURE_STORAGE_ACCOUNT_NAME`: use the `DefaultAzureCredential` to allow the Azure library
      to search for multiple options (for example, managed identity related variables). Note that if multiple credentials are available,
      it is required to specify the `AZURE_CLIENT_ID` to select specific credentials.
 
@@ -254,13 +249,13 @@ Please, note that `vmbackup` will use credentials provided by cloud providers me
 
 ### Using cloud providers metadata service
 
-`vmbackup` and `vmbackupmanager` will automatically use cloud providers metadata service in order to obtain credentials if they are running in cloud environment
-and credentials are not explicitly provided via flags or env variables.
+`vmbackup` and `vmbackupmanager` will automatically use cloud providers metadata service in order to obtain credentials if they are running in cloud environment and credentials are not explicitly provided via flags or env variables.
 
 ### Providing credentials in Kubernetes
 
 The simplest way to provide credentials in Kubernetes is to use [Secrets](https://kubernetes.io/docs/concepts/configuration/secret/)
 and inject them into the pod as environment variables. For example, the following secret can be used for AWS S3 credentials:
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -270,7 +265,9 @@ data:
   access_key: key
   secret_key: secret
 ```
+
 And then it can be injected into the pod as environment variables:
+
 ```yaml
 ...
 env:
@@ -287,10 +284,11 @@ env:
 ...
 ```
 
-A more secure way is to use IAM roles to provide tokens for pods instead of managing credentials manually. 
+A more secure way is to use IAM roles to provide tokens for pods instead of managing credentials manually.
 
 For AWS deployments it will be required to configure [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 In order to use IAM roles for service accounts with `vmbackup` or `vmbackupmanager` it is required to create ServiceAccount with IAM role mapping:
+
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -299,11 +297,13 @@ metadata:
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::{ACCOUNT_ID}:role/{ROLE_NAME}
 ```
+
 And [configure pod to use service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/).
 After this `vmbackup` and `vmbackupmanager` will automatically use IAM role for service account in order to obtain credentials.
 
 For GCP deployments it will be required to configure [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 In order to use Workload Identity with `vmbackup` or `vmbackupmanager` it is required to create ServiceAccount with Workload Identity annotation:
+
 ```yaml
 ---
 apiVersion: v1
@@ -313,6 +313,7 @@ metadata:
   annotations:
     iam.gke.io/gcp-service-account: {sa_name}@{project_name}.iam.gserviceaccount.com
 ```
+
 And [configure pod to use service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/).
 After this `vmbackup` and `vmbackupmanager` will automatically use Workload Identity for service account in order to obtain credentials.
 
@@ -321,20 +322,21 @@ After this `vmbackup` and `vmbackupmanager` will automatically use Workload Iden
 Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
 You have to add a custom url endpoint via flag:
 
-- for MinIO
+* for MinIO
+
     ```sh
       -customS3Endpoint=http://localhost:9000
     ```
 
-- for aws gov region
+* for aws gov region
+
     ```sh
       -customS3Endpoint=https://s3-fips.us-gov-west-1.amazonaws.com
     ```
 
 ### Permanent deletion of objects in S3-compatible storages
 
-`vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) use standard delete operation
-for S3-compatible object storage when performing [incremental backups](#incremental-backups).
+`vmbackup` and [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) use standard delete operation for S3-compatible object storage when performing [incremental backups](#incremental-backups).
 This operation removes only the current version of the object. This works OK in most cases.
 
 Sometimes it is needed to remove all the versions of an object. In this case pass `-deleteAllObjectVersions` command-line flag to `vmbackup`.
@@ -546,7 +548,7 @@ Run `vmbackup -help` in order to see all the available options:
 
 ## How to build from sources
 
-It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - see `vmutils-*` archives there.
+It is recommended to use the [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - see `vmutils-*` archives there.
 
 ### Development build
 
@@ -566,8 +568,7 @@ Run `make package-vmbackup`. It builds `victoriametrics/vmbackup:<PKG_TAG>` dock
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmbackup`.
 
-The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
-by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
+The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```sh
 ROOT_IMAGE=scratch make package-vmbackup
