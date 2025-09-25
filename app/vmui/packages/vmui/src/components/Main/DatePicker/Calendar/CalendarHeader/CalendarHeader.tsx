@@ -1,15 +1,18 @@
 import { FC } from "preact/compat";
 import { Dayjs } from "dayjs";
 import { ArrowDownIcon, ArrowDropDownIcon } from "../../../Icons";
+import classNames from "classnames";
 
 interface CalendarHeaderProps {
   viewDate: Dayjs
   onChangeViewDate: (date: Dayjs) => void
   showArrowNav: boolean
   toggleDisplayYears: () => void
+  hasNext: boolean
+  hasPrev: boolean
 }
 
-const CalendarHeader: FC<CalendarHeaderProps> = ({ viewDate, showArrowNav, onChangeViewDate, toggleDisplayYears }) => {
+const CalendarHeader: FC<CalendarHeaderProps> = ({ hasPrev, hasNext, viewDate, showArrowNav, onChangeViewDate, toggleDisplayYears }) => {
 
   const setPrevMonth = () => {
     onChangeViewDate(viewDate.subtract(1, "month"));
@@ -35,14 +38,20 @@ const CalendarHeader: FC<CalendarHeaderProps> = ({ viewDate, showArrowNav, onCha
       {showArrowNav && (
         <div className="vm-calendar-header-right">
           <div
-            className="vm-calendar-header-right__prev"
-            onClick={setPrevMonth}
+            className={classNames({
+              "vm-calendar-header-right__prev": true,
+              "vm-calendar-header-right_disabled": !hasPrev,
+            })}
+            onClick={hasPrev ? setPrevMonth : undefined}
           >
             <ArrowDownIcon/>
           </div>
           <div
-            className="vm-calendar-header-right__next"
-            onClick={setNextMonth}
+            className={classNames({
+              "vm-calendar-header-right__next": true,
+              "vm-calendar-header-right_disabled": !hasNext,
+            })}
+            onClick={hasNext ? setNextMonth : undefined}
           >
             <ArrowDownIcon/>
           </div>
