@@ -255,6 +255,7 @@ vmagent supports limiting, relabeling, deduplication and stream aggregation for 
 The received data is then forwarded to specified `-remoteWrite.url` destinations. The processing pipeline is the following:
 
 ```mermaid
+%%{init: { "themeCSS": ".nodeLabel, .edgeLabel { white-space: nowrap; word-break: normal; overflow-wrap: normal; }" }}%%
 flowchart TB
     A[Pushed or Scraped samples] --> B[Ingestion rate limiting<br><b>-maxIngestionRate</b>]
     B --> C[Global <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.relabelConfig</b>]
