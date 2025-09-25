@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.25.0 to Go1.25.1. See [the list of issues addressed in Go1.25.1](https://github.com/golang/go/issues?q=milestone%3AGo1.25.1%20label%3ACherryPickApproved).
+
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): stream responses from backends to clients without delays. Previously the backend data could be buffered at `vmauth` side for indefinite amounts of time. This was preventing from using `vmauth` for streaming the data from backends in [live tailing mode](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing). See [VictoriaLogs#667](https://github.com/VictoriaMetrics/VictoriaLogs/issues/667).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove the error log when marshaling an invalid comment or an empty HELP metadata line during scraping, if [metadata processing](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) is enabled. See [#9710](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9710).
