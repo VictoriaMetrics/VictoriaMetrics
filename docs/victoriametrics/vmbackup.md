@@ -370,7 +370,7 @@ Run `vmbackup -help` in order to see all the available options:
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment variables. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
+     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
