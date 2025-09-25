@@ -13,8 +13,9 @@ The aggregation is applied to all the metrics received via any [supported data i
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 after applying all the configured [relabeling stages](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
-**By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
-It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).**
+**By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples). It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).**
+
+**If `-streamAggr.dedupInterval` is enabled, out-of-order samples (older than already received) within the configured interval are treated as duplicates and ignored. See  [de-duplication](#deduplication).**
 
 # Use cases
 
@@ -378,6 +379,8 @@ before sending them to the configured `-remoteWrite.url`. The de-duplication can
 It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
 
 The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) at VictoriaMetrics.
+
+De-deuplication is applied before stream aggreation rules and can drop samples before they get matched for aggregation.
 
 # Relabeling
 
