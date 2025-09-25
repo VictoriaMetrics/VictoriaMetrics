@@ -3,12 +3,118 @@
 package workingsetcache
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/VictoriaMetrics/fastcache"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
+
+func TestCacheModeTransition(t *testing.T) {
+	var cs fastcache.Stats
+	assertCachesMaxSize := func(t *testing.T, c *Cache, maxPrevSize, maxCurrSize uint64) {
+		t.Helper()
+
+		c.mu.Lock()
+		defer c.mu.Unlock()
+
+		prev := c.prev.Load()
+		cs.Reset()
+		prev.UpdateStats(&cs)
+		if cs.MaxBytesSize != maxPrevSize {
+			t.Fatalf("unexpected prev cache maxSizeBytes: got %d, want %d", cs.MaxBytesSize, maxPrevSize)
+		}
+
+		curr := c.curr.Load()
+		cs.Reset()
+		curr.UpdateStats(&cs)
+		if cs.MaxBytesSize != maxCurrSize {
+			t.Fatalf("unexpected curr cache maxSizeBytes: got %d, want %d", cs.MaxBytesSize, maxCurrSize)
+		}
+	}
+	const cacheSize = 256 * 1024 * 1024
+
+	baseKey := make([]byte, 8096)
+	value := make([]byte, 12096)
+
+	fillCacheToFull := func(t *testing.T, c *Cache) {
+		t.Helper()
+		for i := range 12096 {
+			key := append(baseKey[:len(baseKey):len(baseKey)], fmt.Sprintf("idx_%d", i)...)
+			c.Set(key, value)
+		}
+	}
+	synctest.Test(t, func(t *testing.T) {
+		path := filepath.Join(t.Name(), "workingsetcache", "modeTransition")
+		fs.MustRemoveDir(path)
+		c := Load(path, cacheSize)
+		defer c.Stop()
+
+		assertMode(t, c, split)
+		assertStats(t, c, fastcache.Stats{})
+
+		synctest.Wait()
+		assertCachesMaxSize(t, c, cacheSize/2, cacheSize/2)
+
+		// fill curr cache up to 100% in order to transit it into switching state
+		fillCacheToFull(t, c)
+		// check interval is ~1500ms with 10% jitter
+		time.Sleep(time.Millisecond * 2000)
+		synctest.Wait()
+
+		assertMode(t, c, switching)
+
+		// curr cache must use 100% of cache size during switching mode
+		assertCachesMaxSize(t, c, cacheSize/2, cacheSize)
+
+		// fill cache up to 100% in order to transit it into whole mode
+		fillCacheToFull(t, c)
+
+		// check interval is ~1500ms with 10% jitter
+		time.Sleep(time.Millisecond * 2000)
+		synctest.Wait()
+		assertMode(t, c, whole)
+		// curr cache must use 100% of cache size whole mode
+		// prev cache must use minimal amount of memory
+		assertCachesMaxSize(t, c, 1024*32*1024, cacheSize)
+
+		// reset cache
+		c.Reset()
+		assertCachesMaxSize(t, c, cacheSize/2, cacheSize/2)
+
+		// check if expiration worker operates correctly
+		// it must rotate prev and curr
+
+		// add item to curr and check it at prev after rotation
+		c.Set([]byte(`k1`), []byte(`value1`))
+
+		time.Sleep(35 * time.Minute)
+		synctest.Wait()
+		assertMode(t, c, split)
+		assertCachesMaxSize(t, c, cacheSize/2, cacheSize/2)
+
+		prev := c.prev.Load()
+		result := prev.Get(nil, []byte(`k1`))
+		if string(result) != "value1" {
+			t.Fatalf("k1 must exist at prev cache")
+		}
+
+		// check if size watcher operates correctly after Reset
+		// fill it and check transition modes
+		fillCacheToFull(t, c)
+		time.Sleep(time.Millisecond * 2000)
+		assertMode(t, c, switching)
+		fillCacheToFull(t, c)
+		time.Sleep(time.Millisecond * 2000)
+		assertMode(t, c, whole)
+
+		assertCachesMaxSize(t, c, 1024*32*1024, cacheSize)
+	})
+}
 
 func TestSetGetStatsInSplitMode_newInmemoryCache(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {

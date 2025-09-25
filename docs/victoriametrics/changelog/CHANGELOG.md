@@ -31,6 +31,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): stream responses from backends to clients without delays. Previously the backend data could be buffered at `vmauth` side for indefinite amounts of time. This was preventing from using `vmauth` for streaming the data from backends in [live tailing mode](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing). See [VictoriaLogs#667](https://github.com/VictoriaMetrics/VictoriaLogs/issues/667).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove the error log when marshaling an invalid comment or an empty HELP metadata line during scraping, if [metadata processing](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) is enabled. See [#9710](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9710).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent `workingsetcache` unexpected cache misses during cache rotation. And properly rotate cache after reset. See this PR ()[] for details.
 
 ## [v1.126.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.126.0)
 
