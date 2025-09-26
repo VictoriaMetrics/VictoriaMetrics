@@ -748,13 +748,9 @@ func mustConvertToLegacy(s *Storage) *Storage {
 				MaxTimestamp: ts + msecPerDay - 1,
 			}
 			date := uint64(ts / msecPerDay)
-			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, day, 1e9, noDeadline)
+			tsids, err := idb.SearchTSIDs(nil, tfssAll, day, 1e9, noDeadline)
 			if err != nil {
-				panic(fmt.Sprintf("could not search metricIDs: %v", err))
-			}
-			tsids, err := idb.getTSIDsFromMetricIDs(nil, metricIDs, noDeadline)
-			if err != nil {
-				panic(fmt.Sprintf("could not get TSIDs from metricIDs: %v", err))
+				panic(fmt.Sprintf("could not get TSIDs: %v", err))
 			}
 			for _, tsid := range tsids {
 				metricID := tsid.MetricID

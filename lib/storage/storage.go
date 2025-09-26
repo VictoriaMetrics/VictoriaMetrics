@@ -1269,22 +1269,19 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 	return res, nil
 }
 
-// searchTSIDs searches the TSIDs that correspond to filters within the given
+// SearchTSIDs searches the TSIDs that correspond to filters within the given
 // time range.
+//
+// The returned TSIDs are sorted.
 //
 // The method will fail if the number of found TSIDs exceeds maxMetrics or the
 // search has not completed within the specified deadline.
-func (s *Storage) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
 	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
 	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
-		var tsids []TSID
-		metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
-		if err == nil {
-			tsids, err = idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
-		}
-		return tsids, err
+		return idb.SearchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	}
 
 	merge := func(data [][]TSID) []TSID {
