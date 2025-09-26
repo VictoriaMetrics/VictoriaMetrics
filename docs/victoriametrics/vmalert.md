@@ -158,7 +158,7 @@ name: <string>
 # Limit limits the number of alerts or recording results a single rule within this group can produce.
 # If exceeded, the rule will be marked with an error and all its results will be discarded.
 # 0 means no limit.
-[ limit: <integer> | default = -rule.resultLimit flag]
+[ limit: <integer> | default = -rule.resultsLimit flag]
 
 # How many rules execute at once within a group. Increasing concurrency may speed
 # up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).

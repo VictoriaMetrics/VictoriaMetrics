@@ -24,7 +24,8 @@ import (
 )
 
 var (
-	ruleResultLimit = flag.Int("rule.resultLimit", 0, "Limits the number of alerts or recording results a single rule can produce. "+
+	ruleResultsLimit = flag.Int("rule.resultsLimit", 0, "Limits the number of alerts or recording results a single rule can produce. "+
+		"Can be overridden by the limit option under group if specified. "+
 		"If exceeded, the rule will be marked with an error and all its results will be discarded. "+
 		"0 means no limit.")
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
@@ -133,7 +134,7 @@ func NewGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	if cfg.Limit != nil {
 		g.Limit = *cfg.Limit
 	} else {
-		g.Limit = *ruleResultLimit
+		g.Limit = *ruleResultsLimit
 	}
 	if g.Concurrency < 1 {
 		g.Concurrency = 1

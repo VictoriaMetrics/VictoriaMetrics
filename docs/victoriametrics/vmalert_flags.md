@@ -450,8 +450,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      Limits the maxiMum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
   -rule.resendDelay duration
      MiniMum amount of time to wait before resending an alert to notifier.
-  -rule.resultLimit int
-     Limits the number of alerts or recording results a single rule can produce. If exceeded, the rule will be marked with an error and all its results will be discarded. 0 means no limit. (default 0)
+  -rule.resultsLimit int
+     Limits the number of alerts or recording results a single rule can produce. Can be overridden by the limit option under group if specified. If exceeded, the rule will be marked with an error and all its results will be discarded. 0 means no limit. (default 0)
   -rule.stripFilePath
      Whether to strip file path in responses from the api/v1/rules API for files configured via -rule cmd-line flag. For example, the file path '/path/to/tenant_id/rules.yml' will be stripped to just 'rules.yml'. This flag might be useful to hide sensitive information in file path such as tenant ID. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -rule.templates array
