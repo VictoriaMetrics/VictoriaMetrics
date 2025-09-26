@@ -259,7 +259,6 @@ func (c *Cache) cacheSizeWatcher() {
 	t := time.NewTicker(checkInterval)
 	defer t.Stop()
 
-again:
 	var maxBytesSize uint64
 	for {
 		select {
@@ -276,10 +275,12 @@ again:
 		curr.UpdateStats(&cs)
 		if cs.BytesSize >= uint64(0.9*float64(cs.MaxBytesSize)) {
 			maxBytesSize = cs.MaxBytesSize
-			break
+			c.transitIntoWholeMode(maxBytesSize, t)
 		}
 	}
+}
 
+func (c *Cache) transitIntoWholeMode(maxBytesSize uint64, t *time.Ticker) {
 	// curr cache size exceeds 90% of its capacity. It is better
 	// to double the size of curr cache and stop using prev cache,
 	// since this will result in higher summary cache capacity.
@@ -315,7 +316,7 @@ again:
 		}
 		if c.mode.Load() != switching {
 			// mode was changed by the Reset call
-			goto again
+			return
 		}
 		var cs fastcache.Stats
 		curr := c.curr.Load()
@@ -329,7 +330,7 @@ again:
 	if c.mode.Load() != switching {
 		// mode was changed by the Reset call
 		c.mu.Unlock()
-		goto again
+		return
 	}
 	c.mode.Store(whole)
 	prev = c.prev.Load()
@@ -339,8 +340,6 @@ again:
 	updateCacheStatsHistory(&c.csHistory, &cs)
 	prev.Reset()
 	c.mu.Unlock()
-
-	goto again
 }
 
 // Save saves the cache to filePath.
