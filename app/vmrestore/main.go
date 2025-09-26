@@ -68,7 +68,7 @@ func main() {
 	if err := a.Run(ctx); err != nil {
 		logger.Fatalf("cannot restore from backup: %s", err)
 	}
-	pushmetrics.Stop()
+	pushmetrics.StopAndPush()
 	srcFS.MustStop()
 	dstFS.MustStop()
 
