@@ -59,7 +59,7 @@ const CalendarBody: FC<CalendarBodyProps> = ({ minDate, maxDate, viewDate: date,
               "vm-calendar-body-cell_day_disabled": isDisabled,
             })}
             key={d ? d.format(format) : i}
-            onClick={createHandlerSelectDate(d)}
+            onClick={isDisabled ? undefined : createHandlerSelectDate(d)}
           >
             {d && d.format("D")}
           </div>
