@@ -128,7 +128,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
                 >
                   <ArrowDropDownIcon/>
                 </div>
-            Value
+                Value
               </div>
             </td>
             {hasCopyValue && <td className="vm-table-cell vm-table-cell_header"/>}

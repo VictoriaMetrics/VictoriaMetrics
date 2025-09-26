@@ -1,9 +1,9 @@
 @use "src/styles/variables" as *;
 
 .vm-text-field {
-  position: relative;
-  display: grid;
+  display: flex;
   margin: 6px 0;
+  flex-direction: column;
   width: 100%;
 
   &_disabled {
@@ -13,13 +13,6 @@
 
   &:is(&_disabled) > &__label {
     color: $color-text-disabled;
-  }
-
-  &_textarea:after {
-    content: attr(data-replicated-value) " ";
-    white-space: pre-wrap;
-    overflow-wrap: break-word;
-    visibility: hidden;
   }
 
   &__input,
@@ -40,8 +33,8 @@
   &__error,
   &__warning,
   &__helper-text, {
-    position: absolute;
-    left: calc($padding-global/2);
+    width: fit-content;
+    margin-left: calc($padding-global/2);
     max-width: calc(100% - $padding-global);
     padding: 0 3px;
     font-size: $font-size-small;
@@ -59,16 +52,16 @@
   }
 
   &__label {
-    top: calc(($font-size-small/-2) - 2px);
+    margin-bottom: calc(($font-size-small/-2) - 1px);
+    margin-top: calc(($font-size-small/-2) - 1px);
     color: $color-text-secondary;
   }
 
   &__helper-text,
   &__warning,
   &__error {
-    position: absolute;
-    bottom: calc($font-size-small/-2);
-    width: fit-content;
+    margin-top: calc(($font-size-small/-2) - 1px);
+    margin-bottom: calc(($font-size-small/-2) - 1px);
     overflow-wrap: anywhere;
     pointer-events: auto;
     user-select: text;
@@ -156,7 +149,6 @@
     align-items: center;
     justify-content: center;
     max-width: 15px;
-    top: 0;
     left: $padding-small;
     height: 36px;
     position: absolute;
