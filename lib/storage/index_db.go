@@ -1832,19 +1832,30 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	return metricIDs, nil
 }
 
-func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, projectID uint32, metricIDs []uint64, deadline uint64) ([]TSID, error) {
-	qt = qt.NewChild("obtain tsids from %d metricIDs", len(metricIDs))
+// SearchTSIDs searches the TSIDs that correspond to filters within the given
+// time range.
+//
+// The returned TSIDs are sorted.
+//
+// The method will fail if the number of found TSIDs exceeds maxMetrics or the
+// search has not completed within the specified deadline.
+func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
 
-	if len(metricIDs) == 0 {
+	metricIDs, err := db.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(metricIDs) == 0 || len(tfss) == 0 {
 		return nil, nil
 	}
 
 	tsids := make([]TSID, len(metricIDs))
 	metricIDsToDelete := &uint64set.Set{}
 	i := 0
-	err := func() error {
-		is := db.getIndexSearch(accountID, projectID, deadline)
+	err = func() error {
+		is := db.getIndexSearch(tfss[0].accountID, tfss[0].projectID, noDeadline)
 		defer db.putIndexSearch(is)
 		for loopsPaceLimiter, metricID := range metricIDs {
 			if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
