@@ -71,8 +71,7 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
 )
 
-var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
-
+var slowQueries *metrics.Counter
 func getDefaultMaxConcurrentRequests() int {
 	// A single request can saturate all the CPU cores, so there is no sense
 	// in allowing higher number of concurrent requests - they will just contend
@@ -183,6 +182,8 @@ var (
 	})
 )
 
+
+
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
@@ -256,6 +257,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if path == "/admin/tenants" {
 		tenantsRequests.Inc()
+		slowQueries = pathSlowTenantsRequests
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.Tenants(qt, startTime, w, r); err != nil {
 			tenantsErrors.Inc()
@@ -341,6 +343,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	switch p.Suffix {
 	case "prometheus/api/v1/query":
 		queryRequests.Inc()
+		slowQueries = pathSlowQuery
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryHandler(qt, startTime, at, w, r); err != nil {
 			queryErrors.Inc()
@@ -350,6 +353,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/query_range":
 		queryRangeRequests.Inc()
+		slowQueries = pathSlowQueryRange
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryRangeHandler(qt, startTime, at, w, r); err != nil {
 			queryRangeErrors.Inc()
@@ -359,6 +363,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/series":
 		seriesRequests.Inc()
+		slowQueries = pathSlowSeries
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.SeriesHandler(qt, startTime, at, w, r); err != nil {
 			seriesErrors.Inc()
@@ -368,7 +373,9 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/series/count":
 		seriesCountRequests.Inc()
+		slowQueries = pathSlowSeriesCount
 		httpserver.EnableCORS(w, r)
+
 		if err := prometheus.SeriesCountHandler(startTime, at, w, r); err != nil {
 			seriesCountErrors.Inc()
 			httpserver.SendPrometheusError(w, r, err)
@@ -377,6 +384,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/labels":
 		labelsRequests.Inc()
+		slowQueries = pathSlowLabels
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.LabelsHandler(qt, startTime, at, w, r); err != nil {
 			labelsErrors.Inc()
@@ -386,6 +394,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/status/tsdb":
 		statusTSDBRequests.Inc()
+		slowQueries = pathSlowTsdb
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.TSDBStatusHandler(qt, startTime, at, w, r); err != nil {
 			statusTSDBErrors.Inc()
@@ -395,6 +404,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
+		slowQueries = pathSlowExport
 		if err := prometheus.ExportHandler(startTime, at, w, r); err != nil {
 			exportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -403,6 +413,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/export/csv":
 		exportCSVRequests.Inc()
+		slowQueries = pathSlowExportCsv
 		if err := prometheus.ExportCSVHandler(startTime, at, w, r); err != nil {
 			exportCSVErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -411,6 +422,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/api/v1/export/native":
 		exportNativeRequests.Inc()
+		slowQueries = pathSlowExportNative
 		if err := prometheus.ExportNativeHandler(startTime, at, w, r); err != nil {
 			exportNativeErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -419,6 +431,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/federate":
 		federateRequests.Inc()
+		slowQueries = pathSlowFederate
 		if err := prometheus.FederateHandler(startTime, at, w, r); err != nil {
 			federateErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -437,6 +450,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/metrics/find", "graphite/metrics/find/":
 		graphiteMetricsFindRequests.Inc()
+		slowQueries = pathSlowMetricsFind
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsFindHandler(startTime, at, w, r); err != nil {
 			graphiteMetricsFindErrors.Inc()
@@ -446,6 +460,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/metrics/expand", "graphite/metrics/expand/":
 		graphiteMetricsExpandRequests.Inc()
+		slowQueries = pathSlowMetricsExpand
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsExpandHandler(startTime, at, w, r); err != nil {
 			graphiteMetricsExpandErrors.Inc()
@@ -455,6 +470,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/metrics/index.json", "graphite/metrics/index.json/":
 		graphiteMetricsIndexRequests.Inc()
+		slowQueries = pathSlowMetricsIndex
 		httpserver.EnableCORS(w, r)
 		if err := graphite.MetricsIndexHandler(startTime, at, w, r); err != nil {
 			graphiteMetricsIndexErrors.Inc()
@@ -464,6 +480,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/tags/tagSeries":
 		graphiteTagsTagSeriesRequests.Inc()
+		slowQueries = pathSlowTagSeries
 		if err := graphite.TagsTagSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsTagSeriesErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -472,6 +489,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/tags/tagMultiSeries":
 		graphiteTagsTagMultiSeriesRequests.Inc()
+		slowQueries = pathSlowTagMultiSeries
 		if err := graphite.TagsTagMultiSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsTagMultiSeriesErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -480,6 +498,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/tags":
 		graphiteTagsRequests.Inc()
+		slowQueries = pathSlowTags
 		if err := graphite.TagsHandler(startTime, at, w, r); err != nil {
 			graphiteTagsErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -488,6 +507,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/tags/findSeries":
 		graphiteTagsFindSeriesRequests.Inc()
+		slowQueries = pathSlowFindSeries
 		if err := graphite.TagsFindSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsFindSeriesErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -496,6 +516,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/tags/autoComplete/tags":
 		graphiteTagsAutoCompleteTagsRequests.Inc()
+		slowQueries = pathSlowAutocompleteTags
 		httpserver.EnableCORS(w, r)
 		if err := graphite.TagsAutoCompleteTagsHandler(startTime, at, w, r); err != nil {
 			graphiteTagsAutoCompleteTagsErrors.Inc()
@@ -505,6 +526,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/tags/autoComplete/values":
 		graphiteTagsAutoCompleteValuesRequests.Inc()
+		slowQueries = pathSlowAutocompleteValues
 		httpserver.EnableCORS(w, r)
 		if err := graphite.TagsAutoCompleteValuesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsAutoCompleteValuesErrors.Inc()
@@ -517,6 +539,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		graphiteTagsDelSeriesRequests.Inc()
+		slowQueries = pathSlowDelSeries
 		if err := graphite.TagsDelSeriesHandler(startTime, at, w, r); err != nil {
 			graphiteTagsDelSeriesErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -525,6 +548,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/render":
 		graphiteRenderRequests.Inc()
+		slowQueries = pathSlowRender
 		if err := graphite.RenderHandler(startTime, at, w, r); err != nil {
 			graphiteRenderErrors.Inc()
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
@@ -938,6 +962,31 @@ var (
 
 	metricNamesStatsResetRequests = metrics.NewCounter(`vm_http_requests_total{path="/admin/api/v1/admin/status/metric_names_stats/reset"}`)
 	metricNamesStatsResetErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/admin/api/v1/admin/status/metric_names_stats/reset"}`)
+)
+
+var (
+	pathSlowTenantsRequests         = metrics.NewCounter(`vm_slow_queries_total{path="/admin/tenants"}`)
+	pathSlowQuery                   = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/query"}`)
+	pathSlowQueryRange              = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/query_range"}`)
+	pathSlowSeries                  = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/series"}`)
+	pathSlowSeriesCount             = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/series/count"}`)
+	pathSlowLabels                  = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/label/{}/values"}`)
+	pathSlowTsdb                    = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/status/tsdb"}`)
+	pathSlowExport                  = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/export"}`)
+	pathSlowExportNative            = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/export/native"}`)
+	pathSlowExportCsv               = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/api/v1/export/csv"}`)
+	pathSlowFederate                = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/prometheus/federate"}`)
+	pathSlowMetricsFind             = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/metrics/find"}`)
+	pathSlowMetricsExpand           = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/metrics/expand"}`)
+	pathSlowMetricsIndex            = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/metrics/index.json"}`)
+	pathSlowTagSeries               = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/tagSeries"}`)
+	pathSlowTagMultiSeries          = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/tagMultiSeries"}`)
+	pathSlowTags                    = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags"}`)
+	pathSlowFindSeries              = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/findSeries"}`)
+	pathSlowAutocompleteTags        = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/autoComplete/tags"}`)
+	pathSlowAutocompleteValues      = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/autoComplete/values"}`)
+	pathSlowDelSeries               = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/tags/delSeries"}`)
+	pathSlowRender                  = metrics.NewCounter(`vm_slow_queries_total{path="/select/{}/graphite/render"}`)
 )
 
 func usage() {
