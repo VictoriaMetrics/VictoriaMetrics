@@ -1150,15 +1150,23 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		}
 		qt.Printf("optimized calculation for instant rollup avg_over_time(m[d]) as (sum_over_time(m[d]) / count_over_time(m[d]))")
 		fe := expr.(*metricsql.FuncExpr)
-		feSum := *fe
-		feSum.Name = "sum_over_time"
-		feCount := *fe
-		feCount.Name = "count_over_time"
+		// copy RollupExpr to drop possible offset,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
+		newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
+		newArg.Offset = nil
 		be := &metricsql.BinaryOpExpr{
 			Op:              "/",
 			KeepMetricNames: fe.KeepMetricNames,
-			Left:            &feSum,
-			Right:           &feCount,
+			Left: &metricsql.FuncExpr{
+				Name:            "sum_over_time",
+				Args:            []metricsql.Expr{newArg},
+				KeepMetricNames: fe.KeepMetricNames,
+			},
+			Right: &metricsql.FuncExpr{
+				Name:            "count_over_time",
+				Args:            []metricsql.Expr{newArg},
+				KeepMetricNames: fe.KeepMetricNames,
+			},
 		}
 		return evalExpr(qt, ec, be)
 	case "rate":
@@ -1172,8 +1180,12 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			fe := afe.Args[0].(*metricsql.FuncExpr)
 			feIncrease := *fe
 			feIncrease.Name = "increase"
-			re := fe.Args[0].(*metricsql.RollupExpr)
-			d := re.Window.Duration(ec.Step)
+			// copy RollupExpr to drop possible offset,
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
+			newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
+			newArg.Offset = nil
+			feIncrease.Args = []metricsql.Expr{newArg}
+			d := newArg.Window.Duration(ec.Step)
 			if d == 0 {
 				d = ec.Step
 			}
@@ -1193,8 +1205,12 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		fe := expr.(*metricsql.FuncExpr)
 		feIncrease := *fe
 		feIncrease.Name = "increase"
-		re := fe.Args[0].(*metricsql.RollupExpr)
-		d := re.Window.Duration(ec.Step)
+		// copy RollupExpr to drop possible offset,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
+		newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
+		newArg.Offset = nil
+		feIncrease.Args = []metricsql.Expr{newArg}
+		d := newArg.Window.Duration(ec.Step)
 		if d == 0 {
 			d = ec.Step
 		}
@@ -1998,4 +2014,24 @@ func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]flo
 		dstTimestamps = append(dstTimestamps, timestamps[i])
 	}
 	return dstValues, dstTimestamps
+}
+
+func copyRollupExpr(re *metricsql.RollupExpr) *metricsql.RollupExpr {
+	var newRe metricsql.RollupExpr
+	newRe.Expr = re.Expr
+	newRe.InheritStep = re.InheritStep
+	newRe.At = re.At
+	if re.Window != nil {
+		newRe.Window = &metricsql.DurationExpr{}
+		*newRe.Window = *re.Window
+	}
+	if re.Offset != nil {
+		newRe.Offset = &metricsql.DurationExpr{}
+		*newRe.Offset = *re.Offset
+	}
+	if re.Step != nil {
+		newRe.Step = &metricsql.DurationExpr{}
+		*newRe.Step = *re.Step
+	}
+	return &newRe
 }
