@@ -62,7 +62,7 @@ type Cache struct {
 	maxBytes int
 
 	// mu serializes access to curr, prev and mode
-	// in expirationWatcher, prevCacheWatcher,cacheSizeWatcher, UpdateStats and Reset.
+	// in expirationWatcher, prevCacheWatcher, cacheSizeWatcher, UpdateStats and Reset.
 	mu sync.Mutex
 
 	wg     sync.WaitGroup
@@ -373,7 +373,7 @@ func (c *Cache) Reset() {
 	curr.UpdateStats(&cs)
 	updateCacheStatsHistory(&c.csHistory, &cs)
 	curr.Reset()
-	// Reset the mode to `split` in the order to properly reset background workers.
+	// Reset the mode to `split` in order to properly reset background workers.
 	mode := c.mode.Load()
 	c.mode.Store(split)
 	c.copiedFromPrev.Store(0)
