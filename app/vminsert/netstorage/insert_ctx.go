@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -12,8 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
-	"github.com/cespare/xxhash/v2"
 )
 
 // InsertCtx is a generic context for inserting data.
@@ -23,6 +25,7 @@ type InsertCtx struct {
 	snb           *storageNodesBucket
 	Labels        sortedLabels
 	MetricNameBuf []byte
+	MetadataBuf   []byte
 
 	bufRowss  []bufRows
 	labelsBuf []byte
@@ -33,19 +36,56 @@ type InsertCtx struct {
 }
 
 type bufRows struct {
-	buf  []byte
-	rows int
+	tsBuf  []byte
+	tsRows int
+
+	metaBuf  []byte
+	metaRows int
 }
 
 func (br *bufRows) reset() {
-	br.buf = br.buf[:0]
-	br.rows = 0
+	br.resetTS()
+	br.resetMR()
 }
 
-func (br *bufRows) pushTo(snb *storageNodesBucket, sn *storageNode) error {
-	bufLen := len(br.buf)
-	err := sn.push(snb, br.buf, br.rows)
-	br.reset()
+func (br *bufRows) resetTS() {
+	br.tsBuf = br.tsBuf[:0]
+	br.tsRows = 0
+}
+
+func (br *bufRows) resetMR() {
+	br.metaBuf = br.metaBuf[:0]
+	br.metaRows = 0
+}
+
+func (br *bufRows) isEmpty() bool {
+	return len(br.tsBuf) == 0 && len(br.metaBuf) == 0
+}
+
+func (br *bufRows) hasCapacityFor(additionalCapacity int) bool {
+	willOverflow := len(br.tsBuf)+len(br.metaBuf)+additionalCapacity > maxBufSizePerStorageNode
+	return !willOverflow
+}
+
+func (br *bufRows) pushTSTo(snb *storageNodesBucket, sn *storageNode) error {
+	bufLen := len(br.tsBuf)
+	err := sn.pushTS(snb, br.tsBuf, br.tsRows)
+	br.resetTS()
+	if err != nil {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %w", bufLen, sn.dialer.Addr(), err),
+			StatusCode: http.StatusServiceUnavailable,
+		}
+	}
+	return nil
+}
+func (br *bufRows) pushMRTo(snb *storageNodesBucket, sn *storageNode) error {
+	bufLen := len(br.metaBuf)
+	if bufLen == 0 {
+		return nil
+	}
+	err := sn.pushMR(snb, br.metaBuf, br.metaRows)
+	br.resetMR()
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %w", bufLen, sn.dialer.Addr(), err),
@@ -66,6 +106,7 @@ func (ctx *InsertCtx) Reset() {
 	ctx.Labels = labels[:0]
 
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
+	ctx.MetadataBuf = ctx.MetadataBuf[:0]
 
 	if ctx.bufRowss == nil || len(ctx.bufRowss) != len(ctx.snb.sns) {
 		ctx.bufRowss = make([]bufRows, len(ctx.snb.sns))
@@ -135,18 +176,71 @@ func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte
 	br := &ctx.bufRowss[storageNodeIdx]
 	snb := ctx.snb
 	sn := snb.sns[storageNodeIdx]
-	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
+	bufNew := storage.MarshalMetricRow(br.tsBuf, metricNameRaw, timestamp, value)
 	if len(bufNew) >= maxBufSizePerStorageNode {
-		// Send buf to sn, since it is too big.
-		if err := br.pushTo(snb, sn); err != nil {
+		// Send tsBuf to sn, since it is too big.
+		if err := br.pushTSTo(snb, sn); err != nil {
 			return err
 		}
-		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
+		br.tsBuf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
 	} else {
-		br.buf = bufNew
+		br.tsBuf = bufNew
 	}
-	br.rows++
+	br.tsRows++
 	return nil
+}
+
+// WriteMetadata writes the given MetricMetadata to the storage buffer
+func (ctx *InsertCtx) WriteMetadata(at *auth.Token, m *prompb.MetricMetadata) error {
+	mdr := metricsmetadata.Row{
+		Type:             m.Type,
+		MetricFamilyName: []byte(m.MetricFamilyName),
+		Unit:             []byte(m.Unit),
+		Help:             []byte(m.Help),
+	}
+	if at != nil {
+		mdr.AccountID = at.AccountID
+		mdr.ProjectID = at.ProjectID
+	}
+	ctx.MetadataBuf = mdr.MarshalTo(ctx.MetadataBuf[:0])
+	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.MetadataBuf)
+	return ctx.WriteMetadataExt(storageNodeIdx, ctx.MetadataBuf)
+}
+
+// WriteMetadataExt writes the given buffer to the storage buffer by provided storageNodeIdx
+func (ctx *InsertCtx) WriteMetadataExt(storageNodeIdx int, buf []byte) error {
+	br := &ctx.bufRowss[storageNodeIdx]
+	snb := ctx.snb
+	sn := snb.sns[storageNodeIdx]
+	bufNew := append(br.metaBuf, buf...)
+	if len(bufNew) >= maxBufSizePerStorageNode {
+		// Send metaBuf to sn, since it is too big.
+		if err := br.pushMRTo(snb, sn); err != nil {
+			return err
+		}
+		br.metaBuf = append(bufNew[:0], buf...)
+	} else {
+		br.metaBuf = bufNew
+	}
+	br.metaRows++
+	return nil
+}
+
+// GetStorageNodeIdxForMeta returns storage node ID for given buffer
+//
+// The returned index must be passed to WriteMetadataExt.
+func (ctx *InsertCtx) GetStorageNodeIdxForMeta(buf []byte) int {
+	if len(ctx.snb.sns) == 1 {
+		// Fast path - only a single storage node.
+		return 0
+	}
+
+	h := xxhash.Sum64(buf)
+	ctx.labelsBuf = buf
+
+	// Do not exclude unavailable storage nodes in order to properly account for rerouted metaRows in storageNode.pushMR().
+	idx := ctx.snb.nodesHash.getNodeIdx(h, nil)
+	return idx
 }
 
 // FlushBufs flushes ctx bufs to remote storage nodes.
@@ -156,12 +250,17 @@ func (ctx *InsertCtx) FlushBufs() error {
 	sns := snb.sns
 	for i := range ctx.bufRowss {
 		br := &ctx.bufRowss[i]
-		if len(br.buf) == 0 {
+		if br.isEmpty() {
 			continue
 		}
-		if err := br.pushTo(snb, sns[i]); err != nil && firstErr == nil {
+		if err := br.pushTSTo(snb, sns[i]); err != nil && firstErr == nil {
 			firstErr = err
 		}
+
+		if err := br.pushMRTo(snb, sns[i]); err != nil && firstErr == nil {
+			firstErr = err
+		}
+
 	}
 	return firstErr
 }
@@ -186,7 +285,7 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	h := xxhash.Sum64(buf)
 	ctx.labelsBuf = buf
 
-	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
+	// Do not exclude unavailable storage nodes in order to properly account for rerouted tsRows in storageNode.pushTS().
 	idx := ctx.snb.nodesHash.getNodeIdx(h, nil)
 	return idx
 }
