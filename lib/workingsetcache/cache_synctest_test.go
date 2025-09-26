@@ -71,26 +71,51 @@ func TestCacheModeTransition(t *testing.T) {
 		// curr cache must use 100% of cache size during switching mode
 		assertCachesMaxSize(t, c, cacheSize/2, cacheSize)
 
-		// fill cache up to 100% in order to transit it into whole mode
+		// reset cache concurrently, switching into whole mode must not happen
+		c.Reset()
+		assertCachesMaxSize(t, c, cacheSize/2, cacheSize/2)
+		assertMode(t, c, split)
+
+		// check interval is ~1500ms with 10% jitter
+		time.Sleep(time.Millisecond * 2000)
+		synctest.Wait()
+		assertMode(t, c, split)
+
+		// fill cache up to 100% in order to attemp it transit into whole mode
+		// instead it should return back to switching mode
+		fillCacheToFull(t, c)
+
+		// check interval is ~1500ms with 10% jitter
+		time.Sleep(time.Millisecond * 2000)
+		synctest.Wait()
+		assertMode(t, c, switching)
+
+		// curr cache must use 100% of cache size during switching mode
+		assertCachesMaxSize(t, c, cacheSize/2, cacheSize)
+
+		// fill cache up to 100% in order to transit into whole mode
 		fillCacheToFull(t, c)
 
 		// check interval is ~1500ms with 10% jitter
 		time.Sleep(time.Millisecond * 2000)
 		synctest.Wait()
 		assertMode(t, c, whole)
+
 		// curr cache must use 100% of cache size whole mode
 		// prev cache must use minimal amount of memory
 		assertCachesMaxSize(t, c, 1024*32*1024, cacheSize)
 
-		// reset cache
+		// reset cache, it must return into split mode
 		c.Reset()
 		assertCachesMaxSize(t, c, cacheSize/2, cacheSize/2)
+		assertMode(t, c, split)
 
 		// check if expiration worker operates correctly
 		// it must rotate prev and curr
 
 		// add item to curr and check it at prev after rotation
-		c.Set([]byte(`k1`), []byte(`value1`))
+		key, value := []byte(`key1`), []byte(`value1`)
+		c.Set(key, value)
 
 		time.Sleep(35 * time.Minute)
 		synctest.Wait()
@@ -98,9 +123,14 @@ func TestCacheModeTransition(t *testing.T) {
 		assertCachesMaxSize(t, c, cacheSize/2, cacheSize/2)
 
 		prev := c.prev.Load()
-		result := prev.Get(nil, []byte(`k1`))
-		if string(result) != "value1" {
-			t.Fatalf("k1 must exist at prev cache")
+		result := prev.Get(nil, key)
+		if string(result) != string(value) {
+			t.Fatalf("key=%q must exist at prev cache", string(key))
+		}
+		curr := c.curr.Load()
+		result = curr.Get(result[:0], key)
+		if len(result) != 0 {
+			t.Fatalf("key=%q must not exist at curr cache after rotation", string(key))
 		}
 
 		// check if size watcher operates correctly after Reset

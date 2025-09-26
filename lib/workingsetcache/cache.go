@@ -314,7 +314,7 @@ again:
 		case <-t.C:
 		}
 		if c.mode.Load() != switching {
-			// mode was changed by the concurrent goroutine
+			// mode was changed by the Reset call
 			goto again
 		}
 		var cs fastcache.Stats
@@ -327,7 +327,7 @@ again:
 
 	c.mu.Lock()
 	if c.mode.Load() != switching {
-		// mode was changed by the concurrent goroutine
+		// mode was changed by the Reset call
 		c.mu.Unlock()
 		goto again
 	}
@@ -365,24 +365,26 @@ func (c *Cache) Reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	var cs fastcache.Stats
+	// load caches first to properly release memory
 	prev := c.prev.Load()
-	prev.UpdateStats(&cs)
-	prev.Reset()
 	curr := c.curr.Load()
-	curr.UpdateStats(&cs)
-	updateCacheStatsHistory(&c.csHistory, &cs)
-	curr.Reset()
+
 	// Reset the mode to `split` in order to properly reset background workers.
 	mode := c.mode.Load()
-	c.mode.Store(split)
-	c.copiedFromPrev.Store(0)
 	if mode != split {
 		// non-split mode changes size of the caches
-		// so we have to restore it into original size of split mode
+		// so we have to restore it into original size for split mode
 		c.prev.Store(fastcache.New(c.maxBytes / 2))
 		c.curr.Store(fastcache.New(c.maxBytes / 2))
 	}
+	var cs fastcache.Stats
+	prev.UpdateStats(&cs)
+	prev.Reset()
+	curr.UpdateStats(&cs)
+	updateCacheStatsHistory(&c.csHistory, &cs)
+	curr.Reset()
+	c.mode.Store(split)
+	c.copiedFromPrev.Store(0)
 }
 
 // UpdateStats updates fcs with cache stats.
