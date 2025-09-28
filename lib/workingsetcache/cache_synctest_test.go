@@ -4,7 +4,6 @@ package workingsetcache
 
 import (
 	"fmt"
-	"path/filepath"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -36,7 +35,13 @@ func TestCacheModeTransition(t *testing.T) {
 			t.Fatalf("unexpected curr cache maxSizeBytes: got %d, want %d", cs.MaxBytesSize, maxCurrSize)
 		}
 	}
-	const cacheSize = 256 * 1024 * 1024
+	const (
+		cacheSize = 256 * 1024 * 1024
+		// fastcache.chunkSize * fastcache.bucketsCount
+		minCacheSize = 64 * 1024 * 512
+		// check interval is ~1500ms with 10% jitter
+		cacheSizeCheckInterval = time.Millisecond * 2000
+	)
 
 	baseKey := make([]byte, 8096)
 	value := make([]byte, 12096)
@@ -49,9 +54,8 @@ func TestCacheModeTransition(t *testing.T) {
 		}
 	}
 	synctest.Test(t, func(t *testing.T) {
-		path := filepath.Join(t.Name(), "workingsetcache", "modeTransition")
-		fs.MustRemoveDir(path)
-		c := Load(path, cacheSize)
+		fs.MustRemoveDir(t.Name())
+		c := Load(t.Name(), cacheSize)
 		defer c.Stop()
 
 		assertMode(t, c, split)
@@ -62,8 +66,7 @@ func TestCacheModeTransition(t *testing.T) {
 
 		// fill curr cache up to 100% in order to transit it into switching state
 		fillCacheToFull(t, c)
-		// check interval is ~1500ms with 10% jitter
-		time.Sleep(time.Millisecond * 2000)
+		time.Sleep(cacheSizeCheckInterval)
 		synctest.Wait()
 
 		assertMode(t, c, switching)
@@ -76,17 +79,15 @@ func TestCacheModeTransition(t *testing.T) {
 		assertCachesMaxSize(t, c, cacheSize/2, cacheSize/2)
 		assertMode(t, c, split)
 
-		// check interval is ~1500ms with 10% jitter
-		time.Sleep(time.Millisecond * 2000)
+		time.Sleep(cacheSizeCheckInterval)
 		synctest.Wait()
 		assertMode(t, c, split)
 
-		// fill cache up to 100% in order to attemp it transit into whole mode
+		// fill curr cache up to 100% in order to transit it into switching state
 		// instead it should return back to switching mode
 		fillCacheToFull(t, c)
 
-		// check interval is ~1500ms with 10% jitter
-		time.Sleep(time.Millisecond * 2000)
+		time.Sleep(cacheSizeCheckInterval)
 		synctest.Wait()
 		assertMode(t, c, switching)
 
@@ -96,14 +97,13 @@ func TestCacheModeTransition(t *testing.T) {
 		// fill cache up to 100% in order to transit into whole mode
 		fillCacheToFull(t, c)
 
-		// check interval is ~1500ms with 10% jitter
-		time.Sleep(time.Millisecond * 2000)
+		time.Sleep(cacheSizeCheckInterval)
 		synctest.Wait()
 		assertMode(t, c, whole)
 
 		// curr cache must use 100% of cache size whole mode
 		// prev cache must use minimal amount of memory
-		assertCachesMaxSize(t, c, 1024*32*1024, cacheSize)
+		assertCachesMaxSize(t, c, minCacheSize, cacheSize)
 
 		// reset cache, it must return into split mode
 		c.Reset()
@@ -136,13 +136,13 @@ func TestCacheModeTransition(t *testing.T) {
 		// check if size watcher operates correctly after Reset
 		// fill it and check transition modes
 		fillCacheToFull(t, c)
-		time.Sleep(time.Millisecond * 2000)
+		time.Sleep(cacheSizeCheckInterval)
 		assertMode(t, c, switching)
 		fillCacheToFull(t, c)
-		time.Sleep(time.Millisecond * 2000)
+		time.Sleep(cacheSizeCheckInterval)
 		assertMode(t, c, whole)
 
-		assertCachesMaxSize(t, c, 1024*32*1024, cacheSize)
+		assertCachesMaxSize(t, c, minCacheSize, cacheSize)
 	})
 }
 

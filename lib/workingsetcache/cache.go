@@ -99,7 +99,10 @@ func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
 }
 
 func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
-	curr := loadFromFileOrNew(filePath, maxBytes)
+	var curr, prev *fastcache.Cache
+	var mode int
+
+	curr = loadFromFileOrNew(filePath, maxBytes)
 	var cs fastcache.Stats
 	curr.UpdateStats(&cs)
 	if cs.EntriesCount == 0 {
@@ -109,17 +112,17 @@ func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 		// Try loading it again with maxBytes / 2 size.
 		// Put the loaded cache into `prev` instead of `curr`
 		// in order to limit the growth of the cache for the current period of time.
-		prev := loadFromFileOrNew(filePath, maxBytes/2)
-		curr := fastcache.New(maxBytes / 2)
-		c := newCacheInternal(curr, prev, split, maxBytes)
-		c.runWatchers(expireDuration)
-		return c
+		curr = fastcache.New(maxBytes / 2)
+		prev = loadFromFileOrNew(filePath, maxBytes/2)
+		mode = split
+	} else {
+		// The cache has been successfully loaded in full.
+		// Set its' mode to `whole`.
+		prev = fastcache.New(1024)
+		mode = whole
 	}
 
-	// The cache has been successfully loaded in full.
-	// Set its' mode to `whole`.
-	prev := fastcache.New(1024)
-	c := newCacheInternal(curr, prev, whole, maxBytes)
+	c := newCacheInternal(curr, prev, mode, maxBytes)
 	c.runWatchers(expireDuration)
 
 	return c
