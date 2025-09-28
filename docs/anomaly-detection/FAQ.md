@@ -47,12 +47,14 @@ Please see example graph illustrating this logic below:
 
 
 ## What data does vmanomaly operate on?
-`vmanomaly` operates on data fetched from VictoriaMetrics, where you can leverage full power of [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for data selection, sampling, and processing. Users can also [apply global filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) for more targeted data analysis, enhancing scope limitation and tenant visibility.
+Mainly, `vmanomaly` operates on data fetched from VictoriaMetrics with the help of [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for data selection, sampling, and processing. Users can also [apply global filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) for more targeted data analysis, enhancing scope limitation and tenant visibility.
 
-Respective config is defined in a [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) section.
+Respective config is defined in a [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) section of a config.
+
+Additionally, {{% available_from "v1.26.0" anomaly %}} `vmanomaly` supports reading data from [VictoriaLogs](https://docs.victoriametrics.com/victoriametrics/victorialogs/) using [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader), which allows for anomaly detection on log-derived metrics. This is particularly useful for scenarios where log data needs to be analyzed for unusual patterns or behaviors, such as error rates or request latencies.
 
 ## Handling noisy input data
-`vmanomaly` operates on data fetched from VictoriaMetrics using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries, so the initial data quality can be fine-tuned with aggregation, grouping, and filtering to reduce noise and improve anomaly detection accuracy.
+As `vmanomaly` operates on data fetched from VictoriaMetrics using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) or [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries, the input data quality can be improved with aggregation, rollups, and filtering to reduce noise and improve anomaly detection accuracy.
 
 ## Using offsets
 `vmanomaly` supports {{% available_from "v1.25.3" anomaly %}} the use of offsets in the [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) section to adjust the time range of the data being queried. This can be particularly useful for correcting for data collection delays or other timing issues. It can be also defined or overridden on [per-query basis](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
@@ -389,7 +391,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.25.3
+    image: victoriametrics/vmanomaly:v1.26.0
     # ...
     ports:
       - "8490:8490"
@@ -574,6 +576,8 @@ For **horizontal** scalability, `vmanomaly` can be deployed as multiple independ
 
 ### Splitting the config
 
+> Use this approach for versions older than `v1.21.0` (or if you prefer manual control over the splitting process). Prefer the newer approach described on [dedicated page](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/) for horizontal scalability and high availability.
+
 CLI utility named `config_splitter` is available in `vmanomaly` {{% available_from "v1.18.5" anomaly %}}. The config splitter tool enables splitting a parent vmanomaly YAML configuration file into multiple sub-configurations based on logical entities  such as `schedulers`, `queries`, `models`, `extra_filters` and `complete` {{% available_from "v1.19.2" anomaly %}}. The resulting sub-configurations are fully validated, functional, account for many-to-many relationships between models and their associated queries, and the schedulers they are linked to. These sub-configurations can then be saved to a specified directory for further use:
 
 ```shellhelp
@@ -602,7 +606,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.25.3 && docker image tag victoriametrics/vmanomaly:v1.25.3 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.26.0 && docker image tag victoriametrics/vmanomaly:v1.26.0 vmanomaly
 ```
 
 ```sh
