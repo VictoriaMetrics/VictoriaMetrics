@@ -259,7 +259,7 @@ The received data is then forwarded to specified `-remoteWrite.url` destinations
 flowchart TB
     A[Pushed or Scraped samples] --> B[Ingestion rate limiting<br><b>-maxIngestionRate</b>]
     B --> C[Global <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.relabelConfig</b>]
-    C --> D[complexity limiting<br><b>-maxLabelsPerTimeseries</b><br><b>-maxLabelNameLen</b></b><br><b>-maxLabelValueLen</b>]
+    C --> D[complexity limiting<br><b>-maxLabelsPerTimeseries</b><br><b>-maxLabelNameLen</b><br><b>-maxLabelValueLen</b>]
     D --> E[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter">cardinality limiting</a><br><b>-remoteWrite.maxHourlySeries</b><br><b>-remoteWrite.maxDailySeries</b>]
     E --> F[Global <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-streamAggr.config</b><br><b>-streamAggr.dedupInterval</b>]
     F --> G[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability">replicate</a> to each <b>-remoteWrite.url</b><br/>or <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages">shard</a> if <b>-remoteWrite.shardByURL</b> is set]
