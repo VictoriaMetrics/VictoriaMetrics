@@ -32,6 +32,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-rule.resultsLimit` command-line flag to allow limiting the number of alerts or recording results a single rule can produce. See [#5792](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5792).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): remove the error log when marshaling an invalid comment or an empty HELP metadata line during scraping, if [metadata processing](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) is enabled. See [#9710](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9710).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent unexpected performance degradation caused by cache misses (exposed via `vm_cache_misses_total` metric) during rotation. See this PR (#9769)[https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9769] for details.
 
 ## [v1.126.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.126.0)
 
