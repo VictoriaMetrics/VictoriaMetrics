@@ -21,9 +21,6 @@ type blockStreamMerger struct {
 
 	// The last error
 	err error
-
-	// A flag to indicate which cache to use: sparse or regular.
-	useSparseCache bool
 }
 
 func (bsm *blockStreamMerger) reset() {
@@ -37,11 +34,10 @@ func (bsm *blockStreamMerger) reset() {
 	bsm.retentionDeadline = 0
 	bsm.nextBlockNoop = false
 	bsm.err = nil
-	bsm.useSparseCache = false
 }
 
 // Init initializes bsm with the given bsrs.
-func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, retentionDeadline int64, useSparseCache bool) {
+func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, retentionDeadline int64) {
 	bsm.reset()
 	bsm.retentionDeadline = retentionDeadline
 	for _, bsr := range bsrs {
@@ -63,7 +59,6 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, retentionDeadline 
 	heap.Init(&bsm.bsrHeap)
 	bsm.Block = &bsm.bsrHeap[0].Block
 	bsm.nextBlockNoop = true
-	bsm.useSparseCache = useSparseCache
 }
 
 func (bsm *blockStreamMerger) getRetentionDeadline(_ *blockHeader) int64 {

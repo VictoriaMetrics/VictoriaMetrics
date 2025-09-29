@@ -374,11 +374,12 @@ func TestMergeForciblyStop(t *testing.T) {
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&mp, -5)
 	ch := make(chan struct{})
-	var rowsMerged, rowsDeleted atomic.Uint64
-	close(ch)
-
 	dmis := &uint64set.Set{}
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, dmis, 0, &rowsMerged, &rowsDeleted, true); !errors.Is(err, errForciblyStopped) {
+	const retentionDeadline = 0
+	var rowsMerged, rowsDeleted atomic.Uint64
+
+	close(ch) // forcibly close the stop channel
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, dmis, retentionDeadline, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error in mergeBlockStreams: got %v; want %v", err, errForciblyStopped)
 	}
 	if n := rowsMerged.Load(); n != 0 {
@@ -393,13 +394,12 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	t.Helper()
 
 	var mp inmemoryPart
-
 	var bsw blockStreamWriter
 	bsw.MustInitFromInmemoryPart(&mp, -5)
-
 	dmis := &uint64set.Set{}
+	const retentionDeadline = 0
 	var rowsMerged, rowsDeleted atomic.Uint64
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, 0, &rowsMerged, &rowsDeleted, true); err != nil {
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, dmis, retentionDeadline, &rowsMerged, &rowsDeleted); err != nil {
 		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
 	}
 

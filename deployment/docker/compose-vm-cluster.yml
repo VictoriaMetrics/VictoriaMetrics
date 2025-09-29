@@ -19,7 +19,7 @@ services:
     restart: always
 
   grafana:
-    image: grafana/grafana:12.1.1
+    image: grafana/grafana:12.2.0
     depends_on:
       - "vmauth"
     ports:
@@ -138,7 +138,7 @@ services:
   # alertmanager receives alerting notifications from vmalert
   # and distributes them according to --config.file.
   alertmanager:
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.28.1
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:

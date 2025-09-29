@@ -77,8 +77,9 @@ Pull requests requirements:
 1. Avoid modifying code in the `/vendor` folder manually, even when the vendored package originates are from the VictoriaMetrics GitHub organization.
    For instance, VictoriaLogs vendors packages under the `/lib` folder from VictoriaMetrics, and VictoriaTraces vendors the `/lib/logstorage` package from VictoriaLogs.
    Submit a pull request to the upstream repository first. Afterward, a separate pull request can be opened to update the version of the vendored folder in downstream repository.
-   The update of vendored package can be done with: run `go get` with the **tag** (avoid using the commit hash),
-   and then run `go mod tidy` and `go mod vendor` to update the `go.mod`, `go.sum` and `/vendor`.
+   * For common packages, the vendored package can be updated with this command: `go get <dependency>@vX.Y.Z`.  
+   * For VictoriaMetrics packages, use `go get <dependency>@canonical_commit_hash`. 
+   Finally, run `go mod tidy` and `go mod vendor` to update `go.mod`, `go.sum`, and `/vendor`.
 1. Ping reviewers who you think have the best expertise on the matter.
 
 See good example of a [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).

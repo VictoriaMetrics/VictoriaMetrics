@@ -23,6 +23,14 @@
     user-select: none;
   }
 
+  &_disabled {
+    cursor: default;
+    pointer-events: none;
+    * {
+      color: $color-text-disabled !important;
+    }
+  }
+
   &__icon {
     position: absolute;
     bottom: 2px;

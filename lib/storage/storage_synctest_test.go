@@ -13,6 +13,94 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
+	defer testRemoveAll(t)
+
+	synctest.Test(t, func(t *testing.T) {
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
+		now := time.Now().UTC()
+		tr := TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		}
+		const numMetrics = 10
+		date := uint64(tr.MinTimestamp) / msecPerDay
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		var wantMetricIDs []uint64
+
+		// Simulate corrupted index by not creating nsPrefixMetricIDToTSID
+		// index entries.
+		for i := range numMetrics {
+			mn := MetricName{
+				MetricGroup: []byte(fmt.Sprintf("metric_%d", i)),
+			}
+			var tsid TSID
+			generateTSID(&tsid, &mn)
+			wantMetricIDs = append(wantMetricIDs, tsid.MetricID)
+			ii := testCreateIndexItems(date, &tsid, &mn, testIndexItemOpts{
+				skipMetricIDToTSID: true,
+			})
+
+			idbCurr.tb.AddItems(ii.Items)
+		}
+		idbCurr.tb.DebugFlush()
+
+		tfsAll := NewTagFilters()
+		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+		}
+		tfssAll := []*TagFilters{tfsAll}
+
+		searchMetricIDs := func() []uint64 {
+			metricIDs, err := idbCurr.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			if err != nil {
+				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
+			}
+			return metricIDs
+		}
+		searchTSIDs := func() []TSID {
+			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			if err != nil {
+				panic(fmt.Sprintf("SearchTSIDs() failed unexpectedly: %v", err))
+			}
+			return tsids
+		}
+
+		// Ensure that metricIDs can be searched.
+		if diff := cmp.Diff(wantMetricIDs, searchMetricIDs()); diff != "" {
+			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+		}
+		// Ensure that Storage.SearchTSIDs() returns empty result.
+		// The corrupted index lets to find metricIDs by tag (`__name__` tag in
+		// our case) but it lacks metricID->TSID mapping and hence the
+		// empty search result.
+		// The code detects this and puts such metricIDs into a special cache.
+		if diff := cmp.Diff([]TSID(nil), searchTSIDs()); diff != "" {
+			t.Fatalf("unexpected TSIDs (-want, +got):\n%s", diff)
+		}
+		// Ensure that the metricIDs still can be searched.
+		if diff := cmp.Diff(wantMetricIDs, searchMetricIDs()); diff != "" {
+			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+		}
+
+		time.Sleep(61 * time.Second)
+		synctest.Wait()
+
+		// If the same search is repeated after 1 minute, the metricIDs are
+		// marked as deleted.
+		if diff := cmp.Diff([]TSID(nil), searchTSIDs()); diff != "" {
+			t.Fatalf("unexpected metric names (-want, +got):\n%s", diff)
+		}
+		// As a result they cannot be searched anymore.
+		if diff := cmp.Diff([]uint64(nil), searchMetricIDs()); diff != "" {
+			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+		}
+	})
+}
+
 func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -31,29 +119,20 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 		var wantMetricIDs []uint64
 
-		// Simulate corrupted index by inserting `(date, tag) -> metricID`
-		// entries only.
+		// Simulate corrupted index by not creating nsPrefixMetricIDToMetricName
+		// index entries.
 		for i := range numMetrics {
-			metricName := []byte(fmt.Sprintf("metric_%d", i))
-			metricID := generateUniqueMetricID()
-			wantMetricIDs = append(wantMetricIDs, metricID)
-
-			ii := getIndexItems()
-
-			// Create per-day tag -> metricID entries for every tag in mn.
-			kb := kbPool.Get()
-			kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
-			kb.B = encoding.MarshalUint64(kb.B, date)
-			ii.B = append(ii.B, kb.B...)
-			ii.B = marshalTagValue(ii.B, nil)
-			ii.B = marshalTagValue(ii.B, metricName)
-			ii.B = encoding.MarshalUint64(ii.B, metricID)
-			ii.Next()
-			kbPool.Put(kb)
+			mn := MetricName{
+				MetricGroup: []byte(fmt.Sprintf("metric_%d", i)),
+			}
+			var tsid TSID
+			generateTSID(&tsid, &mn)
+			wantMetricIDs = append(wantMetricIDs, tsid.MetricID)
+			ii := testCreateIndexItems(date, &tsid, &mn, testIndexItemOpts{
+				skipMetricIDToMetricName: true,
+			})
 
 			idbCurr.tb.AddItems(ii.Items)
-
-			putIndexItems(ii)
 		}
 		idbCurr.tb.DebugFlush()
 
@@ -108,6 +187,73 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
 	})
+}
+
+type testIndexItemOpts struct {
+	skipMetricIDToMetricName bool
+	skipMetricIDToTSID       bool
+	skipTagToMetricIDs       bool
+	skipDateToMetricID       bool
+	skipDateMetricNameToTSID bool
+	skipDateTagToMetricIDs   bool
+}
+
+func testCreateIndexItems(date uint64, tsid *TSID, mn *MetricName, opts testIndexItemOpts) *indexItems {
+	var ii indexItems
+
+	if !opts.skipMetricIDToMetricName {
+		// Create metricID -> metricName entry.
+		ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName)
+		ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
+		ii.B = mn.Marshal(ii.B)
+		ii.Next()
+	}
+
+	if !opts.skipMetricIDToTSID {
+		// Create metricID -> TSID entry.
+		ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToTSID)
+		ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
+		ii.B = tsid.Marshal(ii.B)
+		ii.Next()
+	}
+
+	if !opts.skipTagToMetricIDs {
+		// Create tag -> metricID entries for every tag in mn.
+		kb := kbPool.Get()
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToMetricIDs)
+		ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
+		ii.Next()
+		kbPool.Put(kb)
+	}
+
+	if !opts.skipDateToMetricID {
+		// Create date -> metricID entry.
+		ii.B = marshalCommonPrefix(ii.B, nsPrefixDateToMetricID)
+		ii.B = encoding.MarshalUint64(ii.B, date)
+		ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
+		ii.Next()
+	}
+
+	if !opts.skipDateMetricNameToTSID {
+		// Create metricName -> TSID entry.
+		ii.B = marshalCommonPrefix(ii.B, nsPrefixDateMetricNameToTSID)
+		ii.B = encoding.MarshalUint64(ii.B, date)
+		ii.B = mn.Marshal(ii.B)
+		ii.B = append(ii.B, kvSeparatorChar)
+		ii.B = tsid.Marshal(ii.B)
+		ii.Next()
+	}
+
+	if !opts.skipDateTagToMetricIDs {
+		// Create per-day tag -> metricID entries for every tag in mn.
+		kb := kbPool.Get()
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
+		kb.B = encoding.MarshalUint64(kb.B, date)
+		ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
+		kbPool.Put(kb)
+	}
+
+	return &ii
 }
 
 func TestStorageRotateIndexDBPrefill(t *testing.T) {
@@ -186,21 +332,12 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 
 	// Test the default prefill start duration, see -storage.idbPrefillStart flag:
 	// VictoriaMetrics starts prefill indexDB at 3 A.M UTC, while indexDB rotates at 4 A.M UTC.
-	f(
-		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: time.Hour},
-		time.Hour,
-	)
+	f(OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: time.Hour}, time.Hour)
 
 	// Zero IDBPrefillStart option should fallback to 1 hour prefill start:
-	f(
-		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 0},
-		time.Hour,
-	)
+	f(OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 0}, time.Hour)
 
 	// Test a custom prefill duration: 2h:
 	// VictoriaMetrics starts prefill indexDB at 2 A.M UTC, while indexDB rotates at 4 A.M UTC.
-	f(
-		OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 2 * time.Hour},
-		2*time.Hour,
-	)
+	f(OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 2 * time.Hour}, 2*time.Hour)
 }
