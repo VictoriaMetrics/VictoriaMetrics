@@ -18,7 +18,10 @@ func (c *Client) setVLogsInstantReqParams(r *http.Request, query string, timesta
 	// so the query will be executed in time range [timestamp - evaluationInterval, timestamp].
 	if c.applyIntervalAsTimeFilter && c.evaluationInterval > 0 {
 		q.Set("start", timestamp.Add(-c.evaluationInterval).Format(time.RFC3339))
-		q.Set("end", timestamp.Format(time.RFC3339))
+		// decrease end by one second in order to avoid capturing logs belonging
+		// to the next period of time.
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9753
+		q.Set("end", timestamp.Add(-1*time.Second).Format(time.RFC3339))
 	}
 	r.URL.RawQuery = q.Encode()
 	c.setReqParams(r, query)
