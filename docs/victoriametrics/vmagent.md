@@ -279,7 +279,7 @@ flowchart TB
       R4 --> R5[[push to <b>-remoteWrite.url</b>]]
 ```
 
-Scraping has additional settings that can be applied before samples will be pushed to the processing pipleine above:
+Scraping has additional settings that can be applied before samples are pushed to the processing pipeline above:
 1. [Service Discovery relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#service-discovery-relabeling)
 2. [Scraping relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#scraping-relabeling)
 3. `sample_limit`, `series_limit`, `label_limit` in [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
