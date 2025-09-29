@@ -735,7 +735,7 @@ func TestRequestParams(t *testing.T) {
 		applyIntervalAsTimeFilter: true,
 	}, func(t *testing.T, r *http.Request) {
 		ts := timestamp.Format(time.RFC3339)
-		exp := url.Values{"query": {vlogsQuery}, "time": {ts}, "start": {timestamp.Add(-time.Minute).Format(time.RFC3339)}, "end": {ts}}
+		exp := url.Values{"query": {vlogsQuery}, "time": {ts}, "start": {timestamp.Add(-time.Minute).Format(time.RFC3339)}, "end": {timestamp.Add(-time.Second).Format(time.RFC3339)}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 	})
 
