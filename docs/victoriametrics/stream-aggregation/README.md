@@ -435,7 +435,7 @@ In this case it may be a good idea to drop the aggregated data during the first 
 just after the restart of `vmagent` or single-node VictoriaMetrics. This can be done via the following options:
 
 - The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
-  [aggregation intervals](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) just after the restart across all the [configured stream aggregation configs](#configuration).
+  [aggregation intervals](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) just after the restart across all the [configured stream aggregation configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/).
 
   The `-remoteWrite.streamAggr.ignoreFirstIntervals` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
