@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -69,6 +70,17 @@ type Cache struct {
 	stopCh chan struct{}
 }
 
+func newFastCacheWithCleanup(maxBytes int) *fastcache.Cache {
+	c := fastcache.New(maxBytes)
+	// additionally call reset when cache is no longer reacheable
+	// since due to atomic pointers, cache could be in-use by Set or Get method
+	// during it's replacement by newFastCacheWithCleanup
+	runtime.SetFinalizer(c, func(c *fastcache.Cache) {
+		c.Reset()
+	})
+	return c
+}
+
 // Load loads the cache from filePath and limits its size to maxBytes
 // and evicts inactive entries in *cacheExpireDuration minutes.
 //
@@ -95,7 +107,7 @@ func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
 	} else {
 		logger.Errorf("cache at path %s is invalid: %s; init new cache", filePath, err)
 	}
-	return fastcache.New(maxBytes)
+	return newFastCacheWithCleanup(maxBytes)
 }
 
 func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
@@ -112,13 +124,13 @@ func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 		// Try loading it again with maxBytes / 2 size.
 		// Put the loaded cache into `prev` instead of `curr`
 		// in order to limit the growth of the cache for the current period of time.
-		curr = fastcache.New(maxBytes / 2)
+		curr = newFastCacheWithCleanup(maxBytes / 2)
 		prev = loadFromFileOrNew(filePath, maxBytes/2)
 		mode = split
 	} else {
 		// The cache has been successfully loaded in full.
 		// Set its' mode to `whole`.
-		prev = fastcache.New(1024)
+		prev = newFastCacheWithCleanup(1024)
 		mode = whole
 	}
 
@@ -136,8 +148,8 @@ func New(maxBytes int) *Cache {
 }
 
 func newWithExpire(maxBytes int, expireDuration time.Duration) *Cache {
-	curr := fastcache.New(maxBytes / 2)
-	prev := fastcache.New(1024)
+	curr := newFastCacheWithCleanup(maxBytes / 2)
+	prev := newFastCacheWithCleanup(1024)
 	c := newCacheInternal(curr, prev, split, maxBytes)
 	c.runWatchers(expireDuration)
 	return c
@@ -308,7 +320,7 @@ func (c *Cache) transitIntoWholeMode(maxBytesSize uint64, t *time.Ticker) {
 	prev.Reset()
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.
-	c.curr.Store(fastcache.New(c.maxBytes))
+	c.curr.Store(newFastCacheWithCleanup(c.maxBytes))
 	c.mu.Unlock()
 
 	for {
@@ -337,7 +349,7 @@ func (c *Cache) transitIntoWholeMode(maxBytesSize uint64, t *time.Ticker) {
 	}
 	c.mode.Store(whole)
 	prev = c.prev.Load()
-	c.prev.Store(fastcache.New(1024))
+	c.prev.Store(newFastCacheWithCleanup(1024))
 	cs.Reset()
 	prev.UpdateStats(&cs)
 	updateCacheStatsHistory(&c.csHistory, &cs)
@@ -376,8 +388,8 @@ func (c *Cache) Reset() {
 	if mode != split {
 		// non-split mode changes size of the caches
 		// so we have to restore it into original size for split mode
-		c.prev.Store(fastcache.New(c.maxBytes / 2))
-		c.curr.Store(fastcache.New(c.maxBytes / 2))
+		c.prev.Store(newFastCacheWithCleanup(c.maxBytes / 2))
+		c.curr.Store(newFastCacheWithCleanup(c.maxBytes / 2))
 	}
 	var cs fastcache.Stats
 	prev.UpdateStats(&cs)
