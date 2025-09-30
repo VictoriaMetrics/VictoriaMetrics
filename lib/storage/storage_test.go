@@ -685,11 +685,15 @@ func testStorageRandTimestamps(s *Storage) error {
 func TestStorageDeletePendingSeries(t *testing.T) {
 	defer testRemoveAll(t)
 
-	const numMonths = 10
+	const (
+		accountID = 12
+		projectID = 34
+		numMonths = 10
+	)
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 
 	var metricGroupName = []byte("metric")
-	tfs := NewTagFilters(0, 0)
+	tfs := NewTagFilters(accountID, projectID)
 	if err := tfs.Add(nil, metricGroupName, false, false); err != nil {
 		t.Fatalf("cannot add tag filter: %s", err)
 	}
@@ -697,11 +701,14 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 	addRows := func(from, to time.Time, reverse bool) {
 		t.Helper()
 
-		var mn MetricName
-		mn.Tags = []Tag{
-			{[]byte("job"), []byte("job")},
+		mn := MetricName{
+			AccountID:   accountID,
+			ProjectID:   projectID,
+			MetricGroup: metricGroupName,
+			Tags: []Tag{
+				{[]byte("job"), []byte("job")},
+			},
 		}
-		mn.MetricGroup = metricGroupName
 		metricNameRaw := mn.marshalRaw(nil)
 
 		ts := from
@@ -743,7 +750,7 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 		ts := time.Unix(0, 0)
 		n := 0
 		for range numMonths {
-			lns, err := s.SearchLabelNames(nil, 0, 0, nil, TimeRange{ts.UnixMilli(), ts.UnixMilli()}, 1e5, 1e9, noDeadline)
+			lns, err := s.SearchLabelNames(nil, accountID, projectID, nil, TimeRange{ts.UnixMilli(), ts.UnixMilli()}, 1e5, 1e9, noDeadline)
 			if err != nil {
 				t.Fatalf("error in SearchLabelNames: %s", err)
 				return
@@ -1165,6 +1172,11 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	defer testRemoveAll(t)
 
+	const (
+		accountID = 12
+		projectID = 34
+	)
+
 	month1 := TimeRange{
 		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
@@ -1173,7 +1185,10 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		MinTimestamp: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 2, 15, 0, 0, 0, 0, time.UTC).UnixMilli(),
 	}
-	var mn MetricName
+	mn := MetricName{
+		AccountID: accountID,
+		ProjectID: projectID,
+	}
 	mn.MetricGroup = []byte("metric1")
 	mr1Month1 := MetricRow{
 		MetricNameRaw: mn.marshalRaw(nil),
@@ -1204,7 +1219,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	s.DebugFlush()
 
 	tfss := func(metricNameRE string) []*TagFilters {
-		tfs := NewTagFilters(0, 0)
+		tfs := NewTagFilters(accountID, projectID)
 		if err := tfs.Add(nil, []byte(metricNameRE), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
@@ -1537,20 +1552,24 @@ func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
 	defer testRemoveAll(t)
 
 	rng := rand.New(rand.NewSource(1))
-	const numSeries = 100
+	const (
+		accountID = 12
+		projectID = 34
+		numSeries = 100
+	)
 	trPrev := TimeRange{
 		MinTimestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2020, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrsPrev := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numSeries, "prev", trPrev)
+	mrsPrev := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "prev", trPrev)
 	trCurr := TimeRange{
 		MinTimestamp: time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2020, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
-	mrsCurr := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numSeries, "curr", trCurr)
+	mrsCurr := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "curr", trCurr)
 	deleteSeries := func(s *Storage, want, wantTotal int) {
 		t.Helper()
-		tfs := NewTagFilters(0, 0)
+		tfs := NewTagFilters(accountID, projectID)
 		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
@@ -3759,8 +3778,10 @@ func TestStorageGetTSDBStatusWithoutPerDayIndex(t *testing.T) {
 
 func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 	const (
-		days = 4
-		rows = 10
+		accountID = 12
+		projectID = 34
+		days      = 4
+		rows      = 10
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
@@ -3777,6 +3798,8 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 		for row := 0; row < rows; row++ {
 			name := fmt.Sprintf("metric_%d", rows*day+row)
 			mn := &MetricName{
+				AccountID:   accountID,
+				ProjectID:   projectID,
 				MetricGroup: []byte(name),
 			}
 			metricNameRaw := mn.marshalRaw(nil)
@@ -3794,7 +3817,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
 		t.Helper()
 
-		tfsAll := NewTagFilters(0, 0)
+		tfsAll := NewTagFilters(accountID, projectID)
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 		}
@@ -3820,8 +3843,10 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 
 func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
 	const (
-		days = 4
-		rows = 10
+		accountID = 12
+		projectID = 34
+		days      = 4
+		rows      = 10
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
@@ -3838,6 +3863,8 @@ func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
 		for row := 0; row < rows; row++ {
 			labelName := fmt.Sprintf("job_%d", rows*day+row)
 			mn := &MetricName{
+				AccountID:   accountID,
+				ProjectID:   projectID,
 				MetricGroup: []byte("metric"),
 				Tags: []Tag{
 					{[]byte(labelName), []byte("webservice")},
@@ -3858,7 +3885,7 @@ func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
 
 	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
 		t.Helper()
-		got, err := s.SearchLabelNames(nil, 0, 0, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		got, err := s.SearchLabelNames(nil, accountID, projectID, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
 			t.Fatalf("SearchLabelNames(%v) failed unexpectedly: %v", &tr, err)
 		}
@@ -3874,6 +3901,8 @@ func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
 
 func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
 	const (
+		accountID = 12
+		projectID = 34
 		days      = 4
 		rows      = 10
 		labelName = "job"
@@ -3893,6 +3922,8 @@ func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
 		for row := 0; row < rows; row++ {
 			labelValue := fmt.Sprintf("webservice_%d", rows*day+row)
 			mn := &MetricName{
+				AccountID:   accountID,
+				ProjectID:   projectID,
 				MetricGroup: []byte("metric"),
 				Tags: []Tag{
 					{[]byte(labelName), []byte(labelValue)},
@@ -3912,7 +3943,7 @@ func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
 
 	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
 		t.Helper()
-		got, err := s.SearchLabelValues(nil, 0, 0, labelName, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		got, err := s.SearchLabelValues(nil, accountID, projectID, labelName, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
 			t.Fatalf("SearchLabelValues(%v) failed unexpectedly: %v", &tr, err)
 		}
@@ -3928,6 +3959,8 @@ func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
 
 func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 	const (
+		accountID      = 12
+		projectID      = 34
 		days           = 4
 		rows           = 10
 		tagValuePrefix = "metric."
@@ -3946,6 +3979,8 @@ func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 		for row := 0; row < rows; row++ {
 			metricName := fmt.Sprintf("%sday%d.row%d", tagValuePrefix, day, row)
 			mn := &MetricName{
+				AccountID:   accountID,
+				ProjectID:   projectID,
 				MetricGroup: []byte(metricName),
 			}
 			metricNameRaw := mn.marshalRaw(nil)
@@ -3962,7 +3997,7 @@ func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 
 	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
 		t.Helper()
-		got, err := s.SearchTagValueSuffixes(nil, 0, 0, tr, "", tagValuePrefix, '.', 1e6, noDeadline)
+		got, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", tagValuePrefix, '.', 1e6, noDeadline)
 		if err != nil {
 			t.Fatalf("SearchTagValueSuffixes(%v) failed unexpectedly: %v", &tr, err)
 		}
@@ -3978,8 +4013,10 @@ func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 
 func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 	const (
-		days = 4
-		rows = 10
+		accountID = 12
+		projectID = 34
+		days      = 4
+		rows      = 10
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
@@ -3996,6 +4033,8 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 		for row := 0; row < rows; row++ {
 			metricName := fmt.Sprintf("day%d.row%d", day, row)
 			mn := &MetricName{
+				AccountID:   accountID,
+				ProjectID:   projectID,
 				MetricGroup: []byte(metricName),
 			}
 			metricNameRaw := mn.marshalRaw(nil)
@@ -4012,7 +4051,7 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 
 	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
 		t.Helper()
-		got, err := s.SearchGraphitePaths(nil, 0, 0, tr, []byte("*.*"), 1e6, noDeadline)
+		got, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e6, noDeadline)
 		if err != nil {
 			t.Fatalf("SearchGraphitePaths(%v) failed unexpectedly: %v", &tr, err)
 		}
@@ -4028,8 +4067,10 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 
 func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
 	const (
-		days = 4
-		rows = 10
+		accountID = 12
+		projectID = 34
+		days      = 4
+		rows      = 10
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
@@ -4047,6 +4088,8 @@ func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
 			seqNumber := rows*day + row
 			name := fmt.Sprintf("metric_%d", seqNumber)
 			mn := &MetricName{
+				AccountID:   accountID,
+				ProjectID:   projectID,
 				MetricGroup: []byte(name),
 			}
 			metricNameRaw := mn.marshalRaw(nil)
@@ -4064,7 +4107,7 @@ func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
 	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
 		t.Helper()
 
-		tfs := NewTagFilters(0, 0)
+		tfs := NewTagFilters(accountID, projectID)
 		if err := tfs.Add(nil, []byte(`metric_\d*`), false, true); err != nil {
 			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}

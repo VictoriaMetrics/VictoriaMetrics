@@ -289,9 +289,13 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 				MinTimestamp: ct.Add(time.Hour).UnixMilli(),
 				MaxTimestamp: ct.Add(time.Hour * 24).UnixMilli(),
 			}
-			const numSeries = 1000
+			const (
+				accountID = 12
+				projectID = 34
+				numSeries = 1000
+			)
 
-			mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, 0, 0, numSeries, "metric.", tr)
+			mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "metric.", tr)
 			s.AddRows(mrs, 1)
 			s.DebugFlush()
 			createdSeries := s.newTimeseriesCreated.Load()
