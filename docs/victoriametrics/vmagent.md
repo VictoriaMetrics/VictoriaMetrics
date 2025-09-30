@@ -246,13 +246,13 @@ for the collected samples. Examples:
 - The following command instructs `vmagent` to merge [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) with different `replica` label values
   and then to send only the last sample per each merged series per every 60 seconds:
   ```sh
-  ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
+  ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
 
 ### Life of a sample
 
 vmagent supports limiting, relabeling, deduplication and stream aggregation for all the received metric samples, scraped or pushed.
-The received data is then forwarded to specified `-remoteWrite.url` destinations. The processing pipeline is the following:
+The received data is then forwarded to the specified `-remoteWrite.url` destinations. The processing pipeline is the following:
 
 ```mermaid
 %%{init: { "themeCSS": ".nodeLabel, .edgeLabel { white-space: nowrap; word-break: normal; overflow-wrap: normal; }" }}%%
