@@ -339,6 +339,28 @@ func TestParseStream(t *testing.T) {
 		true,
 	)
 
+	// Test exponential histograms negative buckets
+	f(
+		[]*pb.Metric{
+			generateNegativeExpHistogram("test-histogram", "m/s"),
+		},
+		[]prompb.TimeSeries{
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-1.067e+00...-1.061e+00")),
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 10.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-1.073e+00...-1.067e+00")),
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-1.091e+00...-1.085e+00")),
+			newPromPBTs("test_histogram_meters_per_second_count", 15000, 20.0, jobLabelValue, kvLabel("label1", "value1")),
+			newPromPBTs("test_histogram_meters_per_second_sum", 15000, -4578.0, jobLabelValue, kvLabel("label1", "value1")),
+		},
+		[]prompb.MetricMetadata{
+			{
+				MetricFamilyName: "test_histogram_meters_per_second",
+				Type:             uint32(prompb.MetricMetadataHISTOGRAM),
+				Unit:             "m/s",
+			},
+		},
+		true,
+	)
+
 	// Test gauge with deeply nested attributes
 	f(
 		[]*pb.Metric{
@@ -507,6 +529,30 @@ func generateExpHistogram(name, unit string) *pb.Metric {
 					Sum:          &sum,
 					Scale:        7,
 					Positive: &pb.Buckets{
+						Offset:       7,
+						BucketCounts: []uint64{0, 0, 0, 0, 5, 10, 0, 0, 1},
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateNegativeExpHistogram(name, unit string) *pb.Metric {
+	sum := float64(-4578)
+	return &pb.Metric{
+		Name: name,
+		Unit: unit,
+		ExponentialHistogram: &pb.ExponentialHistogram{
+			AggregationTemporality: pb.AggregationTemporalityCumulative,
+			DataPoints: []*pb.ExponentialHistogramDataPoint{
+				{
+					Attributes:   attributesFromKV("label1", "value1"),
+					TimeUnixNano: uint64(15 * time.Second),
+					Count:        20,
+					Sum:          &sum,
+					Scale:        7,
+					Negative: &pb.Buckets{
 						Offset:       7,
 						BucketCounts: []uint64{0, 0, 0, 0, 5, 10, 0, 0, 1},
 					},
