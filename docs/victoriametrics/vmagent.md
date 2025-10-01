@@ -166,18 +166,6 @@ to the same second-level `vmagent` instance, so they are aggregated properly.
 If `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
 among remote storage systems specified in `-remoteWrite.url`.
 
-> The `-remoteWrite.shardByURL` may not work as expected when [SRV URLs](#srv-urls) are in used.
->
-> To be more specific, when sharding is enabled, the data will be sharded **with consistent hashing** to configured URLs.
-> It expects same series to be sent to same URL. If the URL is an SRV URL, it will be further resolved into the real address,
-> and if there are multiple addresses in the resolved result, `vmagent` will choose one from the result randomly. In
-> such case, the consistent hashing will not work correctly, as same data may be sent to different addresses in the DNS SRV records.
->
-> As an example, configuring `-remoteWrite.shardByURL` with 1 SRV URL which will be resolved into `N` addresses will have
-> different result than configuring `-remoteWrite.shardByURL` with `N` URLs. The former case only contains 1 shard, and
-> the data will be sent to random destinations, which against the consistent hashing behaviour.
->
->
 > The `-remoteWrite.shardByURL` may not work as expected when SRV URLs are in use.
 >
 > To be more specific, when sharding is enabled, the data will be sharded **with consistent hashing** to configured URLs.
