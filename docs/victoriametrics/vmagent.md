@@ -255,8 +255,43 @@ for the collected samples. Examples:
   and then to send only the last sample per each merged series per every 60 seconds:
 
   ```sh
-  ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
+  ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
+
+### Life of a sample
+
+vmagent supports limiting, relabeling, deduplication and stream aggregation for all the received metric samples, scraped or pushed.
+The received data is then forwarded to the specified `-remoteWrite.url` destinations. The processing pipeline is the following:
+
+```mermaid
+%%{init: { "themeCSS": ".nodeLabel, .edgeLabel { white-space: nowrap; word-break: normal; overflow-wrap: normal; }" }}%%
+flowchart TB
+    A[Pushed or Scraped samples] --> B[Ingestion rate limiting<br><b>-maxIngestionRate</b>]
+    B --> C[Global <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.relabelConfig</b>]
+    C --> D[complexity limiting<br><b>-maxLabelsPerTimeseries</b><br><b>-maxLabelNameLen</b><br><b>-maxLabelValueLen</b>]
+    D --> E[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter">cardinality limiting</a><br><b>-remoteWrite.maxHourlySeries</b><br><b>-remoteWrite.maxDailySeries</b>]
+    E --> F[Global <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-streamAggr.config</b><br><b>-streamAggr.dedupInterval</b>]
+    F --> G[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability">replicate</a> to each <b>-remoteWrite.url</b><br/>or <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages">shard</a> if <b>-remoteWrite.shardByURL</b> is set]
+
+      %% Left branch
+      G --> H1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
+      H1 --> H2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
+      H2 --> H3[per-url extra labels<br><b>-remoteWrite.label</b>]
+      H3 --> H4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      H4 --> H5[[push to <b>-remoteWrite.url</b>]]
+
+      %% Right branch
+      G --> R1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
+      R1 --> R2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
+      R2 --> R3[per-url extra labels<br><b>-remoteWrite.label</b>]
+      R3 --> R4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      R4 --> R5[[push to <b>-remoteWrite.url</b>]]
+```
+
+Scraping has additional settings that can be applied before samples are pushed to the processing pipeline above:
+1. [Service Discovery relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#service-discovery-relabeling)
+2. [Scraping relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#scraping-relabeling)
+3. `sample_limit`, `series_limit`, `label_limit` in [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
 
 ## How to push data to vmagent
 
