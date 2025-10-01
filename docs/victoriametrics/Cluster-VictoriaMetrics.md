@@ -379,7 +379,7 @@ The multi-level cluster setup for `vminsert` nodes has the following shortcoming
 These issues are addressed by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) when it runs in front of AZs
 to [replicate](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability) or [shard](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages)
 data stream. If AZ is temporarily unavailable, `vmagent` [buffers](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence)
-its data on-disk without affecting other destinations. The buffered data is sent to AZ as soon as it becomes available.
+its data on-disk (see `--remoteWrite.maxDiskUsagePerURL`) without affecting other destinations. The buffered data is sent to AZ as soon as it becomes available.
 
 See the [cluster instability troubleshooting guide](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability) for details on diagnosing and mitigating networking problems.
 
