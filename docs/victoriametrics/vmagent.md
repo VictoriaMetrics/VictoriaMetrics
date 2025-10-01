@@ -255,8 +255,43 @@ for the collected samples. Examples:
   and then to send only the last sample per each merged series per every 60 seconds:
 
   ```sh
-  ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
+  ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
+
+### Life of a sample
+
+vmagent supports limiting, relabeling, deduplication and stream aggregation for all the received metric samples, scraped or pushed.
+The received data is then forwarded to the specified `-remoteWrite.url` destinations. The processing pipeline is the following:
+
+```mermaid
+%%{init: { "themeCSS": ".nodeLabel, .edgeLabel { white-space: nowrap; word-break: normal; overflow-wrap: normal; }" }}%%
+flowchart TB
+    A[Pushed or Scraped samples] --> B[Ingestion rate limiting<br><b>-maxIngestionRate</b>]
+    B --> C[Global <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.relabelConfig</b>]
+    C --> D[complexity limiting<br><b>-maxLabelsPerTimeseries</b><br><b>-maxLabelNameLen</b><br><b>-maxLabelValueLen</b>]
+    D --> E[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter">cardinality limiting</a><br><b>-remoteWrite.maxHourlySeries</b><br><b>-remoteWrite.maxDailySeries</b>]
+    E --> F[Global <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-streamAggr.config</b><br><b>-streamAggr.dedupInterval</b>]
+    F --> G[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability">replicate</a> to each <b>-remoteWrite.url</b><br/>or <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages">shard</a> if <b>-remoteWrite.shardByURL</b> is set]
+
+      %% Left branch
+      G --> H1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
+      H1 --> H2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
+      H2 --> H3[per-url extra labels<br><b>-remoteWrite.label</b>]
+      H3 --> H4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      H4 --> H5[[push to <b>-remoteWrite.url</b>]]
+
+      %% Right branch
+      G --> R1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
+      R1 --> R2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
+      R2 --> R3[per-url extra labels<br><b>-remoteWrite.label</b>]
+      R3 --> R4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      R4 --> R5[[push to <b>-remoteWrite.url</b>]]
+```
+
+Scraping has additional settings that can be applied before samples are pushed to the processing pipeline above:
+1. [Service Discovery relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#service-discovery-relabeling)
+2. [Scraping relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/#scraping-relabeling)
+3. `sample_limit`, `series_limit`, `label_limit` in [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
 
 ## How to push data to vmagent
 
@@ -810,7 +845,7 @@ There are cases when it is better disabling on-disk persistence for pending data
 
 * When the persistent disk performance isn't enough for the given data processing rate.
 * When it is better to buffer pending data at the client side instead of buffering it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
-* When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or at [Google PubSub side](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics).
+* When the data is already buffered at [Kafka side](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics) or at [Google PubSub side](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics).
 * When it is better to drop pending data instead of buffering it.
 
 In this case `-remoteWrite.disableOnDiskQueue` command-line flag can be passed to `vmagent` per each configured `-remoteWrite.url`.
@@ -820,7 +855,7 @@ and the `-remoteWrite.disableOnDiskQueue` command-line flag is set:
 * It returns `429 Too Many Requests` HTTP error to clients, which send data to `vmagent` via [supported HTTP endpoints](#how-to-push-data-to-vmagent).
   If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.url` command-line flags are set,
   then the ingested samples are silently dropped instead of returning the error to clients.
-* It suspends consuming data from [Kafka side](#reading-metrics-from-kafka) or [Google PubSub side](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/) until the remote storage becomes available.
+* It suspends consuming data from [Kafka side](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics) or [Google PubSub side](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/) until the remote storage becomes available.
   If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.disableOnDiskQueue` command-line flags are set
   for different `-remoteWrite.url` options, then the fetched samples are silently dropped instead of suspending data consumption from Kafka or Google PubSub.
 * It drops samples pushed to `vmagent` via non-HTTP protocols and logs the error. Pass `-remoteWrite.dropSamplesOnOverload` command-line flag in order
@@ -1089,7 +1124,7 @@ For example, if `vmagent` needs to scrape thousands of targets in resource-const
 * Disable tracking of original labels for the discovered targets via `-promscrape.dropOriginalLabels` command-line flag. This helps reducing RAM usage when `vmagent`
   discovers large number of scrape targets and the majority of these targets are [dropped](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-drop-discovered-targets).
   This is a typical case when `vmagent` discovers Kubernetes targets. The downside of using `-promscrape.dropOriginalLabels` command-line flag
-  is the reduced [debuggability](#debugging-scrape-targets) for improperly configured per-target relabeling.
+  is the reduced [debuggability](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging) for improperly configured per-target relabeling.
 
 * Disable [staleness markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers) via `-promscrape.noStaleMarkers` command-line flag
   or via `no_stale_markers: true` option in the [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs). This reduces RAM usage and CPU usage.

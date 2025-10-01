@@ -330,18 +330,7 @@ deduplication and stream aggregation for all the received data, scraped or pushe
 The processed data is then stored in local storage and **can't be forwarded further**.
 
 [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) supports relabeling, deduplication and stream aggregation for all 
-the received data, scraped or pushed. Then, the collected data will be forwarded to specified `-remoteWrite.url` destinations.
-The data processing order is the following:
-
-1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/victoriametrics/relabeling/) (if it is set)
-1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication)
-   (if it is set to duration bigger than 0)
-1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#configuration) (if it is set)
-1. the resulting data is then replicated to each `-remoteWrite.url`
-1. data sent to each `-remoteWrite.url` can be additionally relabeled according to the corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL)
-1. data sent to each `-remoteWrite.url` can be additionally deduplicated according to the corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL)
-1. data sent to each `-remoteWrite.url` can be additionally aggregated according to the corresponding `-remoteWrite.streamAggr.config` (set individually per URL)
-   It isn't recommended using `-streamAggr.config` and `-remoteWrite.streamAggr.config` simultaneously, unless you understand the complications.
+the received data, scraped or pushed. See the [processing order for vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/#life-of-a-sample).
 
 Typical scenarios for data routing with `vmagent`:
 
@@ -435,7 +424,7 @@ In this case it may be a good idea to drop the aggregated data during the first 
 just after the restart of `vmagent` or single-node VictoriaMetrics. This can be done via the following options:
 
 - The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
-  [aggregation intervals](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) just after the restart across all the [configured stream aggregation configs](#configuration).
+  [aggregation intervals](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) just after the restart across all the [configured stream aggregation configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/).
 
   The `-remoteWrite.streamAggr.ignoreFirstIntervals` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
