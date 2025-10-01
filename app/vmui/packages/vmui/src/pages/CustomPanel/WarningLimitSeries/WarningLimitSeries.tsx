@@ -40,7 +40,7 @@ const WarningLimitSeries: FC<Props> = ({ warning, query, onChange }) => {
           variant="outlined"
           onClick={handleShowAll}
         >
-        Show all
+          Show all
         </Button>
       </div>
     </Alert>

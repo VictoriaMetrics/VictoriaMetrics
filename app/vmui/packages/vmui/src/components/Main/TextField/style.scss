@@ -1,7 +1,6 @@
 @use "src/styles/variables" as *;
 
 .vm-text-field {
-  position: relative;
   display: grid;
   margin: 6px 0;
   width: 100%;
@@ -31,7 +30,7 @@
     background-color: transparent;
     font-size: $font-size;
     line-height: 18px;
-    grid-area: 1 / 1 / 2 / 2;
+    grid-area: 2 / 1 / 2 / 2;
     overflow: hidden;
     box-sizing: border-box;
   }
@@ -40,8 +39,10 @@
   &__error,
   &__warning,
   &__helper-text, {
-    position: absolute;
-    left: calc($padding-global/2);
+    width: fit-content;
+    margin-top: calc(($font-size-small/-2) - 1px);
+    margin-bottom: calc(($font-size-small/-2) - 1px);
+    margin-left: calc($padding-global/2);
     max-width: calc(100% - $padding-global);
     padding: 0 3px;
     font-size: $font-size-small;
@@ -59,16 +60,12 @@
   }
 
   &__label {
-    top: calc(($font-size-small/-2) - 2px);
     color: $color-text-secondary;
   }
 
   &__helper-text,
   &__warning,
   &__error {
-    position: relative;
-    top: calc($font-size-small/-2);
-    width: fit-content;
     overflow-wrap: anywhere;
     pointer-events: auto;
     user-select: text;
@@ -152,28 +149,17 @@
 
   &__icon-start,
   &__icon-end {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    align-self: center;
     max-width: 15px;
-    top: 0;
-    left: $padding-small;
-    height: 36px;
     position: absolute;
     color: $color-text-secondary;
+  }
+
+  &__icon-start {
+    left: $padding-small;
   }
 
   &__icon-end {
-    left: auto;
     right: $padding-small;
-  }
-
-  &__controls-info {
-    position: absolute;
-    bottom: $padding-small;
-    right: $padding-global;
-    color: $color-text-secondary;
-    font-size: $font-size-small;
-    opacity: 0.8;
   }
 }

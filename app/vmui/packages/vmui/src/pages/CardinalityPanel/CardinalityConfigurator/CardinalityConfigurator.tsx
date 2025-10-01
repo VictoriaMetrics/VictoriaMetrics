@@ -116,7 +116,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
             withIcon={true}
           >
             <WikiIcon/>
-          Statistic inaccuracy explanation
+            Statistic inaccuracy explanation
           </Hyperlink>
         </div>
       }
