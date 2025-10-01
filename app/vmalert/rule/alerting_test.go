@@ -1432,11 +1432,10 @@ func TestAlertingRuleExec_Partial(t *testing.T) {
 }
 
 func TestAlertingRule_QueryTemplateInLabels(t *testing.T) {
-
+	fq := &datasource.FakeQuerier{}
 	fakeGroup := Group{
 		Name: "TestQueryTemplateInLabels",
 	}
-	fq := &datasource.FakeQuerier{}
 
 	ar := &AlertingRule{
 		Name: "test_alert",
@@ -1468,15 +1467,14 @@ func TestAlertingRule_QueryTemplateInLabels(t *testing.T) {
 		t.Fatalf("expected 1 alert, got %d", len(ar.alerts))
 	}
 
-	for _, alert := range ar.alerts {
-		suppressLabel, exists := alert.Labels["suppress_for_mass_alert"]
-		if !exists {
-			t.Fatalf("expected 'suppress_for_mass_alert' label to exist")
-		}
-		// The query template should have been executed (even if it returns false due to mock data)
-		if suppressLabel != "true" && suppressLabel != "false" {
-			t.Fatalf("expected 'suppress_for_mass_alert' label to be 'true' or 'false', got '%s'", suppressLabel)
-		}
+	alert := ar.GetAlerts()[0]
+	suppressLabel, exists := alert.Labels["suppress_for_mass_alert"]
+	if !exists {
+		t.Fatalf("expected 'suppress_for_mass_alert' label to exist")
+	}
+	// The query template should have been executed (even if it returns false due to mock data)
+	if suppressLabel != "true" && suppressLabel != "false" {
+		t.Fatalf("expected 'suppress_for_mass_alert' label to be 'true' or 'false', got '%s'", suppressLabel)
 	}
 }
 
@@ -1484,6 +1482,7 @@ func TestAlertingRule_QueryTemplateInLabels(t *testing.T) {
 // https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543 is preserved
 // while allowing query templates in labels (https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9783)
 func TestAlertingRule_ActiveAtPreservedInAnnotations(t *testing.T) {
+	// wrap into synctest because of time manipulations
 	synctest.Test(t, func(t *testing.T) {
 		fq := &datasource.FakeQuerier{}
 
@@ -1519,12 +1518,7 @@ func TestAlertingRule_ActiveAtPreservedInAnnotations(t *testing.T) {
 			t.Fatalf("expected 1 alert, got %d", len(ar.alerts))
 		}
 
-		var firstAlert *notifier.Alert
-		for _, a := range ar.alerts {
-			firstAlert = a
-			break
-		}
-
+		firstAlert := ar.GetAlerts()[0]
 		// Verify first execution: activeAt should be ts1 and annotation should reflect it
 		if !firstAlert.ActiveAt.Equal(ts1) {
 			t.Fatalf("expected activeAt to be %v, got %v", ts1, firstAlert.ActiveAt)
@@ -1537,7 +1531,10 @@ func TestAlertingRule_ActiveAtPreservedInAnnotations(t *testing.T) {
 		}
 
 		// Second execution - should preserve activeAt in annotation
-		time.Sleep(2 * time.Second) // Ensure different timestamp with different seconds
+
+		// Ensure different timestamp with different seconds
+		// sleep is non-blocking thanks to synctest
+		time.Sleep(2 * time.Second)
 		ts2 := time.Now()
 		_, err = ar.exec(context.TODO(), ts2, 0)
 		if err != nil {
@@ -1545,11 +1542,10 @@ func TestAlertingRule_ActiveAtPreservedInAnnotations(t *testing.T) {
 		}
 
 		// Get the alert again (should be the same alert)
-		var secondAlert *notifier.Alert
-		for _, a := range ar.alerts {
-			secondAlert = a
-			break
+		if len(ar.alerts) != 1 {
+			t.Fatalf("expected 1 alert, got %d", len(ar.alerts))
 		}
+		secondAlert := ar.GetAlerts()[0]
 
 		// Critical test: activeAt should still be ts1, not ts2
 		if !secondAlert.ActiveAt.Equal(ts1) {
@@ -1571,6 +1567,5 @@ func TestAlertingRule_ActiveAtPreservedInAnnotations(t *testing.T) {
 		if firstAlert.Labels["test_query_in_label"] != "static_value" {
 			t.Fatalf("expected test_query_in_label=static_value, got %s", firstAlert.Labels["test_query_in_label"])
 		}
-
 	})
 }
