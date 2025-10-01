@@ -14,6 +14,21 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.26.0
+Released: 2025-10-02
+
+- FEATURE: Introduced vmui-like [GUI](https://docs.victoriametrics.com/anomaly-detection/gui/) for `vmanomaly` service to simplify the configuration and backtesting of anomaly detection models before it goes to production. It provides an intuitive interface to finetune model configurations, visualize its predictions and anomaly scores, and perform backtesting on historical data. The GUI is accessible via a web browser and can be run as a [standalone service](https://docs.victoriametrics.com/anomaly-detection/gui/#preset-usage) or [integrated with productionalized deployments](https://docs.victoriametrics.com/anomaly-detection/gui/#mixed-usage). For more details, refer to the [documentation](https://docs.victoriametrics.com/anomaly-detection/gui/).
+
+- FEATURE: Added support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) with `VLogsReader`. This reader allows quering and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs. It supports similar configuration options as `VmReader`, including `datasource_url`, `tenant_id`, `queries`, etc. For more details, refer to the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader). It can be also used in [UI mode](https://docs.victoriametrics.com/anomaly-detection/gui/) for backtesting log-based anomaly detection configurations.
+
+- IMPROVEMENT: Resolved the case in the [`IsolationForestModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) with `provide_series` common model [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) including `yhat.*` series (prediction and confidence boundaries), which are not produced by this model. Now config validation will fail with a clear error message if such series names are requested.
+
+- BUGFIX: Recursive and shallow merging of the config files with mixed class names (`class` argument, with aliases like `zscore` and fully qualified names like `model.zscore.ZscoreModel`) now works as expected and is properly resolved to the same entity. Previously, this could lead to validation errors during service startup.
+
+- BUGFIX: Fixed an issue with `anomaly_score_outside_data_range` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) not being properly set for some models, resulting in default value (1.01) being used instead of user-defined override.
+
+- BUGFIX: Fixed an issue with `decay` [parameter](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) not being properly applied to the global smoothing in the `OnlineQuantileModel` (when `seasonal_interval` is not set), resulted in no decay being applied (equivalent to `decay=1.0`).
+
 ## v1.25.3
 Released: 2025-08-19
 
