@@ -171,7 +171,7 @@ among remote storage systems specified in `-remoteWrite.url`.
 > To be more specific, when sharding is enabled, the data will be sharded **with consistent hashing** to configured URLs.
 > It expects the same series to be sent to the same URL. If the URL is an SRV URL, it will be further resolved into the
 > real address, and if there are multiple addresses in the resolved result, `vmagent` will choose one from the result
-> **randomly**. In such a case,the consistent hashing will not work correctly, as the same data may be sent to different
+> **randomly**. In such a case, the consistent hashing will not work correctly, as the same data may be sent to different
 > addresses in the DNS SRV records.
 >
 > As an example, configuring `-remoteWrite.shardByURL` with 1 SRV URL which will be resolved into `N` addresses
