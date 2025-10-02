@@ -314,7 +314,7 @@ func testInstantQueryWithOffsetUsingCache(tc *apptest.TestCase, sut apptest.Prom
 		DoNotRetry: true,
 		Got: func() any {
 			return sut.PrometheusAPIV1Query(t, `avg_over_time(vm_http_requests_total[1d] offset 12h)`, apptest.QueryOpts{
-				Time: "2025-09-20T12:00:00.000Z",
+				Time: "2025-09-20T12:00:01.000Z",
 			})
 		},
 		Want: &apptest.PrometheusAPIV1QueryResponse{
@@ -324,7 +324,7 @@ func testInstantQueryWithOffsetUsingCache(tc *apptest.TestCase, sut apptest.Prom
 				Result: []*apptest.QueryResult{
 					{
 						Metric: map[string]string{},
-						Sample: &apptest.Sample{Timestamp: 1758369600000, Value: 5.5},
+						Sample: &apptest.Sample{Timestamp: 1758369601000, Value: 5.5},
 					},
 				},
 			},
