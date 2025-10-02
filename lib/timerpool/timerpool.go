@@ -3,8 +3,6 @@ package timerpool
 import (
 	"sync"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // Get returns a timer for the given duration d from the pool.
@@ -13,9 +11,7 @@ import (
 func Get(d time.Duration) *time.Timer {
 	if v := timerPool.Get(); v != nil {
 		t := v.(*time.Timer)
-		if t.Reset(d) {
-			logger.Panicf("BUG: active timer trapped to the pool!")
-		}
+		t.Reset(d)
 		return t
 	}
 	return time.NewTimer(d)
