@@ -1,6 +1,6 @@
 ---
 weight: 2
-title: GUI
+title: UI
 menu:
   docs:
     parent: "anomaly-detection"
