@@ -90,7 +90,7 @@ plus the following additional features:
 
 - First-class consulting and technical support provided by the core VictoriaMetrics dev team.
 - [Monitoring of monitoring](https://victoriametrics.com/products/mom/) - this feature allows forecasting
-  and preventing possible issues in VictoriaMetrics setups.
+  and preventing possible issues in VictoriaLogs setups.
 - [Enterprise security compliance](https://victoriametrics.com/security/).
 - Prioritizing of feature requests from Enterprise customers.
 
