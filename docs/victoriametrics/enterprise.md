@@ -97,7 +97,7 @@ plus the following additional features:
 On top of this, Enterprise package of VictoriaLogs includes the following features:
 
 - [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/victorialogs/#automatic-issuing-of-tls-certificates).
-- [mTLS for all the VictoriaMetrics components](https://docs.victoriametrics.com/victorialogs/#mtls).
+- [mTLS for all the VictoriaLogs components](https://docs.victoriametrics.com/victorialogs/#mtls).
 - [mTLS for communications between cluster components](https://docs.victoriametrics.com/victorialogs/cluster/#mtls).
 
 Contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in VictoriaLogs Enterprise.
