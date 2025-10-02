@@ -4,29 +4,29 @@ title: GUI
 menu:
   docs:
     parent: "anomaly-detection"
-    identifier: "vmanomaly-gui"
+    identifier: "vmanomaly-ui"
     weight: 2
-    title: GUI
+    title: UI
 tags:
   - metrics
   - enterprise
-  - guide
+  - ui
 aliases:
-- /anomaly-detection/gui.html
-- /anomaly-detection/gui
-- /anomaly-detection/GUI
-- /anomaly-detection/GUI/
+- /anomaly-detection/ui.html
+- /anomaly-detection/ui
+- /anomaly-detection/UI
+- /anomaly-detection/UI/
 ---
 
 ## Introduction
 
-{{% available_from "v1.26.0" anomaly %}} `vmanomaly` is shipped with a built-in [vmui-like](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) [GUI](https://en.wikipedia.org/wiki/Graphical_user_interface) that provides an intuitive interface for rapid exploration of how anomaly detection models, their configurations and included domain knowledge impacts the results of anomaly detection, before such configurations are deployed in production.
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly` is shipped with a built-in [vmui-like](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) [UI](https://en.wikipedia.org/wiki/Graphical_user_interface) that provides an intuitive interface for rapid exploration of how anomaly detection models, their configurations and included domain knowledge impacts the results of anomaly detection, before such configurations are deployed in production.
 
-![vmanomaly-gui-overview](vmanomaly-gui-overview.webp)
+![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 
-## Accessing the GUI
+## Accessing the UI
 
-The GUI is available at `http://<vmanomaly-host>:8490` by default, however, the port can be changed in `server` section of the [configuration file](https://docs.victoriametrics.com/anomaly-detection/components/) using the `port` parameter:
+The UI is available at `http://<vmanomaly-host>:8490` by default, however, the port can be changed in `server` section of the [configuration file](https://docs.victoriametrics.com/anomaly-detection/components/) using the `port` parameter:
 
 ```yaml
 server:
@@ -45,23 +45,23 @@ Vmanomaly can be deployed in efficient "UI mode" [preset](https://docs.victoriam
 preset: ui
 ```
 
-This will start vmanomaly instance with a no-operation schedulers, readers, models and the other components, and **will only enable the GUI for interactive exploration of anomaly detection models**, so all the resources are dedicated to the GUI and no resources are wasted on other components, such as production jobs of anomaly detection (retrieving metrics, running models, writing results, etc.).
+This will start vmanomaly instance with a no-operation schedulers, readers, models and the other components, and **will only enable the UI for interactive exploration of anomaly detection models**, so all the resources are dedicated to the UI and no resources are wasted on other components, such as production jobs of anomaly detection (retrieving metrics, running models, writing results, etc.).
 
 The best applications of this mode are:
-- Deploy vmanomaly GUI as a service to hide the deployment complexity and allow internal users to explore anomaly detection models and their configurations, without the need to run any production jobs of anomaly detection.
+- Deploy vmanomaly UI as a service to hide the deployment complexity and allow internal users to explore anomaly detection models and their configurations, without the need to run any production jobs of anomaly detection.
 - When there is a quick need to explore and validate anomaly detection models and their configurations before deploying them in production jobs, at minimal resource usage.
 
 
-> However, the GUI can be **combined with existing production jobs of anomaly detection, as it is available in non-blocking mode for all running vmanomaly instances** {{% available_from "v1.26.0" anomaly %}}, regardless of the preset or configuration used, just at a cost of increased resource usage.
+> However, the UI can be **combined with existing production jobs of anomaly detection, as it is available in non-blocking mode for all running vmanomaly instances** {{% available_from "v1.26.0" anomaly %}}, regardless of the preset or configuration used, just at a cost of increased resource usage.
 
 ## UI Navigation
 
-The vmanomaly GUI provides a user-friendly interface for exploring and configuring anomaly detection models. The main components of the GUI include:
+The vmanomaly UI provides a user-friendly interface for exploring and configuring anomaly detection models. The main components of the UI include:
 
 - [**Query Explorer**](#query-explorer): A vmui-like interface for typing and executing MetricsQL/LogsQL queries to visualize data.
 - [**Model Panel**](#model-panel): A form for editing anomaly detection model hyperparameters and applying domain knowledge settings.
 - [**Visualization Panel**](#visualization-panel): A space for visualizing model performance and anomalies.
-- [**Settings Panel**](#settings-panel): A section for configuring global settings and preferences for the vmanomaly GUI, including data source configuration.
+- [**Settings Panel**](#settings-panel): A section for configuring global settings and preferences for the vmanomaly UI, including data source configuration.
 
 [Back to UI navigation](#ui-navigation)
 
@@ -69,7 +69,7 @@ The vmanomaly GUI provides a user-friendly interface for exploring and configuri
 
 The Query Explorer provides a vmui-like interface for typing and executing MetricsQL/LogsQL queries to visualize data. 
 
-![vmanomaly-gui-sections-explore](vmanomaly-gui-sections-explore.webp)
+![vmanomaly-ui-sections-explore](vmanomaly-ui-sections-explore.webp)
 
 Users can:
 - Enter, autocomplete, prettify and execute queries to retrieve and plot the data from the configured data source (see [settings panel](#settings-panel) for data source configuration).
@@ -84,13 +84,13 @@ The Visualization Panel has 2 modes of displaying data - either raw queried data
 
 **Visualizations of the queried data** ("Execute Query" button)
 
-![vmanomaly-gui-sections-plot-area-query-mode](vmanomaly-gui-sections-plot-area-query-mode.webp)
+![vmanomaly-ui-sections-plot-area-query-mode](vmanomaly-ui-sections-plot-area-query-mode.webp)
 
 > All the metrics are shown in a single plot, similar to vmui, with zooming and panning capabilities.
 
 **Initial data with detected anomalies** ("Detect Anomalies" button)
 
-![vmanomaly-gui-sections-plot-area-detect-mode](vmanomaly-gui-sections-plot-area-detect-mode.webp)
+![vmanomaly-ui-sections-plot-area-detect-mode](vmanomaly-ui-sections-plot-area-detect-mode.webp)
 
 > The plot shows the queried data, **grouped by individual series**, iterated over legend, with the actual values (`y`) compared to the expected values (model predictions, `y_hat`), confidence intervals (`y_hat_lower`, `y_hat_upper`), and detected anomalies. The anomalies are marked with red circles, and hovering over them provides additional information such as the anomaly score and associated labels.
 
@@ -100,7 +100,7 @@ Also, timeseries (such as `y`, `y_hat`, etc.) can be toggled on/off by clicking 
 
 ### Model Panel
 
-![vmanomaly-gui-sections-model](vmanomaly-gui-sections-model.webp)
+![vmanomaly-ui-sections-model](vmanomaly-ui-sections-model.webp)
 
 The Model Panel provides:
 
@@ -111,22 +111,22 @@ Controls for running/canceling anomaly detection on the queried data, downloadin
 A form-based menu for finetuning model hyperparameters and applying domain knowledge settings:
 
 - Model type selection (e.g., rolling quantile, Prophet, etc.)
-![vmanomaly-gui-model-config-menu](vmanomaly-gui-model-config-menu.webp)
+![vmanomaly-ui-model-config-menu](vmanomaly-ui-model-config-menu.webp)
 - Wizard with **model-agnostic parameters** (e.g., detection direction, data range, scale, clipping, minimum deviation from expected, etc.) and **model-specific hyperparameters** for chosen model type (e.g., quantile and window steps for [rolling quantile](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) model).
-![vmanomaly-gui-model-config-wizard](vmanomaly-gui-model-config-wizard.webp)
+![vmanomaly-ui-model-config-wizard](vmanomaly-ui-model-config-wizard.webp)
 
 [Back to UI navigation](#ui-navigation)
 
 ### Settings Panel
 
-The vmui-like "Settings" panel allows users to configure global settings and preferences for the vmanomaly GUI, including:
+The vmui-like "Settings" panel allows users to configure global settings and preferences for the vmanomaly UI, including:
 
 - Server URL (vmanomaly)
 - Datasource URL (VictoriaMetrics, VictoriaLogs)
 - Timezone
 - UI Theme
 
-![vmanomaly-gui-sections-settings](vmanomaly-gui-sections-settings.webp)
+![vmanomaly-ui-sections-settings](vmanomaly-ui-sections-settings.webp)
 
 [Back to navigation](#ui-navigation)
 
@@ -138,9 +138,9 @@ Based on the needs, either
 
 ### URL Sharing
 
-Similarly to vmui, vmanomaly GUI supports **configuration sharing via URL**. This allows users to share their UI state (including queries, time ranges, model type and hyperparameters, and other settings) by copying and sharing the URL from the browser's address bar.
+Similarly to vmui, vmanomaly UI supports **configuration sharing via URL**. This allows users to share their UI state (including queries, time ranges, model type and hyperparameters, and other settings) by copying and sharing the URL from the browser's address bar.
 
-![vmanomaly-gui-state-sharing-url](vmanomaly-gui-state-sharing-url.webp)
+![vmanomaly-ui-state-sharing-url](vmanomaly-ui-state-sharing-url.webp)
 
 <p></p>
 <p>Example URL content:</p>
@@ -151,18 +151,18 @@ http://localhost:8490/vmui/#/?anomaly_threshold=1.0&fit_window=1d&fit_every=7d&g
 
 ### YAML Configuration
 
-Once the configuration is set up and saved in the GUI (selected model type and validated hyperparameters), equivalent configuration in production-ready YAML format can be obtained by:
+Once the configuration is set up and saved in the UI (selected model type and validated hyperparameters), equivalent configuration in production-ready YAML format can be obtained by:
 
 Accessing the "YAML" Tab in the model configuration section
-![vmanomaly-gui-model-config-menu](vmanomaly-gui-model-config-menu.webp)
-![vmanomaly-gui-model-config-yaml-tab](vmanomaly-gui-model-config-menu-yaml-tab.webp)
+![vmanomaly-ui-model-config-menu](vmanomaly-ui-model-config-menu.webp)
+![vmanomaly-ui-model-config-yaml-tab](vmanomaly-ui-model-config-menu-yaml-tab.webp)
 
 
 Clicking the "Open Config" button to access (model-only or full) configuration and hitting "Download" button to get the configuration as a YAML file.
 
-![vmanomaly-gui-open-config-btn](vmanomaly-gui-open-config-btn.webp)
+![vmanomaly-ui-open-config-btn](vmanomaly-ui-open-config-btn.webp)
 
-![vmanomaly-gui-open-config-menu](vmanomaly-gui-open-config-menu.webp)
+![vmanomaly-ui-open-config-menu](vmanomaly-ui-open-config-menu.webp)
 
 ## Optimize Resource Usage
 
@@ -170,7 +170,7 @@ Based on expected usage patterns (quick experiments, internal team serving, numb
 
 ```yaml
 server:
-  # Port for the GUI server (default: 8490)
+  # Port for the UI server (default: 8490)
   port: 8490
   # Limit on concurrent tasks to manage UI load (default: 2) 
   max_concurrent_tasks: 2
@@ -198,7 +198,7 @@ If using the `ui` preset, just specify:
 preset: ui
 
 server:
-  # Port for the GUI server (default: 8490)
+  # Port for the UI server (default: 8490)
   port: 8490
   # Limit on concurrent tasks to manage UI load (default: 2)
   max_concurrent_tasks: 5
@@ -216,7 +216,7 @@ in instance configuration file, it will be recursively merged with preset pre-fi
 
 ### Mixed Usage
 
-If mixing the GUI alongside production jobs of anomaly detection is expected, it is recommended to adjust the parameters to optimize resource usage, as well as configuring the `reader` and `writer` components appropriately for the production jobs.
+If mixing the UI alongside production jobs of anomaly detection is expected, it is recommended to adjust the parameters to optimize resource usage, as well as configuring the `reader` and `writer` components appropriately for the production jobs.
 
 ```yaml
 
@@ -232,7 +232,7 @@ settings:
     # ...
 
 server:
-  # Port for the GUI server (default: 8490)
+  # Port for the UI server (default: 8490)
   port: 8490
   # Limit on concurrent tasks to manage UI load (default: 2)
   max_concurrent_tasks: 5
@@ -252,7 +252,7 @@ preset: ui
 
 using one of the [deployment methods](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly) in a [QuickStart guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/#quickstart), e.g. via Docker.
 
-Retrieve the GUI at `http://<vmanomaly-host>:<port>` (e.g. at `http://localhost:8490` if running locally with default port) and start exploring anomaly detection models and their configurations interactively.
+Retrieve the UI at `http://<vmanomaly-host>:<port>` (e.g. at `http://localhost:8490` if running locally with default port) and start exploring anomaly detection models and their configurations interactively.
 
 ### Explore Input Data
 
@@ -262,24 +262,24 @@ Set appropriate tenants (if data source supports multi-tenancy) and access [sett
 
 Set up the time range and resolution (step) for data visualization and anomaly detection purposes - e.g. last 7 days with 30m step, especially if the data has daily/weekly seasonality. Also, set the step according to the desired granularity of anomaly detection results (e.g. 30m step for 30m granularity) which itself is based on alerting needs and latency requirements.
 
-![vmanomaly-gui-sections-explore](vmanomaly-gui-sections-explore.webp)
+![vmanomaly-ui-sections-explore](vmanomaly-ui-sections-explore.webp)
 
 Pay attention to trends, seasonality, noise, outliers, and other patterns in the data, which can influence the choice of anomaly detection model and its hyperparameters (e.g. use seasonal models for seasonal data - like `Prophet`, robust models for noisy de-seasonalized data - like `MAD`, etc.).
 
-![vmanomaly-gui-sections-plot-area-query-mode](vmanomaly-gui-sections-plot-area-query-mode.webp)
+![vmanomaly-ui-sections-plot-area-query-mode](vmanomaly-ui-sections-plot-area-query-mode.webp)
 
 
 ### Select and Configure Model
 
 Choose an appropriate anomaly detection model from the Model Panel based on the characteristics of the data and the specific requirements (domain knowledge) of the use case.
 
-![vmanomaly-gui-sections-model](vmanomaly-gui-sections-model.webp)
+![vmanomaly-ui-sections-model](vmanomaly-ui-sections-model.webp)
 
 Set the "Fit Every" and "Fit Window" parameters to control how often and over what time window the model is retrained on new data to imitate production behavior - e.g. fit every 7 days on a rolling window of last 14 days.
 
 Tune the model hyperparameters and apply domain knowledge settings using the form-based menu in the Model Panel. See (i) tooltips for parameter descriptions and [model documentation](https://docs.victoriametrics.com/anomaly-detection/components/models/) link for recommended values and guidelines.
 
-![vmanomaly-gui-model-config-wizard](vmanomaly-gui-model-config-wizard.webp)
+![vmanomaly-ui-model-config-wizard](vmanomaly-ui-model-config-wizard.webp)
 
 For example, for a `rolling quantile` [model](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile), that should be run on a query, returning per-mode CPU utilization (as fractions of 1, data range `[0, 1]`), where you are interested in capturing **spikes of at least 5% deviations** from expected behavior:
 
@@ -303,7 +303,7 @@ Hit the "Detect Anomalies" button to run anomaly detection on the queried data w
 
 > If needed, the running task can be canceled by hitting the "Cancel" button.
 
-![vmanomaly-gui-sections-plot-area-detect-mode](vmanomaly-gui-sections-plot-area-detect-mode.webp)
+![vmanomaly-ui-sections-plot-area-detect-mode](vmanomaly-ui-sections-plot-area-detect-mode.webp)
 
 Iterate over the legend to view **individual output series** (e.g. actual values, expected values, confidence intervals, anomalies, etc.) for different series returned by the query.
 
@@ -323,4 +323,4 @@ If the **results** look good, but should be shared with others first, timeseries
 
 If the **results** look good and the **model configuration should be deployed in production jobs of anomaly detection**, the equivalent configuration in production-ready YAML format can be obtained by accessing the "YAML" Tab in the model configuration section and hitting the "Open Config" button to access (model-only or full) configuration and hitting "Download" button to get the configuration as a YAML file.
 
-![vmanomaly-gui-open-config-menu](vmanomaly-gui-open-config-menu.webp)
+![vmanomaly-ui-open-config-menu](vmanomaly-ui-open-config-menu.webp)

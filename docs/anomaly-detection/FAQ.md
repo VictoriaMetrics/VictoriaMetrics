@@ -113,8 +113,8 @@ To visualize and interact with both [self-monitoring metrics](https://docs.victo
 
 - For guidance on using the `vmanomaly` Grafana dashboard and drilling down into anomaly score visualizations, refer to the [default preset section](https://docs.victoriametrics.com/anomaly-detection/presets/#default).  
 - To monitor `vmanomaly` health, operational performance, and potential issues in real time, visit the [self-monitoring section](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
-- {{% available_from "v1.26.0" anomaly %}} For rapid exploration of how different models, their configurations and included domain knowledge impacts the results of anomaly detection, use the built-in [vmanomaly GUI](https://docs.victoriametrics.com/anomaly-detection/gui/).
-![vmanomaly-gui-overview](vmanomaly-gui-overview.webp)
+- {{% available_from "v1.26.0" anomaly %}} For rapid exploration of how different models, their configurations and included domain knowledge impacts the results of anomaly detection, use the built-in [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/).
+![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 
 ## Is vmanomaly stateful?
 By default, `vmanomaly` is **stateless**, meaning it does not retain any state between service restarts. However, it can be configured {{% available_from "v1.24.0" anomaly %}} to be **stateful** by enabling the `restore_state` setting in the [settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/). This allows the service to restore its state from a previous run (training data, trained models), ensuring that models continue to produce [anomaly scores](#what-is-anomaly-score) right after restart and without requiring a full retraining process or re-querying training data from VictoriaMetrics. This is particularly useful for long-running services that need to maintain continuity in anomaly detection without losing previously learned patterns, especially when using [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) that continuously adapt to new data and update their internal state. Also, [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) works well with state restoration, allowing for on-the-fly configuration changes without losing the current state of the models and reusing unchanged models/data/scheduler combinations.
@@ -224,8 +224,8 @@ Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 i
 
 ## How to backtest particular configuration on historical data?
 
-> {{% available_from "v1.26.0" anomaly %}} You can use the [vmanomaly GUI](https://docs.victoriametrics.com/anomaly-detection/gui/) to backtest particular configuration on historical data with easy-to-use [preset](https://docs.victoriametrics.com/anomaly-detection/presets/ui).
-![vmanomaly-gui-overview](vmanomaly-gui-overview.webp)
+> {{% available_from "v1.26.0" anomaly %}} You can use the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to backtest particular configuration on historical data with easy-to-use [preset](https://docs.victoriametrics.com/anomaly-detection/presets/ui).
+![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 
 Anomaly scores for historical ([backtesting](https://wikipedia.org/wiki/Backtesting)) data can be produced using [`backtesting` scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) in `vmanomaly` config. This scheduler allows you to define a historical period for which the models will be trained and then used to produce anomaly scores, imitating the behavior of the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) for that period. Especially useful for testing new models or configurations on historical data before deploying them in production, around labelled incidents.
 

@@ -38,15 +38,15 @@ Run a service using config file with one of the [available options](https://docs
 
 ## UI
 
-The UI preset is the easiest to start from and is designed for users who want to quickly experiment with `vmanomaly` in [UI mode](https://docs.victoriametrics.com/anomaly-detection/gui/). It requires minimal configuration and provides a user-friendly interface for exploring anomaly detection capabilities:
+The UI preset is the easiest to start from and is designed for users who want to quickly experiment with `vmanomaly` in [UI mode](https://docs.victoriametrics.com/anomaly-detection/ui/). It requires minimal configuration and provides a user-friendly interface for exploring anomaly detection capabilities:
 
 ```yaml
 preset: "ui"
 ```
 
-Please refer to the [GUI documentation](https://docs.victoriametrics.com/anomaly-detection/gui/) for detailed instructions on how to use the interface and [backtest your anomaly detection configurations guide](https://docs.victoriametrics.com/anomaly-detection/gui/#example-usage).
+Please refer to the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/) for detailed instructions on how to use the interface and [backtest your anomaly detection configurations guide](https://docs.victoriametrics.com/anomaly-detection/ui/#example-usage).
 
-![vmanomaly-gui-overview](vmanomaly-gui-overview.webp)
+![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 
 ## Default
 
