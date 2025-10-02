@@ -146,6 +146,7 @@ Name of the class needed to enable reading from VictoriaMetrics or Prometheus. V
 <span style="white-space: nowrap;">`queries`</span>
             </td>
             <td>
+
 See [per-query config example](#per-query-config-example) above
             </td>
             <td>
@@ -226,7 +227,7 @@ Absolute or relative URL address where to check availability of the datasource.
 `USERNAME`
             </td>
             <td>
-BasicAuth username
+BasicAuth username. If set, it will be used to authenticate the request.
             </td>
         </tr>
         <tr>
@@ -239,7 +240,7 @@ BasicAuth username
 `PASSWORD`
             </td>
             <td>
-BasicAuth password
+BasicAuth password. If set, it will be used to authenticate the request.
             </td>
         </tr>
         <tr>
@@ -371,7 +372,7 @@ It allows overriding the default `-search.latencyOffset`{{% available_from "v1.1
 `10000`
             </td>
             <td>
-Optional arg{{% available_from "v1.17.0" anomaly %}} overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. You can also set it on [per-query](#per-query-parameters) basis to override this global one.
+Optional arg{{% available_from "v1.17.0" anomaly %}} overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. Can be also set on [per-query](#per-query-parameters) basis to override reader-level settings.
             </td>
         </tr>
         <tr>
@@ -477,3 +478,330 @@ reader:
 ### Healthcheck metrics
 
 `VmReader` exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).
+
+
+## VictoriaLogs reader
+
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly` adds support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows quering and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs.
+
+Its queries should be expressed in a subset of [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql), which is similar to MetricsQL/PromQL but adapted for log data.
+
+> Please be aware that `VLogsReader` is designed to work with a `/select/stats_query_range` endpoint of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), so the `<query>` expressions must contain `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) (see [query-examples](#query-examples) section below). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe, where `stats_func*` is any of the supported [stats function subset](#valid-stats-functions) of [available stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions), while the `result_name*` is the name of the log field to store the result of the corresponding stats function. The `as` keyword is optional.
+
+### Valid stats functions
+`VLogsReader` relies on [stats pipe functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) that return **numeric values**, which can be used for anomaly detection on timeseries (metrics). The future addition of similar stats functions in VictoriaLogs will be supported automatically, as long as they return **numeric values**.
+
+The supported stats functions currently include:
+- `avg` - returns the average value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `count` - returns the number of log entries.
+- `count_empty` - returns the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `count_uniq` - returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `count_uniq_hash` - returns the number of unique hashes for non-empty values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `max` - returns the maximum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `median` - returns the [median](https://en.wikipedia.org/wiki/Median) value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `min` - returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `quantile` - returns the given quantile for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `rate` - returns the average per-second rate of matching logs on the selected time range.
+- `rate_sum` - returns the average per-second rate of sum for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `sum` - returns the sum for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- `sum_len` - returns the sum of lengths for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+### Query Examples
+
+> You can test your LogsQL queries with stats pipe functions using our [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/). Use either UI to access graphical results or the `/select/logsql/stats_query_range` endpoint to run your queries and see the raw results, e.g. as this [sample query](https://play-vmlogs.victoriametrics.com/select/logsql/stats_query_range?query=_time%3A5m%20%7C%20stats%20by%20%28_stream%29%20count%28%29%20as%20sample_row&step=1m).
+
+Here are examples of simple valid LogsQL queries with stats pipe functions that can be used with `VLogsReader`.
+
+The following query returns the average value for the duration field over logs matching the [filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters) for `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word):
+
+```
+error | stats avg(duration) as avg_error_duration
+``` 
+
+It is possible to calculate the average over fields with common prefix via `avg(prefix*)` syntax. For example, the following query calculates the number of logs with `foo` prefix having `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word):
+
+```
+error | stats count(foo*) as foo_error_count
+```
+
+### Config parameters
+
+<table class="params">
+    <thead>
+        <tr>
+            <th>Parameter</th>
+            <th>Example</th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`class`</span>
+            </td>
+            <td>
+
+`vlogs`
+            </td>
+            <td>
+The class name of the reader, must be `vlogs` (or `reader.vlogs.VLogsReader`).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`queries`
+            </td>
+            <td>
+See [per-query config example](#per-query-config-example-1) below
+            </td>
+            <td>
+Dictionary of queries. Keys are query aliases, values are LogsQL queries to select data in format: `QUERY_ALIAS:<query>`, as accepted by `/select/logsql/stats_query_range?query=%s` VictoriaLogs endpoint. The `<query>` must contain `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe. Only functions returning numeric values are supported, e.g. `count()`, `sum()`, `avg()`, `count_uniq()`, `median()`, `quantile()`, etc.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`datasource_url`
+            </td>
+            <td>
+`https://play-vmlogs.victoriametrics.com/`
+            </td>
+            <td>
+URL address of the VictoriaLogs datasource. Must be a valid URL.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`tenant_id`
+            </td>
+            <td>
+`0:0`
+            </td>
+            <td>
+Tenants are identified by `accountID` or `accountID:projectID`. See VictoriaLogs [multitenancy docs](https://docs.victoriametrics.com/victorialogs/#multitenancy).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`sampling_period`
+            </td>
+            <td>
+
+`1m`
+            </td>
+            <td>
+Frequency of the points returned. Will be converted to `/select/stats_query_range?step=%s` param (in seconds).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`data_range`</span>
+            </td>
+            <td>
+
+`[0, 'inf']`
+            </td>
+            <td>
+(Optional) Allows defining **valid** data ranges for input of all the queries in `queries`. Defaults to `["-inf", "inf"]` if not set and can be overridden on a [per-query basis](#per-query-parameters-1).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`tz`
+            </td>
+            <td>
+
+`America/New_York`
+            </td>
+            <td>
+(Optional) Specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`max_points_per_query`</span>
+            </td>
+            <td>
+
+`10000`
+            </td>
+            <td>
+(Optional) For splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) into smaller sub-intervals. This helps users avoid hitting the timeout limits for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Can be also set on [per-query](#per-query-parameters-1) basis to override reader-level settings.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`offset`</span>
+            </td>
+            <td>
+
+`0s`
+            </td>
+            <td>
+(Optional) Specifies the duration to shift the query window back (or forward) in time. This is useful for accounting for delays in data availability or for aligning the query window with specific events. Can be set on a [per-query basis](#per-query-parameters-1) to override the reader-level setting.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`timeout`</span>
+            </td>
+            <td>
+
+`30s`
+            </td>
+            <td>
+(Optional) Specifies the maximum duration to wait for a query to complete before timing out. Can be set on a [per-query basis](#per-query-parameters-1) to override the reader-level setting.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`verify_tls`</span>
+            </td>
+            <td>
+
+`false`
+            </td>
+            <td>
+Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
+If `True`, it will verify the certificate using the system's CA store. 
+If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
+            </td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`tls_cert_file`</span>
+            </td>
+            <td>    
+
+`path/to/cert.crt`
+            </td>
+            <td>
+(Optional) Path to a file with the client certificate, i.e. `client.crt`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`tls_key_file`</span>
+            </td>
+            <td>
+
+`path/to/key.key`
+            </td>
+            <td>
+(Optional) Path to a file with the client key, i.e. `client.key`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+<span style="white-space: nowrap;">`bearer_token`</span>
+            </td>
+            <td>
+
+`token`
+            </td>
+            <td>
+
+(Optional) Bearer token for authentication. If set, it will be used to authenticate the request as `Authorization: bearer {token}`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+<span style="white-space: nowrap;">`bearer_token_file`</span>
+            </td>
+            <td>
+
+`path/to/token`
+            </td>
+            <td>
+(Optional) Path to a file containing the bearer token. If set, it will be used to authenticate the request.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`user`
+            </td>
+            <td>
+
+`USERNAME`
+            </td>
+            <td>
+(Optional) Username for BasicAuth authentication. If set, it will be used to authenticate the request.
+            </td>
+        </tr>
+        <tr>
+            <td>
+`password`
+            </td>
+            <td>
+
+`PASSWORD`
+            </td>
+            <td>
+(Optional) Password for authentication. If set, it will be used to authenticate the request.
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+### Per-query parameters
+
+The names, types and the logic of the per-query parameters subset used in `VLogsReader` are exactly the same as those of [`VmReader`](#vm-reader), please see [per-query parameters](#per-query-parameters) section above for the details. The only difference is that `expr` parameter should contain a valid [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) expression with `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe), as described in [query examples](#query-examples) section above.
+
+### Per-query config example
+
+```yaml
+reader:
+  class: 'vlogs'  # or 'reader.vlogs.VLogsReader'
+  # don't include /select/stats_query_range part in the URL, it is added automatically
+  datasource_url: 'https://play-vmlogs.victoriametrics.com/'  # source victorialogs
+  # tenant_id: '0:0'  # for cluster version only
+  sampling_period: '1m'
+  max_points_per_query: 10000
+  data_range: [0, 'inf']  # reader-level
+  offset: '0s'  # reader-level
+  timeout: '30s'
+  queries:
+    # one query returning 1 result fields (avg_duration), it will have __name__ label (series name) as `duration_30m__avg`
+    duration_avg_30m:
+      expr: "* | stats avg(duration) as avg"  # initial LogsQL expression
+      step: '2m'  # overrides global `sampling_period` of 1m
+      data_range: [0, 'inf']  # meaning only positive values > 0 are expected, i.e. a value `y` < 0 will trigger anomaly score > 1
+      tz: 'America/New_York'  # to override reader-wise `tz`
+      # tenant_id: '1:0'  # overriding tenant_id to isolate data
+      # offset: '-15s'  # to override reader-wise `offset` and query data 15 seconds earlier to account for data collection delays
+      # max_points_per_query: 5000 # overrides reader-level value of 10000 for `avg_duration` query
+
+    # one query returning 3 result fields (p50, p90, p99), they will have __name__ label (series name) as
+    # `duration_quantiles_30m__p50`, `duration_quantiles_30m__p90`, `duration_quantiles_30m__p99`, respectively
+    duration_quantiles_30m:
+      expr: |
+            * | stats
+                quantile(0.5, request_duration_seconds) p50,
+                quantile(0.9, request_duration_seconds) p90,
+                quantile(0.99, request_duration_seconds) p99
+      step: '2m'  # overrides global `sampling_period` of 1m
+      # other per-query parameters as needed
+  # other reader-level parameters as needed
+    
+# other config sections, like models, schedulers, writer, ...
+```
+
+### mTLS protection
+
+Please refer to the [mTLS protection](#mtls-protection) section above for details on how to configure mTLS for `VLogsReader`. It uses the same config parameters as `VmReader` for mTLS setup.
+
+### Healthcheck metrics
+
+Similarly to `VmReader`, `VLogsReader` also exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).
