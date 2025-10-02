@@ -566,6 +566,22 @@ func TestRequestParams(t *testing.T) {
 		checkEqualString(t, "/prometheus/api/v1/query_range", r.URL.Path)
 	})
 
+	// disable path append
+	*disablePathAppend = true
+	f(false, &Client{
+		dataSourceType: datasourcePrometheus,
+	}, func(t *testing.T, r *http.Request) {
+		checkEqualString(t, "", r.URL.Path)
+	})
+
+	f(true, &Client{
+		dataSourceType: datasourcePrometheus,
+	}, func(t *testing.T, r *http.Request) {
+		// path expected to be present despite *disablePathAppend setting
+		checkEqualString(t, "/api/v1/query_range", r.URL.Path)
+	})
+	*disablePathAppend = false
+
 	// graphite path
 	f(false, &Client{
 		dataSourceType: datasourceGraphite,
