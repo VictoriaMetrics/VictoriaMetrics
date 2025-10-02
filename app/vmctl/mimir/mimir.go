@@ -211,7 +211,7 @@ func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.Seri
 }
 
 func (c *Client) fetchIndexFile() (*Index, error) {
-	has, err := c.RemoteFS.HasFile(bucketIndexCompressedFilename)
+	has, err := c.HasFile(bucketIndexCompressedFilename)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (c *Client) fetchIndexFile() (*Index, error) {
 		return nil, fmt.Errorf("bucket-index.json.gz not found")
 	}
 
-	file, err := c.RemoteFS.ReadFile(bucketIndexCompressedFilename)
+	file, err := c.ReadFile(bucketIndexCompressedFilename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read bucket index: %s", err)
 	}
