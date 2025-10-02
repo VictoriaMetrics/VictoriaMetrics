@@ -39,7 +39,7 @@ For impactful parameters please refer to [optimize resource usage](#optimize-res
 
 ## Preset
 
-Vmanomaly can be deployed in efficient "UI mode" [preset](https://docs.victoriametrics.com/anomaly-detection/presets), with as simple configuration as:
+Vmanomaly can be deployed in efficient "UI mode" [preset](https://docs.victoriametrics.com/anomaly-detection/presets/#ui), with as simple configuration as:
 
 ```yaml
 preset: ui
