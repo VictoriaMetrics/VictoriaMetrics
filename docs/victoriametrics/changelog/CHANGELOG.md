@@ -37,6 +37,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent unexpected performance degradation caused by cache misses (exposed via `vm_cache_misses_total` metric) during rotation. See this PR [#9769](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9769) for details.
 * BUGFIX: all components: restore sorting order of summary and quantile metrics exposed by VictoriaMetrics components on `/metrics` page. See [metrics#105](https://github.com/VictoriaMetrics/metrics/pull/105) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): avoid applying offset modifier twice to the request time when an instant query uses rollup functions `rate()` or `avg_over_time()` with cache enabled. See [#9762](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): restore support for `query` templates in alert rule labels after the regression introduced in [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543). See [#9783](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9783) for details.
 
 ## [v1.126.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.126.0)
 
@@ -89,6 +90,8 @@ Released at 2025-08-15
 
 **Known issues: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): performance regression for queries that match [previously deleted time series](https://docs.victoriametrics.com/victoriametrics/#how-to-delete-time-series). The issue affects installation that previously deleted big number of time series (can be checked via `vm_deleted_metrics_total` metric) but continue querying them. More details in [#9602](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9602). The degradation is addressed in [v1.125.1](https://docs.victoriametrics.com/victoriametrics/changelog/#v11251) release.**
 
+**Known issues: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `query` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) was accidentally disallowed from using in rule `labels` field. The previous behavior will be restored in upcoming releases.**
+
 * SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): protect graphite `/render` API endpoint with new flag `-search.maxGraphitePathExpressionLen`. See this PR [#9534](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9534) for details.
@@ -134,6 +137,8 @@ Released at 2025-09-12
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
 
+**Known issues: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `query` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) was accidentally disallowed from using in rule `labels` field. The previous behavior will be restored in upcoming releases.**
+
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): properly apply rollup functions to metrics based on their name in vmui's [metrics explorer](https://docs.victoriametrics.com/victoriametrics/#metrics-explorer). See [#9655](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9655) for details. Thanks to @wbwren-eric for the fix.
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: fix support for automatic issuing of TLS certificates for HTTPS server via [Let's Encrypt service](https://letsencrypt.org/) using [TLS-ALPN-01 challenge](https://letsencrypt.org/docs/challenge-types/#tls-alpn-01). See [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/victoriametrics/#automatic-issuing-of-tls-certificates) for more info.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix VMUI backend URL, while using multitenant API. See more in [#9703](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9703).
@@ -149,6 +154,8 @@ Released at 2025-08-29
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/changelog/#v11220) release**
 
+**Known issues: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `query` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) was accidentally disallowed from using in rule `labels` field. The previous behavior will be restored in upcoming releases.**
+
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix `timestamp` function compatibility with Prometheus when used with sub-expressions such as `timestamp(sum(foo))`. The fix applies only when `-search.disableImplicitConversion` flag is set. See more in [#9527-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9527#issuecomment-3200646020) and [metricsql#55](https://github.com/VictoriaMetrics/metricsql/pull/55).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): prevent remote write ingestion stop on push error for [Google Pub/Sub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics) integration.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly handle [mTLS authorization and routing](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing). Previously it didn't work. See [#29](https://github.com/VictoriaMetrics/VictoriaLogs/issues/29).
@@ -161,6 +168,8 @@ Released at 2025-08-15
 **v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/changelog/#v11220) release**
+
+**Known issues: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `query` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) was accidentally disallowed from using in rule `labels` field. The previous behavior will be restored in upcoming releases.**
 
 * SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
 
@@ -539,6 +548,8 @@ Released at 2025-09-12
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
 
+**Known issues: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `query` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) was accidentally disallowed from using in rule `labels` field. The previous behavior will be restored in upcoming releases.**
+
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): properly apply rollup functions to metrics based on their name in vmui's [metrics explorer](https://docs.victoriametrics.com/victoriametrics/#metrics-explorer). See [#9655](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9655) for details. Thanks to @wbwren-eric for the fix.
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: fix support for automatic issuing of TLS certificates for HTTPS server via [Let's Encrypt service](https://letsencrypt.org/) using [TLS-ALPN-01 challenge](https://letsencrypt.org/docs/challenge-types/#tls-alpn-01). See [Automatic issuing of TLS certificates](https://docs.victoriametrics.com/victoriametrics/#automatic-issuing-of-tls-certificates) for more info.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix VMUI backend URL, while using multitenant API. See more in [#9703](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9703).
@@ -553,6 +564,8 @@ Released at 2025-09-3
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
 
+**Known issues: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `query` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) was accidentally disallowed from using in rule `labels` field. The previous behavior will be restored in upcoming releases.**
+
 * SECURITY: upgrade Go `jwt`, `csrf` and `oauth2` dependencies.
 
 ## [v1.110.17](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.17)
@@ -562,6 +575,8 @@ Released at 2025-08-29
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+**Known issues: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `query` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) was accidentally disallowed from using in rule `labels` field. The previous behavior will be restored in upcoming releases.**
 
 * BUG: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix `timestamp` function compatibility with Prometheus when used with sub-expressions such as `timestamp(sum(foo))`. The fix applies only when `-search.disableImplicitConversion` flag is set. See more in [#9527-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9527#issuecomment-3200646020) and [metricsql#55](https://github.com/VictoriaMetrics/metricsql/pull/55).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): prevent remote write ingestion stop on push error for [Google Pub/Sub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#writing-metrics) integration.
@@ -575,6 +590,8 @@ Released at 2025-08-15
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+**Known issues: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): `query` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) was accidentally disallowed from using in rule `labels` field. The previous behavior will be restored in upcoming releases.**
 
 * SECURITY: upgrade Go builder from Go1.24.5 to Go1.24.6. See [the list of issues addressed in Go1.24.6](https://github.com/golang/go/issues?q=milestone%3AGo1.24.6+label%3ACherryPickApproved).
 
