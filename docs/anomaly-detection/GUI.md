@@ -20,7 +20,7 @@ aliases:
 
 ## Introduction
 
-{{% available_from "v1.26.0" anomaly %}} `vmanomaly` is shipped with a built-in [vmui-like](https://play.victoriametrics.com/) [GUI](https://en.wikipedia.org/wiki/Graphical_user_interface) that provides an intuitive interface for rapid exploration of how anomaly detection models, their configurations and included domain knowledge impacts the results of anomaly detection, before such configurations are deployed in production.
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly` is shipped with a built-in [vmui-like](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) [GUI](https://en.wikipedia.org/wiki/Graphical_user_interface) that provides an intuitive interface for rapid exploration of how anomaly detection models, their configurations and included domain knowledge impacts the results of anomaly detection, before such configurations are deployed in production.
 
 ![vmanomaly-gui-overview](vmanomaly-gui-overview.webp)
 

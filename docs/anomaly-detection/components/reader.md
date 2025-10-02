@@ -508,9 +508,9 @@ The supported stats functions currently include:
 
 ### Query Examples
 
-> You can test your LogsQL queries with stats pipe functions using the [VictoriaLogs demo instance](https://play-vmlogs.victoriametrics.com/). Use either UI to access graphical results or the `/select/logsql/stats_query_range` endpoint to run your queries and see the raw results, e.g. as this [sample query](https://play-vmlogs.victoriametrics.com/select/logsql/stats_query_range?query=_time%3A5m%20%7C%20stats%20by%20%28_stream%29%20count%28%29%20as%20sample_row&step=1m).
+> You can test your LogsQL queries with stats pipe functions using our [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/). Use either UI to access graphical results or the `/select/logsql/stats_query_range` endpoint to run your queries and see the raw results, e.g. as this [sample query](https://play-vmlogs.victoriametrics.com/select/logsql/stats_query_range?query=_time%3A5m%20%7C%20stats%20by%20%28_stream%29%20count%28%29%20as%20sample_row&step=1m).
 
-Here are examples of simple valid LogsQL queries with stats pipe functions that can be used with `VLogsReader`:
+Here are examples of simple valid LogsQL queries with stats pipe functions that can be used with `VLogsReader`.
 
 The following query returns the average value for the duration field over logs matching the [filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters) for `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word):
 
@@ -621,7 +621,6 @@ Frequency of the points returned. Will be converted to `/select/stats_query_rang
             </td>
             <td>
 (Optional) Specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
-            </td>
             </td>
         </tr>
         <tr>

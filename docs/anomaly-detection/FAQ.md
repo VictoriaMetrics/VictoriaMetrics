@@ -47,14 +47,15 @@ Please see example graph illustrating this logic below:
 
 
 ## What data does vmanomaly operate on?
-Mainly, `vmanomaly` operates on data fetched from VictoriaMetrics with the help of [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for data selection, sampling, and processing. Users can also [apply global filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) for more targeted data analysis, enhancing scope limitation and tenant visibility.
 
-Respective config is defined in a [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) section of a config.
+`vmanomaly` operates on timeseries (metrics) data, and supports both **VictoriaMetrics** and **VictoriaLogs** as data sources. Choose the source depending on the use case.
 
-Additionally, {{% available_from "v1.26.0" anomaly %}} `vmanomaly` supports reading data from [VictoriaLogs](https://docs.victoriametrics.com/victoriametrics/victorialogs/) using [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader), which allows for anomaly detection on log-derived metrics. This is particularly useful for scenarios where log data needs to be analyzed for unusual patterns or behaviors, such as error rates or request latencies.
+**VictoriaMetrics (metrics):** use full [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) for selection, sampling, and processing; [global filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) are also supported. See the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) for the details.
 
-## Handling noisy input data
-As `vmanomaly` operates on data fetched from VictoriaMetrics using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) or [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries, the input data quality can be improved with aggregation, rollups, and filtering to reduce noise and improve anomaly detection accuracy.
+**VictoriaLogs (logs → metrics):** {{% available_from "v1.26.0" anomaly %}} use [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) via the [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) to create log-derived metrics for anomaly detection (e.g., error rates, request latencies). 
+
+> Please note that only LogsQL queries with [stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe)  functions [subset](http://localhost:1313/anomaly-detection/components/reader/#valid-stats-functions) are supported, as they produce **numeric** time series.
+
 
 ## Using offsets
 `vmanomaly` supports {{% available_from "v1.25.3" anomaly %}} the use of offsets in the [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) section to adjust the time range of the data being queried. This can be particularly useful for correcting for data collection delays or other timing issues. It can be also defined or overridden on [per-query basis](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
