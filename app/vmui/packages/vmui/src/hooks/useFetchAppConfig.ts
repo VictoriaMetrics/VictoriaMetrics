@@ -1,9 +1,10 @@
-import { useAppDispatch } from "../state/common/StateContext";
+import { useAppDispatch, useAppState } from "../state/common/StateContext";
 import { useEffect, useState } from "preact/compat";
 import { ErrorTypes } from "../types";
 import { APP_TYPE_VM } from "../constants/appType";
 
-const useFetchFlags = () => {
+const useFetchAppConfig = () => {
+  const { serverUrl } = useAppState();
   const dispatch = useAppDispatch();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +17,7 @@ const useFetchFlags = () => {
       setIsLoading(true);
 
       try {
-        const data = await fetch("./config.json");
+        const data = await fetch(`${serverUrl}/vmui/config.json`);
         const config = await data.json();
         dispatch({ type: "SET_APP_CONFIG", payload: config || {} });
       } catch (e) {
@@ -26,10 +27,10 @@ const useFetchFlags = () => {
     };
 
     fetchAppConfig();
-  }, []);
+  }, [serverUrl]);
 
   return { isLoading, error };
 };
 
-export default useFetchFlags;
+export default useFetchAppConfig;
 

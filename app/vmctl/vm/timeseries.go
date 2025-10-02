@@ -63,10 +63,7 @@ func (ts *TimeSeries) write(w io.Writer) (int, error) {
 		// Split long lines with more than 10K samples into multiple JSON lines.
 		// This should limit memory usage at VictoriaMetrics during data ingestion,
 		// since it allocates memory for the whole JSON line and processes it in one go.
-		batchSize := 10000
-		if batchSize > len(timestamps) {
-			batchSize = len(timestamps)
-		}
+		batchSize := min(10000, len(timestamps))
 		timestampsBatch := timestamps[:batchSize]
 		valuesBatch := values[:batchSize]
 		timestamps = timestamps[batchSize:]

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strconv"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -82,8 +82,7 @@ absolute path to all .tpl files in root.
 )
 
 var (
-	alertURLGeneratorFn notifier.AlertURLGenerator
-	extURL              *url.URL
+	extURL *url.URL
 )
 
 func main() {
@@ -120,7 +119,7 @@ func main() {
 		return
 	}
 
-	alertURLGeneratorFn, err = getAlertURLGenerator(extURL, *externalAlertSource, *validateTemplates)
+	err = notifier.InitAlertURLGeneratorFn(extURL, *externalAlertSource, *validateTemplates)
 	if err != nil {
 		logger.Fatalf("failed to init `external.alert.source`: %s", err)
 	}
@@ -148,8 +147,12 @@ func main() {
 		if err != nil {
 			logger.Fatalf("failed to init datasource: %s", err)
 		}
-		if err := replay(groupsCfg, q, rw); err != nil {
+		totalRows, droppedRows, err := replay(groupsCfg, q, rw)
+		if err != nil {
 			logger.Fatalf("replay failed: %s", err)
+		}
+		if droppedRows > 0 {
+			logger.Fatalf("failed to push all generated samples to remote write url, dropped %d samples out of %d", droppedRows, totalRows)
 		}
 		logger.Infof("replay succeed!")
 		return
@@ -223,7 +226,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		labels[s[:n]] = s[n+1:]
 	}
 
-	nts, err := notifier.Init(alertURLGeneratorFn, labels, *externalURL)
+	nts, err := notifier.Init(labels, *externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
@@ -285,35 +288,6 @@ func getHostnameAsExternalURL(addr string, isSecure bool) (*url.URL, error) {
 		schema = "https://"
 	}
 	return url.Parse(fmt.Sprintf("%s%s%s", schema, hname, port))
-}
-
-func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, validateTemplate bool) (notifier.AlertURLGenerator, error) {
-	if externalAlertSource == "" {
-		return func(a notifier.Alert) string {
-			gID, aID := strconv.FormatUint(a.GroupID, 10), strconv.FormatUint(a.ID, 10)
-			return fmt.Sprintf("%s/vmalert/alert?%s=%s&%s=%s", externalURL, paramGroupID, gID, paramAlertID, aID)
-		}, nil
-	}
-	if validateTemplate {
-		if err := notifier.ValidateTemplates(map[string]string{
-			"tpl": externalAlertSource,
-		}); err != nil {
-			return nil, fmt.Errorf("error validating source template %s: %w", externalAlertSource, err)
-		}
-	}
-	m := map[string]string{
-		"tpl": externalAlertSource,
-	}
-	return func(alert notifier.Alert) string {
-		qFn := func(_ string) ([]datasource.Metric, error) {
-			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
-		}
-		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
-		if err != nil {
-			logger.Errorf("cannot template alert source: %s", err)
-		}
-		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
-	}, nil
 }
 
 func usage() {
@@ -403,6 +377,21 @@ func configsEqual(a, b []config.Group) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
+	// sort both slices by file and name before comparing them
+	sort.SliceStable(a, func(i, j int) bool {
+		if a[i].File != a[j].File {
+			return a[i].File < a[j].File
+		}
+		return a[i].Name < a[j].Name
+	})
+	sort.SliceStable(b, func(i, j int) bool {
+		if b[i].File != b[j].File {
+			return b[i].File < b[j].File
+		}
+		return b[i].Name < b[j].Name
+	})
+
 	for i := range a {
 		if a[i].Checksum != b[i].Checksum {
 			return false

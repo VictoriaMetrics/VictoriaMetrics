@@ -7,7 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport/stream"
@@ -34,7 +34,7 @@ func InsertHandler(req *http.Request) error {
 	})
 }
 
-func insertRows(rows []vmimport.Row, extraLabels []prompbmarshal.Label) error {
+func insertRows(rows []vmimport.Row, extraLabels []prompb.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 

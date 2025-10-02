@@ -16,10 +16,9 @@ aliases:
 ---
 ## Install Recommendation
 
-It is recommended running the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-since it contains all the bugfixes and enhancements.
+It is recommended to run the latest available release of VictoriaMetrics from [this page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), since it contains all the bugfixes and enhancements.
 
-There is no need to tune VictoriaMetrics because it uses reasonable defaults for command-line flags.  These flags are automatically adjusted for the available CPU and RAM resources. There is no need in Operating System tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files.
+There is no need to tune VictoriaMetrics because it uses reasonable defaults for command-line flags. These flags are automatically adjusted for the available CPU and RAM resources. There is no need in Operating System tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files.
 
 ## Filesystem
 
@@ -42,7 +41,7 @@ VictoriaMetrics is production-ready for the following operating systems:
 
 There is an experimental support of VictoriaMetrics components for Windows.
 
-VictoriaMetrics can run also on MacOS for testing and development purposes.
+VictoriaMetrics can also run on macOS for testing and development purposes.
 
 ## Supported Architectures
 
@@ -50,7 +49,7 @@ VictoriaMetrics can run also on MacOS for testing and development purposes.
 * **FreeBSD**: i386, amd64, arm
 * **OpenBSD**: i386, amd64, arm
 * **Solaris/SmartOS**: i386, amd64
-* **MacOS**: amd64, arm64 (for testing and development purposes)
+* **macOS**: amd64, arm64 (for testing and development purposes)
 * **Windows**: amd64
 
 ## Kubernetes
@@ -59,14 +58,15 @@ VictoriaMetrics natively supports deployment in Kubernetes via [helm charts](htt
 and [kubernetes operator](https://docs.victoriametrics.com/operator/). See how to [start using k8s operator](https://docs.victoriametrics.com/guides/getting-started-with-vm-operator/).
 
 Common recommendations:
+
 1. Prefer setting [requests equal to limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#requests-and-limits)
 for stateful components like [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview) to avoid unnecessary
 component restarts.
 
-1. Avoid using [fractional CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units) 
-when setting resources for optimal performance. VictoriaMetrics is written in Go and its runtime requires specifying
-[integer number](https://pkg.go.dev/runtime#GOMAXPROCS) of concurrently running threads. 
-When fractional CPU unit is specified, VictoriaMetrics will automatically round it down. 
+1. Avoid using [fractional CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units)
+when configuring resources for optimal performance. VictoriaMetrics is written in Go and its runtime requires specifying
+[integer number](https://pkg.go.dev/runtime#GOMAXPROCS) of concurrently running threads.
+When fractional CPU unit is specified, VictoriaMetrics will automatically round it down.
 
 ## Upgrade procedure
 
@@ -78,7 +78,7 @@ It is also safe to downgrade to the previous version unless release notes say ot
 
 The following steps must be performed during the upgrade / downgrade procedure:
 
-* Send SIGINT signal to VictoriaMetrics process so that it is stopped gracefully.
+* Send SIGINT signal to VictoriaMetrics process to stop it gracefully.
 * Wait until the process stops. This can take a few seconds.
 * Start the upgraded VictoriaMetrics.
 
@@ -88,7 +88,7 @@ VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com
 
 ## Technical Support and Services
 
-There are the following channels for providing technical support for VictoriaMetrics:
+Technical support for VictoriaMetrics is available using the following channels:
 
 * [GitHub issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)

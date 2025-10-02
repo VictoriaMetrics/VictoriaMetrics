@@ -3,10 +3,10 @@ package netutil
 import (
 	"crypto/tls"
 	"errors"
-	"fmt"
-	"os"
 	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestCipherSuitesFromNamesSucces(t *testing.T) {
@@ -122,8 +122,8 @@ func TestGetServerTLSConfig(t *testing.T) {
 	mustCreateFile("test.crt", testCRT)
 	mustCreateFile("test.key", testPK)
 	defer func() {
-		_ = os.Remove("test.crt")
-		_ = os.Remove("test.key")
+		fs.MustRemovePath("test.crt")
+		fs.MustRemovePath("test.key")
 	}()
 
 	// check cert file not exist
@@ -187,7 +187,5 @@ YwXfJbKUZnJlv9XplwR7Dw==
 )
 
 func mustCreateFile(path, contents string) {
-	if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
-		panic(fmt.Errorf("cannot create file %q with %d bytes contents: %w", path, len(contents), err))
-	}
+	fs.MustWriteSync(path, []byte(contents))
 }

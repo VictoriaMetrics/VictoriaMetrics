@@ -2,10 +2,12 @@ package apptest
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -22,7 +24,7 @@ type Vmagent struct {
 // StartVmagent starts an instance of vmagent with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfigFilePath string) (*Vmagent, error) {
+func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfigFilePath string, output io.Writer) (*Vmagent, error) {
 	extractREs := []*regexp.Regexp{
 		httpListenAddrRE,
 	}
@@ -34,6 +36,7 @@ func StartVmagent(instance string, flags []string, cli *Client, promScrapeConfig
 			"-remoteWrite.tmpDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 		},
 		extractREs: extractREs,
+		output:     output,
 	})
 	if err != nil {
 		return nil, err
@@ -99,6 +102,58 @@ func (app *Vmagent) RemoteWritePacketsDroppedTotal(t *testing.T) int {
 		total += v
 	}
 	return int(total)
+}
+
+// RemoteWriteSamplesDropped sums up the total number of dropped remote write samples for given remote write URL.
+func (app *Vmagent) RemoteWriteSamplesDropped(t *testing.T, url string) int {
+	re := regexp.MustCompile(fmt.Sprintf("vmagent_remotewrite_samples_dropped_total{.*url=%q.*}", url))
+	total := 0.0
+	for _, v := range app.GetMetricsByRegexp(t, re) {
+		total += v
+	}
+	return int(total)
+}
+
+// RemoteWritePendingInmemoryBlocks sums up the total number of pending in-memory blocks for given remote write URL.
+func (app *Vmagent) RemoteWritePendingInmemoryBlocks(t *testing.T, url string) int {
+	re := regexp.MustCompile(fmt.Sprintf("vmagent_remotewrite_pending_inmemory_blocks{.*url=%q.*}", url))
+	total := 0.0
+	for _, v := range app.GetMetricsByRegexp(t, re) {
+		total += v
+	}
+	return int(total)
+}
+
+// RemoteWriteRequests sums up the total number of sending requests for given remote write URL.
+func (app *Vmagent) RemoteWriteRequests(t *testing.T, url string) int {
+	re := regexp.MustCompile(fmt.Sprintf("vmagent_remotewrite_requests_total{.*url=%q.*}", url))
+	total := 0.0
+	for _, v := range app.GetMetricsByRegexp(t, re) {
+		total += v
+	}
+	return int(total)
+}
+
+// ReloadRelabelConfigs sends SIGHUP to trigger relabel config reload
+// and waits until vmagent_relabel_config_reloads_total increases.
+// Fails the test if no reload is detected within 3 seconds.
+func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
+	prevTotal := app.GetMetric(t, "vmagent_relabel_config_reloads_total")
+
+	if err := app.process.Signal(syscall.SIGHUP); err != nil {
+		t.Fatalf("could not send SIGHUP signal to %s process: %v", app.instance, err)
+	}
+
+	var currTotal float64
+	for i := 0; i < 30; i++ {
+		currTotal = app.GetMetric(t, "vmagent_relabel_config_reloads_total")
+		if currTotal > prevTotal {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
 }
 
 // sendBlocking sends the data to vmstorage by executing `send` function and

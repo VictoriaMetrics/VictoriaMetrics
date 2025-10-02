@@ -41,6 +41,9 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing for details")
 	defaultLoadBalancingPolicy = flag.String("loadBalancingPolicy", "least_loaded", "The default load balancing policy to use for backend urls specified inside url_prefix section. "+
 		"Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing")
+	defaultMergeQueryArgs = flagutil.NewArrayString("mergeQueryArgs", "An optional list of client query arg names, which must be merged with args at backend urls. "+
+		"The rest of client query args are replaced by the corresponding query args from backend urls for security reasons; "+
+		"see https://docs.victoriametrics.com/victoriametrics/vmauth/#query-args-handling")
 	discoverBackendIPsGlobal = flag.Bool("discoverBackendIPs", false, "Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. "+
 		"This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips")
 	discoverBackendIPsInterval = flag.Duration("discoverBackendIPsInterval", 10*time.Second, "The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. "+
@@ -75,6 +78,7 @@ type UserInfo struct {
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
 	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
+	MergeQueryArgs         []string    `yaml:"merge_query_args,omitempty"`
 	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
 	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
 	TLSCertFile            string      `yaml:"tls_cert_file,omitempty"`
@@ -182,6 +186,11 @@ type URLMap struct {
 	// LoadBalancingPolicy is load balancing policy among UrlPrefix backends.
 	LoadBalancingPolicy string `yaml:"load_balancing_policy,omitempty"`
 
+	// MergeQueryArgs is a list of client query args, which must be merged with the existing backend query args.
+	//
+	// The rest of client query args are replaced with the corresponding backend query args for security reasons.
+	MergeQueryArgs []string `yaml:"merge_query_args,omitempty"`
+
 	// DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.
 	DropSrcPathPrefixParts *int `yaml:"drop_src_path_prefix_parts,omitempty"`
 }
@@ -228,13 +237,18 @@ func (qa *QueryArg) MarshalYAML() (any, error) {
 	return qa.sOriginal, nil
 }
 
-// URLPrefix represents passed `url_prefix`
+// URLPrefix represents the `url_prefix` from auth config.
 type URLPrefix struct {
 	// requests are re-tried on other backend urls for these http response status codes
 	retryStatusCodes []int
 
 	// load balancing policy used
 	loadBalancingPolicy string
+
+	// the list of client query args, which must be merged with backend query args.
+	//
+	// By default backend query args replace all the client query args for security reasons.
+	mergeQueryArgs []string
 
 	// how many request path prefix parts to drop before routing the request to backendURL
 	dropSrcPathPrefixParts int
@@ -723,14 +737,11 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 }
 
 func parseAuthConfig(data []byte) (*AuthConfig, error) {
-	data, err := envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 	ac := &AuthConfig{
 		ms: metrics.NewSet(),
 	}
-	if err = yaml.UnmarshalStrict(data, ac); err != nil {
+	if err := yaml.UnmarshalStrict(data, ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
 
@@ -859,6 +870,7 @@ func (ui *UserInfo) getMetricLabels() (string, error) {
 func (ui *UserInfo) initURLs() error {
 	retryStatusCodes := defaultRetryStatusCodes.Values()
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
+	mergeQueryArgs := *defaultMergeQueryArgs
 	dropSrcPathPrefixParts := 0
 	discoverBackendIPs := *discoverBackendIPsGlobal
 	if ui.RetryStatusCodes != nil {
@@ -867,6 +879,9 @@ func (ui *UserInfo) initURLs() error {
 	if ui.LoadBalancingPolicy != "" {
 		loadBalancingPolicy = ui.LoadBalancingPolicy
 	}
+	if len(ui.MergeQueryArgs) != 0 {
+		mergeQueryArgs = ui.MergeQueryArgs
+	}
 	if ui.DropSrcPathPrefixParts != nil {
 		dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
 	}
@@ -874,16 +889,18 @@ func (ui *UserInfo) initURLs() error {
 		discoverBackendIPs = *ui.DiscoverBackendIPs
 	}
 
-	if ui.URLPrefix != nil {
-		if err := ui.URLPrefix.sanitizeAndInitialize(); err != nil {
+	up := ui.URLPrefix
+	if up != nil {
+		if err := up.sanitizeAndInitialize(); err != nil {
 			return err
 		}
-		ui.URLPrefix.retryStatusCodes = retryStatusCodes
-		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts
-		ui.URLPrefix.discoverBackendIPs = discoverBackendIPs
-		if err := ui.URLPrefix.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
+		up.retryStatusCodes = retryStatusCodes
+		up.dropSrcPathPrefixParts = dropSrcPathPrefixParts
+		up.discoverBackendIPs = discoverBackendIPs
+		if err := up.setLoadBalancingPolicy(loadBalancingPolicy); err != nil {
 			return err
 		}
+		up.mergeQueryArgs = mergeQueryArgs
 	}
 	if ui.DefaultURL != nil {
 		if err := ui.DefaultURL.sanitizeAndInitialize(); err != nil {
@@ -902,6 +919,7 @@ func (ui *UserInfo) initURLs() error {
 		}
 		rscs := retryStatusCodes
 		lbp := loadBalancingPolicy
+		mqa := mergeQueryArgs
 		dsp := dropSrcPathPrefixParts
 		dbd := discoverBackendIPs
 		if e.RetryStatusCodes != nil {
@@ -909,6 +927,9 @@ func (ui *UserInfo) initURLs() error {
 		}
 		if e.LoadBalancingPolicy != "" {
 			lbp = e.LoadBalancingPolicy
+		}
+		if len(e.MergeQueryArgs) != 0 {
+			mqa = e.MergeQueryArgs
 		}
 		if e.DropSrcPathPrefixParts != nil {
 			dsp = *e.DropSrcPathPrefixParts
@@ -920,6 +941,7 @@ func (ui *UserInfo) initURLs() error {
 		if err := e.URLPrefix.setLoadBalancingPolicy(lbp); err != nil {
 			return err
 		}
+		e.URLPrefix.mergeQueryArgs = mqa
 		e.URLPrefix.dropSrcPathPrefixParts = dsp
 		e.URLPrefix.discoverBackendIPs = dbd
 	}

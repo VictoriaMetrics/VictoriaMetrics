@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/lrucache"
@@ -152,8 +152,8 @@ func convertToCompositeTagFilters(tfs *TagFilters) []*TagFilters {
 }
 
 var (
-	compositeFilterSuccessConversions atomic.Uint64
-	compositeFilterMissingConversions atomic.Uint64
+	compositeFilterSuccessConversions atomicutil.Uint64
+	compositeFilterMissingConversions atomicutil.Uint64
 )
 
 // TagFilters represents filters used for filtering tags.
@@ -295,7 +295,7 @@ func (tf *tagFilter) Less(other *tagFilter) bool {
 	// Move composite filters to the top, since they usually match lower number of time series.
 	// Move regexp filters to the bottom, since they require scanning all the entries for the given label.
 	isCompositeA := tf.isComposite()
-	isCompositeB := tf.isComposite()
+	isCompositeB := other.isComposite()
 	if isCompositeA != isCompositeB {
 		return isCompositeA
 	}
@@ -418,7 +418,7 @@ func getCommonPrefix(ss []string) (string, []string) {
 //
 // commonPrefix must contain either {nsPrefixTagToMetricIDs} or {nsPrefixDateTagToMetricIDs, date}.
 //
-// If isNegaitve is true, then the tag filter matches all the values
+// If isNegative is true, then the tag filter matches all the values
 // except the given one.
 //
 // If isRegexp is true, then the value is interpreted as anchored regexp,
@@ -772,10 +772,25 @@ func isDotStar(sre *syntax.Regexp) bool {
 	case syntax.OpCapture:
 		return isDotStar(sre.Sub[0])
 	case syntax.OpAlternate:
+		var (
+			hasDotPlus    bool
+			hasEmptyMatch bool
+		)
 		for _, reSub := range sre.Sub {
 			if isDotStar(reSub) {
 				return true
 			}
+			if !hasDotPlus {
+				hasDotPlus = isDotPlus(reSub)
+			}
+			if !hasEmptyMatch {
+				hasEmptyMatch = reSub.Op == syntax.OpEmptyMatch
+			}
+		}
+		// special case for .+|^$ expression
+		// it must be converted into .*
+		if hasDotPlus && hasEmptyMatch {
+			return true
 		}
 		return false
 	case syntax.OpStar:

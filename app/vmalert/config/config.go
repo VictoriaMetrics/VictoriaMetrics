@@ -18,9 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
-var (
-	defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs".`)
-)
+var defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs".`)
 
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
@@ -33,7 +31,7 @@ type Group struct {
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
 	EvalDelay   *promutil.Duration `yaml:"eval_delay,omitempty"`
-	Limit       int                `yaml:"limit,omitempty"`
+	Limit       *int               `yaml:"limit,omitempty"`
 	Rules       []Rule             `yaml:"rules"`
 	Concurrency int                `yaml:"concurrency"`
 	// Labels is a set of label value pairs, that will be added to every rule.
@@ -93,8 +91,8 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 	if g.EvalOffset != nil && g.EvalDelay != nil {
 		return fmt.Errorf("eval_offset cannot be used with eval_delay")
 	}
-	if g.Limit < 0 {
-		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", g.Limit)
+	if g.Limit != nil && *g.Limit < 0 {
+		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", *g.Limit)
 	}
 	if g.Concurrency < 0 {
 		return fmt.Errorf("invalid concurrency %d, shouldn't be less than 0", g.Concurrency)
@@ -293,20 +291,11 @@ func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpress
 	if err := errGroup.Err(); err != nil {
 		return nil, err
 	}
-	sort.SliceStable(groups, func(i, j int) bool {
-		if groups[i].File != groups[j].File {
-			return groups[i].File < groups[j].File
-		}
-		return groups[i].Name < groups[j].Name
-	})
 	return groups, nil
 }
 
 func parseConfig(data []byte) ([]Group, error) {
-	data, err := envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 
 	var result []Group
 	type cfgFile struct {
@@ -318,13 +307,13 @@ func parseConfig(data []byte) ([]Group, error) {
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	for {
 		var cf cfgFile
-		if err = decoder.Decode(&cf); err != nil {
+		if err := decoder.Decode(&cf); err != nil {
 			if err == io.EOF { // EOF indicates no more documents to read
 				break
 			}
 			return nil, err
 		}
-		if err = checkOverflow(cf.XXX, "config"); err != nil {
+		if err := checkOverflow(cf.XXX, "config"); err != nil {
 			return nil, err
 		}
 		result = append(result, cf.Groups...)

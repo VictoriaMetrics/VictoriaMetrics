@@ -10,7 +10,7 @@ func TestNextUnquotedChar(t *testing.T) {
 		t.Helper()
 		n := nextUnquotedChar(s, ch, noUnescape, true)
 		if n != nExpected {
-			t.Fatalf("unexpected n for nextUnqotedChar(%q, '%c', %v); got %d; want %d", s, ch, noUnescape, n, nExpected)
+			t.Fatalf("unexpected n for nextUnquotedChar(%q, '%c', %v); got %d; want %d", s, ch, noUnescape, n, nExpected)
 		}
 	}
 

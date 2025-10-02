@@ -69,6 +69,10 @@
         }
       }
 
+      &_disabled {
+        color: $color-text-disabled;
+      }
+
       &__prev {
         transform: rotate(90deg);
       }
@@ -108,7 +112,12 @@
         cursor: pointer;
         transition: color 200ms ease, background-color 300ms ease-in-out;
 
-        &:hover {
+        &_disabled {
+          cursor: unset;
+          color: $color-text-disabled;
+        }
+
+        &:not(&_disabled):hover {
           background-color: $color-hover-black;
         }
 
@@ -148,7 +157,12 @@
       cursor: pointer;
       transition: color 200ms ease, background-color 300ms ease-in-out;
 
-      &:hover {
+      &_disabled {
+        cursor: unset;
+        color: $color-text-disabled;
+      }
+
+      &:not(&_disabled):hover {
         background-color: $color-hover-black;
       }
 

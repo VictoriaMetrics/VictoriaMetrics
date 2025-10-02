@@ -25,7 +25,7 @@ func TestCalculateRetryDuration(t *testing.T) {
 		expectMaxDuration := helper(expectMinDuration)
 		expectMinDuration = expectMinDuration - (1000 * time.Millisecond) // Avoid edge case when calculating time.Until(now)
 
-		if !(retryDuration >= expectMinDuration && retryDuration <= expectMaxDuration) {
+		if retryDuration < expectMinDuration || retryDuration > expectMaxDuration {
 			t.Fatalf(
 				"incorrect retry duration, want (ms): [%d, %d], got (ms): %d",
 				expectMinDuration.Milliseconds(), expectMaxDuration.Milliseconds(),
@@ -93,10 +93,7 @@ func TestParseRetryAfterHeader(t *testing.T) {
 
 // helper calculate the max possible time duration calculated by timeutil.AddJitterToDuration.
 func helper(d time.Duration) time.Duration {
-	dv := d / 10
-	if dv > 10*time.Second {
-		dv = 10 * time.Second
-	}
+	dv := min(d/10, 10*time.Second)
 
 	return d + dv
 }
@@ -105,7 +102,10 @@ func TestRepackBlockFromZstdToSnappy(t *testing.T) {
 	expectedPlainBlock := []byte(`foobar`)
 
 	zstdBlock := encoding.CompressZSTDLevel(nil, expectedPlainBlock, 1)
-	snappyBlock := mustRepackBlockFromZstdToSnappy(zstdBlock)
+	snappyBlock, err := repackBlockFromZstdToSnappy(zstdBlock)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 
 	actualPlainBlock, err := snappy.Decode(nil, snappyBlock)
 	if err != nil {
@@ -114,5 +114,16 @@ func TestRepackBlockFromZstdToSnappy(t *testing.T) {
 
 	if string(actualPlainBlock) != string(expectedPlainBlock) {
 		t.Fatalf("unexpected plain block; got %q; want %q", actualPlainBlock, expectedPlainBlock)
+	}
+}
+
+func TestRepackBlockFromZstdToSnappyInvalidBlock(t *testing.T) {
+	snappyBlock, err := repackBlockFromZstdToSnappy([]byte("invalid zstd block"))
+
+	if err == nil {
+		t.Fatalf("expected error for invalid zstd block; got nil")
+	}
+	if len(snappyBlock) != 0 {
+		t.Fatalf("expected empty snappy block; got %d bytes", len(snappyBlock))
 	}
 }

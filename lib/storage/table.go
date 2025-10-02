@@ -36,9 +36,10 @@ type table struct {
 
 	stopCh chan struct{}
 
-	retentionWatcherWG  sync.WaitGroup
-	finalDedupWatcherWG sync.WaitGroup
-	forceMergeWG        sync.WaitGroup
+	retentionWatcherWG sync.WaitGroup
+	forceMergeWG       sync.WaitGroup
+
+	historicalMergeWatcherWG sync.WaitGroup
 }
 
 // partitionWrapper provides refcounting mechanism for the partition.
@@ -94,22 +95,21 @@ func mustOpenTable(path string, s *Storage) *table {
 	// Create directories for small and big partitions if they don't exist yet.
 	smallPartitionsPath := filepath.Join(path, smallDirname)
 	fs.MustMkdirIfNotExist(smallPartitionsPath)
-	fs.MustRemoveTemporaryDirs(smallPartitionsPath)
 
 	smallSnapshotsPath := filepath.Join(smallPartitionsPath, snapshotsDirname)
 	fs.MustMkdirIfNotExist(smallSnapshotsPath)
-	fs.MustRemoveTemporaryDirs(smallSnapshotsPath)
 
 	bigPartitionsPath := filepath.Join(path, bigDirname)
 	fs.MustMkdirIfNotExist(bigPartitionsPath)
-	fs.MustRemoveTemporaryDirs(bigPartitionsPath)
 
 	bigSnapshotsPath := filepath.Join(bigPartitionsPath, snapshotsDirname)
 	fs.MustMkdirIfNotExist(bigSnapshotsPath)
-	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
 	// Open partitions.
 	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, s)
+
+	// Make sure all the directories inside the path are properly synced.
+	fs.MustSyncPathAndParentDir(path)
 
 	tb := &table{
 		path:                path,
@@ -120,10 +120,10 @@ func mustOpenTable(path string, s *Storage) *table {
 		stopCh: make(chan struct{}),
 	}
 	for _, pt := range pts {
-		tb.addPartitionNolock(pt)
+		tb.addPartitionLocked(pt)
 	}
 	tb.startRetentionWatcher()
-	tb.startFinalDedupWatcher()
+	tb.startHistoricalMergeWatcher()
 	return tb
 }
 
@@ -147,10 +147,8 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
 		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath)
 	}
 
-	fs.MustSyncPath(dstSmallDir)
-	fs.MustSyncPath(dstBigDir)
-	fs.MustSyncPath(filepath.Dir(dstSmallDir))
-	fs.MustSyncPath(filepath.Dir(dstBigDir))
+	fs.MustSyncPathAndParentDir(dstSmallDir)
+	fs.MustSyncPathAndParentDir(dstBigDir)
 
 	logger.Infof("created table snapshot for %q at (%q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, time.Since(startTime).Seconds())
 	return dstSmallDir, dstBigDir
@@ -159,12 +157,12 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
 func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	smallDir := filepath.Join(tb.path, smallDirname, snapshotsDirname, snapshotName)
-	fs.MustRemoveDirAtomic(smallDir)
+	fs.MustRemoveDir(smallDir)
 	bigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
-	fs.MustRemoveDirAtomic(bigDir)
+	fs.MustRemoveDir(bigDir)
 }
 
-func (tb *table) addPartitionNolock(pt *partition) {
+func (tb *table) addPartitionLocked(pt *partition) {
 	ptw := &partitionWrapper{
 		pt: pt,
 	}
@@ -180,7 +178,7 @@ func (tb *table) addPartitionNolock(pt *partition) {
 func (tb *table) MustClose() {
 	close(tb.stopCh)
 	tb.retentionWatcherWG.Wait()
-	tb.finalDedupWatcherWG.Wait()
+	tb.historicalMergeWatcherWG.Wait()
 	tb.forceMergeWG.Wait()
 
 	tb.ptwsLock.Lock()
@@ -196,15 +194,16 @@ func (tb *table) MustClose() {
 	}
 }
 
-// flushPendingRows flushes all the pending raw rows, so they become visible to search.
+// DebugFlush flushes all pending raw data rows, so they become
+// visible to search.
 //
 // This function is for debug purposes only.
-func (tb *table) flushPendingRows() {
+func (tb *table) DebugFlush() {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
-		ptw.pt.flushPendingRows(true)
+		ptw.pt.DebugFlush()
 	}
 }
 
@@ -371,7 +370,7 @@ func (tb *table) MustAddRows(rows []rawRow) {
 
 		pt := mustCreatePartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.s)
 		pt.AddRows(missingRows[i : i+1])
-		tb.addPartitionNolock(pt)
+		tb.addPartitionLocked(pt)
 	}
 	tb.ptwsLock.Unlock()
 }
@@ -438,48 +437,65 @@ func (tb *table) retentionWatcher() {
 	}
 }
 
-func (tb *table) startFinalDedupWatcher() {
-	tb.finalDedupWatcherWG.Add(1)
+func (tb *table) startHistoricalMergeWatcher() {
+	tb.historicalMergeWatcherWG.Add(1)
 	go func() {
-		tb.finalDedupWatcher()
-		tb.finalDedupWatcherWG.Done()
+		tb.historicalMergeWatcher()
+		tb.historicalMergeWatcherWG.Done()
 	}()
 }
 
-func (tb *table) finalDedupWatcher() {
+func (tb *table) historicalMergeWatcher() {
 	if !isDedupEnabled() {
-		// Deduplication is disabled.
+		// Deduplication and retentionFilters are disabled.
 		return
 	}
+
 	f := func() {
 		ptws := tb.GetPartitions(nil)
 		defer tb.PutPartitions(ptws)
 		timestamp := timestampFromTime(time.Now())
 		currentPartitionName := timestampToPartitionName(timestamp)
-		var ptwsToDedup []*partitionWrapper
+
+		var ptwsToMerge []*partitionWrapper
 		for _, ptw := range ptws {
 			if ptw.pt.name == currentPartitionName {
-				// Do not run final dedup for the current month.
-				// For the current month, the samples are countinously
-				// deduplicated by the background in-memory, small, and big part
+				// Do not run force merge for the current month.
+				// For the current month, the samples are continuously
+				// deduplicated and retention filters applied by the background in-memory, small, and big part
 				// merge tasks. See:
-				// - partition.mergeParts() in paritiont.go and
+				// - partition.mergeParts() in partition.go and
 				// - Block.deduplicateSamplesDuringMerge() in block.go.
+				// - blockStreamMerger.getRetentionDeadline() in block_stream_merger.go
 				continue
 			}
-			if !ptw.pt.isFinalDedupNeeded() {
-				// There is no need to run final dedup for the given partition.
-				continue
+			mergeScheduled := false
+			if ptw.pt.isFinalDedupNeeded() {
+				// mark partition with final deduplication marker
+				ptw.pt.isDedupScheduled.Store(true)
+				mergeScheduled = true
 			}
-			// mark partition with final deduplication marker
-			ptw.pt.isDedupScheduled.Store(true)
-			ptwsToDedup = append(ptwsToDedup, ptw)
+			if mergeScheduled {
+				ptwsToMerge = append(ptwsToMerge, ptw)
+			}
 		}
-		for _, ptw := range ptwsToDedup {
-			if err := ptw.pt.runFinalDedup(tb.stopCh); err != nil {
-				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
+		for _, ptw := range ptwsToMerge {
+			t := time.Now()
+			pt := ptw.pt
+			var logContext []string
+			var logErrContext []string
+			if pt.isDedupScheduled.Load() {
+				logContext = append(logContext, "removing duplicate samples")
+				logErrContext = append(logErrContext, "remove duplicate samples")
 			}
-			ptw.pt.isDedupScheduled.Store(false)
+
+			logger.Infof("start %s for partition (%s, %s)", strings.Join(logContext, " and "), pt.bigPartsPath, pt.smallPartsPath)
+			if err := pt.ForceMergeAllParts(tb.stopCh); err != nil {
+				logger.Errorf("cannot %s for partition (%s, %s): %w", strings.Join(logErrContext, " and "), pt.bigPartsPath, pt.smallPartsPath, err)
+			}
+			logger.Infof("finished %s for partition (%s, %s) in %.3f seconds", strings.Join(logContext, " and "), pt.bigPartsPath, pt.smallPartsPath, time.Since(t).Seconds())
+
+			pt.isDedupScheduled.Store(false)
 		}
 	}
 
@@ -570,6 +586,14 @@ func mustPopulatePartitionNames(partitionsPath string, ptNames map[string]bool) 
 		ptName := de.Name()
 		if ptName == snapshotsDirname {
 			// Skip directory with snapshots
+			continue
+		}
+		ptDirPath := filepath.Join(partitionsPath, ptName)
+		if fs.IsPartiallyRemovedDir(ptDirPath) {
+			// Finish the removal of partially deleted partition directories.
+			// Partially deleted partition directories may occur when unclean shutdown happens
+			// in the middle of directory removal.
+			fs.MustRemoveDir(ptDirPath)
 			continue
 		}
 		ptNames[ptName] = true

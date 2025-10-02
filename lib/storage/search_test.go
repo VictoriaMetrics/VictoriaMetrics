@@ -6,13 +6,13 @@ import (
 	"math/rand"
 	"reflect"
 	"regexp"
-	"slices"
 	"sort"
 	"testing"
 	"testing/quick"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestSearchQueryMarshalUnmarshal(t *testing.T) {
@@ -155,7 +155,6 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 		t.Helper()
 
 		mrs := make([]MetricRow, numMetrics)
-		want := make([]string, numMetrics)
 		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
 		for i := range numMetrics {
 			name := fmt.Sprintf("metric_%d", i)
@@ -163,13 +162,14 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
 			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
 			mrs[i].Value = float64(i)
-			want[i] = name
 		}
-		slices.Sort(want)
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs, defaultPrecisionBits)
+		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
+		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
+		s.mustRotateIndexDB(time.Now())
+		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
 		s.DebugFlush()
 
 		if err := testSearchInternal(s, tr, mrs); err != nil {
@@ -195,7 +195,7 @@ func testSearchInternal(s *Storage, tr TimeRange, mrs []MetricRow) error {
 			return fmt.Errorf("cannot add tag filter %q=%q: %w", "instance", ".*", err)
 		}
 
-		// Build extectedMrs.
+		// Build expectedMrs.
 		var expectedMrs []MetricRow
 		metricGroupRegexp := regexp.MustCompile(fmt.Sprintf("^%s$", metricGroupRe))
 		var mn MetricName
@@ -263,7 +263,7 @@ func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []M
 
 	testSortMetricRows(got)
 	testSortMetricRows(want)
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, cmpopts.EquateApprox(0, 1e-4)); diff != "" {
 		return fmt.Errorf("unexpected rows found (-want, +got):\n%s", diff)
 	}
 

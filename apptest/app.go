@@ -31,6 +31,8 @@ type app struct {
 	binary   string
 	flags    []string
 	process  *os.Process
+	wait     bool
+	output   io.Writer
 }
 
 // appOptions holds the optional configuration of an app, such as default flags
@@ -38,6 +40,8 @@ type app struct {
 type appOptions struct {
 	defaultFlags map[string]string
 	extractREs   []*regexp.Regexp
+	wait         bool
+	output       io.Writer
 }
 
 // startApp starts an instance of an app using the app binary file path and
@@ -68,14 +72,21 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		return nil, nil, err
 	}
 
+	output := opts.output
+	if output == nil {
+		output = os.Stderr
+	}
+
 	app := &app{
 		instance: instance,
 		binary:   binary,
 		flags:    flags,
 		process:  cmd.Process,
+		wait:     opts.wait,
+		output:   output,
 	}
 
-	go app.processOutput("stdout", stdout, app.writeToStderr)
+	go app.processOutput("stdout", stdout, app.writeToOutput)
 
 	lineProcessors := make([]lineProcessor, len(opts.extractREs))
 	reExtractors := make([]*reExtractor, len(opts.extractREs))
@@ -84,7 +95,7 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		reExtractors[i] = newREExtractor(re, timeout)
 		lineProcessors[i] = reExtractors[i].extractRE
 	}
-	go app.processOutput("stderr", stderr, append(lineProcessors, app.writeToStderr)...)
+	go app.processOutput("stderr", stderr, append(lineProcessors, app.writeToOutput)...)
 
 	extracts, err := extractREs(reExtractors, timeout)
 	if err != nil {
@@ -92,7 +103,11 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 		return nil, nil, err
 	}
 
-	return app, extracts, nil
+	if app.wait {
+		err = cmd.Wait()
+	}
+
+	return app, extracts, err
 }
 
 // setDefaultFlags adds flags with default values to `flags` if it does not
@@ -112,9 +127,12 @@ func setDefaultFlags(flags []string, defaultFlags map[string]string) []string {
 	return flags
 }
 
-// stop sends the app process a SIGINT signal and waits until it terminates
+// Stop sends the app process a SIGINT signal and waits until it terminates
 // gracefully.
 func (app *app) Stop() {
+	if app.wait {
+		return
+	}
 	if err := app.process.Signal(os.Interrupt); err != nil {
 		log.Fatalf("Could not send SIGINT signal to %s process: %v", app.instance, err)
 	}
@@ -167,11 +185,11 @@ func (app *app) processOutput(outputName string, output io.Reader, lps ...linePr
 	}
 }
 
-// writeToStderr is a line processor that writes the line to the stderr.
+// writeToOutput is a lineProcessor that writes the line to the output.
 // The function always returns false to indicate its caller that each line must
 // be written to the stderr.
-func (app *app) writeToStderr(line string) bool {
-	fmt.Fprintf(os.Stderr, "%s %s\n", app.instance, line)
+func (app *app) writeToOutput(line string) bool {
+	fmt.Fprintf(app.output, "%s %s\n", app.instance, line)
 	return false
 }
 

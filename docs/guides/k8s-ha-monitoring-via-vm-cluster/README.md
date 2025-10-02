@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 **The guide covers:**
 
 * High availability monitoring via [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) with Helm charts
@@ -15,7 +23,7 @@
 
 ## 1. VictoriaMetrics Helm repository
 
-Please see the relevant [VictoriaMetrics Helm repository](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster#1-victoriametrics-helm-repository) section in previous guides. 
+Please see the relevant [VictoriaMetrics Helm repository](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#1-victoriametrics-helm-repository) section in previous guides. 
 
 
 ## 2. Install VictoriaMetrics Cluster from the Helm chart
@@ -345,7 +353,7 @@ The expected output is:
 The expected result of the query `count(up{kubernetes_pod_name=~".*vmselect.*"})` should be equal to `3` - the number of replicas we set via `replicaCount` parameter.
 
 
-To test via Grafana, we need to install it first. [Install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster#4-install-and-connect-grafana-to-victoriametrics-with-helm), login into Grafana and open the metrics explore page at `http://127.0.0.1:3000/explore`.
+To test via Grafana, we need to install it first. [Install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#4-install-and-connect-grafana-to-victoriametrics-with-helm), login into Grafana and open the metrics explore page at `http://127.0.0.1:3000/explore`.
 
 
 ![Explore](explore.webp)

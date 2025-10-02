@@ -15,7 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/azure"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consulagent"
@@ -65,7 +65,7 @@ func CheckConfig() error {
 // Init initializes Prometheus scraper with config from the `-promscrape.config`.
 //
 // Scraped data is passed to pushData.
-func Init(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
+func Init(pushData func(at *auth.Token, wr *prompb.WriteRequest)) {
 	mustInitClusterMemberID()
 	globalStopChan = make(chan struct{})
 	scraperWG.Add(1)
@@ -102,7 +102,7 @@ func WriteConfigData(w io.Writer) {
 	_, _ = w.Write(*p)
 }
 
-func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
+func runScraper(configFile string, pushData func(at *auth.Token, wr *prompb.WriteRequest), globalStopCh <-chan struct{}) {
 	if configFile == "" {
 		// Nothing to scrape.
 		return
@@ -218,14 +218,14 @@ var (
 )
 
 type scrapeConfigs struct {
-	pushData     func(at *auth.Token, wr *prompbmarshal.WriteRequest)
+	pushData     func(at *auth.Token, wr *prompb.WriteRequest)
 	wg           sync.WaitGroup
 	stopCh       chan struct{}
 	globalStopCh <-chan struct{}
 	scfgs        []*scrapeConfig
 }
 
-func newScrapeConfigs(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) *scrapeConfigs {
+func newScrapeConfigs(pushData func(at *auth.Token, wr *prompb.WriteRequest), globalStopCh <-chan struct{}) *scrapeConfigs {
 	return &scrapeConfigs{
 		pushData:     pushData,
 		stopCh:       make(chan struct{}),
@@ -267,7 +267,7 @@ func (scs *scrapeConfigs) stop() {
 
 type scrapeConfig struct {
 	name          string
-	pushData      func(at *auth.Token, wr *prompbmarshal.WriteRequest)
+	pushData      func(at *auth.Token, wr *prompb.WriteRequest)
 	getScrapeWork func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork
 	checkInterval time.Duration
 	cfgCh         chan *Config
@@ -320,7 +320,7 @@ type scraperGroup struct {
 	wg       sync.WaitGroup
 	mLock    sync.Mutex
 	m        map[string]*scraper
-	pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)
+	pushData func(at *auth.Token, wr *prompb.WriteRequest)
 
 	changesCount    *metrics.Counter
 	activeScrapers  *metrics.Counter
@@ -330,7 +330,7 @@ type scraperGroup struct {
 	globalStopCh <-chan struct{}
 }
 
-func newScraperGroup(name string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) *scraperGroup {
+func newScraperGroup(name string, pushData func(at *auth.Token, wr *prompb.WriteRequest), globalStopCh <-chan struct{}) *scraperGroup {
 	sg := &scraperGroup{
 		name:     name,
 		m:        make(map[string]*scraper),
@@ -450,7 +450,7 @@ type scraper struct {
 	stoppedCh chan struct{}
 }
 
-func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) (*scraper, error) {
+func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *prompb.WriteRequest)) (*scraper, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sc := &scraper{
 		ctx:       ctx,

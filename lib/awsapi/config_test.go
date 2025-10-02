@@ -2,9 +2,14 @@ package awsapi
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestParseMetadataSecurityCredentialsFailure(t *testing.T) {
@@ -61,6 +66,152 @@ func TestParseARNCredentialsFailure(t *testing.T) {
 	}
 	f("")
 	f("foobar")
+}
+
+type fakeRoundTripper struct {
+	responses map[string]*http.Response
+}
+
+func (m *fakeRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	queryParams := req.URL.Query()
+	action := queryParams.Get("Action")
+	resp, ok := m.responses[action]
+	if !ok {
+		return nil, fmt.Errorf("unexpected action: %q", action)
+	}
+	return resp, nil
+}
+
+func TestGetAPICredentials(t *testing.T) {
+	responses := map[string]string{
+		"AssumeRole": `
+<AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleResult>
+    <AssumedRoleUser>
+      <Arn>arn:aws:sts::123456789012:assumed-role/demo/TestAR</Arn>
+      <AssumedRoleId>ARO123EXAMPLE123:TestAR</AssumedRoleId>
+    </AssumedRoleUser>
+    <Credentials>
+      <AccessKeyId>ROLEACCESSKEYID</AccessKeyId>
+      <SecretAccessKey>ROLESECRETACCESSKEY</SecretAccessKey>
+      <SessionToken>ROLETOKEN</SessionToken>
+      <Expiration>2019-11-09T13:34:41Z</Expiration>
+    </Credentials>
+    <PackedPolicySize>6</PackedPolicySize>
+  </AssumeRoleResult>
+  <ResponseMetadata>
+    <RequestId>c6104cbe-af31-11e0-8154-cbc7ccf896c7</RequestId>
+  </ResponseMetadata>
+</AssumeRoleResponse>
+`,
+		"AssumeRoleWithWebIdentity": `
+<AssumeRoleWithWebIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleWithWebIdentityResult>
+    <Audience>sts.amazonaws.com</Audience>
+    <AssumedRoleUser>
+      <AssumedRoleId>AROA2X6NOXN27E3OGMK3T:vmagent-ec2-discovery</AssumedRoleId>
+      <Arn>arn:aws:sts::111111111:assumed-role/eks-role-9N0EFKEDJ1X/vmagent-ec2-discovery</Arn>
+    </AssumedRoleUser>
+    <Provider>arn:aws:iam::111111111:oidc-provider/oidc.eks.eu-west-1.amazonaws.com/id/111111111</Provider>
+    <Credentials>
+      <AccessKeyId>IRSAACCESSKEYID</AccessKeyId>
+      <SecretAccessKey>IRSASECRETACCESSKEY</SecretAccessKey>
+      <SessionToken>IRSATOKEN</SessionToken>
+      <Expiration>2021-03-01T13:38:15Z</Expiration>
+    </Credentials>      
+    <SubjectFromWebIdentityToken>system:serviceaccount:default:vmagent</SubjectFromWebIdentityToken>
+  </AssumeRoleWithWebIdentityResult>
+  <ResponseMetadata>    
+    <RequestId>1214124-7bb0-4673-ad6d-af9e67fc1141</RequestId>
+  </ResponseMetadata>
+</AssumeRoleWithWebIdentityResponse>
+`,
+	}
+	f := func(c *Config, credsExpected *credentials) {
+		t.Helper()
+		if len(c.webTokenPath) > 0 {
+			tempDir := t.TempDir()
+			c.webTokenPath = filepath.Join(tempDir, c.webTokenPath)
+			fs.MustWriteSync(c.webTokenPath, []byte("webtoken"))
+		}
+		rt := &fakeRoundTripper{
+			responses: make(map[string]*http.Response),
+		}
+		for action, value := range responses {
+			recorder := httptest.NewRecorder()
+			recorder.WriteHeader(http.StatusOK)
+			_, _ = recorder.WriteString(value)
+			fakeResponse := recorder.Result()
+			rt.responses[action] = fakeResponse
+		}
+		c.client = &http.Client{
+			Transport: rt,
+		}
+		creds, err := c.getAPICredentials()
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !reflect.DeepEqual(creds, credsExpected) {
+			t.Fatalf("unexpected creds;\ngot\n%+v\nwant\n%+v", creds, credsExpected)
+		}
+	}
+
+	// static credentials
+	f(&Config{
+		defaultAccessKey: "staticAccessKey",
+		defaultSecretKey: "staticSecretKey",
+	}, &credentials{
+		AccessKeyID:     "staticAccessKey",
+		SecretAccessKey: "staticSecretKey",
+	})
+
+	// static credentials with webtoken defined
+	f(&Config{
+		defaultAccessKey: "staticAccessKey",
+		defaultSecretKey: "staticSecretKey",
+		irsaRoleARN:      "irsarole",
+		webTokenPath:     "somepath",
+	}, &credentials{
+		AccessKeyID:     "staticAccessKey",
+		SecretAccessKey: "staticSecretKey",
+	})
+
+	// static credentials with role assume
+	f(&Config{
+		roleARN:          "somerole",
+		defaultAccessKey: "staticAccessKey",
+		defaultSecretKey: "staticSecretKey",
+	}, &credentials{
+		AccessKeyID:     "ROLEACCESSKEYID",
+		SecretAccessKey: "ROLESECRETACCESSKEY",
+		Expiration:      mustParseRFC3339("2019-11-09T13:34:41Z"),
+		Token:           "ROLETOKEN",
+	})
+
+	// webtoken credentials
+	f(&Config{
+		stsEndpoint:  "http://stsendpoint",
+		irsaRoleARN:  "irsarole",
+		webTokenPath: "tokenpath",
+	}, &credentials{
+		AccessKeyID:     "IRSAACCESSKEYID",
+		SecretAccessKey: "IRSASECRETACCESSKEY",
+		Expiration:      mustParseRFC3339("2021-03-01T13:38:15Z"),
+		Token:           "IRSATOKEN",
+	})
+
+	// webtoken credentials with assume role
+	f(&Config{
+		roleARN:      "somerole",
+		stsEndpoint:  "http://stsendpoint",
+		irsaRoleARN:  "irsarole",
+		webTokenPath: "tokenpath",
+	}, &credentials{
+		AccessKeyID:     "ROLEACCESSKEYID",
+		SecretAccessKey: "ROLESECRETACCESSKEY",
+		Expiration:      mustParseRFC3339("2019-11-09T13:34:41Z"),
+		Token:           "ROLETOKEN",
+	})
 }
 
 func TestParseARNCredentialsSuccess(t *testing.T) {

@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 In today's fast-paced and complex landscape of system monitoring, [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (`vmanomaly`), part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), serves as a **powerful observability tool** for SREs and DevOps teams. It **automates the detection of anomalies in time-series data**, reducing manual efforts required to identify abnormal system behavior.
 
 Unlike traditional threshold-based alerting, which relies on **raw metric values** and requires constant tuning and maintenance of thresholds and alerting rules, `vmanomaly` introduces a **unified, interpretable [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)** - a **de-trended, de-seasonalized metric** generated through machine learning. This approach eliminates the need for frequent manual adjustments by enabling **stable, long-term static thresholds (as simple as `anomaly_score > 1`)** that remain effective over time through continuous model retraining.
@@ -19,7 +27,7 @@ The diagram below illustrates how `vmanomaly` fits into an observability setup, 
 
 ## How does it work?
 
-VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learning models** - either [built-in](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models) or [custom](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide), specific to your business needs — on your [input](https://docs.victoriametrics.com/anomaly-detection/components/reader) data. This ensures that the default cut-off threshold (`anomaly score == 1`), which differentiates **normal** (`≤ 1`) from **anomalous** (`> 1`) data points, remains **relevant over time**.
+VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learning models** - either [built-in](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models) or [custom](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide), specific to your business needs — on your [input](https://docs.victoriametrics.com/anomaly-detection/components/reader/) data. This ensures that the default cut-off threshold (`anomaly score == 1`), which differentiates **normal** (`≤ 1`) from **anomalous** (`> 1`) data points, remains **relevant over time**.
 
 - **Automated anomaly scoring** - ML models calculate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) for new data points based on a predefined [schedule](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/).
 - **Simplified alerting** - alerts can be triggered using **straightforward thresholds** (e.g., `anomaly_score > 1`), reducing complexity in observability setups.
@@ -51,8 +59,9 @@ Get started with VictoriaMetrics Anomaly Detection by following our guides and i
 - **Installation Options**: Choose the installation method that best fits your infrastructure:
     - **Docker Installation**: Ideal for containerized environments. Follow the [Docker Installation Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/#docker).
     - **Helm Chart Installation**: Recommended for Kubernetes deployments. See our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
+    - **Kubernetes Custom Resource**: If you are using [VM Operator](https://docs.victoriametrics.com/operator/), deploy `vmanomaly` using the [custom resource guide](https://docs.victoriametrics.com/operator/resources/vmanomaly/).
 
-- **High Availability**: See how to enable [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability) and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#high-availability) for `vmanomaly` service [here](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly)
+- **High Availability**: See how to enable [horizontal scalability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability) and [high availability](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#high-availability) for `vmanomaly` service [here](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/)
 
 - **Self-Monitoring**: Ensure `vmanomaly` is functioning optimally, using provided Grafana dashboards and alerting rules to track service health and operational metrics. Find the guide [here](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
 

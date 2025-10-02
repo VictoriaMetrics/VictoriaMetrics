@@ -1,5 +1,5 @@
 import Header from "../Header/Header";
-import React, { FC, useEffect } from "preact/compat";
+import { FC, useEffect } from "preact/compat";
 import { Outlet, useLocation, useSearchParams } from "react-router-dom";
 import qs from "qs";
 import "./style.scss";
@@ -11,7 +11,6 @@ import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchD
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsMainLayout from "./ControlsMainLayout";
 import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
-import useFetchFlags from "../../hooks/useFetchFlags";
 import useFetchAppConfig from "../../hooks/useFetchAppConfig";
 
 const MainLayout: FC = () => {
@@ -23,7 +22,6 @@ const MainLayout: FC = () => {
   useFetchDashboards();
   useFetchDefaultTimezone();
   useFetchAppConfig();
-  useFetchFlags();
 
   const setDocumentTitle = () => {
     const defaultTitle = "vmui";

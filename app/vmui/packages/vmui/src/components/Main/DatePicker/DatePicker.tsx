@@ -1,4 +1,4 @@
-import React, { useMemo, forwardRef } from "preact/compat";
+import { useMemo, forwardRef } from "preact/compat";
 import Calendar from "../../Main/DatePicker/Calendar/Calendar";
 import dayjs, { Dayjs } from "dayjs";
 import Popper from "../../Main/Popper/Popper";
@@ -10,8 +10,10 @@ import useEventListener from "../../../hooks/useEventListener";
 interface DatePickerProps {
   date: string | Date | Dayjs,
   targetRef: React.RefObject<HTMLElement>;
-  format?: string
-  label?: string
+  format?: string;
+  label?: string;
+  minDate?: Date | Dayjs;
+  maxDate?: Date | Dayjs;
   onChange: (val: string) => void
 }
 
@@ -20,7 +22,9 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   targetRef,
   format = DATE_TIME_FORMAT,
   onChange,
-  label
+  label,
+  minDate,
+  maxDate
 }, ref) => {
   const dateDayjs = useMemo(() => dayjs(date).isValid() ? dayjs.tz(date) : dayjs().tz(), [date]);
   const { isMobile } = useDeviceDetect();
@@ -56,6 +60,8 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
           date={dateDayjs}
           format={format}
           onChange={handleChangeDate}
+          minDate={minDate}
+          maxDate={maxDate}
         />
       </div>
     </Popper>

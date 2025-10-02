@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -22,11 +23,11 @@ type Vmstorage struct {
 	vmselectAddr    string
 }
 
-// StartVmstorage starts an instance of vmstorage with the given flags. It also
+// StartVmstorageAt starts an instance of vmstorage with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVmstorage(instance string, flags []string, cli *Client) (*Vmstorage, error) {
-	app, stderrExtracts, err := startApp(instance, "../../bin/vmstorage", flags, &appOptions{
+func StartVmstorageAt(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmstorage, error) {
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":  "127.0.0.1:0",
@@ -39,6 +40,7 @@ func StartVmstorage(instance string, flags []string, cli *Client) (*Vmstorage, e
 			vminsertAddrRE,
 			vmselectAddrRE,
 		},
+		output: output,
 	})
 	if err != nil {
 		return nil, err
@@ -99,8 +101,7 @@ func (app *Vmstorage) ForceMerge(t *testing.T) {
 func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
-	queryURL := fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
-	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), "", nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -111,6 +112,11 @@ func (app *Vmstorage) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	}
 
 	return &res
+}
+
+// SnapshotCreateURL returns the URL for creating snapshots.
+func (app *Vmstorage) SnapshotCreateURL() string {
+	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
 }
 
 // SnapshotList lists existing database snapshots by sending a query to the

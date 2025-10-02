@@ -35,7 +35,7 @@ If you have more than 1 vmselect, configure [load-balancing](https://docs.victor
 Replace `<tenant>` based on your [multitenancy settings](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
 Once connected, you can start building graphs and dashboards using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://docs.victoriametrics.com/metricsql/).
+or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
 
 VictoriaMetrics datasource is publicly available on [GitHub](https://github.com/VictoriaMetrics/victoriametrics-datasource).
 See more in [plugin docs](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/).

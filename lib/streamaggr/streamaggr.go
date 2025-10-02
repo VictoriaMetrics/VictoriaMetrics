@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -77,10 +77,7 @@ func LoadFromFile(path string, pushFunc PushFunc, opts *Options, alias string) (
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
 	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 
 	as, err := loadFromData(data, path, pushFunc, opts, alias)
 	if err != nil {
@@ -165,7 +162,7 @@ type Config struct {
 	// Interval is the interval between aggregations.
 	Interval string `yaml:"interval"`
 
-	// NoAlighFlushToInterval disables aligning of flushes to multiples of Interval.
+	// NoAlignFlushToInterval disables aligning of flushes to multiples of Interval.
 	// By default flushes are aligned to Interval.
 	//
 	// See also FlushOnShutdown.
@@ -362,7 +359,7 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Push returns matchIdxs with len equal to len(tss).
 // It reuses the matchIdxs if it has enough capacity to hold len(tss) items.
 // Otherwise it allocates new matchIdxs.
-func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
+func (a *Aggregators) Push(tss []prompb.TimeSeries, matchIdxs []byte) []byte {
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
 	for i := range matchIdxs {
 		matchIdxs[i] = 0
@@ -455,7 +452,7 @@ type aggregator struct {
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
-type PushFunc func(tss []prompbmarshal.TimeSeries)
+type PushFunc func(tss []prompb.TimeSeries)
 
 type aggrPushFunc func([]pushSample, int64, bool)
 
@@ -805,7 +802,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 			return
 		}
 		timer := timerpool.Get(dSleep)
-		defer timer.Stop()
+		defer timerpool.Put(timer)
 		select {
 		case <-a.stopCh:
 		case <-timer.C:
@@ -954,7 +951,7 @@ func (a *aggregator) MustStop() {
 }
 
 // Push pushes tss to a.
-func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
+func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []byte) {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -1060,7 +1057,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	}
 }
 
-func compressLabels(dst []byte, inputLabels, outputLabels []prompbmarshal.Label) []byte {
+func compressLabels(dst []byte, inputLabels, outputLabels []prompb.Label) []byte {
 	bb := bbPool.Get()
 	bb.B = lc.Compress(bb.B, outputLabels)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
@@ -1070,7 +1067,7 @@ func compressLabels(dst []byte, inputLabels, outputLabels []prompbmarshal.Label)
 	return dst
 }
 
-func decompressLabels(dst []prompbmarshal.Label, key string) []prompbmarshal.Label {
+func decompressLabels(dst []prompb.Label, key string) []prompb.Label {
 	return lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
 }
 
@@ -1115,7 +1112,7 @@ func putPushCtx(ctx *pushCtx) {
 
 var pushCtxPool sync.Pool
 
-func getInputOutputLabels(dstInput, dstOutput, labels []prompbmarshal.Label, by, without []string) ([]prompbmarshal.Label, []prompbmarshal.Label) {
+func getInputOutputLabels(dstInput, dstOutput, labels []prompb.Label, by, without []string) ([]prompb.Label, []prompb.Label) {
 	if len(without) > 0 {
 		for _, label := range labels {
 			if slices.Contains(without, label.Name) {
@@ -1165,9 +1162,9 @@ type flushCtx struct {
 	isGreen        bool
 	isLast         bool
 
-	tss     []prompbmarshal.TimeSeries
-	labels  []prompbmarshal.Label
-	samples []prompbmarshal.Sample
+	tss     []prompb.TimeSeries
+	labels  []prompb.Label
+	samples []prompb.Sample
 }
 
 func (ctx *flushCtx) reset() {
@@ -1239,11 +1236,11 @@ func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
-	ctx.samples = append(ctx.samples, prompbmarshal.Sample{
+	ctx.samples = append(ctx.samples, prompb.Sample{
 		Timestamp: ctx.flushTimestamp,
 		Value:     value,
 	})
-	ctx.tss = append(ctx.tss, prompbmarshal.TimeSeries{
+	ctx.tss = append(ctx.tss, prompb.TimeSeries{
 		Labels:  ctx.labels[labelsLen:],
 		Samples: ctx.samples[samplesLen:],
 	})
@@ -1261,15 +1258,15 @@ func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, value float6
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
-	ctx.labels = append(ctx.labels, prompbmarshal.Label{
+	ctx.labels = append(ctx.labels, prompb.Label{
 		Name:  extraName,
 		Value: extraValue,
 	})
-	ctx.samples = append(ctx.samples, prompbmarshal.Sample{
+	ctx.samples = append(ctx.samples, prompb.Sample{
 		Timestamp: ctx.flushTimestamp,
 		Value:     value,
 	})
-	ctx.tss = append(ctx.tss, prompbmarshal.TimeSeries{
+	ctx.tss = append(ctx.tss, prompb.TimeSeries{
 		Labels:  ctx.labels[labelsLen:],
 		Samples: ctx.samples[samplesLen:],
 	})
@@ -1280,7 +1277,7 @@ func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, value float6
 	}
 }
 
-func addMetricSuffix(labels []prompbmarshal.Label, offset int, firstSuffix, lastSuffix string) []prompbmarshal.Label {
+func addMetricSuffix(labels []prompb.Label, offset int, firstSuffix, lastSuffix string) []prompb.Label {
 	src := labels[offset:]
 	for i := range src {
 		label := &src[i]
@@ -1300,7 +1297,7 @@ func addMetricSuffix(labels []prompbmarshal.Label, offset int, firstSuffix, last
 	bb.B = append(bb.B, firstSuffix...)
 	bb.B = append(bb.B, lastSuffix...)
 	labelValue := bytesutil.InternBytes(bb.B)
-	labels = append(labels, prompbmarshal.Label{
+	labels = append(labels, prompb.Label{
 		Name:  "__name__",
 		Value: labelValue,
 	})

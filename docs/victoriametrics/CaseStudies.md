@@ -15,37 +15,36 @@ aliases:
 Below please find public case studies and talks from VictoriaMetrics users. You can also join our [community Slack channel](https://slack.victoriametrics.com/)
 where you can chat with VictoriaMetrics users to get additional references, reviews and case studies.
 
-- [Case studies and talks](#case-studies-and-talks)
-  - [AbiosGaming](#abiosgaming)
-  - [adidas](#adidas)
-  - [Adsterra](#adsterra)
-  - [ARNES](#arnes)
-  - [Brandwatch](#brandwatch)
-  - [CERN](#cern)
-  - [COLOPL](#colopl)
-  - [Criteo](#criteo)
-  - [Dig Security](#dig-security)
-  - [Fly.io](#flyio)
-  - [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
-  - [Grammarly](#grammarly)
-  - [Groove X](#groove-x)
-  - [Idealo.de](#idealode)
-  - [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
-  - [Naver](#naver)
-  - [NetEase Cloud Music](#netease-cloud-music)
-  - [Percona](#percona)
-  - [Razorpay](#razorpay)
-  - [RELEX Solutions](#relex-solutions)
-  - [Roblox](#roblox)
-  - [Sensedia](#sensedia)
-  - [Smarkets](#smarkets)
-  - [Synthesio](#synthesio)
-  - [Wedos.com](#wedoscom)
-  - [Wix.com](#wixcom)
-  - [Xiaohongshu](#xiaohongshu)
-  - [Zerodha](#zerodha)
-  - [zhihu](#zhihu)
-  - [Zomato](#zomato)
+- [AbiosGaming](#abiosgaming)
+- [adidas](#adidas)
+- [Adsterra](#adsterra)
+- [ARNES](#arnes)
+- [Brandwatch](#brandwatch)
+- [CERN](#cern)
+- [COLOPL](#colopl)
+- [Criteo](#criteo)
+- [Dig Security](#dig-security)
+- [Fly.io](#flyio)
+- [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
+- [Grammarly](#grammarly)
+- [Groove X](#groove-x)
+- [Idealo.de](#idealode)
+- [MHI Vestas Offshore Wind](#mhi-vestas-offshore-wind)
+- [Naver](#naver)
+- [NetEase Cloud Music](#netease-cloud-music)
+- [Percona](#percona)
+- [Razorpay](#razorpay)
+- [RELEX Solutions](#relex-solutions)
+- [Roblox](#roblox)
+- [Sensedia](#sensedia)
+- [Smarkets](#smarkets)
+- [Synthesio](#synthesio)
+- [Wedos.com](#wedoscom)
+- [Wix.com](#wixcom)
+- [Xiaohongshu](#xiaohongshu)
+- [Zerodha](#zerodha)
+- [zhihu](#zhihu)
+- [Zomato](#zomato)
 
 You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/victoriametrics/articles/#third-party-articles-and-slides-about-victoriametrics).
 
@@ -520,7 +519,7 @@ See more details [in this article](https://www.datanami.com/2023/05/30/why-roblo
 
 > Our initial requirements for monitoring solution: the metrics must be stored for 15 days, the solution must be scalable and must offer high availability of the metrics. It must being integrated into Grafana and allowing the use of PromQL when creating/editing dashboards in Grafana to obtain metrics from the Prometheus datasource. The solution also needs to receive data from Prometheus using HTTPS and needs to request a login and password to write/read the metrics. Details are available [in this article](https://nordicapis.com/api-monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics/).
 
-> We evaluated VictoriaMetrics, InfluxDB OpenSource and Enterprise, Elasticsearch, Thanos, Cortex, TimescaleDB/PostgreSQL and M3DB. We selected VictoriaMetrics because it has [good community support](https://slack.victoriametrics.com/), [good documentation](https://docs.victoriametrics.com/) and it just works.
+> We evaluated VictoriaMetrics, InfluxDB OpenSource and Enterprise, Elasticsearch, Thanos, Cortex, TimescaleDB/PostgreSQL and M3DB. We selected VictoriaMetrics because it has [good community support](https://slack.victoriametrics.com/), [good documentation](https://docs.victoriametrics.com/victoriametrics/) and it just works.
 
 > We started using VictoriaMetrics in the production environment days before the start of BlackFriday in 2020, the period of greatest use of the Sensedia API-Platform by customers. There was a record in the generation of metrics and there was no instability with the monitoring stack.
 
@@ -691,4 +690,4 @@ To address these challenges, we decided to migrate to VictoriaMetrics. We were d
 
 Post-migration, we successfully scaled our monitoring infrastructure to handle billions of data points daily, all while experiencing faster query performance and 60% reduction in yearly infra cost. The improved observability has enhanced our ability to deliver reliable service, allowing us to troubleshoot issues more quickly and effectively.
 
-Read more about the migration journey in our blog - https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability
+Read more about the migration journey in our blog - [https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability](https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability)

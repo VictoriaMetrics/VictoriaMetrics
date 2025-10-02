@@ -60,15 +60,17 @@ schedulers:
 `class`: str, default=`"scheduler.periodic.PeriodicScheduler"`,
 options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffScheduler"`, `"scheduler.backtesting.BacktestingScheduler"`}
 
--  `"scheduler.periodic.PeriodicScheduler"`: periodically runs the models on new data. Useful for consecutive re-trainings to counter [data drift](https://www.datacamp.com/tutorial/understanding-data-drift-model-drift) and model degradation over time.
--  `"scheduler.oneoff.OneoffScheduler"`: runs the process once and exits. Useful for testing.
--  `"scheduler.backtesting.BacktestingScheduler"`: imitates consecutive backtesting runs of OneoffScheduler. Runs the process once and exits. Use to get more granular control over testing on historical data.
+-  `"scheduler.periodic.PeriodicScheduler"`: Used in production. Periodically runs the models on new data to generate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). Also does consecutive re-trainings of attached [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) to counter [data drift](https://www.datacamp.com/tutorial/understanding-data-drift-model-drift) and model degradation over time. 
+-  `"scheduler.oneoff.OneoffScheduler"`: Runs the job once and exits. Useful for testing or for one-off backfilling on historical data.
+-  `"scheduler.backtesting.BacktestingScheduler"`: Imitates running PeriodicScheduler, but runs only once and exits. Used for [backtesting](https://en.wikipedia.org/wiki/Backtesting) or for consecutive backfilling on historical data. One may evaluate the model performance on past data which already contained labeled incidents, to see how well the model would have performed in the past. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#how-to-backtest-particular-configuration-on-historical-data) for the example and [BacktestingScheduler](#backtesting-scheduler) section below for the configuration details.
 
 > **Class aliases** are supported{{% available_from "v1.13.0" anomaly %}}, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
 
 **Depending on selected class, different parameters should be used**
 
 ## Periodic scheduler 
+
+> If `start_from` [parameter](#parameters-1) is used, it's suggested to also set `restore_state: true` in the [Settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) of a config, so that the scheduler can restore its state from the previous run **if terminated or restarted in between scheduled runs** and continue producing anomaly scores without interruptions, otherwise the service will be idle until future `start_from` time is reached. E.g. if `start_from` is set to `20:00` and the service is started and then terminated and restarted at `20:30`, it will not produce any anomaly scores until the next day's `20:00` is reached (+23:30 of being idle), which introduces inconvenience for the users.
 
 ### Parameters
 
@@ -205,7 +207,9 @@ schedulers:
 
 This configuration specifies that `vmanomaly` will calculate a 14-day time window from the time of `fit_every` call to train the model. Starting at 20:00 Kyiv local time today (or tomorrow if launched after 20:00), the model will be retrained every hour using the most recent 14-day window, which always includes an additional hour of new data. The time window remains strictly 14 days and does not extend with subsequent retrains. Additionally, `vmanomaly` will perform model inference every minute, processing newly added data points using the most recent model.
 
-## Oneoff scheduler 
+## Oneoff scheduler
+
+> As of latest version, the Oneoff scheduler can't be explicitly used with a combination of [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration). It is designed to run once and exit, so it does not maintain state across runs. A warning will be raised in logs and internal state for such scheduler will not be saved and restored upon restart. If you need to run the scheduler periodically and/or maintain state, consider using the [Periodic scheduler](#periodic-scheduler) instead.
 
 ### Parameters
 For Oneoff scheduler timeframes can be defined in Unix time in seconds or ISO 8601 string format. 
@@ -374,6 +378,16 @@ schedulers:
 
 ## Backtesting scheduler
 
+> As of latest version, the Backtesting scheduler can't be explicitly used with a combination of [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration). It is designed to run once and exit, so it does not maintain state across runs. A warning will be raised in logs and internal state for such scheduler will not be saved and restored upon restart. If you need to run the scheduler periodically and/or maintain state, consider using the [Periodic scheduler](#periodic-scheduler) instead.
+
+> A new, more intuitive backtesting mode is available {{% available_from "v1.22.1" anomaly %}}. In **Inference only** mode, the window you specify via `[from, to]` (or `[from_iso, to_iso]`) is used *solely for inference*, and the corresponding training (“fit”) windows are determined automatically. To enable this behavior, set:
+> ```yaml
+> inference_only: true
+> ```
+>
+> in your scheduler configuration. (The default is `false` for backward-compatibility.) For full details, see [Inference only mode](#inference-only-mode).
+
+
 ### Parameters
 As for [Oneoff scheduler](#oneoff-scheduler), timeframes can be defined in Unix time in seconds or ISO 8601 string format. 
 ISO format supported time zone offset formats are:
@@ -422,7 +436,55 @@ Allows *proportionally faster (yet more resource-intensive)* evaluations of a co
     </tbody>
 </table>
 
+### Inference only mode
+
+In **Inference only** mode {{% available_from "v1.22.1" anomaly %}}, the scheduler splits your overall time window into non-overlapping inference segments and automatically derives the preceding training segments:
+
+1. **Inference Window**  
+   - Defined by your `from`/`to` (or `from_iso`/`to_iso`) parameters.
+   - Each inference segment spans the configured `fit_every` duration.
+2. **Training Window**  
+   - Automatically set to the configured `fit_window` immediately preceding each inference segment.
+   - Ensures each model is trained on the most recent `fit_window` of data before inferring, see [example](#example) section for the details
+
+#### Configuration Parameters
+- `inference_only: true`: Enables of such inference-only behavior.
+- `from`, `to` (or `from_iso`, `to_iso`): Overall inference-only timeframe.
+- `fit_window`: Duration of historical data used for each training run (e.g. `P7D`, `PT1H`).
+- `fit_every`: Interval between consecutive training/inference cycles.
+- `n_jobs`: Number of parallel jobs for backtesting (default: `1`).
+
+#### Example
+
+The config
+
+```yaml
+# other config sections ...
+schedulers:
+  backtesting_inference_only:       # scheduler alias
+    class: "backtesting"
+    fit_window: "P7D"               # train on the 7-day window preceding each inference
+    fit_every: "PT12H"              # inference interval of 12 hours
+    inference_only: true            # use [from, to] to construct inference windows only
+    from_iso: "2025-05-08T03:00:00Z"
+    to_iso:   "2025-05-09T00:00:00Z"
+    n_jobs: 2                       # number of parallel jobs
+```
+
+will result in 2 intervals:
+
+- Complete inference interval (12h): `2025-05-08T12:00:00Z` - `2025-05-09T00:00:00Z`
+<br>Training window (7d): `2025-05-01T12:00:00Z` - `2025-05-08T12:00:00Z`
+
+- Partial inference interval (9h): `2025-05-08T03:00:00Z` - `2025-05-08T12:00:00Z` 
+<br>(start is "clipped" by `from_iso` so it's less than `fit_every`)
+<br>Training window (7d): `2025-05-01T03:00:00Z` - `2025-05-08T03:00:00Z`
+
+Where models, fit on training window, will be used to calculate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) on respective inference windows.
+
 ### Defining overall timeframe
+
+> This legacy mode is retained for backward compatibility and is less straightforward. Use it only if you cannot upgrade `vmanomaly` to [v1.22.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1221) or later.
 
 This timeframe will be used for slicing on intervals `(fit_window, infer_window == fit_every)`, starting from the *latest available* time point, which is `to_*` and going back, until no full `fit_window + infer_window` interval exists within the provided timeframe.
 <table class="params">

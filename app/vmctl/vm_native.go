@@ -121,7 +121,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 		pr := bar.NewProxyReader(reader)
 		if pr != nil {
 			reader = pr
-			fmt.Printf("Continue import process with filter %s:\n", f.String())
+			fmt.Fprintf(log.Writer(), "Continue import process with filter %s:\n", f.String())
 		}
 	}
 
@@ -140,6 +140,15 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 
 	written, err := io.Copy(w, reader)
 	if err != nil {
+		// io.Copy could fail if ImportPipe will fail before and close the pr
+		// so we check if that's the case and to not ignore importErr if it exists.
+		select {
+		case importErr := <-importCh:
+			if importErr != nil {
+				return fmt.Errorf("failed to import %s: %w", p.dst.Addr, importErr)
+			}
+		default:
+		}
 		return fmt.Errorf("failed to write into %q: %s", p.dst.Addr, err)
 	}
 
@@ -182,7 +191,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		initParams = []any{srcURL, dstURL, p.filter.String(), tenantID}
 	}
 
-	fmt.Println("") // extra line for better output formatting
+	fmt.Fprintln(log.Writer(), "") // extra line for better output formatting
 	log.Printf(initMessage, initParams...)
 	if len(ranges) > 1 {
 		log.Printf("Selected time range will be split into %d ranges according to %q step", len(ranges), p.filter.Chunk)

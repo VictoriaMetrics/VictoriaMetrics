@@ -1,8 +1,8 @@
-import React, { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "preact/compat";
 import { useNavigate } from "react-router-dom";
 import router from "../../router";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
-import { LogoAnomalyIcon, LogoIcon, LogoLogsIcon } from "../../components/Main/Icons";
+import { LogoAnomalyIcon, LogoIcon } from "../../components/Main/Icons";
 import { getCssVariable } from "../../utils/theme";
 import "./style.scss";
 import classNames from "classnames";
@@ -20,8 +20,6 @@ export interface HeaderProps {
 }
 const Logo = () => {
   switch (APP_TYPE) {
-    case AppType.victorialogs:
-      return <LogoLogsIcon/>;
     case AppType.vmanomaly:
       return <LogoAnomalyIcon/>;
     default:
@@ -33,7 +31,7 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
   const { isMobile } = useDeviceDetect();
 
   const windowSize = useWindowSize();
-  const displaySidebar = useMemo(() => window.innerWidth < 1000, [windowSize]);
+  const displaySidebar = useMemo(() => window.innerWidth < 1230, [windowSize]);
 
   const { isDarkTheme } = useAppState();
   const appModeEnable = getAppModeEnable();
@@ -107,6 +105,7 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
       controlsComponent={controlsComponent}
       displaySidebar={displaySidebar}
       isMobile={isMobile}
+      closeModal={() => {}}
     />
   </header>;
 };

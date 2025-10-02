@@ -23,6 +23,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Forbes: The (Almost) Infinitely Scalable Open Source Monitoring Dream](https://www.forbes.com/sites/adrianbridgwater/2022/08/16/the-almost-infinitely-scalable-open-source-monitoring-dream/)
 * [Forbes: The Agility In Cloud Observability](https://www.forbes.com/sites/adrianbridgwater/2023/07/05/the-agility-in-cloud-observability/)
 * [Bedrock: Monitoring at scale with Victoria Metrics](https://tech.bedrockstreaming.com/2022/09/06/monitoring-at-scale-with-victoriametrics.html)
+* [TiDB by PingCap: Scaling Observability: Why TiDB Moved from Prometheus to VictoriaMetrics](https://www.pingcap.com/blog/tidb-observability-migrating-prometheus-victoriametrics/)
 * [Percona: Optimizing the Storage of Large Volumes of Metrics for a Long Time in VictoriaMetrics](https://percona.community/blog/2022/06/02/long-time-keeping-metrics-victoriametrics/)
 * [Percona: Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
 * [Percona: Observations on Better Resource Usage with Percona Monitoring and Management v2.12.0](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/)
@@ -68,7 +69,6 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Solving Metrics at scale with VictoriaMetrics](https://www.youtube.com/watch?v=QgLMztnj7-8)
 * [Monitoring as Code на базе VictoriaMetrics и Grafana](https://habr.com/ru/post/568090/)
 * [Push Prometheus metrics to VictoriaMetrics or other exporters](https://github.com/gistart/prometheus-push-client)
-* [Install and configure VictoriaMetrics on Debian](https://www.vultr.com/docs/install-and-configure-victoriametrics-on-debian)
 * [Superset BI with Victoria Metrics](https://cer6erus.medium.com/superset-bi-with-victoria-metrics-a109d3e91bc6)
 * [VictoriaMetrics Source Code Analysis - Bloom filter](https://www.sobyte.net/post/2022-05/victoriametrics-bloomfilter/)
 * [How we tried using VictoriaMetrics and Thanos at the same time](https://medium.com/@uburro/how-we-tried-using-victoriametrics-and-thanos-at-the-same-time-48803d2a638b)
@@ -92,9 +92,22 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Harness the Power of VictoriaMetrics and Grafana Operators for Metrics Management](https://blog.ogenki.io/post/series/observability/metrics/)
 * [VictoriaMetrics: Effective alerts, from theory to practice](https://blog.ogenki.io/post/series/observability/alerts/)
 * [Reducing Inter-AZ traffic in VictoriaMetrics with Zonekeeper](https://tanmay-bhat.medium.com/reducing-inter-az-traffic-in-victoriametrics-with-zonekeeper-3bd7e1526796)
-* [Grepping logs remains terrible](https://chronicles.mad-scientist.club/tales/grepping-logs-remains-terrible/)
+* [Victoriametrics k8s stack setup gotchas](https://davidhernandez21.github.io/posts/Victoriametrics-k8s-stack-gotchas/)
+* [Building a Scalable and Cost-Effective Monitoring Stack on AWS with Victoria Metrics](https://medium.com/@heliodevhub/construindo-uma-stack-de-monitoramento-escal%C3%A1vel-e-econ%C3%B4mica-na-aws-com-victoria-metrics-532d535dcfb6)
+* [Optimizing Datadog Costs with VictoriaMetrics: A Practical Step-by-Step Guide](https://medium.com/p/optimizing-datadog-costs-with-victoriametrics-a-practical-step-by-step-guide-c984d32c7423)
+* [Kubernetes Monitoring — A Complete Solution](https://itnext.io/kubernetes-monitoring-a-complete-solution-part-1-architecture-eb5b998658d5)
+* [Why VictoriaMetrics? A Practical Guide to Scalable and Faster Monitoring Than Prometheus](https://amir-shams.medium.com/why-victoriametrics-a-practical-guide-to-scalable-and-faster-monitoring-than-prometheus-54ef21f10465)
+* [How We Saved 80% on Our Observability Bill!](https://blog.devops.dev/how-we-saved-80-on-our-observability-bill-402421edfc1d)
+* [When metrics leak secrets: Kubernetes CTF lessons](https://programmerprodigy.code.blog/2025/09/01/when-metrics-leak-secrets-kubernetes-ctf-lessons/)
+* [K3S and monitoring with VictoriaMetrics, kube-state-metrics, node-exporter and Grafana](https://j.hommet.net/k3s-victoriametrics-kube-state-metrics-node-exporter-grafana/)
+
+## Third-party articles and slides about VictoriaLogs
+
+Articles about VictoriaLogs have been moved at [https://docs.victoriametrics.com/victorialogs/articles/](https://docs.victoriametrics.com/victorialogs/articles/).
 
 ## Our articles
+
+See [our blog](https://victoriametrics.com/blog) for the latest articles written by the Victoriametrics team
 
 ### Announcements
 

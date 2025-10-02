@@ -11,7 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Rule represents alerting or recording rule
@@ -21,11 +21,13 @@ type Rule interface {
 	// ID returns unique ID that may be used for
 	// identifying this Rule among others.
 	ID() uint64
+	// ToAPI returns ApiRule representation of Rule
+	ToAPI() ApiRule
 	// exec executes the rule with given context at the given timestamp and limit.
 	// returns an err if number of resulting time series exceeds the limit.
-	exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error)
+	exec(ctx context.Context, ts time.Time, limit int) ([]prompb.TimeSeries, error)
 	// execRange executes the rule on the given time range.
-	execRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error)
+	execRange(ctx context.Context, start, end time.Time) ([]prompb.TimeSeries, error)
 	// updateWith performs modification of current Rule
 	// with fields of the given Rule.
 	updateWith(Rule) error
@@ -66,39 +68,6 @@ type StateEntry struct {
 	SeriesFetched *int `json:"series_fetched"`
 	// stores the curl command reflecting the HTTP request used during rule.Exec
 	Curl string `json:"curl"`
-}
-
-// GetLastEntry returns latest stateEntry of rule
-func GetLastEntry(r Rule) StateEntry {
-	if rule, ok := r.(*AlertingRule); ok {
-		return rule.state.getLast()
-	}
-	if rule, ok := r.(*RecordingRule); ok {
-		return rule.state.getLast()
-	}
-	return StateEntry{}
-}
-
-// GetRuleStateSize returns size of rule stateEntry
-func GetRuleStateSize(r Rule) int {
-	if rule, ok := r.(*AlertingRule); ok {
-		return rule.state.size()
-	}
-	if rule, ok := r.(*RecordingRule); ok {
-		return rule.state.size()
-	}
-	return 0
-}
-
-// GetAllRuleState returns rule entire stateEntries
-func GetAllRuleState(r Rule) []StateEntry {
-	if rule, ok := r.(*AlertingRule); ok {
-		return rule.state.getAll()
-	}
-	if rule, ok := r.(*RecordingRule); ok {
-		return rule.state.getAll()
-	}
-	return []StateEntry{}
 }
 
 func (s *ruleState) size() int {
@@ -151,7 +120,7 @@ func (s *ruleState) add(e StateEntry) {
 
 func replayRule(r Rule, start, end time.Time, rw remotewrite.RWClient, replayRuleRetryAttempts int) (int, error) {
 	var err error
-	var tss []prompbmarshal.TimeSeries
+	var tss []prompb.TimeSeries
 	for i := 0; i < replayRuleRetryAttempts; i++ {
 		tss, err = r.execRange(context.Background(), start, end)
 		if err == nil {

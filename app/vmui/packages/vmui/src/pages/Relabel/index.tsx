@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect } from "preact/compat";
+import { FC, useCallback, useEffect } from "preact/compat";
 import "./style.scss";
 import Button from "../../components/Main/Button/Button";
 import { InfoIcon, PlayIcon, WikiIcon } from "../../components/Main/Icons";
@@ -101,7 +101,7 @@ const Relabel: FC = () => {
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/victoriametrics/vmagent/#relabeling"
+            href="https://docs.victoriametrics.com/victoriametrics/relabeling/"
             rel="help noreferrer"
           >
             <WikiIcon/>
@@ -154,13 +154,13 @@ const Relabel: FC = () => {
               <div className="vm-relabeling-steps-item__row">
                 <span>Input Labels:</span>
                 <code>
-                  <pre dangerouslySetInnerHTML={{ __html: step.inLabels }}/>
+                  <pre dangerouslySetInnerHTML={{ __html: step.errors?.inLabels || step.inLabels }}/>
                 </code>
               </div>
               <div className="vm-relabeling-steps-item__row">
                 <span>Output labels:</span>
                 <code>
-                  <pre dangerouslySetInnerHTML={{ __html: step.outLabels }}/>
+                  <pre dangerouslySetInnerHTML={{ __html: step.errors?.outLabels || step.outLabels }}/>
                 </code>
               </div>
             </div>

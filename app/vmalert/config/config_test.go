@@ -181,9 +181,10 @@ func TestGroupValidate_Failure(t *testing.T) {
 		EvalOffset: promutil.NewDuration(2 * time.Minute),
 	}, false, "eval_offset should be smaller than interval")
 
+	limit := -1
 	f(&Group{
 		Name:  "wrong limit",
-		Limit: -1,
+		Limit: &limit,
 	}, false, "invalid limit")
 
 	f(&Group{

@@ -15,7 +15,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/service"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
@@ -34,12 +33,18 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
+	// Metadata to be set for uploaded objects.
+	Metadata map[string]string
+
+	// Metadata converted to representation required by azure sdk.
+	metadata map[string]*string
+
 	client *container.Client
 
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// envLoookupFunc is used for looking up environment variables in tests.
+	// envLookupFunc is used for looking up environment variables in tests.
 	envLookupFunc func(name string) (string, bool)
 }
 
@@ -62,6 +67,12 @@ func (fs *FS) Init(ctx context.Context) error {
 
 	containerClient := sc.NewContainerClient(fs.Container)
 	fs.client = containerClient
+
+	meta := make(map[string]*string, len(fs.Metadata))
+	for k, v := range fs.Metadata {
+		meta[k] = &v
+	}
+	fs.metadata = meta
 
 	return nil
 }
@@ -204,24 +215,9 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	sbc := src.client.NewBlobClient(p.RemotePath(src.Dir))
 	dbc := fs.clientForPart(p)
 
-	ssCopyPermission := sas.BlobPermissions{
-		Read:   true,
-		Create: true,
-		Write:  true,
-	}
-
-	startTime := time.Now().Add(-10 * time.Minute)
-	o := &blob.GetSASURLOptions{
-		StartTime: &startTime,
-	}
-	t, err := sbc.GetSASURL(ssCopyPermission, time.Now().Add(30*time.Minute), o)
-	if err != nil {
-		return fmt.Errorf("failed to generate SAS token of src %q: %w", p.Path, err)
-	}
-
 	// In order to support copy of files larger than 256MB, we need to use the async copy
 	// Ref: https://learn.microsoft.com/en-us/rest/api/storageservices/copy-blob-from-url
-	_, err = dbc.StartCopyFromURL(fs.ctx, t, &blob.StartCopyFromURLOptions{})
+	_, err := dbc.StartCopyFromURL(fs.ctx, sbc.URL(), &blob.StartCopyFromURLOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot start async copy %q from %s to %s: %w", p.Path, src, fs, err)
 	}
@@ -248,6 +244,9 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		case <-time.After(5 * time.Second):
 			// Continue checking
 		}
+	}
+	if err := fs.maybeSetMetadata(dbc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", p.Path, fs, err)
 	}
 
 	if *copyStatus != blob.CopyStatusTypeSuccess {
@@ -288,7 +287,9 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", p.Path, fs, bc.URL(), err)
 	}
-
+	if err := fs.maybeSetMetadata(bc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", p.Path, fs, err)
+	}
 	return nil
 }
 
@@ -383,6 +384,9 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("cannot upload %d bytes to %q at %s (remote path %q): %w", len(data), filePath, fs, bc.URL(), err)
 	}
+	if err := fs.maybeSetMetadata(bc); err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", path, fs, err)
+	}
 
 	return nil
 }
@@ -433,4 +437,16 @@ func cleanDirectory(dir string) string {
 	}
 
 	return dir
+}
+
+// maybeSetMetadata sets metadata for the blob if metadata is not empty.
+func (fs *FS) maybeSetMetadata(bc *blockblob.Client) error {
+	if len(fs.metadata) == 0 {
+		return nil
+	}
+	_, err := bc.SetMetadata(fs.ctx, fs.metadata, &blob.SetMetadataOptions{})
+	if err != nil {
+		return fmt.Errorf("cannot set metadata for %q at %s: %w", bc.URL(), fs, err)
+	}
+	return nil
 }

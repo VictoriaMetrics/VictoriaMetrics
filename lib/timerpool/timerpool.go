@@ -25,13 +25,7 @@ func Get(d time.Duration) *time.Timer {
 //
 // t cannot be accessed after returning to the pool.
 func Put(t *time.Timer) {
-	if !t.Stop() {
-		// Drain t.C if it wasn't obtained by the caller yet.
-		select {
-		case <-t.C:
-		default:
-		}
-	}
+	t.Stop()
 	timerPool.Put(t)
 }
 

@@ -110,9 +110,7 @@ func main() {
 	})
 
 	if len(*httpInternalListenAddr) > 0 {
-		go httpserver.Serve(*httpInternalListenAddr, internalRequestHandler, httpserver.ServeOptions{
-			UseProxyProtocol: useProxyProtocol,
-		})
+		go httpserver.Serve(*httpInternalListenAddr, internalRequestHandler, httpserver.ServeOptions{})
 	}
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -271,7 +269,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			query.Set("request_path", u.String())
 			targetURL.RawQuery = query.Encode()
 		} else { // Update path for regular routes.
-			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts)
+			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		}
 
 		wasLocalRetry := false
@@ -374,18 +372,52 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	updateHeadersByConfig(w.Header(), hc.ResponseHeaders)
 	w.WriteHeader(res.StatusCode)
 
-	copyBuf := copyBufPool.Get()
-	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
-	_, err = io.CopyBuffer(w, res.Body, copyBuf.B)
-	copyBufPool.Put(copyBuf)
+	err = copyStreamToClient(w, res.Body)
 	_ = res.Body.Close()
-	if err != nil && !netutil.IsTrivialNetworkError(err) {
+	if err != nil && !netutil.IsTrivialNetworkError(err) && !errors.Is(err, context.Canceled) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
+
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
 		return true, false
 	}
 	return true, false
+}
+
+func copyStreamToClient(client io.Writer, backend io.Reader) error {
+	copyBuf := copyBufPool.Get()
+	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
+	defer copyBufPool.Put(copyBuf)
+	buf := copyBuf.B
+
+	flusher, ok := client.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: client must implement net/http.Flusher interface; got %T", client)
+	}
+
+	for {
+		n, backendErr := backend.Read(buf)
+		if n > 0 {
+			data := buf[:n]
+			n, clientErr := client.Write(data)
+			if clientErr != nil {
+				return fmt.Errorf("cannot write data to client: %w", clientErr)
+			}
+			if n != len(data) {
+				logger.Panicf("BUG: unexpected number of bytes written returned by client.Write; got %d; want %d", n, len(data))
+			}
+			// Flush the read data from the backend to the client as fast as possible
+			// in order to reduce delays for data propagation.
+			// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/667
+			flusher.Flush()
+		}
+		if backendErr != nil {
+			if backendErr == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("cannot read data from backend: %w", backendErr)
+		}
+	}
 }
 
 var copyBufPool bytesutil.ByteBufferPool

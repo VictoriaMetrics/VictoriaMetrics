@@ -121,19 +121,15 @@ type Config struct {
 }
 
 func (cfg *Config) unmarshal(data []byte, isStrict bool) error {
-	var err error
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return fmt.Errorf("cannot expand environment variables: %w", err)
+	data = envtemplate.ReplaceBytes(data)
+	if !isStrict {
+		return yaml.Unmarshal(data, cfg)
 	}
-	if isStrict {
-		if err = yaml.UnmarshalStrict(data, cfg); err != nil {
-			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
-		}
-	} else {
-		err = yaml.Unmarshal(data, cfg)
+
+	if err := yaml.UnmarshalStrict(data, cfg); err != nil {
+		return fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
 	}
-	return err
+	return nil
 }
 
 func (cfg *Config) marshal() []byte {
@@ -265,6 +261,7 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
+	LabelLimit           int                         `yaml:"label_limit,omitempty"`
 	ScrapeInterval       *promutil.Duration          `yaml:"scrape_interval,omitempty"`
 	ScrapeTimeout        *promutil.Duration          `yaml:"scrape_timeout,omitempty"`
 	ExternalLabels       *promutil.Labels            `yaml:"external_labels,omitempty"`
@@ -295,6 +292,7 @@ type ScrapeConfig struct {
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
+	LabelLimit           int                         `yaml:"label_limit,omitempty"`
 
 	// This silly option is needed for compatibility with Prometheus.
 	// vmagent was supporting disable_compression option since the beginning, while Prometheus developers
@@ -439,10 +437,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 	var stcs []StaticConfig
 	if err := yaml.UnmarshalStrict(data, &stcs); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %w", path, err)
@@ -483,11 +478,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict 
 				logger.Errorf("skipping %q at `scrape_config_files` because of error: %s", path, err)
 				continue
 			}
-			data, err = envtemplate.ReplaceBytes(data)
-			if err != nil {
-				logger.Errorf("skipping %q at `scrape_config_files` because of failure to expand environment vars: %s", path, err)
-				continue
-			}
+			data = envtemplate.ReplaceBytes(data)
 			var scs []*ScrapeConfig
 			if isStrict {
 				if err = yaml.UnmarshalStrict(data, &scs); err != nil {
@@ -878,6 +869,13 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if jobName == "" {
 		return nil, fmt.Errorf("missing `job_name` field in `scrape_config`")
 	}
+	labelLimit := sc.LabelLimit
+	if labelLimit <= 0 {
+		labelLimit = globalCfg.LabelLimit
+		if labelLimit <= 0 {
+			labelLimit = defaultLabelLimit
+		}
+	}
 	scrapeInterval := sc.ScrapeInterval.Duration()
 	if scrapeInterval <= 0 {
 		scrapeInterval = globalCfg.ScrapeInterval.Duration()
@@ -987,6 +985,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sc.SampleLimit,
+		labelLimit:           labelLimit,
 		disableCompression:   disableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
@@ -1018,6 +1017,7 @@ type scrapeWorkConfig struct {
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
+	labelLimit           int
 	disableCompression   bool
 	disableKeepAlive     bool
 	streamParse          bool
@@ -1255,6 +1255,16 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		sampleLimit = n
 	}
+	// Read label_limit option from __label_limit__ label.
+	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics
+	labelLimit := swc.labelLimit
+	if s := labels.Get("__label_limit__"); len(s) > 0 {
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __label_limit__=%q: %w", s, err)
+		}
+		labelLimit = n
+	}
 	// Read stream_parse option from __stream_parse__ label.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode
 	streamParse := swc.streamParse
@@ -1300,13 +1310,14 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		AuthConfig:           swc.authConfig,
 		RelabelConfigs:       swc.relabelConfigs,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
-		SampleLimit:          sampleLimit,
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 		ScrapeOffset:         swc.scrapeOffset,
+		SampleLimit:          sampleLimit,
 		SeriesLimit:          seriesLimit,
+		LabelLimit:           labelLimit,
 		NoStaleMarkers:       swc.noStaleMarkers,
 		AuthToken:            at,
 
@@ -1352,4 +1363,5 @@ func mergeLabels(dst *promutil.Labels, swc *scrapeWorkConfig, target string, ext
 const (
 	defaultScrapeInterval = time.Minute
 	defaultScrapeTimeout  = 10 * time.Second
+	defaultLabelLimit     = 0
 )

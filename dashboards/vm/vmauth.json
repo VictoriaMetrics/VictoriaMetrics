@@ -2652,7 +2652,7 @@
       {
         "datasource": {
           "type": "victoriametrics-datasource",
-          "uid": "P38648FE0F8C5BEA2"
+          "uid": "$ds"
         },
         "filters": [],
         "hide": 0,

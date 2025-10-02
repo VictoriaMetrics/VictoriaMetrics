@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -10,12 +9,12 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 )
 
 func TestSingleMetricNamesStats(t *testing.T) {
-	os.RemoveAll(t.Name())
-	tc := at.NewTestCase(t)
+	fs.MustRemoveDir(t.Name())
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 	sut := tc.MustStartVmsingle("vmsingle", []string{"-storage.trackMetricNamesStats=true", "-retentionPeriod=100y"})
 
@@ -37,40 +36,40 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	}
 	tsdbMetricNameEntryCmpOpts := cmpopts.IgnoreFields(apptest.TSDBStatusResponseMetricNameEntry{}, "LastRequestTimestamp")
 
-	sut.PrometheusAPIV1ImportPrometheus(t, dataSet, at.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, dataSet, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
 	// verify ingest request correctly registered
 	expected := apptest.MetricNamesStatsResponse{
-		Records: []at.MetricNamesStatsRecord{
+		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName},
 			{MetricName: "metric_name_1"},
 			{MetricName: "metric_name_2"},
 			{MetricName: "metric_name_3"},
 		},
 	}
-	got := sut.APIV1StatusMetricNamesStats(t, "", "", "", at.QueryOpts{})
+	got := sut.APIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// verify query request correctly registered
-	sut.PrometheusAPIV1Query(t, `{__name__!=""}`, at.QueryOpts{Time: ingestDateTime})
+	sut.PrometheusAPIV1Query(t, `{__name__!=""}`, apptest.QueryOpts{Time: ingestDateTime})
 	expected = apptest.MetricNamesStatsResponse{
-		Records: []at.MetricNamesStatsRecord{
+		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_1", QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 1},
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
 		},
 	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", at.QueryOpts{})
+	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	expectedStatsResponse := apptest.TSDBStatusResponse{
-		Data: at.TSDBStatusResponseData{
+		Data: apptest.TSDBStatusResponseData{
 			TotalSeries:          6,
 			TotalLabelValuePairs: 12,
 			SeriesCountByMetricName: []apptest.TSDBStatusResponseMetricNameEntry{
@@ -97,39 +96,39 @@ func TestSingleMetricNamesStats(t *testing.T) {
 	}
 
 	// perform query request for single metric and check counter increase
-	sut.PrometheusAPIV1Query(t, `metric_name_2`, at.QueryOpts{Time: ingestDateTime})
+	sut.PrometheusAPIV1Query(t, `metric_name_2`, apptest.QueryOpts{Time: ingestDateTime})
 	expected = apptest.MetricNamesStatsResponse{
-		Records: []at.MetricNamesStatsRecord{
+		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_1", QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 2},
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
 		},
 	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", at.QueryOpts{})
+	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// verify le filter
 	expected = apptest.MetricNamesStatsResponse{
-		Records: []at.MetricNamesStatsRecord{
+		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 1},
 			{MetricName: "metric_name_2", QueryRequestsCount: 2},
 			{MetricName: "metric_name_3", QueryRequestsCount: 1},
 		},
 	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "2", "", at.QueryOpts{})
+	got = sut.APIV1StatusMetricNamesStats(t, "", "2", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// reset state and check empty request response
-	sut.APIV1AdminStatusMetricNamesStatsReset(t, at.QueryOpts{})
+	sut.APIV1AdminStatusMetricNamesStatsReset(t, apptest.QueryOpts{})
 	expected = apptest.MetricNamesStatsResponse{
-		Records: []at.MetricNamesStatsRecord{},
+		Records: []apptest.MetricNamesStatsRecord{},
 	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", at.QueryOpts{})
+	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", apptest.QueryOpts{})
 	if diff := cmp.Diff(expected, got); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -137,8 +136,7 @@ func TestSingleMetricNamesStats(t *testing.T) {
 }
 
 func TestClusterMetricNamesStats(t *testing.T) {
-
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
@@ -193,7 +191,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 
 		// verify ingest request correctly registered
 		expected := apptest.MetricNamesStatsResponse{
-			Records: []at.MetricNamesStatsRecord{
+			Records: []apptest.MetricNamesStatsRecord{
 				{MetricName: largeMetricName},
 				{MetricName: "metric_name_1"},
 				{MetricName: "metric_name_2"},
@@ -211,7 +209,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		})
 
 		expected = apptest.MetricNamesStatsResponse{
-			Records: []at.MetricNamesStatsRecord{
+			Records: []apptest.MetricNamesStatsRecord{
 				{MetricName: largeMetricName, QueryRequestsCount: 1},
 				{MetricName: "metric_name_2", QueryRequestsCount: 1},
 				{MetricName: "metric_name_3", QueryRequestsCount: 1},
@@ -224,7 +222,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		}
 
 		expectedStatsResponse := apptest.TSDBStatusResponse{
-			Data: at.TSDBStatusResponseData{
+			Data: apptest.TSDBStatusResponseData{
 				TotalSeries:          6,
 				TotalLabelValuePairs: 12,
 				SeriesCountByMetricName: []apptest.TSDBStatusResponseMetricNameEntry{
@@ -253,7 +251,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 
 	// verify multitenant stats
 	expected := apptest.MetricNamesStatsResponse{
-		Records: []at.MetricNamesStatsRecord{
+		Records: []apptest.MetricNamesStatsRecord{
 			{MetricName: largeMetricName, QueryRequestsCount: 3},
 			{MetricName: "metric_name_2", QueryRequestsCount: 3},
 			{MetricName: "metric_name_3", QueryRequestsCount: 3},
@@ -266,7 +264,7 @@ func TestClusterMetricNamesStats(t *testing.T) {
 	}
 
 	// reset cache and check empty state
-	vmselect.MetricNamesStatsReset(t, at.QueryOpts{})
+	vmselect.MetricNamesStatsReset(t, apptest.QueryOpts{})
 	resp = vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: "multitenant"})
 	if len(resp.Records) != 0 {
 		t.Fatalf("want 0 records, got: %d", len(resp.Records))

@@ -5,8 +5,9 @@ import (
 	"regexp"
 	"testing"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 // snapshotNameRE covers years 1970-2099.
@@ -16,7 +17,7 @@ import (
 var snapshotNameRE = regexp.MustCompile(`^(19[789]\d|20[0-9]{2})(0\d|1[0-2])([0-2]\d|3[01])([01]\d|2[0-3])[0-5]\d[0-5]\d-[0-9,A-F]{16}$`)
 
 func TestSingleSnapshots_CreateListDelete(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
 	sut := tc.MustStartDefaultVmsingle()
@@ -27,7 +28,7 @@ func TestSingleSnapshots_CreateListDelete(t *testing.T) {
 	for i := range numSamples {
 		samples[i] = fmt.Sprintf("metric_%03d %d", i, i)
 	}
-	sut.PrometheusAPIV1ImportPrometheus(t, samples, at.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, samples, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
 	// Create several snapshots using VictoriaMetrics and Prometheus endpoints.
@@ -59,7 +60,7 @@ func TestSingleSnapshots_CreateListDelete(t *testing.T) {
 
 	assertSnapshotList := func(want []string) {
 		gotRes := sut.SnapshotList(t)
-		wantRes := &at.SnapshotListResponse{
+		wantRes := &apptest.SnapshotListResponse{
 			Status:    "ok",
 			Snapshots: want,
 		}
@@ -71,7 +72,7 @@ func TestSingleSnapshots_CreateListDelete(t *testing.T) {
 
 	// Delete non-existent snapshot.
 	gotDeletedSnapshot := sut.SnapshotDelete(t, "does-not-exist")
-	wantDeletedSnapshot := &at.SnapshotDeleteResponse{
+	wantDeletedSnapshot := &apptest.SnapshotDeleteResponse{
 		Status: "error",
 		Msg:    `cannot find snapshot "does-not-exist"`,
 	}
@@ -81,7 +82,7 @@ func TestSingleSnapshots_CreateListDelete(t *testing.T) {
 
 	// Delete the first snapshot.
 	gotDeletedSnapshot = sut.SnapshotDelete(t, snapshots[0])
-	wantDeletedSnapshot = &at.SnapshotDeleteResponse{
+	wantDeletedSnapshot = &apptest.SnapshotDeleteResponse{
 		Status: "ok",
 	}
 	if diff := cmp.Diff(wantDeletedSnapshot, gotDeletedSnapshot); diff != "" {
@@ -91,7 +92,7 @@ func TestSingleSnapshots_CreateListDelete(t *testing.T) {
 
 	// Delete the rest of the snapshots.
 	gotDeleteAllRes := sut.SnapshotDeleteAll(t)
-	wantDeleteAllRes := &at.SnapshotDeleteAllResponse{
+	wantDeleteAllRes := &apptest.SnapshotDeleteAllResponse{
 		Status: "ok",
 	}
 	if diff := cmp.Diff(wantDeleteAllRes, gotDeleteAllRes); diff != "" {
@@ -101,10 +102,10 @@ func TestSingleSnapshots_CreateListDelete(t *testing.T) {
 }
 
 func TestClusterSnapshots_CreateListDelete(t *testing.T) {
-	tc := at.NewTestCase(t)
+	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartDefaultCluster().(*at.Vmcluster)
+	sut := tc.MustStartDefaultCluster()
 
 	// Insert some data.
 	const numSamples = 1000
@@ -112,7 +113,7 @@ func TestClusterSnapshots_CreateListDelete(t *testing.T) {
 	for i := range numSamples {
 		samples[i] = fmt.Sprintf("metric_%03d %d", i, i)
 	}
-	sut.PrometheusAPIV1ImportPrometheus(t, samples, at.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, samples, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
 	// Create several snapshots for both vmstorage replicas using
@@ -141,7 +142,7 @@ func TestClusterSnapshots_CreateListDelete(t *testing.T) {
 	assertSnapshotList := func(i int, wantNames []string) {
 		t.Helper()
 		got := sut.Vmstorages[i].SnapshotList(t)
-		want := &at.SnapshotListResponse{
+		want := &apptest.SnapshotListResponse{
 			Status:    "ok",
 			Snapshots: wantNames,
 		}
@@ -156,7 +157,7 @@ func TestClusterSnapshots_CreateListDelete(t *testing.T) {
 	assertDeleteNonExistent := func(i int) {
 		t.Helper()
 		got := sut.Vmstorages[i].SnapshotDelete(t, "does-not-exist")
-		want := &at.SnapshotDeleteResponse{
+		want := &apptest.SnapshotDeleteResponse{
 			Status: "error",
 			Msg:    `cannot find snapshot "does-not-exist"`,
 		}
@@ -171,7 +172,7 @@ func TestClusterSnapshots_CreateListDelete(t *testing.T) {
 	deleteSnapshot := func(i int, snapshotName string) {
 		t.Helper()
 		got := sut.Vmstorages[i].SnapshotDelete(t, snapshotName)
-		want := &at.SnapshotDeleteResponse{
+		want := &apptest.SnapshotDeleteResponse{
 			Status: "ok",
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
@@ -187,7 +188,7 @@ func TestClusterSnapshots_CreateListDelete(t *testing.T) {
 	deleteAllSnapshots := func(i int) {
 		t.Helper()
 		got := sut.Vmstorages[i].SnapshotDeleteAll(t)
-		want := &at.SnapshotDeleteAllResponse{
+		want := &apptest.SnapshotDeleteAllResponse{
 			Status: "ok",
 		}
 		if diff := cmp.Diff(want, got); diff != "" {

@@ -1,4 +1,4 @@
-import React, { FC, useState, useRef, useEffect, useMemo } from "preact/compat";
+import { FC, useState, useRef, useEffect, useMemo } from "preact/compat";
 import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { ArrowDownIcon, StorageIcon } from "../../../Main/Icons";
@@ -41,7 +41,11 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
     }
   }, [search, accountIds]);
 
-  const showTenantSelector = useMemo(() => accountIds.length > 1, [accountIds]);
+  const showTenantSelector = useMemo(() => {
+    const emptyAccountIds = !accountIds.length;
+    const onlyDefaultTenant = accountIds.length === 1 && accountIds[0] === "0:0";
+    return !emptyAccountIds && !onlyDefaultTenant;
+  }, [accountIds]);
 
   const createHandlerChange = (value: string) => () => {
     const tenant = value;

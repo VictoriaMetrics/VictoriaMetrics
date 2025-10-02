@@ -42,13 +42,13 @@ groups:
           description: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} fails to scrape targets for last 15m"
 
       - alert: ScrapePoolHasNoTargets
-        expr: sum(vm_promscrape_scrape_pool_targets) without (status) == 0
+        expr: sum(vm_promscrape_scrape_pool_targets) without (status, instance, pod) == 0
         for: 30m
         labels:
           severity: warning
         annotations:
           summary: "Vmagent has scrape_pool with 0 configured/discovered targets"
-          description: "Vmagent \"{{ $labels.job }}\" on instance {{ $labels.instance }} has scrape_pool \"{{ $labels.scrape_job }}\"
+          description: "Vmagent \"{{ $labels.job }}\" has scrape_pool \"{{ $labels.scrape_job }}\"
             with 0 discovered targets. It is likely a misconfiguration. Please follow https://docs.victoriametrics.com/victoriametrics/vmagent/#debugging-scrape-targets
             to troubleshoot the scraping config."
 

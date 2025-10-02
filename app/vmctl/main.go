@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/mimir"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
@@ -45,6 +46,7 @@ func main() {
 		if c.Bool(globalDisableProgressBar) {
 			barpool.Disable(true)
 		}
+		netutil.EnableIPv6()
 		return nil
 	}
 	app := &cli.App{
@@ -251,7 +253,8 @@ func main() {
 					}
 
 					promCfg := prometheus.Config{
-						Snapshot: c.String(promSnapshot),
+						Snapshot:     c.String(promSnapshot),
+						TemporaryDir: c.String(promTemporaryDirPath),
 						Filter: prometheus.Filter{
 							TimeMin:    c.String(promFilterTimeStart),
 							TimeMax:    c.String(promFilterTimeEnd),

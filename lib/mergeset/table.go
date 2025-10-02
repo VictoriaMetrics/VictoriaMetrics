@@ -14,6 +14,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -216,9 +217,8 @@ type rawItemsShardNopad struct {
 type rawItemsShard struct {
 	rawItemsShardNopad
 
-	// The padding prevents false sharing on widespread platforms with
-	// 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(rawItemsShardNopad{})%128]byte
+	// The padding prevents false sharing
+	_ [atomicutil.CacheLineSize - unsafe.Sizeof(rawItemsShardNopad{})%atomicutil.CacheLineSize]byte
 }
 
 func (ris *rawItemsShard) Len() int {
@@ -279,7 +279,7 @@ func (ris *rawItemsShard) updateFlushDeadline() {
 
 var tooLongItemLogger = logger.WithThrottler("tooLongItem", 5*time.Second)
 
-var tooLongItemsTotal atomic.Uint64
+var tooLongItemsTotal atomicutil.Uint64
 
 type partWrapper struct {
 	// refCount is the number of references to partWrapper
@@ -327,7 +327,7 @@ func (pw *partWrapper) decRef() {
 	pw.p = nil
 
 	if deletePath != "" {
-		fs.MustRemoveAll(deletePath)
+		fs.MustRemoveDir(deletePath)
 	}
 }
 
@@ -351,11 +351,14 @@ func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(
 		flushInterval = pendingItemsFlushInterval
 	}
 
-	// Create a directory for the table if it doesn't exist yet.
+	// Create a directory at the path if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
 
 	// Open table parts.
 	pws := mustOpenParts(path)
+
+	// Sync the path and the parent dir, so the path becomes visible in the parent dir.
+	fs.MustSyncPathAndParentDir(path)
 
 	tb := &Table{
 		path:                 path,
@@ -1246,7 +1249,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 		mpNew.ph = *ph
 	} else {
 		// Make sure the created part directory listing is synced.
-		fs.MustSyncPath(dstPartPath)
+		fs.MustSyncPathAndParentDir(dstPartPath)
 	}
 
 	// Atomically swap the source parts with the newly created part.
@@ -1481,14 +1484,10 @@ func (tb *Table) nextMergeIdx() uint64 {
 }
 
 func mustOpenParts(path string) []*partWrapper {
-	// The path can be missing after restoring from backup, so create it if needed.
-	fs.MustMkdirIfNotExist(path)
-	fs.MustRemoveTemporaryDirs(path)
-
 	// Remove txn and tmp directories, which may be left after the upgrade
 	// to v1.90.0 and newer versions.
-	fs.MustRemoveAll(filepath.Join(path, "txn"))
-	fs.MustRemoveAll(filepath.Join(path, "tmp"))
+	fs.MustRemoveDir(filepath.Join(path, "txn"))
+	fs.MustRemoveDir(filepath.Join(path, "tmp"))
 
 	partsFile := filepath.Join(path, partsFilename)
 	partNames := mustReadPartNames(partsFile, path)
@@ -1505,8 +1504,8 @@ func mustOpenParts(path string) []*partWrapper {
 		partPath := filepath.Join(path, partName)
 		if !fs.IsPathExist(partPath) {
 			logger.Panicf("FATAL: part %q is listed in %q, but is missing on disk; "+
-				"ensure %q contents is not corrupted; remove %q to rebuild its content from the list of existing parts",
-				partPath, partsFile, partsFile, partsFile)
+				"ensure %q contents is not corrupted; remove %q from %q in order to restore access to the remaining data",
+				partPath, partsFile, partsFile, partPath, partsFile)
 		}
 
 		m[partName] = struct{}{}
@@ -1520,10 +1519,9 @@ func mustOpenParts(path string) []*partWrapper {
 		if _, ok := m[fn]; !ok {
 			deletePath := filepath.Join(path, fn)
 			logger.Infof("deleting %q because it isn't listed in %q; this is the expected case after unclean shutdown", deletePath, partsFile)
-			fs.MustRemoveAll(deletePath)
+			fs.MustRemoveDir(deletePath)
 		}
 	}
-	fs.MustSyncPath(path)
 
 	// Open parts
 	var pws []*partWrapper
@@ -1595,9 +1593,7 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 		fs.MustHardLinkFiles(srcPartPath, dstPartPath)
 	}
 
-	fs.MustSyncPath(dstDir)
-	parentDir := filepath.Dir(dstDir)
-	fs.MustSyncPath(parentDir)
+	fs.MustSyncPathAndParentDir(dstDir)
 
 	logger.Infof("created Table snapshot of %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 }
@@ -1804,5 +1800,5 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]struct{}) ([
 func isSpecialDir(name string) bool {
 	// Snapshots and cache dirs aren't used anymore.
 	// Keep them here for backwards compatibility.
-	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache" || fs.IsScheduledForRemoval(name)
+	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache"
 }

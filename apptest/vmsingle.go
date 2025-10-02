@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -10,8 +11,9 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Vmsingle holds the state of a vmsingle app and provides vmsingle-specific
@@ -35,17 +37,18 @@ type Vmsingle struct {
 	prometheusAPIV1WriteURL            string
 
 	// vmselect URLs.
-	prometheusAPIV1ExportURL     string
-	prometheusAPIV1QueryURL      string
-	prometheusAPIV1QueryRangeURL string
-	prometheusAPIV1SeriesURL     string
+	prometheusAPIV1ExportURL       string
+	prometheusAPIV1ExportNativeURL string
+	prometheusAPIV1QueryURL        string
+	prometheusAPIV1QueryRangeURL   string
+	prometheusAPIV1SeriesURL       string
 }
 
-// StartVmsingle starts an instance of vmsingle with the given flags. It also
+// StartVmsingleAt starts an instance of vmsingle with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr).
-func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, error) {
-	app, stderrExtracts, err := startApp(instance, "../../bin/victoria-metrics", flags, &appOptions{
+func StartVmsingleAt(instance, binary string, flags []string, cli *Client, output io.Writer) (*Vmsingle, error) {
+	app, stderrExtracts, err := startApp(instance, binary, flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":     "127.0.0.1:0",
@@ -58,6 +61,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 			graphiteListenAddrRE,
 			openTSDBListenAddrRE,
 		},
+		output: output,
 	})
 	if err != nil {
 		return nil, err
@@ -81,6 +85,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
 		prometheusAPIV1ExportURL:           fmt.Sprintf("http://%s/prometheus/api/v1/export", stderrExtracts[1]),
+		prometheusAPIV1ExportNativeURL:     fmt.Sprintf("http://%s/prometheus/api/v1/export/native", stderrExtracts[1]),
 		prometheusAPIV1QueryURL:            fmt.Sprintf("http://%s/prometheus/api/v1/query", stderrExtracts[1]),
 		prometheusAPIV1QueryRangeURL:       fmt.Sprintf("http://%s/prometheus/api/v1/query_range", stderrExtracts[1]),
 		prometheusAPIV1SeriesURL:           fmt.Sprintf("http://%s/prometheus/api/v1/series", stderrExtracts[1]),
@@ -161,11 +166,31 @@ func (app *Vmsingle) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 	}
 }
 
+// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
+// of records in native format for the given tenant by sending an HTTP POST
+// request to /api/v1/import/native vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format
+func (app *Vmsingle) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/api/v1/import/native", app.httpListenAddr)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	_, statusCode := app.cli.Post(t, url, "text/plain", data)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+	}
+}
+
 // OpenTSDBAPIPut is a test helper function that inserts a collection of
 // records in OpenTSDB format for the given tenant by sending an HTTP POST
 // request to /api/put vmsingle endpoint.
 //
-// See https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb#sending-data-via-http
+// See https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http
 func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
@@ -186,10 +211,10 @@ func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vmsingle endpoint.
-func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, _ QueryOpts) {
+func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []prompb.TimeSeries, _ QueryOpts) {
 	t.Helper()
 
-	wr := pb.WriteRequest{Timeseries: records}
+	wr := prompb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
 	if statusCode != http.StatusNoContent {
@@ -235,6 +260,23 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
+// PrometheusAPIV1ExportNative is a test helper function that performs the export of
+// raw samples in native binary format by sending an HTTP POST request to
+// /prometheus/api/v1/export/native vmselect endpoint.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1exportnative
+func (app *Vmsingle) PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte {
+	t.Helper()
+
+	t.Helper()
+	values := opts.asURLValues()
+	values.Add("match[]", query)
+	values.Add("format", "promapi")
+
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportNativeURL, values)
+	return []byte(res)
+}
+
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
 // instant query by sending a HTTP POST request to /prometheus/api/v1/query
 // vmsingle endpoint.
@@ -276,6 +318,86 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 
 	res, _ := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
+}
+
+// PrometheusAPIV1SeriesCount sends a query to a /prometheus/api/v1/series/count endpoint
+// and returns the total number of time series.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1series
+func (app *Vmsingle) PrometheusAPIV1SeriesCount(t *testing.T, opts QueryOpts) *PrometheusAPIV1SeriesCountResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+
+	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/series/count", app.httpListenAddr)
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1SeriesCountResponse(t, res)
+}
+
+// PrometheusAPIV1Labels sends a query to a /prometheus/api/v1/labels endpoint
+// and returns the label names list of time series that match the query.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labels
+func (app *Vmsingle) PrometheusAPIV1Labels(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1LabelsResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+
+	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/labels", app.httpListenAddr)
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1LabelsResponse(t, res)
+}
+
+// PrometheusAPIV1LabelValues sends a query to a /prometheus/api/v1/label/.../values endpoint
+// and returns the label names list of time series that match the query.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1labelvalues
+func (app *Vmsingle) PrometheusAPIV1LabelValues(t *testing.T, labelName, matchQuery string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+
+	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/label/%s/values", app.httpListenAddr, labelName)
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1LabelValuesResponse(t, res)
+}
+
+// APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending
+// a request to /api/v1/admin/tsdb/delete_series.
+//
+// See https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series
+func (app *Vmsingle) APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/api/v1/admin/tsdb/delete_series", app.httpListenAddr)
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
+	}
+}
+
+// GraphiteMetricsIndex sends a query to a /metrics/index.json
+//
+// See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#metrics-api
+func (app *Vmsingle) GraphiteMetricsIndex(t *testing.T, _ QueryOpts) GraphiteMetricsIndexResponse {
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/metrics/index.json", app.httpListenAddr)
+	res, statusCode := app.cli.Get(t, seriesURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+
+	var index GraphiteMetricsIndexResponse
+	if err := json.Unmarshal([]byte(res), &index); err != nil {
+		t.Fatalf("could not unmarshal metrics index response data:\n%s\n err: %v", res, err)
+	}
+	return index
 }
 
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint
@@ -324,8 +446,7 @@ func (app *Vmsingle) APIV1AdminStatusMetricNamesStatsReset(t *testing.T, opts Qu
 func (app *Vmsingle) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	t.Helper()
 
-	queryURL := fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
-	data, statusCode := app.cli.Post(t, queryURL, "", nil)
+	data, statusCode := app.cli.Post(t, app.SnapshotCreateURL(), "", nil)
 	if got, want := statusCode, http.StatusOK; got != want {
 		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", got, want, data)
 	}
@@ -336,6 +457,11 @@ func (app *Vmsingle) SnapshotCreate(t *testing.T) *SnapshotCreateResponse {
 	}
 
 	return &res
+}
+
+// SnapshotCreateURL returns the URL for creating snapshots.
+func (app *Vmsingle) SnapshotCreateURL() string {
+	return fmt.Sprintf("http://%s/snapshot/create", app.httpListenAddr)
 }
 
 // APIV1AdminTSDBSnapshot creates a database snapshot by sending a query to the

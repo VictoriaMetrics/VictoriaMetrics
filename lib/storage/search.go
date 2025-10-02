@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -94,12 +95,8 @@ type Search struct {
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
 	MetricBlockRef MetricBlockRef
 
-	// idb is used for MetricName lookup for the found data blocks.
-	idb *indexDB
-
-	// putIndexDB decrements the idb ref counter. Must be called in
-	// Search.MustClose().
-	putIndexDB func()
+	// mns is used for searching metricName by metricID.
+	mns *metricNameSearch
 
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
@@ -123,6 +120,9 @@ type Search struct {
 
 	prevMetricID uint64
 
+	// metricsTracker is used to collect stats on which metrics are searched.
+	metricsTracker *metricnamestats.Tracker
+
 	// metricGroupBuf holds metricGroup used for metric names tracker
 	metricGroupBuf []byte
 }
@@ -131,8 +131,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.MetricName = s.MetricBlockRef.MetricName[:0]
 	s.MetricBlockRef.BlockRef = nil
 
-	s.idb = nil
-	s.putIndexDB = nil
+	s.mns = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -142,6 +141,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metricsTracker = nil
 	s.metricGroupBuf = nil
 }
 
@@ -154,7 +154,6 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	indexTR := storage.adjustTimeRange(tr)
 	dataTR := tr
 
 	if s.needClosing {
@@ -163,21 +162,16 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
-	s.idb, s.putIndexDB = storage.getCurrIndexDB()
+	s.mns = getMetricNameSearch(storage, false)
 	s.retentionDeadline = retentionDeadline
+	s.metricsTracker = storage.metricsTracker
 	s.tr = tr
 	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
 
-	var tsids []TSID
-	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, maxMetrics, deadline)
-	if err == nil {
-		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
-		if err == nil {
-			err = storage.prefetchMetricNames(qt, s.idb, metricIDs, deadline)
-		}
-	}
+	tsids, err := storage.SearchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
 	// on Search.MustClose otherwise.
@@ -196,7 +190,7 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
-	s.putIndexDB()
+	putMetricNameSearch(s.mns)
 	s.reset()
 }
 
@@ -228,14 +222,14 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.idb.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, false)
+			s.MetricBlockRef.MetricName, ok = s.mns.search(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 				continue
 			}
 			// for performance reasons parse metricGroup conditionally
-			if s.idb.s.metricsTracker != nil {
+			if s.metricsTracker != nil {
 				var err error
 				// MetricName must be sorted and marshalled with MetricName.Marshal()
 				// it guarantees that first tag is metricGroup
@@ -244,7 +238,7 @@ func (s *Search) NextMetricBlock() bool {
 					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
 					return false
 				}
-				s.idb.s.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
+				s.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
 			}
 			s.prevMetricID = tsid.MetricID
 		}

@@ -2,6 +2,7 @@ package promscrape
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -10,7 +11,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -100,9 +102,12 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 
 	pushDataCalls := 0
 	var pushDataErr error
-	sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+	sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
 		if err := expectEqualTimeseries(wr.Timeseries, timeseriesExpected); err != nil {
 			pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%#v\nwant\n%#v", err, wr.Timeseries, timeseriesExpected)
+		}
+		if len(wr.Metadata) > 0 {
+			pushDataErr = fmt.Errorf("unexpected metadata pushed: %v", wr.Metadata)
 		}
 		pushDataCalls++
 	}
@@ -140,7 +145,11 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 }
 
 func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
-	f := func(data string, cfg *ScrapeWork, dataExpected string) {
+	oldMetadataEnabled := prommetadata.SetEnabled(true)
+	defer func() {
+		prommetadata.SetEnabled(oldMetadataEnabled)
+	}()
+	f := func(data string, cfg *ScrapeWork, dataExpected string, metaDataExpected []prompb.MetricMetadata) {
 		t.Helper()
 
 		timeseriesExpected := parseData(dataExpected)
@@ -158,7 +167,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		var pushDataMu sync.Mutex
 		var pushDataCalls int
 		var pushDataErr error
-		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
 			pushDataMu.Lock()
 			defer pushDataMu.Unlock()
 
@@ -174,6 +183,12 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 				pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%v\nwant\n%v", err, wr.Timeseries, tsExpected)
 				return
 			}
+			mdExpected := metaDataExpected[:len(wr.Metadata)]
+			metaDataExpected = metaDataExpected[len(mdExpected):]
+			if err := expectEqualMetadata(wr.Metadata, mdExpected); err != nil {
+				pushDataErr = fmt.Errorf("unexpected metadata pushed: %w\ngot\n%v\nwant\n%v", err, wr.Metadata, mdExpected)
+				return
+			}
 		}
 
 		if streamParse {
@@ -184,7 +199,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		timestamp := int64(123000)
 		tsmGlobal.Register(&sw)
 		if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
-			if !strings.Contains(err.Error(), "sample_limit") {
+			if !strings.Contains(err.Error(), "sample_limit") && !strings.Contains(err.Error(), "label_limit") {
 				t.Fatalf("unexpected error: %s", err)
 			}
 		}
@@ -201,6 +216,9 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		if len(timeseriesExpected) != 0 {
 			t.Fatalf("%d series weren't pushed", len(timeseriesExpected))
 		}
+		if len(metaDataExpected) != 0 {
+			t.Fatalf("%d metadata weren't pushed", len(metaDataExpected))
+		}
 	}
 
 	f(``, &ScrapeWork{
@@ -214,8 +232,10 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling 0 123
 		scrape_series_added 0 123
 		scrape_timeout_seconds 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	f(`
+	    # HELP foo This is test metric.
+		# TYPE foo gauge
 		foo{bar="baz",empty_label=""} 34.45 3
 		abc -2
 	`, &ScrapeWork{
@@ -226,13 +246,21 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		abc -2 123
 		up 1 123
 		scrape_samples_scraped 2 123
-		scrape_response_size_bytes 51 123
+		scrape_response_size_bytes 107 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_series_added 2 123
 		scrape_timeout_seconds 42 123
-	`)
+	`, []prompb.MetricMetadata{
+		{
+			Type:             uint32(prompb.MetricMetadataGAUGE),
+			MetricFamilyName: "foo",
+			Help:             "This is test metric.",
+		},
+	})
 	f(`
+		## HELP foo This is test metric.
+		## TYPE foo gauge
 		foo{bar="baz"} 34.45 3
 		abc -2
 	`, &ScrapeWork{
@@ -247,12 +275,12 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		abc{foo="x"} -2 123
 		up{foo="x"} 1 123
 		scrape_samples_scraped{foo="x"} 2 123
-		scrape_response_size_bytes{foo="x"} 36 123
+		scrape_response_size_bytes{foo="x"} 91 123
 		scrape_duration_seconds{foo="x"} 0 123
 		scrape_samples_post_metric_relabeling{foo="x"} 2 123
 		scrape_series_added{foo="x"} 2 123
 		scrape_timeout_seconds{foo="x"} 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	f(`
 		foo{job="orig",bar="baz"} 34.45
 		bar{y="2",job="aa",a="b",x="1"} -3e4 2345
@@ -273,7 +301,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling{job="override"} 2 123
 		scrape_series_added{job="override"} 2 123
 		scrape_timeout_seconds{job="override"} 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	// Empty instance override. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/453
 	f(`
 		no_instance{instance="",job="some_job",label="val1",test=""} 5555
@@ -296,7 +324,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling{instance="foobar",job="xxx"} 2 123
 		scrape_series_added{instance="foobar",job="xxx"} 2 123
 		scrape_timeout_seconds{instance="foobar",job="xxx"} 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	f(`
 		no_instance{instance="",job="some_job",label="val1",test=""} 5555
 		test_with_instance{instance="some_instance",job="some_job",label="val2",test=""} 1555
@@ -318,9 +346,14 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling{instance="foobar",job="xxx"} 2 123
 		scrape_series_added{instance="foobar",job="xxx"} 2 123
 		scrape_timeout_seconds{instance="foobar",job="xxx"} 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	f(`
+		# HELP foo This is test metric.
+		# TYPE foo counter
 		foo{job="orig",bar="baz"} 34.45
+
+		# HELP bar This is another test metric.
+		# TYPE bar gauge
 		bar{job="aa",a="b"} -3e4 2345
 	`, &ScrapeWork{
 		StreamParse:   streamParse,
@@ -334,12 +367,23 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		bar{job="aa",a="b"} -3e4 123
 		up{job="override"} 1 123
 		scrape_samples_scraped{job="override"} 2 123
-		scrape_response_size_bytes{job="override"} 68 123
+		scrape_response_size_bytes{job="override"} 185 123
 		scrape_duration_seconds{job="override"} 0 123
 		scrape_samples_post_metric_relabeling{job="override"} 2 123
 		scrape_series_added{job="override"} 2 123
 		scrape_timeout_seconds{job="override"} 42 123
-	`)
+	`, []prompb.MetricMetadata{
+		{
+			Type:             uint32(prompb.MetricMetadataCOUNTER),
+			MetricFamilyName: "foo",
+			Help:             "This is test metric.",
+		},
+		{
+			Type:             uint32(prompb.MetricMetadataGAUGE),
+			MetricFamilyName: "bar",
+			Help:             "This is another test metric.",
+		},
+	})
 	f(`
 		foo{bar="baz"} 34.44
 		bar{a="b",c="d"} -3e4
@@ -369,7 +413,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling{job="xx"} 2 123
 		scrape_series_added{job="xx"} 2 123
 		scrape_timeout_seconds{job="xx"} 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	f(`
 		foo{bar="baz"} 34.44
 		bar{a="b",c="d",} -3e4
@@ -401,7 +445,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com"} 1 123
 		scrape_series_added{job="xx",instance="foo.com"} 4 123
 		scrape_timeout_seconds{job="xx",instance="foo.com"} 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	// Scrape metrics with names clashing with auto metrics
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3406
 	f(`
@@ -422,7 +466,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling 3 123
 		scrape_timeout_seconds 42 123
 		scrape_series_added 3 123
-	`)
+	`, []prompb.MetricMetadata{})
 	f(`
 		up{bar="baz"} 34.44
 		bar{a="b",c="d"} -3e4
@@ -442,7 +486,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling 3 123
 		scrape_series_added 3 123
 		scrape_timeout_seconds 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	// Scrape success with the given SampleLimit.
 	f(`
 		foo{bar="baz"} 34.44
@@ -462,7 +506,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_series_added 2 123
 		scrape_timeout_seconds 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	// Scrape failure because of the exceeded SampleLimit
 	f(`
 		foo{bar="baz"} 34.44
@@ -485,7 +529,26 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_series_limit 123 123
 		scrape_series_limit_samples_dropped 0 123
 		scrape_timeout_seconds 42 123
-	`)
+	`, []prompb.MetricMetadata{})
+	// Scrape failure because of the exceeded LabelLimit
+	f(`
+                foo{bar="baz"} 34.44
+                bar{a="b",c="d",e="f"} -3e4
+        `, &ScrapeWork{
+		StreamParse:   streamParse,
+		ScrapeTimeout: time.Second * 42,
+		HonorLabels:   true,
+		LabelLimit:    2,
+	}, `
+                up 0 123
+                scrape_samples_scraped 2 123
+                scrape_response_size_bytes 0 123
+                scrape_duration_seconds 0 123
+                scrape_samples_post_metric_relabeling 0 123
+                scrape_series_added 0 123
+                scrape_timeout_seconds 42 123
+		scrape_labels_limit 2 123
+        `, []prompb.MetricMetadata{})
 	// Scrape success with the given SeriesLimit.
 	f(`
 		foo{bar="baz"} 34.44
@@ -507,7 +570,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_series_limit 123 123
 		scrape_series_limit_samples_dropped 0 123
 		scrape_timeout_seconds 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 	// Exceed SeriesLimit.
 	f(`
 		foo{bar="baz"} 34.44
@@ -528,7 +591,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_series_limit 1 123
 		scrape_series_limit_samples_dropped 1 123
 		scrape_timeout_seconds 42 123
-	`)
+	`, []prompb.MetricMetadata{})
 }
 
 // TestScrapeWorkScrapeInternalStreamConcurrency ensures that streaming parsing with concurrency
@@ -536,7 +599,11 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 //
 // The core parsing functionality is validated separately in TestScrapeWorkScrapeInternalSuccess.
 func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
-	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected, timeseriesExpectedDelta int64) {
+	oldMetadataEnabled := prommetadata.SetEnabled(true)
+	defer func() {
+		prommetadata.SetEnabled(oldMetadataEnabled)
+	}()
+	f := func(data string, cfg *ScrapeWork, pushDataCallsExpected int64, timeseriesExpected, timeseriesExpectedDelta, metadataExpected int64) {
 		t.Helper()
 
 		var sw scrapeWork
@@ -551,9 +618,11 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 
 		var pushDataCalls atomic.Int64
 		var pushedTimeseries atomic.Int64
-		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+		var pushedMetadata atomic.Int64
+		sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
 			pushDataCalls.Add(1)
 			pushedTimeseries.Add(int64(len(wr.Timeseries)))
+			pushedMetadata.Add(int64(len(wr.Metadata)))
 		}
 
 		protoparserutil.StartUnmarshalWorkers()
@@ -573,19 +642,21 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		if pushDataCalls.Load() != pushDataCallsExpected {
 			t.Fatalf("unexpected number of pushData calls; got %d; want %d", pushDataCalls.Load(), pushDataCallsExpected)
 		}
-
 		// series limiter rely on bloomfilter.Limiter which performs maxLimit checks in a way that may allow slight overflows.
 		// This condition verifies whether the actual number of pushed timeseries falls within
 		// an expected tolerance range, accounting for potential deviations.
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8515#issuecomment-2741063155
 		lowerExpectedDelta := pushedTimeseries.Load() - timeseriesExpectedDelta
 		upperExpectedDelta := pushedTimeseries.Load() + timeseriesExpectedDelta + 1
-		if !(timeseriesExpected >= lowerExpectedDelta && timeseriesExpected < upperExpectedDelta) {
+		if timeseriesExpected < lowerExpectedDelta || timeseriesExpected >= upperExpectedDelta {
 			t.Fatalf("unexpected number of pushed timeseries; got %d; want within range [%d, %d)",
 				pushedTimeseries.Load(),
 				lowerExpectedDelta,
 				upperExpectedDelta,
 			)
+		}
+		if pushedMetadata.Load() != metadataExpected {
+			t.Fatalf("unexpected number of pushed metadata; got %d; want %d", pushedMetadata.Load(), metadataExpected)
 		}
 	}
 
@@ -593,6 +664,9 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		w := strings.Builder{}
 		for i := 0; i < n; i++ {
 			w.WriteString(fmt.Sprintf("fooooo_%d 1\n", i))
+			if i%100 == 0 {
+				w.WriteString(fmt.Sprintf("# HELP fooooo_%d This is a test\n", i))
+			}
 		}
 		return w.String()
 	}
@@ -601,26 +675,26 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 	f(generateScrape(1), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 2, 8, 0)
+	}, 2, 8, 0, 1)
 
 	// process 5k series: two batch of data, plus auto metrics pushed
 	f(generateScrape(5000), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 3, 5007, 0)
+	}, 3, 5007, 0, 50)
 
 	// process 1M series: 246 batches of data, plus auto metrics pushed
 	f(generateScrape(1e6), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
-	}, 246, 1000007, 0)
+	}, 272, 1000007, 0, 1e4)
 
 	// process 5k series: two batch of data, plus auto metrics pushed, with series limiters applied
 	f(generateScrape(5000), &ScrapeWork{
 		StreamParse:   true,
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   4000,
-	}, 3, 4015, 2)
+	}, 3, 4015, 2, 50)
 }
 
 func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {
@@ -628,7 +702,10 @@ func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {
 		t.Helper()
 		r := parsePromRow(row)
 		var wc writeRequestCtx
-		wc.addRow(cfg, r, r.Timestamp, false)
+		err := wc.addRow(cfg, r, r.Timestamp, false)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 		tss := wc.writeRequest.Timeseries
 		tssExpected := parseData(dataExpected)
 		if err := expectEqualTimeseries(tss, tssExpected); err != nil {
@@ -867,7 +944,7 @@ func TestSendStaleSeries(t *testing.T) {
 		defer protoparserutil.StopUnmarshalWorkers()
 
 		var staleMarks atomic.Int64
-		sw.PushData = func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
+		sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {
 			staleMarks.Add(int64(len(wr.Timeseries)))
 		}
 		sw.sendStaleSeries(lastScrape, currScrape, 0, false)
@@ -904,11 +981,11 @@ func parsePromRow(data string) *prometheus.Row {
 	return &rows.Rows[0]
 }
 
-func parseData(data string) []prompbmarshal.TimeSeries {
+func parseData(data string) []prompb.TimeSeries {
 	return prometheus.MustParsePromMetrics(data, 0)
 }
 
-func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
+func expectEqualTimeseries(tss, tssExpected []prompb.TimeSeries) error {
 	m, err := timeseriesToMap(tss)
 	if err != nil {
 		return fmt.Errorf("invalid generated timeseries: %w", err)
@@ -929,7 +1006,34 @@ func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
 	return nil
 }
 
-func timeseriesToMap(tss []prompbmarshal.TimeSeries) (map[string]string, error) {
+func expectEqualMetadata(mms, mmsExpected []prompb.MetricMetadata) error {
+	if len(mms) != len(mmsExpected) {
+		return fmt.Errorf("unexpected metadata len; got %d; want %d", len(mms), len(mmsExpected))
+	}
+	sort.Slice(mms, func(i, j int) bool {
+		return mms[i].MetricFamilyName < mms[j].MetricFamilyName
+	})
+	sort.Slice(mmsExpected, func(i, j int) bool {
+		return mmsExpected[i].MetricFamilyName < mmsExpected[j].MetricFamilyName
+	})
+	for i := range mms {
+		if mms[i].MetricFamilyName != mmsExpected[i].MetricFamilyName {
+			return fmt.Errorf("unexpected metadata name at index %d; got %q; want %q", i, mms[i].MetricFamilyName, mmsExpected[i].MetricFamilyName)
+		}
+		if mms[i].Help != mmsExpected[i].Help {
+			return fmt.Errorf("unexpected metadata help at index %d; got %q; want %q", i, mms[i].Help, mmsExpected[i].Help)
+		}
+		if mms[i].Type != mmsExpected[i].Type {
+			return fmt.Errorf("unexpected metadata type at index %d; got %q; want %q", i, mms[i].Type, mmsExpected[i].Type)
+		}
+		if len(mms[i].Unit) != len(mmsExpected[i].Unit) {
+			return fmt.Errorf("unexpected metadata unit len at index %d; got %d; want %d", i, len(mms[i].Unit), len(mmsExpected[i].Unit))
+		}
+	}
+	return nil
+}
+
+func timeseriesToMap(tss []prompb.TimeSeries) (map[string]string, error) {
 	m := make(map[string]string, len(tss))
 	for i := range tss {
 		ts := &tss[i]
@@ -951,7 +1055,7 @@ func timeseriesToMap(tss []prompbmarshal.TimeSeries) (map[string]string, error) 
 	return m, nil
 }
 
-func timeseriesToString(ts *prompbmarshal.TimeSeries) string {
+func timeseriesToString(ts *prompb.TimeSeries) string {
 	promrelabel.SortLabels(ts.Labels)
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "{")

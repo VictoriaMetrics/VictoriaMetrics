@@ -4,7 +4,11 @@ weight: 2
 menu:
   docs:
     parent: "integrations-vm"
+    identifier: "integrations-prometheus-vm"
     weight: 2
+aliases:
+  - /victoriametrics/data-ingestion/prometheus/
+  - /data-ingestion/prometheus/
 ---
 
 VictoriaMetrics integrates with Prometheus as [remote storage for writes](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage).
@@ -62,5 +66,5 @@ Read more about tuning [remote write](https://prometheus.io/docs/practices/remot
 It is recommended upgrading Prometheus to [v2.12.0](https://github.com/prometheus/prometheus/releases/latest) or newer,
 since previous versions may have issues with `remote_write`.
 
-Take a look at [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmalert](https://docs.victoriametrics.com/vmalert/),
+Take a look at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/),
 which can be used as faster and less resource-hungry alternative to Prometheus.

@@ -115,11 +115,12 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 			if !isSpecialValue(v) {
 				continue
 			}
-			if v == vInfPos {
+			switch v {
+			case vInfPos:
 				a[i] = infPos
-			} else if v == vInfNeg {
+			case vInfNeg:
 				a[i] = infNeg
-			} else {
+			default:
 				a[i] = StaleNaN
 			}
 		}
@@ -135,11 +136,12 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 			if !isSpecialValue(v) {
 				continue
 			}
-			if v == vInfPos {
+			switch v {
+			case vInfPos:
 				a[i] = infPos
-			} else if v == vInfNeg {
+			case vInfNeg:
 				a[i] = infNeg
-			} else {
+			default:
 				a[i] = StaleNaN
 			}
 		}
@@ -152,11 +154,12 @@ func AppendDecimalToFloat(dst []float64, va []int64, e int16) []float64 {
 		if !isSpecialValue(v) {
 			continue
 		}
-		if v == vInfPos {
+		switch v {
+		case vInfPos:
 			a[i] = infPos
-		} else if v == vInfNeg {
+		case vInfNeg:
 			a[i] = infNeg
-		} else {
+		default:
 			a[i] = StaleNaN
 		}
 	}

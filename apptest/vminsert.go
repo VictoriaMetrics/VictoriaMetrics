@@ -2,14 +2,16 @@ package apptest
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -40,14 +42,14 @@ func storageNodes(flags []string) []string {
 // StartVminsert starts an instance of vminsert with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
-func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, error) {
+func StartVminsert(instance string, flags []string, cli *Client, output io.Writer) (*Vminsert, error) {
 	extractREs := []*regexp.Regexp{
 		httpListenAddrRE,
 		vminsertClusterNativeAddrRE,
 		graphiteListenAddrRE,
 		openTSDBListenAddrRE,
 	}
-	// Add storateNode REs to block until vminsert establishes connections with
+	// Add storageNode REs to block until vminsert establishes connections with
 	// all storage nodes. The extracted values are unused.
 	for _, sn := range storageNodes(flags) {
 		logRecord := fmt.Sprintf("successfully dialed -storageNode=\"%s\"", sn)
@@ -62,6 +64,7 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 			"-opentsdbListenAddr":      "127.0.0.1:0",
 		},
 		extractREs: extractREs,
+		output:     output,
 	})
 	if err != nil {
 		return nil, err
@@ -85,6 +88,12 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 // listening for connections from other vminsert apps.
 func (app *Vminsert) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
+}
+
+// HTTPAddr returns the address at which the vminsert process is
+// listening for incoming HTTP requests.
+func (app *Vminsert) HTTPAddr() string {
+	return app.httpListenAddr
 }
 
 // InfluxWrite is a test helper function that inserts a
@@ -143,6 +152,28 @@ func (app *Vminsert) PrometheusAPIV1ImportCSV(t *testing.T, records []string, op
 	})
 }
 
+// PrometheusAPIV1ImportNative is a test helper function that inserts a collection
+// of records in Native format for the given tenant by sending an HTTP POST
+// request to prometheus/api/v1/import/native vminsert endpoint.
+//
+// See https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+func (app *Vminsert) PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/native", app.httpListenAddr, opts.getTenant())
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	app.sendBlocking(t, 1, func() {
+		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
+	})
+}
+
 // OpenTSDBAPIPut is a test helper function that inserts a collection of
 // records in OpenTSDB format for the given tenant by sending an HTTP POST
 // request to /opentsdb/api/put vminsert endpoint.
@@ -169,11 +200,11 @@ func (app *Vminsert) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.
-func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts) {
+func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []prompb.TimeSeries, opts QueryOpts) {
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.getTenant())
-	wr := pb.WriteRequest{Timeseries: records}
+	wr := prompb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	app.sendBlocking(t, len(records), func() {
 		_, statusCode := app.cli.Post(t, url, "application/x-protobuf", data)

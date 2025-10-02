@@ -1,0 +1,38 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-alerts-notifier-header {
+  display: flex;
+  align-items: center;
+  padding: $padding-global;
+  justify-content: space-between;
+  gap: $padding-global;
+
+  &_mobile {
+    padding: $padding-small $padding-global;
+  }
+
+  &__index {
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+  }
+
+  &__name {
+    flex-grow: 1;
+    font-weight: bold;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 130%;
+  }
+
+  &__file {
+    color: $color-text-disabled;
+  }
+
+  code {
+    padding: 0.2em 0.4em;
+    font-size: 85%;
+    background-color: $color-hover-black;
+    border-radius: 6px;
+  }
+}
