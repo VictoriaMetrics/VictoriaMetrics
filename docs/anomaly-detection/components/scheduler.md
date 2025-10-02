@@ -378,6 +378,8 @@ schedulers:
 
 ## Backtesting scheduler
 
+> {{% available_from "v1.26.0" anomaly %}} `BacktestingScheduler` in [inference-only](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#inference-only-mode) mode is used in UI for backtesting configurations on historical data to verify that it works as expected before it goes live. See [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) on how to access and use the UI.
+
 > As of latest version, the Backtesting scheduler can't be explicitly used with a combination of [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration). It is designed to run once and exit, so it does not maintain state across runs. A warning will be raised in logs and internal state for such scheduler will not be saved and restored upon restart. If you need to run the scheduler periodically and/or maintain state, consider using the [Periodic scheduler](#periodic-scheduler) instead.
 
 > A new, more intuitive backtesting mode is available {{% available_from "v1.22.1" anomaly %}}. In **Inference only** mode, the window you specify via `[from, to]` (or `[from_iso, to_iso]`) is used *solely for inference*, and the corresponding training (“fit”) windows are determined automatically. To enable this behavior, set:

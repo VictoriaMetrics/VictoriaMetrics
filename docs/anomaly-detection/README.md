@@ -6,20 +6,21 @@ build:
 sitemap:
   disable: true
 ---
-In today's fast-paced and complex landscape of system monitoring, [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (`vmanomaly`), part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), serves as a **powerful observability tool** for SREs and DevOps teams. It **automates the detection of anomalies in time-series data**, reducing manual efforts required to identify abnormal system behavior.
+
+In today's fast-paced and complex landscape of system monitoring, [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (`vmanomaly`), a part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), serves as an **observability layer** for SREs and DevOps teams atop of collected data to **automate the detection of anomalies in time-series data**, reducing manual efforts required to identify abnormal system behavior.
 
 Unlike traditional threshold-based alerting, which relies on **raw metric values** and requires constant tuning and maintenance of thresholds and alerting rules, `vmanomaly` introduces a **unified, interpretable [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)** - a **de-trended, de-seasonalized metric** generated through machine learning. This approach eliminates the need for frequent manual adjustments by enabling **stable, long-term static thresholds (as simple as `anomaly_score > 1`)** that remain effective over time through continuous model retraining.
 
-By shifting to anomaly-based detection, teams can **identify and respond to potential issues faster**, enhancing system reliability and operational efficiency while significantly **reducing the engineering effort spent on maintaining alerting rules**.
+By shifting to anomaly-based detection, teams can **identify and respond to potential issues faster**, enhancing system reliability and operational efficiency while significantly **reducing the engineering effort spent on handcrafting and maintaining alerting rules**.
 
 
 ## What does it do?
 
-`vmanomaly` is designed to **periodically analyze new data points** across selected metrics, generating a **unified metric** called [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). 
+`vmanomaly` is designed to **periodically analyze new data points** across selected metrics (either requested from [VictoriaMetrics TSDB](https://docs.victoriametrics.com/victoriametrics/) or produced by [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) metrics [endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats)), generating a **unified metric** called [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). 
 
 Key functions:
-- **Automated anomaly detection** – continuously scans time-series data to identify deviations from expected behavior.
-- **Seamless integration** – anomaly scores are stored in VictoriaMetrics TSDB for use in **alerting, visualization, and downstream analytics**.
+- **Automated anomaly detection** - continuously scans time-series data to identify deviations from expected behavior.
+- **Seamless integration** - anomaly scores are stored in VictoriaMetrics TSDB for use in **alerting, visualization, and downstream analytics**.
 
 The diagram below illustrates how `vmanomaly` fits into an observability setup, such as detecting anomalies in metrics collected by `node_exporter`:
 
