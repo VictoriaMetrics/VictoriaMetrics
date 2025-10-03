@@ -249,9 +249,12 @@ func (c *Client) setPrometheusRangeReqParams(r *http.Request, query string, star
 	if c.appendTypePrefix {
 		r.URL.Path += "/prometheus"
 	}
-	if !*disablePathAppend {
-		r.URL.Path += "/api/v1/query_range"
-	}
+
+	// deliberately ignore *disablePathAppend
+	// if we don't append path, then newQueryRangeRequest and newQueryRequest will produce the same URL path and will become
+	// indistinguishable for remote datasource. This may lead to confusion as in https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9779
+	r.URL.Path += "/api/v1/query_range"
+
 	q := r.URL.Query()
 	q.Add("start", start.Format(time.RFC3339))
 	q.Add("end", end.Format(time.RFC3339))
