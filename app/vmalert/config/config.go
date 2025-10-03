@@ -23,8 +23,8 @@ var defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default
 // Group contains list of Rules grouped into
 // entity with one name and evaluation interval
 type Group struct {
-	Type       Type `yaml:"type,omitempty"`
-	File       string
+	Type       Type               `yaml:"type,omitempty"`
+	File       string             `yaml:"-"`
 	Name       string             `yaml:"name"`
 	Interval   *promutil.Duration `yaml:"interval,omitempty"`
 	EvalOffset *promutil.Duration `yaml:"eval_offset,omitempty"`
@@ -33,15 +33,15 @@ type Group struct {
 	EvalDelay   *promutil.Duration `yaml:"eval_delay,omitempty"`
 	Limit       *int               `yaml:"limit,omitempty"`
 	Rules       []Rule             `yaml:"rules"`
-	Concurrency int                `yaml:"concurrency"`
+	Concurrency int                `yaml:"concurrency,omitempty"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	// It has priority over the external labels.
-	Labels map[string]string `yaml:"labels"`
+	Labels map[string]string `yaml:"labels,omitempty"`
 	// Checksum stores the hash of yaml definition for this group.
 	// May be used to detect any changes like rules re-ordering etc.
-	Checksum string
+	Checksum string `yaml:"-"`
 	// Optional HTTP URL parameters added to each rule request
-	Params url.Values `yaml:"params"`
+	Params url.Values `yaml:"params,omitempty"`
 	// Headers contains optional HTTP headers added to each rule request
 	Headers []Header `yaml:"headers,omitempty"`
 	// NotifierHeaders contains optional HTTP headers sent to notifiers for generated notifications
@@ -134,7 +134,7 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 // Rule describes entity that represent either
 // recording rule or alerting rule.
 type Rule struct {
-	ID     uint64
+	ID     uint64             `yaml:"-"`
 	Record string             `yaml:"record,omitempty"`
 	Alert  string             `yaml:"alert,omitempty"`
 	Expr   string             `yaml:"expr"`

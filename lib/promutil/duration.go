@@ -1,6 +1,7 @@
 package promutil
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/VictoriaMetrics/metricsql"
@@ -28,6 +29,33 @@ func (pd *Duration) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 	if err := unmarshal(&s); err != nil {
 		return err
+	}
+	ms, err := metricsql.DurationValue(s, 0)
+	if err != nil {
+		return err
+	}
+	pd.D = time.Duration(ms) * time.Millisecond
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler interface.
+func (pd Duration) MarshalJSON() ([]byte, error) {
+	data, err := json.Marshal(pd.D.String())
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface.
+func (pd *Duration) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	if len(s) == 0 {
+		return nil
 	}
 	ms, err := metricsql.DurationValue(s, 0)
 	if err != nil {
