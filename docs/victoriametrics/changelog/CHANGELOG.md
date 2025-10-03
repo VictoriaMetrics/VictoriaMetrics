@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * SECURITY: upgrade Go builder from Go1.25.0 to Go1.25.1. See [the list of issues addressed in Go1.25.1](https://github.com/golang/go/issues?q=milestone%3AGo1.25.1%20label%3ACherryPickApproved).
+* SECURITY: upgrade libcrypto3 and libssl3 to `3.5.4-r0` to address CVE-2025-9230, CVE-2025-9231, CVE-2025-9232.
 
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-rule.resultsLimit` command-line flag to allow limiting the number of alerts or recording results a single rule can produce. See [#5792](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5792).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): stream responses from backends to clients without delays. Previously the backend data could be buffered at `vmauth` side for indefinite amounts of time. This was preventing from using `vmauth` for streaming the data from backends in [live tailing mode](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing). See [VictoriaLogs#667](https://github.com/VictoriaMetrics/VictoriaLogs/issues/667).
