@@ -207,7 +207,6 @@ func (im *Importer) Input(ts *TimeSeries) error {
 // and waits until they are finished
 func (im *Importer) Close() {
 	im.once.Do(func() {
-		close(im.close)
 		close(im.input)
 		im.wg.Wait()
 		close(im.errors)
@@ -237,7 +236,17 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize,
 			return
 		case ts, ok := <-im.input:
 			if !ok {
-				continue
+				// drain all batches before exit
+				exitErr := &ImportError{
+					Batch: batch,
+				}
+				retryableFunc := func() error { return im.Import(batch) }
+				_, err := im.backoff.Retry(ctx, retryableFunc)
+				if err != nil {
+					exitErr.Err = err
+				}
+				im.errors <- exitErr
+				return
 			}
 			// init waitForBatch when first
 			// value was received
