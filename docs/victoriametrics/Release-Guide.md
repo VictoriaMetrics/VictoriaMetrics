@@ -68,14 +68,8 @@ and the candidate is deployed to the sandbox environment.
 1. Make sure you get all changes fetched.
 
    ```sh
-   git fetch --all
-   ```
-
-1. Make sure tests pass on branches `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster`.
-
-   ```sh
-   make test-full
-   make check-all
+   git fetch opensource
+   git fetch enterprise
    ```
 
 1. Make sure all the changes are synced between `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster` branches.
@@ -92,6 +86,25 @@ and the candidate is deployed to the sandbox environment.
 1. Review bugfixes in the changelog to determine if they need to be backported to LTS versions.
    Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
    This serves as a double-check. The initial assessment should already have been done by the person who merged a PR.
+
+1. Make sure tests pass on branches `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster`.
+
+   ```sh
+   make test-full
+   make check-all
+   ```
+
+1. Verify no CVEs in Go code or base images according to the [CVE handling policy](https://docs.victoriametrics.com/victoriametrics/#cve-handling-policy).
+   It’s sufficient to run `govulncheck` on the `master` branch since other branches are checked in CI on regular bases. 
+   For image scanning, build and check Alpine base image.
+
+   ```sh
+   make govulncheck
+   
+   make package-base
+   grype  --only-fixed [base-image-tag]
+   ```
+
 1. Re-build `vmui` static files. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650).
 
    ```sh
