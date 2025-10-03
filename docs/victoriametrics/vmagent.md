@@ -166,17 +166,13 @@ to the same second-level `vmagent` instance, so they are aggregated properly.
 If `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
 among remote storage systems specified in `-remoteWrite.url`.
 
-> The `-remoteWrite.shardByURL` may not work as expected when [SRV URLs](#srv-urls) are in use.
+> The `-remoteWrite.shardByURL` may not work as expected when [SRV URLs](https://docs.victoriametrics.com/victoriametrics/vmagent/#srv-urls) are in use.
 >
-> To be more specific, when sharding is enabled, the data will be sharded **with consistent hashing** to configured URLs.
-> It expects the same series to be sent to the same URL. If the URL is an SRV URL, it will be further resolved into the
-> real address, and if there are multiple addresses in the resolved result, `vmagent` will choose one from the result
-> **randomly**. In such a case, the consistent hashing will not work correctly, as the same data may be sent to different
-> addresses in the DNS SRV records.
+> An SRV record might be resolved into multiple addresses, one of which is chosen **randomly** for all subsequent logic, including sharding.
+> It will make sharding inconsistent. Samples of the same time series always go to the same **remote write URL**/**SRV record**, but they may reach different addresses randomly based on the DNS resolution.
 >
-> As an example, configuring `-remoteWrite.shardByURL` with 1 SRV URL which will be resolved into `N` addresses
-> will have a different result than configuring `-remoteWrite.shardByURL` with `N` URLs. The former case only contains
-> 1 shard, and the data will be sent to random destinations, which goes against the consistent hashing behaviour.
+> For example, if you set `-remoteWrite.url=srv+foo` and it's resolved to three addresses (`192.168.1.1`, `192.168.1.2`, `192.168.1.3`),
+> vmagent will only choose **one** randomly every time it (re-)creates the connection. In contrast, specifying the addresses manually (`-remoteWrite.url=192.168.1.1 -remoteWrite.url=192.168.1.2 -remoteWrite.url=192.168.1.3`) will shard samples across all three URLs.
 
 Sometimes it may be needed to use only a particular set of labels for sharding. For example, it may be needed to route all the metrics with the same `instance` label
 to the same `-remoteWrite.url`. In this case you can specify comma-separated list of these labels in the `-remoteWrite.shardByURL.labels`
@@ -396,12 +392,12 @@ and `-remoteWrite.streamAggr.config`:
 
 There is also `-promscrape.configCheckInterval` command-line flag, that can be used for automatic reloading configs from updated `-promscrape.config` file.
 
-## SRV urls
+## SRV URLs
 
-If `vmagent` encounters urls with `srv+` prefix in hostname (such as `http://srv+some-addr/some/path`), then it resolves `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
+If `vmagent` encounters URLs with `srv+` prefix in hostname (such as `http://srv+some-addr/some/path`), then it resolves `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record)
 record into TCP address with hostname and TCP port, and then uses the resulting url when it needs connecting to it.
 
-SRV urls are supported in the following places:
+SRV URLs are supported in the following places:
 
 * In `-remoteWrite.url` command-line flag. For example, if `victoria-metrics` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains
   `victoria-metrics-host:8428` TCP address, then `-remoteWrite.url=http://srv+victoria-metrics/api/v1/write` is automatically resolved into
