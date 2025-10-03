@@ -3,6 +3,7 @@ package vmselectapi
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 // API must implement vmselect API.
@@ -44,6 +45,9 @@ type API interface {
 
 	// ResetMetricNamesUsageStats resets internal state of metric names tracker
 	ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error
+
+	// GetMetadataRecords returns metrics metadata.
+	GetMetadataRecords(qt *querytracer.Tracer, tt *storage.TenantToken, limit int, metricName string, deadline uint64) ([]*metricsmetadata.Row, error)
 }
 
 // BlockIterator must iterate through series blocks found by VMSelect.InitSearch.
