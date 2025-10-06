@@ -3,14 +3,12 @@
 DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.22.1
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.22.1
 
 GO_BUILDER_IMAGE := golang:1.25.1
 
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
-BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
+BASE_IMAGE := victoriametrics/base:$(shell git log -1 --format="%h" -- deployment/docker/base/Dockerfile)$(shell git diff-index --quiet HEAD -- deployment/docker/base/Dockerfile || echo '-dirty-'$$(git diff-index -u HEAD -- deployment/docker/base/Dockerfile | openssl sha1 | cut -d' ' -f2 | cut -c 1-8))
 DOCKER ?= docker
 DOCKER_RUN ?= $(DOCKER) run
 DOCKER_BUILD ?= $(DOCKER) build
@@ -20,8 +18,16 @@ DOCKER_IMAGE_LS ?= $(DOCKER) image ls --format '{{.Repository}}:{{.Tag}}'
 package-base:
 	($(DOCKER_IMAGE_LS) | grep -q '$(BASE_IMAGE)$$') \
 		|| $(DOCKER_BUILD) \
-			--build-arg root_image=$(ROOT_IMAGE) \
-			--build-arg certs_image=$(CERTS_IMAGE) \
+			--tag $(BASE_IMAGE) \
+			deployment/docker/base
+
+publish-base:
+	($(DOCKER_IMAGE_LS) | grep -q '$(BASE_IMAGE)$$') \
+		|| $(DOCKER) buildx build \
+			-o type=image \
+			--provenance=false \
+			--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
+			--push \
 			--tag $(BASE_IMAGE) \
 			deployment/docker/base
 
@@ -77,7 +83,7 @@ package-via-docker: package-base
 			--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
 			-f app/$(APP_NAME)/deployment/Dockerfile bin)
 
-publish-via-docker:
+publish-via-docker: publish-base
 	$(MAKE_PARALLEL) app-via-docker-linux-amd64 \
 		app-via-docker-linux-arm \
 		app-via-docker-linux-arm64 \
@@ -85,8 +91,8 @@ publish-via-docker:
 		app-via-docker-linux-386
 	$(DOCKER) buildx build \
 		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
-		--build-arg certs_image=$(CERTS_IMAGE) \
-		--build-arg root_image=$(ROOT_IMAGE) \
+		--build-arg certs_image=$(BASE_IMAGE) \
+		--build-arg root_image=$(BASE_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
 		--build-arg BINARY_SUFFIX="" \
 		--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
@@ -105,7 +111,7 @@ publish-via-docker:
 		bin
 	$(DOCKER) buildx build \
 		--platform=linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386 \
-		--build-arg certs_image=$(CERTS_IMAGE) \
+		--build-arg certs_image=$(BASE_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE_SCRATCH) \
 		--build-arg APP_NAME=$(APP_NAME) \
 		--build-arg BINARY_SUFFIX="" \
