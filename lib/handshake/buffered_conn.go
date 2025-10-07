@@ -21,8 +21,10 @@ type bufferedWriter interface {
 type BufferedConn struct {
 	net.Conn
 
-	br io.Reader
-	bw bufferedWriter
+	// IsNotRPCCompatible defines if BufferedConn doesn't support RPC protocol
+	IsNotRPCCompatible bool
+	br                 io.Reader
+	bw                 bufferedWriter
 
 	readDeadline  time.Time
 	writeDeadline time.Time

@@ -8,7 +8,7 @@ import (
 )
 
 func TestVMInsertHandshake(t *testing.T) {
-	testHandshake(t, VMInsertClient, VMInsertServer)
+	testHandshake(t, vminsertClient, VMInsertServer)
 }
 
 func TestVMSelectHandshake(t *testing.T) {

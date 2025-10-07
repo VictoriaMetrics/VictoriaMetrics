@@ -4,7 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
+	"net"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -13,9 +13,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -24,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 )
 
 var (
@@ -301,7 +300,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 	startTime := time.Now()
-	err := sendToConn(sn.bc, br.buf)
+	err := vminsertapi.SendToConn(sn.bc, sn.rpcCall.VersionedName, br.buf)
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
@@ -334,74 +333,26 @@ var cannotCloseStorageNodeConnLogger = logger.WithThrottler("cannotCloseStorageN
 
 var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
-func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
-	// if len(buf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
-	// See checkReadOnlyMode() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870
-
-	timeoutSeconds := len(buf) / 3e5
-	if timeoutSeconds < 60 {
-		timeoutSeconds = 60
-	}
-	timeout := time.Duration(timeoutSeconds) * time.Second
-	deadline := time.Now().Add(timeout)
-	if err := bc.SetWriteDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set write deadline to %s: %w", deadline, err)
-	}
-	// sizeBuf guarantees that the rows batch will be either fully
-	// read or fully discarded on the vmstorage side.
-	// sizeBuf is used for read optimization in vmstorage.
-	sizeBuf := sizeBufPool.Get()
-	defer sizeBufPool.Put(sizeBuf)
-	sizeBuf.B = encoding.MarshalUint64(sizeBuf.B[:0], uint64(len(buf)))
-	if _, err := bc.Write(sizeBuf.B); err != nil {
-		return fmt.Errorf("cannot write data size %d: %w", len(buf), err)
-	}
-	if _, err := bc.Write(buf); err != nil {
-		return fmt.Errorf("cannot write data with size %d: %w", len(buf), err)
-	}
-	if err := bc.Flush(); err != nil {
-		return fmt.Errorf("cannot flush data with size %d: %w", len(buf), err)
-	}
-
-	// Wait for `ack` from vmstorage.
-	// This guarantees that the message has been fully received by vmstorage.
-	deadline = time.Now().Add(timeout)
-	if err := bc.SetReadDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %w", err)
-	}
-	if _, err := io.ReadFull(bc, sizeBuf.B[:1]); err != nil {
-		return fmt.Errorf("cannot read `ack` from vmstorage: %w", err)
-	}
-
-	ackResp := sizeBuf.B[0]
-	switch ackResp {
-	case 1:
-		// ok response, data successfully accepted by vmstorage
-	case 2:
-		// vmstorage is in readonly mode
-		return errStorageReadOnly
-	default:
-		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want 1 or 2", sizeBuf.B[0])
-	}
-
-	return nil
-}
-
-var sizeBufPool bytesutil.ByteBufferPool
-
 func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
-	c, err := sn.dialer.Dial()
-	if err != nil {
-		sn.dialErrors.Inc()
-		return nil, err
-	}
+
 	compressionLevel := 1
 	if *disableRPCCompression {
 		compressionLevel = 0
 	}
-	bc, err := handshake.VMInsertClient(c, compressionLevel)
+	var dialError error
+	bc, err := handshake.VMInsertClientWithDialer(func() (net.Conn, error) {
+		c, err := sn.dialer.Dial()
+		if err != nil && dialError == nil {
+			dialError = err
+			sn.dialErrors.Inc()
+			return nil, err
+		}
+		return c, nil
+	}, compressionLevel)
 	if err != nil {
-		_ = c.Close()
+		if dialError != nil {
+			return nil, dialError
+		}
 		sn.handshakeErrors.Inc()
 		return nil, fmt.Errorf("handshake error: %w", err)
 	}
@@ -413,6 +364,8 @@ type storageNode struct {
 	// isBroken is set to true if the given vmstorage node is temporarily unhealthy.
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
 	isBroken atomic.Bool
+
+	rpcCall vminsertapi.RPCCall
 
 	// isReadOnly is set to true if the given vmstorage node is read only
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
@@ -540,6 +493,8 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 			dialer: netutil.NewTCPDialer(ms, "vminsert", addr, *vmstorageDialTimeout, *vmstorageUserTimeout),
 
 			stopCh: stopCh,
+
+			rpcCall: vminsertapi.MetricRowsRpcCall,
 
 			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q}`, addr)),
 			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q}`, addr)),
@@ -846,8 +801,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 	if sn.bc == nil {
 		return
 	}
-	// send nil buff to check ack response from storage
-	err := sendToConn(sn.bc, nil)
+	err := vminsertapi.SendToConn(sn.bc, vminsertapi.CheckReadonlyRpcCall.VersionedName, nil)
 	if err == nil {
 		// The storage switched from readonly to non-readonly mode
 		sn.isReadOnly.Store(false)
