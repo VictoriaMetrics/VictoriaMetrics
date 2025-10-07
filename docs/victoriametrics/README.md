@@ -80,7 +80,7 @@ VictoriaMetrics has the following prominent features:
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
-  * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
+  * [OpenTSDB put message](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet).
   * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http).
   * [JSON line format](#how-to-import-data-in-json-line-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
@@ -295,7 +295,7 @@ VMUI provides the following features:
   * [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - debug [relabeling](#relabeling) rules.
   * [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) {{% available_from "v1.105.0" %}} - debug [downsampling](#downsampling) configs.
   * [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) {{% available_from "v1.105.0" %}} - debug [retention filter](#retention-filters) configs.
-* `Alerting` {{% available_from "v1.126.0" %}} for displaying groups and rules from the [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) service.
+* `Alerting` {{% available_from "v1.125.0" %}} for displaying groups and rules from the [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) service.
   The tab is available only if [VictoriaMetrics single-node](https://docs.victoriametrics.com/victoriametrics/#vmalert) or
   [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmalert) are configured with `-vmalert.proxyURL` command-line flag.
 
@@ -630,6 +630,8 @@ Note that `production` builds are not supported via Podman because Podman does n
 
 ## How to work with snapshots
 
+### Create snapshot
+
 Send a request to `http://<victoriametrics-addr>:8428/snapshot/create` endpoint in order to create
 an [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 The page returns the following JSON response on successful creation of snapshot:
@@ -654,6 +656,8 @@ for more details. This adds some restrictions on what can be done with the conte
 See also [snapshot troubleshooting](#snapshot-troubleshooting).
 
 The `http://<victoriametrics-addr>:8428/snapshot/list` endpoint returns the list of available snapshots.
+
+### Delete snapshot
 
 Send a query to `http://<victoriametrics-addr>:8428/snapshot/delete?snapshot=<snapshot-name>` in order
 to delete the snapshot with `<snapshot-name>` name.
@@ -855,7 +859,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * InfluxDB line protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
-* OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
+* OpenTSDB telnet put protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http) for details.
 * `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
   See [these docs](#how-to-import-data-in-json-line-format) for details.
@@ -1328,7 +1332,7 @@ since it uses lower amounts of RAM, CPU and network bandwidth than Prometheus.
 If you use identically configured [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) instances for collecting the same data
 and sending it to VictoriaMetrics, then do not forget enabling [deduplication](#deduplication) at VictoriaMetrics side.
 
-See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoriametrics-distributed/) for an example.
+See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/) for an example.
 
 ## Deduplication
 
@@ -2221,9 +2225,10 @@ Use [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) to migrate 
 
 ## Backfilling
 
-VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
-See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling).
-Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
+VictoriaMetrics accepts out-of-order historical data via [any supported ingestion method](#how-to-import-time-series-data)
+without limitations. Only make sure that backfilled data is within of the configured [retention period](https://docs.victoriametrics.com/victoriametrics/#retention).
+
+> See [how to backfill recording rules via vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling).
 
 It is recommended disabling [query cache](#rollup-result-cache) with `-search.disableCache` command-line flag when writing
 historical data with timestamps from the past, since the cache assumes that the data is written with
@@ -2232,7 +2237,7 @@ the current timestamps. Query cache can be enabled after the backfilling is comp
 An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/victoriametrics/url-examples/#internalresetrollupresultcache)
 after the backfilling is complete. This will reset the [query cache](#rollup-result-cache), which could contain incomplete data cached during the backfilling.
 
-Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
+Yet another solution is to increase `-search.cacheTimestampOffset` flag value to disable caching
 for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
 cache when samples with timestamps older than `now - search.cacheTimestampOffset` are ingested to it.
 
@@ -2254,11 +2259,8 @@ See also [high availability docs](#high-availability) and [backup docs](#backups
 
 ## Backups
 
-VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/)
-and [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) tools.
-We also provide [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/) tool for enterprise subscribers.
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
+For backup configuration and setup, please refer to [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
+
 
 ## vmalert
 

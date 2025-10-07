@@ -31,7 +31,7 @@ type Group struct {
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155
 	EvalDelay   *promutil.Duration `yaml:"eval_delay,omitempty"`
-	Limit       int                `yaml:"limit,omitempty"`
+	Limit       *int               `yaml:"limit,omitempty"`
 	Rules       []Rule             `yaml:"rules"`
 	Concurrency int                `yaml:"concurrency"`
 	// Labels is a set of label value pairs, that will be added to every rule.
@@ -91,8 +91,8 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 	if g.EvalOffset != nil && g.EvalDelay != nil {
 		return fmt.Errorf("eval_offset cannot be used with eval_delay")
 	}
-	if g.Limit < 0 {
-		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", g.Limit)
+	if g.Limit != nil && *g.Limit < 0 {
+		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", *g.Limit)
 	}
 	if g.Concurrency < 0 {
 		return fmt.Errorf("invalid concurrency %d, shouldn't be less than 0", g.Concurrency)

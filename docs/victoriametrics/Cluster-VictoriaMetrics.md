@@ -251,7 +251,7 @@ If you need multi-AZ setup, then it is recommended running independent clusters 
 into all the cluster - see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
 
-See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoriametrics-distributed/) for an example.
+See [victoria-metrics-distributed chart](https://docs.victoriametrics.com/helm/victoria-metrics-distributed/) for an example.
 
 ## Cluster setup
 
@@ -376,8 +376,10 @@ The multi-level cluster setup for `vminsert` nodes has the following shortcoming
 - Data ingestion speed is limited by the slowest link to AZ.
 - `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporarily unavailable. This results in data gaps at AZs which were temporarily unavailable.
 
-These issues are addressed by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) when it runs in [multitenancy mode](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
-`vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
+These issues are addressed by [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) when it runs in front of AZs
+to [replicate](https://docs.victoriametrics.com/victoriametrics/vmagent/#replication-and-high-availability) or [shard](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages)
+data stream. If AZ is temporarily unavailable, `vmagent` [buffers](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence)
+its data on-disk (see `--remoteWrite.maxDiskUsagePerURL`) without affecting other destinations. The buffered data is sent to AZ as soon as it becomes available.
 
 See the [cluster instability troubleshooting guide](https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability) for details on diagnosing and mitigating networking problems.
 
@@ -961,23 +963,7 @@ to ensure query results consistency, even if storage layer didn't complete dedup
 
 ## Backups
 
-It is recommended performing periodical backups from [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282)
-for protecting from user errors such as accidental data deletion.
-
-The following steps must be performed for each `vmstorage` node for creating a backup:
-
-1. Create an instant snapshot by navigating to `/snapshot/create` HTTP handler. It will create snapshot and return its name.
-1. Archive the created snapshot from `<-storageDataPath>/snapshots/<snapshot_name>` folder using [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
-   The archival process doesn't interfere with `vmstorage` work, so it may be performed at any suitable time.
-1. Delete unused snapshots via `/snapshot/delete?snapshot=<snapshot_name>` or `/snapshot/delete_all` in order to free up occupied storage space.
-
-There is no need in synchronizing backups among all the `vmstorage` nodes.
-
-Restoring from backup:
-
-1. Stop `vmstorage` node with `kill -INT`.
-1. Restore data from backup using [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/) into `-storageDataPath` directory.
-1. Start `vmstorage` node.
+For backup configuration, please refer for [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
 ## Retention filters
 

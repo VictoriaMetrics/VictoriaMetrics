@@ -50,7 +50,7 @@ and performing [regular upgrades](https://docs.victoriametrics.com/victoriametri
 
 1. Go to [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) and sign up (it's free).
 1. After signing up, you will be immediately granted $200 of trial credits you can spend on running Single node or Cluster.
-1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) guide for detailed instructions.
+1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#creating-deployments) guide for detailed instructions.
 
 ### Starting VictoriaMetrics Single Node via Docker {id="starting-vm-single-via-docker"}
 
@@ -58,9 +58,9 @@ Download the newest available [VictoriaMetrics release](https://docs.victoriamet
 from [DockerHub](https://hub.docker.com/r/victoriametrics/victoria-metrics) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags):
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.125.1
+docker pull victoriametrics/victoria-metrics:v1.126.0
 docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 \
- victoriametrics/victoria-metrics:v1.125.1 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
+ victoriametrics/victoria-metrics:v1.126.0 --selfScrapeInterval=5s -storageDataPath=victoria-metrics-data
 ```
 
 _For Enterprise images see [this link](https://docs.victoriametrics.com/victoriametrics/enterprise/#docker-images)._
@@ -452,7 +452,8 @@ All of them are present in [Grafana dashboards](https://grafana.com/orgs/victori
 
 It is recommended to read [Replication and data safety](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety),
 [Why replication doesn’t save from disaster?](https://valyala.medium.com/speeding-up-backups-for-big-time-series-databases-533c1a927883)
-and [backups](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#backups).
+
+For backup configuration, please refer to [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
 
 ### Configuring limits
 

@@ -1,6 +1,6 @@
 services:
   vmagent:
-    image: victoriametrics/vmagent:v1.125.1
+    image: victoriametrics/vmagent:v1.126.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -14,7 +14,7 @@ services:
     restart: always
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.125.1
+    image: victoriametrics/victoria-metrics:v1.126.0
     ports:
       - 8428:8428
     volumes:
@@ -27,7 +27,7 @@ services:
     restart: always
 
   grafana:
-    image: grafana/grafana:12.1.1
+    image: grafana/grafana:12.2.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -40,7 +40,7 @@ services:
     restart: always
 
   vmalert:
-    image: victoriametrics/vmalert:v1.125.1
+    image: victoriametrics/vmalert:v1.126.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -73,7 +73,7 @@ services:
       - "/config.yaml"
       - "--licenseFile=/license"
   alertmanager:
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.28.1
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
@@ -83,7 +83,7 @@ services:
     restart: always
 
   node-exporter:
-    image: quay.io/prometheus/node-exporter:v1.7.0
+    image: quay.io/prometheus/node-exporter:v1.9.1
     ports:
       - 9100:9100
     pid: host

@@ -1,6 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.25.0
+go 1.25.1
 
 // Pin AWS libraries to version before 2025-01-15
 // Release notes: https://github.com/aws/aws-sdk-go-v2/releases/tag/release-2025-01-15
@@ -29,7 +29,7 @@ require (
 	github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20250728123024-98593029b5aa
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.13.0
-	github.com/VictoriaMetrics/metrics v1.40.1
+	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/VictoriaMetrics/metricsql v0.84.8
 	github.com/aws/aws-sdk-go-v2 v1.37.1
 	github.com/aws/aws-sdk-go-v2/config v1.30.2

@@ -660,31 +660,46 @@ cassandra_token_ownership_ratio 78.9`, &Rows{
 }
 
 func TestParseMetadataLineFailure(t *testing.T) {
-	f := func(s string) {
+	f := func(s string, dst []Metadata, rowsExpected *MetadataRows, errLogExpected int) {
 		t.Helper()
-		mms := unmarshalMetadata(nil, s, nil)
-		if len(mms) != 0 {
-			t.Fatalf("unexpected number of metadata rows parsed; got %d; want 0;\nrows:%#v", len(mms), mms)
+		errLogCount := 0
+		errLogger := func(s string) {
+			errLogCount++
+		}
+		mms := unmarshalMetadata(dst, s, errLogger)
+		if rowsExpected != nil && !reflect.DeepEqual(mms, rowsExpected.Rows) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", mms, rowsExpected.Rows)
+		}
+		if errLogCount != errLogExpected {
+			t.Fatalf("unexpected error log count; got %d; want %d", errLogCount, errLogExpected)
 		}
 	}
 
-	// Empty lines and comments
-	f("")
-	f(" ")
-	f("\t")
-	f("\t  \r")
-	f("\t\t  \n\n  # foobar")
-	f("#foobar")
-	f("#TYPE foobar gauge")
-	f("#HELP foobar It's a test metric.")
-	f("# TYPE ")
-	f("#  TYPE foobar gauge")
-	f("## HELP foobar It's a test metric.")
-	f("## TYPE foobar gauge")
-	f("# TYPE foobar")
-	f("# TYPE foobar ")
-	f("# TYPE foobar badType")
-	f("# TEST foobar counter")
+	// invalid lines, they're ignored without any error log because they're not valid metadata comment
+	f("", nil, nil, 0)
+	f(" ", nil, nil, 0)
+	f("\t", nil, nil, 0)
+	f("\t  \r", nil, nil, 0)
+	f("\t\t  \n\n  # foobar", nil, nil, 0)
+	f("#foobar", nil, nil, 0)
+	f("#TYPE foobar gauge", nil, nil, 0)
+	f("#HELP foobar It's a test metric.", nil, nil, 0)
+	f("## HELP foobar It's a test metric.", nil, nil, 0)
+	f("## TYPE foobar gauge", nil, nil, 0)
+	f("# TEST foobar counter", nil, nil, 0)
+	f("#  TYPE foobar gauge", nil, nil, 0)
+
+	f("# TYPE ", nil, nil, 1)
+	f("# HELP ", nil, nil, 1)
+	f("# TYPE cassandra_token_ownership_ratio", nil, nil, 1)
+	// invalid type removes the valid HELP for the same MetricFamily
+	f("# TYPE cassandra_token_ownership_ratio badType", []Metadata{
+		{
+			Metric: "cassandra_token_ownership_ratio",
+			Help:   "This is a test metric.",
+		},
+	}, &MetadataRows{Rows: []Metadata{}}, 1)
+
 }
 
 func TestParseMetadataLineSuccess(t *testing.T) {
@@ -702,7 +717,7 @@ func TestParseMetadataLineSuccess(t *testing.T) {
 	f("\n\n", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
 	f("\n\r\n", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
 	f("\t  \t\n\r\n#foobar\n  # baz", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
-	f("# TYPE cassandra_token_ownership_ratio", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
+	f("# HELP cassandra_token_ownership_ratio", []Metadata{}, &MetadataRows{Rows: []Metadata{}})
 
 	f(`# TYPE cassandra_token_ownership_ratio counter`, []Metadata{
 		{
@@ -732,13 +747,6 @@ func TestParseMetadataLineSuccess(t *testing.T) {
 			},
 		},
 	})
-	// bad type
-	f(`# TYPE cassandra_token_ownership_ratio `, []Metadata{
-		{
-			Metric: "cassandra_token_ownership_ratio",
-			Help:   "This is a test metric.",
-		},
-	}, &MetadataRows{Rows: []Metadata{}})
 	f(`  # HELP cassandra_token_ownership_ratio The ratio\\ of Cassandra token ownership.`, []Metadata{
 		{
 			Metric: "foo",

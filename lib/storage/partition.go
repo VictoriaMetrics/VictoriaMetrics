@@ -1447,6 +1447,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		bsw.MustInitFromFilePart(dstPartPath, nocache, compressLevel)
 	}
 
+	// Merge source parts to destination part.
 	ph, err := pt.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh, currentTimestamp, useSparseCache)
 	putBlockStreamWriter(bsw)
 	for _, bsr := range bsrs {
@@ -1586,8 +1587,9 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	}
 	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
 	activeMerges.Add(1)
+	_ = useSparseCache // unused in OSS version.
 	dmis := pt.s.getDeletedMetricIDs()
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {

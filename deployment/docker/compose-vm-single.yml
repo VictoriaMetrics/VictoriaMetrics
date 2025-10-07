@@ -3,7 +3,7 @@ services:
   #  It scrapes targets defined in --promscrape.config
   #  And forward them to --remoteWrite.url
   vmagent:
-    image: victoriametrics/vmagent:v1.125.1
+    image: victoriametrics/vmagent:v1.126.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -18,7 +18,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.125.1
+    image: victoriametrics/victoria-metrics:v1.126.0
     ports:
       - 8428:8428
       - 8089:8089
@@ -38,7 +38,7 @@ services:
     restart: always
 
   grafana:
-    image: grafana/grafana:12.1.1
+    image: grafana/grafana:12.2.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -54,7 +54,7 @@ services:
 
   # vmalert executes alerting and recording rules
   vmalert:
-    image: victoriametrics/vmalert:v1.125.1
+    image: victoriametrics/vmalert:v1.126.0
     depends_on:
       - "victoriametrics"
       - "alertmanager"
@@ -79,7 +79,7 @@ services:
   # alertmanager receives alerting notifications from vmalert
   # and distributes them according to --config.file.
   alertmanager:
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.28.1
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:

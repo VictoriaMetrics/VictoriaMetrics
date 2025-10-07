@@ -6,6 +6,15 @@
   margin: 6px 0;
   width: 100%;
 
+  &_disabled {
+    color: $color-text-disabled;
+    pointer-events: none;
+  }
+
+  &:is(&_disabled) > &__label {
+    color: $color-text-disabled;
+  }
+
   &_textarea:after {
     content: attr(data-replicated-value) " ";
     white-space: pre-wrap;

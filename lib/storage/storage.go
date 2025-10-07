@@ -1362,48 +1362,43 @@ func searchAndMergeUniq(qt *querytracer.Tracer, s *Storage, tr TimeRange, search
 	return res, nil
 }
 
-// searchMetricName searches the name of a metric by id in curr and prev
-// indexDBs. If cache is enabled (noCache is false), the name is first
-// searched in metricNameCache and also stored in that cache when found in one
-// of the indexDBs.
+// SearchTSIDs searches the TSIDs that correspond to filters within the given
+// time range.
 //
-// Unlike other index search methods, this one requires getting the prev and
-// curr indexDBs before calling it. This is because this method is supposed to
-// be called multiple times quickly and on the same indexDBs. While getting the
-// indexDBs everytime the method is called 1) may be much slower because of the
-// locks and 2) the set of indexDBs may change between the calls due to indexDB
-// rotation.
-func (s *Storage) searchMetricName(idbPrev, idbCurr *indexDB, dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
-	if !noCache {
-		metricName := s.getMetricNameFromCache(dst, metricID)
-		if len(metricName) > len(dst) {
-			return metricName, true
-		}
+// The returned TSIDs are sorted.
+//
+// The method will fail if the number of found TSIDs exceeds maxMetrics or the
+// search has not completed within the specified deadline.
+func (s *Storage) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
+	defer qt.Done()
+
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]TSID, error) {
+		return idb.SearchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	}
 
-	dst, found := idbCurr.searchMetricName(dst, metricID, noCache)
-	if found {
-		if !noCache {
-			s.putMetricNameToCache(metricID, dst)
+	merge := func(data [][]TSID) []TSID {
+		tsidss := make([][]TSID, 0, len(data))
+		for _, d := range data {
+			if len(d) > 0 {
+				tsidss = append(tsidss, d)
+			}
 		}
-		return dst, true
+		if len(tsidss) == 0 {
+			return nil
+		}
+		if len(tsidss) == 1 {
+			return tsidss[0]
+		}
+		return mergeSortedTSIDs(tsidss)
 	}
 
-	// Fallback to previous indexDB.
-	dst, found = idbPrev.searchMetricName(dst, metricID, noCache)
-	if found {
-		if !noCache {
-			s.putMetricNameToCache(metricID, dst)
-		}
-		return dst, true
+	tsids, err := searchAndMerge(qt, s, tr, search, merge)
+	if err != nil {
+		return nil, err
 	}
 
-	// Not deleting metricID if no corresponding metricName has been found
-	// because it is not known which indexDB metricID belongs to.
-	// For cases when this does happen see indexDB.SearchMetricNames() and
-	// indexDB.getTSIDsFromMetricIDs()).
-
-	return dst, false
+	return tsids, nil
 }
 
 // SearchMetricNames returns marshaled metric names matching the given tfss on
