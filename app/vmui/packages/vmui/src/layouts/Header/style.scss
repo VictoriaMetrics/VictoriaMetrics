@@ -17,7 +17,6 @@
   @media (max-width: 1000px) {
     position: sticky;
     top: 0;
-    gap: $padding-small;
     padding: $padding-small;
   }
 
@@ -53,6 +52,7 @@
     }
 
     &_mobile {
+      order: 2;
       max-width: 75px;
       min-width: 75px;
       margin: 0 auto;
