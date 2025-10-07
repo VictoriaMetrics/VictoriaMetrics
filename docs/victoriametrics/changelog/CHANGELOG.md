@@ -132,6 +132,21 @@ Released at 2025-08-01
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
 
+## [v1.122.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.5)
+
+Released at 2025-10-03
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.24.6 to Go1.24.7. See [the list of issues addressed in Go1.24.7](https://github.com/golang/go/issues?q=milestone%3AGo1.24.7+label%3ACherryPickApproved).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent unexpected performance degradation caused by cache misses (exposed via `vm_cache_misses_total` metric) during rotation. See this PR (#9769)[https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9769] for details.
+* BUGFIX: all components: restore sorting order of summary and quantile metrics exposed by VictoriaMetrics components on `/metrics` page. See [metrics#105](https://github.com/VictoriaMetrics/metrics/pull/105) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): avoid applying offset modifier twice to the request time when an instant query uses rollup functions `rate()` or `avg_over_time()` with cache enabled. See [#9762](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): restore support for `query` templates in alert rule labels after the regression introduced in [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543). See [#9783](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9783) for details.
+
 ## [v1.122.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.4)
 
 Released at 2025-09-12
@@ -542,6 +557,21 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+
+## [v1.110.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.20)
+
+Released at 2025-10-03
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
+
+* SECURITY: upgrade Go builder from Go1.24.6 to Go1.24.7. See [the list of issues addressed in Go1.24.7](https://github.com/golang/go/issues?q=milestone%3AGo1.24.7+label%3ACherryPickApproved).
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent unexpected performance degradation caused by cache misses (exposed via `vm_cache_misses_total` metric) during rotation. See this PR (#9769)[https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9769] for details.
+* BUGFIX: all components: restore sorting order of summary and quantile metrics exposed by VictoriaMetrics components on `/metrics` page. See [metrics#105](https://github.com/VictoriaMetrics/metrics/pull/105) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): avoid applying offset modifier twice to the request time when an instant query uses rollup functions `rate()` or `avg_over_time()` with cache enabled. See [#9762](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): restore support for `query` templates in alert rule labels after the regression introduced in [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543). See [#9783](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9783) for details.
 
 ## [v1.110.19](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.19)
 
