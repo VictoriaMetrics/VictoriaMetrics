@@ -1,5 +1,5 @@
 ---
-title: Integrations 
+title: Integrations
 weight: 13
 menu:
   docs:
@@ -21,6 +21,7 @@ VictoriaMetrics integrates with many popular monitoring solutions as remote stor
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml) (read)
 * [Google PubSub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/) (read, write)
 * [Kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/) (read, write)
+* [OpenShift](https://docs.victoriametrics.com/victoriametrics/integrations/openshift/) (read)
 
 If you think that community will benefit from new integrations, open a [feature request on GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
