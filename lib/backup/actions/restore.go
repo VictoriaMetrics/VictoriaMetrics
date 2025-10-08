@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/formatutil"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
@@ -148,6 +149,7 @@ func (r *Restore) Run(ctx context.Context) error {
 
 	partsToCopy := common.PartsDifference(srcParts, dstParts)
 	downloadSize := getPartsSize(partsToCopy)
+	downloadSizeHuman := formatutil.HumanizeBytes(float64(downloadSize))
 	if len(partsToCopy) > 0 {
 		perPath := make(map[string][]common.Part)
 		for _, p := range partsToCopy {
@@ -181,8 +183,15 @@ func (r *Restore) Run(ctx context.Context) error {
 			return nil
 		}, func(elapsed time.Duration) {
 			n := bytesDownloaded.Load()
+			downloadedHuman := formatutil.HumanizeBytes(float64(n))
 			prc := 100 * float64(n) / float64(downloadSize)
-			logger.Infof("downloaded %d out of %d bytes (%.2f%%) from %s to %s in %s", n, downloadSize, prc, src, dst, elapsed)
+			speed := float64(n) / elapsed.Seconds()
+			estimatedTotal := time.Duration(float64(downloadSize)/speed) * time.Second
+			eta := estimatedTotal - elapsed
+			if eta < 0 {
+				eta = 0
+			}
+			logger.Infof("downloaded %s out of %s bytes (%.2f%%) from %s to %s in %s; estimated time to completion: %s", downloadedHuman, downloadSizeHuman, prc, src, dst, elapsed, eta)
 		})
 		if err != nil {
 			return err
