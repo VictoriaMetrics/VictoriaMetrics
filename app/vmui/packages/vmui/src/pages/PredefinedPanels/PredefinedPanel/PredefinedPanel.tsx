@@ -35,6 +35,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [spanGaps, setSpanGaps] = useState(false);
+  const [showAllPoints, setShowPoints] = useState(false);
   const [yaxis, setYaxis] = useState<YaxisState>({
     limits: {
       enable: false,
@@ -124,6 +125,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
         setYaxisLimits={setYaxisLimits}
         toggleEnableLimits={toggleEnableLimits}
         spanGaps={{ value: spanGaps, onChange: setSpanGaps }}
+        showAllPoints={{ value: showAllPoints, onChange: setShowPoints }}
       />
     </div>
     <div className="vm-predefined-panel-body">
@@ -145,6 +147,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
         fullWidth={false}
         height={isMobile ? window.innerHeight * 0.5 : 500}
         spanGaps={spanGaps}
+        showAllPoints={showAllPoints}
       />
       }
     </div>
