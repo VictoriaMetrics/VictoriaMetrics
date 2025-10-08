@@ -14,6 +14,11 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.26.1  
+Released: 2025-10-08
+
+- IMPROVEMENT: Enriched lifecycle logs with the deterministic labelset hash for each query result (metric). This allows correlating model training, inference runs/skips, and on-disk artifacts presence or cleanup during incident triage.
+
 ## v1.26.0
 Released: 2025-10-02
 
