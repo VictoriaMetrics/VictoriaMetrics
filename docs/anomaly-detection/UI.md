@@ -63,8 +63,6 @@ The vmanomaly UI provides a user-friendly interface for exploring and configurin
 - [**Visualization Panel**](#visualization-panel): A space for visualizing model performance and anomalies.
 - [**Settings Panel**](#settings-panel): A section for configuring global settings and preferences for the vmanomaly UI, including data source configuration.
 
-[Back to UI navigation](#ui-navigation)
-
 ### Query Explorer
 
 The Query Explorer provides a vmui-like interface for typing and executing MetricsQL/LogsQL queries to visualize data. 
@@ -76,6 +74,7 @@ Users can:
 - Adjust the (inference) time range and resolution (step) for data visualization and anomaly detection purposes.
 - Access query history and saved queries for quick access to frequently used queries.
 - Switch tenants (if data source supports multi-tenancy) and access [settings panel](#settings-panel) for global UI configuration.
+
 [Back to UI navigation](#ui-navigation)
 
 ### Visualization Panel
@@ -301,7 +300,7 @@ Check the parameters for validity and consistency by hitting the "Validate" butt
 
 Hit the "Detect Anomalies" button to run anomaly detection on the queried data with the selected model and its configuration.
 
-> If needed, the running task can be canceled by hitting the "Cancel" button.
+> The long running task (e.g. detection on misconfigured query returning too much metrics) can be canceled by hitting the "Cancel" button.
 
 ![vmanomaly-ui-sections-plot-area-detect-mode](vmanomaly-ui-sections-plot-area-detect-mode.webp)
 
