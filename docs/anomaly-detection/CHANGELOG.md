@@ -14,6 +14,15 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.26.2
+Released: 2025-10-09
+
+- IMPROVEMENT: Resolved an issue with readers ([VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VLogsReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader)) connection pool size - which defaulted to max(10, `reader.queries` cardinality) - that could lead to warnings in logs when the number of queries exceeds 10, such as:
+  ```shellhelp
+  {timestamp} - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: {host}. Connection pool size: {N}
+  ```
+  This happened in scenarios with a large number of queries (e.g., in non-sharded deployments). Now the pool size is set dynamically to prevent such warnings and retain efficient connection reuse.
+
 ## v1.26.1  
 Released: 2025-10-08
 
