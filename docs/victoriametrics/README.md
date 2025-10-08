@@ -1876,7 +1876,7 @@ The API endpoint returns the following `JSON` response:
   "records": [
     {
       "metricName": "node_disk_writes_completed_total",
-      "queryRequests": 50,
+      "queryRequestsCount": 50,
       "lastRequestTimestamp": 1737534262
     },
     {
@@ -1892,7 +1892,7 @@ The API endpoint returns the following `JSON` response:
 * `statsCollectedRecordsTotal` total number of metric names it contains;
 * `records`:
   * `metricName` a metric name;
-  * `queryRequests` a cumulative counter of times the metric was fetched. If metric name `foo` has 10 time series,
+  * `queryRequestsCount` a cumulative counter of times the metric was fetched. If metric name `foo` has 10 time series,
     then one read query `foo` will increment counter by 10.
   * `lastRequestTimestamp` a timestamp when last time this statistic was updated.
 
