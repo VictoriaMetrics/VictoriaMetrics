@@ -182,6 +182,11 @@ func (r *Restore) Run(ctx context.Context) error {
 			}
 			return nil
 		}, func(elapsed time.Duration) {
+			if elapsed.Seconds() <= 0 {
+				// The only way for this to happen is when the operation is immediately canceled.
+				// There is no need to log progress in this case, and this prevents division by zero below.
+				return
+			}
 			n := bytesDownloaded.Load()
 			downloadedHuman := formatutil.HumanizeBytes(float64(n))
 			prc := 100 * float64(n) / float64(downloadSize)

@@ -167,6 +167,11 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			}
 			return nil
 		}, func(elapsed time.Duration) {
+			if elapsed.Seconds() <= 0 {
+				// The only way for this to happen is when the operation is immediately canceled.
+				// There is no need to log progress in this case, and this prevents division by zero below.
+				return
+			}
 			n := bytesUploaded.Load()
 			uploadedHuman := formatutil.HumanizeBytes(float64(n))
 			prc := 100 * float64(n) / float64(uploadSize)
