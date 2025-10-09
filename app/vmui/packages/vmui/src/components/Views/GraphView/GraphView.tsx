@@ -45,6 +45,7 @@ export interface GraphViewProps {
   isAnomalyView?: boolean;
   isPredefinedPanel?: boolean;
   spanGaps?: boolean;
+  showAllPoints?: boolean;
 }
 
 const GraphView: FC<GraphViewProps> = ({
@@ -63,7 +64,8 @@ const GraphView: FC<GraphViewProps> = ({
   isHistogram,
   isAnomalyView,
   isPredefinedPanel,
-  spanGaps
+  spanGaps,
+  showAllPoints
 }) => {
   const graphDispatch = useGraphDispatch();
 
@@ -80,8 +82,8 @@ const GraphView: FC<GraphViewProps> = ({
   const [legendValue, setLegendValue] = useState<ChartTooltipProps | null>(null);
 
   const getSeriesItem = useMemo(() => {
-    return getSeriesItemContext(data, hideSeries, alias, isAnomalyView);
-  }, [data, hideSeries, alias, isAnomalyView]);
+    return getSeriesItemContext(data, hideSeries, alias, showAllPoints, isAnomalyView);
+  }, [data, hideSeries, alias, showAllPoints, isAnomalyView]);
 
   const setLimitsYaxis = (values: { [key: string]: number[] }) => {
     const limits = getLimitsYAxis(values, !isHistogram);
@@ -243,6 +245,7 @@ const GraphView: FC<GraphViewProps> = ({
           height={height}
           isAnomalyView={isAnomalyView}
           spanGaps={spanGaps}
+          showAllPoints={showAllPoints}
         />
       )}
       {isHistogram && (

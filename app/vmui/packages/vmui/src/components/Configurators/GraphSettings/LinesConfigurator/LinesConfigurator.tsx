@@ -20,7 +20,7 @@ const LinesConfigurator: FC<Props> = ({ spanGaps, onChange }) => {
         fullWidth={isMobile}
       />
       <span className="vm-legend-configs-item__info">
-        Connects data points by skipping null values instead of creating gaps.
+        Connects data points by skipping null values instead of gaps.
       </span>
     </div>
   );

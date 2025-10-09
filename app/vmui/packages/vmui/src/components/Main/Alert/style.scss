@@ -1,9 +1,7 @@
 @use "src/styles/variables" as *;
 
 .vm-alert {
-  z-index: 20;
-  position: sticky;
-  top: $padding-global;
+  position: relative;
   display: grid;
   grid-template-columns: 20px 1fr;
   align-items: center;

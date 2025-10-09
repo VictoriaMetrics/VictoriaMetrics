@@ -16,6 +16,7 @@ export type StorageKeys = "AUTOCOMPLETE"
   | "METRICS_QUERY_HISTORY"
   | "SERVER_URL"
   | "RAW_JSON_LIVE_VIEW"
+  | "POINTS_SHOW_ALL"
   | DeprecatedStorageKeys;
 
 

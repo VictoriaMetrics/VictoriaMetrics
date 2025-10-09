@@ -53,7 +53,7 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
   }, [data]);
   const [displayType, setDisplayType] = useState(tabs[0].value);
 
-  const { yaxis, spanGaps } = useGraphState();
+  const { yaxis, spanGaps, showAllPoints } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
   const setYaxisLimits = (limits: AxisRange) => {
@@ -66,6 +66,10 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
 
   const setSpanGaps = (value: boolean) => {
     graphDispatch({ type: "SET_SPAN_GAPS", payload: value });
+  };
+
+  const setShowPoints = (value: boolean) => {
+    graphDispatch({ type: "SET_SHOW_POINTS", payload: value });
   };
 
   const handleChangeDisplayType = (newValue: string) => {
@@ -154,6 +158,7 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
                 setYaxisLimits={setYaxisLimits}
                 toggleEnableLimits={toggleEnableLimits}
                 spanGaps={{ value: spanGaps, onChange: setSpanGaps }}
+                showAllPoints={{ value: showAllPoints, onChange: setShowPoints }}
               />
             )}
             {displayType === "table" && (
@@ -179,6 +184,7 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
             height={isMobile ? window.innerHeight * 0.5 : 500}
             isHistogram={isHistogram}
             spanGaps={spanGaps}
+            showAllPoints={showAllPoints}
           />
         )}
         {liveData && (displayType === "code") && (
