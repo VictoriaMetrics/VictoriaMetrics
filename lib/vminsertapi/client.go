@@ -57,7 +57,6 @@ func StartRPCRequest(bc *handshake.BufferedConn, rpcName string) error {
 
 // SendToConn sends given buf over provided bc to the server
 func SendToConn(bc *handshake.BufferedConn, buf []byte) error {
-
 	sizeBuf := sizeBufPool.Get()
 	defer sizeBufPool.Put(sizeBuf)
 	// if len(tsBuf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
