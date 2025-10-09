@@ -298,7 +298,6 @@ const maxErrorMessageSize = 64 * 1024
 
 // WriteErrorMessage sends given error to the client
 func (ctx *RequestCtx) WriteErrorMessage(err error) error {
-
 	errMsg := err.Error()
 	if len(errMsg) > maxErrorMessageSize {
 		// Trim too long error message.
