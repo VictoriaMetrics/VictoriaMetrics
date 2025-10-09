@@ -1,6 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.25.1
+go 1.25.2
 
 // Pin AWS libraries to version before 2025-01-15
 // Release notes: https://github.com/aws/aws-sdk-go-v2/releases/tag/release-2025-01-15
