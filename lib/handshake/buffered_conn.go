@@ -23,8 +23,12 @@ type BufferedConn struct {
 
 	// IsNotRPCCompatible defines if BufferedConn doesn't support RPC protocol
 	IsNotRPCCompatible bool
-	br                 io.Reader
-	bw                 bufferedWriter
+
+	// IsStreamingMode indicates that connection was switched into streaming mode
+	// and it cannot process any other RPC calls
+	IsStreamingMode bool
+	br              io.Reader
+	bw              bufferedWriter
 
 	readDeadline  time.Time
 	writeDeadline time.Time
@@ -127,6 +131,9 @@ func (bc *BufferedConn) Close() error {
 		zw.Release()
 	}
 	bc.bw = nil
+
+	bc.IsNotRPCCompatible = false
+	bc.IsStreamingMode = false
 
 	return err
 }

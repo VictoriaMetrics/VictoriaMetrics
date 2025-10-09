@@ -4,11 +4,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-const (
-	StorageStatusAck      = 1
-	StorageStatusReadOnly = 2
-)
-
 // RPCCall defines rpc call from vminsert to vmstorage
 type RPCCall struct {
 	Name          string
@@ -23,10 +18,6 @@ var (
 	MetricMetadataRpcCall = RPCCall{
 		Name:          "metricmetadata_rows",
 		VersionedName: "writeMetadata_v1",
-	}
-	CheckReadonlyRpcCall = RPCCall{
-		Name:          "readonly_check",
-		VersionedName: "readonly_check_v1",
 	}
 )
 

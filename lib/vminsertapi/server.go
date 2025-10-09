@@ -9,16 +9,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 // VMInsertServer processes connections from vminsert.
@@ -174,10 +174,7 @@ func (s *VMInsertServer) isStopping() bool {
 }
 
 func (s *VMInsertServer) processConn(bc *handshake.BufferedConn) error {
-	ctx := &vminsertRequestCtx{
-		bc:      bc,
-		sizeBuf: make([]byte, 8),
-	}
+	ctx := NewRequestCtx(bc)
 	for {
 		if err := s.processRequest(ctx); err != nil {
 			if errors.Is(err, io.EOF) {
@@ -194,7 +191,7 @@ func (s *VMInsertServer) processConn(bc *handshake.BufferedConn) error {
 
 const maxRPCNameSize = 128
 
-func (s *VMInsertServer) processRequest(ctx *vminsertRequestCtx) error {
+func (s *VMInsertServer) processRequest(ctx *RequestCtx) error {
 	// Read rpcName
 	// Do not set deadline on reading rpcName, since it may take a
 	// lot of time for idle connection.
@@ -203,106 +200,145 @@ func (s *VMInsertServer) processRequest(ctx *vminsertRequestCtx) error {
 		// fallback to prev API without RPC
 		return s.processWriteRows(ctx)
 	}
-	if err := ctx.readDataBufBytes(maxRPCNameSize); err != nil {
+
+	rpcName, err := ctx.ReadRPCName()
+	if err != nil {
 		return fmt.Errorf("cannot read rpcName: %w", err)
 	}
-	rpcName := string(ctx.dataBuf)
 
 	// Process the rpcName call.
-	if err := s.processRPC(ctx, rpcName); err != nil {
+	if err := s.processRPC(ctx, string(rpcName)); err != nil {
 		return fmt.Errorf("cannot execute %q: %w", rpcName, err)
 	}
 
 	return nil
 }
 
-func (s *VMInsertServer) processRPC(ctx *vminsertRequestCtx, rpcName string) error {
+func (s *VMInsertServer) processRPC(ctx *RequestCtx, rpcName string) error {
+	var rpcFunc func(*RequestCtx) error
 	switch rpcName {
 	case MetricRowsRpcCall.VersionedName:
-		return s.processWriteRows(ctx)
+		rpcFunc = s.processWriteRows
+		// switch connection into streaming mode
+		// it no longer can accept new rpc call until it's closed
+		ctx.bc.IsStreamingMode = true
 	case MetricMetadataRpcCall.VersionedName:
-		return s.processWriteMetadata(ctx)
-	case CheckReadonlyRpcCall.VersionedName:
-		return s.processHealthcheck(ctx)
-	default:
-		return fmt.Errorf("unsupported rpcName: %q", rpcName)
+		rpcFunc = s.processWriteMetadata
 	}
+	if rpcFunc == nil {
+		// reply to client unsupported rpc
+		// so it should handle this error
+		err := fmt.Errorf("unsupported rpcName: %q", rpcName)
+		if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
+			return fmt.Errorf("cannot write error message for origin error: %s: %w", err, writeErr)
+		}
+		return err
+	}
+	if err := ctx.WriteString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+	return rpcFunc(ctx)
 }
 
-func (s *VMInsertServer) processWriteRows(ctx *vminsertRequestCtx) error {
+func (s *VMInsertServer) processWriteRows(ctx *RequestCtx) error {
 	return stream.Parse(ctx.bc, func(rows []storage.MetricRow) error {
 		s.vminsertMetricsRead.Add(len(rows))
 		return s.api.WriteRows(rows)
 	}, s.api.IsReadOnly)
 }
 
-func (s *VMInsertServer) processWriteMetadata(_ *vminsertRequestCtx) error {
+func (s *VMInsertServer) processWriteMetadata(_ *RequestCtx) error {
 	// TODO: implement
 	return nil
 }
 
-func (s *VMInsertServer) processHealthcheck(ctx *vminsertRequestCtx) error {
-	if err := ctx.readDataBufBytes(0); err != nil {
-		if err == io.EOF {
-			// Remote client gracefully closed the connection.
-			return err
-		}
-		return fmt.Errorf("cannot read healthcheck_v1 data: %w", err)
-	}
-
-	status := StorageStatusAck
-	if s.api.IsReadOnly() {
-		status = StorageStatusReadOnly
-	}
-
-	if err := sendAck(ctx.bc, byte(status)); err != nil {
-		return fmt.Errorf("cannot send ack for healthcheck_v1: %w", err)
-	}
-
-	return nil
-}
-
-type vminsertRequestCtx struct {
+// RequestCtx defines server request context
+type RequestCtx struct {
 	bc      *handshake.BufferedConn
 	sizeBuf []byte
 	dataBuf []byte
 }
 
-func (ctx *vminsertRequestCtx) readDataBufBytes(maxDataSize int) error {
+// NewRequestCtx returns new server request context for given BufferedConn
+func NewRequestCtx(bc *handshake.BufferedConn) *RequestCtx {
+	return &RequestCtx{
+		bc:      bc,
+		sizeBuf: make([]byte, 0, 8),
+	}
+}
+
+// ReadRPCName reads rpc call name from the client
+//
+// Returned bytes slice is valid until any ctx method call
+func (ctx *RequestCtx) ReadRPCName() ([]byte, error) {
 	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 8)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
 		if err == io.EOF {
-			return err
+			return nil, err
 		}
-		return fmt.Errorf("cannot read data size: %w", err)
+		return nil, fmt.Errorf("cannot read data size: %w", err)
 	}
 	dataSize := encoding.UnmarshalUint64(ctx.sizeBuf)
-	if dataSize > uint64(maxDataSize) {
-		return fmt.Errorf("too big data size: %d; it mustn't exceed %d bytes", dataSize, maxDataSize)
+	if dataSize > uint64(maxRPCNameSize) {
+		return nil, fmt.Errorf("too big data size: %d; it mustn't exceed %d bytes", dataSize, maxRPCNameSize)
 	}
 
 	ctx.dataBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.dataBuf, int(dataSize))
 	if dataSize == 0 {
-		return nil
+		return nil, nil
 	}
 	if n, err := io.ReadFull(ctx.bc, ctx.dataBuf); err != nil {
-		return fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
+		return nil, fmt.Errorf("cannot read data with size %d: %w; read only %d bytes", dataSize, err, n)
+	}
+	return ctx.dataBuf, nil
+}
+
+// maxErrorMessageSize is the maximum size of error message to send to clients.
+const maxErrorMessageSize = 64 * 1024
+
+// WriteErrorMessage sends given error to the client
+func (ctx *RequestCtx) WriteErrorMessage(err error) error {
+
+	errMsg := err.Error()
+	if len(errMsg) > maxErrorMessageSize {
+		// Trim too long error message.
+		errMsg = errMsg[:maxErrorMessageSize]
+	}
+	if err := ctx.WriteString(errMsg); err != nil {
+		return fmt.Errorf("cannot send error message %q to client: %w", errMsg, err)
+	}
+	if err := ctx.bc.Flush(); err != nil {
+		return fmt.Errorf("cannot flush error message %q to client: %w", errMsg, err)
 	}
 	return nil
 }
 
-func sendAck(bc *handshake.BufferedConn, status byte) error {
-	deadline := time.Now().Add(5 * time.Second)
-	if err := bc.SetWriteDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set write deadline: %w", err)
+// WriteString writes provided string to the client
+func (ctx *RequestCtx) WriteString(s string) error {
+	ctx.dataBuf = append(ctx.dataBuf[:0], s...)
+	if err := ctx.writeDataBufBytes(); err != nil {
+		return fmt.Errorf("cannot writeString: %w", err)
 	}
-	b := auxBufPool.Get()
-	defer auxBufPool.Put(b)
-	b.B = append(b.B[:0], status)
-	if _, err := bc.Write(b.B); err != nil {
-		return err
-	}
-	return bc.Flush()
+	return ctx.bc.Flush()
 }
 
-var auxBufPool bytesutil.ByteBufferPool
+func (ctx *RequestCtx) writeDataBufBytes() error {
+	if err := ctx.writeUint64(uint64(len(ctx.dataBuf))); err != nil {
+		return fmt.Errorf("cannot write data size: %w", err)
+	}
+	if len(ctx.dataBuf) == 0 {
+		return nil
+	}
+	if _, err := ctx.bc.Write(ctx.dataBuf); err != nil {
+		return fmt.Errorf("cannot write data with size %d: %w", len(ctx.dataBuf), err)
+	}
+	return nil
+}
+
+func (ctx *RequestCtx) writeUint64(n uint64) error {
+	ctx.sizeBuf = encoding.MarshalUint64(ctx.sizeBuf[:0], n)
+	if _, err := ctx.bc.Write(ctx.sizeBuf); err != nil {
+		return fmt.Errorf("cannot write uint64 %d: %w", n, err)
+	}
+	return nil
+}

@@ -45,8 +45,6 @@ var (
 		"See also -disableRerouting")
 )
 
-var errStorageReadOnly = errors.New("storage node is read only")
-
 func (sn *storageNode) isReady() bool {
 	return !sn.isBroken.Load() && !sn.isReadOnly.Load()
 }
@@ -300,7 +298,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 	startTime := time.Now()
-	err := vminsertapi.SendToConn(sn.bc, sn.rpcCall.VersionedName, br.buf)
+	err := vminsertapi.SendToConn(sn.bc, br.buf)
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
@@ -308,7 +306,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		sn.rowsSent.Add(br.rows)
 		return true
 	}
-	if errors.Is(err, errStorageReadOnly) {
+	if errors.Is(err, vminsertapi.ErrStorageReadOnly) {
 		// The vmstorage is transitioned to readonly mode.
 		sn.isReadOnly.Store(true)
 		sn.brCond.Broadcast()
@@ -356,6 +354,11 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 		sn.handshakeErrors.Inc()
 		return nil, fmt.Errorf("handshake error: %w", err)
 	}
+	if err := vminsertapi.StartRPCRequest(bc, sn.rpcCall.VersionedName); err != nil {
+		_ = bc.Close()
+		return nil, fmt.Errorf("cannot start RPC call: %s: %w", sn.rpcCall.VersionedName, err)
+	}
+	bc.IsStreamingMode = true
 	return bc, nil
 }
 
@@ -801,13 +804,13 @@ func (sn *storageNode) checkReadOnlyMode() {
 	if sn.bc == nil {
 		return
 	}
-	err := vminsertapi.SendToConn(sn.bc, vminsertapi.CheckReadonlyRpcCall.VersionedName, nil)
+	err := vminsertapi.SendToConn(sn.bc, nil)
 	if err == nil {
 		// The storage switched from readonly to non-readonly mode
 		sn.isReadOnly.Store(false)
 		return
 	}
-	if errors.Is(err, errStorageReadOnly) {
+	if errors.Is(err, vminsertapi.ErrStorageReadOnly) {
 		// The storage remains in read-only mode
 		return
 	}
