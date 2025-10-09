@@ -198,7 +198,7 @@ func (scp *statsCountEmptyProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-
 	return strconv.AppendUint(dst, scp.rowsCount, 10)
 }
 
-func parseStatsCountEmpty(lex *lexer) (*statsCountEmpty, error) {
+func parseStatsCountEmpty(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "count_empty")
 	if err != nil {
 		return nil, err

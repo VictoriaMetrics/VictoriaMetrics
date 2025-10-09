@@ -44,10 +44,12 @@ type PutObjectRetentionInput struct {
 	// The bucket name that contains the object you want to apply this Object
 	// Retention configuration to.
 	//
-	// Access points - When you use this action with an access point, you must provide
-	// the alias of the access point in place of the bucket name or specify the access
-	// point ARN. When using the access point ARN, you must direct requests to the
-	// access point hostname. The access point hostname takes the form
+	// Access points - When you use this action with an access point for general
+	// purpose buckets, you must provide the alias of the access point in place of the
+	// bucket name or specify the access point ARN. When you use this action with an
+	// access point for directory buckets, you must provide the access point name in
+	// place of the bucket name. When using the access point ARN, you must direct
+	// requests to the access point hostname. The access point hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
@@ -122,9 +124,12 @@ func (in *PutObjectRetentionInput) bindEndpointParams(p *EndpointParameters) {
 type PutObjectRetentionOutput struct {
 
 	// If present, indicates that the requester was successfully charged for the
-	// request.
+	// request. For more information, see [Using Requester Pays buckets for storage transfers and usage]in the Amazon Simple Storage Service user
+	// guide.
 	//
 	// This functionality is not supported for directory buckets.
+	//
+	// [Using Requester Pays buckets for storage transfers and usage]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/RequesterPaysBuckets.html
 	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
@@ -203,6 +208,12 @@ func (c *Client) addOperationPutObjectRetentionMiddlewares(stack *middleware.Sta
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutObjectRetentionValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -240,6 +251,36 @@ func (c *Client) addOperationPutObjectRetentionMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
 		return err
 	}
 	if err = addSpanInitializeStart(stack); err != nil {
@@ -283,9 +324,10 @@ func getPutObjectRetentionRequestAlgorithmMember(input interface{}) (string, boo
 }
 
 func addPutObjectRetentionInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutObjectRetentionRequestAlgorithmMember,
 		RequireChecksum:                  true,
+		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

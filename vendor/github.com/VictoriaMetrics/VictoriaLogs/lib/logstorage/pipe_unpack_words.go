@@ -16,7 +16,7 @@ type pipeUnpackWords struct {
 	// field to unpack words from
 	srcField string
 
-	// field to put the unpack words to
+	// field to put the unpacked words
 	dstField string
 
 	// whether to drop duplicate words
@@ -45,6 +45,10 @@ func (pu *pipeUnpackWords) canLiveTail() bool {
 	return true
 }
 
+func (pu *pipeUnpackWords) canReturnLastNResults() bool {
+	return pu.dstField != "_time"
+}
+
 func (pu *pipeUnpackWords) hasFilterInWithQuery() bool {
 	return false
 }
@@ -64,17 +68,15 @@ func (pu *pipeUnpackWords) updateNeededFields(pf *prefixfilter.Filter) {
 	}
 }
 
-func (pu *pipeUnpackWords) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pu *pipeUnpackWords) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeUnpackWordsProcessor{
 		pu:     pu,
-		stopCh: stopCh,
 		ppNext: ppNext,
 	}
 }
 
 type pipeUnpackWordsProcessor struct {
 	pu     *pipeUnpackWords
-	stopCh <-chan struct{}
 	ppNext pipeProcessor
 
 	shards atomicutil.Slice[pipeUnpackWordsProcessorShard]
@@ -103,10 +105,6 @@ func (pup *pipeUnpackWordsProcessor) writeBlock(workerID uint, br *blockResult) 
 	t := getTokenizer()
 	keepDuplicateTokens := !pu.dropDuplicates
 	for rowIdx := range values {
-		if needStop(pup.stopCh) {
-			return
-		}
-
 		if rowIdx == 0 || values[rowIdx] != values[rowIdx-1] {
 			t.reset()
 			shard.words = t.tokenizeString(shard.words[:0], values[rowIdx], keepDuplicateTokens)

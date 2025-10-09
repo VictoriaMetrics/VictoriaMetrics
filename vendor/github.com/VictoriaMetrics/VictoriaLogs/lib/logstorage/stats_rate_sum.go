@@ -64,7 +64,7 @@ func (srp *statsRateSumProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-ch
 	return strconv.AppendFloat(dst, rate, 'f', -1, 64)
 }
 
-func parseStatsRateSum(lex *lexer) (*statsRateSum, error) {
+func parseStatsRateSum(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "rate_sum")
 	if err != nil {
 		return nil, err

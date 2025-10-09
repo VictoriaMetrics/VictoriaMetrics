@@ -234,7 +234,7 @@ func (smp *statsRowMaxProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan
 	return MarshalFieldsToJSON(dst, smp.fields)
 }
 
-func parseStatsRowMax(lex *lexer) (*statsRowMax, error) {
+func parseStatsRowMax(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "row_max")
 	if err != nil {
 		return nil, err
