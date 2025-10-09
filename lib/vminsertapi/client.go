@@ -122,7 +122,6 @@ func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte,
 }
 
 func sendDataOnBC(sizeBuf []byte, bc *handshake.BufferedConn, data []byte) ([]byte, error) {
-
 	sizeBuf = encoding.MarshalUint64(sizeBuf[:0], uint64(len(data)))
 	if _, err := bc.Write(sizeBuf); err != nil {
 		return sizeBuf, fmt.Errorf("cannot write data size %d: %w", len(data), err)
