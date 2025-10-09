@@ -2,6 +2,7 @@ package vminsertapi
 
 import (
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,8 +15,6 @@ import (
 )
 
 func TestProtocolMigration(t *testing.T) {
-	protoparserutil.StartUnmarshalWorkers()
-	defer protoparserutil.StopUnmarshalWorkers()
 
 	testStorage := testStorage{}
 	var rowsBuf []byte
@@ -30,14 +29,18 @@ func TestProtocolMigration(t *testing.T) {
 	}
 	assertRows := func() {
 		t.Helper()
-		if diff := cmp.Diff(expectedRows, testStorage.parsedRows); len(diff) > 0 {
+		protoparserutil.StopUnmarshalWorkers()
+		// wait for unmarshal workers finish parsing and data ingestion
+		got := testStorage.getRows()
+		if diff := cmp.Diff(expectedRows, got); len(diff) > 0 {
 			t.Errorf("unexpected ingested rows (-want, +got):\n%s", diff)
 		}
-		testStorage.parsedMetadata = testStorage.parsedMetadata[:0]
-		testStorage.parsedRows = testStorage.parsedRows[:0]
+		testStorage.reset()
 	}
+
 	// test old storage and new client
 	{
+		protoparserutil.StartUnmarshalWorkers()
 		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-old", &testStorage)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
@@ -62,6 +65,7 @@ func TestProtocolMigration(t *testing.T) {
 
 	// test old client and new storage
 	{
+		protoparserutil.StartUnmarshalWorkers()
 		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-new", &testStorage)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
@@ -87,6 +91,7 @@ func TestProtocolMigration(t *testing.T) {
 
 	// new client and new storage
 	{
+		protoparserutil.StartUnmarshalWorkers()
 		ts, err := NewVMInsertServer("localhost:0", time.Second, "vminsert-both-new", &testStorage)
 		if err != nil {
 			t.Fatalf("cannot create server: %s", err)
@@ -113,20 +118,38 @@ func TestProtocolMigration(t *testing.T) {
 type testStorage struct {
 	isReadOnly atomic.Bool
 
+	mu             sync.Mutex
 	parsedRows     []storage.MetricRow
 	parsedMetadata []storage.MetricMetadataRow
 }
 
-func (v *testStorage) WriteRows(rows []storage.MetricRow) error {
-	v.parsedRows = append(v.parsedRows, rows...)
+func (ts *testStorage) WriteRows(rows []storage.MetricRow) error {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	ts.parsedRows = append(ts.parsedRows, rows...)
 	return nil
 }
 
-func (v *testStorage) WriteMetadata(mrs []storage.MetricMetadataRow) error {
-	v.parsedMetadata = append(v.parsedMetadata, mrs...)
+func (ts *testStorage) WriteMetadata(mrs []storage.MetricMetadataRow) error {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	ts.parsedMetadata = append(ts.parsedMetadata, mrs...)
 	return nil
 }
 
-func (v *testStorage) IsReadOnly() bool {
-	return v.isReadOnly.Load()
+func (ts *testStorage) IsReadOnly() bool {
+	return ts.isReadOnly.Load()
+}
+
+func (ts *testStorage) getRows() []storage.MetricRow {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	return append([]storage.MetricRow{}, ts.parsedRows...)
+}
+
+func (ts *testStorage) reset() {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	ts.parsedRows = ts.parsedRows[:0]
+	ts.parsedMetadata = ts.parsedMetadata[:0]
 }
