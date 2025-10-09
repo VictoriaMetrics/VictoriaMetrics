@@ -53,7 +53,7 @@ func TestProtocolMigration(t *testing.T) {
 			t.Fatalf("cannot perform handshake with server: %s", err)
 		}
 
-		// write metircs via prev API - non rpc compatible
+		// write metrics via prev API - non rpc compatible
 		if err := SendToConn(bc, rowsBuf); err != nil {
 			t.Fatalf("unexpected previous protocol write rows err :%s", err)
 		}
