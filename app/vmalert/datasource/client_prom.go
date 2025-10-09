@@ -172,7 +172,7 @@ const (
 	rtVector, rtMatrix, rScalar = "vector", "matrix", "scalar"
 )
 
-func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result, err error) {
+func parsePrometheusResponse(resp *http.Response) (res Result, err error) {
 	r := &promResponse{}
 	if err = json.NewDecoder(resp.Body).Decode(r); err != nil {
 		return res, fmt.Errorf("failed to decode response: %w", err)
