@@ -1794,7 +1794,8 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 
 // MetricMetadataRow is a metric metadata to insert into storage.
 type MetricMetadataRow struct {
-	// MetricName contains name of the metric	MetricName []byte
+	// MetricName contains name of the metric
+	MetricName []byte
 
 	// TODO: implement other fields
 }
