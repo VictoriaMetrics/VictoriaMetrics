@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -43,9 +44,47 @@ func InsertHandler(c net.Conn) error {
 
 		return fmt.Errorf("cannot perform vminsert handshake with client %q: %w", c.RemoteAddr(), err)
 	}
-	return stream.Parse(bc, func(rows []storage.MetricRow) error {
-		return insertRows(rows)
-	}, nil)
+	if bc.IsNotRPCCompatible {
+		// fallback to the prev api version
+		return stream.Parse(bc, func(rows []storage.MetricRow) error {
+			return insertRows(rows)
+		}, nil)
+	}
+	if bc.IsStreamingMode {
+		return fmt.Errorf("BUG: connection in streaming mode cannot process RPC calls")
+	}
+	ctx := vminsertapi.NewRequestCtx(bc)
+	rpcName, err := ctx.ReadRPCName()
+	if err != nil {
+		return fmt.Errorf("cannot read rpcName: %w", err)
+	}
+	var rpcFunc func() error
+	switch string(rpcName) {
+	case vminsertapi.MetricRowsRpcCall.VersionedName:
+		rpcFunc = func() error {
+			return stream.Parse(bc, func(rows []storage.MetricRow) error {
+				return insertRows(rows)
+			}, nil)
+		}
+		bc.IsStreamingMode = true
+	case vminsertapi.MetricMetadataRpcCall.VersionedName:
+		// TODO: implement me
+		rpcFunc = func() error {
+			return nil
+		}
+	}
+	if rpcFunc == nil {
+		err := fmt.Errorf("unsupported rpcName: %q", rpcName)
+		if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
+			err = fmt.Errorf("cannot write rpcName error back to client: %s: %w", writeErr, err)
+		}
+		return err
+	}
+	// send back empty error message
+	if err := ctx.WriteString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+	return rpcFunc()
 }
 
 func insertRows(rows []storage.MetricRow) error {

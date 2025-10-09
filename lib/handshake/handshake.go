@@ -13,8 +13,9 @@ import (
 var rpcHandshakeTimeout = flag.Duration("rpc.handshakeTimeout", 5*time.Second, "Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. See https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability section for more details.")
 
 const (
-	vminsertHello = "vminsert.02"
-	vmselectHello = "vmselect.01"
+	vminsertHelloPrev = "vminsert.02"
+	vminsertHello     = "vminsert.03"
+	vmselectHello     = "vmselect.01"
 
 	successResponse = "ok"
 )
@@ -24,13 +25,49 @@ const (
 // It must return BufferedConn wrapper for c on successful handshake.
 type Func func(c net.Conn, compressionLevel int) (*BufferedConn, error)
 
-// VMInsertClient performs client-side handshake for vminsert protocol.
+// VMInsertClientWithDialer performs client-side handshake for vminsert protocol.
 //
+// it uses provided dial func to establish connection to the server.
 // compressionLevel is the level used for compression of the data sent
 // to the server.
 // compressionLevel <= 0 means 'no compression'
-func VMInsertClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
+func VMInsertClientWithDialer(dial func() (net.Conn, error), compressionLevel int) (*BufferedConn, error) {
+	c, err := dial()
+	if err != nil {
+		return nil, fmt.Errorf("dial error: %w", err)
+	}
+	bc, err := vminsertClient(c, compressionLevel)
+	if err == nil {
+		return bc, nil
+	}
+	_ = c.Close()
+	if !strings.Contains(err.Error(), "cannot read success response after sending hello") {
+		return nil, err
+	}
+	// try to fallback to the prev non-RPC API version
+	// we cannot re-use exist connection, since vmstorage already closed it
+	c, err = dial()
+	if err != nil {
+		return nil, fmt.Errorf("dial error: %w", err)
+	}
+	bc, err = genericClient(c, vminsertHelloPrev, compressionLevel)
+	if err != nil {
+		_ = c.Close()
+		return nil, fmt.Errorf("prev handshake error: %w", err)
+	}
+	bc.IsNotRPCCompatible = true
+	return bc, nil
+}
+
+func vminsertClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	return genericClient(c, vminsertHello, compressionLevel)
+}
+
+// VMInsertClientWithHello performs client-side handshake for vminsert protocol.
+//
+// should be used for testing only
+func VMInsertClientWithHello(c net.Conn, helloMsg string, compressionLevel int) (*BufferedConn, error) {
+	return genericClient(c, helloMsg, compressionLevel)
 }
 
 // VMInsertServer performs server-side handshake for vminsert protocol.
@@ -39,7 +76,68 @@ func VMInsertClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // to the client.
 // compressionLevel <= 0 means 'no compression'
 func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	return genericServer(c, vminsertHello, compressionLevel)
+	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
+		return nil, fmt.Errorf("cannot set deadline: %w", err)
+	}
+
+	buf, err := readData(c, len(vminsertHello))
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
+			return nil, errTCPHealthcheck
+		}
+		return nil, fmt.Errorf("cannot read hello: %w", err)
+	}
+	isRPCSupported := string(buf) == vminsertHello
+	if !isRPCSupported {
+		// try to fallback to the previous protocol version
+		if string(buf) != vminsertHelloPrev {
+			return nil, fmt.Errorf("unexpected message obtained; got %q; want %q", buf, vminsertHello)
+		}
+	}
+	if err := writeMessage(c, successResponse); err != nil {
+		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
+	}
+	bc, err := genericServer(c, compressionLevel)
+	if err != nil {
+		return nil, err
+	}
+	bc.IsNotRPCCompatible = !isRPCSupported
+	return bc, nil
+}
+
+// VMInsertServerNonRPC performs server-side handshake for vminsert protocol.
+// it uses previous non-RPC compatible RPC version.
+//
+// should be used for testing only
+func VMInsertServerNonRPC(c net.Conn, compressionLevel int) (*BufferedConn, error) {
+	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
+		return nil, fmt.Errorf("cannot set deadline: %w", err)
+	}
+
+	buf, err := readData(c, len(vminsertHelloPrev))
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
+			return nil, errTCPHealthcheck
+		}
+		return nil, fmt.Errorf("cannot read hello: %w", err)
+	}
+	if string(buf) != vminsertHelloPrev {
+		return nil, fmt.Errorf("unexpected message obtained; got %q; want %q", buf, vminsertHello)
+	}
+
+	if err := writeMessage(c, successResponse); err != nil {
+		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
+	}
+	bc, err := genericServer(c, compressionLevel)
+	if err != nil {
+		return nil, err
+	}
+	bc.IsNotRPCCompatible = true
+	return bc, nil
 }
 
 // VMSelectClient performs client-side handshake for vmselect protocol.
@@ -57,7 +155,23 @@ func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // to the client.
 // compressionLevel <= 0 means 'no compression'
 func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	return genericServer(c, vmselectHello, compressionLevel)
+	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
+		return nil, fmt.Errorf("cannot set deadline: %w", err)
+	}
+
+	if err := readMessage(c, vmselectHello); err != nil {
+		if errors.Is(err, io.EOF) {
+			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
+			return nil, errTCPHealthcheck
+		}
+		return nil, fmt.Errorf("cannot read hello: %w", err)
+	}
+	if err := writeMessage(c, successResponse); err != nil {
+		return nil, fmt.Errorf("cannot write success response on hello: %w", err)
+	}
+
+	return genericServer(c, compressionLevel)
 }
 
 // errTCPHealthcheck indicates that the connection was opened as part of a TCP health check
@@ -109,22 +223,7 @@ func IsTimeoutNetworkError(err error) bool {
 	return false
 }
 
-func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
-	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
-		return nil, fmt.Errorf("cannot set deadline: %w", err)
-	}
-
-	if err := readMessage(c, msg); err != nil {
-		if errors.Is(err, io.EOF) {
-			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
-			return nil, errTCPHealthcheck
-		}
-		return nil, fmt.Errorf("cannot read hello: %w", err)
-	}
-	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on hello: %w", err)
-	}
+func genericServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	isRemoteCompressed, err := readIsCompressed(c)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read isCompressed flag: %w", err)
