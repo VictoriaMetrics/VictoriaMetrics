@@ -149,7 +149,7 @@ func (s *VMInsertServer) run() {
 
 // MustStop gracefully stops s so it no longer touches s.storage after returning.
 func (s *VMInsertServer) MustStop() {
-	// Mark the server as stoping.
+	// Mark the server as stopping.
 	s.setIsStopping()
 
 	// Stop accepting new connections from vminsert.
