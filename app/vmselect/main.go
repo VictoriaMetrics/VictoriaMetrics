@@ -282,6 +282,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
 	}
+	switch p.Prefix {
+	case "select":
+	case "delete":
+	default:
+		httpserver.Errorf(w, r, "unsupported URL format for path %q. Make sure you're using cluster URL format https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format.", path)
+		return true
+	}
 	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 	if err != nil {
 		httpserver.Errorf(w, r, "auth error: %s", err)
