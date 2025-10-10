@@ -313,8 +313,8 @@ foo:1m_by_abc_sum_samples{abc="456"} 8
 	f([]string{`
 foo 123
 bar{baz="qwe"} 4.34
-`}, time.Minute, `bar:1m_total{baz="qwe"} 0
-foo:1m_total 0
+`}, time.Minute, `bar:1m_total{baz="qwe"} 4.34
+foo:1m_total 123
 `, `
 - interval: 1m
   outputs: [total]
@@ -353,10 +353,10 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`}, time.Minute, `bar:1m_total{baz="qwe"} 3.03
-bar:1m_total{baz="qwer"} 1
-foo:1m_total 0
-foo:1m_total{baz="qwe"} 15
+`}, time.Minute, `bar:1m_total{baz="qwe"} 4.34
+bar:1m_total{baz="qwer"} 344
+foo:1m_total 123
+foo:1m_total{baz="qwe"} 10
 `, `
 - interval: 1m
   outputs: [total]
@@ -391,8 +391,8 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`}, time.Minute, `bar:1m_total 6.02
-foo:1m_total 15
+`}, time.Minute, `bar:1m_total 350.34
+foo:1m_total 133
 `, `
 - interval: 1m
   by: [__name__]
@@ -421,8 +421,8 @@ foo:1m_total_prometheus 15
 	f([]string{`
 foo 123
 bar{baz="qwe"} 4.34
-`}, time.Minute, `bar:1m_increase{baz="qwe"} 0
-foo:1m_increase 0
+`}, time.Minute, `bar:1m_increase{baz="qwe"} 4.34
+foo:1m_increase 123
 `, `
 - interval: 1m
   outputs: [increase]
@@ -449,10 +449,10 @@ foo{baz="qwe"} -5
 bar{baz="qwer"} 343
 bar{baz="qwer"} 344
 foo{baz="qwe"} 10
-`}, time.Minute, `bar:1m_increase{baz="qwe"} 5.02
-bar:1m_increase{baz="qwer"} 1
-foo:1m_increase 0
-foo:1m_increase{baz="qwe"} 15
+`}, time.Minute, `bar:1m_increase{baz="qwe"} 6.34
+bar:1m_increase{baz="qwer"} 344
+foo:1m_increase 123
+foo:1m_increase{baz="qwe"} 10
 `, `
 - interval: 1m
   outputs: [increase]
