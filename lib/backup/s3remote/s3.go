@@ -123,6 +123,8 @@ func (fs *FS) Init(ctx context.Context) error {
 	}
 	configOpts := []func(*config.LoadOptions) error{
 		config.WithDefaultRegion("us-east-1"),
+		config.WithRequestChecksumCalculation(aws.RequestChecksumCalculationWhenRequired),
+		config.WithResponseChecksumValidation(aws.ResponseChecksumValidationWhenRequired),
 		config.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
 				o.Backoff = retry.NewExponentialJitterBackoff(3 * time.Minute)
@@ -202,6 +204,7 @@ func (fs *FS) Init(ctx context.Context) error {
 	fs.uploader = manager.NewUploader(fs.s3, func(u *manager.Uploader) {
 		// We manage upload concurrency by ourselves.
 		u.Concurrency = 1
+		u.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 	})
 
 	m := make(map[string]*string)

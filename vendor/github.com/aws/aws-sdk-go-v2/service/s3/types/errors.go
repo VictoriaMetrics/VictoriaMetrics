@@ -93,6 +93,41 @@ func (e *EncryptionTypeMismatch) ErrorCode() string {
 }
 func (e *EncryptionTypeMismatch) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
+// Parameters on this idempotent request are inconsistent with parameters used in
+// previous request(s).
+//
+// For a list of error codes and more information on Amazon S3 errors, see [Error codes].
+//
+// Idempotency ensures that an API request completes no more than one time. With
+// an idempotent request, if the original request completes successfully, any
+// subsequent retries complete successfully without performing any further actions.
+//
+// [Error codes]: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList
+type IdempotencyParameterMismatch struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	noSmithyDocumentSerde
+}
+
+func (e *IdempotencyParameterMismatch) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *IdempotencyParameterMismatch) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *IdempotencyParameterMismatch) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "IdempotencyParameterMismatch"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *IdempotencyParameterMismatch) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+
 // Object is archived and inaccessible until restored.
 //
 // If the object you are retrieving is stored in the S3 Glacier Flexible Retrieval

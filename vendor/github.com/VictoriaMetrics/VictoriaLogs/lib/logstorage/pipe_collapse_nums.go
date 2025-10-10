@@ -45,6 +45,10 @@ func (pc *pipeCollapseNums) canLiveTail() bool {
 	return true
 }
 
+func (pc *pipeCollapseNums) canReturnLastNResults() bool {
+	return true
+}
+
 func (pc *pipeCollapseNums) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForUpdatePipe(pf, pc.field, pc.iff)
 }
@@ -122,76 +126,60 @@ func parsePipeCollapseNums(lex *lexer) (pipe, error) {
 }
 
 func appendCollapseNums(dst []byte, s string) []byte {
-	if !isASCII(s) {
-		return appendCollapseNumsUnicode(dst, s)
-	}
-
-	start := 0
-	numStart := -1
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if isDecimalOrHexRune(rune(c)) {
-			if numStart < 0 && (i == 0 || isSpecialStartNumRune(rune(s[i-1])) || !isTokenChar(s[i-1])) {
-				numStart = i
-			}
-			continue
-		}
+	offset := 0
+	for offset < len(s) {
+		numStart := indexNumStart(s, offset)
 		if numStart < 0 {
-			continue
+			return append(dst, s[offset:]...)
 		}
+		dst = append(dst, s[offset:numStart]...)
 
-		dst = append(dst, s[start:numStart]...)
-		if (!isSpecialEndNumRune(rune(c)) && isTokenChar(c)) || !canBeTreatedAsNum(s[numStart:i]) {
-			dst = append(dst, s[numStart:i]...)
+		numEnd := indexNumEnd(s, numStart)
+		if !isValidNum(s, numStart, numEnd) {
+			dst = append(dst, s[numStart:numEnd]...)
 		} else {
 			dst = append(dst, "<N>"...)
 		}
-		start = i
-		numStart = -1
-	}
-	if numStart >= 0 && canBeTreatedAsNum(s[numStart:]) {
-		dst = append(dst, s[start:numStart]...)
-		dst = append(dst, "<N>"...)
-	} else {
-		dst = append(dst, s[start:]...)
+		offset = numEnd
 	}
 	return dst
 }
 
-func appendCollapseNumsUnicode(dst []byte, s string) []byte {
-	start := 0
-	numStart := -1
-	rPrev := rune(0)
-	for i, r := range s {
-		if isDecimalOrHexRune(r) {
-			if numStart < 0 && (isSpecialStartNumRune(rPrev) || !isTokenRune(rPrev)) {
-				numStart = i
-			}
-			rPrev = r
+func indexNumStart(s string, offset int) int {
+	// It is safe iterating by chars instead of Unicode runes, since decimal and hex chars are ASCII
+	// and they cannot clash with utf-8 encoded Unicode runes.
+	n := offset
+	for n < len(s) {
+		if !isDecimalOrHexChar(s[n]) {
+			n++
 			continue
 		}
-		if numStart < 0 {
-			rPrev = r
-			continue
+		if n == 0 {
+			return 0
 		}
+		if !isTokenChar(s[n-1]) || isSpecialNumStart(s[n-1]) {
+			return n
+		}
+		n++
+	}
+	return -1
+}
 
-		dst = append(dst, s[start:numStart]...)
-		if (!isSpecialEndNumRune(r) && isTokenRune(r)) || !canBeTreatedAsNum(s[numStart:i]) {
-			dst = append(dst, s[numStart:i]...)
-		} else {
-			dst = append(dst, "<N>"...)
-		}
-		start = i
-		numStart = -1
-		rPrev = r
+func indexNumEnd(s string, offset int) int {
+	// It is safe iterating by chars instead of Unicode runes, since decimal and hex chars are ASCII
+	// and they cannot clash with utf-8 encoded Unicode runes.
+	n := offset
+	for n < len(s) && isDecimalOrHexChar(s[n]) {
+		n++
 	}
-	if numStart >= 0 && canBeTreatedAsNum(s[numStart:]) {
-		dst = append(dst, s[start:numStart]...)
-		dst = append(dst, "<N>"...)
-	} else {
-		dst = append(dst, s[start:]...)
+	return n
+}
+
+func isValidNum(s string, start, end int) bool {
+	if end < len(s) && isTokenChar(s[end]) && !isSpecialNumEnd(s[end]) {
+		return false
 	}
-	return dst
+	return canBeTreatedAsNum(s[start:end])
 }
 
 func appendPrettifyCollapsedNums(dst, src []byte) []byte {
@@ -208,54 +196,59 @@ func appendPrettifyCollapsedNums(dst, src []byte) []byte {
 	return dst
 }
 
-func appendReplaceWithSkipTail(dst, src []byte, old, replacement string, skipTail func(s string) string) []byte {
+func appendReplaceWithSkipTail(dst, src []byte, old, replacement string, skipTail func(s string) int) []byte {
 	if len(replacement) > len(old) {
 		panic(fmt.Errorf("BUG: len(replacement)=%d cannot exceed len(old)=%d", len(replacement), len(old)))
 	}
 	s := bytesutil.ToUnsafeString(src)
-	for {
-		n := strings.Index(s, old)
+	offset := 0
+	for offset < len(s) {
+		n := strings.Index(s[offset:], old)
 		if n < 0 {
-			return append(dst, s...)
+			break
 		}
-		dst = append(dst, s[:n]...)
+		dst = append(dst, s[offset:offset+n]...)
 		dst = append(dst, replacement...)
-		s = s[n+len(old):]
+		offset += n + len(old)
 		if skipTail != nil {
-			s = skipTail(s)
+			offset += skipTail(s[offset:])
 		}
 	}
+	return append(dst, s[offset:]...)
 }
 
-func skipTrailingSubsecs(s string) string {
+func skipTrailingSubsecs(s string) int {
 	if strings.HasPrefix(s, ".<N>") || strings.HasPrefix(s, ",<N>") {
-		return s[len(".<N>"):]
+		return len(".<N>")
 	}
-	return s
+	return 0
 }
 
-func skipTrailingTimezone(s string) string {
+func skipTrailingTimezone(s string) int {
 	if strings.HasPrefix(s, "Z") {
-		return s[1:]
+		return 1
 	}
 	if strings.HasPrefix(s, "-<N>:<N>") || strings.HasPrefix(s, "+<N>:<N>") {
-		return s[len("-<N>:<N>"):]
+		return len("-<N>:<N>")
 	}
-	return s
+	return 0
 }
 
-func isDecimalOrHexRune(r rune) bool {
-	if r <= '9' && r >= '0' {
+func isDecimalOrHexChar(ch byte) bool {
+	if ch <= '9' && ch >= '0' {
 		return true
 	}
-	return isHexRune(r)
+	return isHexChar(ch)
 }
 
-func isHexRune(r rune) bool {
-	return r <= 'f' && r >= 'a' || r <= 'F' && r >= 'A'
+func isHexChar(ch byte) bool {
+	return ch <= 'f' && ch >= 'a' || ch <= 'F' && ch >= 'A'
 }
 
 func canBeTreatedAsNum(s string) bool {
+	if s == "" {
+		return false
+	}
 	if !hasHexChars(s) {
 		// Decimal number can contain any number of chars
 		return true
@@ -271,17 +264,17 @@ func canBeTreatedAsNum(s string) bool {
 
 func hasHexChars(s string) bool {
 	for i := 0; i < len(s); i++ {
-		if isHexRune(rune(s[i])) {
+		if isHexChar(s[i]) {
 			return true
 		}
 	}
 	return false
 }
 
-func isSpecialStartNumRune(r rune) bool {
-	return r == 'T' || r == 'X' || r == 'x' || r == 'v' || r == 's' || r == 'h' || r == 'm'
+func isSpecialNumStart(ch byte) bool {
+	return ch == '_' || ch == 'T' || ch == 'X' || ch == 'x' || ch == 'v' || ch == 's' || ch == 'h' || ch == 'm'
 }
 
-func isSpecialEndNumRune(r rune) bool {
-	return r == 'T' || r == 'Z' || r == 's' || r == 'm' || r == 'h' || r == 'μ' || r == 'u' || r == 'n'
+func isSpecialNumEnd(ch byte) bool {
+	return ch == '_' || ch == 'T' || ch == 'Z' || ch == 's' || ch == 'm' || ch == 'h' || ch == 'u' || ch == 'n'
 }

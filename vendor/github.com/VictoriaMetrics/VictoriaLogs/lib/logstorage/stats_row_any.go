@@ -167,7 +167,7 @@ func (sap *statsRowAnyProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan
 	return MarshalFieldsToJSON(dst, sap.fields)
 }
 
-func parseStatsRowAny(lex *lexer) (*statsRowAny, error) {
+func parseStatsRowAny(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "row_any")
 	if err != nil {
 		return nil, err

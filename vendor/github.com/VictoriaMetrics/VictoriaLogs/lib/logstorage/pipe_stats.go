@@ -74,7 +74,7 @@ type statsFunc interface {
 	// String returns string representation of statsFunc
 	String() string
 
-	// updateNeededFields update pf with the fields needed for calculating the given stats
+	// updateNeededFields must update pf with the fields needed for calculating the given stats
 	updateNeededFields(pf *prefixfilter.Filter)
 
 	// newStatsProcessor must create new statsProcessor for calculating stats for the given statsFunc
@@ -118,7 +118,7 @@ type statsProcessor interface {
 	// It must return the internal state size increase after the import.
 	importState(src []byte, stopCh <-chan struct{}) (int, error)
 
-	// finalizeStats must append string represetnation of the collected stats result to dst and return it.
+	// finalizeStats must append string representation of the collected stats result to dst and return it.
 	//
 	// finalizeStats must immediately return if stopCh is closed.
 	finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte
@@ -198,6 +198,10 @@ func (ps *pipeStats) canLiveTail() bool {
 	return false
 }
 
+func (ps *pipeStats) canReturnLastNResults() bool {
+	return false
+}
+
 func (ps *pipeStats) updateNeededFields(pf *prefixfilter.Filter) {
 	if ps.mode.needImportState() {
 		ps.updateNeededFieldsLocal(pf)
@@ -207,11 +211,6 @@ func (ps *pipeStats) updateNeededFields(pf *prefixfilter.Filter) {
 	pfOrig := pf.Clone()
 	pf.Reset()
 
-	// byFields are needed unconditionally, since the output number of rows depends on them.
-	for _, bf := range ps.byFields {
-		pf.AddAllowFilter(bf.name)
-	}
-
 	for _, f := range ps.funcs {
 		if pfOrig.MatchString(f.resultName) {
 			f.f.updateNeededFields(pf)
@@ -219,6 +218,11 @@ func (ps *pipeStats) updateNeededFields(pf *prefixfilter.Filter) {
 				pf.AddAllowFilters(f.iff.allowFilters)
 			}
 		}
+	}
+
+	// byFields are needed unconditionally, since the output number of rows depends on them.
+	for _, bf := range ps.byFields {
+		pf.AddAllowFilter(bf.name)
 	}
 }
 
@@ -1248,7 +1252,15 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 	return result
 }
 
-func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
+func parsePipeStats(lex *lexer) (pipe, error) {
+	return parsePipeStatsExt(lex, true)
+}
+
+func parsePipeStatsNoStatsKeyword(lex *lexer) (pipe, error) {
+	return parsePipeStatsExt(lex, false)
+}
+
+func parsePipeStatsExt(lex *lexer, needStatsKeyword bool) (pipe, error) {
 	var ps pipeStats
 	if needStatsKeyword {
 		switch {
@@ -1338,153 +1350,59 @@ func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
 }
 
 func parseStatsFunc(lex *lexer) (statsFunc, error) {
-	switch {
-	case lex.isKeyword("avg"):
-		sas, err := parseStatsAvg(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'avg' func: %w", err)
+	sps := getStatsFuncParsers()
+	for funcName, parserFunc := range sps {
+		if !lex.isKeyword(funcName) {
+			continue
 		}
-		return sas, nil
-	case lex.isKeyword("count"):
-		scs, err := parseStatsCount(lex)
+		sf, err := parserFunc(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'count' func: %w", err)
+			return nil, fmt.Errorf("cannot parse %q func: %w", funcName, err)
 		}
-		return scs, nil
-	case lex.isKeyword("count_empty"):
-		scs, err := parseStatsCountEmpty(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'count_empty' func: %w", err)
-		}
-		return scs, nil
-	case lex.isKeyword("count_uniq"):
-		sus, err := parseStatsCountUniq(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
-		}
-		return sus, nil
-	case lex.isKeyword("count_uniq_hash"):
-		sus, err := parseStatsCountUniqHash(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'count_uniq_hash' func: %w", err)
-		}
-		return sus, nil
-	case lex.isKeyword("histogram"):
-		shs, err := parseStatsHistogram(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'histogram' func: %w", err)
-		}
-		return shs, nil
-	case lex.isKeyword("json_values"):
-		sjs, err := parseStatsJSONValues(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'json_values' func: %w", err)
-		}
-		return sjs, nil
-	case lex.isKeyword("max"):
-		sms, err := parseStatsMax(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'max' func: %w", err)
-		}
-		return sms, nil
-	case lex.isKeyword("median"):
-		sms, err := parseStatsMedian(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'median' func: %w", err)
-		}
-		return sms, nil
-	case lex.isKeyword("min"):
-		sms, err := parseStatsMin(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'min' func: %w", err)
-		}
-		return sms, nil
-	case lex.isKeyword("quantile"):
-		sqs, err := parseStatsQuantile(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'quantile' func: %w", err)
-		}
-		return sqs, nil
-	case lex.isKeyword("rate"):
-		srs, err := parseStatsRate(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'rate' func: %w", err)
-		}
-		return srs, nil
-	case lex.isKeyword("rate_sum"):
-		srs, err := parseStatsRateSum(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'rate_sum' func: %w", err)
-		}
-		return srs, nil
-	case lex.isKeyword("row_any"):
-		sas, err := parseStatsRowAny(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'row_any' func: %w", err)
-		}
-		return sas, nil
-	case lex.isKeyword("row_max"):
-		sms, err := parseStatsRowMax(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'row_max' func: %w", err)
-		}
-		return sms, nil
-	case lex.isKeyword("row_min"):
-		sms, err := parseStatsRowMin(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'row_min' func: %w", err)
-		}
-		return sms, nil
-	case lex.isKeyword("sum"):
-		sss, err := parseStatsSum(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'sum' func: %w", err)
-		}
-		return sss, nil
-	case lex.isKeyword("sum_len"):
-		sss, err := parseStatsSumLen(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'sum_len' func: %w", err)
-		}
-		return sss, nil
-	case lex.isKeyword("uniq_values"):
-		sus, err := parseStatsUniqValues(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'uniq_values' func: %w", err)
-		}
-		return sus, nil
-	case lex.isKeyword("values"):
-		svs, err := parseStatsValues(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'values' func: %w", err)
-		}
-		return svs, nil
-	default:
-		return nil, fmt.Errorf("unknown stats func %q", lex.token)
+		return sf, nil
+	}
+	return nil, fmt.Errorf("unknown stats func %q", lex.token)
+}
+
+var statsFuncParsers map[string]statsFuncParser
+var statsFuncParsersOnce sync.Once
+
+type statsFuncParser func(lex *lexer) (statsFunc, error)
+
+func getStatsFuncParsers() map[string]statsFuncParser {
+	statsFuncParsersOnce.Do(initStatsFuncParsers)
+	return statsFuncParsers
+}
+
+func initStatsFuncParsers() {
+	statsFuncParsers = map[string]statsFuncParser{
+		"avg":             parseStatsAvg,
+		"count":           parseStatsCount,
+		"count_empty":     parseStatsCountEmpty,
+		"count_uniq":      parseStatsCountUniq,
+		"count_uniq_hash": parseStatsCountUniqHash,
+		"histogram":       parseStatsHistogram,
+		"json_values":     parseStatsJSONValues,
+		"max":             parseStatsMax,
+		"median":          parseStatsMedian,
+		"min":             parseStatsMin,
+		"quantile":        parseStatsQuantile,
+		"rate":            parseStatsRate,
+		"rate_sum":        parseStatsRateSum,
+		"row_any":         parseStatsRowAny,
+		"row_max":         parseStatsRowMax,
+		"row_min":         parseStatsRowMin,
+		"sum":             parseStatsSum,
+		"sum_len":         parseStatsSumLen,
+		"uniq_values":     parseStatsUniqValues,
+		"values":          parseStatsValues,
 	}
 }
 
-var statsNames = []string{
-	"avg",
-	"count",
-	"count_empty",
-	"count_uniq",
-	"count_uniq_hash",
-	"histogram",
-	"json_values",
-	"max",
-	"median",
-	"min",
-	"quantile",
-	"rate",
-	"rate_sum",
-	"row_any",
-	"row_max",
-	"row_min",
-	"sum",
-	"sum_len",
-	"uniq_values",
-	"values",
+func isStatsFuncName(s string) bool {
+	sps := getStatsFuncParsers()
+	sLower := strings.ToLower(s)
+	return sps[sLower] != nil
 }
 
 // byStatsField represents 'by (...)' part of the pipeStats.
@@ -1534,7 +1452,7 @@ func parseByStatsFields(lex *lexer) ([]*byStatsField, error) {
 			lex.nextToken()
 			return bfs, nil
 		}
-		fieldName, err := getCompoundPhrase(lex, false)
+		fieldName, err := lex.nextCompoundTokenExt([]string{":"})
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse field name: %w", err)
 		}
@@ -1545,11 +1463,10 @@ func parseByStatsFields(lex *lexer) ([]*byStatsField, error) {
 		if lex.isKeyword(":") {
 			// Parse bucket size
 			lex.nextToken()
-			bucketSizeStr := lex.token
-			lex.nextToken()
-			if bucketSizeStr == "/" {
-				bucketSizeStr += lex.token
-				lex.nextToken()
+
+			bucketSizeStr, err := lex.nextCompoundToken()
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse bucket size for field %q: %w", fieldName, err)
 			}
 			if bucketSizeStr != "year" && bucketSizeStr != "month" {
 				bucketSize, ok := tryParseBucketSize(bucketSizeStr)
@@ -1563,12 +1480,12 @@ func parseByStatsFields(lex *lexer) ([]*byStatsField, error) {
 			// Parse bucket offset
 			if lex.isKeyword("offset") {
 				lex.nextToken()
-				bucketOffsetStr := lex.token
-				lex.nextToken()
-				if bucketOffsetStr == "-" {
-					bucketOffsetStr += lex.token
-					lex.nextToken()
+
+				bucketOffsetStr, err := lex.nextCompoundToken()
+				if err != nil {
+					return nil, fmt.Errorf("cannot parse offset token for %q: %w", fieldName, err)
 				}
+
 				bucketOffset, ok := tryParseBucketOffset(bucketOffsetStr)
 				if !ok {
 					return nil, fmt.Errorf("cannot parse bucket offset for field %q: %q", fieldName, bucketOffsetStr)
@@ -1643,21 +1560,21 @@ func tryParseBucketSize(s string) (float64, bool) {
 
 	// Try parsing s as floating point number
 	if f, ok := tryParseFloat64(s); ok {
-		return f, true
+		return f, f > 0
 	}
 
 	// Try parsing s as duration (1s, 5m, etc.)
 	if nsecs, ok := tryParseDuration(s); ok {
-		return float64(nsecs), true
+		return float64(nsecs), nsecs > 0
 	}
 
 	// Try parsing s as bytes (KiB, MB, etc.)
 	if n, ok := tryParseBytes(s); ok {
-		return float64(n), true
+		return float64(n), n > 0
 	}
 
 	if n, ok := tryParseIPv4Mask(s); ok {
-		return float64(n), true
+		return float64(n), n > 0
 	}
 
 	return 0, false
@@ -1692,7 +1609,7 @@ func parseFieldFiltersInParens(lex *lexer) ([]string, error) {
 		}
 		field, err := parseFieldFilter(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse field name: %w", err)
+			return nil, err
 		}
 		fields = append(fields, field)
 		switch {
@@ -1707,22 +1624,30 @@ func parseFieldFiltersInParens(lex *lexer) ([]string, error) {
 }
 
 func parseFieldName(lex *lexer) (string, error) {
-	fieldName, err := parseFieldFilter(lex)
+	fieldName, err := lex.nextCompoundToken()
 	if err != nil {
 		return "", err
 	}
-	if prefixfilter.IsWildcardFilter(fieldName) {
-		return "", fmt.Errorf("field name cannot end with '*'; got %q", fieldName)
-	}
+	fieldName = getCanonicalColumnName(fieldName)
 	return fieldName, nil
 }
 
 func parseFieldFilter(lex *lexer) (string, error) {
-	fieldName, err := getCompoundToken(lex)
+	if lex.isKeyword("*") {
+		lex.nextToken()
+		return "*", nil
+	}
+
+	fieldName, err := lex.nextCompoundToken()
 	if err != nil {
-		return "", fmt.Errorf("cannot parse field name: %w", err)
+		return "", err
 	}
 	fieldName = getCanonicalColumnName(fieldName)
+	if !lex.isSkippedSpace && lex.isKeyword("*") {
+		lex.nextToken()
+		fieldName += "*"
+	}
+
 	return fieldName, nil
 }
 

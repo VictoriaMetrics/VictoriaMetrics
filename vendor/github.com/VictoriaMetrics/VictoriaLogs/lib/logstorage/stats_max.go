@@ -210,7 +210,7 @@ func (smp *statsMaxProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan st
 	return append(dst, smp.max...)
 }
 
-func parseStatsMax(lex *lexer) (*statsMax, error) {
+func parseStatsMax(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "max")
 	if err != nil {
 		return nil, err

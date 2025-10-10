@@ -2,21 +2,42 @@ package logstorage
 
 import (
 	"fmt"
+	"strings"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 type statsJSONValues struct {
+	// fieldFilters contains field filters for fields to select from logs.
 	fieldFilters []string
-	limit        uint64
+
+	// sortFields contains optional fields for sorting the selected logs.
+	//
+	// if sortFields is empty, then the selected logs aren't sorted.
+	sortFields []*bySortField
+
+	// limit contains an optional limit on the number of logs to select.
+	//
+	// if limit==0, then all the logs are selected.
+	limit uint64
 }
 
 func (sv *statsJSONValues) String() string {
 	s := "json_values(" + fieldNamesString(sv.fieldFilters) + ")"
+
+	if len(sv.sortFields) > 0 {
+		a := make([]string, len(sv.sortFields))
+		for i, sf := range sv.sortFields {
+			a[i] = sf.String()
+		}
+		s += fmt.Sprintf(" sort by (%s)", strings.Join(a, ", "))
+	}
+
 	if sv.limit > 0 {
 		s += fmt.Sprintf(" limit %d", sv.limit)
 	}
@@ -25,32 +46,44 @@ func (sv *statsJSONValues) String() string {
 
 func (sv *statsJSONValues) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilters(sv.fieldFilters)
+
+	for _, sf := range sv.sortFields {
+		pf.AddAllowFilter(sf.name)
+	}
 }
 
 func (sv *statsJSONValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
-	svp := a.newStatsJSONValuesProcessor()
-	svp.a = a
+	sortFieldsLen := len(sv.sortFields)
+
+	if sortFieldsLen == 0 {
+		return a.newStatsJSONValuesProcessor()
+	}
+
+	if sv.limit <= 0 {
+		svp := a.newStatsJSONValuesSortedProcessor()
+		svp.sortFieldsLen = sortFieldsLen
+		return svp
+	}
+
+	svp := a.newStatsJSONValuesTopkProcessor()
+	svp.sortFieldsLen = sortFieldsLen
 	return svp
 }
 
 type statsJSONValuesProcessor struct {
-	values []string
-
-	a *chunkedAllocator
+	entries []string
 
 	fieldsBuf []Field
-	buf       []byte
 }
 
 func (svp *statsJSONValuesProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	sv := sf.(*statsJSONValues)
 	if svp.limitReached(sv) {
-		// Limit on the number of unique values has been reached
+		// Limit on the number of entries has been reached
 		return 0
 	}
 
 	stateSizeIncrease := 0
-
 	mc := getMatchingColumns(br, sv.fieldFilters)
 	mc.sort()
 	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
@@ -61,25 +94,10 @@ func (svp *statsJSONValuesProcessor) updateStatsForAllRows(sf statsFunc, br *blo
 	return stateSizeIncrease
 }
 
-func (svp *statsJSONValuesProcessor) updateStateForRow(br *blockResult, cs []*blockResultColumn, rowIdx int) int {
-	bytesAllocated := svp.a.bytesAllocated
-	fieldsBuf := svp.fieldsBuf[:0]
-	for _, c := range cs {
-		fieldsBuf = append(fieldsBuf, Field{
-			Name:  c.name,
-			Value: c.getValueAtRow(br, rowIdx),
-		})
-	}
-	svp.buf = MarshalFieldsToJSON(svp.buf[:0], fieldsBuf)
-	value := svp.a.cloneBytesToString(svp.buf)
-	svp.values = append(svp.values, value)
-	return (svp.a.bytesAllocated - bytesAllocated) + int(unsafe.Sizeof(value))
-}
-
 func (svp *statsJSONValuesProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
 	sv := sf.(*statsJSONValues)
 	if svp.limitReached(sv) {
-		// Limit on the number of unique values has been reached
+		// Limit on the number of entries has been reached
 		return 0
 	}
 
@@ -91,6 +109,20 @@ func (svp *statsJSONValuesProcessor) updateStatsForRow(sf statsFunc, br *blockRe
 	return stateSizeIncrease
 }
 
+func (svp *statsJSONValuesProcessor) updateStateForRow(br *blockResult, cs []*blockResultColumn, rowIdx int) int {
+	svp.fieldsBuf = slicesutil.SetLength(svp.fieldsBuf, len(cs))
+	for i, c := range cs {
+		svp.fieldsBuf[i] = Field{
+			Name:  c.name,
+			Value: c.getValueAtRow(br, rowIdx),
+		}
+	}
+
+	value := string(MarshalFieldsToJSON(nil, svp.fieldsBuf))
+	svp.entries = append(svp.entries, value)
+	return int(unsafe.Sizeof(value)) + len(value)
+}
+
 func (svp *statsJSONValuesProcessor) mergeState(_ *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
 	sv := sf.(*statsJSONValues)
 	if svp.limitReached(sv) {
@@ -98,83 +130,92 @@ func (svp *statsJSONValuesProcessor) mergeState(_ *chunkedAllocator, sf statsFun
 	}
 
 	src := sfp.(*statsJSONValuesProcessor)
-	svp.values = append(svp.values, src.values...)
+	svp.entries = append(svp.entries, src.entries...)
 }
 
 func (svp *statsJSONValuesProcessor) exportState(dst []byte, _ <-chan struct{}) []byte {
-	dst = encoding.MarshalVarUint64(dst, uint64(len(svp.values)))
-	for _, v := range svp.values {
+	dst = encoding.MarshalVarUint64(dst, uint64(len(svp.entries)))
+	for _, v := range svp.entries {
 		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
 	}
 	return dst
 }
 
 func (svp *statsJSONValuesProcessor) importState(src []byte, _ <-chan struct{}) (int, error) {
-	valuesLen, n := encoding.UnmarshalVarUint64(src)
+	entriesLen, n := encoding.UnmarshalVarUint64(src)
 	if n <= 0 {
-		return 0, fmt.Errorf("cannot unmarshal valuesLen")
+		return 0, fmt.Errorf("cannot unmarshal entriesLen")
 	}
 	src = src[n:]
 
-	values := make([]string, valuesLen)
-	stateSizeIncrease := int(unsafe.Sizeof(values[0])) * len(values)
-	for i := range values {
+	entries := make([]string, entriesLen)
+	stateSizeIncrease := int(unsafe.Sizeof(entries[0])) * len(entries)
+	for i := range entries {
 		v, n := encoding.UnmarshalBytes(src)
 		if n <= 0 {
 			return 0, fmt.Errorf("cannot unmarshal value")
 		}
 		src = src[n:]
 
-		values[i] = svp.a.cloneBytesToString(v)
-
+		entries[i] = string(v)
 		stateSizeIncrease += len(v)
 	}
 	if len(src) > 0 {
-		return 0, fmt.Errorf("unexpected tail left after unmarshaling values; len(tail)=%d", len(src))
+		return 0, fmt.Errorf("unexpected tail left after unmarshaling entries; len(tail)=%d", len(src))
 	}
 
-	if len(values) == 0 {
-		values = nil
+	if len(entries) == 0 {
+		entries = nil
 	}
-	svp.values = values
+	svp.entries = entries
 
 	return stateSizeIncrease, nil
 }
 
 func (svp *statsJSONValuesProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	sv := sf.(*statsJSONValues)
-	items := svp.values
-	if len(items) == 0 {
-		return append(dst, "[]"...)
+
+	entries := svp.entries
+
+	if limit := sv.limit; limit > 0 && uint64(len(entries)) > limit {
+		entries = entries[:limit]
 	}
 
-	if limit := sv.limit; limit > 0 && uint64(len(items)) > limit {
-		items = items[:limit]
-	}
-
-	return marshalJSONArray(dst, items)
+	return marshalJSONValues(dst, entries)
 }
 
 func (svp *statsJSONValuesProcessor) limitReached(sv *statsJSONValues) bool {
 	limit := sv.limit
-	return limit > 0 && uint64(len(svp.values)) > limit
+	return limit > 0 && uint64(len(svp.entries)) > limit
 }
 
-func parseStatsJSONValues(lex *lexer) (*statsJSONValues, error) {
+func parseStatsJSONValues(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "json_values")
 	if err != nil {
 		return nil, err
 	}
+
 	sv := &statsJSONValues{
 		fieldFilters: fieldFilters,
 	}
-	if lex.isKeyword("limit") {
+
+	if lex.isKeyword("sort", "order") {
 		lex.nextToken()
-		n, ok := tryParseUint64(lex.token)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse 'limit %s' for 'json_values': %w", lex.token, err)
+		if lex.isKeyword("by") {
+			lex.nextToken()
 		}
-		lex.nextToken()
+		sfs, err := parseBySortFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'sort': %w", err)
+		}
+		sv.sortFields = sfs
+	}
+
+	if lex.isKeyword("limit") {
+		n, err := parseLimit(lex)
+		if err != nil {
+			return nil, err
+		}
 		sv.limit = n
 	}
 	return sv, nil
