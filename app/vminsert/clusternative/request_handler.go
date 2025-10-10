@@ -51,40 +51,37 @@ func InsertHandler(c net.Conn) error {
 		}, nil)
 	}
 	if bc.IsStreamingMode {
-		return fmt.Errorf("BUG: connection in streaming mode cannot process RPC calls")
+		logger.Panicf("BUG: clusternative connection in streaming mode cannot process RPC calls")
 	}
 	ctx := vminsertapi.NewRequestCtx(bc)
 	rpcName, err := ctx.ReadRPCName()
 	if err != nil {
 		return fmt.Errorf("cannot read rpcName: %w", err)
 	}
-	var rpcFunc func() error
 	switch string(rpcName) {
 	case vminsertapi.MetricRowsRpcCall.VersionedName:
-		rpcFunc = func() error {
-			return stream.Parse(bc, func(rows []storage.MetricRow) error {
-				return insertRows(rows)
-			}, nil)
+		// send back empty error message
+		if err := ctx.WriteString(""); err != nil {
+			return fmt.Errorf("cannot send empty error message: %w", err)
 		}
 		bc.IsStreamingMode = true
+		return stream.Parse(bc, func(rows []storage.MetricRow) error {
+			return insertRows(rows)
+		}, nil)
 	case vminsertapi.MetricMetadataRpcCall.VersionedName:
-		// TODO: implement me
-		rpcFunc = func() error {
-			return nil
+		// send back empty error message
+		if err := ctx.WriteString(""); err != nil {
+			return fmt.Errorf("cannot send empty error message: %w", err)
 		}
-	}
-	if rpcFunc == nil {
+		// TODO: implement me
+		return nil
+	default:
 		err := fmt.Errorf("unsupported rpcName: %q", rpcName)
 		if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
 			err = fmt.Errorf("cannot write rpcName error back to client: %s: %w", writeErr, err)
 		}
 		return err
 	}
-	// send back empty error message
-	if err := ctx.WriteString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-	return rpcFunc()
 }
 
 func insertRows(rows []storage.MetricRow) error {

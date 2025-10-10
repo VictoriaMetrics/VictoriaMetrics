@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // ErrStorageReadOnly indicates that storage is in read-only mode
@@ -25,7 +26,7 @@ func StartRPCRequest(bc *handshake.BufferedConn, rpcName string) error {
 	defer sizeBufPool.Put(sizeBuf)
 
 	if bc.IsStreamingMode {
-		return fmt.Errorf("BUG: connection in streaming mode cannot process RPC calls")
+		logger.Panicf("BUG: connection in streaming mode cannot process RPC calls")
 	}
 
 	timeout := 5 * time.Second
@@ -34,7 +35,7 @@ func StartRPCRequest(bc *handshake.BufferedConn, rpcName string) error {
 		return fmt.Errorf("cannot set write rpcName deadline to %s: %w", deadline, err)
 	}
 	rpcNameBytes := bytesutil.ToUnsafeBytes(rpcName)
-	sizeBuf.B, err = sendDataOnBC(sizeBuf.B, bc, rpcNameBytes)
+	sizeBuf.B, err = sendData(sizeBuf.B, bc, rpcNameBytes)
 	if err != nil {
 		return fmt.Errorf("cannot write rpcName %q: %w", rpcName, err)
 	}
@@ -62,6 +63,7 @@ func SendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	// if len(tsBuf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
 	// See checkReadOnlyMode() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870
 
+	// adjust timeout accordingly to the forwarded buf size
 	timeoutSeconds := len(buf) / 3e5
 	if timeoutSeconds < 60 {
 		timeoutSeconds = 60
@@ -72,7 +74,7 @@ func SendToConn(bc *handshake.BufferedConn, buf []byte) error {
 		return fmt.Errorf("cannot set write deadline to %s: %w", deadline, err)
 	}
 	var err error
-	sizeBuf.B, err = sendDataOnBC(sizeBuf.B, bc, buf)
+	sizeBuf.B, err = sendData(sizeBuf.B, bc, buf)
 	if err != nil {
 		return fmt.Errorf("cannot write tsBuf with size %d: %w", len(buf), err)
 	}
@@ -120,7 +122,7 @@ func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte,
 	return buf, nil
 }
 
-func sendDataOnBC(sizeBuf []byte, bc *handshake.BufferedConn, data []byte) ([]byte, error) {
+func sendData(sizeBuf []byte, bc *handshake.BufferedConn, data []byte) ([]byte, error) {
 	sizeBuf = encoding.MarshalUint64(sizeBuf[:0], uint64(len(data)))
 	if _, err := bc.Write(sizeBuf); err != nil {
 		return sizeBuf, fmt.Errorf("cannot write data size %d: %w", len(data), err)

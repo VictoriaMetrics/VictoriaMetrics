@@ -9,5 +9,10 @@ const MaxInsertPacketSizeForVMStorage = 100 * 1024 * 1024
 // max memory usage occupied by buffers at vminsert and vmstorage.
 const MaxInsertPacketSizeForVMInsert = 30 * 1024 * 1024
 
+// StorageStatusAck defines status response from vmstorage which indicates that request
+// was successfully processed
 const StorageStatusAck = 1
+
+// StorageStatusReadOnly defines status response from vmstorage which indicates that request
+// cannot be processed due to read-only status of vmstorage
 const StorageStatusReadOnly = 2

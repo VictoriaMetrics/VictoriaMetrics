@@ -13,9 +13,9 @@ import (
 var rpcHandshakeTimeout = flag.Duration("rpc.handshakeTimeout", 5*time.Second, "Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. See https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability section for more details.")
 
 const (
-	vminsertHelloPrev = "vminsert.02"
-	vminsertHello     = "vminsert.03"
-	vmselectHello     = "vmselect.01"
+	vminsertHelloLegacyVersion = "vminsert.02"
+	vminsertHello              = "vminsert.03"
+	vmselectHello              = "vmselect.01"
 
 	successResponse = "ok"
 )
@@ -50,7 +50,7 @@ func VMInsertClientWithDialer(dial func() (net.Conn, error), compressionLevel in
 	if err != nil {
 		return nil, fmt.Errorf("dial error: %w", err)
 	}
-	bc, err = genericClient(c, vminsertHelloPrev, compressionLevel)
+	bc, err = genericClient(c, vminsertHelloLegacyVersion, compressionLevel)
 	if err != nil {
 		_ = c.Close()
 		return nil, fmt.Errorf("prev handshake error: %w", err)
@@ -92,7 +92,7 @@ func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	isRPCSupported := string(buf) == vminsertHello
 	if !isRPCSupported {
 		// try to fallback to the previous protocol version
-		if string(buf) != vminsertHelloPrev {
+		if string(buf) != vminsertHelloLegacyVersion {
 			return nil, fmt.Errorf("unexpected message obtained; got %q; want %q", buf, vminsertHello)
 		}
 	}
@@ -107,16 +107,16 @@ func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	return bc, nil
 }
 
-// VMInsertServerNonRPC performs server-side handshake for vminsert protocol.
-// it uses previous non-RPC compatible RPC version.
+// VMInsertServerWithLegacyHello performs server-side handshake for vminsert protocol
+// with legacy hello  message
 //
 // should be used for testing only
-func VMInsertServerNonRPC(c net.Conn, compressionLevel int) (*BufferedConn, error) {
+func VMInsertServerWithLegacyHello(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
 		return nil, fmt.Errorf("cannot set deadline: %w", err)
 	}
 
-	buf, err := readData(c, len(vminsertHelloPrev))
+	buf, err := readData(c, len(vminsertHelloLegacyVersion))
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
@@ -125,8 +125,8 @@ func VMInsertServerNonRPC(c net.Conn, compressionLevel int) (*BufferedConn, erro
 		}
 		return nil, fmt.Errorf("cannot read hello: %w", err)
 	}
-	if string(buf) != vminsertHelloPrev {
-		return nil, fmt.Errorf("unexpected message obtained; got %q; want %q", buf, vminsertHello)
+	if string(buf) != vminsertHelloLegacyVersion {
+		return nil, fmt.Errorf("unexpected message obtained; got %q; want %q", buf, vminsertHelloLegacyVersion)
 	}
 
 	if err := writeMessage(c, successResponse); err != nil {

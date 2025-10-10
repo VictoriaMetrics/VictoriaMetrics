@@ -46,7 +46,7 @@ func TestProtocolMigration(t *testing.T) {
 			t.Fatalf("cannot create server: %s", err)
 		}
 		defer ts.MustStop()
-		ts.handshakeFunc = handshake.VMInsertServerNonRPC
+		ts.handshakeFunc = handshake.VMInsertServerWithLegacyHello
 
 		// client must fallback to the prev hello message
 		bc, err := handshake.VMInsertClientWithDialer(func() (net.Conn, error) {
