@@ -58,6 +58,11 @@ export const useSetQueryParams = () => {
         newSearchParams.set(`${group}.relative_time`, relativeTime || "none");
       }
 
+      const exprHide = searchParams.get("expr.hide") || "";
+      if (exprHide !== "") {
+        newSearchParams.set("expr.hide", exprHide);
+      }
+
       const stepFromUrl = searchParams.get(`${group}.step_input`) || step;
       if (stepFromUrl && (stepFromUrl !== customStep)) {
         newSearchParams.set(`${group}.step_input`, customStep);
