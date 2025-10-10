@@ -14,7 +14,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
-
 	"github.com/valyala/fastjson/fastfloat"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -753,6 +752,61 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
+	return nil
+}
+
+// MetadataHandler processes /api/v1/metadata request.
+//
+// See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
+func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
+	cp, err := getCommonParamsForLabelsAPI(r, startTime, false)
+	if err != nil {
+		return err
+	}
+	limit, err := httputil.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
+	if limit < 0 {
+		limit = 0
+	}
+
+	metricName := r.FormValue("metric")
+
+	var tt *storage.TenantToken
+	if at != nil {
+		tt = &storage.TenantToken{
+			AccountID: at.AccountID,
+			ProjectID: at.ProjectID,
+		}
+	}
+
+	denyPartialResponse := httputil.GetDenyPartialResponse(r)
+
+	metadata, isPartial, err := netstorage.GetMetricsMetadata(qt, tt, denyPartialResponse, limit, metricName, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot get metadata: %w", err)
+	}
+	unique := make(map[string]struct{}, len(metadata))
+	var cnt int
+	for _, mdr := range metadata {
+		if _, ok := unique[string(mdr.MetricFamilyName)]; ok {
+			continue
+		}
+		unique[bytesutil.ToUnsafeString(mdr.MetricFamilyName)] = struct{}{}
+		metadata[cnt] = mdr
+		cnt++
+	}
+	metadata = metadata[:cnt]
+	qt.Done()
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetadataResponse(bw, isPartial, metadata, qt)
+	if err := bw.Flush(); err != nil {
+		return fmt.Errorf("cannot send metadata response to remote client: %w", err)
+	}
+
 	return nil
 }
 
