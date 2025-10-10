@@ -89,6 +89,11 @@ type FS struct {
 	// Whether to use HTTP client with tls.InsecureSkipVerify setting
 	TLSInsecureSkipVerify bool
 
+	// SSEKMSKeyId
+	SSEKMSKeyId  string
+	SSEAlgorithm s3types.ServerSideEncryption
+	ACL          s3types.ObjectCannedACL
+
 	s3       *s3.Client
 	uploader *manager.Uploader
 
@@ -311,6 +316,13 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		MetadataDirective: s3types.MetadataDirectiveReplace,
 		Tagging:           fs.tags,
 	}
+	if len(fs.SSEKMSKeyId) > 0 {
+		input.SSEKMSKeyId = aws.String(fs.SSEKMSKeyId)
+		input.ServerSideEncryption = fs.SSEAlgorithm
+	}
+	if len(fs.ACL) > 0 {
+		input.ACL = fs.ACL
+	}
 
 	_, err := fs.s3.CopyObject(fs.ctx, input)
 	if err != nil {
@@ -358,6 +370,13 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		Metadata:          fs.Metadata,
 		ChecksumAlgorithm: fs.ChecksumAlgorithm,
 		Tagging:           fs.tags,
+	}
+	if len(fs.SSEKMSKeyId) > 0 {
+		input.SSEKMSKeyId = aws.String(fs.SSEKMSKeyId)
+		input.ServerSideEncryption = fs.SSEAlgorithm
+	}
+	if len(fs.ACL) > 0 {
+		input.ACL = fs.ACL
 	}
 
 	_, err := fs.uploader.Upload(fs.ctx, input)
@@ -452,6 +471,14 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 		ChecksumAlgorithm: fs.ChecksumAlgorithm,
 		Tagging:           fs.tags,
 	}
+	if len(fs.SSEKMSKeyId) > 0 {
+		input.SSEKMSKeyId = aws.String(fs.SSEKMSKeyId)
+		input.ServerSideEncryption = fs.SSEAlgorithm
+	}
+	if len(fs.ACL) > 0 {
+		input.ACL = fs.ACL
+	}
+
 	_, err := fs.uploader.Upload(fs.ctx, input)
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", filePath, fs, path, err)
