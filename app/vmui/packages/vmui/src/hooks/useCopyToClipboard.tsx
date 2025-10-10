@@ -61,7 +61,7 @@ const DebugInfoClipboardApi = () => (
             target="_blank"
             rel="noopener noreferrer"
           >
-          Clipboard API documentation
+            Clipboard API documentation
           </a>
         </p>
       </p>

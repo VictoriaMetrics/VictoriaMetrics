@@ -142,6 +142,7 @@ const TextField: FC<TextFieldProps> = ({
   >
     {startIcon && <div className="vm-text-field__icon-start">{startIcon}</div>}
     {endIcon && <div className="vm-text-field__icon-end">{endIcon}</div>}
+    {label && <span className="vm-text-field__label">{label}</span>}
     {type === "textarea"
       ? (
         <textarea
@@ -180,7 +181,6 @@ const TextField: FC<TextFieldProps> = ({
         />
       )
     }
-    {label && <span className="vm-text-field__label">{label}</span>}
     <TextFieldMessage
       error={error}
       warning={warning}
