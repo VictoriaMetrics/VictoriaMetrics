@@ -40,8 +40,8 @@ func (c *Client) setVLogsRangeReqParams(r *http.Request, query string, start, en
 	c.setReqParams(r, query)
 }
 
-func parseVLogsResponse(req *http.Request, resp *http.Response) (res Result, err error) {
-	res, err = parsePrometheusResponse(req, resp)
+func parseVLogsResponse(resp *http.Response) (res Result, err error) {
+	res, err = parsePrometheusResponse(resp)
 	if err != nil {
 		return Result{}, err
 	}
