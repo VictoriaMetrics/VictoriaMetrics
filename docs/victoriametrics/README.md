@@ -1918,8 +1918,8 @@ can be used to notify the user of cache utilization exceeding 90%.
 The metric name tracker state can be **reset** via the API endpoint `/api/v1/admin/status/metric_names_stats/reset`
 for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/admin/api/v1/admin/status/metric_names_stats/reset`
 in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)) or
-via [cache removal](#cache-removal) procedure. This reset state endpoint can be protected via `-metricNamesStatsResetAuthKey`
-cmd-line flag. See [Security](#security) for details.
+via [cache removal](https://docs.victoriametrics.com/victoriametrics/#cache-removal) procedure. This reset state endpoint can be protected via `-metricNamesStatsResetAuthKey`
+cmd-line flag. See [Security](https://docs.victoriametrics.com/victoriametrics/#security) for details.
 
 ## Query tracing
 
