@@ -8,18 +8,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	grpc_codes "google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/stats"
-	"google.golang.org/grpc/status"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
-	"go.opentelemetry.io/otel/semconv/v1.34.0/rpcconv"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/semconv/v1.37.0/rpcconv"
 	"go.opentelemetry.io/otel/trace"
+	grpc_codes "google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/stats"
+	"google.golang.org/grpc/status"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal"
 )
@@ -91,12 +90,12 @@ func NewServerHandler(opts ...Option) stats.Handler {
 }
 
 // TagConn can attach some information to the given context.
-func (h *serverHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
+func (*serverHandler) TagConn(ctx context.Context, _ *stats.ConnTagInfo) context.Context {
 	return ctx
 }
 
 // HandleConn processes the Conn stats.
-func (h *serverHandler) HandleConn(ctx context.Context, info stats.ConnStats) {
+func (*serverHandler) HandleConn(context.Context, stats.ConnStats) {
 }
 
 // TagRPC can attach some information to the given context.
@@ -253,12 +252,12 @@ func (h *clientHandler) HandleRPC(ctx context.Context, rs stats.RPCStats) {
 }
 
 // TagConn can attach some information to the given context.
-func (h *clientHandler) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
+func (*clientHandler) TagConn(ctx context.Context, _ *stats.ConnTagInfo) context.Context {
 	return ctx
 }
 
 // HandleConn processes the Conn stats.
-func (h *clientHandler) HandleConn(context.Context, stats.ConnStats) {
+func (*clientHandler) HandleConn(context.Context, stats.ConnStats) {
 	// no-op
 }
 

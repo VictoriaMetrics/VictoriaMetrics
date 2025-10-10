@@ -98,8 +98,10 @@ func (in *GetBucketLocationInput) bindEndpointParams(p *EndpointParameters) {
 type GetBucketLocationOutput struct {
 
 	// Specifies the Region where the bucket resides. For a list of all the Amazon S3
-	// supported location constraints by Region, see [Regions and Endpoints]. Buckets in Region us-east-1
-	// have a LocationConstraint of null .
+	// supported location constraints by Region, see [Regions and Endpoints].
+	//
+	// Buckets in Region us-east-1 have a LocationConstraint of null . Buckets with a
+	// LocationConstraint of EU reside in eu-west-1 .
 	//
 	// [Regions and Endpoints]: https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
 	LocationConstraint types.BucketLocationConstraint
@@ -183,6 +185,9 @@ func (c *Client) addOperationGetBucketLocationMiddlewares(stack *middleware.Stac
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetBucketLocationValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -214,6 +219,36 @@ func (c *Client) addOperationGetBucketLocationMiddlewares(stack *middleware.Stac
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
 		return err
 	}
 	if err = addSpanInitializeStart(stack); err != nil {

@@ -162,7 +162,7 @@ func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 		bb.B = bloomFilterMarshalHashes(bb.B[:0], hashesBuf.A)
 		encoding.PutUint64s(hashesBuf)
 	} else {
-		// there is no need in ecoding bloom filter for dictionary type,
+		// there is no need in encoding bloom filter for dictionary type,
 		// since it isn't used during querying - all the dictionary values are available in ch.valuesDict
 		bb.B = bb.B[:0]
 	}

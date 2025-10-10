@@ -46,6 +46,27 @@ type IndexdbStats struct {
 
 	// IndexdbPartsCount is the number of parts in indexdb.
 	IndexdbPartsCount uint64
+
+	// IndexdbPendingItems is the number of pending items in IndexedDB before they are merged into the part.
+	IndexdbPendingItems uint64
+
+	// IndexdbActiveFileMerges is the number of active merges in indexdb.
+	IndexdbActiveFileMerges uint64
+
+	// IndexdbActiveInmemoryMerges is the number of active merges in indexdb.
+	IndexdbActiveInmemoryMerges uint64
+
+	// IndexdbFileMergesCount is the number of merges in indexdb.
+	IndexdbFileMergesCount uint64
+
+	// IndexdbInmemoryMergesCount is the number of merges in indexdb.
+	IndexdbInmemoryMergesCount uint64
+
+	// IndexdbFileItemsMerged is the number of items merged in indexdb.
+	IndexdbFileItemsMerged uint64
+
+	// IndexdbInmemoryItemsMerged is the number of items merged in indexdb.
+	IndexdbInmemoryItemsMerged uint64
 }
 
 type indexdb struct {
@@ -74,6 +95,7 @@ type indexdb struct {
 
 func mustCreateIndexdb(path string) {
 	fs.MustMkdirFailIfExist(path)
+	fs.MustSyncPathAndParentDir(path)
 }
 
 func mustOpenIndexdb(path, partitionName string, s *Storage) *indexdb {
@@ -99,6 +121,10 @@ func (idb *indexdb) debugFlush() {
 	idb.tb.DebugFlush()
 }
 
+func (idb *indexdb) mustCreateSnapshotAt(dstDir string) {
+	idb.tb.MustCreateSnapshotAt(dstDir)
+}
+
 func (idb *indexdb) updateStats(d *IndexdbStats) {
 	d.StreamsCreatedTotal += idb.streamsCreatedTotal.Load()
 
@@ -107,8 +133,15 @@ func (idb *indexdb) updateStats(d *IndexdbStats) {
 
 	d.IndexdbSizeBytes += tm.InmemorySizeBytes + tm.FileSizeBytes
 	d.IndexdbItemsCount += tm.InmemoryItemsCount + tm.FileItemsCount
+	d.IndexdbPendingItems += tm.PendingItems
 	d.IndexdbPartsCount += tm.InmemoryPartsCount + tm.FilePartsCount
 	d.IndexdbBlocksCount += tm.InmemoryBlocksCount + tm.FileBlocksCount
+	d.IndexdbActiveFileMerges = tm.ActiveFileMerges
+	d.IndexdbActiveInmemoryMerges = tm.ActiveInmemoryMerges
+	d.IndexdbFileMergesCount += tm.FileMergesCount
+	d.IndexdbInmemoryMergesCount += tm.InmemoryMergesCount
+	d.IndexdbFileItemsMerged += tm.FileItemsMerged
+	d.IndexdbInmemoryItemsMerged += tm.InmemoryItemsMerged
 }
 
 func (idb *indexdb) appendStreamTagsByStreamID(dst []byte, sid *streamID) []byte {
@@ -437,6 +470,47 @@ func (is *indexSearch) getStreamIDsForTagRegexp(tenantID TenantID, tagName strin
 	return ids
 }
 
+func (is *indexSearch) getTenantIDs() []TenantID {
+	var tenantIDs []TenantID // return as result
+	var tenantID TenantID    // variable for unmarshal
+
+	ts := &is.ts
+	kb := &is.kb
+
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixStreamID, tenantID)
+	ts.Seek(kb.B)
+
+	for ts.NextItem() {
+		_, prefix, err := unmarshalCommonPrefix(&tenantID, ts.Item)
+		if err != nil {
+			logger.Panicf("FATAL: cannot unmarshal tenantID: %s", err)
+		}
+		if prefix != nsPrefixStreamID {
+			// Reached the end of entries with the needed prefix.
+			break
+		}
+		tenantIDs = append(tenantIDs, tenantID)
+		// Seek for the next (accountID, projectID)
+		tenantID.ProjectID++
+		if tenantID.ProjectID == 0 {
+			tenantID.AccountID++
+			if tenantID.AccountID == 0 {
+				// Reached the end (accountID, projectID) space
+				break
+			}
+		}
+
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixStreamID, tenantID)
+		ts.Seek(kb.B)
+	}
+
+	if err := ts.Error(); err != nil {
+		logger.Panicf("FATAL: error when searching for tenant ids: %s", err)
+	}
+
+	return tenantIDs
+}
+
 func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical string) {
 	st := GetStreamTags()
 	mustUnmarshalStreamTags(st, streamTagsCanonical)
@@ -540,6 +614,13 @@ func (idb *indexdb) storeStreamIDsToCache(tenantIDs []TenantID, sf *StreamFilter
 	bb.B = idb.marshalStreamFilterCacheKey(bb.B[:0], tenantIDs, sf)
 	idb.s.filterStreamCache.Set(bb.B, &b)
 	bbPool.Put(bb)
+}
+
+func (idb *indexdb) searchTenants() []TenantID {
+	is := idb.getIndexSearch()
+	defer idb.putIndexSearch(is)
+
+	return is.getTenantIDs()
 }
 
 type batchItems struct {

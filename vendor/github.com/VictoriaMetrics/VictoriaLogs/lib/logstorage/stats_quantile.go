@@ -196,7 +196,7 @@ func (sqp *statsQuantileProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-c
 	return append(dst, q...)
 }
 
-func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
+func parseStatsQuantile(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "quantile")
 	if err != nil {
 		return nil, err

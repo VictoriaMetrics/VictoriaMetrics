@@ -1,5 +1,10 @@
 package logstorage
 
+// maxParallelReaders is the maximum parallel readers to use when executing a query.
+//
+// bigger number of parallel readers may help increasing query performance on high-latency storage such as S3 and NFS.
+const maxParallelReaders = 2_000
+
 // partFormatLatestVersion is the latest format version for parts.
 //
 // See partHeader.FormatVersion for details.
@@ -60,7 +65,7 @@ const maxColumnsHeaderIndexSize = 8 * 1024 * 1024
 
 // maxDictSizeBytes is the maximum length of all the keys in the valuesDict.
 //
-// Dict is stored in columnsHeader, which is read every time the corresponding block is scanned during search qieries.
+// Dict is stored in columnsHeader, which is read every time the corresponding block is scanned during search queries.
 // So it is better to store bigger values in regular columns in order to speed up search speed.
 const maxDictSizeBytes = 256
 
