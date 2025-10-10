@@ -26,9 +26,14 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+**Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): default value of the flag `-promscrape.dropOriginalLabels` changed from `false` to `true`.
+It disables `Discovered targets` debug IU by default.
+
 * SECURITY: upgrade Go builder from Go1.25.1 to Go1.25.2. See [the list of issues addressed in Go1.25.2](https://github.com/golang/go/issues?q=milestone%3AGo1.25.2%20label%3ACherryPickApproved).
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-secret.flags` command-line flag to configure flags to be hidden in logs and on `/metrics`. This is useful for protecting sensitive flag values (for example `-remoteWrite.headers`) from being exposed in logs or metrics. See [#6938](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6938). Thank you @truepele for the issue and PR
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): reduce CPU and Memory usage by dropping service-discovery original labels by default. Default value of the flag `-promscrape.dropOriginalLabels` changed from `false` to `true`. See this issue [#9665](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9665) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): change default value of the flag `-promscrape.dropOriginalLabels` from `false` to `true`. This helps reducing CPU and Memory usage by dropping targets original labels during [service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/), but disables [relabel debugging UI](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging). This change gives constant improvement on resource usage, and relabel debugging can be turned on on demand. See this issue [#9665](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9665) for details.
 
 ## [v1.127.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.127.0)
 
