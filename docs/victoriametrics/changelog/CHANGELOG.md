@@ -32,6 +32,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): on the [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) page, rename `Reset` to `Reset filters` and disable the button when no filters are modified. See [#9609](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9609).
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix issue where updating one query parameter removed others. See [#9816](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9816) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) alerting tab: update the search filter if the corresponding query argument was passed. Reset selected items in dropdown filters if they are not available anymore after the update.
 
 ## [v1.127.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.127.0)
 
