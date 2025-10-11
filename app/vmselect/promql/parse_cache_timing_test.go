@@ -141,7 +141,7 @@ var testSimpleQueries = []string{
 
 func BenchmarkParsePromQLWithCacheSimple(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := 0; j < len(testSimpleQueries); j++ {
 			_, err := parsePromQLWithCache(testSimpleQueries[j])
 			if err != nil {
@@ -210,7 +210,7 @@ var testComplexQueries = []string{
 
 func BenchmarkParsePromQLWithCacheComplex(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := 0; j < len(testComplexQueries); j++ {
 			_, err := parsePromQLWithCache(testComplexQueries[j])
 			if err != nil {
