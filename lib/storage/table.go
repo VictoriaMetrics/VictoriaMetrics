@@ -108,6 +108,9 @@ func mustOpenTable(path string, s *Storage) *table {
 	// Open partitions.
 	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, s)
 
+	// Make sure all the directories inside the path are properly synced.
+	fs.MustSyncPathAndParentDir(path)
+
 	tb := &table{
 		path:                path,
 		smallPartitionsPath: smallPartitionsPath,
@@ -144,10 +147,8 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
 		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath)
 	}
 
-	fs.MustSyncPath(dstSmallDir)
-	fs.MustSyncPath(dstBigDir)
-	fs.MustSyncPath(filepath.Dir(dstSmallDir))
-	fs.MustSyncPath(filepath.Dir(dstBigDir))
+	fs.MustSyncPathAndParentDir(dstSmallDir)
+	fs.MustSyncPathAndParentDir(dstBigDir)
 
 	logger.Infof("created table snapshot for %q at (%q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, time.Since(startTime).Seconds())
 	return dstSmallDir, dstBigDir
@@ -460,10 +461,10 @@ func (tb *table) historicalMergeWatcher() {
 		for _, ptw := range ptws {
 			if ptw.pt.name == currentPartitionName {
 				// Do not run force merge for the current month.
-				// For the current month, the samples are countinously
+				// For the current month, the samples are continuously
 				// deduplicated and retention filters applied by the background in-memory, small, and big part
 				// merge tasks. See:
-				// - partition.mergeParts() in paritiont.go and
+				// - partition.mergeParts() in partition.go and
 				// - Block.deduplicateSamplesDuringMerge() in block.go.
 				// - blockStreamMerger.getRetentionDeadline() in block_stream_merger.go
 				continue

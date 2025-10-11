@@ -31,7 +31,7 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
   const { isMobile } = useDeviceDetect();
 
   const windowSize = useWindowSize();
-  const displaySidebar = useMemo(() => window.innerWidth < 1000, [windowSize]);
+  const displaySidebar = useMemo(() => window.innerWidth < 1230, [windowSize]);
 
   const { isDarkTheme } = useAppState();
   const appModeEnable = getAppModeEnable();
@@ -67,44 +67,33 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
     })}
     style={{ background, color }}
   >
+    <div
+      className={classNames({
+        "vm-header-logo": true,
+        "vm-header-logo_mobile": displaySidebar,
+      })}
+      onClick={onClickLogo}
+      style={{ color }}
+    >
+      {<Logo/>}
+    </div>
+
     {displaySidebar ? (
       <SidebarHeader
         background={background}
         color={color}
       />
     ) : (
-      <>
-        {!appModeEnable && (
-          <div
-            className="vm-header-logo"
-            onClick={onClickLogo}
-            style={{ color }}
-          >
-            {<Logo/>}
-          </div>
-        )}
-        <HeaderNav
-          color={color}
-          background={background}
-        />
-      </>
-    )}
-    {displaySidebar && (
-      <div
-        className={classNames({
-          "vm-header-logo": true,
-          "vm-header-logo_mobile": true,
-        })}
-        onClick={onClickLogo}
-        style={{ color }}
-      >
-        {<Logo/>}
-      </div>
+      <HeaderNav
+        color={color}
+        background={background}
+      />
     )}
     <HeaderControls
       controlsComponent={controlsComponent}
       displaySidebar={displaySidebar}
       isMobile={isMobile}
+      closeModal={() => {}}
     />
   </header>;
 };

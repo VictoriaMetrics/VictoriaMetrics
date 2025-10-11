@@ -1,34 +1,39 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useCallback } from "preact/compat";
 
+type ParamValue = string | number | boolean | null | undefined;
 
 const useSearchParamsFromObject = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const setSearchParamsFromKeys = useCallback((objectParams: Record<string, string | number>) => {
-    const hasSearchParams = !!Array.from(searchParams.values()).length;
-    let hasChanged = false;
+  const setSearchParamsFromKeys = useCallback((objectParams: Record<string, ParamValue>) => {
+    const hadParams = !!searchParams.size;
 
-    Object.entries(objectParams).forEach(([key, value]) => {
-      if (searchParams.get(key) !== `${value}`) {
-        searchParams.set(key, `${value}`);
-        hasChanged = true;
+    const newSearchParams = new URLSearchParams(searchParams);
+    const beforeParams = searchParams.toString();
+
+    for (const [key, newValue] of Object.entries(objectParams)) {
+      const isEmpty = newValue === null || newValue === undefined || newValue === "";
+
+      if (isEmpty) {
+        newSearchParams.delete(key);
+        continue;
       }
-    });
 
-    if (!hasChanged) return;
-
-    if (hasSearchParams) {
-      setSearchParams(searchParams);
-    } else {
-      navigate(`?${searchParams.toString()}`, { replace: true });
+      const next = String(newValue);
+      if (newSearchParams.get(key) !== next) {
+        newSearchParams.set(key, next);
+      }
     }
-  }, [searchParams, navigate]);
 
-  return {
-    setSearchParamsFromKeys
-  };
+    if (beforeParams === newSearchParams.toString()) return;
+
+    setSearchParams(newSearchParams, { replace: !hadParams });
+  },
+  [searchParams, setSearchParams]
+  );
+
+  return { setSearchParamsFromKeys };
 };
 
 export default useSearchParamsFromObject;

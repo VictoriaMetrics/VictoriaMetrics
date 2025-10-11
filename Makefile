@@ -12,11 +12,12 @@ PKG_TAG := $(BUILDINFO_TAG)
 endif
 
 EXTRA_DOCKER_TAG_SUFFIX ?=
+EXTRA_GO_BUILD_TAGS ?=
 
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
-GOLANGCI_LINT_VERSION := 2.2.1
+GOLANGCI_LINT_VERSION := 2.4.0
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -169,9 +170,11 @@ vmutils-windows-amd64: \
 	vmrestore-windows-amd64 \
 	vmctl-windows-amd64
 
+# When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 crossbuild:
 	$(MAKE_PARALLEL) victoria-metrics-crossbuild vmutils-crossbuild
 
+# When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 victoria-metrics-crossbuild: \
 	victoria-metrics-linux-386 \
 	victoria-metrics-linux-amd64 \
@@ -184,6 +187,7 @@ victoria-metrics-crossbuild: \
 	victoria-metrics-openbsd-amd64 \
 	victoria-metrics-windows-amd64
 
+# When adding a new crossbuild target, please also add it to the .github/workflows/build.yml
 vmutils-crossbuild: \
 	vmutils-linux-386 \
 	vmutils-linux-amd64 \
@@ -467,16 +471,16 @@ vendor-update:
 	go mod vendor
 
 app-local:
-	CGO_ENABLED=1 go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=1 go build $(RACE) -ldflags "$(GO_BUILDINFO)" -tags "$(EXTRA_GO_BUILD_TAGS)" -o bin/$(APP_NAME)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-local-pure:
-	CGO_ENABLED=0 go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-pure$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=0 go build $(RACE) -ldflags "$(GO_BUILDINFO)" -tags "$(EXTRA_GO_BUILD_TAGS)" -o bin/$(APP_NAME)-pure$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-local-goos-goarch:
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-$(GOOS)-$(GOARCH)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -tags "$(EXTRA_GO_BUILD_TAGS)" -o bin/$(APP_NAME)-$(GOOS)-$(GOARCH)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-local-windows-goarch:
-	CGO_ENABLED=0 GOOS=windows GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-windows-$(GOARCH)$(RACE).exe $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=0 GOOS=windows GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -tags "$(EXTRA_GO_BUILD_TAGS)" -o bin/$(APP_NAME)-windows-$(GOARCH)$(RACE).exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 quicktemplate-gen: install-qtc
 	qtc

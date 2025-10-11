@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) service:
 
 - [Model(s) section](https://docs.victoriametrics.com/anomaly-detection/components/models/) - Required
@@ -82,6 +90,8 @@ reader:
   sampling_period: "30s"  # what data resolution to fetch from VictoriaMetrics' /query_range endpoint
   latency_offset: '1ms'
   query_from_last_seen_timestamp: False
+  tz: "UTC"  # timezone to use for queries without explicit timezone
+  "offset": "0s"  # offset to apply to all queries, e.g. to account for data delays, can be overridden on per-query basis
   queries:  # aliases to MetricsQL expressions
     cpu_seconds_total:
       expr: 'avg(rate(node_cpu_seconds_total[5m])) by (mode)' 
@@ -112,19 +122,19 @@ monitoring:
 
 ## Hot reload
 
-> This feature is better used in conjunction with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings#state-restoration) to preserve the state of the models and schedulers between restarts and reuse what can be reused, thus avoiding unnecessary re-training of models, re-initialization of schedulers and re-reading of data.
+> This feature is better used in conjunction with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) to preserve the state of the models and schedulers between restarts and reuse what can be reused, thus avoiding unnecessary re-training of models, re-initialization of schedulers and re-reading of data.
 
 {{% available_from "v1.25.0" anomaly %}} Service supports hot reload of configuration files, which allows for automatic reloading of configurations on config files change filesystem events without the need of explicit service restart. This can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments). `vmanomaly_hot_reload_enabled` flag in [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) will be set to 1 (if enabled) or 0 (if disabled).
 
 ### How it works
 
-It works by watching for file system events, such as modifications, creations, or deletions of `.yml|.yaml` files in the specified directories. When a change is detected, the service will attempt to reload the configuration files, rebuild the [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#global-config) and reinitialize the components. If the reload is successful, the `vmanomaly_hot_reload_events_total` metric will be incremented for `status="success"` label, otherwise it will be incremented with `status="failure"` label and a respective error message on config validation failure(s) will be logged.
+It works by watching for file system events, such as modifications, creations, or deletions of `.yml|.yaml` files in the specified directories. When a change is detected, the service will attempt to reload the configuration files, rebuild the [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-config) and reinitialize the components. If the reload is successful, the `vmanomaly_hot_reload_events_total` metric will be incremented for `status="success"` label, otherwise it will be incremented with `status="failure"` label and a respective error message on config validation failure(s) will be logged.
 
 > If the reload fails, the service will log an error message indicating the reason for the failure, and the **previous configuration will remain active until a successful reload occurs** to preserve the service's stability. This means that if there are errors in the new configuration, the service will continue to operate with the last valid configuration until the issues are resolved.
 
-If used on [sharded setup](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#horizontal-scalability), upon [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#global-config) change, all shards will be reinitialized with the new configurations.
+If used on [sharded setup](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#horizontal-scalability), upon [global config](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#global-config) change, all shards will be reinitialized with the new configurations.
 
-> Please note, that even if [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings#state-restoration) is enabled, the models, queries and schedulers might "migrate" to new shards if the order or the amount of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly#sub-configuration) changes after new config is hot-reloaded, so the state restoration won't be **fully** efficient in this case.
+> Please note, that even if [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) is enabled, the models, queries and schedulers might "migrate" to new shards if the order or the amount of [sub-configs](https://docs.victoriametrics.com/anomaly-detection/scaling-vmanomaly/#sub-configuration) changes after new config is hot-reloaded, so the state restoration won't be **fully** efficient in this case.
 
 ### Example
 

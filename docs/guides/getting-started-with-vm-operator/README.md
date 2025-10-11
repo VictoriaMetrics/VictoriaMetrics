@@ -1,3 +1,11 @@
+---
+build:
+  list: never
+  publishResources: false
+  render: never
+sitemap:
+  disable: true
+---
 **The guide covers:**
 
 * The setup of a [VM Operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator) via Helm in [Kubernetes](https://kubernetes.io/) with Helm charts.
@@ -14,7 +22,7 @@
 
 ## 1. VictoriaMetrics Helm repository
 
-See how to work with a [VictoriaMetrics Helm repository in previous guide](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#1-victoriametrics-helm-repository).
+See how to work with a [VictoriaMetrics Helm repository in previous guide](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#1-victoriametrics-helm-repository).
 
 ## 2. Install the VM Operator from the Helm chart
 
@@ -136,7 +144,7 @@ vminsert-example-vmcluster-persistent    ClusterIP   10.107.47.136   <none>     
 ```
 
 To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [VMAgent](https://docs.victoriametrics.com/victoriametrics/vmagent/) with some additional configurations.
-Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field [https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html#example-cluster-config](https://docs.victoriametrics.com/guides/getting-started-with-vm-operator.html#example-cluster-config)) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.md#vmagent).
+Copy `vminsert-example-vmcluster-persistent` (or whatever user put into metadata.name field [https://docs.victoriametrics.com/guides/getting-started-with-vm-operator/#example-cluster-config](https://docs.victoriametrics.com/guides/getting-started-with-vm-operator/#example-cluster-config)) service name and add it to the `remoteWrite` URL from [quick-start example](https://github.com/VictoriaMetrics/operator/blob/master/docs/quick-start.md#vmagent).
 Here is an example of the full configuration that we need to apply:
 
 
@@ -209,7 +217,7 @@ You will see something like this:
 
 ## 4. Verifying VictoriaMetrics cluster
 
-See [how to install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster.html#4-install-and-connect-grafana-to-victoriametrics-with-helm) but with one addition - we should get the name of `vmselect` service from the freshly installed VictoriaMetrics Cluster because it will now be different.
+See [how to install and connect Grafana to VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#4-install-and-connect-grafana-to-victoriametrics-with-helm) but with one addition - we should get the name of `vmselect` service from the freshly installed VictoriaMetrics Cluster because it will now be different.
 
 To get the new service name, please run the following command:
 

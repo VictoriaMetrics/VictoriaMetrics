@@ -9,7 +9,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
-	libfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -103,7 +102,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	}
 	// Attempt to create hardlink from srcPath to dstPath.
 	if err := os.Link(srcPath, dstPath); err == nil {
-		libfs.MustSyncPath(dstPath)
+		// There is no need in fsync for dstPath, since its contents must be already synced at srcPath.
 		return nil
 	}
 

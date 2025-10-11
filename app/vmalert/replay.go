@@ -28,8 +28,8 @@ var (
 		"Defines how many retries to make before giving up on rule if request for it returns an error.")
 	disableProgressBar = flag.Bool("replay.disableProgressBar", false, "Whether to disable rendering progress bars during the replay. "+
 		"Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.")
-	ruleEvaluationConcurrency = flag.Int("replay.ruleEvaluationConcurrency", 1, "The maximum number of concurrent `/query_range` requests for a single rule. "+
-		"Increasing this value when replaying for a long time and a single request range is limited by `-replay.maxDatapointsPerQuery`.")
+	ruleEvaluationConcurrency = flag.Int("replay.ruleEvaluationConcurrency", 1, "The maximum number of concurrent '/query_range' requests when replay recording rule or alerting rule with for=0. "+
+		"Increasing this value when replaying for a long time, since each request is limited by -replay.maxDatapointsPerQuery.")
 )
 
 func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw remotewrite.RWClient) (totalRows, droppedRows int, err error) {

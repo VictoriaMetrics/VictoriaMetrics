@@ -123,7 +123,7 @@ func (r *Regex) GetLiterals() []string {
 	return a
 }
 
-// String returns string represetnation for r
+// String returns string representation for r
 func (r *Regex) String() string {
 	return r.exprStr
 }

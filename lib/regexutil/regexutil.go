@@ -282,7 +282,7 @@ func simplifyRegexpExt(sre *syntax.Regexp, keepBeginOp, keepEndOp bool) *syntax.
 			}
 		}
 		sre.Sub = subs
-		// Remove anchros from the beginning and the end of regexp, since they
+		// Remove anchors from the beginning and the end of regexp, since they
 		// will be added later.
 		if !keepBeginOp {
 			for len(sre.Sub) > 0 && sre.Sub[0].Op == syntax.OpBeginText {

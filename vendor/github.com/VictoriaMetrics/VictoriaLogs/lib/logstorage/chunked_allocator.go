@@ -12,26 +12,28 @@ import (
 //
 // chunkedAllocator cannot be used from concurrently running goroutines.
 type chunkedAllocator struct {
-	avgProcessors           []statsAvgProcessor
-	countProcessors         []statsCountProcessor
-	countEmptyProcessors    []statsCountEmptyProcessor
-	countUniqProcessors     []statsCountUniqProcessor
-	countUniqHashProcessors []statsCountUniqHashProcessor
-	histogramProcessors     []statsHistogramProcessor
-	jsonValuesProcessors    []statsJSONValuesProcessor
-	maxProcessors           []statsMaxProcessor
-	medianProcessors        []statsMedianProcessor
-	minProcessors           []statsMinProcessor
-	quantileProcessors      []statsQuantileProcessor
-	rateProcessors          []statsRateProcessor
-	rateSumProcessors       []statsRateSumProcessor
-	rowAnyProcessors        []statsRowAnyProcessor
-	rowMaxProcessors        []statsRowMaxProcessor
-	rowMinProcessors        []statsRowMinProcessor
-	sumProcessors           []statsSumProcessor
-	sumLenProcessors        []statsSumLenProcessor
-	uniqValuesProcessors    []statsUniqValuesProcessor
-	valuesProcessors        []statsValuesProcessor
+	avgProcessors              []statsAvgProcessor
+	countProcessors            []statsCountProcessor
+	countEmptyProcessors       []statsCountEmptyProcessor
+	countUniqProcessors        []statsCountUniqProcessor
+	countUniqHashProcessors    []statsCountUniqHashProcessor
+	histogramProcessors        []statsHistogramProcessor
+	jsonValuesProcessors       []statsJSONValuesProcessor
+	jsonValuesSortedProcessors []statsJSONValuesSortedProcessor
+	jsonValuesTopkProcessors   []statsJSONValuesTopkProcessor
+	maxProcessors              []statsMaxProcessor
+	medianProcessors           []statsMedianProcessor
+	minProcessors              []statsMinProcessor
+	quantileProcessors         []statsQuantileProcessor
+	rateProcessors             []statsRateProcessor
+	rateSumProcessors          []statsRateSumProcessor
+	rowAnyProcessors           []statsRowAnyProcessor
+	rowMaxProcessors           []statsRowMaxProcessor
+	rowMinProcessors           []statsRowMinProcessor
+	sumProcessors              []statsSumProcessor
+	sumLenProcessors           []statsSumLenProcessor
+	uniqValuesProcessors       []statsUniqValuesProcessor
+	valuesProcessors           []statsValuesProcessor
 
 	pipeStatsGroups         []pipeStatsGroup
 	pipeStatsGroupMapShards []pipeStatsGroupMapShard
@@ -76,6 +78,14 @@ func (a *chunkedAllocator) newStatsHistogramProcessor() (p *statsHistogramProces
 
 func (a *chunkedAllocator) newStatsJSONValuesProcessor() (p *statsJSONValuesProcessor) {
 	return addNewItem(&a.jsonValuesProcessors, a)
+}
+
+func (a *chunkedAllocator) newStatsJSONValuesSortedProcessor() (p *statsJSONValuesSortedProcessor) {
+	return addNewItem(&a.jsonValuesSortedProcessors, a)
+}
+
+func (a *chunkedAllocator) newStatsJSONValuesTopkProcessor() (p *statsJSONValuesTopkProcessor) {
+	return addNewItem(&a.jsonValuesTopkProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsMaxProcessor() (p *statsMaxProcessor) {

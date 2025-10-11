@@ -178,6 +178,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 			fs.MustClose(q.flockF)
 		}
 	}()
+	fs.MustSyncPathAndParentDir(path)
 
 	// Read metainfo.
 	var mi metainfo
@@ -643,7 +644,6 @@ func (mi *metainfo) WriteToFile(path string) error {
 		return fmt.Errorf("cannot marshal persistent queue metainfo %#v: %w", mi, err)
 	}
 	fs.MustWriteSync(path, data)
-	fs.MustSyncPath(path)
 	return nil
 }
 

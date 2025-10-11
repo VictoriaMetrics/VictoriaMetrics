@@ -1,0 +1,69 @@
+@use "src/styles/variables" as *;
+
+.vm-modal.vm-explore-alerts {
+  .vm-modal-content {
+    overflow-y: scroll;
+  }
+}
+
+.vm-explore-alerts-group {
+  row-gap: $padding-global;
+  margin: $padding-global;
+  display: flex;
+  flex-direction: column;
+
+  .title {
+    font-weight: bold;
+    text-align: center;
+  }
+
+  pre {
+    position: relative;
+    background-color: $color-background-badge;
+    padding: 0 $padding-global;
+    border-radius: $border-radius-small;
+    word-break: break-word;
+    white-space: pre-wrap;
+    .keyword,
+    .function,
+    .attr-name,
+    .range-duration {
+      color: $color-keyword;
+    }
+    div {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: flex;
+      column-gap: 4px;
+    }
+  }
+
+  .vm-col-md {
+    width: 20%;
+  }
+
+  table {
+    width: 100%;
+    table-layout: fixed;
+    tr.hoverable {
+      cursor: pointer;
+      &:hover {
+        background-color: $color-background-hover;
+      }
+    }
+    td, th {
+      line-height: 30px;
+      padding: 4px $padding-small;
+      white-space: nowrap;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    th {
+      font-weight: bold;
+      text-align: center;
+      padding: 0 $padding-small;
+    }
+  }
+}

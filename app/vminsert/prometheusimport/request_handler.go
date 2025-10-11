@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
@@ -29,7 +30,7 @@ func InsertHandler(req *http.Request) error {
 		return err
 	}
 	encoding := req.Header.Get("Content-Encoding")
-	return stream.Parse(req.Body, defaultTimestamp, encoding, true, func(rows []prometheus.Row) error {
+	return stream.Parse(req.Body, defaultTimestamp, encoding, true, prommetadata.IsEnabled(), func(rows []prometheus.Row, _ []prometheus.Metadata) error {
 		return insertRows(rows, extraLabels)
 	}, func(s string) {
 		httpserver.LogError(req, s)

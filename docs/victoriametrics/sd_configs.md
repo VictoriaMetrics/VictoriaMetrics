@@ -85,7 +85,7 @@ scrape_configs:
     #
     # client_secret: "..."
 
-    # resource_group is an optional resource group name. Limits discovery to this resource group. 
+    # resource_group is an optional resource group name. Limits discovery to this resource group.
     #
     # resource_group: "..."
 
@@ -434,7 +434,7 @@ scrape_configs:
     # host_networking_host: "..."
 
     # Sort all networks in ascending order based on network name and
-    # get the first network if the container has multiple networks defined, 
+    # get the first network if the container has multiple networks defined,
     # thus avoiding collecting duplicate targets.
     #
     # match_first_network: "<boolean>" | default true
@@ -515,9 +515,9 @@ scrape_configs:
 
 One of the following roles can be configured to discover targets:
 
-* `role: services`
+### Dockerswarm role: services
 
-  The `services` role discovers all Swarm services.
+  The `role: services` discovers all Swarm services.
 
   Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is the endpoint's virtual IP, while the `<port>` is the published port of the service.
@@ -526,25 +526,25 @@ One of the following roles can be configured to discover targets:
 
   Available meta labels for `role: services` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_dockerswarm_service_id`: the id of the service
-  * `__meta_dockerswarm_service_name`: the name of the service
-  * `__meta_dockerswarm_service_mode`: the mode of the service
-  * `__meta_dockerswarm_service_endpoint_port_name`: the name of the endpoint port, if available
-  * `__meta_dockerswarm_service_endpoint_port_publish_mode`: the publishing mode of the endpoint port
-  * `__meta_dockerswarm_service_label_<labelname>`: each label of the service
-  * `__meta_dockerswarm_service_task_container_hostname`: the container hostname of the target, if available
-  * `__meta_dockerswarm_service_task_container_image`: the container image of the target
-  * `__meta_dockerswarm_service_updating_status`: the status of the service, if available
-  * `__meta_dockerswarm_network_id`: the ID of the network
-  * `__meta_dockerswarm_network_name`: the name of the network
-  * `__meta_dockerswarm_network_ingress`: whether the network is ingress
-  * `__meta_dockerswarm_network_internal`: whether the network is internal
-  * `__meta_dockerswarm_network_label_<labelname>`: each label of the network
-  * `__meta_dockerswarm_network_scope`: the scope of the network
+* `__meta_dockerswarm_service_id`: the id of the service
+* `__meta_dockerswarm_service_name`: the name of the service
+* `__meta_dockerswarm_service_mode`: the mode of the service
+* `__meta_dockerswarm_service_endpoint_port_name`: the name of the endpoint port, if available
+* `__meta_dockerswarm_service_endpoint_port_publish_mode`: the publishing mode of the endpoint port
+* `__meta_dockerswarm_service_label_<labelname>`: each label of the service
+* `__meta_dockerswarm_service_task_container_hostname`: the container hostname of the target, if available
+* `__meta_dockerswarm_service_task_container_image`: the container image of the target
+* `__meta_dockerswarm_service_updating_status`: the status of the service, if available
+* `__meta_dockerswarm_network_id`: the ID of the network
+* `__meta_dockerswarm_network_name`: the name of the network
+* `__meta_dockerswarm_network_ingress`: whether the network is ingress
+* `__meta_dockerswarm_network_internal`: whether the network is internal
+* `__meta_dockerswarm_network_label_<labelname>`: each label of the network
+* `__meta_dockerswarm_network_scope`: the scope of the network
 
-* `role: tasks`
+### Dockerswarm role: tasks
 
-  The `tasks` role discovers all Swarm tasks.
+  The `role: tasks` discovers all Swarm tasks.
 
   Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where the `<ip>` is the node IP, while the `<port>` is the published port of the task.
@@ -553,58 +553,58 @@ One of the following roles can be configured to discover targets:
 
   Available meta labels for `role: tasks` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_dockerswarm_container_label_<labelname>`: each label of the container
-  * `__meta_dockerswarm_task_id`: the id of the task
-  * `__meta_dockerswarm_task_container_id`: the container id of the task
-  * `__meta_dockerswarm_task_desired_state`: the desired state of the task
-  * `__meta_dockerswarm_task_slot`: the slot of the task
-  * `__meta_dockerswarm_task_state`: the state of the task
-  * `__meta_dockerswarm_task_port_publish_mode`: the publishing mode of the task port
-  * `__meta_dockerswarm_service_id`: the id of the service
-  * `__meta_dockerswarm_service_name`: the name of the service
-  * `__meta_dockerswarm_service_mode`: the mode of the service
-  * `__meta_dockerswarm_service_label_<labelname>`: each label of the service
-  * `__meta_dockerswarm_network_id`: the ID of the network
-  * `__meta_dockerswarm_network_name`: the name of the network
-  * `__meta_dockerswarm_network_ingress`: whether the network is ingress
-  * `__meta_dockerswarm_network_internal`: whether the network is internal
-  * `__meta_dockerswarm_network_label_<labelname>`: each label of the network
-  * `__meta_dockerswarm_network_label`: each label of the network
-  * `__meta_dockerswarm_network_scope`: the scope of the network
-  * `__meta_dockerswarm_node_id`: the ID of the node
-  * `__meta_dockerswarm_node_hostname`: the hostname of the node
-  * `__meta_dockerswarm_node_address`: the address of the node
-  * `__meta_dockerswarm_node_availability`: the availability of the node
-  * `__meta_dockerswarm_node_label_<labelname>`: each label of the node
-  * `__meta_dockerswarm_node_platform_architecture`: the architecture of the node
-  * `__meta_dockerswarm_node_platform_os`: the operating system of the node
-  * `__meta_dockerswarm_node_role`: the role of the node
-  * `__meta_dockerswarm_node_status`: the status of the node
+* `__meta_dockerswarm_container_label_<labelname>`: each label of the container
+* `__meta_dockerswarm_task_id`: the id of the task
+* `__meta_dockerswarm_task_container_id`: the container id of the task
+* `__meta_dockerswarm_task_desired_state`: the desired state of the task
+* `__meta_dockerswarm_task_slot`: the slot of the task
+* `__meta_dockerswarm_task_state`: the state of the task
+* `__meta_dockerswarm_task_port_publish_mode`: the publishing mode of the task port
+* `__meta_dockerswarm_service_id`: the id of the service
+* `__meta_dockerswarm_service_name`: the name of the service
+* `__meta_dockerswarm_service_mode`: the mode of the service
+* `__meta_dockerswarm_service_label_<labelname>`: each label of the service
+* `__meta_dockerswarm_network_id`: the ID of the network
+* `__meta_dockerswarm_network_name`: the name of the network
+* `__meta_dockerswarm_network_ingress`: whether the network is ingress
+* `__meta_dockerswarm_network_internal`: whether the network is internal
+* `__meta_dockerswarm_network_label_<labelname>`: each label of the network
+* `__meta_dockerswarm_network_label`: each label of the network
+* `__meta_dockerswarm_network_scope`: the scope of the network
+* `__meta_dockerswarm_node_id`: the ID of the node
+* `__meta_dockerswarm_node_hostname`: the hostname of the node
+* `__meta_dockerswarm_node_address`: the address of the node
+* `__meta_dockerswarm_node_availability`: the availability of the node
+* `__meta_dockerswarm_node_label_<labelname>`: each label of the node
+* `__meta_dockerswarm_node_platform_architecture`: the architecture of the node
+* `__meta_dockerswarm_node_platform_os`: the operating system of the node
+* `__meta_dockerswarm_node_role`: the role of the node
+* `__meta_dockerswarm_node_status`: the status of the node
 
   The `__meta_dockerswarm_network_*` meta labels are not populated for ports which are published with `mode=host`.
 
-* `role: nodes`
+### Dockerswarm role: nodes
 
-  The `nodes` role is used to discover Swarm nodes.
+  The `role: nodes` is used to discover Swarm nodes.
 
   Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is the node IP, while the `<port>` is the `port` value obtained from the `dockerswarm_sd_configs`.
 
   Available meta labels for `role: nodes` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_dockerswarm_node_address`: the address of the node
-  * `__meta_dockerswarm_node_availability`: the availability of the node
-  * `__meta_dockerswarm_node_engine_version`: the version of the node engine
-  * `__meta_dockerswarm_node_hostname`: the hostname of the node
-  * `__meta_dockerswarm_node_id`: the ID of the node
-  * `__meta_dockerswarm_node_label_<labelname>`: each label of the node
-  * `__meta_dockerswarm_node_manager_address`: the address of the manager component of the node
-  * `__meta_dockerswarm_node_manager_leader`: the leadership status of the manager component of the node (true or false)
-  * `__meta_dockerswarm_node_manager_reachability`: the reachability of the manager component of the node
-  * `__meta_dockerswarm_node_platform_architecture`: the architecture of the node
-  * `__meta_dockerswarm_node_platform_os`: the operating system of the node
-  * `__meta_dockerswarm_node_role`: the role of the node
-  * `__meta_dockerswarm_node_status`: the status of the node
+* `__meta_dockerswarm_node_address`: the address of the node
+* `__meta_dockerswarm_node_availability`: the availability of the node
+* `__meta_dockerswarm_node_engine_version`: the version of the node engine
+* `__meta_dockerswarm_node_hostname`: the hostname of the node
+* `__meta_dockerswarm_node_id`: the ID of the node
+* `__meta_dockerswarm_node_label_<labelname>`: each label of the node
+* `__meta_dockerswarm_node_manager_address`: the address of the manager component of the node
+* `__meta_dockerswarm_node_manager_leader`: the leadership status of the manager component of the node (true or false)
+* `__meta_dockerswarm_node_manager_reachability`: the reachability of the manager component of the node
+* `__meta_dockerswarm_node_platform_architecture`: the architecture of the node
+* `__meta_dockerswarm_node_platform_os`: the operating system of the node
+* `__meta_dockerswarm_node_role`: the role of the node
+* `__meta_dockerswarm_node_status`: the status of the node
 
 The list of discovered Docker Swarm targets is refreshed at the interval, which can be configured via `-promscrape.dockerswarmSDCheckInterval` command-line flag.
 
@@ -1072,7 +1072,7 @@ See [these examples](https://docs.victoriametrics.com/victoriametrics/scrape_con
 
 One of the following `role` types can be configured to discover targets:
 
-* `role: node`
+### Kubernetes role: node
 
   The `role: node` discovers one target per cluster node.
 
@@ -1083,17 +1083,17 @@ One of the following `role` types can be configured to discover targets:
 
   Available meta labels for `role: node` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_kubernetes_node_name`: The name of the node object.
-  * `__meta_kubernetes_node_provider_id`: The cloud provider's name for the node object.
-  * `__meta_kubernetes_node_label_<labelname>`: Each label from the node object.
-  * `__meta_kubernetes_node_labelpresent_<labelname>`: "true" for each label from the node object.
-  * `__meta_kubernetes_node_annotation_<annotationname>`: Each annotation from the node object.
-  * `__meta_kubernetes_node_annotationpresent_<annotationname>`: "true" for each annotation from the node object.
-  * `__meta_kubernetes_node_address_<address_type>`: The first address for each node address type, if it exists.
+* `__meta_kubernetes_node_name`: The name of the node object.
+* `__meta_kubernetes_node_provider_id`: The cloud provider's name for the node object.
+* `__meta_kubernetes_node_label_<labelname>`: Each label from the node object.
+* `__meta_kubernetes_node_labelpresent_<labelname>`: "true" for each label from the node object.
+* `__meta_kubernetes_node_annotation_<annotationname>`: Each annotation from the node object.
+* `__meta_kubernetes_node_annotationpresent_<annotationname>`: "true" for each annotation from the node object.
+* `__meta_kubernetes_node_address_<address_type>`: The first address for each node address type, if it exists.
 
   In addition, the `instance` label for the node will be set to the node name as retrieved from the API server.
 
-* `role: service`
+### Kubernetes role: service
 
   The `role: service` discovers Kubernetes services.
 
@@ -1107,20 +1107,20 @@ One of the following `role` types can be configured to discover targets:
 
   Available meta labels for `role: service` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_kubernetes_namespace`: The namespace of the service object.
-  * `__meta_kubernetes_service_annotation_<annotationname>`: Each annotation from the service object.
-  * `__meta_kubernetes_service_annotationpresent_<annotationname>`: "true" for each annotation of the service object.
-  * `__meta_kubernetes_service_cluster_ip`: The cluster IP address of the service. (Does not apply to services of type ExternalName)
-  * `__meta_kubernetes_service_external_name`: The DNS name of the service. (Applies to services of type ExternalName)
-  * `__meta_kubernetes_service_label_<labelname>`: Each label from the service object.
-  * `__meta_kubernetes_service_labelpresent_<labelname>`: "true" for each label of the service object.
-  * `__meta_kubernetes_service_name`: The name of the service object.
-  * `__meta_kubernetes_service_port_name`: Name of the service port for the target.
-  * `__meta_kubernetes_service_port_number`: Service port number for the target.
-  * `__meta_kubernetes_service_port_protocol`: Protocol of the service port for the target.
-  * `__meta_kubernetes_service_type`: The type of the service.
+* `__meta_kubernetes_namespace`: The namespace of the service object.
+* `__meta_kubernetes_service_annotation_<annotationname>`: Each annotation from the service object.
+* `__meta_kubernetes_service_annotationpresent_<annotationname>`: "true" for each annotation of the service object.
+* `__meta_kubernetes_service_cluster_ip`: The cluster IP address of the service. (Does not apply to services of type ExternalName)
+* `__meta_kubernetes_service_external_name`: The DNS name of the service. (Applies to services of type ExternalName)
+* `__meta_kubernetes_service_label_<labelname>`: Each label from the service object.
+* `__meta_kubernetes_service_labelpresent_<labelname>`: "true" for each label of the service object.
+* `__meta_kubernetes_service_name`: The name of the service object.
+* `__meta_kubernetes_service_port_name`: Name of the service port for the target.
+* `__meta_kubernetes_service_port_number`: Service port number for the target.
+* `__meta_kubernetes_service_port_protocol`: Protocol of the service port for the target.
+* `__meta_kubernetes_service_type`: The type of the service.
 
-* `role: pod`
+### Kubernetes role: pod
 
   The `role: pod` discovers all pods and exposes their containers as targets.
 
@@ -1131,30 +1131,29 @@ One of the following `role` types can be configured to discover targets:
 
   Available meta labels for `role: pod` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_kubernetes_namespace`: The namespace of the pod object.
-  * `__meta_kubernetes_pod_name`: The name of the pod object.
-  * `__meta_kubernetes_pod_ip`: The pod IP of the pod object.
-  * `__meta_kubernetes_pod_label_<labelname>`: Each label from the pod object.
-  * `__meta_kubernetes_pod_labelpresent_<labelname>`: "true" for each label from the pod object.
-  * `__meta_kubernetes_pod_annotation_<annotationname>`: Each annotation from the pod object.
-  * `__meta_kubernetes_pod_annotationpresent_<annotationname>`: "true" for each annotation from the pod object.
-  * `__meta_kubernetes_pod_container_id`: ID of the container in the form `<type>://<container_id>`.
-  * `__meta_kubernetes_pod_container_image`: Container image the target address points to.
-  * `__meta_kubernetes_pod_container_init`: "true" if the container is an InitContainer.
-  * `__meta_kubernetes_pod_container_name`: Name of the container the target address points to.
-  * `__meta_kubernetes_pod_container_port_name`: Name of the container port.
-  * `__meta_kubernetes_pod_container_port_number`: Number of the container port.
-  * `__meta_kubernetes_pod_container_port_protocol`: Protocol of the container port.
-  * `__meta_kubernetes_pod_ready`: Set to true or false for the pod's ready state.
-  * `__meta_kubernetes_pod_phase`: Set to Pending, Running, Succeeded, Failed or Unknown in the lifecycle.
-  * `__meta_kubernetes_pod_node_name`: The name of the node the pod is scheduled onto.
-  * `__meta_kubernetes_pod_host_ip`: The current host IP of the pod object.
-  * `__meta_kubernetes_pod_uid`: The UID of the pod object.
-  * `__meta_kubernetes_pod_controller_kind`: Object kind of the pod controller.
-  * `__meta_kubernetes_pod_controller_name`: Name of the pod controller.
+* `__meta_kubernetes_namespace`: The namespace of the pod object.
+* `__meta_kubernetes_pod_name`: The name of the pod object.
+* `__meta_kubernetes_pod_ip`: The pod IP of the pod object.
+* `__meta_kubernetes_pod_label_<labelname>`: Each label from the pod object.
+* `__meta_kubernetes_pod_labelpresent_<labelname>`: "true" for each label from the pod object.
+* `__meta_kubernetes_pod_annotation_<annotationname>`: Each annotation from the pod object.
+* `__meta_kubernetes_pod_annotationpresent_<annotationname>`: "true" for each annotation from the pod object.
+* `__meta_kubernetes_pod_container_id`: ID of the container in the form `<type>://<container_id>`.
+* `__meta_kubernetes_pod_container_image`: Container image the target address points to.
+* `__meta_kubernetes_pod_container_init`: "true" if the container is an InitContainer.
+* `__meta_kubernetes_pod_container_name`: Name of the container the target address points to.
+* `__meta_kubernetes_pod_container_port_name`: Name of the container port.
+* `__meta_kubernetes_pod_container_port_number`: Number of the container port.
+* `__meta_kubernetes_pod_container_port_protocol`: Protocol of the container port.
+* `__meta_kubernetes_pod_ready`: Set to true or false for the pod's ready state.
+* `__meta_kubernetes_pod_phase`: Set to Pending, Running, Succeeded, Failed or Unknown in the lifecycle.
+* `__meta_kubernetes_pod_node_name`: The name of the node the pod is scheduled onto.
+* `__meta_kubernetes_pod_host_ip`: The current host IP of the pod object.
+* `__meta_kubernetes_pod_uid`: The UID of the pod object.
+* `__meta_kubernetes_pod_controller_kind`: Object kind of the pod controller.
+* `__meta_kubernetes_pod_controller_name`: Name of the pod controller.
 
-
-* `role: endpoints`
+### Kubernetes role: endpoints
 
   The `role: endpoints` discovers targets from listed endpoints of a service.
 
@@ -1165,25 +1164,25 @@ One of the following `role` types can be configured to discover targets:
 
   Available meta labels for `role: endpoints` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
-  * `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
-  * `__meta_kubernetes_endpoints_label_<labelname>`: Each label from the endpoints object.
-  * `__meta_kubernetes_endpoints_labelpresent_<labelname>`: "true" for each label from the endpoints object.
+* `__meta_kubernetes_namespace`: The namespace of the endpoints object.
+* `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
+* `__meta_kubernetes_endpoints_label_<labelname>`: Each label from the endpoints object.
+* `__meta_kubernetes_endpoints_labelpresent_<labelname>`: "true" for each label from the endpoints object.
 
   For all targets discovered directly from the endpoints list (those not additionally inferred from underlying pods), the following labels are attached:
 
-  * `__meta_kubernetes_endpoint_hostname`: Hostname of the endpoint.
-  * `__meta_kubernetes_endpoint_node_name`: Name of the node hosting the endpoint.
-  * `__meta_kubernetes_endpoint_ready`: Set to true or false for the endpoint's ready state.
-  * `__meta_kubernetes_endpoint_port_name`: Name of the endpoint port.
-  * `__meta_kubernetes_endpoint_port_protocol`: Protocol of the endpoint port.
-  * `__meta_kubernetes_endpoint_address_target_kind`: Kind of the endpoint address target.
-  * `__meta_kubernetes_endpoint_address_target_name`: Name of the endpoint address target.
+* `__meta_kubernetes_endpoint_hostname`: Hostname of the endpoint.
+* `__meta_kubernetes_endpoint_node_name`: Name of the node hosting the endpoint.
+* `__meta_kubernetes_endpoint_ready`: Set to true or false for the endpoint's ready state.
+* `__meta_kubernetes_endpoint_port_name`: Name of the endpoint port.
+* `__meta_kubernetes_endpoint_port_protocol`: Protocol of the endpoint port.
+* `__meta_kubernetes_endpoint_address_target_kind`: Kind of the endpoint address target.
+* `__meta_kubernetes_endpoint_address_target_name`: Name of the endpoint address target.
 
-  If the endpoints belong to a service, all labels of the `role: service` are attached.
-  For all targets backed by a pod, all labels of the `role: pod` are attached.
+  If the endpoints belong to a service, all labels of the [`role: service`](#kubernetes-role-service) are attached.
+  For all targets backed by a pod, all labels of the [`role: pod`](#kubernetes-role-pod) are attached.
 
-* `role: endpointslice`
+### Kubernetes role: endpointslice
 
   The `role: endpointslice` discovers targets from existing endpointslices.
 
@@ -1194,25 +1193,25 @@ One of the following `role` types can be configured to discover targets:
 
   Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
-  * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
+* `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
+* `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
 
   For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
 
-  * `__meta_kubernetes_endpointslice_address_target_kind`: Kind of the referenced object.
-  * `__meta_kubernetes_endpointslice_address_target_name`: Name of referenced object.
-  * `__meta_kubernetes_endpointslice_address_type`: The ip protocol family of the address of the target.
-  * `__meta_kubernetes_endpointslice_endpoint_conditions_ready`: Set to true or false for the referenced endpoint's ready state.
-  * `__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname`: Name of the node hosting the referenced endpoint.
-  * `__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname`: Flag that shows if the referenced object has a kubernetes.io/hostname annotation.
-  * `__meta_kubernetes_endpointslice_port`: Port of the referenced endpoint.
-  * `__meta_kubernetes_endpointslice_port_name`: Named port of the referenced endpoint.
-  * `__meta_kubernetes_endpointslice_port_protocol`: Protocol of the referenced endpoint.
+* `__meta_kubernetes_endpointslice_address_target_kind`: Kind of the referenced object.
+* `__meta_kubernetes_endpointslice_address_target_name`: Name of referenced object.
+* `__meta_kubernetes_endpointslice_address_type`: The ip protocol family of the address of the target.
+* `__meta_kubernetes_endpointslice_endpoint_conditions_ready`: Set to true or false for the referenced endpoint's ready state.
+* `__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname`: Name of the node hosting the referenced endpoint.
+* `__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname`: Flag that shows if the referenced object has a kubernetes.io/hostname annotation.
+* `__meta_kubernetes_endpointslice_port`: Port of the referenced endpoint.
+* `__meta_kubernetes_endpointslice_port_name`: Named port of the referenced endpoint.
+* `__meta_kubernetes_endpointslice_port_protocol`: Protocol of the referenced endpoint.
 
-  If the endpoints belong to a service, all labels of the `role: service` are attached.
-  For all targets backed by a pod, all labels of the `role: pod` are attached.
+  If the endpoints belong to a service, all labels of the [`role: service`](#kubernetes-role-service) are attached.
+  For all targets backed by a pod, all labels of the [`role: pod`](#kubernetes-role-pod) are attached.
 
-* `role: ingress`
+### Kubernetes role: ingress
 
   The `role: ingress` discovers a target for each path of each ingress.
 
@@ -1224,15 +1223,15 @@ One of the following `role` types can be configured to discover targets:
 
   Available meta labels for `role: ingress` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_kubernetes_namespace`: The namespace of the ingress object.
-  * `__meta_kubernetes_ingress_name`: The name of the ingress object.
-  * `__meta_kubernetes_ingress_label_<labelname>`: Each label from the ingress object.
-  * `__meta_kubernetes_ingress_labelpresent_<labelname>`: "true" for each label from the ingress object.
-  * `__meta_kubernetes_ingress_annotation_<annotationname>`: Each annotation from the ingress object.
-  * `__meta_kubernetes_ingress_annotationpresent_<annotationname>`: "true" for each annotation from the ingress object.
-  * `__meta_kubernetes_ingress_class_name`: Class name from ingress spec, if present.
-  * `__meta_kubernetes_ingress_scheme`: Protocol scheme of ingress, https if TLS config is set. Defaults to http.
-  * `__meta_kubernetes_ingress_path`: Path from ingress spec. Defaults to `/`.
+* `__meta_kubernetes_namespace`: The namespace of the ingress object.
+* `__meta_kubernetes_ingress_name`: The name of the ingress object.
+* `__meta_kubernetes_ingress_label_<labelname>`: Each label from the ingress object.
+* `__meta_kubernetes_ingress_labelpresent_<labelname>`: "true" for each label from the ingress object.
+* `__meta_kubernetes_ingress_annotation_<annotationname>`: Each annotation from the ingress object.
+* `__meta_kubernetes_ingress_annotationpresent_<annotationname>`: "true" for each annotation from the ingress object.
+* `__meta_kubernetes_ingress_class_name`: Class name from ingress spec, if present.
+* `__meta_kubernetes_ingress_scheme`: Protocol scheme of ingress, https if TLS config is set. Defaults to http.
+* `__meta_kubernetes_ingress_path`: Path from ingress spec. Defaults to `/`.
 
 The list of discovered Kubernetes targets is refreshed at the interval, which can be configured via `-promscrape.kubernetesSDCheckInterval` command-line flag.
 
@@ -1240,8 +1239,8 @@ The list of discovered Kubernetes targets is refreshed at the interval, which ca
 
 Kuma service discovery config allows to fetch targets from the specified control plane `server` of [Kuma Service Mesh](https://kuma.io).
 
-It discovers "monitoring assignments" based on Kuma Dataplane Proxies, 
-via the [MADS (Monitoring Assignment Discovery Service)](https://kuma.io/docs/2.10.x/policies/traffic-metrics/) 
+It discovers "monitoring assignments" based on Kuma Dataplane Proxies,
+via the [MADS (Monitoring Assignment Discovery Service)](https://kuma.io/docs/2.10.x/policies/traffic-metrics/)
 [xDS RESP API](http://envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol).
 
 Configuration example:
@@ -1298,7 +1297,7 @@ scrape_configs:
       - "host1:port1"
       - "host2:port2"
       - "..."
-    
+
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options
 ```
@@ -1469,9 +1468,9 @@ scrape_configs:
     #   ...
 ```
 
-One of the following `role` types can be configured to discover targets:
+One of the following `role` types can be configured to discover OpenStack targets:
 
-* `role: hypervisor`
+### OpenStack role: hypervisor
 
   The `role: hypervisor` discovers one target per Nova hypervisor node.
 
@@ -1480,14 +1479,14 @@ One of the following `role` types can be configured to discover targets:
 
   The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_openstack_hypervisor_host_ip`: the hypervisor node's IP address.
-  * `__meta_openstack_hypervisor_hostname`: the hypervisor node's name.
-  * `__meta_openstack_hypervisor_id`: the hypervisor node's ID.
-  * `__meta_openstack_hypervisor_state`: the hypervisor node's state.
-  * `__meta_openstack_hypervisor_status`: the hypervisor node's status.
-  * `__meta_openstack_hypervisor_type`: the hypervisor node's type.
+* `__meta_openstack_hypervisor_host_ip`: the hypervisor node's IP address.
+* `__meta_openstack_hypervisor_hostname`: the hypervisor node's name.
+* `__meta_openstack_hypervisor_id`: the hypervisor node's ID.
+* `__meta_openstack_hypervisor_state`: the hypervisor node's state.
+* `__meta_openstack_hypervisor_status`: the hypervisor node's status.
+* `__meta_openstack_hypervisor_type`: the hypervisor node's type.
 
-* `role: instance`
+### OpenStack role: instance
 
   The `role: instance` discovers one target per network interface of Nova instance.
 
@@ -1496,22 +1495,22 @@ One of the following `role` types can be configured to discover targets:
 
   The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
-  * `__meta_openstack_address_pool`: the pool of the private IP.
-  * `__meta_openstack_instance_flavor`: the flavor of the OpenStack instance.
-  * `__meta_openstack_instance_id`: the OpenStack instance ID.
-  * `__meta_openstack_instance_name`: the OpenStack instance name.
-  * `__meta_openstack_instance_status`: the status of the OpenStack instance.
-  * `__meta_openstack_private_ip`: the private IP of the OpenStack instance.
-  * `__meta_openstack_project_id`: the project (tenant) owning this instance.
-  * `__meta_openstack_public_ip`: the public IP of the OpenStack instance.
-  * `__meta_openstack_tag_<tagkey>`: each tag value of the instance.
-  * `__meta_openstack_user_id`: the user account owning the tenant.
+* `__meta_openstack_address_pool`: the pool of the private IP.
+* `__meta_openstack_instance_flavor`: the flavor of the OpenStack instance.
+* `__meta_openstack_instance_id`: the OpenStack instance ID.
+* `__meta_openstack_instance_name`: the OpenStack instance name.
+* `__meta_openstack_instance_status`: the status of the OpenStack instance.
+* `__meta_openstack_private_ip`: the private IP of the OpenStack instance.
+* `__meta_openstack_project_id`: the project (tenant) owning this instance.
+* `__meta_openstack_public_ip`: the public IP of the OpenStack instance.
+* `__meta_openstack_tag_<tagkey>`: each tag value of the instance.
+* `__meta_openstack_user_id`: the user account owning the tenant.
 
 The list of discovered OpenStack targets is refreshed at the interval, which can be configured via `-promscrape.openstackSDCheckInterval` command-line flag.
 
 ## ovhcloud_sd_configs
 
-OVH Cloud SD configuration{{% available_from "v1.104.0" %}} allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
+OVH Cloud SD configuration{{% available_from "v1.104.0" %}} allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/)
 and [OVH Cloud dedicated server](https://ovhcloud.com/en/bare-metal/).
 
 Configuration example:
@@ -1532,13 +1531,13 @@ scrape_configs:
   # See: https://github.com/ovh/go-ovh?tab=readme-ov-file#supported-apis
   - endpoint: "..."
 
-    # (mandatory) application_key is a self generated tokens. 
+    # (mandatory) application_key is a self generated tokens.
     # create one by visiting: https://eu.api.ovh.com/createApp/
     application_key: "..."
 
     # (mandatory) application_secret holds the application secret key.
     application_secret: "..."
-    
+
     # (mandatory) consumer_key holds the user/app specific token. It must have been validated before use.
     consumer_key: "..."
 
@@ -1556,6 +1555,7 @@ In addition, the `instance` label for the VPS/dedicated server will be set to th
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 VPS:
+
 * `__meta_ovhcloud_vps_cluster`: the cluster of the server.
 * `__meta_ovhcloud_vps_datacenter`: the datacenter of the server.
 * `__meta_ovhcloud_vps_disk`: the disk of the server.
@@ -1577,12 +1577,13 @@ VPS:
 * `__meta_ovhcloud_vps_zone`: the zone of the server.
 
 Dedicated servers:
-* `__meta_ovhcloud_dedicated_server_commercial_range`: the commercial range of the server.    
-* `__meta_ovhcloud_dedicated_server_datacenter`: the datacenter of the server.                
-* `__meta_ovhcloud_dedicated_server_ipv4`: the IPv4 of the server.                            
-* `__meta_ovhcloud_dedicated_server_ipv6`: the IPv6 of the server.                            
-* `__meta_ovhcloud_dedicated_server_link_speed`: the link speed of the server.                
-* `__meta_ovhcloud_dedicated_server_name`: the name of the server.                            
+
+* `__meta_ovhcloud_dedicated_server_commercial_range`: the commercial range of the server.
+* `__meta_ovhcloud_dedicated_server_datacenter`: the datacenter of the server.
+* `__meta_ovhcloud_dedicated_server_ipv4`: the IPv4 of the server.
+* `__meta_ovhcloud_dedicated_server_ipv6`: the IPv6 of the server.
+* `__meta_ovhcloud_dedicated_server_link_speed`: the link speed of the server.
+* `__meta_ovhcloud_dedicated_server_name`: the name of the server.
 * `__meta_ovhcloud_dedicated_server_no_intervention`: the [intervention](https://support.us.ovhcloud.com/hc/en-us/articles/27991435200147-FAQ-Interventions-and-Hardware-Replacement) of the server.
 * `__meta_ovhcloud_dedicated_server_os`: the operating system of the server.
 * `__meta_ovhcloud_dedicated_server_rack`: the rack of the server.
@@ -1607,7 +1608,7 @@ scrape_configs:
   puppetdb_sd_configs:
     # The URL of the PuppetDB root query endpoint.
     - url: <string>
-      
+
       # Puppet Query Language (PQL) query. Only resources are supported.
       # https://puppet.com/docs/puppetdb/latest/api/query/v4/pql.html
       query: <string>
@@ -1619,11 +1620,11 @@ scrape_configs:
       #
       # Note: Enabling this exposes parameters in the VMUI and API. Make sure
       # that you don't have secrets exposed as parameters if you enable this.
-      # 
+      #
       # include_parameters: <boolean> | default false
 
       # The port to scrape metrics from.
-      # 
+      #
       # port: <int> | default = 80
 
       # Additional HTTP API client options can be specified here.
@@ -1683,6 +1684,7 @@ scrape_configs:
 See [these examples](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/#static-configs) on how to configure scraping for static targets.
 
 ## vultr_sd_configs
+
 Vultr SD configuration discovers scrape targets from [Vultr](https://www.vultr.com/) Instances.
 
 Configuration example:

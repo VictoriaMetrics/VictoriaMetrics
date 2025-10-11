@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
@@ -16,9 +17,11 @@ import (
 )
 
 var (
-	rowsInserted       = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentelemetry"}`)
-	rowsTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="opentelemetry"}`)
-	rowsPerInsert      = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
+	rowsInserted           = metrics.NewCounter(`vmagent_rows_inserted_total{type="opentelemetry"}`)
+	metadataInserted       = metrics.NewCounter(`vmagent_metadata_inserted_total{type="opentelemetry"}`)
+	rowsTenantInserted     = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_rows_total{type="opentelemetry"}`)
+	metadataTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_metadata_total{type="opentelemetry"}`)
+	rowsPerInsert          = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
 
 // InsertHandler processes opentelemetry metrics.
@@ -36,12 +39,12 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 		}
 	}
-	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompb.TimeSeries) error {
-		return insertRows(at, tss, extraLabels)
+	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
+		return insertRows(at, tss, mms, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, tss []prompb.TimeSeries, extraLabels []prompb.Label) error {
+func insertRows(at *auth.Token, tss []prompb.TimeSeries, mms []prompb.MetricMetadata, extraLabels []prompb.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
@@ -63,14 +66,33 @@ func insertRows(at *auth.Token, tss []prompb.TimeSeries, extraLabels []prompb.La
 		})
 	}
 	ctx.WriteRequest.Timeseries = tssDst
+
+	var metadataTotal int
+	if prommetadata.IsEnabled() {
+		var accountID, projectID uint32
+		if at != nil {
+			accountID = at.AccountID
+			projectID = at.ProjectID
+			for i := range mms {
+				mm := &mms[i]
+				mm.AccountID = accountID
+				mm.ProjectID = projectID
+			}
+		}
+		ctx.WriteRequest.Metadata = mms
+		metadataTotal = len(mms)
+	}
+
 	ctx.Labels = labels
 	ctx.Samples = samples
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
 	rowsInserted.Add(rowsTotal)
+	metadataInserted.Add(metadataTotal)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(rowsTotal)
+		metadataTenantInserted.Get(at).Add(metadataTotal)
 	}
 	rowsPerInsert.Update(float64(rowsTotal))
 	return nil

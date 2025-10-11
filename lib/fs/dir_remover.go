@@ -76,8 +76,14 @@ func MustRemoveDir(dirPath string) {
 	// so they are no longer visible after unclean shutdown.
 	MustSyncPath(dirPath)
 
-	// Remove the deleteDirFilename file
+	// Remove the deleteDirFilename file, since there are no other entries left in the directory.
 	MustRemovePath(deleteFilePath)
+
+	// Sync the directory after the removing deletDirFilename file in order to make sure
+	// all the metadata files are removed at some exotic filesystems such as OSSFS2.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/649
+	// and https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9709
+	MustSyncPath(dirPath)
 
 	// Remove the dirPath itself
 	MustRemovePath(dirPath)
@@ -94,7 +100,7 @@ func IsPartiallyRemovedDir(dirPath string) bool {
 	des := MustReadDir(dirPath)
 	if len(des) == 0 {
 		// Delete empty dirs too, since they may appear when the unclean shutdown happens after the deleteDirFilename is deleted,
-		// but before the directory is deleted istelf.
+		// but before the directory is deleted itself.
 		return true
 	}
 

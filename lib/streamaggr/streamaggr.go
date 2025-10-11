@@ -77,10 +77,7 @@ func LoadFromFile(path string, pushFunc PushFunc, opts *Options, alias string) (
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
 	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment variables in %q: %w", path, err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 
 	as, err := loadFromData(data, path, pushFunc, opts, alias)
 	if err != nil {
@@ -165,7 +162,7 @@ type Config struct {
 	// Interval is the interval between aggregations.
 	Interval string `yaml:"interval"`
 
-	// NoAlighFlushToInterval disables aligning of flushes to multiples of Interval.
+	// NoAlignFlushToInterval disables aligning of flushes to multiples of Interval.
 	// By default flushes are aligned to Interval.
 	//
 	// See also FlushOnShutdown.
@@ -805,7 +802,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 			return
 		}
 		timer := timerpool.Get(dSleep)
-		defer timer.Stop()
+		defer timerpool.Put(timer)
 		select {
 		case <-a.stopCh:
 		case <-timer.C:

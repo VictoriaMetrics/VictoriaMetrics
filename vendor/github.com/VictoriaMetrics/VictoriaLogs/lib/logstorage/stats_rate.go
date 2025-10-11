@@ -74,7 +74,7 @@ func (srp *statsRateProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan 
 	return strconv.AppendFloat(dst, rate, 'f', -1, 64)
 }
 
-func parseStatsRate(lex *lexer) (*statsRate, error) {
+func parseStatsRate(lex *lexer) (statsFunc, error) {
 	fields, err := parseStatsFuncFields(lex, "rate")
 	if err != nil {
 		return nil, err

@@ -62,7 +62,7 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 
 -  `"scheduler.periodic.PeriodicScheduler"`: Used in production. Periodically runs the models on new data to generate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). Also does consecutive re-trainings of attached [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) to counter [data drift](https://www.datacamp.com/tutorial/understanding-data-drift-model-drift) and model degradation over time. 
 -  `"scheduler.oneoff.OneoffScheduler"`: Runs the job once and exits. Useful for testing or for one-off backfilling on historical data.
--  `"scheduler.backtesting.BacktestingScheduler"`: Imitates running PeriodicScheduler, but runs only once and exits. Used for [backtesting](https://en.wikipedia.org/wiki/Backtesting) or for consecutive backfilling on historical data. One may evaluate the model performance on past data which already contained labeled incidents, to see how well the model would have performed in the past. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/index.html#how-to-backtest-particular-configuration-on-historical-data) for the example and [BacktestingScheduler](#backtesting-scheduler) section below for the configuration details.
+-  `"scheduler.backtesting.BacktestingScheduler"`: Imitates running PeriodicScheduler, but runs only once and exits. Used for [backtesting](https://en.wikipedia.org/wiki/Backtesting) or for consecutive backfilling on historical data. One may evaluate the model performance on past data which already contained labeled incidents, to see how well the model would have performed in the past. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#how-to-backtest-particular-configuration-on-historical-data) for the example and [BacktestingScheduler](#backtesting-scheduler) section below for the configuration details.
 
 > **Class aliases** are supported{{% available_from "v1.13.0" anomaly %}}, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
 
@@ -377,6 +377,8 @@ schedulers:
 ```
 
 ## Backtesting scheduler
+
+> {{% available_from "v1.26.0" anomaly %}} `BacktestingScheduler` in [inference-only](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#inference-only-mode) mode is used in UI for backtesting configurations on historical data to verify that it works as expected before it goes live. See [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) on how to access and use the UI.
 
 > As of latest version, the Backtesting scheduler can't be explicitly used with a combination of [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration). It is designed to run once and exit, so it does not maintain state across runs. A warning will be raised in logs and internal state for such scheduler will not be saved and restored upon restart. If you need to run the scheduler periodically and/or maintain state, consider using the [Periodic scheduler](#periodic-scheduler) instead.
 

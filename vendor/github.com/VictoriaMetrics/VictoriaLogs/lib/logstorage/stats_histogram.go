@@ -267,7 +267,7 @@ func (shp *statsHistogramProcessor) getCompleteBucketsMap() map[string]uint64 {
 	return m
 }
 
-func parseStatsHistogram(lex *lexer) (*statsHistogram, error) {
+func parseStatsHistogram(lex *lexer) (statsFunc, error) {
 	fields, err := parseStatsFuncFields(lex, "histogram")
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse field name: %w", err)

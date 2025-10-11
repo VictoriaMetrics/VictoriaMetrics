@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -267,8 +269,15 @@ func TestAlertingRule_Exec(t *testing.T) {
 				if got.State != exp.State {
 					t.Fatalf("evalIndex %d: expected state %d; got %d", i, exp.State, got.State)
 				}
+				if rule.Annotations != nil && exp.Annotations != nil {
+					if !reflect.DeepEqual(got.Annotations, exp.Annotations) {
+						t.Fatalf("evalIndex %d: expected annotations %v; got %v", i, exp.Annotations, got.Annotations)
+					}
+				}
 			}
 		}
+		// reset ts for next test
+		ts, _ = time.Parse(time.RFC3339, "2024-10-29T00:00:00Z")
 	}
 
 	f(newTestAlertingRule("empty", 0), [][]datasource.Metric{}, nil, nil)
@@ -522,7 +531,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		},
 	})
 
-	f(newTestAlertingRule("for-pending=>firing=>inactive=>pending=>firing", defaultStep), [][]datasource.Metric{
+	f(newTestAlertingRuleWithCustomFields("for-pending=>firing=>inactive=>pending=>firing", defaultStep, 0, 0, map[string]string{"activeAt": "{{ $activeAt.UnixMilli }}"}), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
 		{metricWithLabels(t, "name", "foo")},
 		// empty step to set alert inactive
@@ -530,11 +539,11 @@ func TestAlertingRule_Exec(t *testing.T) {
 		{metricWithLabels(t, "name", "foo")},
 		{metricWithLabels(t, "name", "foo")},
 	}, map[int][]testAlert{
-		0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
-		1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-		2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
-		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
-		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+		0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.UnixMilli(), 10)}}}},
+		1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.UnixMilli(), 10)}}}},
+		2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.UnixMilli(), 10)}}}},
+		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.Add(defaultStep*3).UnixMilli(), 10)}}}},
+		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring, Annotations: map[string]string{"activeAt": strconv.FormatInt(ts.Add(defaultStep*3).UnixMilli(), 10)}}}},
 	}, nil)
 
 	f(newTestAlertingRuleWithCustomFields("for-pending=>firing=>keepfiring=>firing", defaultStep, 0, defaultStep, nil), [][]datasource.Metric{
@@ -1420,4 +1429,143 @@ func TestAlertingRuleExec_Partial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+}
+
+func TestAlertingRule_QueryTemplateInLabels(t *testing.T) {
+	fq := &datasource.FakeQuerier{}
+	fakeGroup := Group{
+		Name: "TestQueryTemplateInLabels",
+	}
+
+	ar := &AlertingRule{
+		Name: "test_alert",
+		Labels: map[string]string{
+			"suppress_for_mass_alert": `{{ if (printf "ALERTS{alertname='SomeAlert', alertstate='firing', device='%s'} == 1" $labels.device | query) }}true{{ else }}false{{ end }}`,
+		},
+		Annotations: map[string]string{
+			"summary": "Test alert with query template in labels",
+		},
+		alerts: make(map[uint64]*notifier.Alert),
+	}
+	ar.GroupID = fakeGroup.GetID()
+	ar.q = fq
+	ar.state = &ruleState{
+		entries: make([]StateEntry, 10),
+	}
+
+	// Add a metric that should trigger the alert
+	fq.Add(metricWithValueAndLabels(t, 1, "device", "sda1"))
+
+	ts := time.Now()
+	_, err := ar.exec(context.TODO(), ts, 0)
+	if err != nil {
+		t.Fatalf("unexpected error with query template in labels: %s", err)
+	}
+
+	// Verify that the alert was created and the query template was executed
+	if len(ar.alerts) != 1 {
+		t.Fatalf("expected 1 alert, got %d", len(ar.alerts))
+	}
+
+	alert := ar.GetAlerts()[0]
+	suppressLabel, exists := alert.Labels["suppress_for_mass_alert"]
+	if !exists {
+		t.Fatalf("expected 'suppress_for_mass_alert' label to exist")
+	}
+	// The query template should have been executed (even if it returns false due to mock data)
+	if suppressLabel != "true" && suppressLabel != "false" {
+		t.Fatalf("expected 'suppress_for_mass_alert' label to be 'true' or 'false', got '%s'", suppressLabel)
+	}
+}
+
+// TestAlertingRule_ActiveAtPreservedInAnnotations ensures that the fix for
+// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543 is preserved
+// while allowing query templates in labels (https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9783)
+func TestAlertingRule_ActiveAtPreservedInAnnotations(t *testing.T) {
+	// wrap into synctest because of time manipulations
+	synctest.Test(t, func(t *testing.T) {
+		fq := &datasource.FakeQuerier{}
+
+		ar := &AlertingRule{
+			Name: "TestActiveAtPreservation",
+			Labels: map[string]string{
+				"test_query_in_label": `{{ "static_value" }}`,
+			},
+			Annotations: map[string]string{
+				"description": "Alert active since {{ $activeAt }}",
+			},
+			alerts: make(map[uint64]*notifier.Alert),
+			q:      fq,
+			state: &ruleState{
+				entries: make([]StateEntry, 10),
+			},
+		}
+
+		// Mock query result - return empty result to make suppress_for_mass_alert = false
+		// (no need to add anything to fq for empty result)
+
+		// Add a metric that should trigger the alert
+		fq.Add(metricWithValueAndLabels(t, 1, "instance", "server1"))
+
+		// First execution - creates new alert
+		ts1 := time.Now()
+		_, err := ar.exec(context.TODO(), ts1, 0)
+		if err != nil {
+			t.Fatalf("unexpected error on first exec: %s", err)
+		}
+
+		if len(ar.alerts) != 1 {
+			t.Fatalf("expected 1 alert, got %d", len(ar.alerts))
+		}
+
+		firstAlert := ar.GetAlerts()[0]
+		// Verify first execution: activeAt should be ts1 and annotation should reflect it
+		if !firstAlert.ActiveAt.Equal(ts1) {
+			t.Fatalf("expected activeAt to be %v, got %v", ts1, firstAlert.ActiveAt)
+		}
+
+		// Extract time from annotation (format will be like "Alert active since 2025-09-30 08:55:13.638551611 -0400 EDT m=+0.002928464")
+		expectedTimeStr := ts1.Format("2006-01-02 15:04:05")
+		if !strings.Contains(firstAlert.Annotations["description"], expectedTimeStr) {
+			t.Fatalf("first exec annotation should contain time %s, got: %s", expectedTimeStr, firstAlert.Annotations["description"])
+		}
+
+		// Second execution - should preserve activeAt in annotation
+
+		// Ensure different timestamp with different seconds
+		// sleep is non-blocking thanks to synctest
+		time.Sleep(2 * time.Second)
+		ts2 := time.Now()
+		_, err = ar.exec(context.TODO(), ts2, 0)
+		if err != nil {
+			t.Fatalf("unexpected error on second exec: %s", err)
+		}
+
+		// Get the alert again (should be the same alert)
+		if len(ar.alerts) != 1 {
+			t.Fatalf("expected 1 alert, got %d", len(ar.alerts))
+		}
+		secondAlert := ar.GetAlerts()[0]
+
+		// Critical test: activeAt should still be ts1, not ts2
+		if !secondAlert.ActiveAt.Equal(ts1) {
+			t.Fatalf("activeAt should be preserved as %v, but got %v", ts1, secondAlert.ActiveAt)
+		}
+
+		// Critical test: annotation should still contain ts1 time, not ts2
+		if !strings.Contains(secondAlert.Annotations["description"], expectedTimeStr) {
+			t.Fatalf("second exec annotation should still contain original time %s, got: %s", expectedTimeStr, secondAlert.Annotations["description"])
+		}
+
+		// Additional verification: annotation should NOT contain ts2 time
+		ts2TimeStr := ts2.Format("2006-01-02 15:04:05")
+		if strings.Contains(secondAlert.Annotations["description"], ts2TimeStr) {
+			t.Fatalf("annotation should NOT contain new eval time %s, got: %s", ts2TimeStr, secondAlert.Annotations["description"])
+		}
+
+		// Verify query template in labels still works (this would fail if query templates were broken)
+		if firstAlert.Labels["test_query_in_label"] != "static_value" {
+			t.Fatalf("expected test_query_in_label=static_value, got %s", firstAlert.Labels["test_query_in_label"])
+		}
+	})
 }

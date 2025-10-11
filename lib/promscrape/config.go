@@ -121,19 +121,15 @@ type Config struct {
 }
 
 func (cfg *Config) unmarshal(data []byte, isStrict bool) error {
-	var err error
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return fmt.Errorf("cannot expand environment variables: %w", err)
+	data = envtemplate.ReplaceBytes(data)
+	if !isStrict {
+		return yaml.Unmarshal(data, cfg)
 	}
-	if isStrict {
-		if err = yaml.UnmarshalStrict(data, cfg); err != nil {
-			err = fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
-		}
-	} else {
-		err = yaml.Unmarshal(data, cfg)
+
+	if err := yaml.UnmarshalStrict(data, cfg); err != nil {
+		return fmt.Errorf("%w; pass -promscrape.config.strictParse=false command-line flag for ignoring unknown fields in yaml config", err)
 	}
-	return err
+	return nil
 }
 
 func (cfg *Config) marshal() []byte {
@@ -441,10 +437,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
-	}
+	data = envtemplate.ReplaceBytes(data)
 	var stcs []StaticConfig
 	if err := yaml.UnmarshalStrict(data, &stcs); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal `static_configs` from %q: %w", path, err)
@@ -485,11 +478,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string, isStrict 
 				logger.Errorf("skipping %q at `scrape_config_files` because of error: %s", path, err)
 				continue
 			}
-			data, err = envtemplate.ReplaceBytes(data)
-			if err != nil {
-				logger.Errorf("skipping %q at `scrape_config_files` because of failure to expand environment vars: %s", path, err)
-				continue
-			}
+			data = envtemplate.ReplaceBytes(data)
 			var scs []*ScrapeConfig
 			if isStrict {
 				if err = yaml.UnmarshalStrict(data, &scs); err != nil {

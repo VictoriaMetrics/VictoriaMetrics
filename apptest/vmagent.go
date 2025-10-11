@@ -104,6 +104,36 @@ func (app *Vmagent) RemoteWritePacketsDroppedTotal(t *testing.T) int {
 	return int(total)
 }
 
+// RemoteWriteSamplesDropped sums up the total number of dropped remote write samples for given remote write URL.
+func (app *Vmagent) RemoteWriteSamplesDropped(t *testing.T, url string) int {
+	re := regexp.MustCompile(fmt.Sprintf("vmagent_remotewrite_samples_dropped_total{.*url=%q.*}", url))
+	total := 0.0
+	for _, v := range app.GetMetricsByRegexp(t, re) {
+		total += v
+	}
+	return int(total)
+}
+
+// RemoteWritePendingInmemoryBlocks sums up the total number of pending in-memory blocks for given remote write URL.
+func (app *Vmagent) RemoteWritePendingInmemoryBlocks(t *testing.T, url string) int {
+	re := regexp.MustCompile(fmt.Sprintf("vmagent_remotewrite_pending_inmemory_blocks{.*url=%q.*}", url))
+	total := 0.0
+	for _, v := range app.GetMetricsByRegexp(t, re) {
+		total += v
+	}
+	return int(total)
+}
+
+// RemoteWriteRequests sums up the total number of sending requests for given remote write URL.
+func (app *Vmagent) RemoteWriteRequests(t *testing.T, url string) int {
+	re := regexp.MustCompile(fmt.Sprintf("vmagent_remotewrite_requests_total{.*url=%q.*}", url))
+	total := 0.0
+	for _, v := range app.GetMetricsByRegexp(t, re) {
+		total += v
+	}
+	return int(total)
+}
+
 // ReloadRelabelConfigs sends SIGHUP to trigger relabel config reload
 // and waits until vmagent_relabel_config_reloads_total increases.
 // Fails the test if no reload is detected within 3 seconds.
@@ -123,9 +153,7 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	if currTotal <= prevTotal {
-		t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
-	}
+	t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
 }
 
 // sendBlocking sends the data to vmstorage by executing `send` function and

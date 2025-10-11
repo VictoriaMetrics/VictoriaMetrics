@@ -97,7 +97,7 @@ func (ssp *statsSumProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan st
 	return strconv.AppendFloat(dst, ssp.sum, 'f', -1, 64)
 }
 
-func parseStatsSum(lex *lexer) (*statsSum, error) {
+func parseStatsSum(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "sum")
 	if err != nil {
 		return nil, err

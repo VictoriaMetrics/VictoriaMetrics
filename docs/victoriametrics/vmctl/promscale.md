@@ -40,7 +40,7 @@ Processing ranges: 1 / 1 [██████████████████
 2023/08/21 16:11:55 Total time: 14.063458792s
 ```
 
-_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl#configuring-victoriametrics)._
+_See how to configure [--vm-addr](https://docs.victoriametrics.com/victoriametrics/vmctl/#configuring-victoriametrics)._
 
 Here we specify the full path to Promscale's Remote Read API via `--remote-read-src-addr`, and disable auto-path
 appending via `--remote-read-disable-path-append` cmd-line flags. This is necessary, as Promscale has a different to

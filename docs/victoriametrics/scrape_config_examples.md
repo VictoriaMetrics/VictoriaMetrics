@@ -19,7 +19,6 @@ aliases:
 - [HTTP-based target discovery](#http-based-target-discovery)
 - [Kubernetes target discovery](#kubernetes-target-discovery)
 
-
 ## Static configs
 
 Let's start from a simple case with scraping targets at pre-defined addresses.
@@ -33,17 +32,17 @@ scrape_configs:
     - localhost:9100
 ```
 
-After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/) to the same directory:
+After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the same directory:
 
-```
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.123.0/victoria-metrics-linux-amd64-v1.123.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.123.0.tar.gz
+```sh
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.127.0/victoria-metrics-linux-amd64-v1.127.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.127.0.tar.gz
 ```
 
 Then start VictoriaMetrics and instruct it to scrape targets defined in `scrape.yaml` and save scraped metrics
 to local storage according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
 
-```
+```sh
 ./victoria-metrics-prod -promscrape.config=scrape.yaml
 ```
 
@@ -71,7 +70,7 @@ and full urls in scrape target lists.
 
 Send `SIGHUP` signal `victoria-metrics-prod` process, so it [reloads the updated `scrape.yaml`](https://docs.victoriametrics.com/victoriametrics/vmagent/#configuration-update):
 
-```
+```sh
 kill -HUP `pidof victoria-metrics-prod`
 ```
 
@@ -99,33 +98,32 @@ scrape_configs:
 
 The [`scrape_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) section contains a list of scrape configs.
 Our `scrape.yaml` file contains two scrape configs - for `job_name: node-exporter` and for `job_name: victoriametrics`.
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can efficiently process thousands of scrape configs in production.
 
 Every scrape config in the list **must** contain `job_name` field - its' value is used as [`job`](https://prometheus.io/docs/concepts/jobs_instances/) label
 in all the metrics scraped from targets defined in this scrape config.
 Every scrape config must contain at least a single section from [this list](https://docs.victoriametrics.com/victoriametrics/sd_configs/#supported-service-discovery-configs).
-Every scrape config may contain other options described [here](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
+Every scrape config may contain other options described in the [scrape configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
 
 In our case only [`static_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs) sections are used.
 These sections consist of a list of static configs according to [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs).
 Every static config contains a list of `targets`, which need to be scraped. The target address is used as [`instance`](https://prometheus.io/docs/concepts/jobs_instances/)
 label in all the metrics scraped from the target.
 
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can efficiently process tens of thousands of targets in production. If you need scraping more targets,
 then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
 Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets).
 It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) if needed.
 
-
 ## File-based target discovery
 
 It may be not so convenient updating `scrape.yaml` file with [`static_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#static_configs)
 every time new scrape target is added, changed or removed. In this case [`file_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs)
 can come to rescue. It allows defining a list of scrape targets in `JSON` files, and automatically updating the list of scrape targets
-at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) side
+at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) side
 when the corresponding `JSON` files are updated.
 
 Let's create `node_exporter_targets.json` file with the following contents:
@@ -148,12 +146,12 @@ scrape_configs:
     - node_exporter_targets.json
 ```
 
-Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
+Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) according to [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter):
 
 ```yaml
 # Download and unpack single-node VictoriaMetrics
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.123.0/victoria-metrics-linux-amd64-v1.123.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.123.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.127.0/victoria-metrics-linux-amd64-v1.127.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.127.0.tar.gz
 
 # Run single-node VictoriaMetrics with the given scrape.yaml
 ./victoria-metrics-prod -promscrape.config=scrape.yaml
@@ -177,12 +175,12 @@ and full urls in scrape target lists.
 
 Save the updated `node_exporter_targets.json`, wait for 30 seconds and then refresh the `http://localhost:8428/targets` page.
 Now this page must contain all the targets defined in the updated `node_exporter_targets.json`.
-By default [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+By default [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 check for updates in `files` specified at [`file_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs)
 every 30 seconds. This interval can be changed via `-promscrape.fileSDCheckInterval` command-line flag.
 For example, the following command starts VictoriaMetrics, which checks for updates in `file_sd_configs` every 5 seconds:
 
-```
+```sh
 ./victoria-metrics-prod -promscrape.config=scrape.yaml -promscrape.fileSDCheckInterval=5s
 ```
 
@@ -204,13 +202,12 @@ scrape_configs:
 It is possible to specify directories with `*` wildcards for distinct sets of targets at `file_sd_configs`.
 See [these docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#file_sd_configs) for details.
 
-[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+[vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
 can efficiently scrape tens of thousands of scrape targets. If you need scraping more targets,
 then see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
 
 Targets are scraped at `http` or `https` urls, which are formed according to [these rules](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets).
 It is possible to modify scrape urls via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) if needed.
-
 
 ## HTTP-based target discovery
 

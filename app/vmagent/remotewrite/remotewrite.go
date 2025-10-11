@@ -209,7 +209,7 @@ func Init() {
 	// In this case it is impossible to prevent from sending many duplicates of samples passed to TryPush() to all the configured -remoteWrite.url
 	// if these samples couldn't be sent to the -remoteWrite.url with the disabled persistent queue. So it is better sending samples
 	// to the remaining -remoteWrite.url and dropping them on the blocked queue.
-	dropSamplesOnFailureGlobal = *dropSamplesOnOverload || disableOnDiskQueueAny && len(disableOnDiskQueues) > 1
+	dropSamplesOnFailureGlobal = *dropSamplesOnOverload || disableOnDiskQueueAny && len(*remoteWriteURLs) > 1
 
 	dropDanglingQueues()
 
@@ -388,13 +388,7 @@ func TryPush(at *auth.Token, wr *prompb.WriteRequest) bool {
 
 func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure bool) bool {
 	tss := wr.Timeseries
-
-	var tenantRctx *relabelCtx
-	if at != nil {
-		// Convert at to (vm_account_id, vm_project_id) labels.
-		tenantRctx = getRelabelCtx()
-		defer putRelabelCtx(tenantRctx)
-	}
+	mms := wr.Metadata
 
 	// Quick check whether writes to configured remote storage systems are blocked.
 	// This allows saving CPU time spent on relabeling and block compression
@@ -409,6 +403,23 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 		// All the remote write queues are skipped because they are blocked and dropSamplesOnFailure is set to true.
 		// Return true to the caller, so it doesn't re-send the samples again.
 		return true
+	}
+
+	// Push metadata separately from time series, since it doesn't need sharding,
+	// relabeling, stream aggregation, deduplication, etc.
+	if !tryPushMetadataToRemoteStorages(rwctxs, mms, forceDropSamplesOnFailure) {
+		return false
+	}
+
+	if len(tss) == 0 {
+		return true
+	}
+
+	var tenantRctx *relabelCtx
+	if at != nil {
+		// Convert at to (vm_account_id, vm_project_id) labels.
+		tenantRctx = getRelabelCtx()
+		defer putRelabelCtx(tenantRctx)
 	}
 
 	var rctx *relabelCtx
@@ -481,7 +492,7 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 			deduplicatorGlobal.Push(tssBlock)
 			tssBlock = tssBlock[:0]
 		}
-		if !tryPushBlockToRemoteStorages(rwctxs, tssBlock, forceDropSamplesOnFailure) {
+		if !tryPushTimeSeriesToRemoteStorages(rwctxs, tssBlock, forceDropSamplesOnFailure) {
 			return false
 		}
 	}
@@ -520,18 +531,49 @@ func getEligibleRemoteWriteCtxs(tss []prompb.TimeSeries, forceDropSamplesOnFailu
 	return rwctxs, true
 }
 
-func pushToRemoteStoragesTrackDropped(tss []prompb.TimeSeries) {
+func pushTimeSeriesToRemoteStoragesTrackDropped(tss []prompb.TimeSeries) {
 	rwctxs, _ := getEligibleRemoteWriteCtxs(tss, true)
 	if len(rwctxs) == 0 {
 		return
 	}
 
-	if !tryPushBlockToRemoteStorages(rwctxs, tss, true) {
-		logger.Panicf("BUG: tryPushBlockToRemoteStorages() must return true when forceDropSamplesOnFailure=true")
+	if !tryPushTimeSeriesToRemoteStorages(rwctxs, tss, true) {
+		logger.Panicf("BUG: tryPushTimeSeriesToRemoteStorages() must return true when forceDropSamplesOnFailure=true")
 	}
 }
 
-func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.TimeSeries, forceDropSamplesOnFailure bool) bool {
+func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.MetricMetadata, forceDropSamplesOnFailure bool) bool {
+	if len(mms) == 0 {
+		// Nothing to push
+		return true
+	}
+	// Do not shard metadata even if -remoteWrite.shardByURL is set, just replicate it among rwctxs.
+	// Since metadata is usually small and there is no guarantee that metadata can be sent to
+	// the same remote storage with the corresponding metrics.
+	//
+	// Push metadata to remote storage systems in parallel to reduce
+	// the time needed for sending the data to multiple remote storage systems.
+	var wg sync.WaitGroup
+	wg.Add(len(rwctxs))
+	var anyPushFailed atomic.Bool
+	for _, rwctx := range rwctxs {
+		go func(rwctx *remoteWriteCtx) {
+			defer wg.Done()
+			if !rwctx.tryPushMetadataInternal(mms) {
+				rwctx.pushFailures.Inc()
+				if forceDropSamplesOnFailure {
+					rwctx.metadataDroppedOnPushFailure.Add(len(mms))
+					return
+				}
+				anyPushFailed.Store(true)
+			}
+		}(rwctx)
+	}
+	wg.Wait()
+	return !anyPushFailed.Load()
+}
+
+func tryPushTimeSeriesToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.TimeSeries, forceDropSamplesOnFailure bool) bool {
 	if len(tssBlock) == 0 {
 		// Nothing to push
 		return true
@@ -539,7 +581,7 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.Ti
 
 	if len(rwctxs) == 1 {
 		// Fast path - just push data to the configured single remote storage
-		return rwctxs[0].TryPush(tssBlock, forceDropSamplesOnFailure)
+		return rwctxs[0].TryPushTimeSeries(tssBlock, forceDropSamplesOnFailure)
 	}
 
 	// We need to push tssBlock to multiple remote storages.
@@ -550,11 +592,11 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.Ti
 		if replicas <= 0 {
 			replicas = 1
 		}
-		return tryShardingBlockAmongRemoteStorages(rwctxs, tssBlock, replicas, forceDropSamplesOnFailure)
+		return tryShardingTimeSeriesAmongRemoteStorages(rwctxs, tssBlock, replicas, forceDropSamplesOnFailure)
 	}
 
 	// Replicate tssBlock samples among rwctxs.
-	// Push tssBlock to remote storage systems in parallel in order to reduce
+	// Push tssBlock to remote storage systems in parallel to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
 	wg.Add(len(rwctxs))
@@ -562,7 +604,7 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.Ti
 	for _, rwctx := range rwctxs {
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
-			if !rwctx.TryPush(tssBlock, forceDropSamplesOnFailure) {
+			if !rwctx.TryPushTimeSeries(tssBlock, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
 		}(rwctx)
@@ -571,7 +613,7 @@ func tryPushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.Ti
 	return !anyPushFailed.Load()
 }
 
-func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
+func tryShardingTimeSeriesAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompb.TimeSeries, replicas int, forceDropSamplesOnFailure bool) bool {
 	x := getTSSShards(len(rwctxs))
 	defer putTSSShards(x)
 
@@ -590,7 +632,7 @@ func tryShardingBlockAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []pr
 		wg.Add(1)
 		go func(rwctx *remoteWriteCtx, tss []prompb.TimeSeries) {
 			defer wg.Done()
-			if !rwctx.TryPush(tss, forceDropSamplesOnFailure) {
+			if !rwctx.TryPushTimeSeries(tss, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
 		}(rwctx, shard)
@@ -797,8 +839,9 @@ type remoteWriteCtx struct {
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
 
-	pushFailures             *metrics.Counter
-	rowsDroppedOnPushFailure *metrics.Counter
+	pushFailures                 *metrics.Counter
+	metadataDroppedOnPushFailure *metrics.Counter
+	rowsDroppedOnPushFailure     *metrics.Counter
 }
 
 func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
@@ -862,8 +905,9 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 
-		pushFailures:             metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_push_failures_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
-		rowsDroppedOnPushFailure: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
+		pushFailures:                 metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_push_failures_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
+		metadataDroppedOnPushFailure: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_metadata_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
+		rowsDroppedOnPushFailure:     metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_samples_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 	}
 	rwctx.initStreamAggrConfig()
 
@@ -897,10 +941,10 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.rowsDroppedByRelabel = nil
 }
 
-// TryPush sends tss series to the configured remote write endpoint
+// TryPushTimeSeries sends tss series to the configured remote write endpoint
 //
-// TryPush doesn't modify tss, so tss can be passed concurrently to TryPush across distinct rwctx instances.
-func (rwctx *remoteWriteCtx) TryPush(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) bool {
+// TryPushTimeSeries doesn't modify tss, so tss can be passed concurrently to TryPush across distinct rwctx instances.
+func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDropSamplesOnFailure bool) bool {
 	var rctx *relabelCtx
 	var v *[]prompb.TimeSeries
 	defer func() {
@@ -953,7 +997,7 @@ func (rwctx *remoteWriteCtx) TryPush(tss []prompb.TimeSeries, forceDropSamplesOn
 	}
 
 	// Try pushing tss to remote storage
-	if rwctx.tryPushInternal(tss) {
+	if rwctx.tryPushTimeSeriesInternal(tss) {
 		return true
 	}
 
@@ -985,7 +1029,7 @@ func dropAggregatedSeries(src []prompb.TimeSeries, matchIdxs []byte, dropInput b
 }
 
 func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompb.TimeSeries) {
-	if rwctx.tryPushInternal(tss) {
+	if rwctx.tryPushTimeSeriesInternal(tss) {
 		return
 	}
 	if !rwctx.fq.IsPersistentQueueDisabled() {
@@ -996,7 +1040,14 @@ func (rwctx *remoteWriteCtx) pushInternalTrackDropped(tss []prompb.TimeSeries) {
 	rwctx.rowsDroppedOnPushFailure.Add(rowsCount)
 }
 
-func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompb.TimeSeries) bool {
+func (rwctx *remoteWriteCtx) tryPushMetadataInternal(mms []prompb.MetricMetadata) bool {
+	pss := rwctx.pss
+	idx := rwctx.pssNextIdx.Add(1) % uint64(len(pss))
+
+	return pss[idx].TryPushMetadata(mms)
+}
+
+func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) bool {
 	var rctx *relabelCtx
 	var v *[]prompb.TimeSeries
 	defer func() {
@@ -1020,7 +1071,7 @@ func (rwctx *remoteWriteCtx) tryPushInternal(tss []prompb.TimeSeries) bool {
 	pss := rwctx.pss
 	idx := rwctx.pssNextIdx.Add(1) % uint64(len(pss))
 
-	return pss[idx].TryPush(tss)
+	return pss[idx].TryPushTimeSeries(tss)
 }
 
 var tssPool = &sync.Pool{

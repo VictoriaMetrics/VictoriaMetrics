@@ -16,6 +16,8 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
@@ -1130,11 +1132,11 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached := func(tfss []*TagFilters, tr TimeRange, want bool) {
 		t.Helper()
 
-		idb, putIndexDB := s.getCurrIndexDB()
-		defer putIndexDB()
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 		tfssKey := marshalTagFiltersKey(nil, tfss, tr, true)
-		_, got := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey)
+		_, got := idbCurr.getMetricIDsFromTagFiltersCache(nil, tfssKey)
 		if got != want {
 			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)
 		}
@@ -1435,6 +1437,55 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
 	assertDeletedMetricIDsCacheSize(3)
+}
+
+func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	const numSeries = 100
+	trPrev := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsPrev := testGenerateMetricRowsWithPrefix(rng, numSeries, "prev", trPrev)
+	trCurr := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsCurr := testGenerateMetricRowsWithPrefix(rng, numSeries, "curr", trCurr)
+	deleteSeries := func(s *Storage, want, wantTotal int) {
+		t.Helper()
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		got, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		if err != nil {
+			t.Fatalf("could not delete series unexpectedly: %v", err)
+		}
+		if got != want {
+			t.Fatalf("unexpected number of deleted series: got %d, want %d", got, want)
+		}
+		var m Metrics
+		s.UpdateMetrics(&m)
+		if got, want := m.DeletedMetricsCount, uint64(wantTotal); got != want {
+			t.Fatalf("unexpected number of total deleted series: got %d, want %d", got, want)
+		}
+
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrsPrev, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, numSeries)
+
+	s.mustRotateIndexDB(time.Now())
+
+	s.AddRows(mrsCurr, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, 2*numSeries)
 }
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
@@ -1765,15 +1816,14 @@ func TestStorageRotateIndexDB(t *testing.T) {
 		wg.Wait()
 		s.DebugFlush()
 
-		idbCurr, putIndexDB := s.getCurrIndexDB()
-		defer putIndexDB()
-		idbPrev := idbCurr.extDB
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 		isCurr := idbCurr.getIndexSearch(noDeadline)
 		defer idbCurr.putIndexSearch(isCurr)
 		isPrev := idbPrev.getIndexSearch(noDeadline)
 		defer idbPrev.putIndexSearch(isPrev)
 
-		return testCountAllMetricNamesNoExtDB(isPrev, tr), testCountAllMetricNamesNoExtDB(isCurr, tr)
+		return testCountAllMetricNamesInIndex(isPrev, tr), testCountAllMetricNamesInIndex(isCurr, tr)
 	}
 
 	var oldCurr int
@@ -1793,7 +1843,7 @@ func TestStorageRotateIndexDB(t *testing.T) {
 	}
 }
 
-func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
+func testCountAllMetricNamesInIndex(is *indexSearch, tr TimeRange) int {
 	tfss := NewTagFilters()
 	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
@@ -1804,10 +1854,13 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 	}
 	metricNames := map[string]bool{}
 	var metricName []byte
-	for _, metricID := range metricIDs {
-		metricName, _ = is.searchMetricName(metricName[:0], metricID)
-		metricNames[string(metricName)] = true
-	}
+	metricIDs.ForEach(func(part []uint64) bool {
+		for _, metricID := range part {
+			metricName, _ = is.searchMetricName(metricName[:0], metricID)
+			metricNames[string(metricName)] = true
+		}
+		return true
+	})
 	return len(metricNames)
 }
 
@@ -2559,11 +2612,11 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		names, err := s.SearchMetricNames(nil, tfss, opts.tr, opts.maxMetrics, noDeadline)
 		gotErr := err != nil
 		if gotErr != opts.wantErr {
-			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
+			t.Errorf("SearchMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
 				tfss, &opts.tr, opts.maxMetrics, err, opts.wantErr}...)
 		}
 		if got := len(names); got != opts.wantCount {
-			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected metric name count: got %d, want %d", []any{
+			t.Errorf("SearchMetricNames(%v, %v, %d): unexpected metric name count: got %d, want %d", []any{
 				tfss, &opts.tr, opts.maxMetrics, got, opts.wantCount}...)
 		}
 	}
@@ -3434,7 +3487,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
-		wantEmpty:        []string(nil),
+		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
 	}
@@ -3479,6 +3532,7 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 			}
 			got[i] = string(mn.MetricGroup)
 		}
+		slices.Sort(got)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("[%v] unexpected metric names: got %v, want %v", &tr, got, want)
 		}
@@ -3652,7 +3706,7 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	opts := testStorageSearchWithoutPerDayIndexOptions{
-		wantEmpty:        []string(nil),
+		wantEmpty:        []string{},
 		wantPerTimeRange: make(map[TimeRange]any),
 		wantAll:          []string{},
 	}
@@ -3889,6 +3943,30 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 	})
 }
 
+// testSearchMetricIDs returns metricIDs for the given tfss and tr.
+//
+// The returned metricIDs are sorted. The function panics in in case of error.
+// The function is not a part of Storage because it is currently used in unit
+// tests only.
+func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
+		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	}
+	merge := func(data [][]uint64) []uint64 {
+		s := &uint64set.Set{}
+		for _, d := range data {
+			s.AddMulti(d)
+		}
+		all := s.AppendTo(nil)
+		return all
+	}
+	metricIDs, err := searchAndMerge(nil, s, tr, search, merge)
+	if err != nil {
+		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
+	}
+	return metricIDs
+}
+
 // testCountAllMetricIDs is a test helper function that counts the IDs of
 // all time series within the given time range.
 func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
@@ -3896,15 +3974,7 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
-	if s.disablePerDayIndex {
-		tr = globalIndexTimeRange
-	}
-	idb, putIndexDB := s.getCurrIndexDB()
-	defer putIndexDB()
-	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
-	if err != nil {
-		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
-	}
+	ids := testSearchMetricIDs(s, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
 	return len(ids)
 }
 
@@ -4324,7 +4394,7 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 	allTimeseries := len(names)
 	rowsAddedTotal := uint64(opts.numBatches * opts.numRowsPerBatch)
 
-	// When RegisterMetricNames() is called it only restisters the time series
+	// When RegisterMetricNames() is called it only registers the time series
 	// in IndexDB but no samples is written to the storage.
 	if opts.registerOnly {
 		rowsAddedTotal = 0
@@ -4449,7 +4519,7 @@ func TestMustOpenIndexDBTables_noTables(t *testing.T) {
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBIsNotNil(t, prev)
 	assertIndexDBIsNotNil(t, curr)
 	assertIndexDBIsNotNil(t, next)
@@ -4470,7 +4540,7 @@ func TestMustOpenIndexDBTables_prevOnly(t *testing.T) {
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBIsNotNil(t, curr)
 	assertIndexDBIsNotNil(t, next)
@@ -4496,7 +4566,7 @@ func TestMustOpenIndexDBTables_currAndPrev(t *testing.T) {
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBIsNotNil(t, next)
@@ -4525,7 +4595,7 @@ func TestMustOpenIndexDBTables_nextAndCurrAndPrev(t *testing.T) {
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
@@ -4563,7 +4633,7 @@ func TestMustOpenIndexDBTables_ObsoleteDirsAreRemoved(t *testing.T) {
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
@@ -4594,7 +4664,7 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	defer s.MustClose()
 	next := s.idbNext.Load()
 	curr := s.idbCurr.Load()
-	prev := curr.extDB
+	prev := s.idbPrev.Load()
 	assertIndexDBName(t, prev, prevName)
 	assertIndexDBName(t, curr, currName)
 	assertIndexDBName(t, next, nextName)
@@ -4602,7 +4672,7 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	s.mustRotateIndexDB(time.Now())
 	next = s.idbNext.Load()
 	curr = s.idbCurr.Load()
-	prev = curr.extDB
+	prev = s.idbPrev.Load()
 	newNextName := next.name
 	newNextPath := filepath.Join(idbPath, newNextName)
 	assertPathsDoNotExist(t, prevPath)

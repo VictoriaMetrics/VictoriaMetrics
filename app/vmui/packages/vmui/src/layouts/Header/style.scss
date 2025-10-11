@@ -17,20 +17,13 @@
   @media (max-width: 1000px) {
     position: sticky;
     top: 0;
-    gap: $padding-small;
     padding: $padding-small;
   }
 
   &_sidebar {
-    display: grid;
-    grid-template-columns: 40px auto 1fr;
-    box-shadow: $color-background-body 0 1px 1px 0px;
-  }
-
-  &_mobile {
-    display: grid;
-    grid-template-columns: 33px 1fr 33px;
+    display: flex;
     justify-content: space-between;
+    box-shadow: $color-background-body 0 1px 1px 0px;
   }
 
   &_dark {
@@ -59,6 +52,7 @@
     }
 
     &_mobile {
+      order: 2;
       max-width: 75px;
       min-width: 75px;
       margin: 0 auto;

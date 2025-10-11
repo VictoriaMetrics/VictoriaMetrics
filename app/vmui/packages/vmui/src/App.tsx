@@ -18,84 +18,96 @@ import QueryAnalyzer from "./pages/QueryAnalyzer";
 import DownsamplingFilters from "./pages/DownsamplingFilters";
 import RetentionFilters from "./pages/RetentionFilters";
 import RawQueryPage from "./pages/RawQueryPage";
+import ExploreRules from "./pages/ExploreAlerts/ExploreRules";
+import ExploreNotifiers from "./pages/ExploreAlerts/ExploreNotifiers";
 
 const App: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
 
-  return <>
-    <HashRouter>
-      <AppContextProvider>
-        <>
-          <ThemeProvider onLoaded={setLoadedTheme}/>
-          {loadedTheme && (
-            <Routes>
-              <Route
-                path={"/"}
-                element={<MainLayout/>}
-              >
+  return (
+    <>
+      <HashRouter>
+        <AppContextProvider>
+          <>
+            <ThemeProvider onLoaded={setLoadedTheme} />
+            {loadedTheme && (
+              <Routes>
                 <Route
-                  path={router.home}
-                  element={<CustomPanel/>}
-                />
-                <Route
-                  path={router.rawQuery}
-                  element={<RawQueryPage/>}
-                />
-                <Route
-                  path={router.metrics}
-                  element={<ExploreMetrics/>}
-                />
-                <Route
-                  path={router.cardinality}
-                  element={<CardinalityPanel/>}
-                />
-                <Route
-                  path={router.topQueries}
-                  element={<TopQueries/>}
-                />
-                <Route
-                  path={router.trace}
-                  element={<TracePage/>}
-                />
-                <Route
-                  path={router.queryAnalyzer}
-                  element={<QueryAnalyzer/>}
-                />
-                <Route
-                  path={router.dashboards}
-                  element={<DashboardsLayout/>}
-                />
-                <Route
-                  path={router.withTemplate}
-                  element={<WithTemplate/>}
-                />
-                <Route
-                  path={router.relabel}
-                  element={<Relabel/>}
-                />
-                <Route
-                  path={router.activeQueries}
-                  element={<ActiveQueries/>}
-                />
-                <Route
-                  path={router.icons}
-                  element={<PreviewIcons/>}
-                />
-                <Route
-                  path={router.downsamplingDebug}
-                  element={<DownsamplingFilters/>}
-                />
-                <Route
-                  path={router.retentionDebug}
-                  element={<RetentionFilters/>}
-                />
-              </Route>
-            </Routes>
-          )}
-        </>
-      </AppContextProvider>
-    </HashRouter>
-  </>;
+                  path={"/"}
+                  element={<MainLayout />}
+                >
+                  <Route
+                    path={router.home}
+                    element={<CustomPanel />}
+                  />
+                  <Route
+                    path={router.rawQuery}
+                    element={<RawQueryPage />}
+                  />
+                  <Route
+                    path={router.metrics}
+                    element={<ExploreMetrics />}
+                  />
+                  <Route
+                    path={router.cardinality}
+                    element={<CardinalityPanel />}
+                  />
+                  <Route
+                    path={router.topQueries}
+                    element={<TopQueries />}
+                  />
+                  <Route
+                    path={router.trace}
+                    element={<TracePage />}
+                  />
+                  <Route
+                    path={router.queryAnalyzer}
+                    element={<QueryAnalyzer />}
+                  />
+                  <Route
+                    path={router.dashboards}
+                    element={<DashboardsLayout />}
+                  />
+                  <Route
+                    path={router.withTemplate}
+                    element={<WithTemplate />}
+                  />
+                  <Route
+                    path={router.relabel}
+                    element={<Relabel />}
+                  />
+                  <Route
+                    path={router.activeQueries}
+                    element={<ActiveQueries />}
+                  />
+                  <Route
+                    path={router.icons}
+                    element={<PreviewIcons />}
+                  />
+                  <Route
+                    path={router.downsamplingDebug}
+                    element={<DownsamplingFilters />}
+                  />
+                  <Route
+                    path={router.retentionDebug}
+                    element={<RetentionFilters />}
+                  />
+                  <Route
+                    path={router.rules}
+                    element={<ExploreRules />}
+                  />
+                  <Route
+                    path={router.notifiers}
+                    element={<ExploreNotifiers />}
+                  />
+                </Route>
+              </Routes>
+            )}
+          </>
+        </AppContextProvider>
+      </HashRouter>
+    </>
+  );
 };
 
 export default App;

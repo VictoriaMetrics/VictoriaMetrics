@@ -274,14 +274,42 @@ To generate the signature, you must have:
 
 # Errors
 
-Errors returned by this client are often of the type [googleapi.Error].
-These errors can be introspected for more information by using [errors.As]
-with the richer [googleapi.Error] type. For example:
+Errors returned by this client are often of the type [github.com/googleapis/gax-go/v2/apierror].
+The [apierror.APIError] type can wrap a [google.golang.org/grpc/status.Status]
+if gRPC was used, or a [google.golang.org/api/googleapi.Error] if HTTP/REST was used.
+You might also encounter [googleapi.Error] directly from HTTP operations.
+These types of errors can be inspected for more information by using [errors.As]
+to access the specific underlying error types and retrieve detailed information,
+including HTTP or gRPC status codes. For example:
 
+	// APIErrors often wrap a googleapi.Error (for JSON and XML calls) or a status.Status (for gRPC calls)
+	var ae *apierror.APIError
+	if ok := errors.As(err, &ae); ok {
+		// ae.HTTPCode() is the HTTP status code.
+		// ae.GRPCStatus().Code() is the gRPC status code
+		log.Printf("APIError: HTTPCode: %d, GRPCStatusCode: %s", ae.HTTPCode(), ae.GRPCStatus().Code())
+
+		if ae.GRPCStatus().Code() == codes.Unavailable {
+			// ... handle gRPC unavailable ...
+		}
+	}
+
+	// This allows a user to get more information directly from googleapi.Errors (for JSON/XML calls)
 	var e *googleapi.Error
 	if ok := errors.As(err, &e); ok {
-		  if e.Code == 409 { ... }
+		// e.Code is the HTTP status code.
+		// e.Message is the error message.
+		// e.Body is the raw response body.
+		// e.Header contains the HTTP response headers.
+		log.Printf("HTTP Code: %d, Message: %s", e.Code, e.Message)
+
+		if e.Code == 409 {
+			// ... handle conflict ...
+		}
 	}
+
+This library may also return other errors that are not wrapped as [apierror.APIError]. For
+example, errors with authentication may return [cloud.google.com/go/auth.Error].
 
 # Retrying failed requests
 
@@ -331,14 +359,15 @@ to add a [custom audit logging] header:
 	// Use client as usual with the context and the additional headers will be sent.
 	client.Bucket("my-bucket").Attrs(ctx)
 
-# Experimental gRPC API
+# gRPC API
 
-This package includes support for the Cloud Storage gRPC API, which is currently
-in preview. This implementation uses gRPC rather than the current JSON & XML
-APIs to make requests to Cloud Storage. Kindly contact the Google Cloud Storage gRPC
-team at gcs-grpc-contact@google.com with a list of GCS buckets you would like to
-allowlist to access this API. The Go Storage gRPC library is not yet generally
-available, so it may be subject to breaking changes.
+This package includes support for the [Cloud Storage gRPC API]. This
+implementation uses gRPC rather than the default JSON & XML APIs
+to make requests to Cloud Storage. All methods on the [Client] support
+the gRPC API, with the exception of the [Client.ServiceAccount], [Notification],
+and [HMACKey] methods.
+
+The Cloud Storage gRPC API is generally available.
 
 To create a client which will use gRPC, use the alternate constructor:
 
@@ -349,15 +378,34 @@ To create a client which will use gRPC, use the alternate constructor:
 	}
 	// Use client as usual.
 
-If the application is running within GCP, users may get better performance by
-enabling Direct Google Access (enabling requests to skip some proxy steps). To enable,
-set the environment variable `GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS=true` and add
-the following side-effect imports to your application:
+One major advantage of the gRPC API is that it can use [Direct Connectivity],
+enabling requests to skip some proxy steps and reducing response latency.
+Requirements to use Direct Connectivity include:
 
-	import (
-		_ "google.golang.org/grpc/balancer/rls"
-		_ "google.golang.org/grpc/xds/googledirectpath"
-	)
+  - Your application must be running inside Google Cloud.
+  - Your Cloud Storage [bucket location] must overlap with your VM or compute
+    environment zone. For example, if your VM is in us-east1a, your bucket
+    must be located in either us-east1 (single region), nam4 (dual region),
+    or us (multi-region).
+  - Your client must use service account authentication.
+
+Additional requirements for Direct Connectivity are documented in the
+[Cloud Storage gRPC docs]. If all requirements are met, the client will
+use Direct Connectivity by default without requiring any client options
+or environment variables. To disable Direct Connectivity, you can set
+the environment variable GOOGLE_CLOUD_DISABLE_DIRECT_PATH=true.
+
+Dependencies for the gRPC API may slightly increase the size of binaries for
+applications depending on this package. If you are not using gRPC, you can use
+the build tag `disable_grpc_modules` to opt out of these dependencies and
+reduce the binary size.
+
+The gRPC client is instrumented with Open Telemetry metrics which export to
+Cloud Monitoring by default. More information is available in the
+[gRPC client-side metrics] documentation, including information about
+roles which must be enabled in order to do the export successfully. To
+disable this export, you can use the [WithDisabledClientMetrics] client
+option.
 
 # Storage Control API
 
@@ -375,5 +423,10 @@ client, which is available as a subpackage in this module. See package docs at
 [IAM Service Account Credentials API]: https://console.developers.google.com/apis/api/iamcredentials.googleapis.com/overview
 [custom audit logging]: https://cloud.google.com/storage/docs/audit-logging#add-custom-metadata
 [Storage Control API]: https://cloud.google.com/storage/docs/reference/rpc/google.storage.control.v2
+[Cloud Storage gRPC API]: https://cloud.google.com/storage/docs/enable-grpc-api
+[Direct Connectivity]: https://cloud.google.com/vpc-service-controls/docs/set-up-private-connectivity#direct-connectivity
+[bucket location]: https://cloud.google.com/storage/docs/locations
+[Cloud Storage gRPC docs]: https://cloud.google.com/storage/docs/enable-grpc-api#limitations
+[gRPC client-side metrics]: https://cloud.google.com/storage/docs/client-side-metrics
 */
 package storage // import "cloud.google.com/go/storage"

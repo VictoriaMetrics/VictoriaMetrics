@@ -4070,6 +4070,9 @@ func TestExecExprFailure(t *testing.T) {
 
 	f(`holtWintersConfidenceArea(group(time("foo.baz",15),time("foo.baz",15)))`)
 	f(`holtWintersConfidenceArea()`)
+
+	// too long query
+	f(`sumSeries(` + strings.Repeat("metric.very.long.name.that.takes.space,", 500) + `metric.final)`)
 }
 
 func compareSeries(ss, ssExpected []*series, expr graphiteql.Expr) error {

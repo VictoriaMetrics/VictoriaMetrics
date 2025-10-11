@@ -30,17 +30,17 @@ export interface DataValue {
   value: number; // y axis value
 }
 
-export interface DataSeries extends MetricBase{
+export interface DataSeries extends MetricBase {
   metadata: {
     name: string;
-  },
+  };
   values: DataValue[]; // sorted by key which is timestamp
 }
 
 export interface InstantDataSeries {
   metadata: string[]; // just ordered columns
   value: string;
-  values: string[]
+  values: string[];
   copyValue: string;
 }
 
@@ -62,7 +62,7 @@ export interface PanelSettings {
   expr: string[];
   alias?: string[];
   showLegend?: boolean;
-  width?: number
+  width?: number;
 }
 
 export interface DashboardRow {
@@ -77,55 +77,61 @@ export interface DashboardSettings {
 }
 
 export interface RelativeTimeOption {
-  id: string,
-  duration: string,
-  until: () => Date,
-  title: string,
-  isDefault?: boolean,
+  id: string;
+  duration: string;
+  until: () => Date;
+  title: string;
+  isDefault?: boolean;
 }
 
 export interface TopQuery {
-  accountID: number
-  avgDurationSeconds: number
-  count: number
-  projectID: number
-  query: string
-  timeRangeSeconds: number
-  sumDurationSeconds: number
-  timeRange: string
-  url?: string
+  accountID: number;
+  avgDurationSeconds: number;
+  count: number;
+  projectID: number;
+  query: string;
+  timeRangeSeconds: number;
+  sumDurationSeconds: number;
+  timeRange: string;
+  url?: string;
 }
 
 export interface TopQueryStats {
-  "search.queryStats.lastQueriesCount": number
-  "search.queryStats.minQueryDuration": string
+  "search.queryStats.lastQueriesCount": number;
+  "search.queryStats.minQueryDuration": string;
 }
 
 export interface TopQueriesData extends TopQueryStats {
-  maxLifetime: string
-  topN: string
-  topByAvgDuration: TopQuery[]
-  topByCount: TopQuery[]
-  topBySumDuration: TopQuery[]
-  error?: string
+  maxLifetime: string;
+  topN: string;
+  topByAvgDuration: TopQuery[];
+  topByCount: TopQuery[];
+  topBySumDuration: TopQuery[];
+  error?: string;
 }
 
 export interface SeriesLimits {
-  table: number,
-  chart: number,
-  code: number,
+  table: number;
+  chart: number;
+  code: number;
 }
 
 export interface Timezone {
-  region: string,
-  utc: string,
-  search?: string
+  region: string;
+  utc: string;
+  search?: string;
 }
 
 export interface GraphSize {
-  id: string,
-  isDefault?: boolean,
-  height: () => number
+  id: string;
+  isDefault?: boolean;
+  height: () => number;
+}
+
+export interface RuleType {
+  id: string;
+  title: string;
+  isDefault?: boolean;
 }
 
 export enum Theme {
@@ -141,7 +147,7 @@ export interface RelabelStep {
   errors: {
     inLabels: string;
     outLabels: string;
-  }
+  };
 }
 
 export interface RelabelData {
@@ -173,5 +179,88 @@ export enum QueryContextType {
 export interface AppConfig {
   license?: {
     type?: "enterprise" | "opensource";
-  }
+  };
+  vmalert?: {
+    enabled: boolean;
+  };
+  version?: string;
+}
+
+export interface Group {
+  name: string;
+  file: string;
+  rules: Rule[];
+  interval: number;
+  limit: number;
+  lastEvaluation: number;
+  evaluationTime: number;
+  type: string;
+  id: string;
+  concurrency: number;
+  params: string[];
+  headers: string[];
+  notifier_headers: string[];
+  labels: Record<string, string>;
+  eval_offset: number;
+  eval_delay: number;
+  states: Record<string, number>;
+}
+
+export interface Rule {
+  state: string;
+  name: string;
+  query: string;
+  duration: number;
+  keepFiringFor: number;
+  labels: Record<string, string>;
+  annotations: Record<string, string>;
+  alerts: Alert[];
+  health: string;
+  lastEvaluation: number;
+  lastError: string;
+  evaluationTime: number;
+  type: string;
+  datasourceType: string;
+  lastSamples: bigint;
+  lastSeriesFetched: bigint;
+  id: string;
+  group_id: string;
+  debug: boolean;
+  updates: RuleUpdate[];
+  max_updates_entries: number;
+}
+
+interface RuleUpdate {
+  time: string;
+  at: string;
+  duration: number;
+  error: string;
+  samples: number;
+  series_fetched: number;
+}
+
+export interface Alert {
+  name: string;
+  state: string;
+  value: string;
+  group_id: string;
+  expression: string;
+  labels: Record<string, string>;
+  annotations: Record<string, string>;
+  activeAt: number;
+  id: string;
+  source: string;
+  restored: boolean;
+  stabilizing: boolean;
+}
+
+export interface Notifier {
+  kind: string;
+  targets: Target[];
+}
+
+export interface Target {
+  address: string;
+  labels: Record<string, string>;
+  lastError: string;
 }
