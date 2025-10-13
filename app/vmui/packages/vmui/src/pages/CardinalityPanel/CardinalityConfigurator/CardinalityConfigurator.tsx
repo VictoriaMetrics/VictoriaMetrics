@@ -13,6 +13,8 @@ import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject"
 import useStateSearchParams from "../../../hooks/useStateSearchParams";
 import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
 
+const DEFAULT_TOP_N = 10;
+
 const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isCluster, ...props }) => {
   const { isMobile } = useDeviceDetect();
   const [searchParams] = useSearchParams();
@@ -21,7 +23,8 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
   const showTips = searchParams.get("tips") || "";
   const [match, setMatch] = useStateSearchParams("", "match");
   const [focusLabel, setFocusLabel] = useStateSearchParams("", "focusLabel");
-  const [topN, setTopN] = useStateSearchParams(10, "topN");
+  const [topN, setTopN] = useStateSearchParams(DEFAULT_TOP_N, "topN");
+  const hasChanges = !!(match || focusLabel || (topN !== DEFAULT_TOP_N && !isPrometheus));
 
   const errorTopN = useMemo(() => topN < 0 ? "Number must be bigger than zero" : "", [topN]);
 
@@ -35,7 +38,10 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
   };
 
   const handleResetQuery = () => {
-    setSearchParamsFromKeys({ match: "", focusLabel: "" });
+    setSearchParamsFromKeys({ match: "", focusLabel: "", topN: "" });
+    setMatch("");
+    setFocusLabel("");
+    setTopN(DEFAULT_TOP_N);
   };
 
   const handleToggleTips = () => {
@@ -45,7 +51,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
 
   useEffect(() => {
     const matchQuery = searchParams.get("match");
-    const topNQuery = +(searchParams.get("topN") || 10);
+    const topNQuery = +(searchParams.get("topN") || DEFAULT_TOP_N);
     const focusLabelQuery = searchParams.get("focusLabel");
     if (matchQuery !== match) setMatch(matchQuery || "");
     if (topNQuery !== topN) setTopN(topNQuery);
@@ -94,7 +100,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
         <TextField
           label="Limit entries"
           type="number"
-          value={isPrometheus ? 10 : topN}
+          value={isPrometheus ? DEFAULT_TOP_N : topN}
           error={errorTopN}
           disabled={isPrometheus}
           helperText={isPrometheus ? "not available for Prometheus" : ""}
@@ -116,7 +122,7 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
             withIcon={true}
           >
             <WikiIcon/>
-          Statistic inaccuracy explanation
+            Statistic inaccuracy explanation
           </Hyperlink>
         </div>
       }
@@ -145,8 +151,9 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = ({ isPrometheus, isC
           variant="text"
           startIcon={<RestartIcon/>}
           onClick={handleResetQuery}
+          disabled={!hasChanges}
         >
-          Reset
+          Reset filters
         </Button>
         <Button
           startIcon={<PlayIcon/>}

@@ -5,6 +5,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
@@ -161,18 +162,34 @@ func tryUnquoteString(s, opt string) (string, int) {
 	if len(s) == 0 {
 		return "", -1
 	}
-	if s[0] != '"' && s[0] != '`' {
+
+	switch s[0] {
+	case '"', '`':
+		qp, err := strconv.QuotedPrefix(s)
+		if err != nil {
+			return "", -1
+		}
+		us, err := strconv.Unquote(qp)
+		if err != nil {
+			return "", -1
+		}
+		return us, len(qp)
+	case '\'':
+		sOrig := s
+		var b []byte
+		s = s[1:]
+		for !strings.HasPrefix(s, "'") {
+			ch, _, tail, err := strconv.UnquoteChar(s, '\'')
+			if err != nil {
+				return "", -1
+			}
+			b = utf8.AppendRune(b, ch)
+			s = tail
+		}
+		return string(b), len(sOrig) - len(s) + 1
+	default:
 		return "", -1
 	}
-	qp, err := strconv.QuotedPrefix(s)
-	if err != nil {
-		return "", -1
-	}
-	us, err := strconv.Unquote(qp)
-	if err != nil {
-		return "", -1
-	}
-	return us, len(qp)
 }
 
 func parsePatternSteps(s string) ([]patternStep, error) {

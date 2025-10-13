@@ -1,3 +1,237 @@
+# v1.19.12 (2025-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.11 (2025-10-02)
+
+* **Bug Fix**: Add missing ChecksumType field to UploadOutput.
+
+# v1.19.10 (2025-09-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.9 (2025-09-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.8 (2025-09-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.7 (2025-09-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.6 (2025-09-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.5 (2025-09-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.4 (2025-08-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.3 (2025-08-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.2 (2025-08-27)
+
+* **Dependency Update**: Update to smithy-go v1.23.0.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.1 (2025-08-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.19.0 (2025-08-21)
+
+* **Feature**: Add control for request checksum calculation.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.5 (2025-08-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.4 (2025-08-11)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.3 (2025-08-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.2 (2025-07-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.1 (2025-07-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.0 (2025-07-28)
+
+* **Feature**: Add support for HTTP interceptors.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.85 (2025-07-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.84 (2025-07-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.83 (2025-07-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.82 (2025-06-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.81 (2025-06-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.80 (2025-06-17)
+
+* **Dependency Update**: Update to smithy-go v1.22.4.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.79 (2025-06-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.78 (2025-06-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.77 (2025-05-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.76 (2025-05-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.75 (2025-05-05)
+
+* **Bug Fix**: Enable user to call GetBucketRegion without credential config
+
+# v1.17.74 (2025-04-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.73 (2025-04-23)
+
+* **Bug Fix**: Abort multi part download if the object is modified during download
+
+# v1.17.72 (2025-04-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.71 (2025-04-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.70 (2025-03-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.69 (2025-03-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.68 (2025-03-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.67 (2025-03-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.66 (2025-03-11)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.65 (2025-03-04.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.64 (2025-02-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.63 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.62 (2025-02-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.61 (2025-02-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.60 (2025-02-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.59 (2025-02-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.58 (2025-02-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.57 (2025-01-31)
+
+* **Bug Fix**: Fix incorrect reference to old s3manager in comments.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.56 (2025-01-30)
+
+* **Bug Fix**: Fix incorrect reference to old s3manager in comments.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.55 (2025-01-29)
+
+* **Bug Fix**: Fix incorrect reference to old s3manager in comments.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.54 (2025-01-24)
+
+* **Bug Fix**: Fix incorrect reference to old s3manager in comments.
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.17.53 (2025-01-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.52 (2025-01-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.51 (2025-01-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.50 (2025-01-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.49 (2025-01-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.17.48 (2025-01-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions

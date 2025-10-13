@@ -142,6 +142,10 @@ func (st *StreamTags) UnmarshalCanonical(src []byte) ([]byte, error) {
 		st.Add(sName, sValue)
 	}
 
+	if !sort.IsSorted(st) {
+		return srcOrig, fmt.Errorf("stream tags must be sorted in alphabetical order; got unsorted: %s", st)
+	}
+
 	return src, nil
 }
 

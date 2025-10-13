@@ -45,7 +45,7 @@ export const lightPalette = {
   "color-success": "#4caf50",
   "color-background-success": "#d4ecd5",
   "color-passive": "#5d6267",
-  "color-code": "ecedee",
+  "color-code": "#ecedee",
   "color-background-body": "#FEFEFF",
   "color-background-block": "#FFFFFF",
   "color-background-tooltip": "rgba(80,80,80,0.9)",

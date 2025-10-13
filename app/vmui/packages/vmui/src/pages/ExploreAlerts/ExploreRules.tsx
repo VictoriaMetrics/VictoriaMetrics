@@ -90,14 +90,6 @@ const ExploreRules: FC = () => {
     }
   };
 
-  const handleChangeStates = useCallback((title: string) => {
-    setStates(getChanges(title, states));
-  }, [states]);
-
-  const handleChangeTypes = useCallback((title: string) => {
-    setTypes(getChanges(title, types));
-  }, [types]);
-
   const noRuleFound = "No rules found!";
 
   const handleClose = (id: string) => {
@@ -155,8 +147,23 @@ const ExploreRules: FC = () => {
     [groups, types, states, searchInput]
   );
 
+  if (!types.every(v => allTypes.has(v))) {
+    setTypes([]);
+  }
   const selectedTypes = allTypes.size === types.length ? [] : types;
+
+  if (!states.every(v => allStates.has(v))) {
+    setStates([]);
+  }
   const selectedStates = allStates.size === states.length ? [] : states;
+
+  const handleChangeStates = useCallback((title: string) => {
+    setStates(getChanges(title, selectedStates));
+  }, [states]);
+
+  const handleChangeTypes = useCallback((title: string) => {
+    setTypes(getChanges(title, selectedTypes));
+  }, [types]);
 
   return (
     <>
@@ -168,6 +175,7 @@ const ExploreRules: FC = () => {
             allTypes={Array.from(allTypes)}
             states={selectedStates}
             allStates={Array.from(allStates)}
+            search={searchInput}
             onChangeTypes={handleChangeTypes}
             onChangeStates={handleChangeStates}
             onChangeSearch={debounce(handleChangeSearch, 500)}

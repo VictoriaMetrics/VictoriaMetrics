@@ -116,7 +116,7 @@ const LegendConfigs: FC<Props> = ({ data, isCompact }) => {
               onEnter={onApplyFormat}
             />
             <span className="vm-legend-configs-item__info vm-legend-configs-item__info_input">
-          Customize legend labels with text and &#123;&#123;label_name&#125;&#125; placeholders.
+              Customize legend labels with text and &#123;&#123;label_name&#125;&#125; placeholders.
             </span>
           </div>
 
@@ -130,7 +130,7 @@ const LegendConfigs: FC<Props> = ({ data, isCompact }) => {
               searchable
             />
             <span className="vm-legend-configs-item__info">
-          Choose a label to group the legend. By default, legends are grouped by query.
+              Choose a label to group the legend. By default, legends are grouped by query.
             </span>
           </div>
         </>

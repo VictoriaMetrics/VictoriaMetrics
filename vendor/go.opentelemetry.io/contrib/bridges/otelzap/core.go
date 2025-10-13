@@ -37,12 +37,11 @@ import (
 	"context"
 	"slices"
 
-	"go.uber.org/zap/zapcore"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/global"
-	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.uber.org/zap/zapcore"
 )
 
 type config struct {
@@ -184,7 +183,7 @@ func (o *Core) clone() *Core {
 }
 
 // Sync flushes buffered logs (if any).
-func (o *Core) Sync() error {
+func (*Core) Sync() error {
 	return nil
 }
 

@@ -7,7 +7,7 @@ import (
 )
 
 func updateNeededFieldsForUpdatePipe(pf *prefixfilter.Filter, field string, iff *ifFilter) {
-	if iff != nil && (pf.MatchString(field) || pf.MatchNothing()) {
+	if iff != nil && pf.MatchString(field) {
 		pf.AddAllowFilters(iff.allowFilters)
 	}
 }

@@ -90,6 +90,8 @@ reader:
   sampling_period: "30s"  # what data resolution to fetch from VictoriaMetrics' /query_range endpoint
   latency_offset: '1ms'
   query_from_last_seen_timestamp: False
+  tz: "UTC"  # timezone to use for queries without explicit timezone
+  "offset": "0s"  # offset to apply to all queries, e.g. to account for data delays, can be overridden on per-query basis
   queries:  # aliases to MetricsQL expressions
     cpu_seconds_total:
       expr: 'avg(rate(node_cpu_seconds_total[5m])) by (mode)' 

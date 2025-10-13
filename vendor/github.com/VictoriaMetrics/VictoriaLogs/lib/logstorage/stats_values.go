@@ -223,7 +223,7 @@ func (svp *statsValuesProcessor) limitReached(sv *statsValues) bool {
 	return limit > 0 && uint64(len(svp.values)) > limit
 }
 
-func parseStatsValues(lex *lexer) (*statsValues, error) {
+func parseStatsValues(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "values")
 	if err != nil {
 		return nil, err
@@ -232,12 +232,10 @@ func parseStatsValues(lex *lexer) (*statsValues, error) {
 		fieldFilters: fieldFilters,
 	}
 	if lex.isKeyword("limit") {
-		lex.nextToken()
-		n, ok := tryParseUint64(lex.token)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse 'limit %s' for 'values': %w", lex.token, err)
+		n, err := parseLimit(lex)
+		if err != nil {
+			return nil, err
 		}
-		lex.nextToken()
 		sv.limit = n
 	}
 	return sv, nil

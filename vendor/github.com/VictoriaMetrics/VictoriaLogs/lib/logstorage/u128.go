@@ -27,7 +27,7 @@ func (u *u128) less(a *u128) bool {
 	return u.lo < a.lo
 }
 
-// equal returns true if u equalst to a.
+// equal returns true if u equals to a.
 func (u *u128) equal(a *u128) bool {
 	return u.hi == a.hi && u.lo == a.lo
 }
