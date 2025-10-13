@@ -196,9 +196,9 @@ func (s *VMInsertServer) processRequest(ctx *RequestCtx) error {
 	// Do not set deadline on reading rpcName, since it may take a
 	// lot of time for idle connection.
 	ctx.dataBuf = ctx.dataBuf[:0]
-	if ctx.bc.IsNotRPCCompatible {
+	if ctx.bc.IsLegacy {
 		// fallback to prev API without RPC
-		return s.processWriteRows(ctx)
+		return s.processWriteRowsLegacy(ctx)
 	}
 
 	rpcName, err := ctx.ReadRPCName()
@@ -206,7 +206,7 @@ func (s *VMInsertServer) processRequest(ctx *RequestCtx) error {
 		return fmt.Errorf("cannot read rpcName: %w", err)
 	}
 
-	// Process the rpcName call.
+	// Process the rpc call.
 	if err := s.processRPC(ctx, string(rpcName)); err != nil {
 		return fmt.Errorf("cannot execute %q: %w", rpcName, err)
 	}
@@ -215,33 +215,52 @@ func (s *VMInsertServer) processRequest(ctx *RequestCtx) error {
 }
 
 func (s *VMInsertServer) processRPC(ctx *RequestCtx, rpcName string) error {
-	var rpcFunc func(*RequestCtx) error
 	switch rpcName {
 	case MetricRowsRpcCall.VersionedName:
-		rpcFunc = s.processWriteRows
-		// switch connection into streaming mode
-		// it no longer can accept new rpc call until it's closed
-		ctx.bc.IsStreamingMode = true
+		if err := s.processWriteRows(ctx); err != nil {
+			if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
+				return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
+			}
+			if errors.Is(err, storage.ErrReadOnly) {
+				return nil
+			}
+			return fmt.Errorf("cannot process writeRows: %w", err)
+		}
+		// return empty errror
+		return ctx.WriteString("")
 	case MetricMetadataRpcCall.VersionedName:
-		rpcFunc = s.processWriteMetadata
-	}
-	if rpcFunc == nil {
+		if err := s.processWriteMetadata(ctx); err != nil {
+			if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
+				return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
+			}
+			if errors.Is(err, storage.ErrReadOnly) {
+				return nil
+			}
+			return fmt.Errorf("cannot process writeMetadata: %w", err)
+		}
+		// return empty errror
+		return ctx.WriteString("")
+
+	default:
 		// reply to client unsupported rpc
 		// so it should handle this error
 		err := fmt.Errorf("unsupported rpcName: %q", rpcName)
 		if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
-			return fmt.Errorf("cannot write error message for origin error: %s: %w", err, writeErr)
+			return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
 		}
 		return err
 	}
-	if err := ctx.WriteString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-	return rpcFunc(ctx)
+}
+
+func (s *VMInsertServer) processWriteRowsLegacy(ctx *RequestCtx) error {
+	return stream.Parse(ctx.bc, func(rows []storage.MetricRow) error {
+		s.vminsertMetricsRead.Add(len(rows))
+		return s.api.WriteRows(rows)
+	}, s.api.IsReadOnly)
 }
 
 func (s *VMInsertServer) processWriteRows(ctx *RequestCtx) error {
-	return stream.Parse(ctx.bc, func(rows []storage.MetricRow) error {
+	return stream.ParseBlock(ctx.bc, func(rows []storage.MetricRow) error {
 		s.vminsertMetricsRead.Add(len(rows))
 		return s.api.WriteRows(rows)
 	}, s.api.IsReadOnly)
@@ -306,9 +325,6 @@ func (ctx *RequestCtx) WriteErrorMessage(err error) error {
 	if err := ctx.WriteString(errMsg); err != nil {
 		return fmt.Errorf("cannot send error message %q to client: %w", errMsg, err)
 	}
-	if err := ctx.bc.Flush(); err != nil {
-		return fmt.Errorf("cannot flush error message %q to client: %w", errMsg, err)
-	}
 	return nil
 }
 
@@ -318,7 +334,7 @@ func (ctx *RequestCtx) WriteString(s string) error {
 	if err := ctx.writeDataBufBytes(); err != nil {
 		return fmt.Errorf("cannot writeString: %w", err)
 	}
-	return ctx.bc.Flush()
+	return nil
 }
 
 func (ctx *RequestCtx) writeDataBufBytes() error {

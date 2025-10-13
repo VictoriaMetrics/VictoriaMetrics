@@ -28,7 +28,7 @@ type Func func(c net.Conn, compressionLevel int) (*BufferedConn, error)
 // VMInsertClientWithDialer performs client-side handshake for vminsert protocol.
 //
 // it uses provided dial func to establish connection to the server.
-// compressionLevel is the level used for compression of the data sent
+// compressionLevel is a legacy option which defines the level used for compression of the data sent
 // to the server.
 // compressionLevel <= 0 means 'no compression'
 func VMInsertClientWithDialer(dial func() (net.Conn, error), compressionLevel int) (*BufferedConn, error) {
@@ -36,7 +36,7 @@ func VMInsertClientWithDialer(dial func() (net.Conn, error), compressionLevel in
 	if err != nil {
 		return nil, fmt.Errorf("dial error: %w", err)
 	}
-	bc, err := vminsertClient(c, compressionLevel)
+	bc, err := vminsertClient(c, 0)
 	if err == nil {
 		return bc, nil
 	}
@@ -55,7 +55,7 @@ func VMInsertClientWithDialer(dial func() (net.Conn, error), compressionLevel in
 		_ = c.Close()
 		return nil, fmt.Errorf("prev handshake error: %w", err)
 	}
-	bc.IsNotRPCCompatible = true
+	bc.IsLegacy = true
 	return bc, nil
 }
 
@@ -103,7 +103,7 @@ func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	bc.IsNotRPCCompatible = !isRPCSupported
+	bc.IsLegacy = !isRPCSupported
 	return bc, nil
 }
 
@@ -136,7 +136,7 @@ func VMInsertServerWithLegacyHello(c net.Conn, compressionLevel int) (*BufferedC
 	if err != nil {
 		return nil, err
 	}
-	bc.IsNotRPCCompatible = true
+	bc.IsLegacy = true
 	return bc, nil
 }
 

@@ -9,47 +9,59 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-// ErrStorageReadOnly indicates that storage is in read-only mode
-// and cannot accept write requests
-var ErrStorageReadOnly = errors.New("storage node is read only")
-
-// StartRPCRequest inits RPC method call
-//
-// BufferedConn in streaming mode cannot accept rpc calls
-func StartRPCRequest(bc *handshake.BufferedConn, rpcName string) error {
+// SendToConn sends given buf over provided bc to the server
+func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte) error {
 	var err error
 	sizeBuf := sizeBufPool.Get()
 	defer sizeBufPool.Put(sizeBuf)
 
-	if bc.IsStreamingMode {
-		logger.Panicf("BUG: connection in streaming mode cannot process RPC calls")
+	timeoutSeconds := len(buf) / 3e5
+	if timeoutSeconds < 60 {
+		timeoutSeconds = 60
 	}
-
-	timeout := 5 * time.Second
+	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
 	if err := bc.SetWriteDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set write rpcName deadline to %s: %w", deadline, err)
+		return fmt.Errorf("cannot set write deadline to %s: %w", deadline, err)
 	}
+
 	rpcNameBytes := bytesutil.ToUnsafeBytes(rpcName)
 	sizeBuf.B, err = sendData(sizeBuf.B, bc, rpcNameBytes)
 	if err != nil {
 		return fmt.Errorf("cannot write rpcName %q: %w", rpcName, err)
 	}
 
+	zb := zbPool.Get()
+	defer zbPool.Put(zb)
+
+	zb.B = zstd.CompressLevel(zb.B[:0], buf, 1)
+	sizeBuf.B, err = sendData(sizeBuf.B, bc, zb.B)
+	if err != nil {
+		return fmt.Errorf("cannot write buf with size %d: %w", len(zb.B), err)
+	}
+	if err := bc.Flush(); err != nil {
+		return fmt.Errorf("cannot flush data with size %d: %w", len(zb.B), err)
+	}
+
+	// Wait for error message from vmstorage.
+	// This guarantees that the message has been fully received by vmstorage.
 	deadline = time.Now().Add(timeout)
 	if err := bc.SetReadDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set read deadline for reading `error` to vmstorage: %w", err)
+		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %w", err)
 	}
-	// read error message
 	sizeBuf.B, err = readBytes(sizeBuf.B[:0], bc, maxErrorMessageSize)
 	if err != nil {
 		return fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(sizeBuf.B) > 0 {
+		if string(sizeBuf.B) == storage.ErrReadOnly.Error() {
+			return storage.ErrReadOnly
+		}
 		return errors.New((string(sizeBuf.B)))
 	}
 
@@ -79,6 +91,9 @@ func SendToConn(bc *handshake.BufferedConn, buf []byte) error {
 		return fmt.Errorf("cannot write tsBuf with size %d: %w", len(buf), err)
 	}
 
+	if err := bc.Flush(); err != nil {
+		return fmt.Errorf("cannot flush data with size %d: %w", len(buf), err)
+	}
 	// Wait for `ack` from vmstorage.
 	// This guarantees that the message has been fully received by vmstorage.
 	deadline = time.Now().Add(timeout)
@@ -95,7 +110,7 @@ func SendToConn(bc *handshake.BufferedConn, buf []byte) error {
 		// ok response, data successfully accepted by vmstorage
 	case consts.StorageStatusReadOnly:
 		// vmstorage is in readonly mode
-		return ErrStorageReadOnly
+		return storage.ErrReadOnly
 	default:
 		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want 1 or 2", sizeBuf.B[0])
 	}
@@ -131,12 +146,9 @@ func sendData(sizeBuf []byte, bc *handshake.BufferedConn, data []byte) ([]byte, 
 	if _, err := bc.Write(data); err != nil {
 		return sizeBuf, fmt.Errorf("cannot write data with size %d: %w", len(data), err)
 	}
-
-	if err := bc.Flush(); err != nil {
-		return sizeBuf, fmt.Errorf("cannot flush data with size %d: %w", len(data), err)
-	}
 	return sizeBuf, nil
 
 }
 
 var sizeBufPool bytesutil.ByteBufferPool
+var zbPool bytesutil.ByteBufferPool

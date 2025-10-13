@@ -1,7 +1,9 @@
 package clusternative
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
@@ -44,35 +46,50 @@ func InsertHandler(c net.Conn) error {
 
 		return fmt.Errorf("cannot perform vminsert handshake with client %q: %w", c.RemoteAddr(), err)
 	}
-	if bc.IsNotRPCCompatible {
+	if bc.IsLegacy {
 		// fallback to the prev api version
 		return stream.Parse(bc, func(rows []storage.MetricRow) error {
 			return insertRows(rows)
 		}, nil)
 	}
-	if bc.IsStreamingMode {
-		logger.Panicf("BUG: clusternative connection in streaming mode cannot process RPC calls")
-	}
 	ctx := vminsertapi.NewRequestCtx(bc)
+
+	for {
+		if err := processRequest(ctx, bc); err != nil {
+			if errors.Is(err, io.EOF) {
+				// Remote client gracefully closed the connection.
+				return nil
+			}
+			return fmt.Errorf("cannot process vminsert request: %w", err)
+		}
+		if err := bc.Flush(); err != nil {
+			return fmt.Errorf("cannot flush compressed buffers: %w", err)
+		}
+	}
+}
+
+func processRequest(ctx *vminsertapi.RequestCtx, bc *handshake.BufferedConn) error {
 	rpcName, err := ctx.ReadRPCName()
 	if err != nil {
 		return fmt.Errorf("cannot read rpcName: %w", err)
 	}
 	switch string(rpcName) {
 	case vminsertapi.MetricRowsRpcCall.VersionedName:
-		// send back empty error message
-		if err := ctx.WriteString(""); err != nil {
-			return fmt.Errorf("cannot send empty error message: %w", err)
-		}
-		bc.IsStreamingMode = true
-		return stream.Parse(bc, func(rows []storage.MetricRow) error {
+		err := stream.ParseBlock(bc, func(rows []storage.MetricRow) error {
 			return insertRows(rows)
 		}, nil)
-	case vminsertapi.MetricMetadataRpcCall.VersionedName:
+		if err != nil {
+			if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
+				return errors.Join(err, writeErr)
+			}
+			return err
+		}
 		// send back empty error message
 		if err := ctx.WriteString(""); err != nil {
 			return fmt.Errorf("cannot send empty error message: %w", err)
 		}
+		return nil
+	case vminsertapi.MetricMetadataRpcCall.VersionedName:
 		// TODO: implement me
 		return nil
 	default:
@@ -82,6 +99,7 @@ func InsertHandler(c net.Conn) error {
 		}
 		return err
 	}
+
 }
 
 func insertRows(rows []storage.MetricRow) error {

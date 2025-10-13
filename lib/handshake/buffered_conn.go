@@ -21,14 +21,12 @@ type bufferedWriter interface {
 type BufferedConn struct {
 	net.Conn
 
-	// IsNotRPCCompatible defines if BufferedConn doesn't support RPC protocol
-	IsNotRPCCompatible bool
+	// IsLegacy defines if BufferedConn operates in legacy mode
+	// and doesn't support RPC protocol
+	IsLegacy bool
 
-	// IsStreamingMode indicates that connection was switched into streaming mode
-	// and it cannot process any other RPC calls
-	IsStreamingMode bool
-	br              io.Reader
-	bw              bufferedWriter
+	br io.Reader
+	bw bufferedWriter
 
 	readDeadline  time.Time
 	writeDeadline time.Time
@@ -132,9 +130,7 @@ func (bc *BufferedConn) Close() error {
 	}
 	bc.bw = nil
 
-	bc.IsNotRPCCompatible = false
-	bc.IsStreamingMode = false
-
+	bc.IsLegacy = false
 	return err
 }
 

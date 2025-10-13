@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -85,6 +86,69 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 	}
 }
 
+func getWaitGroup() *sync.WaitGroup {
+	v := wgPool.Get()
+	if v == nil {
+		return &sync.WaitGroup{}
+	}
+	return v.(*sync.WaitGroup)
+}
+
+func putWaitGroup(wg *sync.WaitGroup) {
+	wgPool.Put(wg)
+}
+
+var wgPool sync.Pool
+
+// ParseBlock parses data block sent from vminsert to bc and calls callback for parsed rows.
+// Optional function isReadOnly must return true if the storage cannot accept new data.
+// In this case the data read from bc isn't accepted and storage.ErrReadOnly returned.
+//
+// callback shouldn't hold block after returning.
+func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
+	wcr := writeconcurrencylimiter.GetReader(bc)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r := io.Reader(wcr)
+
+	reqBuf, err := readBlock(r)
+	if err != nil {
+		if err == io.EOF {
+			// Remote end gracefully closed the connection.
+			return nil
+		}
+
+		return err
+	}
+	blocksRead.Inc()
+	wcr.DecConcurrency()
+	if isReadOnly != nil && isReadOnly() {
+		return storage.ErrReadOnly
+	}
+
+	wg := getWaitGroup()
+	defer putWaitGroup(wg)
+	var callbackErr error
+
+	uw := getUnmarshalWork()
+	uw.isZSTDEncoded = true
+	uw.reqBuf = reqBuf
+	uw.callback = func(rows []storage.MetricRow) {
+		if err := callback(rows); err != nil {
+			processErrors.Inc()
+			if callbackErr == nil {
+				callbackErr = fmt.Errorf("error when processing native block: %w", err)
+			}
+		}
+	}
+	uw.wg = wg
+	wg.Add(1)
+	protoparserutil.ScheduleUnmarshalWork(uw)
+
+	wg.Wait()
+
+	return callbackErr
+}
+
 // readBlock reads the next data block  and returns the result.
 func readBlock(r io.Reader) ([]byte, error) {
 	sizeBuf := auxBufPool.Get()
@@ -137,10 +201,11 @@ var (
 )
 
 type unmarshalWork struct {
-	wg       *sync.WaitGroup
-	callback func(rows []storage.MetricRow)
-	reqBuf   []byte
-	mrs      []storage.MetricRow
+	wg            *sync.WaitGroup
+	callback      func(rows []storage.MetricRow)
+	reqBuf        []byte
+	mrs           []storage.MetricRow
+	isZSTDEncoded bool
 }
 
 func (uw *unmarshalWork) reset() {
@@ -149,11 +214,26 @@ func (uw *unmarshalWork) reset() {
 	// Zero reqBuf, since it may occupy big amounts of memory (consts.MaxInsertPacketSizeForVMStorage).
 	uw.reqBuf = nil
 	uw.mrs = uw.mrs[:0]
+	uw.isZSTDEncoded = false
 }
 
 // Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	reqBuf := uw.reqBuf
+	if uw.isZSTDEncoded {
+		zb := zbPool.Get()
+		defer zbPool.Put(zb)
+		var err error
+		zb.B, err = zstd.Decompress(zb.B[:0], reqBuf)
+		if err != nil {
+			parseErrors.Inc()
+			logger.Errorf("cannot decompress clusternative block with size %d : %s", len(reqBuf), err)
+			uw.wg.Done()
+			putUnmarshalWork(uw)
+			return
+		}
+		reqBuf = zb.B
+	}
 	for len(reqBuf) > 0 {
 		// Limit the number of rows passed to callback in order to reduce memory usage
 		// when processing big packets of rows.
@@ -189,3 +269,5 @@ func putUnmarshalWork(uw *unmarshalWork) {
 }
 
 var unmarshalWorkPool sync.Pool
+
+var zbPool bytesutil.ByteBufferPool

@@ -26,8 +26,8 @@ import (
 )
 
 var (
-	disableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage")
-	replicationFactor     = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
+	disableCompression = flag.Bool("rpc.disableCompression", false, "Flag is deprecated and kept for backward compatability, vminsert performs per block compression instead of streaming compression on RPC connection")
+	replicationFactor  = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
 	disableRerouting      = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload")
@@ -298,7 +298,12 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 	startTime := time.Now()
-	err := vminsertapi.SendToConn(sn.bc, br.buf)
+	var err error
+	if sn.bc.IsLegacy {
+		err = vminsertapi.SendToConn(sn.bc, br.buf)
+	} else {
+		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, br.buf)
+	}
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
@@ -306,7 +311,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		sn.rowsSent.Add(br.rows)
 		return true
 	}
-	if errors.Is(err, vminsertapi.ErrStorageReadOnly) {
+	if errors.Is(err, storage.ErrReadOnly) {
 		// The vmstorage is transitioned to readonly mode.
 		sn.isReadOnly.Store(true)
 		sn.brCond.Broadcast()
@@ -333,9 +338,9 @@ var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Seco
 
 func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 
-	compressionLevel := 1
-	if *disableRPCCompression {
-		compressionLevel = 0
+	compression := 1
+	if *disableCompression {
+		compression = 0
 	}
 	var dialError error
 	bc, err := handshake.VMInsertClientWithDialer(func() (net.Conn, error) {
@@ -346,7 +351,7 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 			return nil, err
 		}
 		return c, nil
-	}, compressionLevel)
+	}, compression)
 	if err != nil {
 		if dialError != nil {
 			return nil, dialError
@@ -354,11 +359,6 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 		sn.handshakeErrors.Inc()
 		return nil, fmt.Errorf("handshake error: %w", err)
 	}
-	if err := vminsertapi.StartRPCRequest(bc, sn.rpcCall.VersionedName); err != nil {
-		_ = bc.Close()
-		return nil, fmt.Errorf("cannot start RPC call: %s: %w", sn.rpcCall.VersionedName, err)
-	}
-	bc.IsStreamingMode = true
 	return bc, nil
 }
 
@@ -809,13 +809,18 @@ func (sn *storageNode) checkReadOnlyMode() {
 	if sn.bc == nil {
 		return
 	}
-	err := vminsertapi.SendToConn(sn.bc, nil)
+	var err error
+	if sn.bc.IsLegacy {
+		err = vminsertapi.SendToConn(sn.bc, nil)
+	} else {
+		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, nil)
+	}
 	if err == nil {
 		// The storage switched from readonly to non-readonly mode
 		sn.isReadOnly.Store(false)
 		return
 	}
-	if errors.Is(err, vminsertapi.ErrStorageReadOnly) {
+	if errors.Is(err, storage.ErrReadOnly) {
 		// The storage remains in read-only mode
 		return
 	}
