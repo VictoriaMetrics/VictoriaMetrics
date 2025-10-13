@@ -17,8 +17,8 @@ const WarningHeatmapToLine:FC = () => {
     <Alert variant="warning">
       <div className="vm-warning-heatmap-to-line">
         <p className="vm-warning-heatmap-to-line__text">
-         The expression cannot be displayed as a heatmap.
-         To make the graph work, disable the heatmap in the &quot;Graph settings&quot; or modify the expression.
+          The expression cannot be displayed as a heatmap.
+          To make the graph work, disable the heatmap in the &quot;Graph settings&quot; or modify the expression.
         </p>
 
         <Button

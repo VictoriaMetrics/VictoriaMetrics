@@ -8,13 +8,13 @@ import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
 
 interface DatePickerProps {
-  date: string | Date | Dayjs,
+  date: string | Date | Dayjs;
   targetRef: React.RefObject<HTMLElement>;
   format?: string;
   label?: string;
   minDate?: Date | Dayjs;
   maxDate?: Date | Dayjs;
-  onChange: (val: string) => void
+  onChange: (val: string) => void;
 }
 
 const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({

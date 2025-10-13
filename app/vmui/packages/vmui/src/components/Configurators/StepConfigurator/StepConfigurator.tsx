@@ -142,7 +142,7 @@ const StepConfigurator: FC = () => {
           startIcon={<TimelineIcon/>}
           onClick={toggleOpenOptions}
         >
-            Step: {isAutoStep ? `auto (${customStep})` : customStep}
+          Step: {isAutoStep ? `auto (${customStep})` : customStep}
         </Button>
       )}
       <Popper
