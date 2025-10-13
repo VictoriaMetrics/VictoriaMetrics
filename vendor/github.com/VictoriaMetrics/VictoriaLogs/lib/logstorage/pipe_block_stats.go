@@ -28,6 +28,10 @@ func (ps *pipeBlockStats) canLiveTail() bool {
 	return false
 }
 
+func (ps *pipeBlockStats) canReturnLastNResults() bool {
+	return false
+}
+
 func (ps *pipeBlockStats) hasFilterInWithQuery() bool {
 	return false
 }

@@ -9,6 +9,7 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 interface NotifiersHeaderProps {
   kinds: string[];
   allKinds: string[];
+  search: string;
   onChangeKinds: (input: string) => void;
   onChangeSearch: (input: string) => void;
 }
@@ -16,6 +17,7 @@ interface NotifiersHeaderProps {
 const NotifiersHeader: FC<NotifiersHeaderProps> = ({
   kinds,
   allKinds,
+  search,
   onChangeKinds,
   onChangeSearch,
 }) => {
@@ -46,6 +48,7 @@ const NotifiersHeader: FC<NotifiersHeaderProps> = ({
         <div className="vm-explore-alerts-header-search">
           <TextField
             label="Search"
+            value={search}
             placeholder="Filter by kind, address or labels"
             startIcon={<SearchIcon />}
             onChange={onChangeSearch}

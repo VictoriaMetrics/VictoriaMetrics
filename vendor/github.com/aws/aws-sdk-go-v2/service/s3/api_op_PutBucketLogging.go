@@ -15,6 +15,18 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
+// End of support notice: Beginning October 1, 2025, Amazon S3 will discontinue
+// support for creating new Email Grantee Access Control Lists (ACL). Email Grantee
+// ACLs created prior to this date will continue to work and remain accessible
+// through the Amazon Web Services Management Console, Command Line Interface
+// (CLI), SDKs, and REST API. However, you will no longer be able to create new
+// Email Grantee ACLs.
+//
+// This change affects the following Amazon Web Services Regions: US East (N.
+// Virginia) Region, US West (N. California) Region, US West (Oregon) Region, Asia
+// Pacific (Singapore) Region, Asia Pacific (Sydney) Region, Asia Pacific (Tokyo)
+// Region, Europe (Ireland) Region, and South America (São Paulo) Region.
+//
 // This operation is not supported for directory buckets.
 //
 // Set the logging parameters for a bucket and to specify permissions for who can
@@ -32,7 +44,9 @@ import (
 // information, see [Permissions for server access log delivery]in the Amazon S3 User Guide.
 //
 // Grantee Values You can specify the person (grantee) to whom you're assigning
-// access rights (by using request elements) in the following ways:
+// access rights (by using request elements) in the following ways. For examples of
+// how to specify these grantee values in JSON format, see the Amazon Web Services
+// CLI example in [Enabling Amazon S3 server access logging]in the Amazon S3 User Guide.
 //
 //   - By the person's ID:
 //
@@ -76,6 +90,7 @@ import (
 // [GetBucketLogging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLogging.html
 // [PutObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
 // [CreateBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html
+// [Enabling Amazon S3 server access logging]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html
 // [Server Access Logging]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html
 func (c *Client) PutBucketLogging(ctx context.Context, params *PutBucketLoggingInput, optFns ...func(*Options)) (*PutBucketLoggingOutput, error) {
 	if params == nil {
@@ -104,9 +119,9 @@ type PutBucketLoggingInput struct {
 	// This member is required.
 	BucketLoggingStatus *types.BucketLoggingStatus
 
-	// Indicates the algorithm used to create the checksum for the object when you use
-	// the SDK. This header will not provide any additional functionality if you don't
-	// use the SDK. When you send this header, there must be a corresponding
+	// Indicates the algorithm used to create the checksum for the request when you
+	// use the SDK. This header will not provide any additional functionality if you
+	// don't use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
 	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
@@ -214,6 +229,12 @@ func (c *Client) addOperationPutBucketLoggingMiddlewares(stack *middleware.Stack
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutBucketLoggingValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -251,6 +272,36 @@ func (c *Client) addOperationPutBucketLoggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
 		return err
 	}
 	if err = addSpanInitializeStart(stack); err != nil {
@@ -294,9 +345,10 @@ func getPutBucketLoggingRequestAlgorithmMember(input interface{}) (string, bool)
 }
 
 func addPutBucketLoggingInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketLoggingRequestAlgorithmMember,
 		RequireChecksum:                  true,
+		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

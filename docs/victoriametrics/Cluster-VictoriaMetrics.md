@@ -784,8 +784,6 @@ Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most su
 
 The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
 
-vmstorage should have at least 2 CPU cores per instance. vmstorage needs 1 core dedicated to background merges. During background merges, a single core will be pinned. If vmstorage is given only a single CPU core, merges will compete for CPU time with ingestion and querying.
-
 It is recommended leaving the following amounts of spare resources:
 
 - 50% of free RAM across all the node types for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.

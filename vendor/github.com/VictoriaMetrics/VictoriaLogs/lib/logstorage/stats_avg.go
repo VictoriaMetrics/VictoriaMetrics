@@ -99,7 +99,7 @@ func (sap *statsAvgProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan st
 	return strconv.AppendFloat(dst, avg, 'f', -1, 64)
 }
 
-func parseStatsAvg(lex *lexer) (*statsAvg, error) {
+func parseStatsAvg(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "avg")
 	if err != nil {
 		return nil, err
