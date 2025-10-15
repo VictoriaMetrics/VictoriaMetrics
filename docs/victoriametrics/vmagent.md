@@ -95,7 +95,7 @@ without the need to use `vmagent` - see [these docs](https://docs.victoriametric
 
 `vmagent` can save network bandwidth usage costs under high load when [VictoriaMetrics remote write protocol is used](#victoriametrics-remote-write-protocol).
 
-Common `vmagnet` issues are covered in the [troubleshooting docs](#troubleshooting)
+Common `vmagent` issues are covered in the [troubleshooting docs](#troubleshooting).
 
 See [various use cases](#use-cases) for vmagent.
 
