@@ -367,8 +367,8 @@ See [scrape_configs docs](https://docs.victoriametrics.com/victoriametrics/sd_co
 
 `vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) from multiple files specified
 in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent`
-to load scrape configs from all the `*.yml` files under the `configs` directory, the local file `single_scrape_config.yml`
-and from the url `https://config-server/scrape_config.yml`:
+to load scrape configs from all the `*.yml` files under the `configs` directory, from the local file `single_scrape_config.yml`
+and from the URL `https://config-server/scrape_config.yml`:
 
 ```yaml
 scrape_config_files:
