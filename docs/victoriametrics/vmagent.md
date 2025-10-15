@@ -662,13 +662,13 @@ By default, `vmagent` parses the full response from the scrape target, applies [
 and then pushes the resulting metrics to the configured `-remoteWrite.url` in one go. This mode works great for the majority of cases
 when the scrape target exposes small number of metrics (e.g. less than 10K). But this mode may take large amounts of memory
 when the scrape target exposes a large number of metrics (for example, when `vmagent` scrapes [`kube-state-metrics`](https://github.com/kubernetes/kube-state-metrics)
-in large Kubernetes cluster). It is recommended enabling stream parsing mode for such targets.
-When this mode is enabled, `vmagent` processes the response from the scrape target in chunks.
+in large Kubernetes cluster). It is recommended to enable stream parsing for such targets.
+When stream parsing is enabled, `vmagent` processes the response from the scrape target in chunks.
 This saves memory when scraping targets that expose millions of metrics.
 
-Stream parsing mode is automatically enabled for scrape targets returning response bodies with sizes larger than
+Stream parsing is automatically enabled for scrape targets returning response bodies with sizes larger than
 the `-promscrape.minResponseSizeForStreamParse` command-line flag value. Additionally,
-stream parsing mode can be explicitly enabled in the following places:
+stream parsing can be explicitly enabled in the following places:
 
 * Via `-promscrape.streamParse` command-line flag. In this case all the scrape targets defined
   in the file pointed by `-promscrape.config` are scraped in stream parsing mode.
@@ -765,7 +765,7 @@ on the VictoriaMetrics side in order to de-duplicate received samples.
 See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for details.
 
 It is also recommended to pass different values to `-promscrape.cluster.name` command-line flag per `vmagent`
-instance or per `vmagent` cluster in an HA setup. This is needed for proper data de-duplication.
+instance or per `vmagent` cluster in a HA setup. This is needed for proper data de-duplication.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
 
 ## Scraping targets via a proxy
