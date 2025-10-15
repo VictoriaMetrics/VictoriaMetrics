@@ -1124,7 +1124,7 @@ For example, if `vmagent` needs to scrape thousands of targets in resource-const
 * Set [GOMAXPROCS](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to the value slightly bigger than the number of CPU cores used by `vmagent`.
   Another option is to set CPU limit in Kubernetes / Docker to the integer value bigger than the number of CPU cores used by `vmagent`.
   This reduces RAM usage and CPU usage when `vmagent` runs in an environment with a large number of available CPU cores. Note that it may be needed to increase the `-remoteWrite.queues`
-  command-line flag to a larger value if `GOMAXPROCS` is set to too small of a value, since by default `-remoteWrite.queues` is proportional to `GOMAXPROCS`.
+  command-line flag to a larger value if `GOMAXPROCS` is set to too small a value, since by default `-remoteWrite.queues` is proportional to `GOMAXPROCS`.
 
 * Disable response compression at scrape targets via `-promscrape.disableCompression` command-line flag or via `disable_compression: true` option
   in the [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs). This reduces CPU usage at the cost of higher network bandwidth usage
