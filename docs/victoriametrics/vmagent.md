@@ -235,7 +235,7 @@ first `-remoteWrite.url`, and so on.
 ### Prometheus remote_write proxy
 
 `vmagent` can be used as a proxy for Prometheus data sent via Prometheus `remote_write` protocol. It can accept data via the `remote_write` API
-at the`/api/v1/write` endpoint. Then apply relabeling and filtering than proxy it to another `remote_write` system.
+at the`/api/v1/write` endpoint. It then applies relabeling and filtering then proxies it to another `remote_write` system.
 `vmagent` can also be configured to encrypt the incoming `remote_write` requests with `-tls*` command-line flags.
 Basic Auth can be enabled for the incoming `remote_write` requests with `-httpAuth.*` command-line flags.
 
