@@ -167,7 +167,7 @@ among remote storage systems specified in `-remoteWrite.url`.
 
 > The `-remoteWrite.shardByURL` may not work as expected when [SRV URLs](https://docs.victoriametrics.com/victoriametrics/vmagent/#srv-urls) are in use.
 >
-> An SRV record might be resolved into multiple addresses, one address is chosen **randomly** for all subsequent logic, including sharding.
+> An SRV record might resolve to multiple addresses, one address is chosen **randomly** for all subsequent logic, including sharding.
 > It will make sharding inconsistent. Samples of the same time series always go to the same **remote write URL**/**SRV record**, but they may reach different addresses randomly based on the DNS resolution.
 >
 > For example, if you set `-remoteWrite.url=srv+foo` and it's resolved to three addresses (`192.168.1.1`, `192.168.1.2`, `192.168.1.3`),
