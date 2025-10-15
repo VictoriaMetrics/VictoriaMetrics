@@ -40,7 +40,7 @@ func (c *Client) setVLogsRangeReqParams(r *http.Request, query string, start, en
 	c.setReqParams(r, query)
 }
 
-func parseVLogsResponseInstant(resp *http.Response) (res Result, err error) {
+func parseVLogsInstantResponse(resp *http.Response) (res Result, err error) {
 	res, err = parsePrometheusInstantResponse(resp)
 	if err != nil {
 		return Result{}, err
@@ -60,7 +60,7 @@ func parseVLogsResponseInstant(resp *http.Response) (res Result, err error) {
 	return
 }
 
-func parseVLogsResponseRange(resp *http.Response) (res Result, err error) {
+func parseVLogsRangeResponse(resp *http.Response) (res Result, err error) {
 	res, err = parsePrometheusRangeResponse(resp)
 	if err != nil {
 		return Result{}, err
