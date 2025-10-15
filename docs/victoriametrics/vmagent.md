@@ -809,7 +809,7 @@ scrape_configs:
 
 ## On-disk persistence
 
-`vmagent` stores pending data that could not be sent to the configured remote storage systems in a timely manner.
+`vmagent` stores pending data that cannot be sent to the configured remote storage systems in a timely manner.
 By default, `vmagent` writes all the pending data to folder configured via `-remoteWrite.tmpDataPath` cmd-line flag
 until this data is sent to the configured `-remoteWrite.url` systems or until the folder becomes full.
 The maximum data size that can be saved to `-remoteWrite.tmpDataPath` per every configured `-remoteWrite.url` can be
