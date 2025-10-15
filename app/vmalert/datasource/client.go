@@ -183,7 +183,7 @@ func (c *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 	case datasourceGraphite:
 		parseFn = parseGraphiteResponse
 	case datasourceVLogs:
-		parseFn = parseVLogsResponseInstant
+		parseFn = parseVLogsInstantResponse
 	default:
 		logger.Panicf("BUG: unsupported datasource type %q to parse query response", c.dataSourceType)
 	}
@@ -241,7 +241,7 @@ func (c *Client) QueryRange(ctx context.Context, query string, start, end time.T
 	case datasourcePrometheus:
 		parseFn = parsePrometheusRangeResponse
 	case datasourceVLogs:
-		parseFn = parseVLogsResponseRange
+		parseFn = parseVLogsRangeResponse
 	default:
 		logger.Panicf("BUG: unsupported datasource type %q to parse query range response", c.dataSourceType)
 	}
