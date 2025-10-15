@@ -70,7 +70,7 @@ and sending the data to the Prometheus-compatible remote storage:
   `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or
    run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
-* `-remoteWrite.url` URL of a Prometheus-compatible remote storage endpoint such as VictoriaMetrics, to send data to.
+* `-remoteWrite.url` of a Prometheus-compatible remote storage endpoint (e.g., VictoriaMetrics) to send data to.
   The `-remoteWrite.url` may refer to a [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address. See [these docs](#srv-urls) for details.
 
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
