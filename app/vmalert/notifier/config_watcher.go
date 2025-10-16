@@ -29,11 +29,7 @@ type configWatcher struct {
 	targets   map[TargetType][]Target
 }
 
-func newWatcher(path string, gen AlertURLGenerator) (*configWatcher, error) {
-	cfg, err := parseConfig(path)
-	if err != nil {
-		return nil, err
-	}
+func newWatcher(cfg *Config, gen AlertURLGenerator) (*configWatcher, error) {
 	cw := &configWatcher{
 		cfg:       cfg,
 		wg:        sync.WaitGroup{},
@@ -173,10 +169,7 @@ func (cw *configWatcher) start() error {
 	if len(cw.cfg.StaticConfigs) > 0 {
 		var targets []Target
 		for i, cfg := range cw.cfg.StaticConfigs {
-			alertRelabelConfig := cw.cfg.parsedAlertRelabelConfigs
-			if cw.cfg.StaticConfigs[i].AlertRelabelConfigs != nil {
-				alertRelabelConfig, _ = promrelabel.ParseRelabelConfigs(cw.cfg.StaticConfigs[i].AlertRelabelConfigs)
-			}
+			alertRelabelConfig, _ := promrelabel.ParseRelabelConfigs(cw.cfg.StaticConfigs[i].AlertRelabelConfigs)
 			httpCfg := mergeHTTPClientConfigs(cw.cfg.HTTPClientConfig, cfg.HTTPClientConfig)
 			for _, target := range cfg.Targets {
 				address, labels, err := parseLabels(target, nil, cw.cfg)
@@ -201,10 +194,7 @@ func (cw *configWatcher) start() error {
 			var labels [][]*promutil.Labels
 			var alertRelabelConfigs []*promrelabel.ParsedConfigs
 			for i := range cw.cfg.ConsulSDConfigs {
-				alertRelabelConfig := cw.cfg.parsedAlertRelabelConfigs
-				if cw.cfg.ConsulSDConfigs[i].AlertRelabelConfigs != nil {
-					alertRelabelConfig, _ = promrelabel.ParseRelabelConfigs(cw.cfg.ConsulSDConfigs[i].AlertRelabelConfigs)
-				}
+				alertRelabelConfig, _ := promrelabel.ParseRelabelConfigs(cw.cfg.ConsulSDConfigs[i].AlertRelabelConfigs)
 				sdc := &cw.cfg.ConsulSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
 				if err != nil {
@@ -225,10 +215,7 @@ func (cw *configWatcher) start() error {
 			var labels [][]*promutil.Labels
 			var alertRelabelConfigs []*promrelabel.ParsedConfigs
 			for i := range cw.cfg.DNSSDConfigs {
-				alertRelabelConfig := cw.cfg.parsedAlertRelabelConfigs
-				if cw.cfg.DNSSDConfigs[i].AlertRelabelConfigs != nil {
-					alertRelabelConfig, _ = promrelabel.ParseRelabelConfigs(cw.cfg.DNSSDConfigs[i].AlertRelabelConfigs)
-				}
+				alertRelabelConfig, _ := promrelabel.ParseRelabelConfigs(cw.cfg.DNSSDConfigs[i].AlertRelabelConfigs)
 				sdc := &cw.cfg.DNSSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
 				if err != nil {
