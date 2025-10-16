@@ -207,7 +207,7 @@ func parsePrometheusInstantResponse(resp *http.Response) (res Result, err error)
 		}
 		parseFn = ps.metrics
 	default:
-		return res, &ErrUnrecoverable{Err: fmt.Errorf("unknown result type %q", r.Data.ResultType)}
+		return res, fmt.Errorf("unknown result type %q", r.Data.ResultType)
 	}
 	ms, err := parseFn()
 	if err != nil {
@@ -230,7 +230,7 @@ func parsePrometheusRangeResponse(resp *http.Response) (res Result, err error) {
 		return res, fmt.Errorf("failed to parse response: %w", err)
 	}
 	if r.Data.ResultType != rtMatrix {
-		return res, &ErrUnrecoverable{Err: fmt.Errorf("unexpected result type %q; expected result type %q", r.Data.ResultType, rtMatrix)}
+		return res, fmt.Errorf("unexpected result type %q; expected result type %q", r.Data.ResultType, rtMatrix)
 	}
 
 	var pr promRange
