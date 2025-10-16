@@ -86,20 +86,6 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 	}
 }
 
-func getWaitGroup() *sync.WaitGroup {
-	v := wgPool.Get()
-	if v == nil {
-		return &sync.WaitGroup{}
-	}
-	return v.(*sync.WaitGroup)
-}
-
-func putWaitGroup(wg *sync.WaitGroup) {
-	wgPool.Put(wg)
-}
-
-var wgPool sync.Pool
-
 // ParseBlock parses data block sent from vminsert to bc and calls callback for parsed rows.
 // Optional function isReadOnly must return true if the storage cannot accept new data.
 // In this case the data read from bc isn't accepted and storage.ErrReadOnly returned.
@@ -125,28 +111,17 @@ func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricR
 		return storage.ErrReadOnly
 	}
 
-	wg := getWaitGroup()
-	defer putWaitGroup(wg)
-	var callbackErr error
-
 	uw := getUnmarshalWork()
 	uw.isZSTDEncoded = true
 	uw.reqBuf = reqBuf
 	uw.callback = func(rows []storage.MetricRow) {
 		if err := callback(rows); err != nil {
 			processErrors.Inc()
-			if callbackErr == nil {
-				callbackErr = fmt.Errorf("error when processing native block: %w", err)
-			}
+			logger.Errorf("error when processing native block: %s", err)
 		}
 	}
-	uw.wg = wg
-	wg.Add(1)
 	protoparserutil.ScheduleUnmarshalWork(uw)
-
-	wg.Wait()
-
-	return callbackErr
+	return nil
 }
 
 // readBlock reads the next data block  and returns the result.
@@ -249,7 +224,9 @@ func (uw *unmarshalWork) Unmarshal() {
 		reqBuf = tail
 	}
 	wg := uw.wg
-	wg.Done()
+	if wg != nil {
+		wg.Done()
+	}
 	putUnmarshalWork(uw)
 }
 
