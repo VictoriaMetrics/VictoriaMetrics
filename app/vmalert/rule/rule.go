@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -125,6 +126,11 @@ func replayRule(r Rule, start, end time.Time, rw remotewrite.RWClient, replayRul
 		tss, err = r.execRange(context.Background(), start, end)
 		if err == nil {
 			break
+		}
+		var unrecoverable *datasource.ErrUnrecoverable
+		if errors.As(err, &unrecoverable) {
+			logger.Errorf("skipping retry attempts due to unrecoverable error: %s", err)
+			return 0, err
 		}
 		logger.Errorf("attempt %d to execute rule %q failed: %s", i+1, r, err)
 		time.Sleep(time.Second)
