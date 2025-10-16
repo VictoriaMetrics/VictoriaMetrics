@@ -28,7 +28,11 @@ static_configs:
       - localhost:9093
       - localhost:9094
 `)
-	cw, err := newWatcher(f.Name(), nil)
+	cfg, err := parseConfig(f.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}
@@ -94,7 +98,11 @@ consul_sd_configs:
       replacement: "tar"
 `, consulSDServer.URL, consulSDServer.URL))
 
-	cw, err := newWatcher(consulSDFile.Name(), nil)
+	cfg, err := parseConfig(consulSDFile.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}
@@ -191,7 +199,11 @@ consul_sd_configs:
 		"unknownFields.bad.yaml",
 	}
 
-	cw, err := newWatcher(paths[0], nil)
+	cfg, err := parseConfig(paths[0])
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}

@@ -106,15 +106,8 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	cfg.parsedAlertRelabelConfigs = arCfg
 
-	var hasGlobalAlertRelabelCfg bool
-	if arCfg != nil {
-		hasGlobalAlertRelabelCfg = true
-	}
 	for _, s := range cfg.StaticConfigs {
 		if len(s.AlertRelabelConfigs) > 0 {
-			if hasGlobalAlertRelabelCfg {
-				return fmt.Errorf("cannot use alert_relabel_configs in both global and static_config sections")
-			}
 			_, err := promrelabel.ParseRelabelConfigs(s.AlertRelabelConfigs)
 			if err != nil {
 				return fmt.Errorf("failed to parse alert_relabel_configs in static_config: %w", err)
@@ -123,9 +116,6 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	for _, s := range cfg.ConsulSDConfigs {
 		if len(s.AlertRelabelConfigs) > 0 {
-			if hasGlobalAlertRelabelCfg {
-				return fmt.Errorf("cannot use alert_relabel_configs in both global and consul_sd_config sections")
-			}
 			_, err := promrelabel.ParseRelabelConfigs(s.AlertRelabelConfigs)
 			if err != nil {
 				return fmt.Errorf("failed to parse alert_relabel_configs in consul_sd_config: %w", err)
@@ -134,9 +124,6 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	for _, s := range cfg.DNSSDConfigs {
 		if len(s.AlertRelabelConfigs) > 0 {
-			if hasGlobalAlertRelabelCfg {
-				return fmt.Errorf("cannot use alert_relabel_configs in both global and dns_sd_config sections")
-			}
 			_, err := promrelabel.ParseRelabelConfigs(s.AlertRelabelConfigs)
 			if err != nil {
 				return fmt.Errorf("failed to parse alert_relabel_configs in dns_sd_config: %w", err)

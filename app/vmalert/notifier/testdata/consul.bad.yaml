@@ -13,7 +13,7 @@ consul_sd_configs:
     alert_relabel_configs:
     - action: keep
       source_labels: [env]
-      regex: "poc"
+      regex: "(abc"
 alert_relabel_configs:
   - target_label: "foo"
     replacement: "aaa"

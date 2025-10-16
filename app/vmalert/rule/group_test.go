@@ -262,7 +262,7 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		updateCh: make(chan *Group),
 	}
 	g.Init()
-	go g.Start(context.Background(), nil, nil, nil)
+	go g.Start(context.Background(), nil, nil)
 
 	rule1 := AlertingRule{
 		Name: "jobDown",
@@ -346,7 +346,8 @@ func TestGroupStart(t *testing.T) {
 	}
 
 	fs := &datasource.FakeQuerier{}
-	fn := &notifier.FakeNotifier{}
+	fn := notifier.InitFakeNotifier()
+	defer notifier.ResetFakeNotifier()
 
 	const evalInterval = time.Millisecond
 	g := NewGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
@@ -395,7 +396,7 @@ func TestGroupStart(t *testing.T) {
 	fs.Add(m2)
 	g.Init()
 	go func() {
-		g.Start(context.Background(), func() []notifier.Notifier { return []notifier.Notifier{fn} }, nil, fs)
+		g.Start(context.Background(), nil, fs)
 		close(finished)
 	}()
 
@@ -472,15 +473,10 @@ func TestFaultyNotifier(t *testing.T) {
 	r := newTestAlertingRule("instant", 0)
 	r.q = fq
 
-	fn := &notifier.FakeNotifier{}
-	e := &executor{
-		Notifiers: func() []notifier.Notifier {
-			return []notifier.Notifier{
-				&notifier.FaultyNotifier{},
-				fn,
-			}
-		},
-	}
+	fn := notifier.InitFakeNotifier()
+	defer notifier.ResetFakeNotifier()
+
+	e := &executor{}
 	delay := 5 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), delay)
 	defer cancel()
@@ -553,7 +549,7 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 	g := NewGroup(groups[0], fq, evalInterval, nil)
 	g.Init()
 
-	go g.Start(context.Background(), nil, nil, nil)
+	go g.Start(context.Background(), nil, nil)
 
 	time.Sleep(evalInterval * 20)
 

@@ -96,9 +96,10 @@ groups:
 		querierBuilder: &datasource.FakeQuerier{},
 		groups:         make(map[uint64]*rule.Group),
 		labels:         map[string]string{},
-		notifiers:      func() []notifier.Notifier { return []notifier.Notifier{&notifier.FakeNotifier{}} },
 		rw:             &remotewrite.Client{},
 	}
+	notifier.InitFakeNotifier()
+	defer notifier.ResetFakeNotifier()
 
 	syncCh := make(chan struct{})
 	sighupCh := procutil.NewSighupChan()
