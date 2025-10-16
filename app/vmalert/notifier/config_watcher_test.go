@@ -87,9 +87,6 @@ consul_sd_configs:
   - server: %s
     services:
       - alertmanager
-    alert_relabel_configs:
-    - target_label: "foo"
-      replacement: "bar"
   - server: %s
     services:
       - alertmanager
@@ -127,8 +124,11 @@ consul_sd_configs:
 		t.Fatalf("exp address %q; got %q", expAddr3, n3.Addr())
 	}
 
-	if n1.(*AlertManager).relabelConfigs.String() != "- target_label: foo\n  replacement: bar\n" || n2.(*AlertManager).relabelConfigs.String() != "- target_label: foo\n  replacement: bar\n" {
-		t.Fatalf("unexpected relabel configs: %q, %q", n1.(*AlertManager).relabelConfigs.String(), n2.(*AlertManager).relabelConfigs.String())
+	if n1.(*AlertManager).relabelConfigs.String() != "" {
+		t.Fatalf("unexpected relabel configs: %q", n1.(*AlertManager).relabelConfigs.String())
+	}
+	if n2.(*AlertManager).relabelConfigs.String() != "" {
+		t.Fatalf("unexpected relabel configs: %q", n2.(*AlertManager).relabelConfigs.String())
 	}
 	if n3.(*AlertManager).relabelConfigs.String() != "- target_label: foo\n  replacement: tar\n" {
 		t.Fatalf("unexpected relabel configs: %q", n3.(*AlertManager).relabelConfigs.String())

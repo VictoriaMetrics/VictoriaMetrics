@@ -2,7 +2,7 @@ package notifier
 
 import (
 	"context"
-	
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
