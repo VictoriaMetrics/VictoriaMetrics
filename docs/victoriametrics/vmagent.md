@@ -68,7 +68,7 @@ and sending the data to the Prometheus-compatible remote storage:
 * `-promscrape.config` with the path to [Prometheus config file](https://docs.victoriametrics.com/victoriametrics/sd_configs/) (usually located at `/etc/prometheus/prometheus.yml`).
   The path can point either to local file or to http url. See [scrape config examples](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/).
   `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or
-   run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
+   to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
 * `-remoteWrite.url` of a Prometheus-compatible remote storage endpoint (e.g., VictoriaMetrics) to send data to.
   The `-remoteWrite.url` may refer to a [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address. See [these docs](#srv-urls) for details.
@@ -973,7 +973,7 @@ or add a review to the dashboard.
 
 ## Troubleshooting
 
-* It is recommended [to setup the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent`.
+* It is recommended [to set up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent`.
 
 * It is recommended to increase the maximum number of open files in the system (`ulimit -n`) when scraping a large number of targets,
   as `vmagent` establishes at least one TCP connection per target.
