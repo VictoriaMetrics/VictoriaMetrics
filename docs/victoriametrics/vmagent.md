@@ -198,7 +198,7 @@ it is applied independently for each configured `-remoteWrite.url` destination. 
 data among long-term remote storage, short-term remote storage and a real-time analytical system [built on top of Kafka](https://github.com/Telefonica/prometheus-kafka-adapter).
 Note that each destination can receive its own subset of the collected data due to per-destination relabeling via `-remoteWrite.urlRelabelConfig`.
 
-For example, let's assume that all the scraped or received metrics from `vmagent` have the label `env` with the value of `dev` or `prod`.
+For example, let's assume that all the metrics scraped or received by `vmagent` have the label `env` with the value of `dev` or `prod`.
 To route metrics with the label `env=dev` to `dev` and metrics with the label `env=prod` to `prod` apply the following config:
 
 1. Create a relabeling config file `relabelDev.yml` to drop all metrics that don't have label `env=dev`:
@@ -241,8 +241,8 @@ Basic Auth can be enabled for the incoming `remote_write` requests with `-httpAu
 
 ### remote_write for clustered version
 
-While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets.
-Writes are always performed in Prometheus remote_write protocol. Therefore, in the [clustered version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/),
+While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets,
+writes are always performed in Prometheus remote_write protocol. Therefore, for the [clustered version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/),
 the `-remoteWrite.url` command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<accountID>/prometheus/api/v1/write`
 according to [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format).
 There is also support for multitenant writes. See [these docs](#multitenancy).
