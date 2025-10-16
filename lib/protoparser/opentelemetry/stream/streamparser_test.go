@@ -445,6 +445,51 @@ func TestParseStream(t *testing.T) {
 		},
 		false,
 	)
+
+	// check translation only for metric name only
+	{
+		*convertMetricNamesToPrometheus = true
+		defer func() {
+			*convertMetricNamesToPrometheus = false
+		}()
+		// Test sum with total and complex suffix
+		f(
+			[]*pb.Metric{
+				generateSum("my-total-sum", "m/s", true, stringAttributeFromKV("service.name", "dev")),
+			},
+			[]prompb.TimeSeries{
+				newPromPBTs("my_sum_meters_per_second_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5"), kvLabel("service.name", "dev")),
+			},
+			[]prompb.MetricMetadata{
+				{
+					MetricFamilyName: "my_sum_meters_per_second_total",
+					Help:             "I might be a counter or gauge, depending on the IsMonotonic",
+					Type:             uint32(prompb.MetricMetadataCOUNTER),
+					Unit:             "m/s",
+				},
+			},
+			false,
+		)
+		// Test gauge with ratio suffix
+		f(
+			[]*pb.Metric{
+				generateGauge("my-gauge-milliseconds", "1", stringAttributeFromKV("service.name", "dev")),
+			},
+			[]prompb.TimeSeries{
+				newPromPBTs("my_gauge_milliseconds_ratio", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("service.name", "dev")),
+			},
+			[]prompb.MetricMetadata{
+				{
+					MetricFamilyName: "my_gauge_milliseconds_ratio",
+					Help:             "I'm a gauge",
+					Type:             uint32(prompb.MetricMetadataGAUGE),
+					Unit:             "1",
+				},
+			},
+			false,
+		)
+	}
+
 }
 
 func checkParseStream(data []byte, checkSeries func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error) error {
@@ -492,9 +537,18 @@ func attributesFromKV(k, v string) []*pb.KeyValue {
 	}
 }
 
-func generateExpHistogram(name, unit string) *pb.Metric {
+func stringAttributeFromKV(k, v string) *pb.KeyValue {
+	return &pb.KeyValue{
+		Key: k,
+		Value: &pb.AnyValue{
+			StringValue: &v,
+		},
+	}
+}
+
+func generateExpHistogram(name, unit string, extraAttributes ...*pb.KeyValue) *pb.Metric {
 	sum := float64(4578)
-	return &pb.Metric{
+	m := &pb.Metric{
 		Name: name,
 		Unit: unit,
 		ExponentialHistogram: &pb.ExponentialHistogram{
@@ -514,9 +568,12 @@ func generateExpHistogram(name, unit string) *pb.Metric {
 			},
 		},
 	}
+	m.ExponentialHistogram.DataPoints[0].Attributes = append(m.ExponentialHistogram.DataPoints[0].Attributes, extraAttributes...)
+
+	return m
 }
 
-func generateGauge(name, unit string) *pb.Metric {
+func generateGauge(name, unit string, extraAttributes ...*pb.KeyValue) *pb.Metric {
 	n := int64(15)
 	points := []*pb.NumberDataPoint{
 		{
@@ -525,6 +582,7 @@ func generateGauge(name, unit string) *pb.Metric {
 			TimeUnixNano: uint64(15 * time.Second),
 		},
 	}
+	points[0].Attributes = append(points[0].Attributes, extraAttributes...)
 	return &pb.Metric{
 		Name:        name,
 		Description: "I'm a gauge",
@@ -535,8 +593,8 @@ func generateGauge(name, unit string) *pb.Metric {
 	}
 }
 
-func generateGaugeUnknown(name, unit string) *pb.Metric {
-	m := generateGauge(name, unit)
+func generateGaugeUnknown(name, unit string, extraAttributes ...*pb.KeyValue) *pb.Metric {
+	m := generateGauge(name, unit, extraAttributes...)
 	m.Description = "I'm not a gauge"
 	m.Metadata = append(m.Metadata, &pb.KeyValue{
 		Key: "prometheus.type",
@@ -547,7 +605,7 @@ func generateGaugeUnknown(name, unit string) *pb.Metric {
 	return m
 }
 
-func generateHistogram(name, unit string, hasSum bool) *pb.Metric {
+func generateHistogram(name, unit string, hasSum bool, extraAttributes ...*pb.KeyValue) *pb.Metric {
 	point := &pb.HistogramDataPoint{
 		Attributes:     attributesFromKV("label2", "value2"),
 		Count:          15,
@@ -555,6 +613,7 @@ func generateHistogram(name, unit string, hasSum bool) *pb.Metric {
 		BucketCounts:   []uint64{0, 5, 10, 0, 0},
 		TimeUnixNano:   uint64(30 * time.Second),
 	}
+	point.Attributes = append(point.Attributes, extraAttributes...)
 	if hasSum {
 		point.Sum = func() *float64 { v := 30.0; return &v }()
 	}
@@ -569,7 +628,7 @@ func generateHistogram(name, unit string, hasSum bool) *pb.Metric {
 	}
 }
 
-func generateSum(name, unit string, isMonotonic bool) *pb.Metric {
+func generateSum(name, unit string, isMonotonic bool, extraAttributes ...*pb.KeyValue) *pb.Metric {
 	d := float64(15.5)
 	points := []*pb.NumberDataPoint{
 		{
@@ -578,6 +637,7 @@ func generateSum(name, unit string, isMonotonic bool) *pb.Metric {
 			TimeUnixNano: uint64(150 * time.Second),
 		},
 	}
+	points[0].Attributes = append(points[0].Attributes, extraAttributes...)
 	return &pb.Metric{
 		Name:        name,
 		Unit:        unit,
@@ -590,7 +650,7 @@ func generateSum(name, unit string, isMonotonic bool) *pb.Metric {
 	}
 }
 
-func generateSummary(name, unit string) *pb.Metric {
+func generateSummary(name, unit string, extraAttributes ...*pb.KeyValue) *pb.Metric {
 	points := []*pb.SummaryDataPoint{
 		{
 			Attributes:   attributesFromKV("label6", "value6"),
@@ -613,6 +673,7 @@ func generateSummary(name, unit string) *pb.Metric {
 			},
 		},
 	}
+	points[0].Attributes = append(points[0].Attributes, extraAttributes...)
 	return &pb.Metric{
 		Name: name,
 		Unit: unit,
