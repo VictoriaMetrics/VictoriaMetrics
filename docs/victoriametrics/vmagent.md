@@ -1116,8 +1116,8 @@ It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag
 
 ## Performance optimizations
 
-`vmagent` is optimized for low CPU usage and low RAM usage without the need to tune any configs. Sometimes it is needed to optimize CPU / RAM usage of `vmagent` even more.
-For example, if `vmagent` needs to scrape thousands of targets in resource-constrained environments. Then the following options may help to reduce CPU and RAM usage:
+`vmagent` is optimized for low CPU usage and low RAM usage without the need to tune any configs. Sometimes it is needed to optimize the CPU / RAM usage of `vmagent` even more.
+For example, if `vmagent` needs to scrape thousands of targets in resource-constrained environments, then the following options may help to reduce CPU and RAM usage:
 
 * Set [GOGC](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to `100`. This reduces CPU usage at the cost of higher RAM usage.
 
