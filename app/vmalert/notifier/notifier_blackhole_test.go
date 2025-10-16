@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	metricset "github.com/VictoriaMetrics/metrics"
 )
 
@@ -16,7 +17,7 @@ func TestBlackHoleNotifier_Send(t *testing.T) {
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
-	}}, nil); err != nil {
+	}}, [][]prompb.Label{{}}, nil); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
@@ -34,7 +35,7 @@ func TestBlackHoleNotifier_Close(t *testing.T) {
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
-	}}, nil); err != nil {
+	}}, [][]prompb.Label{{}}, nil); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 

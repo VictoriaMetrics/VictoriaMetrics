@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // FakeNotifier is a mock notifier
@@ -13,6 +15,18 @@ type FakeNotifier struct {
 	alerts []Alert
 	// records number of received alerts in total
 	counter int
+}
+
+func InitFakeNotifier() *FakeNotifier {
+	fn := &FakeNotifier{}
+	getActiveNotifiers = func() []Notifier {
+		return []Notifier{fn}
+	}
+	return fn
+}
+
+func ResetFakeNotifier() {
+	getActiveNotifiers = nil
 }
 
 // Close does nothing
@@ -27,7 +41,7 @@ func (*FakeNotifier) LastError() string {
 func (*FakeNotifier) Addr() string { return "" }
 
 // Send sets alerts and increases counter
-func (fn *FakeNotifier) Send(_ context.Context, alerts []Alert, _ map[string]string) error {
+func (fn *FakeNotifier) Send(_ context.Context, alerts []Alert, _ [][]prompb.Label, _ map[string]string) error {
 	fn.Lock()
 	defer fn.Unlock()
 	fn.counter += len(alerts)
