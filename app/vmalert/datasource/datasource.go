@@ -12,6 +12,24 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
+// ErrUnrecoverable is an error that identifies unrecoverable condition
+// that shouldn't be retried.
+type ErrUnrecoverable struct {
+	Err error
+}
+
+// Unwrap returns e.Err.
+//
+// This is used by standard errors package. See https://golang.org/pkg/errors
+func (e *ErrUnrecoverable) Unwrap() error {
+	return e.Err
+}
+
+// Error implements error interface.
+func (e *ErrUnrecoverable) Error() string {
+	return e.Err.Error()
+}
+
 // Querier interface wraps Query and QueryRange methods
 type Querier interface {
 	// Query executes instant request with the given query at the given ts.
