@@ -99,7 +99,7 @@ func (s *Service) appendCommonLabels(m *promutil.Labels, gw *groupWatcher) {
 		m.Add("__meta_kubernetes_service_external_name", s.Spec.ExternalName)
 	}
 	if gw.attachNamespaceMetadata {
-		o := gw.getObjectByRoleLocked("namespace", s.Metadata.Namespace, s.Metadata.Namespace)
+		o := gw.getObjectByRoleLocked("namespace", "", s.Metadata.Namespace)
 		if o != nil {
 			ns := o.(*Namespace)
 			ns.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
