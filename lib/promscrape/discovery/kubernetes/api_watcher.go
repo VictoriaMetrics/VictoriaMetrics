@@ -1022,7 +1022,7 @@ func parseError(data []byte) (*Error, error) {
 
 func getAPIPathsWithNamespaces(role string, namespaces []string, selectors []Selector) []string {
 	objectType := getObjectTypeByRole(role)
-	if objectType == "nodes" || len(namespaces) == 0 {
+	if objectType == "nodes" || objectType == "namespaces" || len(namespaces) == 0 {
 		query := joinSelectors(role, selectors)
 		path := getAPIPath(objectType, "", query)
 		return []string{path}
