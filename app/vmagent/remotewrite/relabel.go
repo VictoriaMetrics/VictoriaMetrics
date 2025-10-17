@@ -149,7 +149,6 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
 			urlRelabelCfgs = append(urlRelabelCfgs, nil)
-			// Skip empty relabel config.
 			continue
 		}
 		prc, rawCfg, err := promrelabel.LoadRelabelConfigs(path)
@@ -161,7 +160,12 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		var parsedCfg interface{}
 		_ = yaml.Unmarshal(rawCfg, &parsedCfg)
 		urlRelabelCfgs = append(urlRelabelCfgs, parsedCfg)
-
+	}
+	if len(*remoteWriteURLs) > len(*relabelConfigPaths) {
+		// fill the urlRelabelCfgs with empty relabel configs if not set
+		for i := len(*relabelConfigPaths); i < len(*remoteWriteURLs); i++ {
+			urlRelabelCfgs = append(urlRelabelCfgs, nil)
+		}
 	}
 	remoteWriteURLRelabelConfigData.Store(&urlRelabelCfgs)
 	return &rcs, nil
