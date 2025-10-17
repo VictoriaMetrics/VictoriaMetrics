@@ -35,4 +35,6 @@ func TestParseConfig_Failure(t *testing.T) {
 
 	f("testdata/unknownFields.bad.yaml", "unknown field")
 	f("non-existing-file", "error reading")
+	f("testdata/consul.bad.yaml", "failed to parse alert_relabel_configs in consul_sd_config")
+	f("testdata/dns.bad.yaml", "failed to parse alert relabeling config")
 }

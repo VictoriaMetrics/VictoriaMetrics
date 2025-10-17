@@ -132,7 +132,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 		}
 		labels[s[:n]] = s[n+1:]
 	}
-	_, err = notifier.Init(labels, externalURL)
+	err = notifier.Init(labels, externalURL)
 	if err != nil {
 		logger.Fatalf("failed to init notifier: %v", err)
 	}
@@ -379,7 +379,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 			if len(g.Rules) == 0 {
 				continue
 			}
-			errs := g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, rw, ts)
+			errs := g.ExecOnce(context.Background(), rw, ts)
 			for err := range errs {
 				if err != nil {
 					checkErrs = append(checkErrs, fmt.Errorf("\nfailed to exec group: %q, time: %s, err: %w", g.Name,

@@ -227,14 +227,13 @@ func newManager(ctx context.Context) (*manager, error) {
 		labels[s[:n]] = s[n+1:]
 	}
 
-	nts, err := notifier.Init(labels, *externalURL)
+	err = notifier.Init(labels, *externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
 	manager := &manager{
 		groups:         make(map[uint64]*rule.Group),
 		querierBuilder: q,
-		notifiers:      nts,
 		labels:         labels,
 	}
 	rw, err := remotewrite.Init(ctx)

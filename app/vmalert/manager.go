@@ -16,7 +16,6 @@ import (
 // manager controls group states
 type manager struct {
 	querierBuilder datasource.QuerierBuilder
-	notifiers      func() []notifier.Notifier
 
 	rw remotewrite.RWClient
 	// remote read builder.
@@ -100,9 +99,9 @@ func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) e
 	go func() {
 		defer m.wg.Done()
 		if restore {
-			g.Start(ctx, m.notifiers, m.rw, m.rr)
+			g.Start(ctx, m.rw, m.rr)
 		} else {
-			g.Start(ctx, m.notifiers, m.rw, nil)
+			g.Start(ctx, m.rw, nil)
 		}
 	}()
 	m.groups[id] = g
@@ -131,7 +130,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	if rrPresent && m.rw == nil {
 		return fmt.Errorf("config contains recording rules but `-remoteWrite.url` isn't set")
 	}
-	if arPresent && m.notifiers == nil {
+	if arPresent && notifier.GetTargets() == nil {
 		return fmt.Errorf("config contains alerting rules but neither `-notifier.url` nor `-notifier.config` nor `-notifier.blackhole` aren't set")
 	}
 
