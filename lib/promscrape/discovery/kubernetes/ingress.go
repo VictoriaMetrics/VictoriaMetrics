@@ -141,7 +141,7 @@ func getLabelsForIngressPath(ig *Ingress, gw *groupWatcher, scheme, host, path s
 	m.Add("__meta_kubernetes_ingress_path", path)
 	m.Add("__meta_kubernetes_ingress_class_name", ig.Spec.IngressClassName)
 	if gw.attachNamespaceMetadata {
-		o := gw.getObjectByRoleLocked("namespace", ig.Metadata.Namespace, ig.Metadata.Namespace)
+		o := gw.getObjectByRoleLocked("namespace", "", ig.Metadata.Namespace)
 		if o != nil {
 			ns := o.(*Namespace)
 			ns.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
