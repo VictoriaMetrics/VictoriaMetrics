@@ -50,6 +50,10 @@ func (pl *pipeLast) canLiveTail() bool {
 	return false
 }
 
+func (pl *pipeLast) canReturnLastNResults() bool {
+	return false
+}
+
 func (pl *pipeLast) updateNeededFields(pf *prefixfilter.Filter) {
 	pl.ps.updateNeededFields(pf)
 }
@@ -95,9 +99,12 @@ func parsePipeLastFirst(lex *lexer) (*pipeSort, error) {
 	var ps pipeSort
 	ps.limit = 1
 	if !lex.isKeyword("by", "partition", "rank", "(", "|", ")", "") {
-		s := lex.token
+		s, err := lex.nextCompoundToken()
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse number: %w", err)
+		}
+
 		n, ok := tryParseUint64(s)
-		lex.nextToken()
 		if !ok {
 			return nil, fmt.Errorf("expecting number; got %q", s)
 		}

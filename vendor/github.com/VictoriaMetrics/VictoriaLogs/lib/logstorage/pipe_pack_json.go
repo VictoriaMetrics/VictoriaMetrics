@@ -36,6 +36,10 @@ func (pp *pipePackJSON) canLiveTail() bool {
 	return true
 }
 
+func (pp *pipePackJSON) canReturnLastNResults() bool {
+	return pp.resultField != "_time"
+}
+
 func (pp *pipePackJSON) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForPipePack(pf, pp.resultField, pp.fieldFilters)
 }

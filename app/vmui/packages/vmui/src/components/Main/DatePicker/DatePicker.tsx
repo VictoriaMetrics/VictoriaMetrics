@@ -8,11 +8,13 @@ import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
 
 interface DatePickerProps {
-  date: string | Date | Dayjs,
+  date: string | Date | Dayjs;
   targetRef: React.RefObject<HTMLElement>;
-  format?: string
-  label?: string
-  onChange: (val: string) => void
+  format?: string;
+  label?: string;
+  minDate?: Date | Dayjs;
+  maxDate?: Date | Dayjs;
+  onChange: (val: string) => void;
 }
 
 const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
@@ -20,7 +22,9 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   targetRef,
   format = DATE_TIME_FORMAT,
   onChange,
-  label
+  label,
+  minDate,
+  maxDate
 }, ref) => {
   const dateDayjs = useMemo(() => dayjs(date).isValid() ? dayjs.tz(date) : dayjs().tz(), [date]);
   const { isMobile } = useDeviceDetect();
@@ -56,6 +60,8 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
           date={dateDayjs}
           format={format}
           onChange={handleChangeDate}
+          minDate={minDate}
+          maxDate={maxDate}
         />
       </div>
     </Popper>

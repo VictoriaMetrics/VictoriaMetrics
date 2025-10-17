@@ -80,7 +80,7 @@ VictoriaMetrics has the following prominent features:
   * [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
   * [InfluxDB line protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/) over HTTP, TCP and UDP.
   * [Graphite plaintext protocol](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
-  * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
+  * [OpenTSDB put message](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet).
   * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http).
   * [JSON line format](#how-to-import-data-in-json-line-format).
   * [Arbitrary CSV data](#how-to-import-csv-data).
@@ -859,7 +859,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * InfluxDB line protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) for details.
 * OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
-* OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
+* OpenTSDB telnet put protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http) for details.
 * `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
   See [these docs](#how-to-import-data-in-json-line-format) for details.
@@ -1734,6 +1734,7 @@ VictoriaMetrics provides the following security-related command-line flags:
 * `-configAuthKey` for protecting `/config` endpoint, since it may contain sensitive information such as passwords.
 * `-flagsAuthKey` for protecting `/flags` endpoint.
 * `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](#profiling).
+* `-metricNamesStatsResetAuthKey` for protecting `/api/v1/admin/status/metric_names_stats/reset` endpoint, used for [Metric Names Tracker](#track-ingested-metrics-usage).
 * `-denyQueryTracing` for disallowing [query tracing](#query-tracing).
 * `-http.header.hsts`, `-http.header.csp`, and `-http.header.frameOptions` for serving `Strict-Transport-Security`, `Content-Security-Policy`
   and `X-Frame-Options` HTTP response headers.
@@ -1743,6 +1744,17 @@ For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<i
 
 See also [security recommendation for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
+
+### CVE handling policy
+
+**Source code:** Go dependencies are scanned by [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck) in CI. 
+All vulnerabilities must be fixed before next scheduled release and backported to [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
+
+**Docker images:** CVE findings in [Alpine](https://security.alpinelinux.org/) base image pose minimal risk since VictoriaMetrics binaries are statically compiled with no OS dependencies.
+When detected, only the Alpine base tag is updated.
+Releases proceed as planned even if upstream fixes are not yet available.
+For maximum security, hardened [scratch](https://hub.docker.com/_/scratch)-based images are also provided.
+All images are continuously scanned by Docker Hub and verified before release using [grype](https://github.com/anchore/grype).
 
 ### mTLS protection
 
@@ -1876,7 +1888,7 @@ The API endpoint returns the following `JSON` response:
   "records": [
     {
       "metricName": "node_disk_writes_completed_total",
-      "queryRequests": 50,
+      "queryRequestsCount": 50,
       "lastRequestTimestamp": 1737534262
     },
     {
@@ -1892,7 +1904,7 @@ The API endpoint returns the following `JSON` response:
 * `statsCollectedRecordsTotal` total number of metric names it contains;
 * `records`:
   * `metricName` a metric name;
-  * `queryRequests` a cumulative counter of times the metric was fetched. If metric name `foo` has 10 time series,
+  * `queryRequestsCount` a cumulative counter of times the metric was fetched. If metric name `foo` has 10 time series,
     then one read query `foo` will increment counter by 10.
   * `lastRequestTimestamp` a timestamp when last time this statistic was updated.
 
@@ -1917,7 +1929,8 @@ can be used to notify the user of cache utilization exceeding 90%.
 The metric name tracker state can be **reset** via the API endpoint `/api/v1/admin/status/metric_names_stats/reset`
 for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/admin/api/v1/admin/status/metric_names_stats/reset`
 in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)) or
-via [cache removal](#cache-removal) procedure.
+via [cache removal](https://docs.victoriametrics.com/victoriametrics/#cache-removal) procedure. This reset state endpoint can be protected via `-metricNamesStatsResetAuthKey`
+cmd-line flag. See [Security](https://docs.victoriametrics.com/victoriametrics/#security) for details.
 
 ## Query tracing
 
@@ -2225,9 +2238,10 @@ Use [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/) to migrate 
 
 ## Backfilling
 
-VictoriaMetrics accepts historical data in arbitrary order of time via [any supported ingestion method](#how-to-import-time-series-data).
-See [how to backfill data with recording rules in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling).
-Make sure that configured `-retentionPeriod` covers timestamps for the backfilled data.
+VictoriaMetrics accepts out-of-order historical data via [any supported ingestion method](#how-to-import-time-series-data)
+without limitations. Only make sure that backfilled data is within of the configured [retention period](https://docs.victoriametrics.com/victoriametrics/#retention).
+
+> See [how to backfill recording rules via vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling).
 
 It is recommended disabling [query cache](#rollup-result-cache) with `-search.disableCache` command-line flag when writing
 historical data with timestamps from the past, since the cache assumes that the data is written with
@@ -2236,7 +2250,7 @@ the current timestamps. Query cache can be enabled after the backfilling is comp
 An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/victoriametrics/url-examples/#internalresetrollupresultcache)
 after the backfilling is complete. This will reset the [query cache](#rollup-result-cache), which could contain incomplete data cached during the backfilling.
 
-Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
+Yet another solution is to increase `-search.cacheTimestampOffset` flag value to disable caching
 for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
 cache when samples with timestamps older than `now - search.cacheTimestampOffset` are ingested to it.
 

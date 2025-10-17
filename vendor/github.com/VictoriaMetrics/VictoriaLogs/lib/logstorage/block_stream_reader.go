@@ -536,7 +536,7 @@ func (bsr *blockStreamReader) MustClose() {
 // getBlockStreamReader returns blockStreamReader.
 //
 // The returned blockStreamReader must be initialized with MustInit().
-// call putBlockStreamReader() when the retruend blockStreamReader is no longer needed.
+// call putBlockStreamReader() when the returned blockStreamReader is no longer needed.
 func getBlockStreamReader() *blockStreamReader {
 	v := blockStreamReaderPool.Get()
 	if v == nil {

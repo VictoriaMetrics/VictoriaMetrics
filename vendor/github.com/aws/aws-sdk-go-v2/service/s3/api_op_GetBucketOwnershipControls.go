@@ -20,6 +20,16 @@ import (
 // must have the s3:GetBucketOwnershipControls permission. For more information
 // about Amazon S3 permissions, see [Specifying permissions in a policy].
 //
+// A bucket doesn't have OwnershipControls settings in the following cases:
+//
+//   - The bucket was created before the BucketOwnerEnforced ownership setting was
+//     introduced and you've never explicitly applied this value
+//
+//   - You've manually deleted the bucket ownership control value using the
+//     DeleteBucketOwnershipControls API operation.
+//
+// By default, Amazon S3 sets OwnershipControls for all newly created buckets.
+//
 // For information about Amazon S3 Object Ownership, see [Using Object Ownership].
 //
 // The following operations are related to GetBucketOwnershipControls :
@@ -148,6 +158,9 @@ func (c *Client) addOperationGetBucketOwnershipControlsMiddlewares(stack *middle
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetBucketOwnershipControlsValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -179,6 +192,36 @@ func (c *Client) addOperationGetBucketOwnershipControlsMiddlewares(stack *middle
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeRetryLoop(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAttempt(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptExecution(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSerialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterSigning(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptTransmit(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
+		return err
+	}
+	if err = addInterceptAfterDeserialization(stack, options); err != nil {
 		return err
 	}
 	if err = addSpanInitializeStart(stack); err != nil {

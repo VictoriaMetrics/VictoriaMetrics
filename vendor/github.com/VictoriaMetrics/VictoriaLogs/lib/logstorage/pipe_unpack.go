@@ -7,17 +7,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
-func updateNeededFieldsForUnpackPipe(fromField string, outFieldFilters []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, pf *prefixfilter.Filter) {
+func updateNeededFieldsForUnpackPipe(fromField, outFieldPrefix string, outFieldFilters []string, keepOriginalFields, skipEmptyResults bool, iff *ifFilter, pf *prefixfilter.Filter) {
 	if pf.MatchNothing() {
-		if iff != nil {
-			pf.AddAllowFilters(iff.allowFilters)
-		}
+		// There is no need in fetching any fields, since the caller ignores all the fields.
 		return
 	}
 
 	needFromField := len(outFieldFilters) == 0
 	for _, f := range outFieldFilters {
-		if pf.MatchStringOrWildcard(f) {
+		if pf.MatchStringOrWildcard(outFieldPrefix + f) {
 			needFromField = true
 			break
 		}
@@ -25,7 +23,7 @@ func updateNeededFieldsForUnpackPipe(fromField string, outFieldFilters []string,
 	if !keepOriginalFields && !skipEmptyResults {
 		for _, f := range outFieldFilters {
 			if !prefixfilter.IsWildcardFilter(f) {
-				pf.AddDenyFilter(f)
+				pf.AddDenyFilter(outFieldPrefix + f)
 			}
 		}
 	}

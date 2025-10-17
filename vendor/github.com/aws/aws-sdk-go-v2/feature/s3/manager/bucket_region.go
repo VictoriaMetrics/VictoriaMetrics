@@ -63,8 +63,6 @@ const bucketRegionHeader = "X-Amz-Bucket-Region"
 //
 //	manager.GetBucketRegion(ctx, s3.NewFromConfig(cfg), bucket, func(o *s3.Options) {
 //	     o.Credentials = nil
-//	     // Or
-//	     o.Credentials = aws.AnonymousCredentials{}
 //	})
 //
 // The request with anonymous credentials will not be signed.
@@ -72,11 +70,14 @@ const bucketRegionHeader = "X-Amz-Bucket-Region"
 func GetBucketRegion(ctx context.Context, client HeadBucketAPIClient, bucket string, optFns ...func(*s3.Options)) (string, error) {
 	var captureBucketRegion deserializeBucketRegion
 
-	clientOptionFns := make([]func(*s3.Options), len(optFns)+1)
+	clientOptionFns := make([]func(*s3.Options), len(optFns)+2)
 	clientOptionFns[0] = func(options *s3.Options) {
 		options.APIOptions = append(options.APIOptions, captureBucketRegion.RegisterMiddleware)
 	}
-	copy(clientOptionFns[1:], optFns)
+	clientOptionFns[1] = func(options *s3.Options) {
+		options.Credentials = nil
+	}
+	copy(clientOptionFns[2:], optFns)
 
 	_, err := client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(bucket),

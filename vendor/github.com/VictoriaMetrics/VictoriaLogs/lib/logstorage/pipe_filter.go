@@ -28,6 +28,10 @@ func (pf *pipeFilter) canLiveTail() bool {
 	return true
 }
 
+func (pf *pipeFilter) canReturnLastNResults() bool {
+	return true
+}
+
 func (pf *pipeFilter) updateNeededFields(f *prefixfilter.Filter) {
 	pf.f.updateNeededFields(f)
 }
@@ -100,7 +104,15 @@ func (pfp *pipeFilterProcessor) flush() error {
 	return nil
 }
 
-func parsePipeFilter(lex *lexer, needFilterKeyword bool) (pipe, error) {
+func parsePipeFilter(lex *lexer) (pipe, error) {
+	return parsePipeFilterExt(lex, true)
+}
+
+func parsePipeFilterNoFilterKeyword(lex *lexer) (pipe, error) {
+	return parsePipeFilterExt(lex, false)
+}
+
+func parsePipeFilterExt(lex *lexer, needFilterKeyword bool) (pipe, error) {
 	if needFilterKeyword {
 		if !lex.isKeyword("filter", "where") {
 			return nil, fmt.Errorf("expecting 'filter' or 'where'; got %q", lex.token)
@@ -108,7 +120,7 @@ func parsePipeFilter(lex *lexer, needFilterKeyword bool) (pipe, error) {
 		lex.nextToken()
 	}
 
-	f, err := parseFilter(lex)
+	f, err := parseFilter(lex, needFilterKeyword)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse 'filter': %w", err)
 	}

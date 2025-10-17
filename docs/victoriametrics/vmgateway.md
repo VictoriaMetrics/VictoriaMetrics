@@ -13,9 +13,9 @@ aliases:
   - /vmgateway/index.html
   - /vmgateway/
 ---
-***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/). 
+***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).***
+See how to request a free [trial license](https://victoriametrics.com/products/enterprise/trial/).***
 
 ![vmgateway](vmgateway-overview.webp)
 
@@ -39,6 +39,7 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 jwt token must be in one of the following formats:
 
 with `vm_access` claim as JSON object
+
 ```json
 {
   "exp": 1617304574,
@@ -46,6 +47,7 @@ with `vm_access` claim as JSON object
       "tenant_id": {
         "account_id": 1,
         "project_id": 5
+
       },
       "extra_labels": {
          "team": "dev",
@@ -203,12 +205,14 @@ Tokens with unsupported algorithms will be rejected.
 
 In order to enable JWT signature verification, you need to specify keys for signature verification.
 The following flags are used to specify keys:
-- `-auth.publicKeyFiles` - allows to pass file path to file with public key.
-- `-auth.publicKeys` - allows to pass public key directly.
+
+* `-auth.publicKeyFiles` - allows to pass file path to file with public key.
+* `-auth.publicKeys` - allows to pass public key directly.
 
 Note that both flags support passing multiple keys and also can be used together.
 
 Example usage:
+
 ```sh
 ./bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
@@ -227,6 +231,7 @@ mwIDAQAB
 -----END PUBLIC KEY-----
 `
 ```
+
 This command will result in 3 keys loaded: 2 keys from files and 1 from command line.
 
 ### Using OpenID discovery endpoint for JWT signature verification
@@ -237,6 +242,7 @@ In order to enable [OpenID discovery](https://openid.net/specs/openid-connect-di
 When `auth.oidcDiscoveryEndpoints` is specified `vmgateway` will fetch JWKS keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
+
 ```sh
 /bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
@@ -246,6 +252,7 @@ Example usage for tokens issued by Azure Active Directory:
 ```
 
 Example usage for tokens issued by Google:
+
 ```sh
 /bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
@@ -262,6 +269,7 @@ In order to enable JWKS endpoint for JWT signature verification, you need to spe
 When `auth.jwksEndpoints` is specified `vmgateway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
+
 ```sh
 /bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \
@@ -271,6 +279,7 @@ Example usage for tokens issued by Azure Active Directory:
 ```
 
 Example usage for tokens issued by Google:
+
 ```sh
 /bin/vmgateway -licenseFile=/path/to/vm-license \
   -enable.auth \

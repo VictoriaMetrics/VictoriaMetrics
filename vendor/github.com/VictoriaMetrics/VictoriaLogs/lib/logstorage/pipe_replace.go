@@ -47,6 +47,10 @@ func (pr *pipeReplace) canLiveTail() bool {
 	return true
 }
 
+func (pr *pipeReplace) canReturnLastNResults() bool {
+	return true
+}
+
 func (pr *pipeReplace) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForUpdatePipe(pf, pr.field, pr.iff)
 }
@@ -100,7 +104,7 @@ func parsePipeReplace(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	oldSubstr, err := getCompoundToken(lex)
+	oldSubstr, err := lex.nextCompoundToken()
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse oldSubstr in 'replace': %w", err)
 	}
@@ -109,7 +113,7 @@ func parsePipeReplace(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	newSubstr, err := getCompoundToken(lex)
+	newSubstr, err := lex.nextCompoundToken()
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse newSubstr in 'replace(%q': %w", oldSubstr, err)
 	}
@@ -131,12 +135,10 @@ func parsePipeReplace(lex *lexer) (pipe, error) {
 
 	limit := uint64(0)
 	if lex.isKeyword("limit") {
-		lex.nextToken()
-		n, ok := tryParseUint64(lex.token)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse 'limit %s' in 'replace'", lex.token)
+		n, err := parseLimit(lex)
+		if err != nil {
+			return nil, err
 		}
-		lex.nextToken()
 		limit = n
 	}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsnil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/formatutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 )
@@ -144,6 +145,7 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 
 	srcCopyParts := common.PartsDifference(partsToCopy, originParts)
 	uploadSize := getPartsSize(srcCopyParts)
+	uploadSizeHuman := formatutil.HumanizeBytes(float64(uploadSize))
 	if len(srcCopyParts) > 0 {
 		logger.Infof("uploading %d parts from %s to %s", len(srcCopyParts), src, dst)
 		var bytesUploaded atomic.Uint64
@@ -165,9 +167,21 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			}
 			return nil
 		}, func(elapsed time.Duration) {
+			if elapsed.Seconds() <= 0 {
+				// The only way for this to happen is when the operation is immediately canceled.
+				// There is no need to log progress in this case, and this prevents division by zero below.
+				return
+			}
 			n := bytesUploaded.Load()
+			uploadedHuman := formatutil.HumanizeBytes(float64(n))
 			prc := 100 * float64(n) / float64(uploadSize)
-			logger.Infof("uploaded %d out of %d bytes (%.2f%%) from %s to %s in %s", n, uploadSize, prc, src, dst, elapsed)
+			speed := float64(n) / elapsed.Seconds()
+			estimatedTotal := time.Duration(float64(uploadSize)/speed) * time.Second
+			eta := estimatedTotal - elapsed
+			if eta < 0 {
+				eta = 0
+			}
+			logger.Infof("uploaded %s out of %s bytes (%.2f%%) from %s to %s in %s; estimated time to completion: %s", uploadedHuman, uploadSizeHuman, prc, src, dst, elapsed, eta)
 		})
 		if err != nil {
 			return err

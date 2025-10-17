@@ -2136,6 +2136,16 @@
         "skipUrlSync": false,
         "sort": 2,
         "type": "query"
+      },
+      {
+        "baseFilters": [],
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "filters": [],
+        "name": "adhoc",
+        "type": "adhoc"
       }
     ]
   },

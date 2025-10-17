@@ -307,7 +307,7 @@ This means that the service upon restart:
 2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`prophet`, `q2`) combination will be removed from the database file and from the disk.
 
 
-### Logger Levels
+## Logger Levels
 
 {{% available_from "v1.25.3" anomaly %}} `vmanomaly` service supports per-component logger levels, allowing to control the verbosity of logs for each component independently. This can be useful for debugging or monitoring specific components without overwhelming the logs with information from other components. Prefixes are also supported, allowing to set the logger level for all components with a specific prefix.
 
@@ -324,8 +324,8 @@ settings:
   n_workers: 4
   restore_state: True  # enables state restoration
   logger_levels:
-    reader.vm: debug  # affects only VmReader logs
-    model: warning  # applies to all components with 'model' prefix, such as 'model.zscore_online', 'model.prophet', etc.
+    reader.vm: DEBUG  # affects only VmReader logs
+    model: WARNING  # applies to all components with 'model' prefix, such as 'model.zscore_online', 'model.prophet', etc.
     # once commented out in hot-reload mode, will use the default logger level set by --loggerLevel command line argument
     # monitoring.push: critical
 ```

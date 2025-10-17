@@ -548,7 +548,7 @@ func (lr *LogRows) GetRowString(idx int) string {
 // ignoreFields entries may end with '*'. In this case they match any fields with the prefix until '*'.
 //
 // decolorizeFields is a set of fields, which must be cleared from ANSI color escape sequences.
-// decolorizeFields enries may end with '*'. In this case they match any fields with the prefix until '*'.
+// decolorizeFields entries may end with '*'. In this case they match any fields with the prefix until '*'.
 //
 // extraFields is a set of fields, which must be added to all the logs passed to MustAdd().
 //

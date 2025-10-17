@@ -26,6 +26,10 @@ func (pl *pipeLimit) canLiveTail() bool {
 	return false
 }
 
+func (pl *pipeLimit) canReturnLastNResults() bool {
+	return false
+}
+
 func (pl *pipeLimit) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
@@ -106,11 +110,14 @@ func parsePipeLimit(lex *lexer) (pipe, error) {
 
 	limit := uint64(10)
 	if !lex.isKeyword("|", ")", "") {
-		n, err := parseUint(lex.token)
+		limitStr, err := lex.nextCompoundToken()
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse rows limit from %q: %w", lex.token, err)
+			return nil, fmt.Errorf("cannot parse rows limit: %w", err)
 		}
-		lex.nextToken()
+		n, err := parseUint(limitStr)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse rows limit from %q: %w", limitStr, err)
+		}
 		limit = n
 	}
 

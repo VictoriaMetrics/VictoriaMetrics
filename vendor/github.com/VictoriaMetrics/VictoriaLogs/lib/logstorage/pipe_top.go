@@ -78,6 +78,10 @@ func (pt *pipeTop) canLiveTail() bool {
 	return false
 }
 
+func (pt *pipeTop) canReturnLastNResults() bool {
+	return false
+}
+
 func (pt *pipeTop) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.Reset()
 	pf.AddAllowFilters(pt.byFields)
@@ -636,7 +640,7 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 			if lex.isKeyword("as") {
 				lex.nextToken()
 			}
-			s, err := getCompoundToken(lex)
+			s, err := lex.nextCompoundToken()
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
 			}

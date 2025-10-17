@@ -1950,6 +1950,16 @@
         ],
         "query": "*",
         "type": "textbox"
+      },
+      {
+        "baseFilters": [],
+        "datasource": {
+          "type": "victoriametrics-logs-datasource",
+          "uid": "$ds"
+        },
+        "filters": [],
+        "name": "adhoc",
+        "type": "adhoc"
       }
     ]
   },

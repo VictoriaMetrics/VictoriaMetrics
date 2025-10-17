@@ -1168,7 +1168,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99,sum(rate(controller_runtime_reconcile_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by(le,controller) )",
+          "expr": "histogram_quantile(0.99, sum(rate(controller_runtime_reconcile_time_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (le, controller) )",
           "legendFormat": "q.99 {{controller}}",
           "range": true,
           "refId": "A"
@@ -1265,7 +1265,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(rest_client_requests_total{job=~\"$job\"}[$__interval])) by (method,code)",
+          "expr": "sum(rate(rest_client_requests_total{job=~\"$job\"}[$__interval])) by (method, code)",
           "instant": false,
           "legendFormat": "{{method}} {{code}}",
           "range": true,
@@ -1489,7 +1489,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+          "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by (job)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -1588,7 +1588,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99,sum(rate(rest_client_request_duration_seconds_bucket{job=~\"$job\"})) by(le,method,api) )",
+          "expr": "histogram_quantile(0.99, sum(rate(rest_client_request_duration_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (le, method, api))",
           "instant": false,
           "legendFormat": "{{method}} {{api}}",
           "range": true,
@@ -2135,6 +2135,16 @@
         "skipUrlSync": false,
         "sort": 2,
         "type": "query"
+      },
+      {
+        "baseFilters": [],
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "filters": [],
+        "name": "adhoc",
+        "type": "adhoc"
       }
     ]
   },

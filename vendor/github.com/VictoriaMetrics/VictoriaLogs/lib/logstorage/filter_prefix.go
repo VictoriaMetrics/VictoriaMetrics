@@ -85,15 +85,15 @@ func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	case valueTypeDict:
 		matchValuesDictByPrefix(bs, ch, bm, prefix)
 	case valueTypeUint8:
-		matchUint8ByPrefix(bs, ch, bm, prefix)
+		matchUint8ByPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeUint16:
-		matchUint16ByPrefix(bs, ch, bm, prefix)
+		matchUint16ByPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeUint32:
-		matchUint32ByPrefix(bs, ch, bm, prefix)
+		matchUint32ByPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeUint64:
-		matchUint64ByPrefix(bs, ch, bm, prefix)
+		matchUint64ByPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeInt64:
-		matchInt64ByPrefix(bs, ch, bm, prefix)
+		matchInt64ByPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeIPv4:
@@ -111,7 +111,7 @@ func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap
 		return
 	}
 	// There is no sense in trying to parse prefix, since it may contain incomplete timestamp.
-	// We cannot compar binary representation of timestamp and need converting
+	// We cannot compare binary representation of timestamp and need converting
 	// the timestamp to string before searching for the prefix there.
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
@@ -198,7 +198,7 @@ func matchStringByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 	})
 }
 
-func matchUint8ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
+func matchUint8ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// Fast path - all the uint8 values match an empty prefix aka `*`
 		return
@@ -212,7 +212,12 @@ func matchUint8ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix st
 		bm.resetBits()
 		return
 	}
-	// There is no need in matching against bloom filters, since tokens is empty.
+
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
+
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint8String(bs, bb, v)
@@ -221,7 +226,7 @@ func matchUint8ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix st
 	bbPool.Put(bb)
 }
 
-func matchUint16ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
+func matchUint16ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// Fast path - all the uint16 values match an empty prefix aka `*`
 		return
@@ -235,7 +240,12 @@ func matchUint16ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 		bm.resetBits()
 		return
 	}
-	// There is no need in matching against bloom filters, since tokens is empty.
+
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
+
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint16String(bs, bb, v)
@@ -244,7 +254,7 @@ func matchUint16ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 	bbPool.Put(bb)
 }
 
-func matchUint32ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
+func matchUint32ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// Fast path - all the uint32 values match an empty prefix aka `*`
 		return
@@ -258,7 +268,12 @@ func matchUint32ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 		bm.resetBits()
 		return
 	}
-	// There is no need in matching against bloom filters, since tokens is empty.
+
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
+
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint32String(bs, bb, v)
@@ -267,7 +282,7 @@ func matchUint32ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 	bbPool.Put(bb)
 }
 
-func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
+func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// Fast path - all the uint64 values match an empty prefix aka `*`
 		return
@@ -281,7 +296,12 @@ func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 		bm.resetBits()
 		return
 	}
-	// There is no need in matching against bloom filters, since tokens is empty.
+
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
+
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint64String(bs, bb, v)
@@ -290,7 +310,7 @@ func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 	bbPool.Put(bb)
 }
 
-func matchInt64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
+func matchInt64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// Fast path - all the int64 values match an empty prefix aka `*`
 		return
@@ -306,7 +326,12 @@ func matchInt64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix st
 			return
 		}
 	}
-	// There is no need in matching against bloom filters, since tokens is empty.
+
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
+
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toInt64String(bs, bb, v)
@@ -352,13 +377,7 @@ func matchPrefix(s, prefix string) bool {
 }
 
 func getTokensSkipLast(s string) []string {
-	for {
-		r, runeSize := utf8.DecodeLastRuneInString(s)
-		if !isTokenRune(r) {
-			break
-		}
-		s = s[:len(s)-runeSize]
-	}
+	s = skipLastToken(s)
 	return tokenizeStrings(nil, []string{s})
 }
 

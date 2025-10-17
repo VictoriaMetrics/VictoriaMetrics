@@ -38,6 +38,10 @@ func (pc *pipeBlocksCount) canLiveTail() bool {
 	return false
 }
 
+func (pc *pipeBlocksCount) canReturnLastNResults() bool {
+	return false
+}
+
 func (pc *pipeBlocksCount) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.Reset()
 }

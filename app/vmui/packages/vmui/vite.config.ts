@@ -19,8 +19,8 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
             });
           },
         },
-        "/flags": {
-          target: "https://play.victoriametrics.com",
+        "/vmui/config.json": {
+          target: "https://play.victoriametrics.com/select/0",
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("error", (err) => {

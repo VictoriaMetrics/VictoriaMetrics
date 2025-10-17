@@ -47,10 +47,10 @@ func (s *Set) WritePrometheus(w io.Writer) {
 			return fName1 < fName2
 		}
 
+		// Only summary and quantile(s) have different metric types.
+		// Sorting by metric type will stabilize the order for summary and quantile(s).
 		mType1 := s.a[i].metric.metricType()
 		mType2 := s.a[j].metric.metricType()
-
-		// stabilize the order for summary and quantiles.
 		if mType1 != mType2 {
 			return mType1 < mType2
 		}

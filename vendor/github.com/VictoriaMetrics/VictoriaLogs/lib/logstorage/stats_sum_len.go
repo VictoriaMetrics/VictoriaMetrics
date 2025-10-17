@@ -82,7 +82,7 @@ func (ssp *statsSumLenProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan
 	return strconv.AppendUint(dst, ssp.sumLen, 10)
 }
 
-func parseStatsSumLen(lex *lexer) (*statsSumLen, error) {
+func parseStatsSumLen(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "sum_len")
 	if err != nil {
 		return nil, err

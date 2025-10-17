@@ -36,6 +36,10 @@ func (pp *pipePackLogfmt) canLiveTail() bool {
 	return true
 }
 
+func (pp *pipePackLogfmt) canReturnLastNResults() bool {
+	return pp.resultField != "_time"
+}
+
 func (pp *pipePackLogfmt) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForPipePack(pf, pp.resultField, pp.fieldFilters)
 }

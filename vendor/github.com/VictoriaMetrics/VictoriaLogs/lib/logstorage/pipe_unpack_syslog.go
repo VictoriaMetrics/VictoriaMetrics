@@ -56,8 +56,12 @@ func (pu *pipeUnpackSyslog) canLiveTail() bool {
 	return true
 }
 
+func (pu *pipeUnpackSyslog) canReturnLastNResults() bool {
+	return true
+}
+
 func (pu *pipeUnpackSyslog) updateNeededFields(pf *prefixfilter.Filter) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, nil, pu.keepOriginalFields, false, pu.iff, pf)
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.resultPrefix, nil, pu.keepOriginalFields, false, pu.iff, pf)
 }
 
 func (pu *pipeUnpackSyslog) hasFilterInWithQuery() bool {
@@ -142,7 +146,7 @@ func parsePipeUnpackSyslog(lex *lexer) (pipe, error) {
 	offsetTimezone := time.Local
 	if lex.isKeyword("offset") {
 		lex.nextToken()
-		s, err := getCompoundToken(lex)
+		s, err := lex.nextCompoundToken()
 		if err != nil {
 			return nil, fmt.Errorf("cannot read 'offset': %w", err)
 		}
@@ -158,7 +162,7 @@ func parsePipeUnpackSyslog(lex *lexer) (pipe, error) {
 	resultPrefix := ""
 	if lex.isKeyword("result_prefix") {
 		lex.nextToken()
-		p, err := getCompoundToken(lex)
+		p, err := lex.nextCompoundToken()
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'result_prefix': %w", err)
 		}

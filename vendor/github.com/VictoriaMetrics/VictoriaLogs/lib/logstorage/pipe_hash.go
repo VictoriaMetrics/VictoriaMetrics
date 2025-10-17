@@ -35,6 +35,10 @@ func (ph *pipeHash) canLiveTail() bool {
 	return true
 }
 
+func (ph *pipeHash) canReturnLastNResults() bool {
+	return ph.resultField != "_time"
+}
+
 func (ph *pipeHash) updateNeededFields(pf *prefixfilter.Filter) {
 	if pf.MatchString(ph.resultField) {
 		pf.AddDenyFilter(ph.resultField)

@@ -41,13 +41,26 @@ func (pr *pipeRename) canLiveTail() bool {
 	return true
 }
 
+func (pr *pipeRename) canReturnLastNResults() bool {
+	if prefixfilter.MatchFilters(pr.srcFieldFilters, "_time") {
+		return false
+	}
+	if prefixfilter.MatchFilters(pr.dstFieldFilters, "_time") {
+		return false
+	}
+	return true
+}
+
 func (pr *pipeRename) updateNeededFields(pf *prefixfilter.Filter) {
 	for i := len(pr.srcFieldFilters) - 1; i >= 0; i-- {
 		srcFieldFilter := pr.srcFieldFilters[i]
 		dstFieldFilter := pr.dstFieldFilters[i]
 
 		needSrcField := pf.MatchStringOrWildcard(dstFieldFilter)
-		pf.AddDenyFilter(dstFieldFilter)
+		if !prefixfilter.IsWildcardFilter(dstFieldFilter) {
+			pf.AddDenyFilter(dstFieldFilter)
+		}
+
 		if needSrcField {
 			pf.AddAllowFilter(srcFieldFilter)
 		} else {

@@ -14,6 +14,35 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.26.2
+Released: 2025-10-09
+
+- IMPROVEMENT: Resolved an issue with readers ([VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VLogsReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader)) connection pool size - which defaulted to max(10, `reader.queries` cardinality) - that could lead to warnings in logs when the number of queries exceeds 10, such as:
+  ```shellhelp
+  {timestamp} - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: {host}. Connection pool size: {N}
+  ```
+  This happened in scenarios with a large number of queries (e.g., in non-sharded deployments). Now the pool size is set dynamically to prevent such warnings and retain efficient connection reuse.
+
+## v1.26.1  
+Released: 2025-10-08
+
+- IMPROVEMENT: Enriched lifecycle logs with the deterministic labelset hash for each query result (metric). This allows correlating model training, inference runs/skips, and on-disk artifacts presence or cleanup during incident triage.
+
+## v1.26.0
+Released: 2025-10-02
+
+- FEATURE: Introduced vmui-like [UI](https://docs.victoriametrics.com/anomaly-detection/ui/) for `vmanomaly` service to simplify the configuration and backtesting of anomaly detection models before it goes to production. It provides an intuitive interface to finetune model configurations, visualize its predictions and anomaly scores, and perform backtesting on historical data. The UI is accessible via a web browser and can be run as a [standalone service](https://docs.victoriametrics.com/anomaly-detection/ui/#preset-usage) or [integrated with productionalized deployments](https://docs.victoriametrics.com/anomaly-detection/ui/#mixed-usage). For more details, refer to the [documentation](https://docs.victoriametrics.com/anomaly-detection/ui/).
+
+- FEATURE: Added support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) with `VLogsReader`. This reader allows quering and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs. It supports similar configuration options as `VmReader`, including `datasource_url`, `tenant_id`, `queries`, etc. For more details, refer to the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader). It can be also used in [UI mode](https://docs.victoriametrics.com/anomaly-detection/ui/) for backtesting log-based anomaly detection configurations.
+
+- IMPROVEMENT: Resolved the case in the [`IsolationForestModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) with `provide_series` common model [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) including `yhat.*` series (prediction and confidence boundaries), which are not produced by this model. Now config validation will fail with a clear error message if such series names are requested.
+
+- BUGFIX: Recursive and shallow merging of the config files with mixed class names (`class` argument, with aliases like `zscore` and fully qualified names like `model.zscore.ZscoreModel`) now works as expected and is properly resolved to the same entity. Previously, this could lead to validation errors during service startup.
+
+- BUGFIX: Fixed an issue with `anomaly_score_outside_data_range` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) not being properly set for some models, resulting in default value (1.01) being used instead of user-defined override.
+
+- BUGFIX: Fixed an issue with `decay` [parameter](https://docs.victoriametrics.com/anomaly-detection/components/models/#decay) not being properly applied to the global smoothing in the `OnlineQuantileModel` (when `seasonal_interval` is not set), resulted in no decay being applied (equivalent to `decay=1.0`).
+
 ## v1.25.3
 Released: 2025-08-19
 
@@ -21,7 +50,7 @@ Released: 2025-08-19
 
 - IMPROVEMENT: Added `logger_levels` argument to `settings` [config section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels) to allow setting specific log levels for individual components. Useful for debugging specific components. For example, `logger_levels: { "reader.vm": "DEBUG" }` will set the log level for the `VmReader` component to `DEBUG`, while leaving other components at their default log levels. Also is supported in [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) mode, allowing for dynamic log level changes without service restarts.
 
-- IMPROVEMENT: Added logging of URLs used for querying VictoriaMetrics TSDB in [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) to ease the debugging of incomplete data retrieval, incorrect endpoints, or misconfigured tenant IDs. The URLs are logged at the `DEBUG` level, so you can control their verbosity using the `--loggerLevelComponents` argument with `reader.vm=DEBUG` or `reader=DEBUG` to see the URLs in the logs.
+- IMPROVEMENT: Added logging of URLs used for querying VictoriaMetrics TSDB in [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) to ease the debugging of incomplete data retrieval, incorrect endpoints, or misconfigured tenant IDs. The URLs are logged at the `DEBUG` level, so you can override individual verbosity using the [settings.logger_levels](https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels) configuration.
 
 - IMPROVEMENT: Added `offset` [argument](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) to `VmReader` on reader and query levels to allow for flexible time offset adjustments in the reader. Useful for correcting for data collection delays. The `offset` can be specified as a string (e.g., "15s", "-20s") and will be applied to all queries processed by the reader. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#using-offsets) for more details.
 
@@ -162,7 +191,7 @@ Released: 2025-03-03
 
 - FEATURE: The `scale` argument is now a [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale), previously supported only by [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile). Additionally, `scale` is now **two-sided**, represented as `[scale_lb, scale_ub]`. The previous format (`scale: x`) remains supported and will be automatically converted to `scale: [x, x]`.
   
-- FEATURE: Introduced a post-processing step to clip `yhat`, `yhat_lower`, and `yhat_upper` to the configured `data_range` [values](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) in `VmReader`, if defined. This feature is disabled by default for backward compatibility. It can be enabled for models that generate predictions and estimates, such as [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet), by setting the [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) `clip_predictions` to `True`.
+- FEATURE: Introduced a post-processing step to clip `yhat`, `yhat_lower`, and `yhat_upper` to the configured `data_range` [values](https://docs.victoriametrics.com/anomaly-detection/components/reader/) in `VmReader`, if defined. This feature is disabled by default for backward compatibility. It can be enabled for models that generate predictions and estimates, such as [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet), by setting the [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) `clip_predictions` to `True`.
 
 - IMPROVEMENT: Introduced the `anomaly_score_outside_data_range` [parameter](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) to allow overriding the default anomaly score (`1.01`) assigned when input values (`y`) fall outside the defined `data_range` (data domain violation). It improves flexibility for alerting rules and enables clearer visual distinction between different anomaly scenarios. Override can be configured at the **service level** (`settings`) or per **model instance** (`models.model_xxx`), with model-level values taking priority. If not explicitly set, the default anomaly score remains `1.01` for backward compatibility.
 
@@ -197,7 +226,7 @@ Released: 2025-01-20
 
 - FEATURE: Added support for per-query `tenant_id` in the [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This allows overriding the reader-level `tenant_id` within a single global `vmanomaly` configuration on a *per-query* basis, enabling isolation of data for different tenants in separate queries when querying the [VictoriaMetrics cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). For details, see the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
 - IMPROVEMEMT: Speedup the model infer stage on multicore systems.
-- IMPROVEMEMT: Speedup the model fitting stage by 1.25–3x, depending on configuration complexity.
+- IMPROVEMEMT: Speedup the model fitting stage by 1.25-3x, depending on configuration complexity.
 - IMPROVEMENT: Reduced service RAM usage by 5-10%, depending on configuration complexity.
 - BUGFIX: Now [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) properly handles the cases where the number of queries processed in parallel (up to `reader.queries` cardinality) exceeds the default limit of 10 HTTP(S) connections, preventing potential data loss from discarded queries. The pool limit will automatically adjust to match `reader.queries` cardinality.
 - BUGFIX: Corrected the construction of write endpoints for cluster VictoriaMetrics `url`s (`tenant_id` arg is set) in `monitoring.push` [section configurations](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters).
@@ -345,7 +374,7 @@ Released: 2024-10-01
 
 > A bug was discovered in this release that causes the service to crash. Please use the patch [v1.16.1](#v1161) to resolve this issue.
 
-- FEATURE: Introduced data dumps to a host filesystem for [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader).  Resource-intensive setups (multiple queries returning many metrics, bigger `fit_window` arg) will have RAM consumption reduced during fit calls.
+- FEATURE: Introduced data dumps to a host filesystem for [VmReader](https://docs.victoriametrics.com/anomaly-detection/#vm-reader).  Resource-intensive setups (multiple queries returning many metrics, bigger `fit_window` arg) will have RAM consumption reduced during fit calls.
 - IMPROVEMENT: Added a `groupby` argument for logical grouping in [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models). When specified, a separate multivariate model is trained for each unique combination of label values in the `groupby` columns. For example, to perform multivariate anomaly detection on metrics at the machine level without cross-entity interference, you can use `groupby: [host]` or `groupby: [instance]`, ensuring one model per entity being trained (e.g., per host). Please find more details [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#group-by).
 - IMPROVEMENT: Improved performance of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) on multicore instances for reading and data processing.
 - IMPROVEMENT: Introduced new CLI argument aliases to enhance compatibility with [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) (i.e. using secrets) and better align with [VictoriaMetrics flags](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#list-of-command-line-flags):
@@ -423,7 +452,7 @@ Released: 2024-07-26
 
 ## v1.14.1
 Released: 2024-07-26
-- FEATURE: Allow to process larger data chunks in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) that exceed `-search.maxPointsPerTimeseries` [constraint in VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/#resource-usage-limits) by splitting the range and sending multiple requests. A warning is printed in logs, suggesting reducing the range or step, or increasing `search.maxPointsPerTimeseries` constraint in VictoriaMetrics, which is still a recommended option.
+- FEATURE: Allow to process larger data chunks in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) that exceed `-search.maxPointsPerTimeseries` [constraint in VictoriaMetrics](https://docs.victoriametrics.com/#resource-usage-limits) by splitting the range and sending multiple requests. A warning is printed in logs, suggesting reducing the range or step, or increasing `search.maxPointsPerTimeseries` constraint in VictoriaMetrics, which is still a recommended option.
 - FEATURE: Backward-compatible redesign of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Old format of `{q_alias1: q_expr1, q_alias2: q_expr2, ...}` will be implicitly converted to a new one with a warning raised in logs. New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Find out more in [Per-query parameters section of VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
 
 - IMPROVEMENT: Added multi-platform builds for `linux/amd64` and `linux/arm64` architectures.

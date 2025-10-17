@@ -41,6 +41,10 @@ func (pu *pipeUnroll) canLiveTail() bool {
 	return true
 }
 
+func (pu *pipeUnroll) canReturnLastNResults() bool {
+	return true
+}
+
 func (pu *pipeUnroll) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }

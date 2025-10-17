@@ -3,6 +3,7 @@
 $sidebar-transition: cubic-bezier(0.280, 0.840, 0.420, 1);
 
 .vm-header-sidebar {
+  order: 1;
   width: 24px;
   height: 24px;
   color: inherit;
@@ -16,7 +17,7 @@ $sidebar-transition: cubic-bezier(0.280, 0.840, 0.420, 1);
     left: 0;
     top: 0;
     height: 51px;
-    width: 51px;
+    width: 48px;
     transition: left 350ms $sidebar-transition;
 
     &_open {
@@ -51,15 +52,6 @@ $sidebar-transition: cubic-bezier(0.280, 0.840, 0.420, 1);
 
     &_open {
       transform: translateX(0);
-    }
-
-    &__logo {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      cursor: pointer;
-      width: 65px;
     }
 
     &-settings {

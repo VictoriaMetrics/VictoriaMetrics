@@ -3,11 +3,13 @@ import dayjs, { Dayjs } from "dayjs";
 import classNames from "classnames";
 
 interface CalendarYearsProps {
+  minDate?: Dayjs
+  maxDate?: Dayjs
   viewDate: Dayjs
   onChangeViewDate: (date: Dayjs) => void
 }
 
-const YearsList: FC<CalendarYearsProps> = ({ viewDate, onChangeViewDate }) => {
+const YearsList: FC<CalendarYearsProps> = ({ minDate, maxDate, viewDate, onChangeViewDate }) => {
 
   const today = dayjs().format("YYYY");
   const currentYear = useMemo(() => viewDate.format("YYYY"), [viewDate]);
@@ -30,20 +32,24 @@ const YearsList: FC<CalendarYearsProps> = ({ viewDate, onChangeViewDate }) => {
 
   return (
     <div className="vm-calendar-years">
-      {years.map(y => (
-        <div
-          className={classNames({
-            "vm-calendar-years__year": true,
-            "vm-calendar-years__year_selected": y.format("YYYY") === currentYear,
-            "vm-calendar-years__year_today": y.format("YYYY") === today
-          })}
-          id={`vm-calendar-year-${y.format("YYYY")}`}
-          key={y.format("YYYY")}
-          onClick={createHandlerClick(y)}
-        >
-          {y.format("YYYY")}
-        </div>
-      ))}
+      {years.map(y => {
+        const isDisabled = y && (minDate && y.isBefore(minDate)) || (maxDate && y.isAfter(maxDate));
+        return (
+          <div
+            className={classNames({
+              "vm-calendar-years__year": true,
+              "vm-calendar-years__year_selected": y.format("YYYY") === currentYear,
+              "vm-calendar-years__year_today": y.format("YYYY") === today,
+              "vm-calendar-years__year_disabled": isDisabled,
+            })}
+            id={`vm-calendar-year-${y.format("YYYY")}`}
+            key={y.format("YYYY")}
+            onClick={isDisabled ? undefined : createHandlerClick(y)}
+          >
+            {y.format("YYYY")}
+          </div>
+        );
+      })}
     </div>
   );
 };

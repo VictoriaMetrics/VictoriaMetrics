@@ -53,7 +53,7 @@ const HeaderControls: FC<ControlsProps & HeaderProps> = ({
   if (isMobile) {
     return (
       <>
-        <div className="vm-header-controls">
+        <div className="vm-header-controls vm-header-controls_mobile">
           <Button
             className={classNames({
               "vm-header-button": !appModeEnable

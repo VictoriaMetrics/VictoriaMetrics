@@ -22,22 +22,31 @@ Each preset, including the [default](#default), comes with premade downstream as
 
 
 **Available presets:**
+- [UI](#ui)
 - [Default](#default)
 - [Node-Exporter](#node-exporter)
 
 To enable preset mode, `preset` arg should be set to particular preset name:
 
 ```yaml
-preset: "chosen_preset_name"  # i.e. "node-exporter"
+preset: "chosen_preset_name"  # i.e. "node-exporter", "ui", etc.
 ```
 
 Also, additional minimal set of arguments may be required from user to run the preset. See corresponding preset sections below for the details.
 
 Run a service using config file with one of the [available options](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly).
 
-After you run `vmanomaly` with `preset` arg specified, available assets can be viewed, copied and downloaded at `http://localhost:8490/presets/` endpoint.
+## UI
 
-![preset-localhost](presets-localhost.webp)
+The UI preset is the easiest to start from and is designed for users who want to quickly experiment with `vmanomaly` in [UI mode](https://docs.victoriametrics.com/anomaly-detection/ui/). It requires minimal configuration and provides a user-friendly interface for exploring anomaly detection capabilities:
+
+```yaml
+preset: "ui"
+```
+
+Please refer to the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/) for detailed instructions on how to use the interface and [backtest your anomaly detection configurations guide](https://docs.victoriametrics.com/anomaly-detection/ui/#example-usage).
+
+![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
 
 ## Default
 

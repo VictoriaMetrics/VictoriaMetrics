@@ -6,9 +6,8 @@ package otelzap // import "go.opentelemetry.io/contrib/bridges/otelzap"
 import (
 	"time"
 
-	"go.uber.org/zap/zapcore"
-
 	"go.opentelemetry.io/otel/log"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -103,7 +102,7 @@ func (m *objectEncoder) AddInt(k string, v int) {
 	m.cur.attrs = append(m.cur.attrs, log.Int(k, v))
 }
 
-func (m *objectEncoder) AddString(k string, v string) {
+func (m *objectEncoder) AddString(k, v string) {
 	m.cur.attrs = append(m.cur.attrs, log.String(k, v))
 }
 
@@ -115,7 +114,7 @@ func (m *objectEncoder) AddUint64(k string, v uint64) {
 		})
 }
 
-func (m *objectEncoder) AddReflected(k string, v interface{}) error {
+func (m *objectEncoder) AddReflected(k string, v any) error {
 	m.cur.attrs = append(m.cur.attrs,
 		log.KeyValue{
 			Key:   k,
@@ -185,7 +184,7 @@ func assignUintValue(v uint64) log.Value {
 	if v > maxInt64 {
 		return log.Float64Value(float64(v))
 	}
-	return log.Int64Value(int64(v)) // nolint:gosec  // Overflow checked above.
+	return log.Int64Value(int64(v))
 }
 
 // arrayEncoder implements [zapcore.ArrayEncoder].
@@ -218,7 +217,7 @@ func (a *arrayEncoder) AppendObject(v zapcore.ObjectMarshaler) error {
 	return err
 }
 
-func (a *arrayEncoder) AppendReflected(v interface{}) error {
+func (a *arrayEncoder) AppendReflected(v any) error {
 	a.elems = append(a.elems, convertValue(v))
 	return nil
 }

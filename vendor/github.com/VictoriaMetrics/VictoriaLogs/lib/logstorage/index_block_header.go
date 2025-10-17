@@ -16,7 +16,7 @@ type indexBlockHeader struct {
 	// streamID is the minimum streamID covered by the indexBlockHeader
 	streamID streamID
 
-	// minTimestamp is the mimumum timestamp seen across blocks covered by the indexBlockHeader
+	// minTimestamp is the minimum timestamp seen across blocks covered by the indexBlockHeader
 	minTimestamp int64
 
 	// maxTimestamp is the maximum timestamp seen across blocks covered by the indexBlockHeader

@@ -34,6 +34,10 @@ func (pf *pipeFieldValuesLocal) canLiveTail() bool {
 	return false
 }
 
+func (pf *pipeFieldValuesLocal) canReturnLastNResults() bool {
+	return false
+}
+
 func (pf *pipeFieldValuesLocal) updateNeededFields(f *prefixfilter.Filter) {
 	f.Reset()
 

@@ -58,7 +58,7 @@ func (sid *streamID) less(a *streamID) bool {
 	return sid.id.less(&a.id)
 }
 
-// equal returns true if sid equalt to a.
+// equal returns true if sid equals to a.
 func (sid *streamID) equal(a *streamID) bool {
 	if !sid.tenantID.equal(&a.tenantID) {
 		return false

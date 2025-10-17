@@ -226,7 +226,7 @@ func (scp *statsCountProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan 
 	return strconv.AppendUint(dst, scp.rowsCount, 10)
 }
 
-func parseStatsCount(lex *lexer) (*statsCount, error) {
+func parseStatsCount(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "count")
 	if err != nil {
 		return nil, err

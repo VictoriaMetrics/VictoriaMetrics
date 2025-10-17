@@ -52,6 +52,7 @@ func testSpecialQueryRegression(tc *apptest.TestCase, sut apptest.PrometheusWrit
 	testTooBigLookbehindWindow(tc, sut)
 	testMatchSeries(tc, sut)
 	testNegativeIncrease(tc, sut)
+	testInstantQueryWithOffsetUsingCache(tc, sut)
 
 	// graphite
 	testComparisonNotInfNotNan(tc, sut)
@@ -285,6 +286,45 @@ func testNegativeIncrease(tc *apptest.TestCase, sut apptest.PrometheusWriteQueri
 							apptest.NewSample(t, "2025-06-16T21:29:16.700Z", 0),
 							apptest.NewSample(t, "2025-06-16T21:29:25.700Z", 0),
 						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func testInstantQueryWithOffsetUsingCache(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
+	t := tc.T()
+
+	// unexpected /api/v1/query response due to wrong applied offset to request range
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
+	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+		`vm_http_requests_total 1 1758196800000`, // 2025-09-18 12:00:00
+		`vm_http_requests_total 2 1758218400000`, // 2025-09-18 18:00:00
+		`vm_http_requests_total 3 1758240000000`, // 2025-09-19 00:00:00
+		`vm_http_requests_total 4 1758261600000`, // 2025-09-19 06:00:00
+		`vm_http_requests_total 5 1758283200000`, // 2025-09-19 12:00:00
+		`vm_http_requests_total 6 1758304800000`, // 2025-09-19 18:00:00
+		`vm_http_requests_total 7 1758326400000`, // 2025-09-20 00:00:00
+	}, apptest.QueryOpts{})
+	sut.ForceFlush(t)
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg:        "unexpected /api/v1/query response",
+		DoNotRetry: true,
+		Got: func() any {
+			return sut.PrometheusAPIV1Query(t, `avg_over_time(vm_http_requests_total[1d] offset 12h)`, apptest.QueryOpts{
+				Time: "2025-09-20T12:00:01.000Z",
+			})
+		},
+		Want: &apptest.PrometheusAPIV1QueryResponse{
+			Status: "success",
+			Data: &apptest.QueryData{
+				ResultType: "vector",
+				Result: []*apptest.QueryResult{
+					{
+						Metric: map[string]string{},
+						Sample: &apptest.Sample{Timestamp: 1758369601000, Value: 5.5},
 					},
 				},
 			},

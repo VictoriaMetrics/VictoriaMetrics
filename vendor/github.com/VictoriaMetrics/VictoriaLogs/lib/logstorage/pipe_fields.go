@@ -31,6 +31,10 @@ func (pf *pipeFields) canLiveTail() bool {
 	return true
 }
 
+func (pf *pipeFields) canReturnLastNResults() bool {
+	return prefixfilter.MatchFilters(pf.fieldFilters, "_time")
+}
+
 func (pf *pipeFields) updateNeededFields(f *prefixfilter.Filter) {
 	fOrig := f.Clone()
 	f.Reset()

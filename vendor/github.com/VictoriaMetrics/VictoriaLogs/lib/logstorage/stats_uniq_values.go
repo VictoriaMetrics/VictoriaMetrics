@@ -390,7 +390,21 @@ func marshalJSONArray(dst []byte, items []string) []byte {
 	return dst
 }
 
-func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
+func marshalJSONValues(dst []byte, items []string) []byte {
+	if len(items) == 0 {
+		return append(dst, "[]"...)
+	}
+	dst = append(dst, '[')
+	dst = append(dst, items[0]...)
+	for _, item := range items[1:] {
+		dst = append(dst, ',')
+		dst = append(dst, item...)
+	}
+	dst = append(dst, ']')
+	return dst
+}
+
+func parseStatsUniqValues(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "uniq_values")
 	if err != nil {
 		return nil, err
@@ -399,12 +413,10 @@ func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
 		fieldFilters: fieldFilters,
 	}
 	if lex.isKeyword("limit") {
-		lex.nextToken()
-		n, ok := tryParseUint64(lex.token)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse 'limit %s' for 'uniq_values': %w", lex.token, err)
+		n, err := parseLimit(lex)
+		if err != nil {
+			return nil, err
 		}
-		lex.nextToken()
 		su.limit = n
 	}
 	return su, nil

@@ -135,7 +135,7 @@ func TestVMInstantQuery(t *testing.T) {
 	expErr(vmQuery, "500")                          // 0
 	expErr(vmQuery, "error parsing response")       // 1
 	expErr(vmQuery, "response error")               // 2
-	expErr(vmQuery, "unknown status")               // 3
+	expErr(vmQuery, "unknown response status")      // 3
 	expErr(vmQuery, "unexpected end of JSON input") // 4
 
 	res, _, err := pq.Query(ctx, vmQuery, ts) // 5 - vector

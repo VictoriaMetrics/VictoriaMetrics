@@ -389,7 +389,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 		return []datasource.Metric{{Timestamps: []int64{0}, Values: []float64{math.NaN()}}}, nil
 	}
 	for _, s := range res.Data {
-		ls, err := ar.expandLabelTemplates(s)
+		ls, err := ar.expandLabelTemplates(s, qFn)
 		if err != nil {
 			return nil, err
 		}
@@ -482,7 +482,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	expandedLabels := make([]*labelSet, len(res.Data))
 	expandedAnnotations := make([]map[string]string, len(res.Data))
 	for i, m := range res.Data {
-		ls, err := ar.expandLabelTemplates(m)
+		ls, err := ar.expandLabelTemplates(m, qFn)
 		if err != nil {
 			curState.Err = err
 			return nil, curState.Err
@@ -604,10 +604,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	return append(tss, ar.toTimeSeries(ts.Unix())...), nil
 }
 
-func (ar *AlertingRule) expandLabelTemplates(m datasource.Metric) (*labelSet, error) {
-	qFn := func(_ string) ([]datasource.Metric, error) {
-		return nil, fmt.Errorf("`query` template isn't supported in rule label")
-	}
+func (ar *AlertingRule) expandLabelTemplates(m datasource.Metric, qFn templates.QueryFn) (*labelSet, error) {
 	ls, err := ar.toLabels(m, qFn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand label templates: %s", err)

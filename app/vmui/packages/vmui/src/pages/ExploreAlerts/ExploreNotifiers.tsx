@@ -105,6 +105,7 @@ const ExploreNotifiers: FC = () => {
       <NotifiersHeader
         kinds={kinds}
         allKinds={Array.from(allKinds)}
+        search={searchInput}
         onChangeKinds={handleChangeKinds}
         onChangeSearch={debounce(handleChangeSearch, 500)}
       />

@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
 )
 
@@ -66,6 +67,10 @@ func convertValue(v any) log.Value {
 		return log.BytesValue(val)
 	case error:
 		return log.StringValue(val.Error())
+	case attribute.Value:
+		return log.ValueFromAttribute(val)
+	case log.Value:
+		return val
 	}
 
 	t := reflect.TypeOf(v)

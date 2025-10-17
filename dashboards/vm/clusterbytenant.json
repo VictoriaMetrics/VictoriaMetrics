@@ -1994,7 +1994,7 @@
         "baseFilters": [],
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
-          "uid": "PE8D8DB4BEE4E4B22"
+          "uid": "$ds"
         },
         "filters": [],
         "name": "adhoc",

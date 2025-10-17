@@ -27,6 +27,10 @@ func (pd *pipeDropEmptyFields) canLiveTail() bool {
 	return true
 }
 
+func (pd *pipeDropEmptyFields) canReturnLastNResults() bool {
+	return true
+}
+
 func (pd *pipeDropEmptyFields) hasFilterInWithQuery() bool {
 	return false
 }

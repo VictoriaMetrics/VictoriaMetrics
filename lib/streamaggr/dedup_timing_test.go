@@ -17,6 +17,10 @@ func BenchmarkDedupAggr(b *testing.B) {
 }
 
 func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
+	flushSamples := func(samples []pushSample, _ int64, _ bool) {
+		Sink.Add(uint64(len(samples)))
+	}
+
 	const loops = 2
 	benchSamples := newBenchSamples(samplesPerPush)
 	da := newDedupAggr()
@@ -29,6 +33,7 @@ func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
 			for i := 0; i < loops; i++ {
 				da.pushSamples(benchSamples, 0, false)
 			}
+			da.flush(flushSamples, 0, false)
 		}
 	})
 }
