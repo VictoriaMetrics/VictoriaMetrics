@@ -679,14 +679,14 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		alignFlushToInterval = !*v
 	}
 
-	skipIncompleteFlush := !opts.FlushOnShutdown
+	skipFlushOnShutdown := !opts.FlushOnShutdown
 	if v := cfg.FlushOnShutdown; v != nil {
-		skipIncompleteFlush = !*v
+		skipFlushOnShutdown = !*v
 	}
 
 	startTime := time.Now()
 	minTime := startTime
-	if skipIncompleteFlush && alignFlushToInterval {
+	if alignFlushToInterval {
 		minTime = minTime.Truncate(a.interval)
 		if !startTime.Equal(minTime) {
 			minTime = minTime.Add(interval)
@@ -706,7 +706,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 
 	a.wg.Add(1)
 	go func() {
-		a.runFlusher(pushFunc, alignFlushToInterval, skipIncompleteFlush, ignoreFirstIntervals)
+		a.runFlusher(pushFunc, alignFlushToInterval, skipFlushOnShutdown, ignoreFirstIntervals)
 		a.wg.Done()
 	}()
 
@@ -789,7 +789,7 @@ func newOutputConfig(output string, outputsSeen map[string]struct{}, useSharedSt
 	}
 }
 
-func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, ignoreFirstIntervals int) {
+func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipFlushOnShutdown bool, ignoreFirstIntervals int) {
 	minTime := time.UnixMilli(a.minDeadline.Load())
 	flushTime := minTime.Add(a.interval)
 	interval := a.interval
@@ -882,7 +882,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 	a.dedupFlush(dedupTime, cs)
 	pf := pushFunc
-	if skipIncompleteFlush || ignoreFirstIntervals > 0 {
+	if skipFlushOnShutdown || ignoreFirstIntervals > 0 {
 		pf = nil
 	}
 	a.flush(pf, flushTime, cs, true)
