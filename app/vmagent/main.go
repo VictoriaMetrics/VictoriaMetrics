@@ -253,6 +253,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			{"metric-relabel-debug", "debug metric relabeling"},
 			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"config", "-promscrape.config contents"},
+			{"remotewrite-relabel-config", "relabeling config which is applied before sending to all -remoteWrite.url"},
+			{"remotewrite-url-relabel-config", "relabeling configs for the corresponding -remoteWrite.url"},
 			{"metrics", "available service metrics"},
 			{"flags", "command-line flags"},
 			{"-/reload", "reload configuration"},
@@ -482,7 +484,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if !httpserver.CheckAuthFlag(w, r, configAuthKey) {
 			return true
 		}
-		promscrapeConfigRequests.Inc()
+		remoteWriteRelabelConfigRequests.Inc()
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		remotewrite.WriteRelabelConfigData(w)
 		return true
@@ -490,7 +492,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if !httpserver.CheckAuthFlag(w, r, configAuthKey) {
 			return true
 		}
-		promscrapeConfigRequests.Inc()
+		remoteWriteURLRelabelConfigRequests.Inc()
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		remotewrite.WriteURLRelabelConfigData(w)
 		return true
@@ -763,6 +765,9 @@ var (
 
 	promscrapeConfigRequests       = metrics.NewCounter(`vmagent_http_requests_total{path="/config"}`)
 	promscrapeStatusConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/status/config"}`)
+
+	remoteWriteRelabelConfigRequests    = metrics.NewCounter(`vmagent_http_requests_total{path="/remotewrite-relabel-config"}`)
+	remoteWriteURLRelabelConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/remotewrite-url-relabel-config"}`)
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )
