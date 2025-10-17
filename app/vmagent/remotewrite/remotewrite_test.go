@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -71,10 +73,16 @@ func TestRemoteWriteContext_TryPushTimeSeries(t *testing.T) {
 		}
 		allRelabelConfigs.Store(rcs)
 
+		path := "fast-queue-write-test"
+		fs.MustRemoveDir(path)
+		fq := persistentqueue.MustOpenFastQueue(path, "test", 100, 0, false)
+		defer fs.MustRemoveDir(path)
+		defer fq.MustClose()
+
 		pss := make([]*pendingSeries, 1)
 		isVMProto := &atomic.Bool{}
 		isVMProto.Store(true)
-		pss[0] = newPendingSeries(nil, isVMProto, 0, 100)
+		pss[0] = newPendingSeries(fq, isVMProto, 0, 100)
 		rwctx := &remoteWriteCtx{
 			idx:                    0,
 			streamAggrKeepInput:    keepInput,
