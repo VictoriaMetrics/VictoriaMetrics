@@ -73,7 +73,7 @@ type ServicePort struct {
 // getTargetLabels returns labels for each port of the given s.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#service
-func (s *Service) getTargetLabels(_ *groupWatcher) []*promutil.Labels {
+func (s *Service) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 	host := fmt.Sprintf("%s.%s.svc", s.Metadata.Name, s.Metadata.Namespace)
 	var ms []*promutil.Labels
 	for _, sp := range s.Spec.Ports {
@@ -83,13 +83,13 @@ func (s *Service) getTargetLabels(_ *groupWatcher) []*promutil.Labels {
 		m.Add("__meta_kubernetes_service_port_name", sp.Name)
 		m.Add("__meta_kubernetes_service_port_number", strconv.Itoa(sp.Port))
 		m.Add("__meta_kubernetes_service_port_protocol", sp.Protocol)
-		s.appendCommonLabels(m)
+		s.appendCommonLabels(m, gw)
 		ms = append(ms, m)
 	}
 	return ms
 }
 
-func (s *Service) appendCommonLabels(m *promutil.Labels) {
+func (s *Service) appendCommonLabels(m *promutil.Labels, gw *groupWatcher) {
 	m.Add("__meta_kubernetes_namespace", s.Metadata.Namespace)
 	m.Add("__meta_kubernetes_service_name", s.Metadata.Name)
 	m.Add("__meta_kubernetes_service_type", s.Spec.Type)
@@ -97,6 +97,13 @@ func (s *Service) appendCommonLabels(m *promutil.Labels) {
 		m.Add("__meta_kubernetes_service_cluster_ip", s.Spec.ClusterIP)
 	} else {
 		m.Add("__meta_kubernetes_service_external_name", s.Spec.ExternalName)
+	}
+	if gw.attachNamespaceMetadata {
+		o := gw.getObjectByRoleLocked("namespace", "", s.Metadata.Namespace)
+		if o != nil {
+			ns := o.(*Namespace)
+			ns.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
+		}
 	}
 	s.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_service", m)
 }

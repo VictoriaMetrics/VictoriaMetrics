@@ -251,6 +251,13 @@ func (p *Pod) appendCommonLabels(m *promutil.Labels, gw *groupWatcher) {
 			n.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_node", m)
 		}
 	}
+	if gw.attachNamespaceMetadata {
+		o := gw.getObjectByRoleLocked("namespace", "", p.Metadata.Namespace)
+		if o != nil {
+			ns := o.(*Namespace)
+			ns.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
+		}
+	}
 	m.Add("__meta_kubernetes_pod_name", p.Metadata.Name)
 	m.Add("__meta_kubernetes_pod_ip", p.Status.PodIP)
 	m.Add("__meta_kubernetes_pod_ready", getPodReadyStatus(p.Status.Conditions))
