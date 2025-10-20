@@ -155,6 +155,9 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableBuiltinRoutes bool, enableHTTP2 bool) {
 	var s server
 
+	// Disable HTTP/2 by default, since it doesn't give any advantages for VictoriaMetrics services.
+	// But for external projects that import `httpserver` package,
+	// the `enableHTTP2` arg provides the flexibility to use HTTP/2.
 	var protocols *http.Protocols
 	if enableHTTP2 {
 		protocols = &http.Protocols{}
