@@ -50,7 +50,8 @@ func (sdc *SDConfig) role() string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config
 type AttachMetadata struct {
-	Node bool `yaml:"node"`
+	Node      bool `yaml:"node"`
+	Namespace bool `yaml:"namespace"`
 }
 
 // Namespaces represents namespaces for SDConfig
