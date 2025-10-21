@@ -6,7 +6,7 @@ build:
 sitemap:
   disable: true
 ---
-<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used periodically to ensure the flags in sync. -->
+<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used peridically to ensure the flags in sync. -->
 ```shellhelp
 
 vmstorage stores time series data obtained from vminsert and returns the requested data to vmselect.
@@ -219,6 +219,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      The maximum number of tag values returned per search. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional). See also -search.max* command-line flags at vmselect
+  -secret.flags array
+     Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -smallMergeConcurrency int
      Deprecated: this flag does nothing
   -snapshotAuthKey value
