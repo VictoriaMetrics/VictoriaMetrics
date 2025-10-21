@@ -75,7 +75,7 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
           >
             <div className="vm-tracings-view-trace-header">
               <h3 className="vm-tracings-view-trace-header-title">
-              Trace for <b className="vm-tracings-view-trace-header-title__query">{trace.queryValue}</b>
+                Trace for <b className="vm-tracings-view-trace-header-title__query">{trace.queryValue}</b>
               </h3>
               <Tooltip title={expandedTraces.includes(trace.idValue) ? "Collapse All" : "Expand All"}>
                 <Button

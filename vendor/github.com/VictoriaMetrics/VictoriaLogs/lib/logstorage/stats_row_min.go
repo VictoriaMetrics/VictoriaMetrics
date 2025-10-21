@@ -234,7 +234,7 @@ func (smp *statsRowMinProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan
 	return MarshalFieldsToJSON(dst, smp.fields)
 }
 
-func parseStatsRowMin(lex *lexer) (*statsRowMin, error) {
+func parseStatsRowMin(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "row_min")
 	if err != nil {
 		return nil, err

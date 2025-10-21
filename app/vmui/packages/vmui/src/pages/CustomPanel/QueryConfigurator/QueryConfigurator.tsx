@@ -5,6 +5,7 @@ import usePrevious from "../../../hooks/usePrevious";
 import { MAX_QUERY_FIELDS } from "../../../constants/graph";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
+import { getQueryStringValue } from "../../../utils/query-string";
 import {
   DeleteIcon,
   PlayIcon,
@@ -21,6 +22,7 @@ import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 import { QueryStats } from "../../../api/types";
 import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistory from "../../../components/QueryHistory/QueryHistory";
@@ -50,6 +52,9 @@ export interface QueryConfiguratorProps {
   }
 }
 
+const defaultHideQueryStr = getQueryStringValue("expr.hide", "") as string;
+const defaultHideQuery: number[] = defaultHideQueryStr.split(",").filter(v => v).map(Number);
+
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   queryErrors,
   setQueryErrors,
@@ -69,9 +74,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   const { query, queryHistory, autocomplete, autocompleteQuick } = useQueryState();
   const queryDispatch = useQueryDispatch();
   const timeDispatch = useTimeDispatch();
+  const { setSearchParamsFromKeys } = useSearchParamsFromObject();
 
   const [stateQuery, setStateQuery] = useState(query || []);
-  const [hideQuery, setHideQuery] = useState<number[]>([]);
+  const [hideQuery, setHideQuery] = useState<number[]>(defaultHideQuery);
   const [awaitStateQuery, setAwaitStateQuery] = useState(false);
   const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
 
@@ -176,6 +182,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
 
   useEffect(() => {
     onHideQuery && onHideQuery(hideQuery);
+    setSearchParamsFromKeys({ "expr.hide": hideQuery.join(",") });
   }, [hideQuery]);
 
   useEffect(() => {

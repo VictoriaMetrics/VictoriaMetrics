@@ -172,16 +172,16 @@ const (
 	rtVector, rtMatrix, rScalar = "vector", "matrix", "scalar"
 )
 
-func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result, err error) {
+func parsePrometheusResponse(resp *http.Response) (res Result, err error) {
 	r := &promResponse{}
 	if err = json.NewDecoder(resp.Body).Decode(r); err != nil {
-		return res, fmt.Errorf("error parsing response from %s: %w", req.URL.Redacted(), err)
+		return res, fmt.Errorf("failed to decode response: %w", err)
 	}
 	if r.Status == statusError {
-		return res, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
+		return res, fmt.Errorf("response error %q: %s", r.ErrorType, r.Error)
 	}
 	if r.Status != statusSuccess {
-		return res, fmt.Errorf("unknown status: %s, Expected success or error", r.Status)
+		return res, fmt.Errorf("unknown response status %q", r.Status)
 	}
 	var parseFn func() ([]Metric, error)
 	switch r.Data.ResultType {

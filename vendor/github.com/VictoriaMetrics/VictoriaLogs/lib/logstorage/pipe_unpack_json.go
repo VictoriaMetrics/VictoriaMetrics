@@ -60,8 +60,14 @@ func (pu *pipeUnpackJSON) canLiveTail() bool {
 	return true
 }
 
+func (pu *pipeUnpackJSON) canReturnLastNResults() bool {
+	// TODO: verify that the unpacked fields do not overwrite _time with non-timestamp values.
+
+	return true
+}
+
 func (pu *pipeUnpackJSON) updateNeededFields(pf *prefixfilter.Filter) {
-	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fieldFilters, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, pf)
+	updateNeededFieldsForUnpackPipe(pu.fromField, pu.resultPrefix, pu.fieldFilters, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, pf)
 }
 
 func (pu *pipeUnpackJSON) hasFilterInWithQuery() bool {
@@ -170,7 +176,7 @@ func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 	resultPrefix := ""
 	if lex.isKeyword("result_prefix") {
 		lex.nextToken()
-		p, err := getCompoundToken(lex)
+		p, err := lex.nextCompoundToken()
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'result_prefix': %w", err)
 		}

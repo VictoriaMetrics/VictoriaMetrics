@@ -6,11 +6,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// RunNetQueryFunc must run q and pass the query results to writeBlock.
-type RunNetQueryFunc func(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock WriteDataBlockFunc) error
+// RunNetQueryFunc must run qctx and pass the query results to writeBlock.
+type RunNetQueryFunc func(qctx *QueryContext, writeBlock WriteDataBlockFunc) error
 
 // NetQueryRunner is a runner for distributed query.
 type NetQueryRunner struct {
+	// qctx is the query context.
+	qctx *QueryContext
+
 	// qRemote is the query to execute at remote storage nodes.
 	qRemote *Query
 
@@ -21,27 +24,28 @@ type NetQueryRunner struct {
 	writeBlock writeBlockResultFunc
 }
 
-// NewNetQueryRunner creates a new NetQueryRunner for the given q.
+// NewNetQueryRunner creates a new NetQueryRunner for the given qctx.
 //
 // runNetQuery is used for running distributed query.
-// q results are sent to writeNetBlock.
-func NewNetQueryRunner(ctx context.Context, tenantIDs []TenantID, q *Query, runNetQuery RunNetQueryFunc, writeNetBlock WriteDataBlockFunc) (*NetQueryRunner, error) {
-	runQuery := func(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock writeBlockResultFunc) error {
+// qctx results are sent to writeNetBlock.
+func NewNetQueryRunner(qctx *QueryContext, runNetQuery RunNetQueryFunc, writeNetBlock WriteDataBlockFunc) (*NetQueryRunner, error) {
+	runQuery := func(qctx *QueryContext, writeBlock writeBlockResultFunc) error {
 		writeNetBlock := writeBlock.newDataBlockWriter()
-		return runNetQuery(ctx, tenantIDs, q, writeNetBlock)
+		return runNetQuery(qctx, writeNetBlock)
 	}
 
-	qNew, err := initSubqueries(ctx, tenantIDs, q, runQuery, false)
+	qNew, err := initSubqueries(qctx, runQuery, false)
 	if err != nil {
 		return nil, err
 	}
-	q = qNew
+	q := qNew
 
 	qRemote, pipesLocal := splitQueryToRemoteAndLocal(q)
 
 	writeBlock := writeNetBlock.newBlockResultWriter()
 
 	nqr := &NetQueryRunner{
+		qctx:       qctx,
 		qRemote:    qRemote,
 		pipesLocal: pipesLocal,
 		writeBlock: writeBlock,
@@ -60,21 +64,36 @@ func (nqr *NetQueryRunner) Run(ctx context.Context, concurrency int, netSearch f
 		return netSearch(stopCh, nqr.qRemote, writeNetBlock)
 	}
 
-	return runPipes(ctx, nqr.pipesLocal, search, nqr.writeBlock, concurrency)
+	qctxLocal := nqr.qctx.WithContext(ctx)
+	return runPipes(qctxLocal, nqr.pipesLocal, search, nqr.writeBlock, concurrency)
 }
 
 // splitQueryToRemoteAndLocal splits q into remotely executed query and into locally executed pipes.
 func splitQueryToRemoteAndLocal(q *Query) (*Query, []pipe) {
 	timestamp := q.GetTimestamp()
-
 	qRemote := q.Clone(timestamp)
 	qRemote.DropAllPipes()
 
+	pipesRemote, pipesLocal := getRemoteAndLocalPipes(q)
+	qRemote.pipes = pipesRemote
+
+	// Limit fields to select at the remote storage.
+	pf := getNeededColumns(pipesLocal)
+	qRemote.addFieldsFilters(pf)
+
+	return qRemote, pipesLocal
+}
+
+func getRemoteAndLocalPipes(q *Query) ([]pipe, []pipe) {
+	timestamp := q.GetTimestamp()
+
+	var pipesRemote []pipe
 	var pipesLocal []pipe
-	for i := range q.pipes {
-		pRemote, psLocal := q.pipes[i].splitToRemoteAndLocal(timestamp)
+
+	for i, p := range q.pipes {
+		pRemote, psLocal := p.splitToRemoteAndLocal(timestamp)
 		if pRemote != nil {
-			qRemote.pipes = append(qRemote.pipes, pRemote)
+			pipesRemote = append(pipesRemote, pRemote)
 			if len(psLocal) == 0 {
 				continue
 			}
@@ -83,14 +102,11 @@ func splitQueryToRemoteAndLocal(q *Query) (*Query, []pipe) {
 		if len(psLocal) == 0 {
 			logger.Panicf("BUG: psLocal must be non non-empty here")
 		}
+
 		pipesLocal = append(pipesLocal, psLocal...)
 		pipesLocal = append(pipesLocal, q.pipes[i+1:]...)
 		break
 	}
 
-	// Limit fields to select at the remote storage.
-	pf := getNeededColumns(pipesLocal)
-	qRemote.addFieldsFilters(pf)
-
-	return qRemote, pipesLocal
+	return pipesRemote, pipesLocal
 }

@@ -484,7 +484,7 @@ reader:
 
 {{% available_from "v1.26.0" anomaly %}} `vmanomaly` adds support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows quering and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs.
 
-Its queries should be expressed in a subset of [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql), which is similar to MetricsQL/PromQL but adapted for log data.
+Its queries should be expressed in a subset of [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/), which is similar to MetricsQL/PromQL but adapted for log data.
 
 > Please be aware that `VLogsReader` is designed to work with a `/select/stats_query_range` endpoint of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), so the `<query>` expressions must contain `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) (see [query-examples](#query-examples) section below). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe, where `stats_func*` is any of the supported [stats function subset](#valid-stats-functions) of [available stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions), while the `result_name*` is the name of the log field to store the result of the corresponding stats function. The `as` keyword is optional.
 

@@ -9,7 +9,7 @@ type filter interface {
 	// String returns string representation of the filter
 	String() string
 
-	// udpdateNeededFields must update pf with fields needed for the filter
+	// updateNeededFields must update pf with fields needed for the filter
 	updateNeededFields(pf *prefixfilter.Filter)
 
 	// applyToBlockSearch must update bm according to the filter applied to the given bs block

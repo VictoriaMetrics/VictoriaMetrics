@@ -54,7 +54,7 @@ Please see example graph illustrating this logic below:
 
 **VictoriaLogs (logs → metrics):** {{% available_from "v1.26.0" anomaly %}} use [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) via the [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) to create log-derived metrics for anomaly detection (e.g., error rates, request latencies). 
 
-> Please note that only LogsQL queries with [stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe)  functions [subset](http://localhost:1313/anomaly-detection/components/reader/#valid-stats-functions) are supported, as they produce **numeric** time series.
+> Please note that only LogsQL queries with [stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe)  functions [subset](https://docs.victoriametrics.com/anomaly-detection/components/reader/#valid-stats-functions) are supported, as they produce **numeric** time series.
 
 
 ## Using offsets
@@ -397,7 +397,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.26.0
+    image: victoriametrics/vmanomaly:v1.26.2
     # ...
     ports:
       - "8490:8490"
@@ -612,7 +612,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.26.0 && docker image tag victoriametrics/vmanomaly:v1.26.0 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.26.2 && docker image tag victoriametrics/vmanomaly:v1.26.2 vmanomaly
 ```
 
 ```sh

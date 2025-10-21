@@ -11,6 +11,7 @@ interface RulesHeaderProps {
   allTypes: string[];
   allStates: string[];
   states: string[];
+  search: string;
   onChangeTypes: (input: string) => void;
   onChangeStates: (input: string) => void;
   onChangeSearch: (input: string) => void;
@@ -21,6 +22,7 @@ const RulesHeader: FC<RulesHeaderProps> = ({
   allTypes,
   allStates,
   states,
+  search,
   onChangeTypes,
   onChangeStates,
   onChangeSearch,
@@ -69,6 +71,7 @@ const RulesHeader: FC<RulesHeaderProps> = ({
         <div className="vm-explore-alerts-header-search">
           <TextField
             label="Search"
+            value={search}
             placeholder="Filter by rule, name or labels"
             startIcon={<SearchIcon />}
             onChange={onChangeSearch}

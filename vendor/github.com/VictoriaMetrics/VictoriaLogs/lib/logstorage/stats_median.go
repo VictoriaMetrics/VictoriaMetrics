@@ -53,7 +53,7 @@ func (smp *statsMedianProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh 
 	return smp.sqp.finalizeStats(sm.sq, dst, stopCh)
 }
 
-func parseStatsMedian(lex *lexer) (*statsMedian, error) {
+func parseStatsMedian(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "median")
 	if err != nil {
 		return nil, err

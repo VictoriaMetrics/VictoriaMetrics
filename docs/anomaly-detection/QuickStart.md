@@ -121,13 +121,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.26.0
+docker pull victoriametrics/vmanomaly:v1.26.2
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.26.0 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.26.2 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -163,7 +163,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.26.0
+    image: victoriametrics/vmanomaly:v1.26.2
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
@@ -189,7 +189,7 @@ See also:
 > To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
 > With the forthcoming [DockerHub pull limits](https://docs.docker.com/docker-hub/usage/pulls) additional image registry was introduced (quay.io) for VictoriaMetric images, [vmanomaly images in particular](https://quay.io/repository/victoriametrics/vmanomaly).
-If hitting pull limits, try switching your `docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z` to `docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z`
+If hitting pull limits, try switching your `docker pull victoriametrics/vmanomaly:vX.Y.Z` to `docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z`
 
 You can run `vmanomaly` in Kubernetes environment
 with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md).

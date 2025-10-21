@@ -54,6 +54,7 @@ VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learni
 Get started with VictoriaMetrics Anomaly Detection by following our guides and installation options:
 
 - **Quickstart**: Learn how to quickly set up `vmanomaly` by following the [Quickstart Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/).
+- **UI**: Explore anomaly detection configurations through the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/).
 - **Integration**: Integrate anomaly detection into your existing observability stack. Find detailed steps [here](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
 - **Anomaly Detection Presets**: Enable anomaly detection on predefined sets of metrics. Learn more [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
 
