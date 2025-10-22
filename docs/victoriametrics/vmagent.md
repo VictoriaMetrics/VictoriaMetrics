@@ -160,7 +160,7 @@ This allows building scalable data processing pipelines when a single remote sto
 For example, this allows horizontal scaling with [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)
 by routing outgoing samples for the same time series like [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter)
 and [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) types from top-level `vmagent` instances
-to the same second-level `vmagent` instances, so they are aggregated properly.
+to the same second-level `vmagent` instance, so they are aggregated properly.
 
 If `-remoteWrite.shardByURL` command-line flag is set, then all the metric labels are used for even sharding
 among remote storage systems specified in `-remoteWrite.url`.
