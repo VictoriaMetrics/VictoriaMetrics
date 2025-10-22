@@ -27,7 +27,7 @@ func (bp *BufferPool[T]) Get() *Buffer[T] {
 	return bbv.(*Buffer[T])
 }
 
-// Put puts b into bbp.
+// Put puts b into bp.
 func (bp *BufferPool[T]) Put(b *Buffer[T]) {
 	b.Reset()
 	bp.p.Put(b)
