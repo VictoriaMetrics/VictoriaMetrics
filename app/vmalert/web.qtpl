@@ -435,7 +435,7 @@
         <div class="col">
            {% for _, k := range annotationKeys %}
                 <b>{%s k %}:</b><br>
-                <p>{%s alert.Annotations[k] %}</p>
+                <p class="annotations">{%s alert.Annotations[k] %}</p>
           {% endfor %}
         </div>
       </div>
@@ -549,7 +549,7 @@
         <div class="col">
           {% for _, k := range annotationKeys %}
                 <b>{%s k %}:</b><br>
-                <p>{%s rule.Annotations[k] %}</p>
+                <p class="annotations">{%s rule.Annotations[k] %}</p>
           {% endfor %}
         </div>
       </div>
