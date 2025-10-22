@@ -159,16 +159,18 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 	// But for external projects that import `httpserver` package,
 	// the `enableHTTP2` arg provides the flexibility to use HTTP/2.
 	var protocols *http.Protocols
+	tlsNextProto := make(map[string]func(*http.Server, *tls.Conn, http.Handler))
 	if enableHTTP2 {
 		protocols = &http.Protocols{}
 		protocols.SetHTTP2(true)
 		protocols.SetUnencryptedHTTP2(true)
+		tlsNextProto = nil
 	}
 
 	s.s = &http.Server{
 		Protocols:    protocols,
-		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
-
+		TLSNextProto: tlsNextProto,
+		
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       *idleConnTimeout,
 
