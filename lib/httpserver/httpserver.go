@@ -158,19 +158,22 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 	// Disable HTTP/2 by default, since it doesn't give any advantages for VictoriaMetrics services.
 	// But for external projects that import `httpserver` package,
 	// the `enableHTTP2` arg provides the flexibility to use HTTP/2.
-	var protocols *http.Protocols
-	tlsNextProto := make(map[string]func(*http.Server, *tls.Conn, http.Handler))
+	var (
+		protocols    *http.Protocols
+		tlsNextProto map[string]func(*http.Server, *tls.Conn, http.Handler)
+	)
 	if enableHTTP2 {
 		protocols = &http.Protocols{}
 		protocols.SetHTTP2(true)
 		protocols.SetUnencryptedHTTP2(true)
-		tlsNextProto = nil
+	} else {
+		tlsNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
 	}
 
 	s.s = &http.Server{
 		Protocols:    protocols,
 		TLSNextProto: tlsNextProto,
-		
+
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       *idleConnTimeout,
 
