@@ -62,7 +62,7 @@ func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte
 		if string(sizeBuf.B) == storage.ErrReadOnly.Error() {
 			return storage.ErrReadOnly
 		}
-		return errors.New((string(sizeBuf.B)))
+		return errors.New(string(sizeBuf.B))
 	}
 
 	return nil
