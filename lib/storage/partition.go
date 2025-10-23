@@ -223,6 +223,7 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 
 	fs.MustSyncPathAndParentDir(smallPartsPath)
 	fs.MustSyncPathAndParentDir(bigPartsPath)
+	fs.MustSyncPathAndParentDir(indexDBPartsPath)
 
 	pt.startBackgroundWorkers()
 
