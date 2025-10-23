@@ -11,6 +11,7 @@ const MaxInsertPacketSizeForVMInsert = 30 * 1024 * 1024
 
 // StorageStatusAck defines status response from vmstorage which indicates that request
 // was successfully processed
+// used in legacy streaming protocol (prior RPC)
 const StorageStatusAck = 1
 
 // StorageStatusReadOnly defines status response from vmstorage which indicates that request
