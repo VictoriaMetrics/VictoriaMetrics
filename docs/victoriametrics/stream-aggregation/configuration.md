@@ -32,11 +32,11 @@ This behaviour can be changed via the following command-line flags:
 - `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
   and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
   `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
-  If one of these flags is set, input samples that match any rule in the corresponding streamAggr config are reserved and written to the storage.
+  If either of these flags is set, input samples that match any rule in the corresponding streamAggr configuration are preserved and written to storage.
 - `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
   and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
   `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
-  If one of these flags is set, input samples that not matching any rule in the corresponding streamAggr config are dropped.
+  If either of these flags is set, input samples that do not match any rule in the corresponding streamAggr configuration are dropped.
 
 ## Stream aggregation config
 
