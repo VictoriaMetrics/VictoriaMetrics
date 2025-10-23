@@ -16,4 +16,5 @@ const StorageStatusAck = 1
 
 // StorageStatusReadOnly defines status response from vmstorage which indicates that request
 // cannot be processed due to read-only status of vmstorage
+// used in legacy streaming protocol (prior RPC)
 const StorageStatusReadOnly = 2
