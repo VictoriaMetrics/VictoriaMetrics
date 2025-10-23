@@ -238,7 +238,7 @@ func (s *VMInsertServer) processRPC(ctx *RequestCtx, rpcName string) error {
 			}
 			return fmt.Errorf("cannot process writeMetadata: %w", err)
 		}
-		// return empty errror
+		// returning an empty string serves as ack 
 		return ctx.WriteString("")
 
 	default:
