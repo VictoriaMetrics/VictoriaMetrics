@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-// SendToConn sends given buf over provided bc to the server
+// SendRPCRequestToConn sends given buf over provided bc to the server
 func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte) error {
 	var err error
 	sizeBuf := sizeBufPool.Get()
