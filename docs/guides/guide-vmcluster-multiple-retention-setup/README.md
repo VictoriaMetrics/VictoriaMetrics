@@ -12,9 +12,16 @@ Setup Victoria Metrics Cluster with support of multiple retention periods within
 
 **Enterprise Solution**
 
-[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports specifying multiple retentions
-for distinct sets of time series and [tenants](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy)
-via [retention filters](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#retention-filters).
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports multiple retention periods natively on both the [cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#retention-filters) and the [single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multiple-retentions) versions.
+You can filter which metrics a retention filter applies to. Below you can see 3 retention filters. The first one matches any metrics with the `juniours` tag and will keep those for 3 days. The second filter says anything with `dev` or `staging` should be kept for 30 days. And finally, the last filter is the default filter of 1 year.
+```bash
+-retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
+```
+
+When you run the cluster version, you can also set retention filters by tenant ID. Below is a retention filter that will keep metrics from tenant 5 for only 5 days while keeping everyone else's for 1 year. You can also combine this with tags to get even finer control.
+```bash
+-retentionFilter='{vm_account_id="5"}:5d' -retentionPeriod=1y
+```
 
 **Open Source Solution**
 
@@ -48,3 +55,12 @@ Every group of vmstorages can handle one tenant or multiple one. Different group
 **Additional Enhancements**
 
 You can set up [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) for routing data to the given vminsert group depending on the needed retention.
+
+**Downsides Of This Approach**
+
+In the approach shown above, you have a separate group of nodes for each retention period. Each storage node needs to have a copy of the index, and
+more nodes means more indexes, which means more storage space devoted to data that isn't your metrics. With the [Enterprise version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#retention-filters) one node can handle multiple retention periods, reducing the number of nodes and thus the storage space taken up by indexes.
+The index can be quite large on systems where they have time series that change frequently. In some cases, the index size can be larger than the space you're saving with separate retention periods.
+
+Configuration complexity is also a concern; each retention period would have its own storage nodes and unique configurations.
+Networking is also more complex; each retention period has its own write path, increasing network complexity.
