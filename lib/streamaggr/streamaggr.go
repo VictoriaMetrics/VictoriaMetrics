@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/histogram"
@@ -359,8 +360,8 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Push returns matchIdxs with len equal to len(tss).
 // It reuses the matchIdxs if it has enough capacity to hold len(tss) items.
 // Otherwise it allocates new matchIdxs.
-func (a *Aggregators) Push(tss []prompb.TimeSeries, matchIdxs []byte) []byte {
-	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
+func (a *Aggregators) Push(tss []prompb.TimeSeries, matchIdxs []uint32) []uint32 {
+	matchIdxs = slicesutil.SetLength(matchIdxs, len(tss))
 	for i := range matchIdxs {
 		matchIdxs[i] = 0
 	}
@@ -368,9 +369,22 @@ func (a *Aggregators) Push(tss []prompb.TimeSeries, matchIdxs []byte) []byte {
 		return matchIdxs
 	}
 
+	// use all available CPU cores to copy time-series into aggregators
+	// See this issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9878
+	var wg sync.WaitGroup
+	concurrencyChan := make(chan struct{}, cgroup.AvailableCPUs())
+
+	wg.Add(len(a.as))
 	for _, aggr := range a.as {
-		aggr.Push(tss, matchIdxs)
+		concurrencyChan <- struct{}{}
+		go func(aggr *aggregator) {
+			aggr.Push(tss, matchIdxs)
+			wg.Done()
+			<-concurrencyChan
+		}(aggr)
 	}
+
+	wg.Wait()
 
 	return matchIdxs
 }
@@ -951,7 +965,7 @@ func (a *aggregator) MustStop() {
 }
 
 // Push pushes tss to a.
-func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []byte) {
+func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []uint32) {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
@@ -975,7 +989,7 @@ func (a *aggregator) Push(tss []prompb.TimeSeries, matchIdxs []byte) {
 		if !a.match.Match(ts.Labels) {
 			continue
 		}
-		matchIdxs[idx] = 1
+		atomic.StoreUint32(&matchIdxs[idx], 1)
 
 		if len(dropLabels) > 0 {
 			labels.Labels = dropSeriesLabels(labels.Labels[:0], ts.Labels, dropLabels)

@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/metrics"
@@ -189,7 +190,7 @@ func (ctx *streamAggrCtx) Reset() {
 	ctx.buf = ctx.buf[:0]
 }
 
-func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte {
+func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []uint32) []uint32 {
 	mn := &ctx.mn
 	tss := ctx.tss
 	labels := ctx.labels
@@ -248,7 +249,7 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 	if sas.IsEnabled() {
 		matchIdxs = sas.Push(tss, matchIdxs)
 	} else if deduplicator != nil {
-		matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
+		matchIdxs = slicesutil.SetLength(matchIdxs, len(tss))
 		for i := range matchIdxs {
 			matchIdxs[i] = 1
 		}
