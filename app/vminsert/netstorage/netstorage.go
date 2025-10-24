@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	disableCompression = flag.Bool("rpc.disableCompression", false, "Flag is deprecated and kept for backward compatability, vminsert performs per block compression instead of streaming compression on RPC connection")
+	disableCompression = flag.Bool("rpc.disableCompression", false, "Flag is deprecated and kept for backward compatibility, vminsert performs per block compression instead of streaming compression on RPC connection")
 	replicationFactor  = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
