@@ -195,6 +195,11 @@ func (uw *unmarshalWork) reset() {
 // Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	reqBuf := uw.reqBuf
+	done := func() {
+		if uw.wg != nil {
+			uw.wg.Done()
+		}
+	}
 	if uw.isZSTDEncoded {
 		zb := zbPool.Get()
 		defer zbPool.Put(zb)
@@ -203,7 +208,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		if err != nil {
 			parseErrors.Inc()
 			logger.Errorf("cannot decompress clusternative block with size %d : %s", len(reqBuf), err)
-			uw.wg.Done()
+			done()
 			putUnmarshalWork(uw)
 			return
 		}
@@ -223,10 +228,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		uw.callback(mrs)
 		reqBuf = tail
 	}
-	wg := uw.wg
-	if wg != nil {
-		wg.Done()
-	}
+	done()
 	putUnmarshalWork(uw)
 }
 

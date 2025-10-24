@@ -8,6 +8,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var rpcHandshakeTimeout = flag.Duration("rpc.handshakeTimeout", 5*time.Second, "Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. See https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability section for more details.")
@@ -53,9 +55,10 @@ func VMInsertClientWithDialer(dial func() (net.Conn, error), compressionLevel in
 	bc, err = genericClient(c, vminsertHelloLegacyVersion, compressionLevel)
 	if err != nil {
 		_ = c.Close()
-		return nil, fmt.Errorf("prev handshake error: %w", err)
+		return nil, fmt.Errorf("legacy handshake error: %w", err)
 	}
 	bc.IsLegacy = true
+	logger.Infof("server=%q doesn't support new RPC version, fallback to the legacy format", c.RemoteAddr())
 	return bc, nil
 }
 
@@ -76,30 +79,28 @@ func VMInsertClientWithHello(c net.Conn, helloMsg string, compressionLevel int) 
 // to the client.
 // compressionLevel <= 0 means 'no compression'
 func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
-		return nil, fmt.Errorf("cannot set deadline: %w", err)
-	}
 
-	buf, err := readData(c, len(vminsertHello))
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
-			return nil, errTCPHealthcheck
+	var isRPCSupported bool
+	bc, err := genericServer(c, compressionLevel, func(c net.Conn) error {
+		buf, err := readData(c, len(vminsertHello))
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
+				return errTCPHealthcheck
+			}
+			return fmt.Errorf("cannot read hello: %w", err)
 		}
-		return nil, fmt.Errorf("cannot read hello: %w", err)
-	}
-	isRPCSupported := string(buf) == vminsertHello
-	if !isRPCSupported {
-		// try to fallback to the previous protocol version
-		if string(buf) != vminsertHelloLegacyVersion {
-			return nil, fmt.Errorf("unexpected message obtained; got %q; want %q", buf, vminsertHello)
+		isRPCSupported = string(buf) == vminsertHello
+		if !isRPCSupported {
+			// try to fallback to the previous protocol version
+			if string(buf) != vminsertHelloLegacyVersion {
+				return fmt.Errorf("unexpected message obtained; got %q; want %q", buf, vminsertHello)
+			}
+			logger.Infof("client=%q doesn't support new RPC version, fallback to the legacy format", c.RemoteAddr())
 		}
-	}
-	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
-	}
-	bc, err := genericServer(c, compressionLevel)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -112,27 +113,10 @@ func VMInsertServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 //
 // should be used for testing only
 func VMInsertServerWithLegacyHello(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
-		return nil, fmt.Errorf("cannot set deadline: %w", err)
-	}
 
-	buf, err := readData(c, len(vminsertHelloLegacyVersion))
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
-			return nil, errTCPHealthcheck
-		}
-		return nil, fmt.Errorf("cannot read hello: %w", err)
-	}
-	if string(buf) != vminsertHelloLegacyVersion {
-		return nil, fmt.Errorf("unexpected message obtained; got %q; want %q", buf, vminsertHelloLegacyVersion)
-	}
-
-	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
-	}
-	bc, err := genericServer(c, compressionLevel)
+	bc, err := genericServer(c, compressionLevel, func(c net.Conn) error {
+		return readMessage(c, vminsertHelloLegacyVersion)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -155,23 +139,9 @@ func VMSelectClient(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 // to the client.
 // compressionLevel <= 0 means 'no compression'
 func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
-	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
-		return nil, fmt.Errorf("cannot set deadline: %w", err)
-	}
-
-	if err := readMessage(c, vmselectHello); err != nil {
-		if errors.Is(err, io.EOF) {
-			// This is likely a TCP healthcheck, which must be ignored in order to prevent logs pollution.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
-			return nil, errTCPHealthcheck
-		}
-		return nil, fmt.Errorf("cannot read hello: %w", err)
-	}
-	if err := writeMessage(c, successResponse); err != nil {
-		return nil, fmt.Errorf("cannot write success response on hello: %w", err)
-	}
-
-	return genericServer(c, compressionLevel)
+	return genericServer(c, compressionLevel, func(c net.Conn) error {
+		return readMessage(c, vmselectHello)
+	})
 }
 
 // errTCPHealthcheck indicates that the connection was opened as part of a TCP health check
@@ -223,7 +193,17 @@ func IsTimeoutNetworkError(err error) bool {
 	return false
 }
 
-func genericServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
+func genericServer(c net.Conn, compressionLevel int, readHelloMessage func(c net.Conn) error) (*BufferedConn, error) {
+	if err := c.SetDeadline(time.Now().Add(*rpcHandshakeTimeout)); err != nil {
+		return nil, fmt.Errorf("cannot set deadline: %w", err)
+	}
+
+	if err := readHelloMessage(c); err != nil {
+		return nil, fmt.Errorf("cannot read hello message : %w", err)
+	}
+	if err := writeMessage(c, successResponse); err != nil {
+		return nil, fmt.Errorf("cannot write success response on isCompressed: %w", err)
+	}
 	isRemoteCompressed, err := readIsCompressed(c)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read isCompressed flag: %w", err)
