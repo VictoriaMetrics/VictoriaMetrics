@@ -345,7 +345,7 @@ func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
 	var dialError error
 	bc, err := handshake.VMInsertClientWithDialer(func() (net.Conn, error) {
 		c, err := sn.dialer.Dial()
-		if err != nil && dialError == nil {
+		if err != nil {
 			dialError = err
 			sn.dialErrors.Inc()
 			return nil, err
