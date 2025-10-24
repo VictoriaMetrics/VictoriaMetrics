@@ -18,7 +18,7 @@ You can filter which metrics a retention filter applies to. Below you can see 3 
 -retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
 ```
 
-When you run the cluster version, you can also set retention filters by tenant ID. Below is a retention filter that will keep metrics from tenant 5 for only 5 days while keeping everyone else's for 1 year. You can also combine this with tags to get even finer control.
+When using the cluster version, it is also possible set retention filters by tenant ID. Below is a retention filter that will keep metrics from tenant 5 for only 5 days while keeping everyone else's for 1 year. This can be combined with labels to get even finer control.
 ```bash
 -retentionFilter='{vm_account_id="5"}:5d' -retentionPeriod=1y
 ```
