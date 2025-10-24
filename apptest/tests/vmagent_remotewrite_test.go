@@ -2,8 +2,10 @@ package tests
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -34,6 +36,29 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 		fmt.Sprintf(`-remoteWrite.urlRelabelConfig=%s`, relabelFilePath),
 	}, ``)
 
+	checkResponse := func(query, expResponse string) {
+		t.Helper()
+		resp, err := http.Get(query)
+		if err != nil {
+			t.Fatalf("cannot get response from %s: %s", query, err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("unexpected response from %s: %s", query, resp.Status)
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("cannot read response from %s: %s", query, err)
+		}
+		if !strings.Contains(string(body), expResponse) {
+			t.Fatalf("expected to get\n%s\nbut got\n%s", expResponse, string(body))
+		}
+	}
+
+	vmagentAddr := fmt.Sprintf("http://%s", vmagent.HTTPAddr())
+	checkResponse(vmagentAddr+"/remotewrite-url-relabel-config", "replacement: value1")
+	checkResponse(vmagentAddr+"/api/v1/status/remotewrite-url-relabel-config", "replacement: value1")
+
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
 	}, apptest.QueryOpts{})
@@ -62,6 +87,9 @@ func TestSingleVMAgentReloadConfigs(t *testing.T) {
 	fs.MustWriteSync(relabelFilePath, []byte(relabelingRules))
 
 	vmagent.ReloadRelabelConfigs(t)
+
+	checkResponse(vmagentAddr+"/remotewrite-url-relabel-config", "replacement: value2")
+	checkResponse(vmagentAddr+"/api/v1/status/remotewrite-url-relabel-config", "replacement: value2")
 
 	vmagent.APIV1ImportPrometheus(t, []string{
 		"bar_foo 1 1652169600001", // 2022-05-10T08:00:00Z

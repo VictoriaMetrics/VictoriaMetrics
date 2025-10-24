@@ -156,6 +156,12 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 	t.Fatalf("relabel configs were not reloaded after SIGHUP signal; previous total: %f, current total: %f", prevTotal, currTotal)
 }
 
+// HTTPAddr returns the address at which the vmagent process is listening
+// for http connections.
+func (app *Vmagent) HTTPAddr() string {
+	return app.httpListenAddr
+}
+
 // sendBlocking sends the data to vmstorage by executing `send` function and
 // waits until the data is actually sent.
 //
