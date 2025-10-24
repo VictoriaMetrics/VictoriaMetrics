@@ -65,21 +65,23 @@ func TestVMInstantQuery(t *testing.T) {
 		case 3:
 			w.Write([]byte(`{"status":"unknown"}`))
 		case 4:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix"}}`))
+			w.Write([]byte(`{"status":"success","data":{"resultType":"vector"}}`))
 		case 5:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows","foo":"bar"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests","foo":"baz"},"value":[1583786140,"2000"]}]}}`))
+			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"vm_rows"},"values":[[1583786142,"13763"]]}]}}`))
 		case 6:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
+			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows","foo":"bar"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests","foo":"baz"},"value":[1583786140,"2000"]}]}}`))
 		case 7:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched": "42"}}`))
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
 		case 8:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched": "42"}}`))
+		case 9:
 			w.Write([]byte(`{"status":"success", "isPartial":true, "data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
 		}
 	})
 	mux.HandleFunc("/render", func(w http.ResponseWriter, _ *http.Request) {
 		c++
 		switch c {
-		case 9:
+		case 10:
 			w.Write([]byte(`[{"target":"constantLine(10)","tags":{"name":"constantLine(10)"},"datapoints":[[10,1611758343],[10,1611758373],[10,1611758403]]}]`))
 		}
 	})
@@ -102,9 +104,9 @@ func TestVMInstantQuery(t *testing.T) {
 			t.Fatalf("failed to parse 'time' query param %q: %s", timeParam, err)
 		}
 		switch c {
-		case 10:
-			w.Write([]byte("[]"))
 		case 11:
+			w.Write([]byte("[]"))
+		case 12:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"total","foo":"bar"},"value":[1583786142,"13763"]},{"metric":{"__name__":"total","foo":"baz"},"value":[1583786140,"2000"]}]}}`))
 		}
 	})
@@ -123,6 +125,7 @@ func TestVMInstantQuery(t *testing.T) {
 	ts := time.Now()
 
 	expErr := func(query, err string) {
+		t.Helper()
 		_, _, gotErr := pq.Query(ctx, query, ts)
 		if gotErr == nil {
 			t.Fatalf("expected %q got nil", err)
@@ -135,10 +138,11 @@ func TestVMInstantQuery(t *testing.T) {
 	expErr(vmQuery, "500")                          // 0
 	expErr(vmQuery, "error parsing response")       // 1
 	expErr(vmQuery, "response error")               // 2
-	expErr(vmQuery, "unknown status")               // 3
+	expErr(vmQuery, "unknown response status")      // 3
 	expErr(vmQuery, "unexpected end of JSON input") // 4
+	expErr(vmQuery, "unknown result type")          // 5
 
-	res, _, err := pq.Query(ctx, vmQuery, ts) // 5 - vector
+	res, _, err := pq.Query(ctx, vmQuery, ts) // 6 - vector
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -159,7 +163,7 @@ func TestVMInstantQuery(t *testing.T) {
 	}
 	metricsEqual(t, res.Data, expected)
 
-	res, req, err := pq.Query(ctx, vmQuery, ts) // 6 - scalar
+	res, req, err := pq.Query(ctx, vmQuery, ts) // 7 - scalar
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -184,7 +188,7 @@ func TestVMInstantQuery(t *testing.T) {
 			res.SeriesFetched)
 	}
 
-	res, _, err = pq.Query(ctx, vmQuery, ts) // 7 - scalar with stats
+	res, _, err = pq.Query(ctx, vmQuery, ts) // 8 - scalar with stats
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -205,7 +209,7 @@ func TestVMInstantQuery(t *testing.T) {
 			*res.SeriesFetched)
 	}
 
-	res, _, err = pq.Query(ctx, vmQuery, ts) // 8
+	res, _, err = pq.Query(ctx, vmQuery, ts) // 9
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -216,7 +220,7 @@ func TestVMInstantQuery(t *testing.T) {
 	// test graphite
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})
 
-	res, _, err = gq.Query(ctx, queryRender, ts) // 9 - graphite
+	res, _, err = gq.Query(ctx, queryRender, ts) // 10 - graphite
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -236,9 +240,9 @@ func TestVMInstantQuery(t *testing.T) {
 	vlogs := datasourceVLogs
 	pq = s.BuildWithParams(QuerierParams{DataSourceType: string(vlogs), EvaluationInterval: 15 * time.Second})
 
-	expErr(vlogsQuery, "error parsing response") // 10
+	expErr(vlogsQuery, "error parsing response") // 11
 
-	res, _, err = pq.Query(ctx, vlogsQuery, ts) // 11
+	res, _, err = pq.Query(ctx, vlogsQuery, ts) // 12
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -390,6 +394,8 @@ func TestVMRangeQuery(t *testing.T) {
 		switch c {
 		case 0:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"vm_rows"},"values":[[1583786142,"13763"]]}]}}`))
+		case 1:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[1583786142, "1"]}}`))
 		}
 	})
 	mux.HandleFunc("/select/logsql/stats_query_range", func(w http.ResponseWriter, r *http.Request) {
@@ -422,7 +428,7 @@ func TestVMRangeQuery(t *testing.T) {
 			t.Fatalf("expected 'step' query param to be 60s; got %q instead", step)
 		}
 		switch c {
-		case 1:
+		case 2:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"total"},"values":[[1583786142,"10"]]}]}}`))
 		}
 	})
@@ -446,13 +452,13 @@ func TestVMRangeQuery(t *testing.T) {
 
 	start, end := time.Now().Add(-time.Minute), time.Now()
 
-	res, err := pq.QueryRange(ctx, vmQuery, start, end)
+	res, err := pq.QueryRange(ctx, vmQuery, start, end) // case 0
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
 	m := res.Data
 	if len(m) != 1 {
-		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
+		t.Fatalf("expected 1 metric got %d in %+v", len(m), m)
 	}
 	expected := Metric{
 		Labels:     []prompb.Label{{Value: "vm_rows", Name: "__name__"}},
@@ -462,6 +468,9 @@ func TestVMRangeQuery(t *testing.T) {
 	if !reflect.DeepEqual(m[0], expected) {
 		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
 	}
+
+	_, err = pq.QueryRange(ctx, vmQuery, start, end) // case 1
+	expectError(t, err, "unexpected result type")
 
 	// test unsupported graphite
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})

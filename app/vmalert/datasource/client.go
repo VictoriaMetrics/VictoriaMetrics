@@ -173,22 +173,26 @@ func (c *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
 		}
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	// Process the received response.
-	var parseFn func(req *http.Request, resp *http.Response) (Result, error)
+	var parseFn func(resp *http.Response) (Result, error)
 	switch c.dataSourceType {
 	case datasourcePrometheus:
-		parseFn = parsePrometheusResponse
+		parseFn = parsePrometheusInstantResponse
 	case datasourceGraphite:
 		parseFn = parseGraphiteResponse
 	case datasourceVLogs:
-		parseFn = parseVLogsResponse
+		parseFn = parseVLogsInstantResponse
 	default:
 		logger.Panicf("BUG: unsupported datasource type %q to parse query response", c.dataSourceType)
 	}
-	result, err := parseFn(req, resp)
-	_ = resp.Body.Close()
-	return result, req, err
+
+	result, err := parseFn(resp)
+	if err != nil {
+		return Result{}, nil, fmt.Errorf("error parsing response from %q: %w", req.URL.Redacted(), err)
+	}
+	return result, req, nil
 }
 
 // QueryRange executes the given query on the given time range.
@@ -229,19 +233,23 @@ func (c *Client) QueryRange(ctx context.Context, query string, start, end time.T
 			return res, fmt.Errorf("second attempt: %w", err)
 		}
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	// Process the received response.
-	var parseFn func(req *http.Request, resp *http.Response) (Result, error)
+	var parseFn func(resp *http.Response) (Result, error)
 	switch c.dataSourceType {
 	case datasourcePrometheus:
-		parseFn = parsePrometheusResponse
+		parseFn = parsePrometheusRangeResponse
 	case datasourceVLogs:
-		parseFn = parseVLogsResponse
+		parseFn = parseVLogsRangeResponse
 	default:
 		logger.Panicf("BUG: unsupported datasource type %q to parse query range response", c.dataSourceType)
 	}
-	res, err = parseFn(req, resp)
-	_ = resp.Body.Close()
+
+	res, err = parseFn(resp)
+	if err != nil {
+		return Result{}, fmt.Errorf("error parsing response from %q: %w", req.URL.Redacted(), err)
+	}
 	return res, err
 }
 

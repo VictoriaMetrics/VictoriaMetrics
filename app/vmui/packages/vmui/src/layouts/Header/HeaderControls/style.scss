@@ -1,6 +1,7 @@
 @use "src/styles/variables" as *;
 
 .vm-header-controls {
+  order: 3;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -11,6 +12,7 @@
     display: grid;
     grid-template-columns: 1fr;
     padding: 0;
+    flex-grow: initial;
 
     .vm-header-button {
       border: none;

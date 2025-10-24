@@ -89,8 +89,13 @@ func (ps *pipeSort) canLiveTail() bool {
 	return false
 }
 
+func (ps *pipeSort) canReturnLastNResults() bool {
+	return false
+}
+
 func (ps *pipeSort) updateNeededFields(pf *prefixfilter.Filter) {
 	if pf.MatchNothing() {
+		// There is no need in fetching any fields, since all of them are ignored by the caller.
 		return
 	}
 
@@ -788,27 +793,21 @@ func parsePipeSort(lex *lexer) (pipe, error) {
 	for {
 		switch {
 		case lex.isKeyword("offset"):
-			lex.nextToken()
-			s := lex.token
-			n, ok := tryParseUint64(s)
-			lex.nextToken()
-			if !ok {
-				return nil, fmt.Errorf("cannot parse 'offset %s'", s)
+			n, err := parseOffset(lex)
+			if err != nil {
+				return nil, err
 			}
 			if ps.offset > 0 {
-				return nil, fmt.Errorf("duplicate 'offset'; the previous one is %d; the new one is %s", ps.offset, s)
+				return nil, fmt.Errorf("duplicate 'offset'; the previous one is %d; the new one is %d", ps.offset, n)
 			}
 			ps.offset = n
 		case lex.isKeyword("limit"):
-			lex.nextToken()
-			s := lex.token
-			n, ok := tryParseUint64(s)
-			lex.nextToken()
-			if !ok {
-				return nil, fmt.Errorf("cannot parse 'limit %s'", s)
+			n, err := parseLimit(lex)
+			if err != nil {
+				return nil, err
 			}
 			if ps.limit > 0 {
-				return nil, fmt.Errorf("duplicate 'limit'; the previous one is %d; the new one is %s", ps.limit, s)
+				return nil, fmt.Errorf("duplicate 'limit'; the previous one is %d; the new one is %d", ps.limit, n)
 			}
 			ps.limit = n
 		case lex.isKeyword("rank"):
@@ -898,4 +897,42 @@ func marshalJSONKeyValue(dst []byte, k, v string) []byte {
 	dst = append(dst, ':')
 	dst = quicktemplate.AppendJSONString(dst, v, true)
 	return dst
+}
+
+func parseLimit(lex *lexer) (uint64, error) {
+	if !lex.isKeyword("limit") {
+		return 0, fmt.Errorf("expecting 'limit'; got %q", lex.token)
+	}
+	lex.nextToken()
+
+	limitStr, err := lex.nextCompoundToken()
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse 'limit': %s", err)
+	}
+
+	n, ok := tryParseUint64(limitStr)
+	if !ok {
+		return 0, fmt.Errorf("cannot parse %q as number in the 'limit'", limitStr)
+	}
+
+	return n, nil
+}
+
+func parseOffset(lex *lexer) (uint64, error) {
+	if !lex.isKeyword("offset") {
+		return 0, fmt.Errorf("expecting 'offset'; got %q", lex.token)
+	}
+	lex.nextToken()
+
+	limitStr, err := lex.nextCompoundToken()
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse 'offset': %s", err)
+	}
+
+	n, ok := tryParseUint64(limitStr)
+	if !ok {
+		return 0, fmt.Errorf("cannot parse %q as number in the 'offset'", limitStr)
+	}
+
+	return n, nil
 }

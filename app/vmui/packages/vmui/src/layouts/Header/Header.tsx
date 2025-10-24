@@ -67,39 +67,27 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
     })}
     style={{ background, color }}
   >
+    <div
+      className={classNames({
+        "vm-header-logo": true,
+        "vm-header-logo_mobile": displaySidebar,
+      })}
+      onClick={onClickLogo}
+      style={{ color }}
+    >
+      {<Logo/>}
+    </div>
+
     {displaySidebar ? (
       <SidebarHeader
         background={background}
         color={color}
       />
     ) : (
-      <>
-        {!appModeEnable && (
-          <div
-            className="vm-header-logo"
-            onClick={onClickLogo}
-            style={{ color }}
-          >
-            {<Logo/>}
-          </div>
-        )}
-        <HeaderNav
-          color={color}
-          background={background}
-        />
-      </>
-    )}
-    {displaySidebar && (
-      <div
-        className={classNames({
-          "vm-header-logo": true,
-          "vm-header-logo_mobile": true,
-        })}
-        onClick={onClickLogo}
-        style={{ color }}
-      >
-        {<Logo/>}
-      </div>
+      <HeaderNav
+        color={color}
+        background={background}
+      />
     )}
     <HeaderControls
       controlsComponent={controlsComponent}

@@ -210,7 +210,7 @@ func (smp *statsMinProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan st
 	return append(dst, smp.min...)
 }
 
-func parseStatsMin(lex *lexer) (*statsMin, error) {
+func parseStatsMin(lex *lexer) (statsFunc, error) {
 	fieldFilters, err := parseStatsFuncFieldFilters(lex, "min")
 	if err != nil {
 		return nil, err

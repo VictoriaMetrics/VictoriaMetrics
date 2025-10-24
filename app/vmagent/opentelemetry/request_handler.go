@@ -2,6 +2,7 @@ package opentelemetry
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
@@ -23,6 +24,13 @@ var (
 	metadataTenantInserted = tenantmetrics.NewCounterMap(`vmagent_tenant_inserted_metadata_total{type="opentelemetry"}`)
 	rowsPerInsert          = metrics.NewHistogram(`vmagent_rows_per_insert{type="opentelemetry"}`)
 )
+
+// InsertHandler processes metrics from given reader.
+func InsertHandlerForReader(at *auth.Token, r io.Reader, encoding string) error {
+	return stream.ParseStream(r, encoding, nil, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
+		return insertRows(at, tss, mms, nil)
+	})
+}
 
 // InsertHandler processes opentelemetry metrics.
 func InsertHandler(at *auth.Token, req *http.Request) error {

@@ -21,4 +21,5 @@ const (
 	indexdbDirname    = "indexdb"
 	datadbDirname     = "datadb"
 	partitionsDirname = "partitions"
+	snapshotsDirname  = "snapshots"
 )

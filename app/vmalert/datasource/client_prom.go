@@ -172,17 +172,26 @@ const (
 	rtVector, rtMatrix, rScalar = "vector", "matrix", "scalar"
 )
 
-func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result, err error) {
+func parsePromResponse(resp *http.Response) (*promResponse, error) {
 	r := &promResponse{}
-	if err = json.NewDecoder(resp.Body).Decode(r); err != nil {
-		return res, fmt.Errorf("error parsing response from %s: %w", req.URL.Redacted(), err)
+	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	if r.Status == statusError {
-		return res, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
+		return nil, fmt.Errorf("response error %q: %s", r.ErrorType, r.Error)
 	}
 	if r.Status != statusSuccess {
-		return res, fmt.Errorf("unknown status: %s, Expected success or error", r.Status)
+		return nil, fmt.Errorf("unknown response status %q", r.Status)
 	}
+	return r, nil
+}
+
+func parsePrometheusInstantResponse(resp *http.Response) (res Result, err error) {
+	r, err := parsePromResponse(resp)
+	if err != nil {
+		return res, fmt.Errorf("failed to parse response: %w", err)
+	}
+
 	var parseFn func() ([]Metric, error)
 	switch r.Data.ResultType {
 	case rtVector:
@@ -191,12 +200,6 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 			return res, fmt.Errorf("unmarshal err %w; \n %#v", err, string(r.Data.Result))
 		}
 		parseFn = pi.metrics
-	case rtMatrix:
-		var pr promRange
-		if err := json.Unmarshal(r.Data.Result, &pr.Result); err != nil {
-			return res, err
-		}
-		parseFn = pr.metrics
 	case rScalar:
 		var ps promScalar
 		if err := json.Unmarshal(r.Data.Result, &ps); err != nil {
@@ -206,8 +209,35 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 	default:
 		return res, fmt.Errorf("unknown result type %q", r.Data.ResultType)
 	}
-
 	ms, err := parseFn()
+	if err != nil {
+		return res, err
+	}
+	res = Result{Data: ms, IsPartial: r.IsPartial}
+	if r.Stats.SeriesFetched != nil {
+		intV, err := strconv.Atoi(*r.Stats.SeriesFetched)
+		if err != nil {
+			return res, fmt.Errorf("failed to convert stats.seriesFetched to int: %w", err)
+		}
+		res.SeriesFetched = &intV
+	}
+	return res, nil
+}
+
+func parsePrometheusRangeResponse(resp *http.Response) (res Result, err error) {
+	r, err := parsePromResponse(resp)
+	if err != nil {
+		return res, fmt.Errorf("failed to parse response: %w", err)
+	}
+	if r.Data.ResultType != rtMatrix {
+		return res, fmt.Errorf("unexpected result type %q; expected result type %q", r.Data.ResultType, rtMatrix)
+	}
+
+	var pr promRange
+	if err := json.Unmarshal(r.Data.Result, &pr.Result); err != nil {
+		return res, err
+	}
+	ms, err := pr.metrics()
 	if err != nil {
 		return res, err
 	}

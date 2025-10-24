@@ -25,6 +25,10 @@ func (pf *pipeFirst) canLiveTail() bool {
 	return false
 }
 
+func (pf *pipeFirst) canReturnLastNResults() bool {
+	return false
+}
+
 func (pf *pipeFirst) updateNeededFields(f *prefixfilter.Filter) {
 	pf.ps.updateNeededFields(f)
 }

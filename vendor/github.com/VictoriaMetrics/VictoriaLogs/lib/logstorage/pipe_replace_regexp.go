@@ -13,8 +13,15 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#replace_regexp-pipe
 type pipeReplaceRegexp struct {
-	field       string
-	re          *regexp.Regexp
+	field string
+
+	// re is the compiled regular expression
+	re *regexp.Regexp
+
+	// reStr contains string representation for the re.
+	reStr string
+
+	// replacement is the replacement string for the matching re.
 	replacement string
 
 	// limit limits the number of replacements, which can be performed
@@ -29,7 +36,7 @@ func (pr *pipeReplaceRegexp) String() string {
 	if pr.iff != nil {
 		s += " " + pr.iff.String()
 	}
-	s += fmt.Sprintf(" (%s, %s)", quoteTokenIfNeeded(pr.re.String()), quoteTokenIfNeeded(pr.replacement))
+	s += fmt.Sprintf(" (%s, %s)", quoteTokenIfNeeded(pr.reStr), quoteTokenIfNeeded(pr.replacement))
 	if pr.field != "_msg" {
 		s += " at " + quoteTokenIfNeeded(pr.field)
 	}
@@ -44,6 +51,10 @@ func (pr *pipeReplaceRegexp) splitToRemoteAndLocal(_ int64) (pipe, []pipe) {
 }
 
 func (pr *pipeReplaceRegexp) canLiveTail() bool {
+	return true
+}
+
+func (pr *pipeReplaceRegexp) canReturnLastNResults() bool {
 	return true
 }
 
@@ -101,11 +112,11 @@ func parsePipeReplaceRegexp(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	reStr, err := getCompoundToken(lex)
+	reStr, err := lex.nextCompoundToken()
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse reStr in 'replace_regexp': %w", err)
 	}
-	re, err := regexp.Compile(reStr)
+	re, err := regexpCompile(reStr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse regexp %q in 'replace_regexp': %w", reStr, err)
 	}
@@ -114,7 +125,7 @@ func parsePipeReplaceRegexp(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	replacement, err := getCompoundToken(lex)
+	replacement, err := lex.nextCompoundToken()
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse replacement in 'replace_regexp(%q': %w", reStr, err)
 	}
@@ -136,18 +147,17 @@ func parsePipeReplaceRegexp(lex *lexer) (pipe, error) {
 
 	limit := uint64(0)
 	if lex.isKeyword("limit") {
-		lex.nextToken()
-		n, ok := tryParseUint64(lex.token)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse 'limit %s' in 'replace_regexp'", lex.token)
+		n, err := parseLimit(lex)
+		if err != nil {
+			return nil, err
 		}
-		lex.nextToken()
 		limit = n
 	}
 
 	pr := &pipeReplaceRegexp{
 		field:       field,
 		re:          re,
+		reStr:       reStr,
 		replacement: replacement,
 		limit:       limit,
 		iff:         iff,
