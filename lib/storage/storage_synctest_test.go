@@ -393,24 +393,25 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		rng := rand.New(rand.NewSource(1))
 
 		// Verify that prefill hasn't started yet.
-		// The prefill happens during the last hour of a day.
-		// At exactly 23:00:00, it must not start yet.
+		// The prefill happens during the last hour of a day. At exactly
+		// 23:00:00, however, it must not start yet.
 		//
-		// But first, advance the time 1 minute before the last hour to fill the
+		// But first, advance the time 1m before the last hour to fill the
 		// currHourMetricIDs cache.
 		//
-		// currHourMetricIDs cache play important role in prefilling the index
+		// currHourMetricIDs cache plays important role in prefilling the index
 		// with next day entries. In order for timeseries to be added to the
 		// next day index, its metricID must be in that cache. The metricID is
 		// added to that cache when the timeseries sample is added to the
-		// storage. The only problem it happens asynchronously, i.e. they aren't
-		// visible right away. Storage.add() first adds the metricID to the
-		// s.pendingHourEntries, and after 11 seconds, a background task copies
-		// those pending entries to currHourMetricIDs cache.
+		// storage. The only problem is that it happens asynchronously, i.e.
+		// they aren't visible right away. First, Storage.add() adds the
+		// metricID to the s.pendingHourEntries, and only after 11 seconds, a
+		// background task copies those pending entries to currHourMetricIDs
+		// cache.
 		//
 		// Thus, the testing code needs to insert a timeseries twice:
-		// first time - to register it in the cache, and second time (after some
-		// time) to actually test the prefill.
+		// first time - to register it in the currHourMetricIDs, and second time
+		// (after some time) to actually test the prefill.
 		time.Sleep(23*time.Hour - 1*time.Minute) // 2000-01-01T22:59:00Z
 		mrs0 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric0", TimeRange{
 			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
