@@ -23,6 +23,8 @@ When you run the cluster version, you can also set retention filters by tenant I
 -retentionFilter='{vm_account_id="5"}:5d' -retentionPeriod=1y
 ```
 
+![Enterprise](Enterprise.webp)
+
 **Open Source Solution**
 
 Community version of VictoriaMetrics supports only one retention period per `vmstorage` node via [-retentionPeriod](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) command-line flag.
