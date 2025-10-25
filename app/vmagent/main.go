@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/configwatcher"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
@@ -113,6 +114,7 @@ func main() {
 	envflag.Parse()
 	flagutil.ApplySecretFlags()
 	remotewrite.InitSecretFlags()
+	configwatcher.Init()
 	buildinfo.Init()
 	logger.Init()
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
@@ -200,6 +202,7 @@ func main() {
 	}
 	protoparserutil.StopUnmarshalWorkers()
 	remotewrite.Stop()
+	configwatcher.Stop()
 
 	logger.Infof("successfully stopped vmagent in %.3f seconds", time.Since(startTime).Seconds())
 }
