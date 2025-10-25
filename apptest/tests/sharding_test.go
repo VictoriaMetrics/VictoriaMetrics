@@ -56,11 +56,11 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 	// Verify that inserted data has been indeed sharded by checking metrics
 	// exposed by vmstorage.
 
-	numMetrics1 := vmstorage1.GetIntMetric(t, "vm_vminsert_metrics_read_total")
+	numMetrics1 := vmstorage1.GetIntMetric(t, "vm_vminsert_metrics_read_total{type=\"vminsert\"}")
 	if numMetrics1 == 0 {
 		t.Fatalf("storage-1 has no time series")
 	}
-	numMetrics2 := vmstorage2.GetIntMetric(t, "vm_vminsert_metrics_read_total")
+	numMetrics2 := vmstorage2.GetIntMetric(t, "vm_vminsert_metrics_read_total{type=\"vminsert\"}")
 	if numMetrics2 == 0 {
 		t.Fatalf("storage-2 has no time series")
 	}

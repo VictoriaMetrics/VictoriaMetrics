@@ -187,42 +187,58 @@ func TestSingleIngestionProtocols(t *testing.T) {
 	})
 
 	// prometheus remote write format
-	pbData := []prompb.TimeSeries{
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series",
+	pbData := prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series",
+					},
+				},
+				Samples: []prompb.Sample{
+					{
+						Value:     10,
+						Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
+
+					},
 				},
 			},
-			Samples: []prompb.Sample{
-				{
-					Value:     10,
-					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
-
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series2",
+					},
+					{
+						Name:  "label",
+						Value: "foo2",
+					},
+					{
+						Name:  "label1",
+						Value: "value1",
+					},
+				},
+				Samples: []prompb.Sample{
+					{
+						Value:     20,
+						Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
+					},
 				},
 			},
 		},
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series2",
-				},
-				{
-					Name:  "label",
-					Value: "foo2",
-				},
-				{
-					Name:  "label1",
-					Value: "value1",
-				},
+		Metadata: []prompb.MetricMetadata{
+			{
+				Type:             1,
+				MetricFamilyName: "prometheusrw_series",
+				Help:             "some help",
+				Unit:             "",
 			},
-			Samples: []prompb.Sample{
-				{
-					Value:     20,
-					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
-				},
+			{
+				Type:             1,
+				MetricFamilyName: "prometheusrw_series2",
+				Help:             "some help2",
+				Unit:             "",
 			},
 		},
 	}
@@ -246,6 +262,32 @@ func TestSingleIngestionProtocols(t *testing.T) {
 		},
 	})
 
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /metadata query response",
+		Got: func() any {
+			got := sut.PrometheusAPIV1Metadata(t, "", -1, -1, apptest.QueryOpts{})
+			return got
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{Data: map[string][]apptest.MetadataEntry{
+			"prometheusrw_series": {
+				{
+					Type: "counter",
+					Help: "some help",
+					Unit: "",
+				},
+			},
+			"prometheusrw_series2": {
+				{
+					Type: "counter",
+					Help: "some help2",
+					Unit: "",
+				},
+			},
+		}},
+		CmpOpts: []cmp.Option{
+			cmpopts.IgnoreFields(apptest.PrometheusAPIV1Metadata{}, "Status"),
+		},
+	})
 }
 
 func TestClusterIngestionProtocols(t *testing.T) {
@@ -434,42 +476,58 @@ func TestClusterIngestionProtocols(t *testing.T) {
 	})
 
 	// prometheus remote write format
-	pbData := []prompb.TimeSeries{
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series",
+	pbData := prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series",
+					},
+				},
+				Samples: []prompb.Sample{
+					{
+						Value:     10,
+						Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
+
+					},
 				},
 			},
-			Samples: []prompb.Sample{
-				{
-					Value:     10,
-					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
-
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series2",
+					},
+					{
+						Name:  "label",
+						Value: "foo2",
+					},
+					{
+						Name:  "label1",
+						Value: "value1",
+					},
+				},
+				Samples: []prompb.Sample{
+					{
+						Value:     20,
+						Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
+					},
 				},
 			},
 		},
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series2",
-				},
-				{
-					Name:  "label",
-					Value: "foo2",
-				},
-				{
-					Name:  "label1",
-					Value: "value1",
-				},
+		Metadata: []prompb.MetricMetadata{
+			{
+				Type:             1,
+				MetricFamilyName: "prometheusrw_series",
+				Help:             "some help",
+				Unit:             "",
 			},
-			Samples: []prompb.Sample{
-				{
-					Value:     20,
-					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
-				},
+			{
+				Type:             1,
+				MetricFamilyName: "prometheusrw_series2",
+				Help:             "some help2",
+				Unit:             "",
 			},
 		},
 	}
@@ -492,4 +550,31 @@ func TestClusterIngestionProtocols(t *testing.T) {
 			{Timestamp: 1707123456800, Value: 20}, // 2024-02-05T08:57:36.700Z
 		},
 	})
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /metadata query response",
+		Got: func() any {
+			got := vmselect.PrometheusAPIV1Metadata(t, "", -1, -1, apptest.QueryOpts{})
+			return got
+		},
+		Want: &apptest.PrometheusAPIV1Metadata{Data: map[string][]apptest.MetadataEntry{
+			"prometheusrw_series": {
+				{
+					Type: "counter",
+					Help: "some help",
+					Unit: "",
+				},
+			},
+			"prometheusrw_series2": {
+				{
+					Type: "counter",
+					Help: "some help2",
+					Unit: "",
+				},
+			},
+		}},
+		CmpOpts: []cmp.Option{
+			cmpopts.IgnoreFields(apptest.PrometheusAPIV1Metadata{}, "Status"),
+		},
+	})
+
 }
