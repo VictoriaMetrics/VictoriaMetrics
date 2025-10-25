@@ -14,6 +14,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -21,8 +22,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
 var (
@@ -169,15 +170,26 @@ func (fs *FS) Init(ctx context.Context) error {
 		return err
 	}
 
-	tr := httputil.NewTransport(true, "vmbackup_s3_client")
-	if fs.TLSInsecureSkipVerify {
-		tr.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
+	// Use AWS client in order to allow SDK to override transport configuration
+	// based on additional configuration from environment variables.
+	// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858
+	c := awshttp.NewBuildableClient()
+	if cfg.HTTPClient != nil {
+		trOpts, ok := cfg.HTTPClient.(*awshttp.BuildableClient)
+		if ok {
+			c = trOpts
 		}
 	}
-	cfg.HTTPClient = &http.Client{
-		Transport: tr,
-	}
+	cfg.HTTPClient = c.WithTransportOptions(func(t *http.Transport) {
+		if fs.TLSInsecureSkipVerify {
+			if t.TLSClientConfig == nil {
+				t.TLSClientConfig = &tls.Config{}
+			}
+			t.TLSClientConfig.InsecureSkipVerify = true
+		}
+
+		t.DialContext = netutil.NewStatDialFunc("vmbackup_s3_client")
+	})
 
 	var outerErr error
 	fs.s3 = s3.NewFromConfig(cfg, func(o *s3.Options) {

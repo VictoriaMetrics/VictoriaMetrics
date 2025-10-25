@@ -13,7 +13,7 @@ and [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-clo
 ## Terminology
 
 - [Active Time Series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) - a [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
-  that was update at least one time during the last hour;
+  that was updated at least one time during the last hour;
 - Ingestion Rate - how many [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) are ingest into the database per second;
 - [Churn Rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) - how frequently a new [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
   is created. For example, changing pod name in Kubernetes is a common source of time series churn;

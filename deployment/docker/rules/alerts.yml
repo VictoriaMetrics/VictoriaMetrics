@@ -13,14 +13,14 @@ groups:
         expr: |
             sum(vm_free_disk_space_bytes) without(path) /
             (
-              (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without (type)) * (
+              (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (
                 sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type) /
                 sum(vm_rows{type!~"indexdb.*"}) without(type)
               )
               +
               rate(vm_new_timeseries_created_total[1d]) * (
-                sum(vm_data_size_bytes{type="indexdb/file"}) /
-                sum(vm_rows{type="indexdb/file"})
+                sum(vm_data_size_bytes{type="indexdb/file"}) without(type)/
+                sum(vm_rows{type="indexdb/file"}) without(type)
               )
             ) < 3 * 24 * 3600 > 0
         for: 30m
@@ -37,14 +37,14 @@ groups:
         expr: |
           sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /
           (
-              (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without (type)) * (
+              (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (
                 sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type) /
                 sum(vm_rows{type!~"indexdb.*"}) without(type)
               )
               +
               rate(vm_new_timeseries_created_total[1d]) * (
-                sum(vm_data_size_bytes{type="indexdb/file"}) /
-                sum(vm_rows{type="indexdb/file"})
+                sum(vm_data_size_bytes{type="indexdb/file"}) without(type) /
+                sum(vm_rows{type="indexdb/file"}) without(type)
               )
           ) < 3 * 24 * 3600 > 0
         for: 30m
