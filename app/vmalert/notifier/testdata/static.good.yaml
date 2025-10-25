@@ -1,22 +1,14 @@
-headers:
-  - 'CustomHeader: foo'
-
 static_configs:
   - targets:
-      - localhost:9093
-      - localhost:9095
-      - https://localhost:9093/test/api/v2/alerts
-    basic_auth:
-      username: foo
-      password: bar
+      - http://192.168.0.101:9093
+    alert_relabel_configs:
+    - target_label: "foo"
+      replacement: "aaa"
 
   - targets:
-      - localhost:9096
-      - localhost:9097
-    basic_auth:
-      username: foo
-      password: baz
+      - http://192.168.0.101:9093
+    alert_relabel_configs:
+    - target_label: "foo"
+      replacement: "ccc"
 
-alert_relabel_configs:
-  - target_label: "foo"
-    replacement: "aaa"
+

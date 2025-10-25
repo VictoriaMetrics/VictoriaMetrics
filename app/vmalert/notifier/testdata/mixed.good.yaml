@@ -2,12 +2,19 @@ static_configs:
   - targets:
       - localhost:9093
       - localhost:9095
-
+    alert_relabel_configs:
+      - action: keep
+        source_labels: [env]
+        regex: "static"
 consul_sd_configs:
   - server: localhost:8500
     scheme: http
     services:
       - alertmanager
+    alert_relabel_configs:
+      - action: keep
+        source_labels: [env]
+        regex: "consul"
   - server: localhost:8500
     services:
       - consul
@@ -17,6 +24,10 @@ dns_sd_configs:
       - cloudflare.com
     type: 'A'
     port: 9093
+    alert_relabel_configs:
+      - action: keep
+        source_labels: [env]
+        regex: "dns"
 
 relabel_configs:
   - source_labels: [__meta_consul_tags]
