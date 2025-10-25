@@ -9,11 +9,18 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/cespare/xxhash/v2"
+)
+
+var (
+	dropSamplesOlderThan = flagutil.NewRetentionDuration("dropSamplesOlderThan", "0", "Whether to drop samples older than specified before sending them to vmstorage. "+
+		"May help to decrease the number of small parts for old partitions, therefore decreasing necessity for unnecessary small/big merges.")
 )
 
 // InsertCtx is a generic context for inserting data.
@@ -135,6 +142,12 @@ func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte
 	br := &ctx.bufRowss[storageNodeIdx]
 	snb := ctx.snb
 	sn := snb.sns[storageNodeIdx]
+	if dropSamplesOlderThan.Milliseconds() > 0 {
+		if timestamp < int64(fasttime.UnixTimestamp()*1000)-(dropSamplesOlderThan.Milliseconds()) {
+			sn.rowsDroppedOnAge.Add(1)
+			return nil
+		}
+	}
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
 	if len(bufNew) >= maxBufSizePerStorageNode {
 		// Send buf to sn, since it is too big.
