@@ -69,3 +69,6 @@ github-delete-release: github-token-check
 			cat $(GITHUB_DEBUG_FILE); \
 			exit 1; \
 		fi
+
+test-release-victoria-metrics:
+	@go test -run TestVictoriaMetrics package/release/asset_test.go
