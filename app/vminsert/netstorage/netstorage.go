@@ -4,7 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
+	"net"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -13,9 +13,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -24,11 +22,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 )
 
 var (
-	disableRPCCompression = flag.Bool("rpc.disableCompression", false, "Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage")
-	replicationFactor     = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
+	disableCompression = flag.Bool("rpc.disableCompression", false, "Flag is deprecated and kept for backward compatibility, vminsert performs per block compression instead of streaming compression on RPC connection")
+	replicationFactor  = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
 	disableRerouting      = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload")
@@ -45,8 +44,6 @@ var (
 		"during rolling restarts and during spikes in series churn rate. "+
 		"See also -disableRerouting")
 )
-
-var errStorageReadOnly = errors.New("storage node is read only")
 
 func (sn *storageNode) isReady() bool {
 	return !sn.isBroken.Load() && !sn.isReadOnly.Load()
@@ -301,7 +298,12 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		return false
 	}
 	startTime := time.Now()
-	err := sendToConn(sn.bc, br.buf)
+	var err error
+	if sn.bc.IsLegacy {
+		err = vminsertapi.SendToConn(sn.bc, br.buf)
+	} else {
+		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, br.buf)
+	}
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
@@ -309,7 +311,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		sn.rowsSent.Add(br.rows)
 		return true
 	}
-	if errors.Is(err, errStorageReadOnly) {
+	if errors.Is(err, storage.ErrReadOnly) {
 		// The vmstorage is transitioned to readonly mode.
 		sn.isReadOnly.Store(true)
 		sn.brCond.Broadcast()
@@ -334,74 +336,26 @@ var cannotCloseStorageNodeConnLogger = logger.WithThrottler("cannotCloseStorageN
 
 var cannotSendBufsLogger = logger.WithThrottler("cannotSendBufRows", 5*time.Second)
 
-func sendToConn(bc *handshake.BufferedConn, buf []byte) error {
-	// if len(buf) == 0, it must be sent to the vmstorage too in order to check for vmstorage health
-	// See checkReadOnlyMode() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870
-
-	timeoutSeconds := len(buf) / 3e5
-	if timeoutSeconds < 60 {
-		timeoutSeconds = 60
-	}
-	timeout := time.Duration(timeoutSeconds) * time.Second
-	deadline := time.Now().Add(timeout)
-	if err := bc.SetWriteDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set write deadline to %s: %w", deadline, err)
-	}
-	// sizeBuf guarantees that the rows batch will be either fully
-	// read or fully discarded on the vmstorage side.
-	// sizeBuf is used for read optimization in vmstorage.
-	sizeBuf := sizeBufPool.Get()
-	defer sizeBufPool.Put(sizeBuf)
-	sizeBuf.B = encoding.MarshalUint64(sizeBuf.B[:0], uint64(len(buf)))
-	if _, err := bc.Write(sizeBuf.B); err != nil {
-		return fmt.Errorf("cannot write data size %d: %w", len(buf), err)
-	}
-	if _, err := bc.Write(buf); err != nil {
-		return fmt.Errorf("cannot write data with size %d: %w", len(buf), err)
-	}
-	if err := bc.Flush(); err != nil {
-		return fmt.Errorf("cannot flush data with size %d: %w", len(buf), err)
-	}
-
-	// Wait for `ack` from vmstorage.
-	// This guarantees that the message has been fully received by vmstorage.
-	deadline = time.Now().Add(timeout)
-	if err := bc.SetReadDeadline(deadline); err != nil {
-		return fmt.Errorf("cannot set read deadline for reading `ack` to vmstorage: %w", err)
-	}
-	if _, err := io.ReadFull(bc, sizeBuf.B[:1]); err != nil {
-		return fmt.Errorf("cannot read `ack` from vmstorage: %w", err)
-	}
-
-	ackResp := sizeBuf.B[0]
-	switch ackResp {
-	case 1:
-		// ok response, data successfully accepted by vmstorage
-	case 2:
-		// vmstorage is in readonly mode
-		return errStorageReadOnly
-	default:
-		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want 1 or 2", sizeBuf.B[0])
-	}
-
-	return nil
-}
-
-var sizeBufPool bytesutil.ByteBufferPool
-
 func (sn *storageNode) dial() (*handshake.BufferedConn, error) {
-	c, err := sn.dialer.Dial()
-	if err != nil {
-		sn.dialErrors.Inc()
-		return nil, err
+
+	compression := 1
+	if *disableCompression {
+		compression = 0
 	}
-	compressionLevel := 1
-	if *disableRPCCompression {
-		compressionLevel = 0
-	}
-	bc, err := handshake.VMInsertClient(c, compressionLevel)
+	var dialError error
+	bc, err := handshake.VMInsertClientWithDialer(func() (net.Conn, error) {
+		c, err := sn.dialer.Dial()
+		if err != nil {
+			dialError = err
+			sn.dialErrors.Inc()
+			return nil, err
+		}
+		return c, nil
+	}, compression)
 	if err != nil {
-		_ = c.Close()
+		if dialError != nil {
+			return nil, dialError
+		}
 		sn.handshakeErrors.Inc()
 		return nil, fmt.Errorf("handshake error: %w", err)
 	}
@@ -413,6 +367,8 @@ type storageNode struct {
 	// isBroken is set to true if the given vmstorage node is temporarily unhealthy.
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
 	isBroken atomic.Bool
+
+	rpcCall vminsertapi.RPCCall
 
 	// isReadOnly is set to true if the given vmstorage node is read only
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
@@ -525,6 +481,7 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 	copy(addrs, unsortedAddrs)
 	sort.Strings(addrs)
 
+	rpcCall := vminsertapi.MetricRowsRpcCall
 	ms := metrics.NewSet()
 	nodesHash := newConsistentHash(addrs, hashSeed)
 	sns := make([]*storageNode, 0, len(addrs))
@@ -541,41 +498,47 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 
 			stopCh: stopCh,
 
-			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q}`, addr)),
-			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q}`, addr)),
-			connectionErrors:      ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q}`, addr)),
-			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q}`, addr)),
-			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q}`, addr)),
-			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q}`, addr)),
-			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
-			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
-			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
+			rpcCall: rpcCall,
+
+			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			connectionErrors:      ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
 		}
 		sn.brCond = sync.NewCond(&sn.brLock)
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {
+		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
 			sn.brLock.Lock()
 			n := sn.br.rows
 			sn.brLock.Unlock()
 			return float64(n)
 		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_buf_pending_bytes{name="vminsert", addr=%q}`, addr), func() float64 {
+		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_buf_pending_bytes{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
 			sn.brLock.Lock()
 			n := len(sn.br.buf)
 			sn.brLock.Unlock()
 			return float64(n)
 		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_reachable{name="vminsert", addr=%q}`, addr), func() float64 {
-			if sn.isBroken.Load() {
-				return 0
-			}
-			return 1
-		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_read_only{name="vminsert", addr=%q}`, addr), func() float64 {
-			if sn.isReadOnly.Load() {
+		// conditionally export health related metrics
+		if rpcCall == vminsertapi.MetricRowsRpcCall {
+			_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_reachable{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
+				if sn.isBroken.Load() {
+					return 0
+				}
 				return 1
-			}
-			return 0
-		})
+			})
+			_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmstorage_is_read_only{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
+				if sn.isReadOnly.Load() {
+					return 1
+				}
+				return 0
+			})
+
+		}
 		sns = append(sns, sn)
 	}
 
@@ -846,14 +809,18 @@ func (sn *storageNode) checkReadOnlyMode() {
 	if sn.bc == nil {
 		return
 	}
-	// send nil buff to check ack response from storage
-	err := sendToConn(sn.bc, nil)
+	var err error
+	if sn.bc.IsLegacy {
+		err = vminsertapi.SendToConn(sn.bc, nil)
+	} else {
+		err = vminsertapi.SendRPCRequestToConn(sn.bc, sn.rpcCall.VersionedName, nil)
+	}
 	if err == nil {
 		// The storage switched from readonly to non-readonly mode
 		sn.isReadOnly.Store(false)
 		return
 	}
-	if errors.Is(err, errStorageReadOnly) {
+	if errors.Is(err, storage.ErrReadOnly) {
 		// The storage remains in read-only mode
 		return
 	}

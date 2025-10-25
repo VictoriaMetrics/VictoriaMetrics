@@ -21,6 +21,10 @@ type bufferedWriter interface {
 type BufferedConn struct {
 	net.Conn
 
+	// IsLegacy defines if BufferedConn operates in legacy mode
+	// and doesn't support RPC protocol
+	IsLegacy bool
+
 	br io.Reader
 	bw bufferedWriter
 
@@ -126,6 +130,7 @@ func (bc *BufferedConn) Close() error {
 	}
 	bc.bw = nil
 
+	bc.IsLegacy = false
 	return err
 }
 

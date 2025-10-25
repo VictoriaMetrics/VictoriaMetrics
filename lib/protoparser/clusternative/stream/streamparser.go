@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -35,17 +36,33 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 		callbackErrLock sync.Mutex
 		callbackErr     error
 	)
+	wrapErr := func(err error, isWriteErr bool) error {
+		wg.Wait()
+		if err == io.EOF {
+			// Remote end gracefully closed the connection.
+			return callbackErr
+		}
+		if isWriteErr {
+			writeErrors.Inc()
+		}
+		return errors.Join(err, callbackErr)
+	}
 	for {
-		reqBuf, err := readBlock(nil, r, bc, isReadOnly)
+		reqBuf, err := readBlock(r)
 		if err != nil {
-			wg.Wait()
-			if err == io.EOF {
-				// Remote end gracefully closed the connection.
-				return callbackErr
-			}
-			return errors.Join(err, callbackErr)
+			return wrapErr(err, false)
 		}
 		blocksRead.Inc()
+		if isReadOnly != nil && isReadOnly() {
+			// The vmstorage is in readonly mode, so drop the read block of data
+			// and send `read only` status to vminsert.
+			if err := sendAck(bc, consts.StorageStatusReadOnly); err != nil {
+				return wrapErr(fmt.Errorf("cannot send readonly status to vminsert: %w", err), true)
+			}
+			wcr.DecConcurrency()
+			continue
+		}
+
 		uw := getUnmarshalWork()
 		uw.reqBuf = reqBuf
 		uw.callback = func(rows []storage.MetricRow) {
@@ -62,11 +79,53 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 		wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
 		wcr.DecConcurrency()
+		// Send `ack` to vminsert that the packet has been received and scheduled for processing
+		if err := sendAck(bc, consts.StorageStatusAck); err != nil {
+			return wrapErr(fmt.Errorf("cannot send `ack` to vminsert: %w", err), true)
+		}
 	}
 }
 
-// readBlock reads the next data block from vminsert-initiated bc, appends it to dst and returns the result.
-func readBlock(dst []byte, r io.Reader, bc *handshake.BufferedConn, isReadOnly func() bool) ([]byte, error) {
+// ParseBlock parses data block sent from vminsert to bc and calls callback for parsed rows.
+// Optional function isReadOnly must return true if the storage cannot accept new data.
+// In this case the data read from bc isn't accepted and storage.ErrReadOnly returned.
+//
+// callback shouldn't hold block after returning.
+func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
+	wcr := writeconcurrencylimiter.GetReader(bc)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r := io.Reader(wcr)
+
+	reqBuf, err := readBlock(r)
+	if err != nil {
+		if err == io.EOF {
+			// Remote end gracefully closed the connection.
+			return nil
+		}
+
+		return err
+	}
+	blocksRead.Inc()
+	wcr.DecConcurrency()
+	if isReadOnly != nil && isReadOnly() {
+		return storage.ErrReadOnly
+	}
+
+	uw := getUnmarshalWork()
+	uw.isZSTDEncoded = true
+	uw.reqBuf = reqBuf
+	uw.callback = func(rows []storage.MetricRow) {
+		if err := callback(rows); err != nil {
+			processErrors.Inc()
+			logger.Errorf("error when processing native block: %s", err)
+		}
+	}
+	protoparserutil.ScheduleUnmarshalWork(uw)
+	return nil
+}
+
+// readBlock reads the next data block  and returns the result.
+func readBlock(r io.Reader) ([]byte, error) {
 	sizeBuf := auxBufPool.Get()
 	defer auxBufPool.Put(sizeBuf)
 	sizeBuf.B = bytesutil.ResizeNoCopyMayOverallocate(sizeBuf.B, 8)
@@ -75,33 +134,17 @@ func readBlock(dst []byte, r io.Reader, bc *handshake.BufferedConn, isReadOnly f
 			readErrors.Inc()
 			err = fmt.Errorf("cannot read packet size: %w", err)
 		}
-		return dst, err
+		return nil, err
 	}
 	packetSize := encoding.UnmarshalUint64(sizeBuf.B)
 	if packetSize > consts.MaxInsertPacketSizeForVMStorage {
 		parseErrors.Inc()
-		return dst, fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSizeForVMStorage)
+		return nil, fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSizeForVMStorage)
 	}
-	dstLen := len(dst)
-	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, dstLen+int(packetSize))
-	if n, err := io.ReadFull(r, dst[dstLen:]); err != nil {
+	dst := make([]byte, int(packetSize))
+	if n, err := io.ReadFull(r, dst); err != nil {
 		readErrors.Inc()
 		return dst, fmt.Errorf("cannot read packet with size %d bytes: %w; read only %d bytes", packetSize, err, n)
-	}
-	if isReadOnly != nil && isReadOnly() {
-		// The vmstorage is in readonly mode, so drop the read block of data
-		// and send `read only` status to vminsert.
-		dst = dst[:dstLen]
-		if err := sendAck(bc, 2); err != nil {
-			writeErrors.Inc()
-			return dst, fmt.Errorf("cannot send readonly status to vminsert: %w", err)
-		}
-		return dst, nil
-	}
-	// Send `ack` to vminsert that the packet has been received.
-	if err := sendAck(bc, 1); err != nil {
-		writeErrors.Inc()
-		return dst, fmt.Errorf("cannot send `ack` to vminsert: %w", err)
 	}
 	return dst, nil
 }
@@ -133,10 +176,11 @@ var (
 )
 
 type unmarshalWork struct {
-	wg       *sync.WaitGroup
-	callback func(rows []storage.MetricRow)
-	reqBuf   []byte
-	mrs      []storage.MetricRow
+	wg            *sync.WaitGroup
+	callback      func(rows []storage.MetricRow)
+	reqBuf        []byte
+	mrs           []storage.MetricRow
+	isZSTDEncoded bool
 }
 
 func (uw *unmarshalWork) reset() {
@@ -145,11 +189,31 @@ func (uw *unmarshalWork) reset() {
 	// Zero reqBuf, since it may occupy big amounts of memory (consts.MaxInsertPacketSizeForVMStorage).
 	uw.reqBuf = nil
 	uw.mrs = uw.mrs[:0]
+	uw.isZSTDEncoded = false
 }
 
 // Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
 	reqBuf := uw.reqBuf
+	done := func() {
+		if uw.wg != nil {
+			uw.wg.Done()
+		}
+	}
+	if uw.isZSTDEncoded {
+		zb := zbPool.Get()
+		defer zbPool.Put(zb)
+		var err error
+		zb.B, err = zstd.Decompress(zb.B[:0], reqBuf)
+		if err != nil {
+			parseErrors.Inc()
+			logger.Errorf("cannot decompress clusternative block with size %d : %s", len(reqBuf), err)
+			done()
+			putUnmarshalWork(uw)
+			return
+		}
+		reqBuf = zb.B
+	}
 	for len(reqBuf) > 0 {
 		// Limit the number of rows passed to callback in order to reduce memory usage
 		// when processing big packets of rows.
@@ -164,8 +228,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		uw.callback(mrs)
 		reqBuf = tail
 	}
-	wg := uw.wg
-	wg.Done()
+	done()
 	putUnmarshalWork(uw)
 }
 
@@ -185,3 +248,5 @@ func putUnmarshalWork(uw *unmarshalWork) {
 }
 
 var unmarshalWorkPool sync.Pool
+
+var zbPool bytesutil.ByteBufferPool
