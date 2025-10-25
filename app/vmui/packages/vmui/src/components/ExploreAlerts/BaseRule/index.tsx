@@ -108,7 +108,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       </table>
       {!!Object.keys(item?.annotations || {}).length && (
         <>
-          <span className="title">Annotations</span>
+          <span className="vm-alerts-title">Annotations</span>
           <table>
             <colgroup>
               <col className="vm-col-md"/>
@@ -127,7 +127,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       )}
       {!!item?.updates?.length && (
         <>
-          <span className="title">{`Last updates ${item.updates.length}/${item.max_updates_entries}`}</span>
+          <span className="vm-alerts-title">{`Last updates ${item.updates.length}/${item.max_updates_entries}`}</span>
           <table>
             <thead>
               <tr>
@@ -156,7 +156,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       )}
       {!!item?.alerts?.length && (
         <>
-          <span className="title">Alerts</span>
+          <span className="vm-alerts-title">Alerts</span>
           <table>
             <colgroup>
               <col className="vm-col-sm"/>
@@ -170,7 +170,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                 <th>Active since</th>
                 <th>State</th>
                 <th>Value</th>
-                <th className="title">Labels</th>
+                <th className="vm-alerts-title">Labels</th>
                 <th></th>
               </tr>
             </thead>
