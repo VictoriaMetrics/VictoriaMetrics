@@ -355,6 +355,8 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `toTime` - converts the input unix timestamp to [time.Time](https://pkg.go.dev/time#Time).
 * `toUpper` - converts all the chars in the input string to uppercase.
 * `value` - returns the numeric value from the input query result.
+* `now` - returns the current Unix timestamp in seconds. This is useful for calculating time differences in templates.
+  For example: `{{ now }} - $value` gives the time difference in seconds between current time and the metric value timestamp.
 
 #### Reusable templates
 
