@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -31,7 +32,7 @@ var (
 func NewVMInsertServer(listenAddr string) (*vminsertapi.VMInsertServer, error) {
 	api := &vminsertAPI{}
 
-	s, err := vminsertapi.NewVMInsertServer(listenAddr, *vminsertConnsShutdownDuration, "clusternative", api)
+	s, err := vminsertapi.NewVMInsertServer(listenAddr, *vminsertConnsShutdownDuration, "clusternative", api, nil)
 	if err != nil {
 		return nil, err
 	}

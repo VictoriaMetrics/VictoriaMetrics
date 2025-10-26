@@ -28,7 +28,7 @@ func NewVMInsertServer(addr string, storage *storage.Storage) (*vminsertapi.VMIn
 		storage: storage,
 	}
 
-	return vminsertapi.NewVMInsertServer(addr, *vminsertConnsShutdownDuration, "vminsert", api)
+	return vminsertapi.NewVMInsertServer(addr, *vminsertConnsShutdownDuration, "vminsert", api, nil)
 }
 
 type vminsertAPI struct {

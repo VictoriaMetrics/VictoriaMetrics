@@ -1,6 +1,7 @@
 package vminsertapi
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -50,8 +51,8 @@ type VMInsertServer struct {
 }
 
 // NewVMInsertServer starts VMInsertServer at the given addr serving the given storage.
-func NewVMInsertServer(addr string, connectionTimeout time.Duration, listenerName string, api API) (*VMInsertServer, error) {
-	ln, err := netutil.NewTCPListener(listenerName, addr, false, nil)
+func NewVMInsertServer(addr string, connectionTimeout time.Duration, listenerName string, api API, tc *tls.Config) (*VMInsertServer, error) {
+	ln, err := netutil.NewTCPListener(listenerName, addr, false, tc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %w", addr, err)
 	}
