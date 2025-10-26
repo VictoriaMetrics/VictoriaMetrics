@@ -485,6 +485,13 @@ func templateFuncs() textTpl.FuncMap {
 
 		/* Helpers */
 
+		// now returns the current Unix timestamp in seconds.
+		// This is useful for calculating time differences in templates.
+		// For example: {{ now }} - $value gives the time difference in seconds.
+		"now": func() float64 {
+			return float64(time.Now().Unix())
+		},
+
 		// Converts a list of objects to a map with keys arg0, arg1 etc.
 		// This is intended to allow multiple arguments to be passed to templates.
 		"args": func(args ...any) map[string]any {
