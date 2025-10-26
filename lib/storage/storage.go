@@ -1060,6 +1060,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(generation, date uint64) *byDateMetri
 	src = src[8:]
 	if generationLoaded != generation {
 		logger.Infof("discarding %s, since it contains data for stale generation; got %d; want %d", path, generationLoaded, generation)
+		return e
 	}
 	dateLoaded := encoding.UnmarshalUint64(src)
 	src = src[8:]
