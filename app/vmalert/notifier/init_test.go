@@ -201,7 +201,7 @@ alert_relabel_configs:
 			Labels: map[string]string{},
 		},
 	}
-	errG := SendAlerts(context.Background(), firingAlerts, nil)
+	errG := Send(context.Background(), firingAlerts, nil)
 	if errG.Err() != nil {
 		t.Fatalf("unexpected error when sending alerts: %s", err)
 	}

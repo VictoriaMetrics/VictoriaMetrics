@@ -260,6 +260,8 @@ const (
 
 // GetTargets returns list of static or discovered targets
 // via notifier configuration.
+//
+// Must be called after Init.
 func GetTargets() map[TargetType][]Target {
 	if getActiveNotifiers == nil {
 		return nil
@@ -284,8 +286,8 @@ func GetTargets() map[TargetType][]Target {
 	return targets
 }
 
-// SendAlerts sends alerts to all active notifiers
-func SendAlerts(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) *vmalertutil.ErrGroup {
+// Send sends alerts to all active notifiers
+func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) *vmalertutil.ErrGroup {
 	alertsToSend := make([]Alert, 0, len(alerts))
 	lblss := make([][]prompb.Label, 0, len(alerts))
 	// apply global relabel config first without modifying original alerts in alerts
@@ -300,14 +302,14 @@ func SendAlerts(ctx context.Context, alerts []Alert, notifierHeaders map[string]
 
 	errGr := new(vmalertutil.ErrGroup)
 	wg := sync.WaitGroup{}
-	for _, nt := range getActiveNotifiers() {
-		wg.Add(1)
-		go func(nt Notifier) {
+	activeNotifiers := getActiveNotifiers()
+	for i := range activeNotifiers {
+		nt := activeNotifiers[i]
+		wg.Go(func() {
 			if err := nt.Send(ctx, alertsToSend, lblss, notifierHeaders); err != nil {
 				errGr.Add(fmt.Errorf("failed to send alerts to addr %q: %w", nt.Addr(), err))
 			}
-			wg.Done()
-		}(nt)
+		})
 	}
 	wg.Wait()
 	return errGr

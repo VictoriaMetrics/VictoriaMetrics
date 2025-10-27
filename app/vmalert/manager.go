@@ -93,17 +93,16 @@ func (m *manager) close() {
 }
 
 func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
-	m.wg.Add(1)
 	id := g.GetID()
 	g.Init()
-	go func() {
-		defer m.wg.Done()
+	m.wg.Go(func() {
 		if restore {
 			g.Start(ctx, m.rw, m.rr)
 		} else {
 			g.Start(ctx, m.rw, nil)
 		}
-	}()
+	})
+
 	m.groups[id] = g
 	return nil
 }
@@ -167,15 +166,15 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	if len(toUpdate) > 0 {
 		var wg sync.WaitGroup
 		for _, item := range toUpdate {
-			wg.Add(1)
-			// cancel evaluation so the Update will be applied as fast as possible.
-			// it is important to call InterruptEval before the update, because cancel fn
-			// can be re-assigned during the update.
-			item.old.InterruptEval()
-			go func(oldGroup *rule.Group, newGroup *rule.Group) {
-				oldGroup.UpdateWith(newGroup)
-				wg.Done()
-			}(item.old, item.new)
+			oldG := item.old
+			newG := item.new
+			wg.Go(func() {
+				// cancel evaluation so the Update will be applied as fast as possible.
+				// it is important to call InterruptEval before the update, because cancel fn
+				// can be re-assigned during the update.
+				oldG.InterruptEval()
+				oldG.UpdateWith(newG)
+			})
 		}
 		wg.Wait()
 	}

@@ -93,10 +93,7 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, targetsFn
 
 	cw.updateTargets(typeK, targetMetadata, cw.cfg, cw.genFn)
 
-	cw.wg.Add(1)
-	go func() {
-		defer cw.wg.Done()
-
+	cw.wg.Go(func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
@@ -112,21 +109,21 @@ func (cw *configWatcher) add(typeK TargetType, interval time.Duration, targetsFn
 			}
 			cw.updateTargets(typeK, targetMetadata, cw.cfg, cw.genFn)
 		}
-	}()
+	})
 	return nil
 }
 
-type TargetMetadata struct {
+type targetMetadata struct {
 	*promutil.Labels
 	alertRelabelConfigs *promrelabel.ParsedConfigs
 }
 
-func getTargetMetadata(targetsFn getTargets, cfg *Config) (map[string]TargetMetadata, []error) {
+func getTargetMetadata(targetsFn getTargets, cfg *Config) (map[string]targetMetadata, []error) {
 	metaLabelsList, alertRelabelCfgs, err := targetsFn()
 	if err != nil {
 		return nil, []error{fmt.Errorf("failed to get labels: %w", err)}
 	}
-	targetMetadata := make(map[string]TargetMetadata, len(metaLabelsList))
+	targetMts := make(map[string]targetMetadata, len(metaLabelsList))
 	var errors []error
 	duplicates := make(map[string]struct{})
 	for i := range metaLabelsList {
@@ -154,13 +151,13 @@ func getTargetMetadata(targetsFn getTargets, cfg *Config) (map[string]TargetMeta
 				continue
 			}
 			duplicates[u] = struct{}{}
-			targetMetadata[u] = TargetMetadata{
+			targetMts[u] = targetMetadata{
 				Labels:              processedLabels,
 				alertRelabelConfigs: alertRelabelCfg,
 			}
 		}
 	}
-	return targetMetadata, errors
+	return targetMts, errors
 }
 
 type getTargets func() ([][]*promutil.Labels, []*promrelabel.ParsedConfigs, error)
@@ -259,22 +256,22 @@ func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
 	cw.targetsMu.Unlock()
 }
 
-func (cw *configWatcher) updateTargets(key TargetType, targetMetadata map[string]TargetMetadata, cfg *Config, genFn AlertURLGenerator) {
+func (cw *configWatcher) updateTargets(key TargetType, targetMts map[string]targetMetadata, cfg *Config, genFn AlertURLGenerator) {
 	cw.targetsMu.Lock()
 	defer cw.targetsMu.Unlock()
 	oldTargets := cw.targets[key]
 	var updatedTargets []Target
 	for _, ot := range oldTargets {
-		if _, ok := targetMetadata[ot.Addr()]; !ok {
+		if _, ok := targetMts[ot.Addr()]; !ok {
 			// if target not exists in currentTargets, close it
 			ot.Close()
 		} else {
 			updatedTargets = append(updatedTargets, ot)
-			delete(targetMetadata, ot.Addr())
+			delete(targetMts, ot.Addr())
 		}
 	}
 	// create new resources for the new targets
-	for addr, metadata := range targetMetadata {
+	for addr, metadata := range targetMts {
 		am, err := NewAlertManager(addr, genFn, cfg.HTTPClientConfig, metadata.alertRelabelConfigs, cfg.Timeout.Duration())
 		if err != nil {
 			logger.Errorf("failed to init %s notifier with addr %q: %w", key, addr, err)

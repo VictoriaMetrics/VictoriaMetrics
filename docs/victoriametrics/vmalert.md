@@ -1365,11 +1365,8 @@ static_configs:
       [ bearer_token ]
       [ bearer_token_file ]
       [ headers ]
-      # List of relabel configurations for alert labels sent via Notifier.
-      # Supports the same relabeling features as the rest of VictoriaMetrics components.
-      # See https://docs.victoriametrics.com/victoriametrics/relabeling/
-      #
-      # Cannot be used together with the external `alert_relabel_configs`
+      # Relabel configurations for static notifiers.
+      # If used with the external `alert_relabel_configs`, the external configs are applied first.
       alert_relabel_configs:
         [ - <relabel_config> ... ]
 
@@ -1377,11 +1374,8 @@ static_configs:
 consul_sd_configs:
   # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
   [ - <consul_sd_config> ]
-  # List of relabel configurations for entities discovered via service discovery.
-  # Supports the same relabeling features as the rest of VictoriaMetrics components.
-  # See https://docs.victoriametrics.com/victoriametrics/relabeling/
-  #
-  # Cannot be used together with the external `alert_relabel_configs`
+  # Relabel configurations for Consul SD notifiers.
+  # If used with the external `alert_relabel_configs`, the external configs are applied first.
   alert_relabel_configs:
     [ - <relabel_config> ... ]
 
@@ -1389,11 +1383,8 @@ consul_sd_configs:
 dns_sd_configs:
   # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
   [ - <dns_sd_config> ]
-  # List of relabel configurations for entities discovered via service discovery.
-  # Supports the same relabeling features as the rest of VictoriaMetrics components.
-  # See https://docs.victoriametrics.com/victoriametrics/relabeling/
-  #
-  # Cannot be used together with the external `alert_relabel_configs`
+  # Relabel configurations for DNS SD notifiers.
+  # If used with the external `alert_relabel_configs`, the external configs are applied first.
   alert_relabel_configs:
     [ - <relabel_config> ... ]
 

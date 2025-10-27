@@ -548,15 +548,13 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 	if !disableProgressBar {
 		bar = pb.StartNew(iterations * len(g.Rules))
 	}
-	for _, r := range g.Rules {
+	for i := range g.Rules {
+		rule := g.Rules[i]
 		sem <- struct{}{}
-		wg.Add(1)
-		go func(r Rule, ri rangeIterator) {
-			// pass ri as a copy, so it can be modified within the replayRuleRange
-			res <- replayRuleRange(r, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
+		wg.Go(func() {
+			res <- replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
 			<-sem
-			wg.Done()
-		}(r, ri)
+		})
 	}
 
 	wg.Wait()
@@ -586,10 +584,10 @@ func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewri
 	res := make(chan int, int(ri.end.Sub(ri.start)/ri.step)+1)
 	for ri.next() {
 		sem <- struct{}{}
-		wg.Add(1)
-
-		go func(s, e time.Time) {
-			n, err := replayRule(r, s, e, rw, replayRuleRetryAttempts)
+		start := ri.s
+		end := ri.e
+		wg.Go(func() {
+			n, err := replayRule(r, start, end, rw, replayRuleRetryAttempts)
 			if err != nil {
 				logger.Fatalf("rule %q: %s", r, err)
 			}
@@ -598,8 +596,7 @@ func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewri
 			}
 			res <- n
 			<-sem
-			wg.Done()
-		}(ri.s, ri.e)
+		})
 	}
 	wg.Wait()
 	close(res)
@@ -710,14 +707,13 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.T
 	sem := make(chan struct{}, concurrency)
 	go func() {
 		wg := sync.WaitGroup{}
-		for _, r := range rules {
+		for i := range rules {
+			rule := rules[i]
 			sem <- struct{}{}
-			wg.Add(1)
-			go func(r Rule) {
-				res <- e.exec(ctx, r, ts, resolveDuration, limit)
+			wg.Go(func() {
+				res <- e.exec(ctx, rule, ts, resolveDuration, limit)
 				<-sem
-				wg.Done()
-			}(r)
+			})
 		}
 		wg.Wait()
 		close(res)
@@ -771,6 +767,6 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		return nil
 	}
 
-	errGr := notifier.SendAlerts(ctx, alerts, e.notifierHeaders)
+	errGr := notifier.Send(ctx, alerts, e.notifierHeaders)
 	return errGr.Err()
 }

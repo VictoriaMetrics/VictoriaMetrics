@@ -27,15 +27,9 @@ type Config struct {
 	// PathPrefix is added to URL path before adding alertManagerPath value
 	PathPrefix string `yaml:"path_prefix,omitempty"`
 
-	// ConsulSDConfigs contains list of settings for service discovery via Consul
-	// see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 	ConsulSDConfigs []ConsulSDConfigs `yaml:"consul_sd_configs,omitempty"`
-	// DNSSDConfigs contains list of settings for service discovery via DNS.
-	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
-	DNSSDConfigs []DnsSDConfigs `yaml:"dns_sd_configs,omitempty"`
-
-	// StaticConfigs contains list of static targets
-	StaticConfigs []StaticConfig `yaml:"static_configs,omitempty"`
+	DNSSDConfigs    []DNSSDConfigs    `yaml:"dns_sd_configs,omitempty"`
+	StaticConfigs   []StaticConfig    `yaml:"static_configs,omitempty"`
 
 	// HTTPClientConfig contains HTTP configuration for Notifier clients
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
@@ -73,12 +67,16 @@ type StaticConfig struct {
 	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 }
 
+// ConsulSDConfigs contains list of settings for service discovery via Consul,
+// see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 type ConsulSDConfigs struct {
 	consul.SDConfig     `yaml:",inline"`
 	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 }
 
-type DnsSDConfigs struct {
+// DNSSDConfigs contains list of settings for service discovery via DNS,
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+type DNSSDConfigs struct {
 	dns.SDConfig        `yaml:",inline"`
 	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 }

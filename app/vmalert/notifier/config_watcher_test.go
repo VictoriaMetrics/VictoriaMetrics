@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -245,7 +246,7 @@ const (
 )
 
 func newFakeConsulServer() *httptest.Server {
-	requestCount := 0
+	var requestCount atomic.Int32
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/agent/self", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Write([]byte(`{"Config": {"Datacenter": "dc1"}}`))
@@ -260,7 +261,7 @@ func newFakeConsulServer() *httptest.Server {
 }`))
 	})
 	mux.HandleFunc("/v1/health/service/alertmanager", func(rw http.ResponseWriter, _ *http.Request) {
-		if requestCount == 0 {
+		if requestCount.Load() == 0 {
 			rw.Header().Set("X-Consul-Index", "1")
 			rw.Write([]byte(`
 [
@@ -400,7 +401,7 @@ func newFakeConsulServer() *httptest.Server {
     }
 ]`))
 		}
-		requestCount++
+		requestCount.Add(1)
 	})
 
 	return httptest.NewServer(mux)
