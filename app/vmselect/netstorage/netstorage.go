@@ -3615,7 +3615,7 @@ func processSearchMetadataOnConn(bc *handshake.BufferedConn, tt *storage.TenantT
 func readMetadataRows(bc *handshake.BufferedConn) ([]*metricsmetadata.Row, error) {
 	n, err := readUint64(bc)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read the number of MetricNamesStatsRecord: %w", err)
+		return nil, fmt.Errorf("cannot read the number of metadata records: %w", err)
 	}
 	records := make([]*metricsmetadata.Row, 0, n)
 	var dataBuf []byte
