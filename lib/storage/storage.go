@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -12,6 +13,9 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
@@ -28,8 +32,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -37,6 +39,10 @@ const (
 	retentionMax    = 100 * 12 * retention31Days
 	idbPrefilStart  = time.Hour
 )
+
+// ErrReadOnly indicates that storage is in read-only mode
+// and cannot accept write requests
+var ErrReadOnly = errors.New("storage node is read-only mode")
 
 // Storage represents TSDB storage.
 type Storage struct {
@@ -1791,6 +1797,14 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 		res.SeriesQueryStatsByMetricName = s.metricsTracker.GetStatRecordsForNames(accountID, projectID, names)
 	}
 	return res, nil
+}
+
+// MetricMetadataRow is a metric metadata to insert into storage.
+type MetricMetadataRow struct {
+	// MetricName contains name of the metric
+	MetricName []byte
+
+	// TODO: implement other fields
 }
 
 // MetricRow is a metric to insert into storage.

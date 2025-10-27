@@ -8,3 +8,13 @@ const MaxInsertPacketSizeForVMStorage = 100 * 1024 * 1024
 // It is smaller than MaxInsertPacketSizeForVMStorage in order to reduce
 // max memory usage occupied by buffers at vminsert and vmstorage.
 const MaxInsertPacketSizeForVMInsert = 30 * 1024 * 1024
+
+// StorageStatusAck defines status response from vmstorage which indicates that request
+// was successfully processed
+// used in legacy streaming protocol (prior RPC)
+const StorageStatusAck = 1
+
+// StorageStatusReadOnly defines status response from vmstorage which indicates that request
+// cannot be processed due to read-only status of vmstorage
+// used in legacy streaming protocol (prior RPC)
+const StorageStatusReadOnly = 2

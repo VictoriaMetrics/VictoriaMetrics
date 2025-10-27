@@ -255,7 +255,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -replicationFactor int
      Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. Higher values for -dedup.minScrapeInterval at vmselect is OK (default 1)
   -rpc.disableCompression
-     Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage
+     Flag is deprecated and kept for backward compatibility, vminsert performs per block compression instead of streaming compression on RPC connection
   -rpc.handshakeTimeout duration
      Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. See https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability section for more details. (default 5s)
   -search.denyPartialResponse
