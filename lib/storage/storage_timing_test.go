@@ -208,9 +208,13 @@ func BenchmarkStorageAddRows_VariousDataPatterns(b *testing.B) {
 
 		b.ResetTimer()
 		for i := range b.N {
+			b.StopTimer()
 			path := filepath.Join(b.Name(), fmt.Sprintf("%09d", i))
 			s := MustOpenStorage(path, OpenOptions{})
+			b.StartTimer()
+
 			s.AddRows(mrs, defaultPrecisionBits)
+
 			b.StopTimer()
 			s.MustClose()
 			b.StartTimer()
