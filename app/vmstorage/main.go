@@ -105,7 +105,9 @@ var (
 
 	logNewSeriesAuthKey = flagutil.NewPassword("logNewSeriesAuthKey", "authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*")
 
-	metadataStoreSize = flagutil.NewBytes("storage.maxMetadataStoreSize", 0, "Overrides max size for metadata entries storage. ")
+	metadataStoreSize = flagutil.NewBytes("storage.maxMetadataStoreSize", 0, "Overrides max size for metadata entries storage. "+
+		"If set to 0 or a negative value, defaults to 1% of allowed memory. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 )
 
 func main() {
