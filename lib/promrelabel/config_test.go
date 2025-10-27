@@ -80,7 +80,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 
 func TestLoadRelabelConfigsSuccess(t *testing.T) {
 	path := "testdata/relabel_configs_valid.yml"
-	pcs, err := LoadRelabelConfigs(path)
+	pcs, _, err := LoadRelabelConfigs(path)
 	if err != nil {
 		t.Fatalf("cannot load relabel configs from %q: %s", path, err)
 	}
@@ -93,7 +93,7 @@ func TestLoadRelabelConfigsSuccess(t *testing.T) {
 func TestLoadRelabelConfigsFailure(t *testing.T) {
 	f := func(path string) {
 		t.Helper()
-		rcs, err := LoadRelabelConfigs(path)
+		rcs, _, err := LoadRelabelConfigs(path)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
