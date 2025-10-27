@@ -40,6 +40,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/marathon"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nacos"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nomad"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ovhcloud"
@@ -317,6 +318,7 @@ type ScrapeConfig struct {
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
 	MarathonSDConfigs     []marathon.SDConfig     `yaml:"marathon_sd_configs,omitempty"`
 	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
+	NacosSDConfigs        []nacos.SDConfig        `yaml:"nacos_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	OVHCloudSDConfigs     []ovhcloud.SDConfig     `yaml:"ovhcloud_sd_configs,omitempty"`
 	PuppetDBSDConfigs     []puppetdb.SDConfig     `yaml:"puppetdb_sd_configs,omitempty"`
@@ -395,6 +397,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.KumaSDConfigs {
 		sc.KumaSDConfigs[i].MustStop()
+	}
+	for i := range sc.NacosSDConfigs {
+		sc.NacosSDConfigs[i].MustStop()
 	}
 	for i := range sc.NomadSDConfigs {
 		sc.NomadSDConfigs[i].MustStop()
@@ -762,6 +767,16 @@ func (cfg *Config) getNomadSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "nomad_sd_config", prev)
+}
+
+// getNacosSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getNacosSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.NacosSDConfigs {
+			visitor(&sc.NacosSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "nacos_sd_config", prev)
 }
 
 // getOpenStackSDScrapeWork returns `openstack_sd_configs` ScrapeWork from cfg.
