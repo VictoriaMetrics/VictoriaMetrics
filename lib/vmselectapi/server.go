@@ -1239,7 +1239,7 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 
 func writeMetadataRows(ctx *vmselectRequestCtx, records []*metricsmetadata.Row) error {
 	if err := ctx.writeUint64(uint64(len(records))); err != nil {
-		return fmt.Errorf("cannot write MetricNamesStatsRecord size: %w", err)
+		return fmt.Errorf("cannot write metadata rows count: %w", err)
 	}
 	for _, r := range records {
 		ctx.dataBuf = r.MarshalTo(ctx.dataBuf[:0])

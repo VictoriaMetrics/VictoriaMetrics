@@ -208,7 +208,6 @@ func (ctx *InsertCtx) GetStorageNodeIdxForMeta(buf []byte) int {
 	}
 
 	h := xxhash.Sum64(buf)
-	ctx.labelsBuf = buf
 
 	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
 	idx := ctx.metadataSnb.nodesHash.getNodeIdx(h, nil)
