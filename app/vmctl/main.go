@@ -208,8 +208,8 @@ func main() {
 						Timeout:           c.Duration(remoteReadHTTPTimeout),
 						UseStream:         c.Bool(remoteReadUseStream),
 						Headers:           c.String(remoteReadHeaders),
-						LabelName:         rrLabelNames,
-						LabelValue:        rrLabelValues,
+						LabelNames:        rrLabelNames,
+						LabelValues:       rrLabelValues,
 						DisablePathAppend: c.Bool(remoteReadDisablePathAppend),
 					})
 					if err != nil {
