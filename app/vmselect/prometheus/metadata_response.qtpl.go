@@ -111,5 +111,3 @@ func MetadataResponse(isPartial bool, result []*metricsmetadata.Row, qt *querytr
 	return qs422016
 //line app/vmselect/prometheus/metadata_response.qtpl:33
 }
-
-// 184817

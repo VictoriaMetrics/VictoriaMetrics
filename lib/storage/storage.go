@@ -294,7 +294,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		}
 	}
 
-	s.metadataStore = metricsmetadata.NewStore(geMetadataStoreSize())
+	s.metadataStore = metricsmetadata.NewStore(getMetadataStoreSize())
 
 	// Load metadata
 	metadataDir := filepath.Join(path, metadataDirname)
@@ -407,7 +407,7 @@ func SetMetadataStoreSize(size int) {
 	maxMetadataStoreSize = size
 }
 
-func geMetadataStoreSize() int {
+func getMetadataStoreSize() int {
 	if maxMetadataStoreSize <= 0 {
 		return memory.Allowed() / 100
 	}

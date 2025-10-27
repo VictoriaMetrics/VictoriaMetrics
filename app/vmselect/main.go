@@ -879,8 +879,8 @@ var (
 	federateRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/federate"}`)
 	federateErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/federate"}`)
 
-	metadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
-	metadataErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/metadata"}`)
+	metadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/api/v1/prometheus/api/v1/metadata"}`)
+	metadataErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/api/v1/prometheus/metadata"}`)
 
 	graphiteMetricsFindRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/metrics/find"}`)
 	graphiteMetricsFindErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/metrics/find"}`)

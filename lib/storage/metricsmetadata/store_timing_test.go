@@ -11,7 +11,7 @@ func BenchmarkStoreWrite(b *testing.B) {
 		for _, rowsCount := range []int{10e3, 100e3} {
 			rows := getRows(0, 0, rowsCount)
 			b.Run(fmt.Sprintf("singletenant/parallel=%d,rows=%d,no_eviction=true", p, rowsCount), func(b *testing.B) {
-				// allcate store without eviction
+				// allocate store without eviction
 				s := NewStore(rowsCount * int(perItemOverhead) * bucketsCount)
 				defer s.MustClose()
 				b.SetParallelism(p)
@@ -36,7 +36,7 @@ func BenchmarkStoreWriteMultitenant(b *testing.B) {
 			rows = append(rows, getRows(tenant[0], tenant[1], rowsCount)...)
 		}
 		b.Run(fmt.Sprintf("multitenant/parallel=10,rows=%d,", rowsCount), func(b *testing.B) {
-			// allcate store without eviction
+			// allocate store without eviction
 			s := NewStore(rowsCount * len(tenants) * int(perItemOverhead) * bucketsCount)
 			defer s.MustClose()
 			b.SetParallelism(10)

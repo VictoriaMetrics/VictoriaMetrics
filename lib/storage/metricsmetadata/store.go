@@ -228,7 +228,7 @@ type bucket struct {
 
 func (b *bucket) cloneRowLocked(src *Row) *Row {
 	if len(b.rowsBuff) >= cap(b.rowsBuff) {
-		// allocate a new slice instead of reallocting exist
+		// allocate a new slice instead of reallocating existing
 		// it saves memory and reduces GC pressure
 		b.rowsBuff = make([]Row, 0, rowsBufSize)
 	}
@@ -264,7 +264,7 @@ func (b *bucket) cloneMetricNameHelpLocked(metricName, help []byte) ([]byte, []b
 	idx := len(b.metricNamesBuf)
 	n := len(metricName) + len(b.metricNamesBuf) + len(help)
 	if n > cap(b.metricNamesBuf) {
-		// allocate a new slice instead of reallocting exist
+		// allocate a new slice instead of reallocating existing
 		// it saves memory and reduces GC pressure
 		b.metricNamesBuf = make([]byte, 0, metricNameHelpBufSize)
 		idx = 0

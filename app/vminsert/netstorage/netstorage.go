@@ -788,7 +788,7 @@ func (sn *storageNode) trySendBuf(buf []byte, rows int) bool {
 
 	sent := false
 	sn.brLock.Lock()
-	if sn.isReady() && len(sn.br.buf)+len(buf) < maxBufSizePerStorageNode {
+	if sn.isReady() && len(sn.br.buf)+len(buf) <= maxBufSizePerStorageNode {
 		sn.br.buf = append(sn.br.buf, buf...)
 		sn.br.rows += rows
 		sent = true
@@ -799,7 +799,7 @@ func (sn *storageNode) trySendBuf(buf []byte, rows int) bool {
 
 func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
 	sn.brLock.Lock()
-	for len(sn.br.buf)+len(buf) < maxBufSizePerStorageNode {
+	for len(sn.br.buf)+len(buf) > maxBufSizePerStorageNode {
 		select {
 		case <-sn.stopCh:
 			sn.brLock.Unlock()
