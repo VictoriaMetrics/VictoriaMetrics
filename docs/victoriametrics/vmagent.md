@@ -983,6 +983,13 @@ If you have suggestions for improvements or have found a bug - please open an is
   If it is unfeasible to fix all the reported errors, then they can be suppressed by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.
   The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets` and `http://vmagent-host:8429/api/v1/targets`.
 
+* The `http://vmagent-host:8429/config` page shows current active `-promscrape.config` configuration.
+  Access to endpoint can be protected via `-configAuthKey` command-line flag.
+
+* Pages `http://vmagent-host:8429/remotewrite-relabel-config` and `http://vmagent-host:8429/remotewrite-url-relabel-config`
+  {{% available_from "#" %}} show current active `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` configuration
+  correspondingly. Access to endpoints can be protected via `-configAuthKey` command-line flag.
+
 * The `http://vmagent-host:8429/service-discovery` page could be useful for debugging relabeling process for scrape targets.
   This page contains original labels for targets dropped during relabeling.
   By default, the `-promscrape.maxDroppedTargets` targets are shown here. If your setup drops more targets during relabeling,
@@ -1098,6 +1105,9 @@ Additional notes:
 ## Security
 
 See general recommendations regarding [security](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
+
+vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "#" %}} 
+can be protected via `-configAuthKey` command-line flag.
 
 ### mTLS protection
 
