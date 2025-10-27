@@ -402,7 +402,7 @@ func getMetricNamesCacheSize() int {
 
 var maxMetadataStoreSize int
 
-// SetMetadataStoreSize overrides the default size of storage/metricName cache
+// SetMetadataStoreSize overrides the default size of the metadata store
 func SetMetadataStoreSize(size int) {
 	maxMetadataStoreSize = size
 }
@@ -3162,7 +3162,7 @@ func (s *Storage) ResetMetricNamesStats(_ *querytracer.Tracer) {
 	s.metricsTracker.Reset(s.tsidCache.Reset)
 }
 
-// GetMetadataRows returns time series metric names emtadata for the given args
+// GetMetadataRows returns time series metric names metadata for the given args
 func (s *Storage) GetMetadataRows(qt *querytracer.Tracer, tt *TenantToken, limit int, metricName string, _ uint64) ([]*metricsmetadata.Row, error) {
 	var (
 		res []*metricsmetadata.Row

@@ -60,7 +60,8 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 		idx, ok := connsByIP[remoteIP]
 		if !ok {
 			connsByIP[remoteIP] = len(conns)
-			conns = append(conns, remoteConns{remoteIP: remoteIP})
+			conns = append(conns, remoteConns{remoteIP: remoteIP, clientName: cm.clientName})
+			idx = len(conns) - 1
 		}
 		rcs := &conns[idx]
 		rcs.conns = append(rcs.conns, c)
