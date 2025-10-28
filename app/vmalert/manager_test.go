@@ -40,8 +40,8 @@ func TestManagerEmptyRulesDir(t *testing.T) {
 // execution of configuration update.
 // Should be executed with -race flag
 func TestManagerUpdateConcurrent(t *testing.T) {
-	notifier.InitFakeNotifier()
-	defer notifier.ResetFakeNotifier()
+	_, cleanup := notifier.InitFakeNotifier()
+	defer cleanup()
 	m := &manager{
 		groups:         make(map[uint64]*rule.Group),
 		querierBuilder: &datasource.FakeQuerier{},
@@ -129,8 +129,8 @@ func TestManagerUpdate_Success(t *testing.T) {
 			groups:         make(map[uint64]*rule.Group),
 			querierBuilder: &datasource.FakeQuerier{},
 		}
-		notifier.InitFakeNotifier()
-		defer notifier.ResetFakeNotifier()
+		_, cleanup := notifier.InitFakeNotifier()
+		defer cleanup()
 
 		cfgInit := loadCfg(t, []string{initPath}, true, true)
 		if err := m.update(ctx, cfgInit, false); err != nil {
@@ -279,8 +279,8 @@ func TestManagerUpdate_Failure(t *testing.T) {
 			rw:             rw,
 		}
 		if notifiers != nil {
-			notifier.InitFakeNotifier()
-			defer notifier.ResetFakeNotifier()
+			_, cleanup := notifier.InitFakeNotifier()
+			defer cleanup()
 		}
 		err := m.update(context.Background(), []config.Group{cfg}, false)
 		if err == nil {

@@ -23,8 +23,8 @@ func TestHandler(t *testing.T) {
 		Timestamps: []int64{0},
 	})
 	m := &manager{groups: map[uint64]*rule.Group{}}
-	notifier.InitFakeNotifier()
-	defer notifier.ResetFakeNotifier()
+	_, cleanup := notifier.InitFakeNotifier()
+	defer cleanup()
 
 	var ar *rule.AlertingRule
 	var rr *rule.RecordingRule

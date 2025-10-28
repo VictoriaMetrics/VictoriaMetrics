@@ -98,8 +98,8 @@ groups:
 		labels:         map[string]string{},
 		rw:             &remotewrite.Client{},
 	}
-	notifier.InitFakeNotifier()
-	defer notifier.ResetFakeNotifier()
+	_, cleanup := notifier.InitFakeNotifier()
+	defer cleanup()
 
 	syncCh := make(chan struct{})
 	sighupCh := procutil.NewSighupChan()

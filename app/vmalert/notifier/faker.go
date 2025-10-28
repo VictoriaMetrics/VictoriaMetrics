@@ -17,16 +17,17 @@ type FakeNotifier struct {
 	counter int
 }
 
-func InitFakeNotifier() *FakeNotifier {
+// InitFakeNotifier initializes global notifier to FakeNotifier,
+// and returns a cleanup function to restore the original getActiveNotifiers.
+func InitFakeNotifier() (*FakeNotifier, func()) {
+	originalGetActiveNotifiers := getActiveNotifiers
 	fn := &FakeNotifier{}
 	getActiveNotifiers = func() []Notifier {
 		return []Notifier{fn}
 	}
-	return fn
-}
-
-func ResetFakeNotifier() {
-	getActiveNotifiers = nil
+	return fn, func() {
+		getActiveNotifiers = originalGetActiveNotifiers
+	}
 }
 
 // Close does nothing

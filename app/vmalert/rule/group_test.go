@@ -346,8 +346,8 @@ func TestGroupStart(t *testing.T) {
 	}
 
 	fs := &datasource.FakeQuerier{}
-	fn := notifier.InitFakeNotifier()
-	defer notifier.ResetFakeNotifier()
+	fn, cleanup := notifier.InitFakeNotifier()
+	defer cleanup()
 
 	const evalInterval = time.Millisecond
 	g := NewGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
@@ -473,8 +473,8 @@ func TestFaultyNotifier(t *testing.T) {
 	r := newTestAlertingRule("instant", 0)
 	r.q = fq
 
-	fn := notifier.InitFakeNotifier()
-	defer notifier.ResetFakeNotifier()
+	fn, cleanup := notifier.InitFakeNotifier()
+	defer cleanup()
 
 	e := &executor{}
 	delay := 5 * time.Second
