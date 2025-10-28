@@ -74,7 +74,7 @@ var (
 		"See also -opentsdbHTTPListenAddr.useProxyProtocol")
 	opentsdbHTTPUseProxyProtocol = flag.Bool("opentsdbHTTPListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted "+
 		"at -opentsdbHTTPListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
-	configAuthKey = flagutil.NewPassword("configAuthKey", "Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides -httpAuth.*")
+	configAuthKey = flagutil.NewPassword("configAuthKey", "Authorization key for accessing /config and /remotewrite-.*-config pages. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	reloadAuthKey = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	dryRun        = flag.Bool("dryRun", false, "Whether to check config files without running vmagent. The following files are checked: "+
 		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . "+
@@ -253,6 +253,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			{"metric-relabel-debug", "debug metric relabeling"},
 			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"config", "-promscrape.config contents"},
+			{"remotewrite-relabel-config", "-remoteWrite.relabelConfig contents"},
+			{"remotewrite-url-relabel-config", "-remoteWrite.urlRelabelConfig contents"},
 			{"metrics", "available service metrics"},
 			{"flags", "command-line flags"},
 			{"-/reload", "reload configuration"},
@@ -476,6 +478,42 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		var bb bytesutil.ByteBuffer
 		promscrape.WriteConfigData(&bb)
+		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%s}}`, stringsutil.JSONString(string(bb.B)))
+		return true
+	case "/remotewrite-relabel-config":
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey) {
+			return true
+		}
+		remoteWriteRelabelConfigRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		remotewrite.WriteRelabelConfigData(w)
+		return true
+	case "/api/v1/status/remotewrite-relabel-config":
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey) {
+			return true
+		}
+		remoteWriteStatusRelabelConfigRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		var bb bytesutil.ByteBuffer
+		remotewrite.WriteRelabelConfigData(&bb)
+		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%s}}`, stringsutil.JSONString(string(bb.B)))
+		return true
+	case "/remotewrite-url-relabel-config":
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey) {
+			return true
+		}
+		remoteWriteURLRelabelConfigRequests.Inc()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		remotewrite.WriteURLRelabelConfigData(w)
+		return true
+	case "/api/v1/status/remotewrite-url-relabel-config":
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey) {
+			return true
+		}
+		remoteWriteStatusURLRelabelConfigRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		var bb bytesutil.ByteBuffer
+		remotewrite.WriteURLRelabelConfigData(&bb)
 		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%s}}`, stringsutil.JSONString(string(bb.B)))
 		return true
 	case "/prometheus/-/reload", "/-/reload":
@@ -747,6 +785,12 @@ var (
 
 	promscrapeConfigRequests       = metrics.NewCounter(`vmagent_http_requests_total{path="/config"}`)
 	promscrapeStatusConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/status/config"}`)
+
+	remoteWriteRelabelConfigRequests       = metrics.NewCounter(`vmagent_http_requests_total{path="/remotewrite-relabel-config"}`)
+	remoteWriteStatusRelabelConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/status/remotewrite-relabel-config"}`)
+
+	remoteWriteURLRelabelConfigRequests       = metrics.NewCounter(`vmagent_http_requests_total{path="/remotewrite-url-relabel-config"}`)
+	remoteWriteStatusURLRelabelConfigRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/status/remotewrite-url-relabel-config"}`)
 
 	promscrapeConfigReloadRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/-/reload"}`)
 )
