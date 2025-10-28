@@ -6,8 +6,7 @@ import { SearchIcon, DetailsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Alert from "../../Main/Alert/Alert";
 import Badges, { BadgeColor } from "../Badges";
-import dayjs from "dayjs";
-import { formatDuration } from "../helpers";
+import { formatDuration, formatEventTime } from "../helpers";
 import CodeExample from "../../Main/CodeExample/CodeExample";
 
 interface BaseRuleProps {
@@ -80,12 +79,10 @@ const BaseRule = ({ item }: BaseRuleProps) => {
               <td>{formatDuration(item.duration)}</td>
             </tr>
           )}
-          {!!item.lastEvaluation && (
-            <tr>
-              <td>Last evaluation</td>
-              <td>{dayjs(item.lastEvaluation).format("DD MMM YYYY HH:mm:ss")}</td>
-            </tr>
-          )}
+          <tr>
+            <td>Last evaluation</td>
+            <td>{formatEventTime(item.lastEvaluation)}</td>
+          </tr>
           {!!item.lastError && item.health !== "ok" && (
             <tr>
               <td>Last error</td>
@@ -143,11 +140,11 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                 <tr
                   key={update.at}
                 >
-                  <td>{dayjs(update.time).format("DD MMM YYYY HH:mm:ss")}</td>
+                  <td>{formatEventTime(update.time)}</td>
                   <td>{update.samples}</td>
                   <td>{update.series_fetched}</td>
                   <td>{formatDuration(update.duration / 1e9)}</td>
-                  <td>{dayjs(update.at).format("DD MMM YYYY HH:mm:ss")}</td>
+                  <td>{formatEventTime(update.at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -180,9 +177,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                   id={`alert-${alert.id}`}
                   key={alert.id}
                 >
-                  <td>
-                    {dayjs(alert.activeAt).format("DD MMM YYYY HH:mm:ss")}
-                  </td>
+                  <td>{formatEventTime(alert.activeAt)}</td>
                   <td>
                     <Badges
                       items={{ [alert.state]: { color: alert.state as BadgeColor } }}
