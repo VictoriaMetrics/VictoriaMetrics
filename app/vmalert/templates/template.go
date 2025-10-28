@@ -486,7 +486,7 @@ func templateFuncs() textTpl.FuncMap {
 		/* Helpers */
 
 		// now returns the Unix timestamp in seconds at the time of the template evaluation.
-		// For example: {{ now }} - $value gives the time difference in seconds.
+		// For example: {{ (now | toTime).Sub $activeAt }} will return the duration the alert has been active.
 		"now": func() float64 {
 			return float64(time.Now().Unix())
 		},
