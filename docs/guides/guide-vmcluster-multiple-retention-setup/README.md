@@ -60,7 +60,7 @@ You can set up [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/
 
 **Downsides Of This Approach**
 
-This approach requires storing the index for Victoriametrics once per retention period instead of having 1 index for all metrics, which means that this approach requires more disk space than enterprise.
+This approach requires storing the index for Victoriametrics once per retention period instead of having 1 index for all metrics, which means that this approach requires more disk space than enterprise retention filters.
 The index can be quite large on systems where they have time series that change frequently. In some cases, the index size can be larger than the space you're saving with separate retention periods. See [What is high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)
 
 Configuration complexity is also a concern; each retention period would have its own storage nodes and unique configurations. Adding a new retention policy requires a multi-step process. First stop writes going to the cluster, create a new cluster, backup and restore data from an other cluster, change the configuration of all storage nodes to the new retention policy, restart the cluster, than re-add the cluster to the write path. While the cluster is down reads will not contain complete results.
