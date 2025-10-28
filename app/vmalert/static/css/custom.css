@@ -69,7 +69,7 @@ body {
 }
 
 .vm-group:is(.vm-found) .vm-item {
-  display: flex;
+  display: table-row;
 }
 
 .table {
