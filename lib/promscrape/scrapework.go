@@ -407,6 +407,7 @@ var (
 	scrapesSkippedByLabelLimit  = metrics.NewCounter("vm_promscrape_scrapes_skipped_by_label_limit_total")
 	scrapesFailed               = metrics.NewCounter("vm_promscrape_scrapes_failed_total")
 	pushDataDuration            = metrics.NewHistogram("vm_promscrape_push_data_duration_seconds")
+	compressedScrapeSize        = metrics.NewHistogram("vm_promscrape_scrapes_compressed_response_size_bytes")
 )
 
 func (sw *scrapeWork) needStreamParseMode(responseSize int) bool {
@@ -442,6 +443,10 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// the time needed for processing of the read response.
 	cb := chunkedbuffer.Get()
 	isGzipped, err := sw.ReadData(cb)
+
+	// Measure compress scrape file.
+	compressedSize := cb.Len()
+	compressedScrapeSize.Update(float64(compressedSize))
 
 	// Measure scrape duration.
 	endTimestamp := time.Now().UnixMilli()
