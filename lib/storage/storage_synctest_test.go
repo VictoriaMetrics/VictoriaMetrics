@@ -341,3 +341,328 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 	// VictoriaMetrics starts prefill indexDB at 2 A.M UTC, while indexDB rotates at 4 A.M UTC.
 	f(OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 2 * time.Hour}, 2*time.Hour)
 }
+
+// TestStorageAddRows_nextDayIndexPrefill tests gradual creation of per-day
+// index entries of the next day during the last hour of the current day. This
+// is an optimization that mitigates the ingestion slowdown at the beginning of
+// a day.
+//
+// Problem: as the new day begins, indexDB suddenly lacks ALL the per-day
+// entries for this new day and they need to be created. If the number of active
+// timeseries is high enough, this may cause serious degradation of the data
+// ingestion performance.
+//
+// Solution: start creating the next day entries during the last hour of the
+// current day. In order to avoid the same slowdown, the entries are created
+// gradually. I.e. at the beginning of the last hour, a very small fraction of
+// next day index entries (compared to the total number of active timeseries)
+// will be created. As current time gets closer and closer to midnight, the
+// fraction becomes bigger. This does not mean that the number of next day index
+// entries to create becomes proportionately bigger since some of them have
+// already been added earlier that hour. Finally, only active timeseries are
+// registered in the next day index. An active timeseries is one for which at
+// least one sample have been received during the current hour and the timestamp
+// of that sample must also fall within the current hour.
+func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
+	defer testRemoveAll(t)
+
+	countMetricIDs := func(t *testing.T, s *Storage, prefix string, tr TimeRange) int {
+		t.Helper()
+
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(prefix+".*"), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		ids := testSearchMetricIDs(s, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+		return len(ids)
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctest starts at 2000-01-01T00:00:00Z.
+
+		today := TimeRange{
+			MinTimestamp: time.Now().UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli() + msecPerDay - 1,
+		}
+		nextDay := TimeRange{
+			MinTimestamp: today.MinTimestamp + msecPerDay,
+			MaxTimestamp: today.MaxTimestamp + msecPerDay,
+		}
+
+		const numSeries = 1000
+		rng := rand.New(rand.NewSource(1))
+
+		// Verify that prefill hasn't started yet.
+		// The prefill happens during the last hour of a day. At exactly
+		// 23:00:00, however, it must not start yet.
+		//
+		// But first, advance the time 1m before the last hour to fill the
+		// currHourMetricIDs cache.
+		//
+		// currHourMetricIDs cache plays important role in prefilling the index
+		// with next day entries. In order for timeseries to be added to the
+		// next day index, its metricID must be in that cache. The metricID is
+		// added to that cache when the timeseries sample is added to the
+		// storage. The only problem is that it happens asynchronously, i.e.
+		// they aren't visible right away. First, Storage.add() adds the
+		// metricID to the s.pendingHourEntries, and only after 11 seconds, a
+		// background task copies those pending entries to currHourMetricIDs
+		// cache.
+		//
+		// Thus, the testing code needs to insert a timeseries twice:
+		// first time - to register it in the currHourMetricIDs, and second time
+		// (after some time) to actually test the prefill.
+		time.Sleep(23*time.Hour - 1*time.Minute) // 2000-01-01T22:59:00Z
+		mrs0 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric0", TimeRange{
+			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		s.AddRows(mrs0, defaultPrecisionBits)
+		s.DebugFlush()
+		if got, want := countMetricIDs(t, s, "metric0", today), numSeries; got != want {
+			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
+		}
+		if got, want := countMetricIDs(t, s, "metric0", nextDay), 0; got != want {
+			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
+		}
+		// Give some time for the background process to update currHourMetricIDs
+		// cache with metricIDs of samples that have just been inserted.
+		time.Sleep(1 * time.Minute) // 2000-01-01T23:00:00Z
+		synctest.Wait()
+		s.AddRows(mrs0, defaultPrecisionBits)
+		s.DebugFlush()
+		if got, want := countMetricIDs(t, s, "metric0", today), numSeries; got != want {
+			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
+		}
+		if got, want := countMetricIDs(t, s, "metric0", nextDay), 0; got != want {
+			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
+		}
+
+		// Close the storage and reopen it 15m later instead of keeping it open
+		// and waiting. This is to make the test faster. Storage has a lot of
+		// background tasks that are activated every 1-10 seconds and synctest's
+		// time.Sleep() will wake them up many times. Closing storage before
+		// sleeping seems to eliminate this.
+		//
+		// At 23:15 the prefill must work. Again, in order to make it to the
+		// next day the timeseries must be active, i.e. 1) we have seen at least
+		// one same for that timeseries within the current hour and 2) the
+		// timestamp of that same also was within the current hour.
+		//
+		// Both mrs1 and mrs2 samples have been seen within the current hour.
+		// However, the mrs1 timestamp are not within the current hour and
+		// therefore the next day will not be prefilled with the corresponding
+		// timeseries.
+		s.MustClose()
+		time.Sleep(15 * time.Minute) // 2000-01-01T23:15:00Z
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		mrs1 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric1", TimeRange{
+			MinTimestamp: time.Now().Add(-30 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+		})
+		mrs2 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric2", TimeRange{
+			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+		s.AddRows(mrs1, defaultPrecisionBits)
+		s.AddRows(mrs2, defaultPrecisionBits)
+		s.DebugFlush()
+		// mrs1 and mrs2 have been inserted but their metricIDs are not in
+		// currHourMetricIDs cache yet. Therefore no next day index entries will
+		// be created.
+		if got, want := countMetricIDs(t, s, "metric1", today), numSeries; got != want {
+			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
+		}
+		if got, want := countMetricIDs(t, s, "metric1", nextDay), 0; got != want {
+			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
+		}
+		if got, want := countMetricIDs(t, s, "metric2", today), numSeries; got != want {
+			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
+		}
+		if got, want := countMetricIDs(t, s, "metric2", nextDay), 0; got != want {
+			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
+		}
+		// Give some time for the background process to update currHourMetricIDs
+		// cache with metricIDs of samples that have just been inserted.
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+		s.AddRows(mrs1, defaultPrecisionBits)
+		s.AddRows(mrs2, defaultPrecisionBits)
+		s.DebugFlush()
+		// mrs1 and mrs2 have been inserted again and their metricIDs are now in
+		// currHourMetricIDs cache. Therefore some mrs2 next day index entries
+		// will be created.
+		if got, want := countMetricIDs(t, s, "metric1", today), numSeries; got != want {
+			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
+		}
+		if got, want := countMetricIDs(t, s, "metric1", nextDay), 0; got != want {
+			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
+		}
+		if got, want := countMetricIDs(t, s, "metric2", today), numSeries; got != want {
+			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
+		}
+		got15min := countMetricIDs(t, s, "metric2", nextDay)
+		if got15min == 0 {
+			t.Fatalf("unexpected metric id count for next day: got 0, want > 0")
+		}
+
+		// Close the storage and reopen it at 23:30.
+		s.MustClose()
+		time.Sleep(15 * time.Minute) // 2000-01-01T23:30:15Z
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		mrs3 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric3", TimeRange{
+			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+		s.AddRows(mrs3, defaultPrecisionBits)
+		s.DebugFlush()
+		if got, want := countMetricIDs(t, s, "metric3", today), numSeries; got != want {
+			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
+		}
+		if got, want := countMetricIDs(t, s, "metric3", nextDay), 0; got != want {
+			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
+		}
+		// Give some time for the background process to update currHourMetricIDs
+		// cache with metricIDs of samples that have just been inserted.
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+		s.AddRows(mrs3, defaultPrecisionBits)
+		s.DebugFlush()
+		if got, want := countMetricIDs(t, s, "metric3", today), numSeries; got != want {
+			t.Fatalf("unexpected metric id count for today: got %d, want %d", got, want)
+		}
+		// Since we are now closer to midnight than we were at 23:15, more next
+		// day entries must be created.
+		got30min := countMetricIDs(t, s, "metric3", nextDay)
+		if got30min < got15min {
+			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got30min, got15min)
+		}
+
+		// Close the storage and reopen it at 23:45.
+		s.MustClose()
+		time.Sleep(15 * time.Minute) // 2000-01-01T23:45:30Z
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		mrs4 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric4", TimeRange{
+			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+		s.AddRows(mrs4, defaultPrecisionBits)
+		s.DebugFlush()
+		if got, want := countMetricIDs(t, s, "metric4", nextDay), 0; got != want {
+			t.Fatalf("unexpected metric id count for next day: got %d, want %d", got, want)
+		}
+		// Give some time for the background process to update currHourMetricIDs
+		// cache with metricIDs of samples that have just been inserted.
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+		s.AddRows(mrs4, defaultPrecisionBits)
+		s.DebugFlush()
+		// Since we are now closer to midnight than we were at 23:30, more next
+		// day entries must be created.
+		got45min := countMetricIDs(t, s, "metric4", nextDay)
+		if got45min < got30min {
+			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got45min, got30min)
+		}
+
+		s.MustClose()
+	})
+}
+
+func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertNextDayMetricIDs := func(t *testing.T, gotNextDayMetricIDs *byDateMetricIDEntry, wantGen, wantDate uint64, wantLen int) {
+		t.Helper()
+
+		if got, want := gotNextDayMetricIDs.k.generation, wantGen; got != want {
+			t.Fatalf("unexpected nextDayMetricIDs idb generation: got %d, want %d", got, want)
+		}
+		if got, want := gotNextDayMetricIDs.k.date, wantDate; got != want {
+			t.Fatalf("unexpected nextDayMetricIDs date: got %d, want %d", got, want)
+		}
+		if got, want := gotNextDayMetricIDs.v.Len(), wantLen; got != want {
+			t.Fatalf("unexpected nextDayMetricIDs count: got %d, want %d", got, want)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctest starts at 2000-01-01T00:00:00Z.
+		// Advance time to 23:30 to enable next day prefill.
+		time.Sleep(23*time.Hour + 30*time.Minute) // 2000-01-01T23:30:00Z
+		date := uint64(time.Now().UnixMilli() / msecPerDay)
+
+		const numSeries = 1000
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		genCurr := idbCurr.generation
+		s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric", TimeRange{
+			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		// After the initial ingestion, the metricIDs are not in
+		// currHourMetricIDs cache yet, so no timeseries will be registered in
+		// next day index.
+		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
+		}
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), genCurr, date, 0)
+
+		// Wait for currHourMetricIDs cache to populate and ingest the same data
+		// again.
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		// The next day metricIDs must now appear in pendingNextDayMetricIDs cache.
+		if s.pendingNextDayMetricIDs.Len() == 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got 0, want > 0")
+		}
+		numNextDayMetricIDs := s.pendingNextDayMetricIDs.Len()
+		// But not in the nextDayMetricIDs cache. The pending metrics will be
+		// moved to it by a bg process a few seconds later.
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), genCurr, date, 0)
+
+		// Wait for nextDayMetricIDs cache to populate.
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+
+		// At this point, pending metricIDs must have been moved to
+		// nextDayMetricIDs cache and the pendingNextDayMetricIDs must be empty.
+		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
+		}
+		// While the actual cache, must contain the exact number of metricIDs
+		// that once were pending.
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), genCurr, date, numNextDayMetricIDs)
+
+		// Close the storage to persist nextDayMetricIDs cache to a file.
+		s.MustClose()
+		// Open the storage again to enrure that the cache is populated
+		// correctly.
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
+		}
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), genCurr, date, numNextDayMetricIDs)
+
+		// Try loading the cache file contents for a different indexDB.
+		genOther := genCurr + 1
+		gotNextDayMetricIDs := s.mustLoadNextDayMetricIDs(genOther, date)
+		assertNextDayMetricIDs(t, gotNextDayMetricIDs, genOther, date, 0)
+
+		// Try loading the cache file contents for a different date.
+		dateOther := date + 1
+		gotNextDayMetricIDs = s.mustLoadNextDayMetricIDs(genCurr, dateOther)
+		assertNextDayMetricIDs(t, gotNextDayMetricIDs, genCurr, dateOther, 0)
+
+		s.MustClose()
+	})
+}
