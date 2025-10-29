@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
-// MetadataResponse generates response for /api/v1/metadataSee https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
+// MetadataResponse generates response for /api/v1/metadata See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 
 //line app/vmselect/prometheus/metadata_response.qtpl:10
 import (
