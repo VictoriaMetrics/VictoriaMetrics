@@ -15,10 +15,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-type nacosServiceWatcher interface {
-	serviceUpdate(serviceName string, tags []string) error
-}
-
 var (
 	serviceWatchersCreated = metrics.NewCounter("vm_promscrape_discovery_nacos_service_watchers_created_total")
 	serviceWatchersStopped = metrics.NewCounter("vm_promscrape_discovery_nacos_service_watchers_stopped_total")
@@ -40,8 +36,6 @@ type nacosWatcher struct {
 	client *discoveryutil.Client
 
 	watchServices []string
-
-	serviceInstanceQueryArgs string
 
 	namespace string
 	cluster   string
