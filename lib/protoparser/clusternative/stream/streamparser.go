@@ -121,7 +121,7 @@ func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricR
 	return nil
 }
 
-// ParseBlock parses data block sent from vminsert to bc and calls callback for parsed rows.
+// ParseMetricsMetadataBlock parses metrics metadata block sent from vminsert to bc and calls callback for parsed rows.
 // Optional function isReadOnly must return true if the storage cannot accept new data.
 // In this case the data read from bc isn't accepted and storage.ErrReadOnly returned.
 //

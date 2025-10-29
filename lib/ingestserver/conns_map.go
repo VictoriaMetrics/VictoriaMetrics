@@ -47,7 +47,6 @@ func (cm *ConnsMap) Delete(c net.Conn) {
 //
 // If shutdownDuration <= 0, then all the connections are closed simultaneously.
 func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
-
 	cm.mu.Lock()
 	conns := make([]remoteConns, 0, len(cm.m))
 	connsByIP := make(map[string]int, len(cm.m))
