@@ -4670,6 +4670,8 @@
               "show": false
             },
             "showHeader": true,
+            "showSearch": true,
+            "filterable": true,          
             "sortBy": [
               {
                 "desc": true,
