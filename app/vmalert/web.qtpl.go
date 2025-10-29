@@ -1349,7 +1349,7 @@ func StreamAlert(qw422016 *qt422016.Writer, r *http.Request, alert *rule.ApiAler
 		qw422016.E().S(k)
 //line app/vmalert/web.qtpl:437
 		qw422016.N().S(`:</b><br>
-                <p>`)
+                <p class="annotations">`)
 //line app/vmalert/web.qtpl:438
 		qw422016.E().S(alert.Annotations[k])
 //line app/vmalert/web.qtpl:438
@@ -1608,7 +1608,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule rule.Api
 			qw422016.E().S(k)
 //line app/vmalert/web.qtpl:551
 			qw422016.N().S(`:</b><br>
-                <p>`)
+                <p class="annotations">`)
 //line app/vmalert/web.qtpl:552
 			qw422016.E().S(rule.Annotations[k])
 //line app/vmalert/web.qtpl:552

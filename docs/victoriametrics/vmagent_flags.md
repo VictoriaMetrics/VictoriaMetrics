@@ -6,7 +6,7 @@ build:
 sitemap:
   disable: true
 ---
-<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used periodically to ensure the flags in sync. -->
+<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used peridically to ensure the flags in sync. -->
 ```shellhelp
 
 vmagent collects metrics data via popular data ingestion protocols and routes it to VictoriaMetrics.
@@ -18,7 +18,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey value
-     Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides -httpAuth.*
+     Authorization key for accessing /config and /remotewrite-.*-config pages. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -configAuthKey=file:///abs/path/to/file or -configAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -configAuthKey=http://host/path or -configAuthKey=https://host/path
   -csvTrimTimestamp duration
@@ -190,7 +190,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -kafka.consumer.topic.defaultFormat string
      Expected data format in the topic if -kafka.consumer.topic.format is skipped. See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default "promremotewrite")
   -kafka.consumer.topic.format array
-     data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline and opentelemetry. See https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -kafka.consumer.topic.groupID array
@@ -266,6 +266,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -newrelic.maxInsertRequestSize size
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
+  -opentelemetry.convertMetricNamesToPrometheus
+     Whether to convert only metric names into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry
   -opentelemetry.maxRequestSize size
      The maximum size in bytes of a single OpenTelemetry request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
@@ -337,7 +339,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -promscrape.dockerswarmSDCheckInterval duration
      Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#dockerswarm_sd_configs for details (default 30s)
   -promscrape.dropOriginalLabels
-     Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs
+     Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs (default true)
   -promscrape.ec2SDCheckInterval duration
      Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#ec2_sd_configs for details (default 1m0s)
   -promscrape.eurekaSDCheckInterval duration
@@ -596,7 +598,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.streamAggr.dropInput array
-     Whether to drop all the input samples after the aggregation with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+     Whether to drop input samples that not matching any rule in the corresponding -remoteWrite.streamAggr.config. By default, only matched raw samples are dropped, while unmatched samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.streamAggr.dropInputLabels array
@@ -616,7 +618,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.streamAggr.keepInput array
-     Whether to keep all the input samples after the aggregation with -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. By default, only aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+     Whether to keep input samples that match any rule in the corresponding -remoteWrite.streamAggr.config. By default, matched raw samples are aggregated and dropped, while unmatched samples are written to the corresponding -remoteWrite.url . See also -remoteWrite.streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.tlsCAFile array
@@ -655,16 +657,18 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.vmProtoCompressLevel int
      The compression level for VictoriaMetrics remote write protocol. Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic. See https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol
-  -sortLabels
-     Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -secret.flags array
      Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -sortLabels
+     Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -streamAggr.config string
      Optional path to file with stream aggregation config. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/ . See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval
   -streamAggr.dedupInterval duration
      Input samples are de-duplicated with this interval on aggregator before optional aggregation with -streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication
   -streamAggr.dropInput
-     Whether to drop all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to remote storages write. See also -streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+    Whether to drop input samples that not matching any rule in -streamAggr.config. By default, only matched raw samples are dropped, while unmatched samples are written to the remote storage. See also -streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
   -streamAggr.dropInputLabels array
      An optional list of labels to drop from samples for aggregator before stream de-duplication and aggregation . See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
@@ -676,7 +680,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -streamAggr.ignoreOldSamples
      Whether to ignore input samples with old timestamps outside the current aggregation interval for aggregator. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples
   -streamAggr.keepInput
-     Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to remote storages write. See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+     Whether to keep input samples that match any rule in -streamAggr.config. By default, matched raw samples are aggregated and dropped, while unmatched samples are written to the remote storage. See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
