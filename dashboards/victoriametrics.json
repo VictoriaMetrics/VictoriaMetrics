@@ -4680,6 +4680,7 @@
                 "cellOptions": {
                   "type": "auto"
                 },
+                "filterable": true,
                 "inspect": false
               },
               "mappings": [],
@@ -4754,7 +4755,7 @@
             },
             "showHeader": true,
             "showSearch": true,
-            "filterable": true          
+            "filterable": true
           },
           "pluginVersion": "11.5.0",
           "targets": [
