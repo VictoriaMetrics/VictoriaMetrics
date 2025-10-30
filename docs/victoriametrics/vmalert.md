@@ -335,6 +335,7 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `label name` - returns the value of the label with the given `name` from the input query result.
 * `match regex` - matches the input string against the provided `regex`.
 * `now` - returns the Unix timestamp in seconds at the time of the template evaluation.
+  For example: `{{ (now | toTime).Sub $activeAt }}` will return the duration the alert has been active.
 * `parseDuration` - parses the input string into duration in seconds. For example, `1h` is parsed into `3600`.
 * `parseDurationTime` - parses the input string into [time.Duration](https://pkg.go.dev/time#Duration).
 * `pathEscape` - escapes the input string, so it can be safely put inside path part of URL.
@@ -356,7 +357,6 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `toTime` - converts the input unix timestamp to [time.Time](https://pkg.go.dev/time#Time).
 * `toUpper` - converts all the chars in the input string to uppercase.
 * `value` - returns the numeric value from the input query result.
-  For example: `{{ (now | toTime).Sub $activeAt }}` will return the duration the alert has been active.
 
 #### Reusable templates
 
