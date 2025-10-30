@@ -62,7 +62,7 @@ It disables `Discovered targets` debug UI by default.
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): properly apply additional configuration of connection provided via environment variables (such as `AWS_CA_BUNDLE`). Previously, such settings were ignored starting from [v1.115.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11150). See this issue [#9858](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858) for details.
 * BUGFIX: [dashboards/victoriametrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victoriametrics.json), [dashboards/victoriametrics-cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victoriametrics-cluster.json): fixed full disk space ETA queries, before average size of a row in indexdb was one for all vm storages, now it's calculated per each storage. See [#9848](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9848) for details.
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): remove impact of `flush_on_shutdown` on timestamps of flushed samples. See [#9642](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9642).
-
+* FEATURE: [grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/): enable column filters in Non-default Grafana dashboards. See [#9910](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9910).
 ## [v1.127.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.127.0)
 
 Released at 2025-10-03
