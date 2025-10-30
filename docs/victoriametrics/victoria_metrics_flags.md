@@ -586,7 +586,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -streamAggr.dedupInterval duration
      Input samples are de-duplicated with this interval before optional aggregation with -streamAggr.config . See also -streamAggr.dropInputLabels and -dedup.minScrapeInterval and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication
   -streamAggr.dropInput
-     Whether to drop all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+     Whether to drop input samples that not matching any rule in -streamAggr.config. By default, only matched raw samples are dropped, while unmatched samples are written to the remote storage. See also -streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
   -streamAggr.dropInputLabels array
      An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
@@ -598,7 +598,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -streamAggr.ignoreOldSamples
      Whether to ignore input samples with old timestamps outside the current aggregation interval. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples
   -streamAggr.keepInput
-     Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+     Whether to keep input samples that match any rule in  -streamAggr.config. By default, matched raw samples are aggregated and dropped, while unmatched samples are written to the remote storage. See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
