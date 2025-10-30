@@ -96,7 +96,7 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	var matchers []*prompb.LabelMatcher
-	if len(cfg.LabelNames) > 0 && len(cfg.LabelValues) > 0 {
+	if len(cfg.LabelNames) > 0 || len(cfg.LabelValues) > 0 {
 		if len(cfg.LabelNames) != len(cfg.LabelValues) {
 			return nil, fmt.Errorf("the number of label names and label values must be the same")
 		}
