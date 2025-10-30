@@ -209,7 +209,12 @@
                                             </div>
                                         </td>
                                         <td class="text-center">{%d r.LastSamples %}</td>
-                                        <td class="text-center">{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
+                                        <td class="text-center">{% if r.LastEvaluation.IsZero() %}
+                                             Never
+                                         {% else %}
+                                            {%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago
+                                         {% endif %}
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
