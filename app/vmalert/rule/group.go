@@ -335,7 +335,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	defer func() { close(g.finishedCh) }()
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
-	// over maxIntervalToDelayGroupStart to reduce the load on datasource.
+	// over maxStartDelay to reduce the load on datasource.
 	if !SkipRandSleepOnGroupStart {
 		sleepBeforeStart := g.delayBeforeStart(evalTS, *maxStartDelay)
 		g.infof("will start in %v", sleepBeforeStart)
@@ -476,7 +476,8 @@ func (g *Group) UpdateWith(newGroup *Group) {
 }
 
 // delayBeforeStart returns duration for delaying the evaluation start
-// based on given ts and Group settings. The delay can't exceed maxIntervalToDelayGroupStart.
+// based on given ts and Group settings. The delay can't exceed maxDelay.
+// maxDelay is ignored if g.EvalOffset != nil.
 //
 // Delaying is important to smooth out the load on the datasource when all groups start at the same time.
 // delayBeforeStart calculates delay based on Group ID, so all groups will start at different moments of time.
