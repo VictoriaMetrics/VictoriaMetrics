@@ -66,7 +66,7 @@ To start using `vmalert` you will need the following things:
 * datasource address - reachable endpoint with [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) support for running queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
-  [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
+  [config file](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info. To persist results to multiple destinations use vmagent
   configured with multiple remote writes as a proxy;
@@ -334,6 +334,8 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `jsonEscape` - JSON-encodes the input string.
 * `label name` - returns the value of the label with the given `name` from the input query result.
 * `match regex` - matches the input string against the provided `regex`.
+* `now` - returns the Unix timestamp in seconds at the time of the template evaluation.
+  For example: `{{ (now | toTime).Sub $activeAt }}` will return the duration the alert has been active.
 * `parseDuration` - parses the input string into duration in seconds. For example, `1h` is parsed into `3600`.
 * `parseDurationTime` - parses the input string into [time.Duration](https://pkg.go.dev/time#Duration).
 * `pathEscape` - escapes the input string, so it can be safely put inside path part of URL.
@@ -1365,16 +1367,28 @@ static_configs:
       [ bearer_token ]
       [ bearer_token_file ]
       [ headers ]
+      # Relabel configurations for static notifiers.
+      # If used with the external `alert_relabel_configs`, the external configs are applied first.
+      alert_relabel_configs:
+        [ - <relabel_config> ... ]
 
 # List of Consul service discovery configurations.
-# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 consul_sd_configs:
-  [ - <consul_sd_config> ... ]
+  # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
+  [ - <consul_sd_config> ]
+  # Relabel configurations for Consul SD notifiers.
+  # If used with the external `alert_relabel_configs`, the external configs are applied first.
+  alert_relabel_configs:
+    [ - <relabel_config> ... ]
 
 # List of DNS service discovery configurations.
-# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
 dns_sd_configs:
-  [ - <dns_sd_config> ... ]
+  # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+  [ - <dns_sd_config> ]
+  # Relabel configurations for DNS SD notifiers.
+  # If used with the external `alert_relabel_configs`, the external configs are applied first.
+  alert_relabel_configs:
+    [ - <relabel_config> ... ]
 
 # List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.

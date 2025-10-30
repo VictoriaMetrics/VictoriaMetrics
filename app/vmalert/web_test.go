@@ -23,6 +23,9 @@ func TestHandler(t *testing.T) {
 		Timestamps: []int64{0},
 	})
 	m := &manager{groups: map[uint64]*rule.Group{}}
+	_, cleanup := notifier.InitFakeNotifier()
+	defer cleanup()
+
 	var ar *rule.AlertingRule
 	var rr *rule.RecordingRule
 	var groupIDs []uint64
@@ -45,7 +48,7 @@ func TestHandler(t *testing.T) {
 		}, fq, 1*time.Minute, nil)
 		ar = g.Rules[0].(*rule.AlertingRule)
 		rr = g.Rules[1].(*rule.RecordingRule)
-		g.ExecOnce(context.Background(), func() []notifier.Notifier { return nil }, nil, time.Time{})
+		g.ExecOnce(context.Background(), nil, time.Time{})
 		id := g.CreateID()
 		m.groups[id] = g
 		groupIDs = append(groupIDs, id)

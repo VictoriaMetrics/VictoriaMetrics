@@ -65,32 +65,34 @@ function getParamURL(key) {
     return url.searchParams.get(key)
 }
 
+function matchText(search, item) {
+    const text = item.innerText.toLowerCase();
+    return text.indexOf(search) >= 0;
+}
+
 function filterRules(searchPhrase) {
-    document.querySelectorAll('.sub-items').forEach((rules) => {
-        let found = false;
-        rules.querySelectorAll('.sub-item').forEach((rule) => {
-            if (searchPhrase) {
-                const ruleName = rule.innerText.toLowerCase();
-                const matches = []
-                const hasValue = ruleName.indexOf(searchPhrase) >= 0;
-                rule.querySelectorAll('.label').forEach((label) => {
-                    const text = label.innerText.toLowerCase();
-                    if (text.indexOf(searchPhrase) >= 0) {
-                        matches.push(text);
-                    }
-                });
-                if (!matches.length && !hasValue) {
-                    rule.classList.add('d-none');
-                    return;
-                }
+    document.querySelectorAll('.vm-group').forEach((group) => {
+        if (!searchPhrase) {
+            group.classList.add('vm-found');
+            return;
+        }
+        for (const item of group.querySelectorAll('.vm-group-search')) {
+            if (matchText(searchPhrase, item)) {
+                group.classList.add('vm-found');
+                return;
             }
-            rule.classList.remove('d-none');
-            found = true;
-        });
-        if (found && searchPhrase || !searchPhrase) {
-            rules.classList.remove('d-none');
-        } else {
-            rules.classList.add('d-none');
+        }
+        group.classList.remove('vm-found');
+        for (const item of group.querySelectorAll('.vm-item')) {
+            if (matchText(searchPhrase, item)) {
+                item.classList.add('vm-found');
+                continue;
+            }
+            if (Array.from(item.querySelectorAll('.label')).find(l => matchText(searchPhrase, l))) {
+                item.classList.add('vm-found');
+                continue;
+            }
+            item.classList.remove('vm-found');
         }
     });
 }
