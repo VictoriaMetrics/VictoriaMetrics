@@ -689,15 +689,15 @@ var (
 			Usage:  "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
 			Layout: time.RFC3339,
 		},
-		&cli.StringFlag{
-			Name:  remoteReadFilterLabel,
-			Usage: "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
-			Value: "__name__",
+		&cli.StringSliceFlag{
+			Name:        remoteReadFilterLabel,
+			Usage:       "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+			DefaultText: "__name__",
 		},
-		&cli.StringFlag{
-			Name:  remoteReadFilterLabelValue,
-			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", remoteReadFilterLabelValue),
-			Value: ".*",
+		&cli.StringSliceFlag{
+			Name:        remoteReadFilterLabelValue,
+			Usage:       fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", remoteReadFilterLabelValue),
+			DefaultText: ".*",
 		},
 		&cli.BoolFlag{
 			Name:  remoteRead,
