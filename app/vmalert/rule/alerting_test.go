@@ -827,12 +827,9 @@ func TestGroup_Restore(t *testing.T) {
 		fg := NewGroup(config.Group{Name: "TestRestore", Rules: rules}, fqr, time.Second, nil)
 		fg.Init()
 		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			nts := func() []notifier.Notifier { return []notifier.Notifier{&notifier.FakeNotifier{}} }
-			fg.Start(context.Background(), nts, nil, fqr)
-			wg.Done()
-		}()
+		wg.Go(func() {
+			fg.Start(context.Background(), nil, fqr)
+		})
 		fg.Close()
 		wg.Wait()
 
