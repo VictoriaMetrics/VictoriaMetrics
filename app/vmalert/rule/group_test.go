@@ -569,7 +569,7 @@ func TestGroupStartDelay(t *testing.T) {
 	g := &Group{}
 	// interval of 5min and key generate a static delay of 30s
 	g.Interval = time.Minute * 5
-	key := uint64(math.MaxUint64 / 10)
+	g.id = uint64(math.MaxUint64 / 10)
 
 	f := func(atS, expS string) {
 		t.Helper()
@@ -581,7 +581,7 @@ func TestGroupStartDelay(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		delay := delayBeforeStart(at, key, g.Interval, g.EvalOffset)
+		delay := g.delayBeforeStart(at)
 		gotStart := at.Add(delay)
 		if expTS != gotStart {
 			t.Fatalf("expected to get %v; got %v instead", expTS, gotStart)
