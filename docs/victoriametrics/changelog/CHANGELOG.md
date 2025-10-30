@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add template function `now` to return the Unix timestamp in seconds at the time of the template evaluation. For example, `{{ (now | toTime).Sub $activeAt }}` can calculate duration the alert has been active. See this issue [#9864](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9864) for more details. Thank you @nguu0123 for the pull request.
 * FEATURE: `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce new RPC protocol for insert-storage communication. See this PR [#9820](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9820) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): explicitly check response type for [range queries](https://docs.victoriametrics.com/keyConcepts.html#range-query) during [replay](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling) and return error on type mismatch. This change should reduce confusions like in [#9779](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9779).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support `alert_relabel_configs` per each notifier in `-notifier.config` file. See [#5980](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5980).

@@ -355,6 +355,8 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `toTime` - converts the input unix timestamp to [time.Time](https://pkg.go.dev/time#Time).
 * `toUpper` - converts all the chars in the input string to uppercase.
 * `value` - returns the numeric value from the input query result.
+* `now` - returns the Unix timestamp in seconds at the time of the template evaluation.
+  For example: `{{ (now | toTime).Sub $activeAt }}` will return the duration the alert has been active.
 
 #### Reusable templates
 
