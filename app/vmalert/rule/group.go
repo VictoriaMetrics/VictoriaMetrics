@@ -38,6 +38,8 @@ var (
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries. "+
 		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+	maxStartDelay = flag.Duration("group.maxStartDelay", 5*time.Minute, "Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval"+
+		" [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other.")
 )
 
 // Group is an entity for grouping rules
@@ -328,9 +330,6 @@ func (g *Group) Init() {
 	metrics.RegisterSet(g.metrics.set)
 }
 
-// maxIntervalToDelayGroupStart defines max time interval on which Group should Start.
-const maxIntervalToDelayGroupStart = 1 * time.Minute
-
 // Start starts group's evaluation
 func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
@@ -338,7 +337,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	// sleep random duration to spread group rules evaluation
 	// over maxIntervalToDelayGroupStart to reduce the load on datasource.
 	if !SkipRandSleepOnGroupStart {
-		sleepBeforeStart := g.delayBeforeStart(evalTS, maxIntervalToDelayGroupStart)
+		sleepBeforeStart := g.delayBeforeStart(evalTS, *maxStartDelay)
 		g.infof("will start in %v", sleepBeforeStart)
 
 		sleepTimer := time.NewTimer(sleepBeforeStart)
