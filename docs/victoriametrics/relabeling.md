@@ -99,10 +99,10 @@ The main goal of this stage is to apply relabeling rules to all incoming
 metrics, no matter where they come from (push-based or pull-based sources). It
 includes two phases:
 
-- `-remoteWrite.relabelConfig`: This is applied to all metrics before they are
-  sent to any remote storage destination.
-- `-remoteWrite.urlRelabelConfig`: This is applied to all metrics before they
-  are sent to a specific remote storage destination.
+- `-remoteWrite.relabelConfig`: This is applied to all metrics before they are sent to any remote storage destination.
+  Config content is available at `http://vmagent-host:8429/remotewrite-relabel-config` endpoint {{% available_from "#" %}}. 
+- `-remoteWrite.urlRelabelConfig`: This is applied to all metrics before they are sent to a specific remote storage destination.
+  Config content is available at `http://vmagent-host:8429/remotewrite-url-relabel-config` endpoint {{% available_from "#" %}}.
 
 This functionality is essential for routing and filtering data in different ways
 for multiple backends. For example:

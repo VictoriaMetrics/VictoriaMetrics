@@ -29,14 +29,14 @@ While VictoriaMetrics provides an efficient solution to store and observe metric
 and RAM friendly to scrape metrics from Prometheus-compatible exporters into VictoriaMetrics.
 Also, we found that our user's infrastructure are like snowflakes in that no two are alike. Therefore, we decided to add more flexibility
 to `vmagent` such as the ability to [accept metrics via popular push protocols](#how-to-push-data-to-vmagent)
-additionally to [discovering Prometheus-compatible targets and scraping metrics from them](#how-to-collect-metrics-in-prometheus-format).
+and to [discover Prometheus-compatible targets and scrape metrics from them](#how-to-collect-metrics-in-prometheus-format).
 
 ## Features
 
 * Can be used as a drop-in replacement for Prometheus for discovering and scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
-  Note that single-node VictoriaMetrics can also discover and scrape Prometheus-compatible targets in the same way as `vmagent` does -
+  Note that single-node VictoriaMetrics can also discover and scrape Prometheus-compatible targets in the same way `vmagent` does -
   see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
-* Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
+* Can add, remove and modify labels (aka tags) via Prometheus relabeling and filter data before sending it to remote storage. See [these docs](https://docs.victoriametrics.com/victoriametrics/relabeling/) for details.
 * Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
 * Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 * Can replicate collected metrics simultaneously to multiple Prometheus-compatible remote storage systems - see [these docs](#replication-and-high-availability).
@@ -68,10 +68,10 @@ and sending the data to the Prometheus-compatible remote storage:
 * `-promscrape.config` with the path to [Prometheus config file](https://docs.victoriametrics.com/victoriametrics/sd_configs/) (usually located at `/etc/prometheus/prometheus.yml`).
   The path can point either to local file or to http url. See [scrape config examples](https://docs.victoriametrics.com/victoriametrics/scrape_config_examples/).
   `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or
-  to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
+   to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
-* `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics, where to send the data to.
-  The `-remoteWrite.url` may refer to [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address. See [these docs](#srv-urls) for details.
+* `-remoteWrite.url` of a Prometheus-compatible remote storage endpoint (e.g., VictoriaMetrics) to send data to.
+  The `-remoteWrite.url` may refer to a [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address. See [these docs](#srv-urls) for details.
 
 Example command for writing the data received via [supported push-based protocols](#how-to-push-data-to-vmagent)
 to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) located at `victoria-metrics-host:8428`:
@@ -80,8 +80,7 @@ to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametric
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
-See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) if you need writing
-the data to [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
+See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) if you need to write data to [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
 
 Example command for scraping Prometheus targets and writing the data to single-node VictoriaMetrics:
 
@@ -96,24 +95,24 @@ without the need to use `vmagent` - see [these docs](https://docs.victoriametric
 
 `vmagent` can save network bandwidth usage costs under high load when [VictoriaMetrics remote write protocol is used](#victoriametrics-remote-write-protocol).
 
-See [troubleshooting docs](#troubleshooting) if you encounter common issues with `vmagent`.
+Common `vmagent` issues are covered in the [troubleshooting docs](#troubleshooting).
 
 See [various use cases](#use-cases) for vmagent.
 
 Pass `-help` to `vmagent` in order to see [the full list of supported command-line flags with their descriptions](#advanced-usage).
 
-## Use cases
+## Use Cases
 
 ### IoT and Edge monitoring
 
-`vmagent` can run and collect metrics in IoT environments and industrial networks with unreliable or scheduled connections to their remote storage.
+`vmagent` can run and collect metrics in IoT environments and industrial networks with unreliable or scheduled connections to remote storage.
 It buffers the collected data in local files until the connection to remote storage becomes available and then sends the buffered
 data to the remote storage. It re-tries sending the data to remote storage until errors are resolved.
 The maximum on-disk size for the buffered metrics can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 
-`vmagent` works on various architectures from the IoT world - 32-bit arm, 64-bit arm, ppc64, 386, amd64.
+`vmagent` works on several common architectures used in IoT environments - 32-bit arm, 64-bit arm, ppc64, 386, amd64.
 
-The `vmagent` can save network bandwidth usage costs by using [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol).
+`vmagent` can save on network bandwidth usage costs by using [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol).
 
 ### Drop-in replacement for Prometheus
 
@@ -136,30 +135,30 @@ to other remote storage systems, that support Prometheus `remote_write` protocol
 ### Replication and high availability
 
 `vmagent` replicates the collected metrics among multiple remote storage instances configured via `-remoteWrite.url` args.
-If a single remote storage instance temporarily is out of service, then the collected data remains available in another remote storage instance.
+If a single remote storage instance is temporarily out of service, then the collected data remains available in the other remote storage instances.
 `vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again,
 and then it sends the buffered data to the remote storage in order to prevent data gaps.
 
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) already supports replication,
-so there is no need in specifying multiple `-remoteWrite.url` flags when writing data to the same cluster.
+so there is no need to specify multiple `-remoteWrite.url` flags when writing data to the same cluster.
 See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety).
 
 ### Sharding among remote storages
 
-By default `vmagent` replicates data among remote storage systems enumerated via `-remoteWrite.url` command-line flag.
-If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads evenly
-the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) among all the remote storage systems
-enumerated via `-remoteWrite.url`.
+By default `vmagent` replicates data to remote storage systems via the `-remoteWrite.url` command-line flag.
+If the `-remoteWrite.shardByURL` command-line flag is set, then `vmagent` spreads
+the outgoing [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) evenly among all the remote storage 
+systems listed in `-remoteWrite.url`.
 
 It is possible to replicate samples among remote storage systems by passing `-remoteWrite.shardByURLReplicas=N`
 command-line flag to `vmagent` additionally to `-remoteWrite.shardByURL` command-line flag.
-This instructs `vmagent` writing every outgoing sample to `N` distinct remote storage systems enumerated via `-remoteWrite.url`
+This instructs `vmagent` to write every outgoing sample to `N` number of distinct remote storage systems listed in `-remoteWrite.url`
 in addition to sharding.
 
 Samples for the same time series are routed to the same remote storage system if `-remoteWrite.shardByURL` flag is specified.
 This allows building scalable data processing pipelines when a single remote storage cannot keep up with the data ingestion workload.
-For example, this allows building horizontally scalable [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)
-by routing outgoing samples for the same time series of [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter)
+For example, this allows horizontal scaling with [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)
+by routing outgoing samples for the same time series like [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter)
 and [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) types from top-level `vmagent` instances
 to the same second-level `vmagent` instance, so they are aggregated properly.
 
@@ -168,20 +167,20 @@ among remote storage systems specified in `-remoteWrite.url`.
 
 > The `-remoteWrite.shardByURL` may not work as expected when [SRV URLs](https://docs.victoriametrics.com/victoriametrics/vmagent/#srv-urls) are in use.
 >
-> An SRV record might be resolved into multiple addresses, one of which is chosen **randomly** for all subsequent logic, including sharding.
+> An SRV record might resolve to multiple addresses, one address is chosen **randomly** for all subsequent logic, including sharding.
 > It will make sharding inconsistent. Samples of the same time series always go to the same **remote write URL**/**SRV record**, but they may reach different addresses randomly based on the DNS resolution.
 >
 > For example, if you set `-remoteWrite.url=srv+foo` and it's resolved to three addresses (`192.168.1.1`, `192.168.1.2`, `192.168.1.3`),
 > vmagent will only choose **one** randomly every time it (re-)creates the connection. In contrast, specifying the addresses manually (`-remoteWrite.url=192.168.1.1 -remoteWrite.url=192.168.1.2 -remoteWrite.url=192.168.1.3`) will shard samples across all three URLs.
 
-Sometimes it may be needed to use only a particular set of labels for sharding. For example, it may be needed to route all the metrics with the same `instance` label
+Sometimes it may be needed to use only a particular set of labels for sharding. For example, it may be necessary to route all the metrics with the same `instance` label
 to the same `-remoteWrite.url`. In this case you can specify comma-separated list of these labels in the `-remoteWrite.shardByURL.labels`
 command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
 label to the same `-remoteWrite.url`.
 
 Sometimes, it may be necessary to ignore some labels when sharding samples across multiple `-remoteWrite.url` backends.
 For example, if all the [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) with the same set of labels
-except of `instance` and `pod` labels must be routed to the same backend. In this case the list of ignored labels must be passed to
+except for the labels `instance` and `pod` must be routed to the same backend. In this case the list of ignored labels must be passed to
 `-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.
 
 See also [how to scrape large number of targets](#scraping-big-number-of-targets).
@@ -195,14 +194,14 @@ Please see [Relabeling cookbook](https://docs.victoriametrics.com/victoriametric
 ### Splitting data streams among multiple systems
 
 `vmagent` supports splitting the collected data between multiple destinations with the help of `-remoteWrite.urlRelabelConfig`,
-that is applied independently for each configured `-remoteWrite.url` destination. For example, it is possible to replicate or split
+it is applied independently for each configured `-remoteWrite.url` destination. For example, it is possible to replicate or split
 data among long-term remote storage, short-term remote storage and a real-time analytical system [built on top of Kafka](https://github.com/Telefonica/prometheus-kafka-adapter).
 Note that each destination can receive its own subset of the collected data due to per-destination relabeling via `-remoteWrite.urlRelabelConfig`.
 
-For example, let's assume all the scraped or received metrics by `vmagent` have label `env` with values `dev` or `prod`.
-To route metrics `env=dev` to destination `dev` and metrics with `env=prod` to destination `prod` apply the following config:
+For example, let's assume that all the metrics scraped or received by `vmagent` have the label `env` with the value of `dev` or `prod`.
+To route metrics with the label `env=dev` to `dev` and metrics with the label `env=prod` to `prod` apply the following config:
 
-1. Create relabeling config file `relabelDev.yml` to drop all metrics that don't have label `env=dev`:
+1. Create a relabeling config file `relabelDev.yml` to drop all metrics that don't have label `env=dev`:
 
 ```yaml
 - action: keep
@@ -210,7 +209,7 @@ To route metrics `env=dev` to destination `dev` and metrics with `env=prod` to d
   regex: "dev"
 ```
 
-2. Create relabeling config file `relabelProd.yml` to drop all metrics that don't have label `env=prod`:
+2. Create a relabeling config file `relabelProd.yml` to drop all metrics that don't have label `env=prod`:
 
 ```yaml
 - action: keep
@@ -219,7 +218,7 @@ To route metrics `env=dev` to destination `dev` and metrics with `env=prod` to d
 ```
 
 3. Configure `vmagent` with 2 `-remoteWrite.url` flags pointing to destinations `dev` and `prod` with corresponding
-`-remoteWrite.urlRelabelConfig` configs:
+`-remoteWrite.urlRelabelConfig` config files:
 
 ```sh
 ./vmagent \
@@ -227,18 +226,18 @@ To route metrics `env=dev` to destination `dev` and metrics with `env=prod` to d
   -remoteWrite.url=http://<prod-url> -remoteWrite.urlRelabelConfig=relabelProd.yml
 ```
 
-With this configuration `vmagent` will forward to `http://<dev-url>` only metrics that have `env=dev` label.
-And to `http://<prod-url>` it will forward only metrics that have `env=prod` label.
+With this configuration `vmagent` will only forward metrics with the label `env=dev` to `http://<dev-url>` and
+metrics with the label `env=prod` to `http://<prod-url>`.
 
-Please note, order of flags is important: 1st mentioned `-remoteWrite.urlRelabelConfig` will be applied to the
-1st mentioned `-remoteWrite.url`, and so on.
+Please note, the order of flags is important: the first `-remoteWrite.urlRelabelConfig` will be applied to the
+first `-remoteWrite.url`, and so on.
 
 ### Prometheus remote_write proxy
 
 `vmagent` can be used as a proxy for Prometheus data sent via Prometheus `remote_write` protocol. It can accept data via the `remote_write` API
-at the`/api/v1/write` endpoint. Then apply relabeling and filtering and proxy it to another `remote_write` system .
-The `vmagent` can be configured to encrypt the incoming `remote_write` requests with `-tls*` command-line flags.
-Also, Basic Auth can be enabled for the incoming `remote_write` requests with `-httpAuth.*` command-line flags.
+at the`/api/v1/write` endpoint. It then applies relabeling and filtering then proxies it to another `remote_write` system.
+`vmagent` can also be configured to encrypt the incoming `remote_write` requests with `-tls*` command-line flags.
+Basic Auth can be enabled for the incoming `remote_write` requests with `-httpAuth.*` command-line flags.
 
 ### remote_write for clustered version
 
@@ -253,14 +252,15 @@ There is also support for multitenant writes. See [these docs](#multitenancy).
 [Deduplication at stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication) allows setting up arbitrary complex de-duplication schemes
 for the collected samples. Examples:
 
-* The following command instructs `vmagent` to send only the last sample per each seen [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) per every 60 seconds:
+* The following command instructs `vmagent` to send only the last sample for each
+[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) every 60 seconds:
 
   ```sh
   ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dedupInterval=60s
   ```
 
 * The following command instructs `vmagent` to merge [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) with different `replica` label values
-  and then to send only the last sample per each merged series per every 60 seconds:
+  and then to send only the last sample for each merged series every 60 seconds:
 
   ```sh
   ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
@@ -268,8 +268,8 @@ for the collected samples. Examples:
 
 ### Life of a sample
 
-vmagent supports limiting, relabeling, deduplication and stream aggregation for all the received metric samples, scraped or pushed.
-The received data is then forwarded to the specified `-remoteWrite.url` destinations. The processing pipeline is the following:
+vmagent supports limiting, relabeling, deduplication and stream aggregation for all metric samples, scraped or pushed.
+The received data is then forwarded to the specified `-remoteWrite.url` destinations. The pipeline is as follows:
 
 ```mermaid
 %%{init: { "themeCSS": ".nodeLabel, .edgeLabel { white-space: nowrap; word-break: normal; overflow-wrap: normal; }" }}%%
@@ -329,7 +329,7 @@ sections from [Prometheus config file](https://prometheus.io/docs/prometheus/lat
 All other sections are ignored, including the [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section.
 Use `-remoteWrite.*` command-line flag instead for configuring remote write settings. See [the list of unsupported config sections](#unsupported-prometheus-config-sections).
 
-The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders that are substituted by the corresponding `ENV_VAR` environment variable values.
+The file pointed to by `-promscrape.config` may contain `%{ENV_VAR}` placeholders that are substituted by the corresponding `ENV_VAR` environment variable values.
 
 See also:
 
@@ -340,7 +340,7 @@ See also:
 
 `vmagent` supports the following additional options in [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) section:
 
-* `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target
+* `headers` - a list of HTTP headers to send to a scrape target with each scrape request. This can be used when the scrape target
   needs custom authorization and authentication. For example:
 
 ```yaml
@@ -367,8 +367,8 @@ See [scrape_configs docs](https://docs.victoriametrics.com/victoriametrics/sd_co
 
 `vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs) from multiple files specified
 in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent`
-loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file
-and from `https://config-server/scrape_config.yml` url:
+to load scrape configs from all the `*.yml` files under the `configs` directory, from the local file `single_scrape_config.yml`
+and from the URL `https://config-server/scrape_config.yml`:
 
 ```yaml
 scrape_config_files:
@@ -378,7 +378,7 @@ scrape_config_files:
 ```
 
 Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
-There is no need in specifying top-level `scrape_configs` section in these files. For example:
+There is no need to specify a top-level `scrape_configs` section in these files. For example:
 
 ```yaml
 - job_name: foo
@@ -659,16 +659,16 @@ When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metada
 ## Stream parsing mode
 
 By default, `vmagent` parses the full response from the scrape target, applies [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)
-and then pushes the resulting metrics to the configured `-remoteWrite.url` in one go. This mode works good for the majority of cases
-when the scrape target exposes small number of metrics (e.g. less than 10K). But this mode may take big amounts of memory
-when the scrape target exposes large number of metrics (for example, when `vmagent` scrapes [`kube-state-metrics`](https://github.com/kubernetes/kube-state-metrics)
-in large Kubernetes cluster). It is recommended enabling stream parsing mode for such targets.
-When this mode is enabled, `vmagent` processes the response from the scrape target in chunks.
-This allows saving memory when scraping targets that expose millions of metrics.
+and then pushes the resulting metrics to the configured `-remoteWrite.url` in one go. This mode works great for the majority of cases
+when the scrape target exposes small number of metrics (e.g. less than 10K). But this mode may take large amounts of memory
+when the scrape target exposes a large number of metrics (for example, when `vmagent` scrapes [`kube-state-metrics`](https://github.com/kubernetes/kube-state-metrics)
+in large Kubernetes cluster). It is recommended to enable stream parsing for such targets.
+When stream parsing is enabled, `vmagent` processes the response from the scrape target in chunks.
+This saves memory when scraping targets that expose millions of metrics.
 
-Stream parsing mode is automatically enabled for scrape targets returning response bodies with sizes bigger than
+Stream parsing is automatically enabled for scrape targets returning response bodies with sizes larger than
 the `-promscrape.minResponseSizeForStreamParse` command-line flag value. Additionally,
-stream parsing mode can be explicitly enabled in the following places:
+stream parsing can be explicitly enabled in the following places:
 
 * Via `-promscrape.streamParse` command-line flag. In this case all the scrape targets defined
   in the file pointed by `-promscrape.config` are scraped in stream parsing mode.
@@ -761,11 +761,11 @@ the same set of targets and push the collected data to the same set of VictoriaM
 Two **identically configured** vmagent instances or clusters is usually called an HA pair.
 
 When running HA pairs, [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) must be configured
-at VictoriaMetrics side in order to de-duplicate received samples.
+on the VictoriaMetrics side in order to de-duplicate received samples.
 See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for details.
 
-It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent`
-instance or per each `vmagent` cluster in HA setup. This is needed for proper data de-duplication.
+It is also recommended to pass different values to `-promscrape.cluster.name` command-line flag per `vmagent`
+instance or per `vmagent` cluster in a HA setup. This is needed for proper data de-duplication.
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
 
 ## Scraping targets via a proxy
@@ -816,7 +816,7 @@ The maximum data size that can be saved to `-remoteWrite.tmpDataPath` per every 
 limited via `-remoteWrite.maxDiskUsagePerURL` command-line flag. When this limit is reached, `vmagent` drops the oldest
 data from disk in order to save newly ingested data.
 
-The folder structure of persistence data is as follows:
+The folder structure of persisted data is as follows:
 
 ```
 <remoteWrite.tmpDataPath>
@@ -849,11 +849,11 @@ vmagent will generate the following persistent queue folders:
 
 ### Disabling On-disk persistence
 
-There are cases when it is better disabling on-disk persistence for pending data at `vmagent` side:
+There are cases when it is better to disable on-disk persistence for pending data on the `vmagent` side:
 
 * When the persistent disk performance isn't enough for the given data processing rate.
 * When it is better to buffer pending data at the client side instead of buffering it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
-* When the data is already buffered at [Kafka side](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics) or at [Google PubSub side](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics).
+* When the data is already buffered at [Kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics) or [Google PubSub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/#reading-metrics).
 * When it is better to drop pending data instead of buffering it.
 
 In this case `-remoteWrite.disableOnDiskQueue` command-line flag can be passed to `vmagent` per each configured `-remoteWrite.url`.
@@ -863,7 +863,7 @@ and the `-remoteWrite.disableOnDiskQueue` command-line flag is set:
 * It returns `429 Too Many Requests` HTTP error to clients, which send data to `vmagent` via [supported HTTP endpoints](#how-to-push-data-to-vmagent).
   If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.url` command-line flags are set,
   then the ingested samples are silently dropped instead of returning the error to clients.
-* It suspends consuming data from [Kafka side](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics) or [Google PubSub side](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/) until the remote storage becomes available.
+* It suspends consuming data from [Kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics) or [Google PubSub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/) until the remote storage becomes available.
   If `-remoteWrite.dropSamplesOnOverload` command-line flag is set or if multiple `-remoteWrite.disableOnDiskQueue` command-line flags are set
   for different `-remoteWrite.url` options, then the fetched samples are silently dropped instead of suspending data consumption from Kafka or Google PubSub.
 * It drops samples pushed to `vmagent` via non-HTTP protocols and logs the error. Pass `-remoteWrite.dropSamplesOnOverload` command-line flag in order
@@ -884,7 +884,7 @@ if `-remoteWrite.disableOnDiskQueue` command-line flag is specified. It may also
 on startup.
 
 When `-remoteWrite.disableOnDiskQueue` command-line flag is set, `vmagent` may send the same samples multiple times to the configured remote storage
-if it cannot keep up with the data ingestion rate. In this case the [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication)
+if it cannot keep up with the data ingestion rate. In this case [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication)
 must be enabled on all the configured remote storage systems.
 
 ## Cardinality limiter
@@ -956,7 +956,8 @@ See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/tr
 
 Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
-If you have suggestions for improvements or have found a bug - please open an issue on github or add a review to the dashboard.
+If you have suggestions for improvements or have found a bug - please open an issue on [github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) 
+or add a review to the dashboard.
 
 `vmagent` also exports the status for various targets at the following pages:
 
@@ -972,33 +973,40 @@ If you have suggestions for improvements or have found a bug - please open an is
 
 ## Troubleshooting
 
-* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent`.
+* It is recommended [to set up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent`.
 
 * It is recommended to increase the maximum number of open files in the system (`ulimit -n`) when scraping a large number of targets,
-  as `vmagent` establishes at least a single TCP connection per target.
+  as `vmagent` establishes at least one TCP connection per target.
 
 * If `vmagent` uses too much RAM or CPU, then follow [these recommendations](#performance-optimizations).
 
-* When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. It is recommended investigating and fixing these errors.
+* When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. It is recommended to investigate and fix these errors.
   If it is unfeasible to fix all the reported errors, then they can be suppressed by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`.
   The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets` and `http://vmagent-host:8429/api/v1/targets`.
 
-* The `http://vmagent-host:8429/service-discovery` page could be useful for debugging relabeling process for scrape targets.
+* The `http://vmagent-host:8429/config` page shows current active `-promscrape.config` configuration.
+  Access to endpoint can be protected via `-configAuthKey` command-line flag.
+
+* Pages `http://vmagent-host:8429/remotewrite-relabel-config` and `http://vmagent-host:8429/remotewrite-url-relabel-config`
+  {{% available_from "#" %}} show current active `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` configuration
+  correspondingly. Access to endpoints can be protected via `-configAuthKey` command-line flag.
+
+* The `http://vmagent-host:8429/service-discovery` page could be useful for debugging the relabeling process for scrape targets.
   This page contains original labels for targets dropped during relabeling.
   By default, the `-promscrape.maxDroppedTargets` targets are shown here. If your setup drops more targets during relabeling,
   then increase `-promscrape.maxDroppedTargets` command-line flag value to see all the dropped targets.
   Note that tracking each dropped target requires up to 10Kb of RAM. Therefore, big values for `-promscrape.maxDroppedTargets`
   may result in increased memory usage if a large number of scrape targets are dropped during relabeling.
 
-* It is recommended increasing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
-  grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line flags in this case.
+* It is recommended to increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
+  grows constantly. It is also recommended to increase `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line flags in this case.
   This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
 
 * If you see gaps in the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set,
   try increasing `-remoteWrite.queues`. Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage.
   Therefore, it starts dropping the buffered data if the on-disk buffer size exceeds `-remoteWrite.maxDiskUsagePerURL`.
 
-* `vmagent` drops data blocks if remote storage replies with `400 Bad Request` and `409 Conflict` HTTP responses.
+* `vmagent` drops data blocks if remote storage replies with `400 Bad Request` or `409 Conflict` HTTP responses.
   The number of dropped blocks can be monitored via `vmagent_remotewrite_packets_dropped_total` metric exported at [/metrics page](#monitoring).
 
 * Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling).
@@ -1018,7 +1026,7 @@ If you have suggestions for improvements or have found a bug - please open an is
   Pass `-remoteWrite.showURL` command-line flag when starting `vmagent` in order to see all the valid urls.
 
 * By default `vmagent` evenly spreads scrape load in time. If a particular scrape target must be scraped at the beginning of some interval,
-  then `scrape_align_interval` option  must be used. For example, the following config aligns hourly scrapes to the beginning of hour:
+  then `scrape_align_interval` option must be used. For example, the following config aligns hourly scrapes to the beginning of hour:
 
   ```yaml
   scrape_configs:
@@ -1099,10 +1107,13 @@ Additional notes:
 
 See general recommendations regarding [security](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
+vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "#" %}} 
+can be protected via `-configAuthKey` command-line flag.
+
 ### mTLS protection
 
-By default `vmagent` accepts http requests at `8429` port (this port can be changed via `-httpListenAddr` command-line flags),
-since it is expected it runs in an isolated trusted network.
+By default `vmagent` accepts http requests at port `8429` (this port can be changed via `-httpListenAddr` command-line flags),
+it is expected to run in an isolated trusted network.
 [Enterprise version of vmagent](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
 requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmagent`, which accepts only mTLS requests at port `8429`:
 
@@ -1110,42 +1121,42 @@ requests at this port, by specifying `-tls` and `-mtls` command-line flags. For 
 ./vmagent -tls -mtls -remoteWrite.url=...
 ```
 
-By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+By default, the system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if  `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
 
 ## Performance optimizations
 
-`vmagent` is optimized for low CPU usage and low RAM usage without the need to tune any configs. Sometimes it is needed to optimize CPU / RAM usage of `vmagent` even more.
-For example, if `vmagent` needs to scrape thousands of targets in resource-constrained environments. Then the following options may help reducing CPU usage and RAM usage of `vmagent`:
+`vmagent` is optimized for low CPU usage and low RAM usage without the need to tune any configs. Sometimes it is needed to optimize the CPU / RAM usage of `vmagent` even more.
+For example, if `vmagent` needs to scrape thousands of targets in resource-constrained environments, then the following options may help to reduce CPU and RAM usage:
 
 * Set [GOGC](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to `100`. This reduces CPU usage at the cost of higher RAM usage.
 
 * Set [GOMAXPROCS](https://pkg.go.dev/runtime#hdr-Environment_Variables) environment variable to the value slightly bigger than the number of CPU cores used by `vmagent`.
   Another option is to set CPU limit in Kubernetes / Docker to the integer value bigger than the number of CPU cores used by `vmagent`.
-  This reduces RAM usage and CPU usage when `vmagent` runs in an environment with bigger number of available CPU cores. Note that it may be needed to increase the `-remoteWrite.queues`
-  command-line flag to bigger values if `GOMAXPROCS` is set to too small values, since by default `-remoteWrite.queues` is proportional to `GOMAXPROCS`.
+  This reduces RAM and CPU usage when `vmagent` runs in an environment with a large number of available CPU cores. Note that it may be necessary to increase the `-remoteWrite.queues`
+  command-line flag to a larger value if `GOMAXPROCS` is set to too small of a value, since by default `-remoteWrite.queues` is proportional to `GOMAXPROCS`.
 
 * Disable response compression at scrape targets via `-promscrape.disableCompression` command-line flag or via `disable_compression: true` option
   in the [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs). This reduces CPU usage at the cost of higher network bandwidth usage
   between `vmagent` and scrape targets.
 
-* Disable tracking of original labels for the discovered targets via `-promscrape.dropOriginalLabels` command-line flag. This helps reducing RAM usage when `vmagent`
-  discovers large number of scrape targets and the majority of these targets are [dropped](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-drop-discovered-targets).
+* Disable tracking of original labels for the discovered targets via `-promscrape.dropOriginalLabels` command-line flag. This helps to reduce RAM usage when `vmagent`
+  discovers a large number of scrape targets and the majority of these targets are [dropped](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-drop-discovered-targets).
   This is a typical case when `vmagent` discovers Kubernetes targets. The downside of using `-promscrape.dropOriginalLabels` command-line flag
   is the reduced [debuggability](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging) for improperly configured per-target relabeling.
 
 * Disable [staleness markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers) via `-promscrape.noStaleMarkers` command-line flag
-  or via `no_stale_markers: true` option in the [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs). This reduces RAM usage and CPU usage.
+  or via `no_stale_markers: true` option in the [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs). This reduces RAM and CPU usage.
   Note that disabling staleness markers may result in unexpected query results when scrape targets are frequently rotated (this is a typical case in Kubernetes).
 
-* Set `-memory.allowedBytes` command-line flag to the value close to the actual memory usage of `vmagent`. Another option is to set memory limit in Kubernetes / Docker
-  to the value 50% bigger than the actual memory usage of `vmagent`. This should reduce memory usage spikes for `vmagent` running in the environment with bigger available memory
+* Set `-memory.allowedBytes` command-line flag to a value close to the actual memory usage of `vmagent`. Another option is to set memory limit in Kubernetes / Docker
+  to the value 50% larger than the actual memory usage of `vmagent`. This should reduce memory usage spikes for `vmagent` running in the environment with a large amount of available memory and
   when the remote storage cannot keep up with the data ingestion rate. Increasing `-remoteWrite.queues` command-line flag value may help in this case too.
 
 * In extreme cases it may be useful to set `-promscrape.disableKeepAlive` command-line flag in order to save RAM on HTTP keep-alive connections to thousands of scrape targets.
 
-* Increase `scrape_interval` option in the `global` section of the `-promscrape.config` and/or at every [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs)
-  for reducing CPU usage. For example, increasing the `scrape_interval` from `10s` to `30s` across all the targets decreases CPU usage at `vmagent` by up to 3x.
+* Increase the `scrape_interval` option in the `global` section of the `-promscrape.config` and/or at every [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs)
+  to reduce CPU usage. For example, increasing the `scrape_interval` from `10s` to `30s` across all the targets decreases CPU usage at `vmagent` by up to 3x.
 
 Example command, which runs `vmagent` in an optimized mode:
 
@@ -1155,7 +1166,7 @@ GOGC=100 GOMAXPROCS=1 ./vmagent -promscrape.disableCompression -promscrape.dropO
 
 ## How to build from sources
 
-We recommend using [official binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmagent` is located in the `vmutils-...` archives.
+We recommend using the [official binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) - `vmagent` is located in the `vmutils-...` archives.
 
 It may be needed to build `vmagent` from source code when developing or testing new feature or bugfix.
 
