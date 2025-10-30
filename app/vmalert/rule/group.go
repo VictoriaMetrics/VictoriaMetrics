@@ -335,7 +335,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	// sleep random duration to spread group rules evaluation
 	// over time to reduce the load on datasource.
 	if !SkipRandSleepOnGroupStart {
-		sleepBeforeStart := delayBeforeStart(evalTS, g.GetID(), g.Interval, g.EvalOffset)
+		sleepBeforeStart := g.delayBeforeStart(evalTS)
 		g.infof("will start in %v", sleepBeforeStart)
 
 		sleepTimer := time.NewTimer(sleepBeforeStart)
@@ -473,10 +473,13 @@ func (g *Group) UpdateWith(newGroup *Group) {
 	g.updateCh <- newGroup
 }
 
-// if offset is specified, delayBeforeStart returns a duration to help aligning timestamp with offset;
-// otherwise, it returns a random duration between [0..interval] based on group key.
-func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *time.Duration) time.Duration {
+// delayBeforeStart returns duration for delaying the evaluation start
+// based on given ts and Group settings.
+func (g *Group) delayBeforeStart(ts time.Time) time.Duration {
+	interval := g.Interval
+	offset := g.EvalOffset
 	if offset != nil {
+		// if offset is specified, return a duration aligned with offset
 		currentOffsetPoint := ts.Truncate(interval).Add(*offset)
 		if currentOffsetPoint.Before(ts) {
 			// wait until the next offset point
@@ -485,8 +488,9 @@ func delayBeforeStart(ts time.Time, key uint64, interval time.Duration, offset *
 		return currentOffsetPoint.Sub(ts)
 	}
 
+	// otherwise, return a random duration between [0..interval] based on group ID
 	var randSleep time.Duration
-	randSleep = time.Duration(float64(interval) * (float64(key) / (1 << 64)))
+	randSleep = time.Duration(float64(interval) * (float64(g.GetID()) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
 	if randSleep < sleepOffset {
 		randSleep += interval
