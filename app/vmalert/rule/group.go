@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -330,7 +329,7 @@ func (g *Group) Init() {
 }
 
 // Start starts group's evaluation
-func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
+func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
@@ -368,7 +367,6 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 
 	e := &executor{
 		Rw:              rw,
-		Notifiers:       nts,
 		notifierHeaders: g.NotifierHeaders,
 	}
 
@@ -550,15 +548,13 @@ func (g *Group) Replay(start, end time.Time, rw remotewrite.RWClient, maxDataPoi
 	if !disableProgressBar {
 		bar = pb.StartNew(iterations * len(g.Rules))
 	}
-	for _, r := range g.Rules {
+	for i := range g.Rules {
+		rule := g.Rules[i]
 		sem <- struct{}{}
-		wg.Add(1)
-		go func(r Rule, ri rangeIterator) {
-			// pass ri as a copy, so it can be modified within the replayRuleRange
-			res <- replayRuleRange(r, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
+		wg.Go(func() {
+			res <- replayRuleRange(rule, ri, bar, rw, replayRuleRetryAttempts, ruleEvaluationConcurrency)
 			<-sem
-			wg.Done()
-		}(r, ri)
+		})
 	}
 
 	wg.Wait()
@@ -588,10 +584,10 @@ func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewri
 	res := make(chan int, int(ri.end.Sub(ri.start)/ri.step)+1)
 	for ri.next() {
 		sem <- struct{}{}
-		wg.Add(1)
-
-		go func(s, e time.Time) {
-			n, err := replayRule(r, s, e, rw, replayRuleRetryAttempts)
+		start := ri.s
+		end := ri.e
+		wg.Go(func() {
+			n, err := replayRule(r, start, end, rw, replayRuleRetryAttempts)
 			if err != nil {
 				logger.Fatalf("rule %q: %s", r, err)
 			}
@@ -600,8 +596,7 @@ func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewri
 			}
 			res <- n
 			<-sem
-			wg.Done()
-		}(ri.s, ri.e)
+		})
 	}
 	wg.Wait()
 	close(res)
@@ -615,10 +610,9 @@ func replayRuleRange(r Rule, ri rangeIterator, bar *pb.ProgressBar, rw remotewri
 }
 
 // ExecOnce evaluates all the rules under group for once with given timestamp.
-func (g *Group) ExecOnce(ctx context.Context, nts func() []notifier.Notifier, rw remotewrite.RWClient, evalTS time.Time) chan error {
+func (g *Group) ExecOnce(ctx context.Context, rw remotewrite.RWClient, evalTS time.Time) chan error {
 	e := &executor{
 		Rw:              rw,
-		Notifiers:       nts,
 		notifierHeaders: g.NotifierHeaders,
 	}
 	if len(g.Rules) < 1 {
@@ -693,7 +687,6 @@ func (g *Group) getEvalDelay() time.Duration {
 
 // executor contains group's notify and rw configs
 type executor struct {
-	Notifiers       func() []notifier.Notifier
 	notifierHeaders map[string]string
 
 	Rw remotewrite.RWClient
@@ -714,14 +707,13 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.T
 	sem := make(chan struct{}, concurrency)
 	go func() {
 		wg := sync.WaitGroup{}
-		for _, r := range rules {
+		for i := range rules {
+			rule := rules[i]
 			sem <- struct{}{}
-			wg.Add(1)
-			go func(r Rule) {
-				res <- e.exec(ctx, r, ts, resolveDuration, limit)
+			wg.Go(func() {
+				res <- e.exec(ctx, rule, ts, resolveDuration, limit)
 				<-sem
-				wg.Done()
-			}(r)
+			})
 		}
 		wg.Wait()
 		close(res)
@@ -775,17 +767,6 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		return nil
 	}
 
-	wg := sync.WaitGroup{}
-	errGr := new(vmalertutil.ErrGroup)
-	for _, nt := range e.Notifiers() {
-		wg.Add(1)
-		go func(nt notifier.Notifier) {
-			if err := nt.Send(ctx, alerts, e.notifierHeaders); err != nil {
-				errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", r, nt.Addr(), err))
-			}
-			wg.Done()
-		}(nt)
-	}
-	wg.Wait()
+	errGr := notifier.Send(ctx, alerts, e.notifierHeaders)
 	return errGr.Err()
 }

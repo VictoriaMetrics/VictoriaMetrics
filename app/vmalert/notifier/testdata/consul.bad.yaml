@@ -1,0 +1,19 @@
+consul_sd_configs:
+  - server: localhost:8500
+    scheme: http
+    services:
+      - alertmanager
+    alert_relabel_configs:
+    - action: keep
+      source_labels: [env]
+      regex: "prod"
+  - server: localhost:8500
+    services:
+      - consul
+    alert_relabel_configs:
+    - action: keep
+      source_labels: [env]
+      regex: "(abc"
+alert_relabel_configs:
+  - target_label: "foo"
+    replacement: "aaa"
