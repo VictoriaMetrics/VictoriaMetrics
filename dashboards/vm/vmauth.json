@@ -2655,7 +2655,7 @@
       {
         "datasource": {
           "type": "victoriametrics-datasource",
-          "uid": "$ds"
+          "uid": "P38648FE0F8C5BEA2"
         },
         "filters": [],
         "hide": 0,
