@@ -1,17 +1,22 @@
 package notifier
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
@@ -96,11 +101,25 @@ func InitAlertURLGeneratorFn(externalURL *url.URL, externalAlertSource string, v
 	return nil
 }
 
-// cw holds a configWatcher for configPath configuration file
-// configWatcher provides a list of Notifier objects discovered
-// from static config or via service discovery.
-// cw is not nil only if configPath is provided.
-var cw *configWatcher
+var (
+	// getActiveNotifiers returns the current list of Notifier objects.
+	getActiveNotifiers func() []Notifier
+	// globalRelabelCfg stores the parsed alert relabeling config from the config file if there is
+	globalRelabelCfg *promrelabel.ParsedConfigs
+
+	// cw holds a configWatcher for configPath configuration file
+	// configWatcher provides a list of Notifier objects discovered
+	// from static config or via service discovery.
+	// cw is not nil only if configPath is provided.
+	cw *configWatcher
+
+	// externalLabels is a global variable for holding external labels configured via flags
+	// It is supposed to be inited via Init function only.
+	externalLabels map[string]string
+	// externalURL is a global variable for holding external URL value configured via flag
+	// It is supposed to be inited via Init function only.
+	externalURL string
+)
 
 // Reload checks the changes in configPath configuration file
 // and applies changes if any.
@@ -111,66 +130,62 @@ func Reload() error {
 	return cw.reload(*configPath)
 }
 
-var staticNotifiersFn func() []Notifier
-
-var (
-	// externalLabels is a global variable for holding external labels configured via flags
-	// It is supposed to be inited via Init function only.
-	externalLabels map[string]string
-	// externalURL is a global variable for holding external URL value configured via flag
-	// It is supposed to be inited via Init function only.
-	externalURL string
-)
-
-// Init returns a function for retrieving actual list of Notifier objects.
 // Init works in two mods:
 //   - configuration via flags (for backward compatibility). Is always static
 //     and don't support live reloads.
 //   - configuration via file. Supports live reloads and service discovery.
 //
 // Init returns an error if both mods are used.
-func Init(extLabels map[string]string, extURL string) (func() []Notifier, error) {
+func Init(extLabels map[string]string, extURL string) error {
 	externalURL = extURL
 	externalLabels = extLabels
 	_, err := url.Parse(externalURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse external URL: %w", err)
+		return fmt.Errorf("failed to parse external URL: %w", err)
 	}
 
 	if *blackHole {
 		if len(*addrs) > 0 || *configPath != "" {
-			return nil, fmt.Errorf("only one of -notifier.blackhole, -notifier.url and -notifier.config flags must be specified")
+			return fmt.Errorf("only one of -notifier.blackhole, -notifier.url and -notifier.config flags must be specified")
 		}
 		notifier := newBlackHoleNotifier()
-		staticNotifiersFn = func() []Notifier {
+		getActiveNotifiers = func() []Notifier {
 			return []Notifier{notifier}
 		}
-		return staticNotifiersFn, nil
+		return nil
 	}
 
 	if *configPath == "" && len(*addrs) == 0 {
-		return nil, nil
+		return nil
 	}
 	if *configPath != "" && len(*addrs) > 0 {
-		return nil, fmt.Errorf("only one of -notifier.config or -notifier.url flags must be specified")
+		return fmt.Errorf("only one of -notifier.config or -notifier.url flags must be specified")
 	}
 
 	if len(*addrs) > 0 {
 		notifiers, err := notifiersFromFlags(AlertURLGeneratorFn)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create notifier from flag values: %w", err)
+			return fmt.Errorf("failed to create notifier from flag values: %w", err)
 		}
-		staticNotifiersFn = func() []Notifier {
+		getActiveNotifiers = func() []Notifier {
 			return notifiers
 		}
-		return staticNotifiersFn, nil
+		return nil
 	}
 
-	cw, err = newWatcher(*configPath, AlertURLGeneratorFn)
+	cfg, err := parseConfig(*configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init config watcher: %w", err)
+		return err
 	}
-	return cw.notifiers, nil
+	if cfg.AlertRelabelConfigs != nil {
+		globalRelabelCfg = cfg.parsedAlertRelabelConfigs
+	}
+	cw, err = newWatcher(cfg, AlertURLGeneratorFn)
+	if err != nil {
+		return fmt.Errorf("failed to init config watcher: %w", err)
+	}
+	getActiveNotifiers = cw.notifiers
+	return nil
 }
 
 // InitSecretFlags must be called after flag.Parse and before any logging
@@ -245,23 +260,57 @@ const (
 
 // GetTargets returns list of static or discovered targets
 // via notifier configuration.
+//
+// Must be called after Init.
 func GetTargets() map[TargetType][]Target {
-	var targets = make(map[TargetType][]Target)
-
-	if staticNotifiersFn != nil {
-		for _, ns := range staticNotifiersFn() {
-			targets[TargetStatic] = append(targets[TargetStatic], Target{
-				Notifier: ns,
-			})
-		}
+	if getActiveNotifiers == nil {
+		return nil
 	}
-
+	var targets = make(map[TargetType][]Target)
+	// use cached targets from configWatcher instead of getActiveNotifiers for the extra target labels
 	if cw != nil {
 		cw.targetsMu.RLock()
 		for key, ns := range cw.targets {
 			targets[key] = append(targets[key], ns...)
 		}
 		cw.targetsMu.RUnlock()
+		return targets
+	}
+
+	// static notifiers don't have labels
+	for _, ns := range getActiveNotifiers() {
+		targets[TargetStatic] = append(targets[TargetStatic], Target{
+			Notifier: ns,
+		})
 	}
 	return targets
+}
+
+// Send sends alerts to all active notifiers
+func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) *vmalertutil.ErrGroup {
+	alertsToSend := make([]Alert, 0, len(alerts))
+	lblss := make([][]prompb.Label, 0, len(alerts))
+	// apply global relabel config first without modifying original alerts in alerts
+	for _, a := range alerts {
+		lbls := a.applyRelabelingIfNeeded(globalRelabelCfg)
+		if len(lbls) == 0 {
+			continue
+		}
+		alertsToSend = append(alertsToSend, a)
+		lblss = append(lblss, lbls)
+	}
+
+	errGr := new(vmalertutil.ErrGroup)
+	wg := sync.WaitGroup{}
+	activeNotifiers := getActiveNotifiers()
+	for i := range activeNotifiers {
+		nt := activeNotifiers[i]
+		wg.Go(func() {
+			if err := nt.Send(ctx, alertsToSend, lblss, notifierHeaders); err != nil {
+				errGr.Add(fmt.Errorf("failed to send alerts to addr %q: %w", nt.Addr(), err))
+			}
+		})
+	}
+	wg.Wait()
+	return errGr
 }

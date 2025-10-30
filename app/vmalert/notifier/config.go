@@ -27,15 +27,9 @@ type Config struct {
 	// PathPrefix is added to URL path before adding alertManagerPath value
 	PathPrefix string `yaml:"path_prefix,omitempty"`
 
-	// ConsulSDConfigs contains list of settings for service discovery via Consul
-	// see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
-	ConsulSDConfigs []consul.SDConfig `yaml:"consul_sd_configs,omitempty"`
-	// DNSSDConfigs contains list of settings for service discovery via DNS.
-	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
-	DNSSDConfigs []dns.SDConfig `yaml:"dns_sd_configs,omitempty"`
-
-	// StaticConfigs contains list of static targets
-	StaticConfigs []StaticConfig `yaml:"static_configs,omitempty"`
+	ConsulSDConfigs []ConsulSDConfigs `yaml:"consul_sd_configs,omitempty"`
+	DNSSDConfigs    []DNSSDConfigs    `yaml:"dns_sd_configs,omitempty"`
+	StaticConfigs   []StaticConfig    `yaml:"static_configs,omitempty"`
 
 	// HTTPClientConfig contains HTTP configuration for Notifier clients
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
@@ -62,14 +56,29 @@ type Config struct {
 	parsedAlertRelabelConfigs *promrelabel.ParsedConfigs
 }
 
-// StaticConfig contains list of static targets in the following form:
+// staticConfig contains list of static targets in the following form:
 //
 //	targets:
 //	[ - '<host>' ]
 type StaticConfig struct {
 	Targets []string `yaml:"targets"`
 	// HTTPClientConfig contains HTTP configuration for the Targets
-	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
+	HTTPClientConfig    promauth.HTTPClientConfig   `yaml:",inline"`
+	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
+}
+
+// ConsulSDConfigs contains list of settings for service discovery via Consul,
+// see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
+type ConsulSDConfigs struct {
+	consul.SDConfig     `yaml:",inline"`
+	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
+}
+
+// DNSSDConfigs contains list of settings for service discovery via DNS,
+// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+type DNSSDConfigs struct {
+	dns.SDConfig        `yaml:",inline"`
+	AlertRelabelConfigs []promrelabel.RelabelConfig `yaml:"alert_relabel_configs,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -94,6 +103,31 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(any) error) error {
 		return fmt.Errorf("failed to parse alert relabeling config: %w", err)
 	}
 	cfg.parsedAlertRelabelConfigs = arCfg
+
+	for _, s := range cfg.StaticConfigs {
+		if len(s.AlertRelabelConfigs) > 0 {
+			_, err := promrelabel.ParseRelabelConfigs(s.AlertRelabelConfigs)
+			if err != nil {
+				return fmt.Errorf("failed to parse alert_relabel_configs in static_config: %w", err)
+			}
+		}
+	}
+	for _, s := range cfg.ConsulSDConfigs {
+		if len(s.AlertRelabelConfigs) > 0 {
+			_, err := promrelabel.ParseRelabelConfigs(s.AlertRelabelConfigs)
+			if err != nil {
+				return fmt.Errorf("failed to parse alert_relabel_configs in consul_sd_config: %w", err)
+			}
+		}
+	}
+	for _, s := range cfg.DNSSDConfigs {
+		if len(s.AlertRelabelConfigs) > 0 {
+			_, err := promrelabel.ParseRelabelConfigs(s.AlertRelabelConfigs)
+			if err != nil {
+				return fmt.Errorf("failed to parse alert_relabel_configs in dns_sd_config: %w", err)
+			}
+		}
+	}
 
 	b, err := yaml.Marshal(cfg)
 	if err != nil {
