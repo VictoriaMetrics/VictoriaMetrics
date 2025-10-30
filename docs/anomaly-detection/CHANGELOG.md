@@ -14,6 +14,22 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.27.0
+Released: 2025-10-31
+
+- FEATURE: Added runtime state compatibility guard for [stateful](https://docs.victoriametrics.com/anomaly-detection/components/settings/#restore-state) deployments. The service now persists normalized versions, evaluates an [upgrade/downgrade compatibility matrix](https://docs.victoriametrics.com/anomaly-detection/migration/#compatibility-matrix), and selectively drops or reuses DB records and on-disk artifacts to keep migrations safe and automatic. Please refer to the [migration page](https://docs.victoriametrics.com/anomaly-detection/migration/) for more details.
+
+- IMPROVEMENT: Parallelization now honours container cgroup CPU/RAM limits, so `settings.n_workers` in the [settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#parallelization), internal routines and the `vmanomaly_available_memory_bytes`/`vmanomaly_cpu_cores_available` [startup metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics) report or use container resources instead of host totals, keeping the [self-monitoring dashboard](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/#grafana-dashboard) accurate.
+
+- IMPROVEMENT: optimized data reading and storage in [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) for both [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [VlogsReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#victorialogs-reader), resulting in drop of peak RAM usage during fit/infer calls (up to 2x reduction in peak RAM, depending on the configuration complexity).
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.0.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v100) to [v1.1.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v110). Please refer to the [UI changelog](https://docs.victoriametrics.com/anomaly-detection/ui/#changelog) for more details.
+
+- BUGFIX: Fixed the bug that lead to unexpected model files drops in [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) and skipping of the following inference calls due to "model instance not found" warnings. **Updating is suggested for all on-disk deployments that use cluster version of VictoriaMetrics as datasource, from versions [v1.24.0+](#v1240)**.
+
+- BUGFIX: Fixed `TypeError: cannot pickle '_thread.lock' object` failures when [backtesting](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) schedulers run with `n_jobs>1`, resulted in stable multiprocessing behaviour.
+
+
 ## v1.26.2
 Released: 2025-10-09
 
