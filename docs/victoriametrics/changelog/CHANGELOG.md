@@ -42,6 +42,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix search over group names and other attributes in vmalert's WEB UI. This functionality was broken since [v1.117.0](https://docs.victoriametrics.com/CHANGELOG.html#v11170). See [#9886](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9886) for details.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): make the load distribution more even among the backends which execute queries with various durations. See [#9712](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9712).
 * BUGFIX [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): consistently set `vm_backup_last_created_at{type="latest"}` to the latest backup start time.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): prevent breaking shell formatting when using `vmbackupmanager` CLI mode by adding a newline after the command output. Previously, using CLI mode would not always include newline at the end of output, which could break shell formatting.
 
 ## [v1.128.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.128.0)
 
