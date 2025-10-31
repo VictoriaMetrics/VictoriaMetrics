@@ -33,6 +33,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
 * `marathon_sd_configs` is for discovering and scraping [Marathon](https://mesosphere.github.io/marathon/) targets. See [these docs](#marathon_sd_configs).
+* `nacos_sd_configs` if for discovering and scraping targets registered in [Nacos v3](https://nacos.io/). See [these docs](#nacos_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `ovhcloud_sd_configs` is for discovering and scraping OVH Cloud VPS and dedicated server targets. See [these docs](#ovhcloud_sd_configs).
@@ -1313,6 +1314,65 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_marathon_port_index`: the port index number (e.g. `1` for `PORT1`)
 
 The list of discovered Marathon targets is refreshed at the interval, which can be configured via `-promscrape.marathonSDCheckInterval` command-line flag.
+
+## nacos_sd_configs
+
+Nacos SD configuration allows retrieving scrape targets from [NacosV3 Services](https://nacos.io/docs/latest/manual/user/open-api/?spm=5238cd80.2ef5001f.0.0.3f613b7cTR6z3Y#2-%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0).
+
+Configuration example: 
+
+```yaml
+scrape_configs:
+  - job_name: nacos
+    nacos_sd_configs:
+
+      # server is an optional Consul server to connect to. By default, localhost:8848 is used
+      - server: localhost:8848
+        # scheme: http
+
+        # group is an optional Nacos group. By default, DEFAULT_GROUP is used
+        # See https://nacos.io/en-us/docs/concepts.html
+        # 
+        # group: DEFAULT_GROUP
+        
+        # namespace is an optional Nacos namespace. By default, public is used
+        # See https://nacos.io/en-us/docs/concepts.html
+        # 
+        # namespace: public
+
+        # cluster is an optional Nacos cluster. By default, DEFAULT is used
+        # See https://nacos.io/en-us/docs/concepts.html
+        # 
+        # cluster: DEFAULT
+
+        # username is an optional username to query Identity API. 
+        # See https://nacos.io/docs/latest/manual/admin/auth/?spm=5238cd80.8455655.0.0.4a143f074revCz
+        # username: nacos
+        # password is an optional username to query Identity API. 
+        # See https://nacos.io/docs/latest/manual/admin/auth/?spm=5238cd80.8455655.0.0.4a143f074revCz
+        # password: nacos
+        
+        # services is required list of services for watch target and retrieved.
+        services: ["", ""]
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set 
+to `<instance_ip>:<instance_port>`.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
+
+* `__meta_nacos_service`: the service name of the target
+* `__meta_nacos_service_address`: the address of the target  
+* `__meta_nacos_service_healthy`: the health status of the instance.
+* `__meta_nacos_service_ephemeral`: whether it is a temporary instance. 
+* `__meta_nacos_service_enabled`:  the availability of the instance.
+* `__meta_nacos_service_cluster`: cluster of the service - see [cluster docs](https://nacos.io/en-us/docs/concepts.html)
+* `__meta_nacos_service_port`: the port of the registered target
+* `__meta_nacos_service_namespace`: namespace of the service - see [namespace docs](https://nacos.io/en-us/docs/concepts.html)
+* `__meta_nacos_service_group`: namespace of the service - see [group docs](https://nacos.io/en-us/docs/concepts.html)
+* `__meta_nacos_metadata_<key>`: each service metadata key value of the target
+
+The list of discovered Consul targets is refreshed at the interval, which can be configured via `-promscrape.nacosSDCheckInterval` command-line flag.
 
 ## nomad_sd_configs
 
