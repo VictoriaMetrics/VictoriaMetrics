@@ -1057,12 +1057,17 @@ scrape_configs:
     # attach_metadata is an optional metadata to attach to discovered targets.
     # When `node` is set to true, then node metadata is attached to discovered targets.
     # Valid for roles: pod, endpoints, endpointslice.
+    # When `namespace` is set to true, then namespace metadata is attached to discovered targets.
+    # Valid for roles: pod, service, endpoints, endpointslice, ingress.
     #
     # Set `-promscrape.kubernetes.attachNodeMetadataAll` command-line flag
     # for attaching `node` metadata for all the discovered targets.
+    # Set `-promscrape.kubernetes.attachNamespaceMetadataAll` command-line flag
+    # for attaching `namespace` metadata for all the discovered targets.
     #
     # attach_metadata:
     #   node: <boolean>
+    #   namespace: <boolean>
 
     # Additional HTTP API client options can be specified here.
     # See https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options
@@ -1108,6 +1113,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: service` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the service object.
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace object. Available when `attach_metadata: {namespace: true}` is set.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace object. Available when `attach_metadata: {namespace: true}` is set.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace object. Available when `attach_metadata: {namespace: true}` is set.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace object. Available when `attach_metadata: {namespace: true}` is set.
 * `__meta_kubernetes_service_annotation_<annotationname>`: Each annotation from the service object.
 * `__meta_kubernetes_service_annotationpresent_<annotationname>`: "true" for each annotation of the service object.
 * `__meta_kubernetes_service_cluster_ip`: The cluster IP address of the service. (Does not apply to services of type ExternalName)
@@ -1132,6 +1141,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: pod` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the pod object.
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace object. Available when `attach_metadata: {namespace: true}` is set.
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace object. Available when `attach_metadata: {namespace: true}` is set.
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace object. Available when `attach_metadata: {namespace: true}` is set.
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace object. Available when `attach_metadata: {namespace: true}` is set.
 * `__meta_kubernetes_pod_name`: The name of the pod object.
 * `__meta_kubernetes_pod_ip`: The pod IP of the pod object.
 * `__meta_kubernetes_pod_label_<labelname>`: Each label from the pod object.
@@ -1165,6 +1178,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpoints` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpoints object.
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpoints object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
 * `__meta_kubernetes_endpoints_name`: The names of the endpoints object.
 * `__meta_kubernetes_endpoints_label_<labelname>`: Each label from the endpoints object.
 * `__meta_kubernetes_endpoints_labelpresent_<labelname>`: "true" for each label from the endpoints object.
@@ -1194,6 +1211,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: endpointslice` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the endpointslice object.
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the endpointslice object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
 * `__meta_kubernetes_endpointslice_name`: The name of endpointslice object.
 
   For all targets discovered directly from the endpointslice list (those not additionally inferred from underlying pods), the following labels are attached:
@@ -1224,6 +1245,10 @@ One of the following `role` types can be configured to discover targets:
   Available meta labels for `role: ingress` during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
 * `__meta_kubernetes_namespace`: The namespace of the ingress object.
+* `__meta_kubernetes_namespace_annotation_<annotationname>`: Each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_annotationpresent_<annotationname>`: "true" for each annotation from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_label_<labelname>`: Each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
+* `__meta_kubernetes_namespace_labelpresent_<labelname>`: "true" for each label from the namespace of the ingress object when `attach_metadata.namespace` is set to `true`. See [attach_metadata](#attach_metadata).
 * `__meta_kubernetes_ingress_name`: The name of the ingress object.
 * `__meta_kubernetes_ingress_label_<labelname>`: Each label from the ingress object.
 * `__meta_kubernetes_ingress_labelpresent_<labelname>`: "true" for each label from the ingress object.

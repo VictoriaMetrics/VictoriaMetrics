@@ -33,6 +33,8 @@ var (
 	apiServerTimeout      = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
 	attachNodeMetadataAll = flag.Bool("promscrape.kubernetes.attachNodeMetadataAll", false, "Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . "+
 		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs")
+	attachNamespaceMetadataAll = flag.Bool("promscrape.kubernetes.attachNamespaceMetadataAll", false, "Whether to set attach_metadata.namespace=true for all the kubernetes_sd_configs at -promscrape.config . "+
+		"It is possible to set attach_metadata.namespace=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs")
 	useHTTP2Client = flag.Bool("promscrape.kubernetes.useHTTP2Client", false, "Whether to use HTTP/2 client for connection to Kubernetes API server."+
 		" This may reduce amount of concurrent connections to API server when watching for a big number of Kubernetes objects.")
 )
@@ -88,11 +90,13 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 	}
 	selectors := sdc.Selectors
 	attachNodeMetadata := *attachNodeMetadataAll
+	attachNamespaceMetadata := *attachNamespaceMetadataAll
 	if sdc.AttachMetadata != nil {
 		attachNodeMetadata = sdc.AttachMetadata.Node
+		attachNamespaceMetadata = sdc.AttachMetadata.Namespace
 	}
 	proxyURL := sdc.ProxyURL.GetURL()
-	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
+	gw := getGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, attachNamespaceMetadata, proxyURL)
 	role := sdc.role()
 	aw := &apiWatcher{
 		role:             role,
@@ -211,7 +215,7 @@ func (aw *apiWatcher) getScrapeWorkObjects() []any {
 }
 
 // groupWatcher watches for Kubernetes objects on the given apiServer with the given namespaces,
-// selectors and attachNodeMetadata using the given client.
+// selectors, attachNodeMetadata and attachNamespaceMetadata using the given client.
 type groupWatcher struct {
 	// The number of in-flight apiWatcher.mustStart() calls for the given groupWatcher.
 	// This field is used by groupWatchersCleaner() in order to determine when the given groupWatcher can be stopped.
@@ -225,10 +229,11 @@ type groupWatcher struct {
 	// This flag is used for automatic substitution of v1 API path with v1beta1 API path during requests to apiServer.
 	useDiscoveryV1Beta1 atomic.Bool
 
-	apiServer          string
-	namespaces         []string
-	selectors          []Selector
-	attachNodeMetadata bool
+	apiServer               string
+	namespaces              []string
+	selectors               []Selector
+	attachNodeMetadata      bool
+	attachNamespaceMetadata bool
 
 	setHeaders func(req *http.Request) error
 	client     *http.Client
@@ -288,14 +293,15 @@ func newHTTPTransport(enableHTTP2 bool) *http.Transport {
 	return tr
 }
 
-func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
+func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, attachNamespaceMetadata bool, proxyURL *url.URL) *groupWatcher {
 	client := getHTTPClient(ac, proxyURL)
 	ctx, cancel := context.WithCancel(context.Background())
 	gw := &groupWatcher{
-		apiServer:          apiServer,
-		namespaces:         namespaces,
-		selectors:          selectors,
-		attachNodeMetadata: attachNodeMetadata,
+		apiServer:               apiServer,
+		namespaces:              namespaces,
+		selectors:               selectors,
+		attachNodeMetadata:      attachNodeMetadata,
+		attachNamespaceMetadata: attachNamespaceMetadata,
 
 		setHeaders: func(req *http.Request) error {
 			return ac.SetHeaders(req, true)
@@ -309,17 +315,17 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 	return gw
 }
 
-func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
+func getGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, attachNamespaceMetadata bool, proxyURL *url.URL) *groupWatcher {
 	proxyURLStr := "<nil>"
 	if proxyURL != nil {
 		proxyURLStr = proxyURL.String()
 	}
-	key := fmt.Sprintf("apiServer=%s, namespaces=%s, selectors=%s, attachNodeMetadata=%v, proxyURL=%s, authConfig=%s",
-		apiServer, namespaces, selectorsKey(selectors), attachNodeMetadata, proxyURLStr, ac.String())
+	key := fmt.Sprintf("apiServer=%s, namespaces=%s, selectors=%s, attachNodeMetadata=%v, attachNamespaceMetadata=%v, proxyURL=%s, authConfig=%s",
+		apiServer, namespaces, selectorsKey(selectors), attachNodeMetadata, attachNamespaceMetadata, proxyURLStr, ac.String())
 	groupWatchersLock.Lock()
 	gw := groupWatchers[key]
 	if gw == nil {
-		gw = newGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, proxyURL)
+		gw = newGroupWatcher(apiServer, ac, namespaces, selectors, attachNodeMetadata, attachNamespaceMetadata, proxyURL)
 		groupWatchers[key] = gw
 	}
 	groupWatchersLock.Unlock()
@@ -434,8 +440,8 @@ func putLabelssToPool(labelss []*promutil.Labels) {
 }
 
 func (gw *groupWatcher) getObjectByRoleLocked(role, namespace, name string) object {
-	if role == "node" {
-		// Node objects have no namespace
+	if role == "node" || role == "namespace" {
+		// Node and namespace objects have no namespace field
 		namespace = ""
 	}
 	key := namespace + "/" + name
@@ -464,6 +470,9 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
 		gw.startWatchersForRole("node", nil)
 	}
+	if gw.attachNamespaceMetadata && (role == "pod" || role == "service" || role == "endpoints" || role == "endpointslice" || role == "ingress") {
+		gw.startWatchersForRole("namespace", nil)
+	}
 
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
 	for _, path := range paths {
@@ -482,8 +491,11 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 		if needStart {
 			uw.reloadObjects()
 			go uw.watchForUpdates()
-			if role == "endpoints" || role == "endpointslice" || (gw.attachNodeMetadata && role == "pod") {
-				// Refresh targets in background, since they depend on other object types such as pod, service or node.
+			needRecreate := role == "endpoints" || role == "endpointslice" ||
+				(gw.attachNodeMetadata && role == "pod") ||
+				(gw.attachNamespaceMetadata && (role == "pod" || role == "service" || role == "ingress"))
+			if needRecreate {
+				// Refresh targets in background, since they depend on other object types such as pod, service, node or namespace.
 				// This should guarantee that the ScrapeWork objects for these objects are properly updated
 				// as soon as the objects they depend on are updated.
 				// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240 .
@@ -947,7 +959,8 @@ func (uw *urlWatcher) removeObjectLocked(key string) {
 func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 	role := uw.role
 	attachNodeMetadata := uw.gw.attachNodeMetadata
-	if role != "pod" && role != "service" && (!attachNodeMetadata || role != "node") {
+	attachNamespaceMetadata := uw.gw.attachNamespaceMetadata
+	if role != "pod" && role != "service" && (!attachNodeMetadata || role != "node") && (!attachNamespaceMetadata || role != "namespace") {
 		// Nothing to update
 		return
 	}
@@ -964,6 +977,11 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 		}
 		if attachNodeMetadata && role == "node" && (uwx.role == "pod" || uwx.role == "endpoints" || uwx.role == "endpointslice") {
 			// pod, endpoints and endpointslices objects depend on node objects if attachNodeMetadata is set
+			uwx.needRecreateScrapeWorks = true
+			continue
+		}
+		if attachNamespaceMetadata && role == "namespace" && (uwx.role == "pod" || uwx.role == "service" || uwx.role == "endpoints" || uwx.role == "endpointslice" || uwx.role == "ingress") {
+			// pod, service, endpoints, endpointslice and ingress objects depend on namespace objects if attachNamespaceMetadata is set
 			uwx.needRecreateScrapeWorks = true
 			continue
 		}
@@ -1004,7 +1022,7 @@ func parseError(data []byte) (*Error, error) {
 
 func getAPIPathsWithNamespaces(role string, namespaces []string, selectors []Selector) []string {
 	objectType := getObjectTypeByRole(role)
-	if objectType == "nodes" || len(namespaces) == 0 {
+	if objectType == "nodes" || objectType == "namespaces" || len(namespaces) == 0 {
 		query := joinSelectors(role, selectors)
 		path := getAPIPath(objectType, "", query)
 		return []string{path}
@@ -1071,6 +1089,8 @@ func getObjectTypeByRole(role string) string {
 		return "endpointslices"
 	case "ingress":
 		return "ingresses"
+	case "namespace":
+		return "namespaces"
 	default:
 		logger.Panicf("BUG: unknown role=%q", role)
 		return ""
@@ -1091,6 +1111,8 @@ func getObjectParsersForRole(role string) (parseObjectFunc, parseObjectListFunc)
 		return parseEndpointSlice, parseEndpointSliceList
 	case "ingress":
 		return parseIngress, parseIngressList
+	case "namespace":
+		return parseNamespace, parseNamespaceList
 	default:
 		logger.Panicf("BUG: unsupported role=%q", role)
 		return nil, nil
