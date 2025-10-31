@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
 )
 
@@ -38,6 +39,12 @@ type vminsertAPI struct {
 // WriteRows implements lib/vminsertapi.API interface
 func (v *vminsertAPI) WriteRows(rows []storage.MetricRow) error {
 	v.storage.AddRows(rows, uint8(*precisionBits))
+	return nil
+}
+
+// WriteMetadata implements lib/vminsertapi.API interface
+func (v *vminsertAPI) WriteMetadata(rows []metricsmetadata.Row) error {
+	v.storage.AddMetadataRows(rows)
 	return nil
 }
 

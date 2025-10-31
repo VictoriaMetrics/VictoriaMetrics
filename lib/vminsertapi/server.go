@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 // VMInsertServer processes connections from vminsert.
@@ -255,6 +256,13 @@ func (s *VMInsertServer) processWriteRows(ctx *RequestCtx) error {
 	return stream.ParseBlock(ctx.bc, func(rows []storage.MetricRow) error {
 		s.vminsertMetricsRead.Add(len(rows))
 		return s.api.WriteRows(rows)
+	}, s.api.IsReadOnly)
+}
+
+func (s *VMInsertServer) processWriteMetadata(ctx *RequestCtx) error {
+	return stream.ParseMetricsMetadataBlock(ctx.bc, func(rows []metricsmetadata.Row) error {
+		s.vminsertMetadataRead.Add(len(rows))
+		return s.api.WriteMetadata(rows)
 	}, s.api.IsReadOnly)
 }
 
