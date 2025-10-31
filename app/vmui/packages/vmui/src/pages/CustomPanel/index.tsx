@@ -83,17 +83,17 @@ const CustomPanel: FC = () => {
   const showInstantQueryTip = !liveData?.length && (displayType !== DisplayType.chart);
   const showError = !hideError && error;
 
-  const handleHideQuery = (queries: number[]) => {
+  const handleHideQuery = useCallback((queries: number[]) => {
     setHideQuery(queries);
-  };
+  }, []);
 
-  const handleRunQuery = () => {
+  const handleRunQuery = useCallback(() => {
     setHideError(false);
-  };
+  }, []);
 
   useEffect(() => {
     graphDispatch({ type: "SET_IS_HISTOGRAM", payload: isHistogram });
-  }, [graphData]);
+  }, [isHistogram]);
 
   return (
     <div
@@ -103,7 +103,7 @@ const CustomPanel: FC = () => {
       })}
     >
       <QueryConfigurator
-        queryErrors={!hideError ? queryErrors : []}
+        queryErrors={!hideError ? queryErrors : undefined}
         setQueryErrors={setQueryErrors}
         setHideError={setHideError}
         stats={queryStats}

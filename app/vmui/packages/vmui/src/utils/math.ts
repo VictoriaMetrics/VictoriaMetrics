@@ -1,71 +1,86 @@
-export const getMaxFromArray = (a: number[]) => {
-  let len = a.length;
-  let max = -Infinity;
-  while (len--) {
-    const v = a[len];
-    if (Number.isFinite(v) && v > max) {
-      max = v;
-    }
-  }
-  return Number.isFinite(max) ? max : null;
+import quickselect from "./quickselect";
+
+export const roundToThousandths = (num: number): number => Math.round(num*1000)/1000;
+
+type MathStatsOptions = {
+  min?: boolean;
+  max?: boolean;
+  median?: boolean;
+  avg?: boolean;
 };
 
-export const getMinFromArray = (a: number[]) => {
-  let len = a.length;
-  let min = Infinity;
-  while (len--) {
-    const v = a[len];
-    if (Number.isFinite(v) && v < min) {
-      min = v;
-    }
-  }
-  return Number.isFinite(min) ? min : null;
+type MathStatsResult = {
+  min: number | null;
+  max: number | null;
+  median: number | null;
+  avg: number | null;
 };
 
-export const getAvgFromArray = (a: number[]) => {
-  let mean = a[0];
-  let n = 1;
-  for (let i = 1; i < a.length; i++) {
-    const v = a[i];
-    if (Number.isFinite(v)) {
-      mean = mean * (n-1)/n + v / n;
-      n++;
-    }
+/**
+ * Returns median of finite numbers in `vals`.
+ * MUTATES `vals` in place (uses quickselect).
+ */
+const medianFromFiniteInPlace = (vals: number[]): number | null => {
+  const m = vals.length;
+  if (m === 0) return null;
+
+  const k = m >> 1;
+  quickselect(vals, k); // place upper median at vals[k]
+  const upper = vals[k];
+
+  if (m & 1) return upper; // odd length
+
+  // even length: take max of the left half [0..k-1]
+  let lower = -Infinity;
+  for (let i = 0; i < k; i++) {
+    const v = vals[i];
+    if (v > lower) lower = v;
   }
-  return mean;
+  return (lower + upper) / 2;
 };
 
-export const getMedianFromArray = (a: number[]) => {
-  let len = a.length;
-  const aCopy = [];
-  while (len--) {
-    const v = a[len];
-    if (Number.isFinite(v)) {
-      aCopy.push(v);
-    }
-  }
-  aCopy.sort();
-  return aCopy[aCopy.length>>1];
-};
+export const getMathStats = (
+  a: (number | null)[],
+  ops: MathStatsOptions
+): MathStatsResult => {
+  const needMin = !!ops.min;
+  const needMax = !!ops.max;
+  const needAvg = !!ops.avg;
+  const needMedian = !!ops.median;
 
-export const getLastFromArray = (a: number[]) => {
-  let len = a.length;
-  while (len--) {
-    const v = a[len];
-    if (Number.isFinite(v)) {
-      return v;
-    }
+  if (!needMin && !needMax && !needAvg && !needMedian) {
+    return { min: null, max: null, median: null, avg: null };
   }
-};
 
-export const formatNumberShort = (value: number) => {
-  if (value >= 1_000_000_000) {
-    return (value / 1_000_000_000).toFixed(1).replace(/\.0$/, "") + "B";
-  } else if (value >= 1_000_000) {
-    return (value / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
-  } else if (value >= 1_000) {
-    return (value / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
-  } else {
-    return value.toString();
+  // min & max
+  let minVal = Infinity;
+  let maxVal = -Infinity;
+
+  // average
+  let avgVal = 0;
+  let avgCount = 0;
+
+  // collect finite values for median
+  const vals: number[] = [];
+
+  for (const v of a) {
+    if (v == null || !Number.isFinite(v)) continue;
+
+    if (needMin && v < minVal) minVal = v;
+    if (needMax && v > maxVal) maxVal = v;
+
+    if (needAvg) {
+      avgCount++;
+      avgVal += (v - avgVal) / avgCount;
+    }
+
+    if (needMedian) vals.push(v);
   }
+
+  return {
+    min: Number.isFinite(minVal) ? minVal : null,
+    max: Number.isFinite(maxVal) ? maxVal : null,
+    avg: avgCount ? avgVal : null,
+    median: (vals && needMedian) ? medianFromFiniteInPlace(vals) : null,
+  };
 };

@@ -3,7 +3,7 @@ import { useFetchTopQueries } from "./hooks/useFetchTopQueries";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import TopQueryPanel from "./TopQueryPanel/TopQueryPanel";
 import { formatPrettyNumber } from "../../utils/uplot";
-import { isSupportedDuration } from "../../utils/time";
+import { parseSupportedDuration } from "../../utils/time";
 import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";
 import Button from "../../components/Main/Button/Button";
@@ -29,7 +29,7 @@ const TopQueries: FC = () => {
   const maxLifetimeValid = useMemo(() => {
     const durItems = maxLifetime.trim().split(" ");
     const durObject = durItems.reduce((prev, curr) => {
-      const dur = isSupportedDuration(curr);
+      const dur = parseSupportedDuration(curr);
       return dur ? { ...prev, ...dur } : { ...prev };
     }, {});
     const delta = dayjs.duration(durObject).asMilliseconds();
