@@ -723,7 +723,7 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 	return true
 }
 
-// reouteRowsToFreeStorageNodes re-routes src from snSource to other storage nodes.
+// rerouteRowsToFreeStorageNodes re-routes src from snSource to other storage nodes.
 //
 // It is expected that snSource has no enough buffer for sending src.
 // It is expected than *disableRerouting isn't set when calling this function.
