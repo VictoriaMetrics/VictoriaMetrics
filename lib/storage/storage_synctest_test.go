@@ -580,3 +580,102 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		s.MustClose()
 	})
 }
+
+func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertNextDayMetricIDs := func(t *testing.T, gotNextDayMetricIDs *byDateMetricIDEntry, wantIDBID, wantDate uint64, wantLen int) {
+		t.Helper()
+
+		if got, want := gotNextDayMetricIDs.k.idbID, wantIDBID; got != want {
+			t.Fatalf("unexpected nextDayMetricIDs idb id: got %d, want %d", got, want)
+		}
+		if got, want := gotNextDayMetricIDs.k.date, wantDate; got != want {
+			t.Fatalf("unexpected nextDayMetricIDs date: got %d, want %d", got, want)
+		}
+		if got, want := gotNextDayMetricIDs.v.Len(), wantLen; got != want {
+			t.Fatalf("unexpected nextDayMetricIDs count: got %d, want %d", got, want)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		// synctest starts at 2000-01-01T00:00:00Z.
+		// Advance time to 23:30 to enable next day prefill.
+		time.Sleep(23*time.Hour + 30*time.Minute) // 2000-01-01T23:30:00Z
+		nextDay := uint64(time.Now().UnixMilli()/msecPerDay) + 1
+
+		const numSeries = 1000
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+		idbID := ptw.pt.idb.id
+		s.tb.PutPartition(ptw)
+
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric", TimeRange{
+			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		// After the initial ingestion, the metricIDs are not in
+		// currHourMetricIDs cache yet, so no timeseries will be registered in
+		// next day index.
+		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
+		}
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, 0)
+
+		// Wait for currHourMetricIDs cache to populate and ingest the same data
+		// again.
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		// The next day metricIDs must now appear in pendingNextDayMetricIDs cache.
+		if s.pendingNextDayMetricIDs.Len() == 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got 0, want > 0")
+		}
+		numNextDayMetricIDs := s.pendingNextDayMetricIDs.Len()
+		// But not in the nextDayMetricIDs cache. The pending metrics will be
+		// moved to it by a bg process a few seconds later.
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, 0)
+
+		// Wait for nextDayMetricIDs cache to populate.
+		time.Sleep(15 * time.Second)
+		synctest.Wait()
+
+		// At this point, pending metricIDs must have been moved to
+		// nextDayMetricIDs cache and the pendingNextDayMetricIDs must be empty.
+		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
+		}
+		// While the actual cache, must contain the exact number of metricIDs
+		// that once were pending.
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, numNextDayMetricIDs)
+
+		// Close the storage to persist nextDayMetricIDs cache to a file.
+		s.MustClose()
+		// Open the storage again to enrure that the cache is populated
+		// correctly.
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
+		}
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, numNextDayMetricIDs)
+		s.MustClose()
+
+		// Advance the time by one day and open the storage.
+		// Since the current date and the date in the cache file do not match,
+		// nothing will be loaded into cache.
+		time.Sleep(24 * time.Hour)
+		nextDay = uint64(time.Now().UnixMilli()/msecPerDay) + 1
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
+		}
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, 0)
+		s.MustClose()
+	})
+}

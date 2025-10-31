@@ -10,6 +10,8 @@ const (
 
 	appliedRetentionFilename    = "appliedRetention.txt"
 	resetCacheOnStartupFilename = "reset_cache_on_startup"
+
+	nextDayMetricIDsFilename = "next_day_metric_ids_v3"
 )
 
 const (

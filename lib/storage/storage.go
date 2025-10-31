@@ -305,8 +305,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
 	s.pendingHourEntries = &uint64set.Set{}
-	date := fasttime.UnixDate()
-	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(date)
+	nextDayMetricIDs := s.mustLoadNextDayMetricIDs()
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
@@ -841,12 +840,10 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stopCh:
-			date := fasttime.UnixDate() + 1
-			s.updateNextDayMetricIDs(date)
+			s.updateNextDayMetricIDs()
 			return
 		case <-ticker.C:
-			date := fasttime.UnixDate() + 1
-			s.updateNextDayMetricIDs(date)
+			s.updateNextDayMetricIDs()
 		}
 	}
 }
@@ -904,21 +901,21 @@ func (s *Storage) MustClose() {
 	}
 }
 
-func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
-	ts := int64(date) * msecPerDay
-	ptw := s.tb.MustGetPartition(ts)
-	defer s.tb.PutPartition(ptw)
-
-	idb := ptw.pt.idb
-
+func (s *Storage) mustLoadNextDayMetricIDs() *byDateMetricIDEntry {
+	nextDay := fasttime.UnixDate() + 1
+	ptw := s.tb.MustGetPartition(int64(nextDay) * msecPerDay)
+	nextDayIDBID := ptw.pt.idb.id
+	s.tb.PutPartition(ptw)
 	e := &byDateMetricIDEntry{
 		k: dateKey{
-			idbID: idb.id,
-			date:  date,
+			// idbID field is used only to cache idb id for the next day to
+			// avoid getting it every time a new batch of metric rows is
+			// ingested. See updatePerDateData().
+			idbID: nextDayIDBID,
+			date:  nextDay,
 		},
 	}
-	name := "next_day_metric_ids_v2"
-	path := filepath.Join(s.cachePath, name)
+	path := filepath.Join(s.cachePath, nextDayMetricIDsFilename)
 	if !fs.IsPathExist(path) {
 		return e
 	}
@@ -926,22 +923,16 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
-	if len(src) < 24 {
-		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 24)
+	if len(src) < 16 {
+		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 16)
 		return e
 	}
 
 	// Unmarshal header
-	idbIDLoaded := encoding.UnmarshalUint64(src)
-	src = src[8:]
-	if idbIDLoaded != idb.id {
-		logger.Infof("discarding %s, since it contains data for indexDB from previous month; got %d; want %d", path, idbIDLoaded, idb.id)
-		return e
-	}
 	dateLoaded := encoding.UnmarshalUint64(src)
 	src = src[8:]
-	if dateLoaded != date {
-		logger.Infof("discarding %s, since it contains data for stale date; got %d; want %d", path, dateLoaded, date)
+	if dateLoaded != nextDay {
+		logger.Infof("discarding %s, since it contains data for stale date; got %d; want %d", path, dateLoaded, nextDay)
 		return e
 	}
 
@@ -1000,12 +991,10 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 }
 
 func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
-	name := "next_day_metric_ids_v2"
-	path := filepath.Join(s.cachePath, name)
-	dst := make([]byte, 0, e.v.Len()*8+16)
+	path := filepath.Join(s.cachePath, nextDayMetricIDsFilename)
+	dst := make([]byte, 0, e.v.Len()*8+8)
 
 	// Marshal header
-	dst = encoding.MarshalUint64(dst, e.k.idbID)
 	dst = encoding.MarshalUint64(dst, e.k.date)
 
 	// Marshal e.v
@@ -2722,24 +2711,33 @@ type byDateMetricIDEntry struct {
 	v uint64set.Set
 }
 
-func (s *Storage) updateNextDayMetricIDs(date uint64) {
-	ts := int64(date) * msecPerDay
-	ptw := s.tb.MustGetPartition(ts)
-	idb := ptw.pt.idb
-	defer s.tb.PutPartition(ptw)
-
+func (s *Storage) updateNextDayMetricIDs() {
+	nextDay := fasttime.UnixDate() + 1
+	ptw := s.tb.MustGetPartition(int64(nextDay) * msecPerDay)
+	nextDayIDBID := ptw.pt.idb.id
+	s.tb.PutPartition(ptw)
 	e := s.nextDayMetricIDs.Load()
 	s.pendingNextDayMetricIDsLock.Lock()
 	pendingMetricIDs := s.pendingNextDayMetricIDs
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 	s.pendingNextDayMetricIDsLock.Unlock()
-	if pendingMetricIDs.Len() == 0 && e.k.idbID == idb.id && e.k.date == date {
+	// Not comparing indexDB IDs because different idb ids imply different date.
+	if pendingMetricIDs.Len() == 0 && e.k.date == nextDay {
 		// Fast path: nothing to update.
 		return
 	}
 
 	// Slow path: union pendingMetricIDs with e.v
-	if e.k.idbID == idb.id && e.k.date == date {
+	//
+	// In partition index, two adjacent dates may correspond to two different
+	// indexDBs. For example, 2025-01-31 corresponds to 2025_01 partition
+	// indexDB, while 2025-02-01 corresponds to 2025_02 partition indexDB.
+	// In order to prefill the next day index correctly, the nextDayMetricIDs
+	// cache must contain the entries for one indexDB only and if the nextDay
+	// happens to be in a different indexDB the cache needs to be reset. But
+	// since different indexDBs imply different dates, it is enough to compare
+	// just dates.
+	if e.k.date == nextDay {
 		pendingMetricIDs.Union(&e.v)
 	} else {
 		// Do not add pendingMetricIDs from the previous day to the current day,
@@ -2748,8 +2746,11 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 		pendingMetricIDs = &uint64set.Set{}
 	}
 	k := dateKey{
-		idbID: idb.id,
-		date:  date,
+		// idbID field is used only to cache idb id for the next day to avoid
+		// getting it every time a new batch of metric rows is ingested (see
+		// updatePerDateData()).
+		idbID: nextDayIDBID,
+		date:  nextDay,
 	}
 	eNew := &byDateMetricIDEntry{
 		k: k,
