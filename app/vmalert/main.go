@@ -90,7 +90,6 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	flagutil.ApplySecretFlags()
 	remoteread.InitSecretFlags()
 	remotewrite.InitSecretFlags()
 	datasource.InitSecretFlags()
