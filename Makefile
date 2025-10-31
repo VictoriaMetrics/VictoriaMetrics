@@ -125,6 +125,15 @@ vmutils-linux-ppc64le: \
 	vmrestore-linux-ppc64le \
 	vmctl-linux-ppc64le
 
+vmutils-linux-s390x: \
+	vmagent-linux-s390x \
+	vmalert-linux-s390x \
+	vmalert-tool-linux-s390x \
+	vmauth-linux-s390x \
+	vmbackup-linux-s390x \
+	vmrestore-linux-s390x \
+	vmctl-linux-s390x
+
 vmutils-darwin-amd64: \
 	vmagent-darwin-amd64 \
 	vmalert-darwin-amd64 \
