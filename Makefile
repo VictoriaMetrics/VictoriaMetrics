@@ -257,6 +257,7 @@ release-victoria-metrics: \
 	release-victoria-metrics-linux-amd64 \
 	release-victoria-metrics-linux-arm \
 	release-victoria-metrics-linux-arm64 \
+	release-victoria-metrics-linux-s390x \
 	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-darwin-arm64 \
 	release-victoria-metrics-freebsd-amd64 \
@@ -274,6 +275,9 @@ release-victoria-metrics-linux-arm:
 
 release-victoria-metrics-linux-arm64:
 	GOOS=linux GOARCH=arm64 $(MAKE) release-victoria-metrics-goos-goarch
+
+release-victoria-metrics-linux-s390x:
+	GOOS=linux GOARCH=s390x $(MAKE) release-victoria-metrics-goos-goarch
 
 release-victoria-metrics-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 $(MAKE) release-victoria-metrics-goos-goarch
@@ -314,6 +318,7 @@ release-vmutils: \
 	release-vmutils-linux-amd64 \
 	release-vmutils-linux-arm64 \
 	release-vmutils-linux-arm \
+	release-vmutils-linux-s390x \
 	release-vmutils-darwin-amd64 \
 	release-vmutils-darwin-arm64 \
 	release-vmutils-freebsd-amd64 \
@@ -331,6 +336,9 @@ release-vmutils-linux-arm64:
 
 release-vmutils-linux-arm:
 	GOOS=linux GOARCH=arm $(MAKE) release-vmutils-goos-goarch
+
+release-vmutils-linux-s390x:
+	GOOS=linux GOARCH=s390x $(MAKE) release-vmutils-goos-goarch
 
 release-vmutils-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch
