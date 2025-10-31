@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.129.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.129.0)
+
+Released at 2025-10-31
+
 * FEATURE: `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce new RPC protocol for insert-storage communication. See this PR [#9820](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9820) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): explicitly check response type for [range queries](https://docs.victoriametrics.com/keyConcepts.html#range-query) during [replay](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling) and return error on type mismatch. This change should reduce confusions like in [#9779](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9779).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): allow providing multiple filters for [remote-read migration mode](https://docs.victoriametrics.com/victoriametrics/vmctl/remoteread/) via multiple `--remote-read-filter-label` and `--remote-read-filter-label-value` flags. This is useful in order to narrow down the data being migrated by using more precise filters. See this PR [#9917](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9917) for details.
