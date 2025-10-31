@@ -27,6 +27,9 @@ vmctl-linux-ppc64le-prod:
 vmctl-linux-386-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-linux-386
 
+vmctl-linux-s390x-prod:
+	APP_NAME=vmctl $(MAKE) app-via-docker-linux-s390x
+
 vmctl-darwin-amd64-prod:
 	APP_NAME=vmctl $(MAKE) app-via-docker-darwin-amd64
 

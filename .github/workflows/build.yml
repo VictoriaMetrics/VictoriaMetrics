@@ -47,6 +47,8 @@ jobs:
             arch: arm
           - os: linux
             arch: ppc64le
+          - os: linux
+            arch: s390x
           - os: darwin
             arch: amd64
           - os: darwin
