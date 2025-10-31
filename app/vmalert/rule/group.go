@@ -483,7 +483,7 @@ func (g *Group) UpdateWith(newGroup *Group) {
 // delayBeforeStart calculates delay based on Group ID, so all groups will start at different moments of time.
 func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Duration {
 	if g.EvalOffset != nil {
-		// if offset is specified, return a duration aligned with offset
+		// if offset is specified, ignore the maxDelay and return a duration aligned with offset
 		currentOffsetPoint := ts.Truncate(g.Interval).Add(*g.EvalOffset)
 		if currentOffsetPoint.Before(ts) {
 			// wait until the next offset point
@@ -492,14 +492,13 @@ func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Dura
 		return currentOffsetPoint.Sub(ts)
 	}
 
-	// otherwise, return a random duration between [0..interval] based on group ID
-	var randSleep time.Duration
+	// otherwise, return a random duration between [0..min(interval, maxDelay)] based on group ID
 	interval := g.Interval
 	if interval > maxDelay {
-		// artificially limit interval, so groups with big intervals
-		// could start sooner.
+		// artificially limit interval, so groups with big intervals could start sooner.
 		interval = maxDelay
 	}
+	var randSleep time.Duration
 	randSleep = time.Duration(float64(interval) * (float64(g.GetID()) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
 	if randSleep < sleepOffset {
