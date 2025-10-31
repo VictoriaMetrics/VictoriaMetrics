@@ -100,9 +100,9 @@ metrics, no matter where they come from (push-based or pull-based sources). It
 includes two phases:
 
 - `-remoteWrite.relabelConfig`: This is applied to all metrics before they are sent to any remote storage destination.
-  Config content is available at `http://vmagent-host:8429/remotewrite-relabel-config` endpoint {{% available_from "#" %}}. 
+  Config content is available at `http://vmagent-host:8429/remotewrite-relabel-config` endpoint {{% available_from "v1.129.0" %}}. 
 - `-remoteWrite.urlRelabelConfig`: This is applied to all metrics before they are sent to a specific remote storage destination.
-  Config content is available at `http://vmagent-host:8429/remotewrite-url-relabel-config` endpoint {{% available_from "#" %}}.
+  Config content is available at `http://vmagent-host:8429/remotewrite-url-relabel-config` endpoint {{% available_from "v1.129.0" %}}.
 
 This functionality is essential for routing and filtering data in different ways
 for multiple backends. For example:
