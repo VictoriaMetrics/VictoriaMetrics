@@ -45,7 +45,7 @@ VictoriaMetrics can also run on macOS for testing and development purposes.
 
 ## Supported Architectures
 
-* **Linux**: i386, amd64, arm, arm64, ppc64le
+* **Linux**: i386, amd64, arm, arm64, ppc64le, s390x
 * **FreeBSD**: i386, amd64, arm
 * **OpenBSD**: i386, amd64, arm
 * **Solaris/SmartOS**: i386, amd64
