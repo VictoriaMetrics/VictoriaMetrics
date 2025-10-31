@@ -265,6 +265,12 @@ func (sn *storageNode) checkHealth() {
 		// The sn looks healthy.
 		return
 	}
+	if deadline := sn.rpcIsNotSupportedDeadline.Load(); deadline > 0 {
+		if deadline > fasttime.UnixTimestamp() {
+			// do not attemp to re-connect
+			return
+		}
+	}
 	bc, err := sn.dial()
 	if err != nil {
 		sn.isBroken.Store(true)
@@ -308,6 +314,9 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
 	if err == nil {
+		if deadline := sn.rpcIsNotSupportedDeadline.Load(); deadline > 0 {
+			sn.rpcIsNotSupportedDeadline.Store(0)
+		}
 		// Successfully sent buf to bc.
 		sn.rowsSent.Add(br.rows)
 		return true
@@ -319,6 +328,10 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		// Signal the caller that the data wasn't accepted by the vmstorage,
 		// so it will be re-routed to the remaining vmstorage nodes.
 		return false
+	}
+	if errors.Is(err, vminsertapi.ErrRpcIsNotSupported) {
+		// TODO: add constant for deadline
+		sn.rpcIsNotSupportedDeadline.Store(fasttime.UnixTimestamp() + 120)
 	}
 	// Couldn't flush buf to sn. Mark sn as broken.
 	cannotSendBufsLogger.Warnf("cannot send %d bytes with %d rows to -storageNode=%q: %s; closing the connection to storageNode and "+
@@ -374,6 +387,8 @@ type storageNode struct {
 	// isBroken is set to true if the given vmstorage node is temporarily unhealthy.
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
 	isBroken atomic.Bool
+
+	rpcIsNotSupportedDeadline atomic.Uint64
 
 	rpcCall vminsertapi.RPCCall
 

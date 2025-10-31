@@ -14,6 +14,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
+// ErrRpcIsNotSupported defines an error when server doesn't support
+// provided rpc version.
+//
+// Client must close connection to the server.
+var ErrRpcIsNotSupported = errors.New("rpcName is not supported by server")
+
 // SendRPCRequestToConn sends given buf over provided bc to the server
 func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte) error {
 	var err error
@@ -61,6 +67,9 @@ func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte
 	if len(sizeBuf.B) > 0 {
 		if string(sizeBuf.B) == storage.ErrReadOnly.Error() {
 			return storage.ErrReadOnly
+		}
+		if string(sizeBuf.B) == ErrRpcIsNotSupported.Error() {
+			return ErrRpcIsNotSupported
 		}
 		return errors.New(string(sizeBuf.B))
 	}
