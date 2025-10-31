@@ -34,6 +34,9 @@ vmstorage-linux-ppc64le-prod:
 vmstorage-linux-386-prod:
 	APP_NAME=vmstorage $(MAKE) app-via-docker-linux-386
 
+vmstorage-linux-s390x-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-linux-s390x
+
 vmstorage-freebsd-amd64-prod:
 	APP_NAME=vmstorage $(MAKE) app-via-docker-freebsd-amd64
 

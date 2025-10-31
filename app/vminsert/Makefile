@@ -30,6 +30,9 @@ vminsert-linux-ppc64le-prod:
 vminsert-linux-386-prod:
 	APP_NAME=vminsert $(MAKE) app-via-docker-linux-386
 
+vminsert-linux-s390x-prod:
+	APP_NAME=vminsert $(MAKE) app-via-docker-linux-s390x
+
 vminsert-freebsd-amd64-prod:
 	APP_NAME=vminsert $(MAKE) app-via-docker-freebsd-amd64
 

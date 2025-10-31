@@ -34,6 +34,9 @@ vmselect-linux-ppc64le-prod:
 vmselect-linux-386-prod:
 	APP_NAME=vmselect $(MAKE) app-via-docker-linux-386
 
+vmselect-linux-s390x-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-linux-s390x
+
 vmselect-freebsd-amd64-prod:
 	APP_NAME=vmselect $(MAKE) app-via-docker-freebsd-amd64
 

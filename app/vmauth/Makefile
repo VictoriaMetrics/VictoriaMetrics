@@ -27,6 +27,9 @@ vmauth-linux-ppc64le-prod:
 vmauth-linux-386-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-linux-386
 
+vmauth-linux-s390x-prod:
+	APP_NAME=vmauth $(MAKE) app-via-docker-linux-s390x
+
 vmauth-darwin-amd64-prod:
 	APP_NAME=vmauth $(MAKE) app-via-docker-darwin-amd64
 

@@ -47,6 +47,8 @@ jobs:
             arch: ppc64le
           - os: linux
             arch: 386
+          - os: linux
+            arch: s390x
           - os: freebsd
             arch: amd64
           - os: openbsd

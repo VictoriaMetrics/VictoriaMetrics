@@ -168,6 +168,7 @@ release:
 release-vmcluster: \
 	release-vmcluster-linux-amd64 \
 	release-vmcluster-linux-arm64 \
+	release-vmcluster-linux-s390x \
 	release-vmcluster-freebsd-amd64 \
 	release-vmcluster-openbsd-amd64 \
 	release-vmcluster-windows-amd64 \
@@ -179,6 +180,9 @@ release-vmcluster-linux-amd64:
 
 release-vmcluster-linux-arm64:
 	GOOS=linux GOARCH=arm64 $(MAKE) release-vmcluster-goos-goarch
+
+release-vmcluster-linux-s390x:
+	GOOS=linux GOARCH=s390x $(MAKE) release-vmcluster-goos-goarch
 
 release-vmcluster-freebsd-amd64:
 	GOOS=freebsd GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
