@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 // VMInsertServer processes connections from vminsert.
@@ -229,6 +230,19 @@ func (s *VMInsertServer) processRPC(ctx *RequestCtx, rpcName string) error {
 		}
 		// return empty errror
 		return ctx.WriteString("")
+	case MetricMetadataRpcCall.VersionedName:
+		if err := s.processWriteMetadata(ctx); err != nil {
+			if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
+				return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
+			}
+			if errors.Is(err, storage.ErrReadOnly) {
+				return nil
+			}
+			return fmt.Errorf("cannot process writeMetadata: %w", err)
+		}
+		// return empty errror
+		return ctx.WriteString("")
+
 	default:
 		// reply to client unsupported rpc
 		// so it should handle this error
@@ -236,11 +250,11 @@ func (s *VMInsertServer) processRPC(ctx *RequestCtx, rpcName string) error {
 		// return error in order to close connection
 		// it cannot be used because client could write any kind of data into it
 		// and server doesn't know how to handle it
-		err := fmt.Errorf("unsupported rpcName: %q", rpcName)
-		if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
-			return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
+		if err := ctx.WriteErrorMessage(ErrRpcIsNotSupported); err != nil {
+			return fmt.Errorf("cannot write error message: %w", err)
 		}
-		return err
+		return fmt.Errorf("unsupported rpcName: %q", rpcName)
+
 	}
 }
 
@@ -255,6 +269,13 @@ func (s *VMInsertServer) processWriteRows(ctx *RequestCtx) error {
 	return stream.ParseBlock(ctx.bc, func(rows []storage.MetricRow) error {
 		s.vminsertMetricsRead.Add(len(rows))
 		return s.api.WriteRows(rows)
+	}, s.api.IsReadOnly)
+}
+
+func (s *VMInsertServer) processWriteMetadata(ctx *RequestCtx) error {
+	return stream.ParseMetricsMetadataBlock(ctx.bc, func(rows []metricsmetadata.Row) error {
+		s.vminsertMetadataRead.Add(len(rows))
+		return s.api.WriteMetadata(rows)
 	}, s.api.IsReadOnly)
 }
 

@@ -68,12 +68,12 @@ func insertRows(at *auth.Token, series []datadogv1.Series, extraLabels []prompb.
 			continue
 		}
 		atLocal := ctx.GetLocalAuthToken(at)
-		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+		ctx.Buf = storage.MarshalMetricNameRaw(ctx.Buf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 		for _, pt := range ss.Points {
 			timestamp := pt.Timestamp()
 			value := pt.Value()
-			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.Buf, timestamp, value); err != nil {
 				return err
 			}
 		}

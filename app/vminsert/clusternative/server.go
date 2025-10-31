@@ -1,18 +1,19 @@
 package clusternative
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"time"
-
-	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vminsertapi"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -22,27 +23,24 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
 )
 
+// NewVMinsertServer creates and start vminsert server at the given addr
+func NewVMinsertServer(addr string, tc *tls.Config) (*vminsertapi.VMInsertServer, error) {
+	api := &vminsertAPI{}
+	return vminsertapi.NewVMInsertServer(addr, *vminsertConnsShutdownDuration, "clusternative", api, tc)
+}
+
+type vminsertAPI struct {
+}
+
 var (
 	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="clusternative"}`)
+	metadataInserted   = metrics.NewCounter(`vm_metadata_inserted_total{type="clusternative"}`)
 	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="clusternative"}`)
 	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="clusternative"}`)
 )
 
-// NewVMInsertServer starts vminsertapi.VMInsertServer at the given addr
-func NewVMInsertServer(listenAddr string) (*vminsertapi.VMInsertServer, error) {
-	api := &vminsertAPI{}
-
-	s, err := vminsertapi.NewVMInsertServer(listenAddr, *vminsertConnsShutdownDuration, "clusternative", api, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return s, nil
-}
-
-type vminsertAPI struct{}
-
-func (*vminsertAPI) WriteRows(rows []storage.MetricRow) error {
+// WriteRows implements lib/vminsertapi/API interface
+func (v *vminsertAPI) WriteRows(rows []storage.MetricRow) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
@@ -80,6 +78,27 @@ func (*vminsertAPI) WriteRows(rows []storage.MetricRow) error {
 	return ctx.FlushBufs()
 }
 
-func (*vminsertAPI) IsReadOnly() bool {
+// WriteMetadata implements lib/vminsertapi/API interface
+func (v *vminsertAPI) WriteMetadata(mrs []metricsmetadata.Row) error {
+	ctx := netstorage.GetInsertCtx()
+	defer netstorage.PutInsertCtx(ctx)
+
+	ctx.ResetForMetricsMetadata() // This line is required for initializing ctx internals.
+	for i := range mrs {
+		row := &mrs[i]
+		ctx.Buf = row.MarshalTo(ctx.Buf[:0])
+		storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.Buf)
+		if err := ctx.WriteMetadataExt(storageNodeIdx, ctx.Buf); err != nil {
+			return err
+		}
+	}
+
+	metadataInserted.Add(len(mrs))
+
+	return ctx.FlushBufs()
+}
+
+// IsReadOnly implements lib/vminsertapi/API interface
+func (v *vminsertAPI) IsReadOnly() bool {
 	return false
 }
