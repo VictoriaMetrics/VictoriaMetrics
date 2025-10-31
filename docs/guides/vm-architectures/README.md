@@ -44,7 +44,7 @@ Each subsequent section of this guide presents an architecture designed to handl
 
 ## Basic
 
-**For whom**: pet projects, developments/test stages, and non-critical systems monitoring.
+**Recommended for:** Pet projects, development/test stages, and non-critical systems monitoring.
 
 Installation guide reference: [https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single)
 
@@ -73,7 +73,7 @@ For this section, you can increase availability by utilizing backup and restore 
 
 ## Single Availability Zone
 
-**Target audience**: Single availability zone hosted system of any scale
+**Recommended for:** Single availability zone hosted systems of any scale
 
 Installation guide reference: [https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster)
 
@@ -188,7 +188,7 @@ For Enterprise users, the queueing can be offloaded to an external message broke
 
 ## Multi-Cluster and Multi-AZ
 
-**For whom:** For large-scale workloads or services with high SLA requirements that must survive the complete failure of a datacenter or an Availability Zone (AZ).
+**Recommended for:** Large-scale workloads or services with high SLA requirements that must survive the complete failure of a datacenter or an Availability Zone (AZ).
 
 High availability implementation: [https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions)
 
@@ -228,7 +228,7 @@ To ensure reliability, vmagent implements the bulkhead pattern: each destination
 
 ## The Hyperscale (Cell-based)
 
-**For whom:** For systems that require extra reliability and scalability across multiple regions and zones.
+**Recommended for:** Systems that require extra reliability and scalability across multiple regions and zones.
 
 **Key characteristics:** This architecture is built on two main ideas - cells and the separation of routing and storage paths
 
@@ -316,7 +316,7 @@ Just like the read path, your alerting strategy in a hyperscale setup also invol
 
 **Pros:**
 
-* **Low latency for alert evaluation.** Queries are always local and fast.
+* **Low latency for alert evaluation.** Query evaluation is always local and fast.
 
 **Cons:**
 
@@ -352,7 +352,7 @@ Just like the read path, your alerting strategy in a hyperscale setup also invol
 
 ## Logical layers
 
-**For whom:** For any scale of company where there exists a need to serve multiple different internal teams or external customers, in other words, separate the data. Each of these "tenants" may have different requirements for data isolation and performance.
+**Recommended for:** Companies of any scale that need to serve multiple internal teams or external customers with separate data. Each tenant may have different requirements for data isolation and performance.
 
 The other use case is a different retention across tenants, which is described in this guide: [https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup) 
 
