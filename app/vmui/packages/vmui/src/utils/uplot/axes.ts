@@ -1,7 +1,6 @@
 import uPlot, { Axis, Series } from "uplot";
-import { getMaxFromArray, getMinFromArray } from "../math";
-import { getSecondsFromDuration, roundToMilliseconds } from "../time";
-import { AxisRange } from "../../state/graph/reducer";
+import { roundToThousandths } from "../math";
+import { getSecondsFromDuration } from "../time";
 import { formatTicks, getTextWidth } from "./helpers";
 import { TimeParams } from "../../types";
 import { getCssVariable } from "../theme";
@@ -19,45 +18,59 @@ const timeValues = [
   [0.001,           ":{ss}.{fff}",    "\n{YYYY}-{MM}-{DD} {HH}:{mm}", null, "\n{MM}-{DD} {HH}:{mm}", null, "\n{HH}:{mm}", null, 1],
 ];
 
-export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(new Set(series.map(s => s.scale))).map(a => {
-  const font = "10px Arial";
-  const stroke = getCssVariable("color-text");
-  const axis = {
-    scale: a,
-    show: true,
-    size: sizeAxis,
-    stroke,
-    font,
-    values: (u: uPlot, ticks: number[]) => formatTicks(u, ticks, unit)
-  };
-  if (!a) return { space: 80, values: timeValues, stroke, font };
-  if (!(Number(a) % 2) && a !== "y") return { ...axis, side: 1 };
-  return axis;
-});
+export const getAxes = (series: Series[], unit?: string): Axis[] =>
+  Array.from(new Set(series.map(s => s.scale))).map(a => {
+    const font = "10px Arial";
+    const stroke = getCssVariable("color-text");
+    const axis = {
+      scale: a,
+      show: true,
+      size: sizeAxis,
+      stroke,
+      font,
+      values: (u: uPlot, ticks: number[]) => formatTicks(u, ticks, unit)
+    };
+    if (!a) return { space: 80, values: timeValues, stroke, font };
+    if (!(Number(a) % 2) && a !== "y") return { ...axis, side: 1 };
+    return axis;
+  });
 
-export const getTimeSeries = (times: number[], stepDuration: string, period: TimeParams): number[] => {
-  const step = getSecondsFromDuration(stepDuration) || 1;
-  const allTimes = Array.from(new Set(times)).sort((a, b) => a - b);
-  let t = period.start;
-  const tEnd = roundToMilliseconds(period.end + step);
-  let j = 0;
-  const results: number[] = [];
-  while (t <= tEnd) {
-    while (j < allTimes.length && allTimes[j] <= t) {
-      t = allTimes[j];
-      j++;
-      results.push(t);
-    }
-    t = roundToMilliseconds(t + step);
-    if (j >= allTimes.length || allTimes[j] > t) {
-      results.push(t);
-    }
+export const getTimeSeries = (
+  stepDuration: string,
+  period: TimeParams,
+  pixels: number,
+  tsAnchor?: number,
+) => {
+  const tStart = roundToThousandths(period.start);
+  const tEnd = roundToThousandths(period.end);
+  const baseStep = getSecondsFromDuration(stepDuration) || 0.001;
+  const step = Math.max(0.001, roundToThousandths(baseStep))
+
+  const anchor = roundToThousandths(tsAnchor ?? tStart);
+
+  const posMod = (a: number, s: number) => {
+    const r = a % s;
+    return r < 0 ? r + s : r;
+  };
+
+  const phase = posMod(anchor, step);
+  let firstTick = roundToThousandths(tStart + posMod(phase - posMod(tStart, step), step));
+  if (firstTick < tStart) firstTick = roundToThousandths(firstTick + step);
+  if (firstTick > tEnd) return [tStart, tEnd];
+
+  const fullCount = Math.floor((tEnd - firstTick) / step) + 1;
+
+  const stride = Math.max(1, Math.ceil(fullCount / pixels));
+  const stepOut = Math.max(0.001, roundToThousandths(step * stride));
+
+  const totalPoints = Math.min(pixels, Math.floor((tEnd - firstTick) / stepOut) + 1);
+  const out = new Array<number>(totalPoints);
+
+  for (let k = 0; k < totalPoints; k++) {
+    out[k] = roundToThousandths(firstTick + k * stepOut);
   }
-  while (results.length < 2) {
-    results.push(t);
-    t = roundToMilliseconds(t + step);
-  }
-  return results;
+
+  return out;
 };
 
 export const getMinMaxBuffer = (min: number | null, max: number | null): [number, number] => {
@@ -65,18 +78,8 @@ export const getMinMaxBuffer = (min: number | null, max: number | null): [number
     return [-1, 1];
   }
   const valueRange = Math.abs(max - min) || Math.abs(min) || 1;
-  const padding = 0.02*valueRange;
+  const padding = 0.02 * valueRange;
   return [min - padding, max + padding];
-};
-
-export const getLimitsYAxis = (values: { [key: string]: number[] }, buffer: boolean): AxisRange => {
-  const result: AxisRange = {};
-  const numbers = Object.values(values).flat();
-  const key = "1";
-  const min = getMinFromArray(numbers) || 0;
-  const max = getMaxFromArray(numbers) || 1;
-  result[key] = buffer ? getMinMaxBuffer(min, max) : [min, max];
-  return result;
 };
 
 export const sizeAxis = (u: uPlot, values: string[], axisIdx: number, cycleNum: number): number => {

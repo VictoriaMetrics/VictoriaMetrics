@@ -1,4 +1,5 @@
-import { FC, MouseEvent, useMemo } from "react";
+import { FC, useMemo } from "react";
+import { TargetedMouseEvent } from "preact";
 import { LegendItemType } from "../../../../types";
 import { useLegendView } from "./hooks/useLegendView";
 import LegendLines from "./LegendViews/LegendLines";
@@ -7,6 +8,7 @@ import { useHideDuplicateFields } from "./hooks/useHideDuplicateFields";
 import Accordion from "../../../Main/Accordion/Accordion";
 import { useLegendGroup } from "./hooks/useLegendGroup";
 import useCopyToClipboard from "../../../../hooks/useCopyToClipboard";
+import { DEFAULT_MAX_SERIES } from "../../../../constants/graph";
 
 export type LegendProps = {
   labels: LegendItemType[];
@@ -29,7 +31,7 @@ const LegendGroup: FC<LegendGroupProps> = ({ labels, group, isAnomalyView, onCha
     return labels.sort((x, y) => (y.median || 0) - (x.median || 0));
   }, [labels]);
 
-  const createHandlerCopy = (value: string) => async (e: MouseEvent<HTMLDivElement>) => {
+  const createHandlerCopy = (value: string) => async (e: TargetedMouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     await copyToClipboard(value, `${value} has been copied`);
   };
@@ -42,7 +44,7 @@ const LegendGroup: FC<LegendGroupProps> = ({ labels, group, isAnomalyView, onCha
       key={group}
     >
       <Accordion
-        defaultExpanded={true}
+        defaultExpanded={sortedLabels.length < DEFAULT_MAX_SERIES.chart}
         title={(
           <div className="vm-legend-group-header">
             <div className="vm-legend-group-header-title">
