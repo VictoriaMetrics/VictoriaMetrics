@@ -67,6 +67,11 @@ vmcluster-linux-386: \
 	vmselect-linux-386 \
 	vmstorage-linux-386
 
+vmcluster-linux-s390x: \
+	vminsert-linux-s390x \
+	vmselect-linux-s390x \
+	vmstorage-linux-s390x
+
 vmcluster-freebsd-amd64: \
 	vminsert-freebsd-amd64 \
 	vmselect-freebsd-amd64 \
