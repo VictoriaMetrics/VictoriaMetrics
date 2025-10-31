@@ -250,14 +250,14 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache("metricName_tsid", getTSIDCacheSize())
-	s.metricIDCache = s.mustLoadCache("metricID_tsid", mem/16)
-	s.metricNameCache = s.mustLoadCache("metricID_metricName", getMetricNamesCacheSize())
+	s.tsidCache = s.mustLoadCache(tsidCacheFilename, getTSIDCacheSize())
+	s.metricIDCache = s.mustLoadCache(metricIDCacheFilename, mem/16)
+	s.metricNameCache = s.mustLoadCache(metricNameCacheFilename, getMetricNamesCacheSize())
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
-	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids")
-	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids")
+	hmCurr := s.mustLoadHourMetricIDs(hour, currHourMetricIDsFilename)
+	hmPrev := s.mustLoadHourMetricIDs(hour-1, prevHourMetricIDsFilename)
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
 	s.pendingHourEntries = &uint64set.Set{}
@@ -265,7 +265,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
 	if opts.TrackMetricNamesStats {
-		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_usage_tracker"), uint64(getMetricNamesStatsCacheSize()))
+		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, metricNameTrackerFilename), uint64(getMetricNamesStatsCacheSize()))
 		s.metricsTracker = mnt
 		if mnt.IsEmpty() {
 			// metric names tracker performs attempt to track timeseries during ingestion only at tsid cache miss.
@@ -984,7 +984,7 @@ func (s *Storage) resetAndSaveTSIDCache() {
 	// from inconsistent behaviour after possible unclean shutdown.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	s.tsidCache.Reset()
-	s.mustSaveCache(s.tsidCache, "metricName_tsid")
+	s.mustSaveCache(s.tsidCache, tsidCacheFilename)
 }
 
 // MustClose closes the storage.
@@ -1005,17 +1005,17 @@ func (s *Storage) MustClose() {
 	s.idbPrev.Load().MustClose()
 
 	// Save caches.
-	s.mustSaveCache(s.tsidCache, "metricName_tsid")
+	s.mustSaveCache(s.tsidCache, tsidCacheFilename)
 	s.tsidCache.Stop()
-	s.mustSaveCache(s.metricIDCache, "metricID_tsid")
+	s.mustSaveCache(s.metricIDCache, metricIDCacheFilename)
 	s.metricIDCache.Stop()
-	s.mustSaveCache(s.metricNameCache, "metricID_metricName")
+	s.mustSaveCache(s.metricNameCache, metricNameCacheFilename)
 	s.metricNameCache.Stop()
 
 	hmCurr := s.currHourMetricIDs.Load()
-	s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids")
+	s.mustSaveHourMetricIDs(hmCurr, currHourMetricIDsFilename)
 	hmPrev := s.prevHourMetricIDs.Load()
-	s.mustSaveHourMetricIDs(hmPrev, "prev_hour_metric_ids")
+	s.mustSaveHourMetricIDs(hmPrev, prevHourMetricIDsFilename)
 
 	nextDayMetricIDs := s.nextDayMetricIDs.Load()
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
@@ -1041,8 +1041,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(generation, date uint64) *byDateMetri
 			date:       date,
 		},
 	}
-	name := "next_day_metric_ids_v2"
-	path := filepath.Join(s.cachePath, name)
+	path := filepath.Join(s.cachePath, nextDayMetricIDsFilename)
 	if !fs.IsPathExist(path) {
 		return e
 	}
@@ -1123,8 +1122,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 }
 
 func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
-	name := "next_day_metric_ids_v2"
-	path := filepath.Join(s.cachePath, name)
+	path := filepath.Join(s.cachePath, nextDayMetricIDsFilename)
 	dst := make([]byte, 0, e.v.Len()*8+16)
 
 	// Marshal header
