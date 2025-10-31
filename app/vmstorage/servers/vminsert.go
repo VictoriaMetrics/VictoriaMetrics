@@ -41,12 +41,6 @@ func (v *vminsertAPI) WriteRows(rows []storage.MetricRow) error {
 	return nil
 }
 
-// WriteMetadata implements lib/vminsertapi.API interface
-func (v *vminsertAPI) WriteMetadata(mrs []storage.MetricMetadataRow) error {
-	// TODO: implement it
-	return nil
-}
-
 // IsReadOnly implements lib/vminsertapi.API interface
 func (v *vminsertAPI) IsReadOnly() bool {
 	return v.storage.IsReadOnly()

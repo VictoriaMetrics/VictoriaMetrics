@@ -143,22 +143,14 @@ func TestProtocolMigration(t *testing.T) {
 type testStorage struct {
 	isReadOnly atomic.Bool
 
-	mu             sync.Mutex
-	parsedRows     []storage.MetricRow
-	parsedMetadata []storage.MetricMetadataRow
+	mu         sync.Mutex
+	parsedRows []storage.MetricRow
 }
 
 func (ts *testStorage) WriteRows(rows []storage.MetricRow) error {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	ts.parsedRows = append(ts.parsedRows, rows...)
-	return nil
-}
-
-func (ts *testStorage) WriteMetadata(mrs []storage.MetricMetadataRow) error {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	ts.parsedMetadata = append(ts.parsedMetadata, mrs...)
 	return nil
 }
 
@@ -176,5 +168,4 @@ func (ts *testStorage) reset() {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	ts.parsedRows = ts.parsedRows[:0]
-	ts.parsedMetadata = ts.parsedMetadata[:0]
 }

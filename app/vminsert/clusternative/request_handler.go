@@ -80,10 +80,6 @@ func (*vminsertAPI) WriteRows(rows []storage.MetricRow) error {
 	return ctx.FlushBufs()
 }
 
-func (*vminsertAPI) WriteMetadata(mrs []storage.MetricMetadataRow) error {
-	return nil
-}
-
 func (*vminsertAPI) IsReadOnly() bool {
 	return false
 }

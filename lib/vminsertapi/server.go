@@ -229,22 +229,13 @@ func (s *VMInsertServer) processRPC(ctx *RequestCtx, rpcName string) error {
 		}
 		// return empty errror
 		return ctx.WriteString("")
-	case MetricMetadataRpcCall.VersionedName:
-		if err := s.processWriteMetadata(ctx); err != nil {
-			if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
-				return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
-			}
-			if errors.Is(err, storage.ErrReadOnly) {
-				return nil
-			}
-			return fmt.Errorf("cannot process writeMetadata: %w", err)
-		}
-		// returning an empty string serves as ack
-		return ctx.WriteString("")
-
 	default:
 		// reply to client unsupported rpc
 		// so it should handle this error
+		//
+		// return error in order to close connection
+		// it cannot be used because client could write any kind of data into it
+		// and server doesn't know how to handle it
 		err := fmt.Errorf("unsupported rpcName: %q", rpcName)
 		if writeErr := ctx.WriteErrorMessage(err); writeErr != nil {
 			return fmt.Errorf("cannot write error message: %s: %w", err, writeErr)
@@ -265,11 +256,6 @@ func (s *VMInsertServer) processWriteRows(ctx *RequestCtx) error {
 		s.vminsertMetricsRead.Add(len(rows))
 		return s.api.WriteRows(rows)
 	}, s.api.IsReadOnly)
-}
-
-func (s *VMInsertServer) processWriteMetadata(_ *RequestCtx) error {
-	// TODO: implement
-	return nil
 }
 
 // RequestCtx defines server request context
@@ -326,7 +312,7 @@ func (ctx *RequestCtx) WriteErrorMessage(err error) error {
 	if err := ctx.WriteString(errMsg); err != nil {
 		return fmt.Errorf("cannot send error message %q to client: %w", errMsg, err)
 	}
-	return nil
+	return ctx.bc.Flush()
 }
 
 // WriteString writes provided string to the client
