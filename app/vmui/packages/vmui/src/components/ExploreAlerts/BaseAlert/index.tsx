@@ -82,7 +82,7 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
       </table>
       {!!Object.keys(item.annotations || {}).length && (
         <>
-          <span className="title">Annotations</span>
+          <span className="vm-alerts-title">Annotations</span>
           <table>
             <colgroup>
               <col className="vm-col-md"/>
