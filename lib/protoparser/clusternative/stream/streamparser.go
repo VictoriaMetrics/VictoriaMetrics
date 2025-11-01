@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -64,6 +65,7 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 		}
 
 		uw := getUnmarshalWork()
+		uw.parser = storage.UnmarshalMetricRows
 		uw.reqBuf = reqBuf
 		uw.callback = func(rows []storage.MetricRow) {
 			if err := callback(rows); err != nil {
@@ -113,6 +115,44 @@ func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricR
 		if err := callback(rows); err != nil {
 			processErrors.Inc()
 			logger.Errorf("error when processing native block: %s", err)
+		}
+	}
+	protoparserutil.ScheduleUnmarshalWork(uw)
+	return nil
+}
+
+// ParseMetricsMetadataBlock parses metrics metadata block sent from vminsert to bc and calls callback for parsed rows.
+// Optional function isReadOnly must return true if the storage cannot accept new data.
+// In this case the data read from bc isn't accepted and storage.ErrReadOnly returned.
+//
+// callback shouldn't hold block after returning.
+func ParseMetricsMetadataBlock(bc *handshake.BufferedConn, callback func(rows []metricsmetadata.Row) error, isReadOnly func() bool) error {
+	wcr := writeconcurrencylimiter.GetReader(bc)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r := io.Reader(wcr)
+
+	reqBuf, err := readBlock(r)
+	if err != nil {
+		if err == io.EOF {
+			// Remote end gracefully closed the connection.
+			return nil
+		}
+
+		return err
+	}
+	blocksRead.Inc()
+	wcr.DecConcurrency()
+	if isReadOnly != nil && isReadOnly() {
+		return storage.ErrReadOnly
+	}
+
+	uw := getMetricsMetadataUnmarshalWork()
+	uw.isZSTDEncoded = true
+	uw.reqBuf = reqBuf
+	uw.callback = func(rows []metricsmetadata.Row) {
+		if err := callback(rows); err != nil {
+			processErrors.Inc()
+			logger.Errorf("error when processing metrics metadata block: %s", err)
 		}
 	}
 	protoparserutil.ScheduleUnmarshalWork(uw)
@@ -170,15 +210,16 @@ var (
 	processErrors = metrics.NewCounter(`vm_protoparser_process_errors_total{type="clusternative"}`)
 )
 
-type unmarshalWork struct {
+type unmarshalWork[T any] struct {
 	wg            *sync.WaitGroup
-	callback      func(rows []storage.MetricRow)
+	callback      func(rows []T)
+	parser        func([]T, []byte, int) ([]T, []byte, error)
 	reqBuf        []byte
-	mrs           []storage.MetricRow
+	mrs           []T
 	isZSTDEncoded bool
 }
 
-func (uw *unmarshalWork) reset() {
+func (uw *unmarshalWork[T]) reset() {
 	uw.wg = nil
 	uw.callback = nil
 	// Zero reqBuf, since it may occupy big amounts of memory (consts.MaxInsertPacketSizeForVMStorage).
@@ -188,7 +229,7 @@ func (uw *unmarshalWork) reset() {
 }
 
 // Unmarshal implements protoparserutil.UnmarshalWork
-func (uw *unmarshalWork) Unmarshal() {
+func (uw *unmarshalWork[T]) Unmarshal() {
 	reqBuf := uw.reqBuf
 	done := func() {
 		if uw.wg != nil {
@@ -212,7 +253,7 @@ func (uw *unmarshalWork) Unmarshal() {
 	for len(reqBuf) > 0 {
 		// Limit the number of rows passed to callback in order to reduce memory usage
 		// when processing big packets of rows.
-		mrs, tail, err := storage.UnmarshalMetricRows(uw.mrs[:0], reqBuf, maxRowsPerCallback)
+		mrs, tail, err := uw.parser(uw.mrs[:0], reqBuf, maxRowsPerCallback)
 		uw.mrs = mrs
 		if err != nil {
 			parseErrors.Inc()
@@ -229,19 +270,38 @@ func (uw *unmarshalWork) Unmarshal() {
 
 const maxRowsPerCallback = 10000
 
-func getUnmarshalWork() *unmarshalWork {
+func getUnmarshalWork() *unmarshalWork[storage.MetricRow] {
 	v := unmarshalWorkPool.Get()
 	if v == nil {
-		return &unmarshalWork{}
+		return &unmarshalWork[storage.MetricRow]{parser: storage.UnmarshalMetricRows}
 	}
-	return v.(*unmarshalWork)
+	return v.(*unmarshalWork[storage.MetricRow])
 }
 
-func putUnmarshalWork(uw *unmarshalWork) {
+func getMetricsMetadataUnmarshalWork() *unmarshalWork[metricsmetadata.Row] {
+	v := unmarshalMetricsMetadataWorkPool.Get()
+	if v == nil {
+		return &unmarshalWork[metricsmetadata.Row]{parser: metricsmetadata.UnmarshalRows}
+	}
+	return v.(*unmarshalWork[metricsmetadata.Row])
+}
+
+func putUnmarshalWork[T any](uw *unmarshalWork[T]) {
 	uw.reset()
-	unmarshalWorkPool.Put(uw)
+	switch t := any(uw).(type) {
+	case *unmarshalWork[storage.MetricRow]:
+		unmarshalWorkPool.Put(uw)
+	case *unmarshalWork[metricsmetadata.Row]:
+		unmarshalMetricsMetadataWorkPool.Put(uw)
+	default:
+		logger.Fatalf("BUG: unexpected type: %T", t)
+
+	}
 }
 
-var unmarshalWorkPool sync.Pool
+var (
+	unmarshalWorkPool                sync.Pool
+	unmarshalMetricsMetadataWorkPool sync.Pool
+)
 
 var zbPool bytesutil.ByteBufferPool

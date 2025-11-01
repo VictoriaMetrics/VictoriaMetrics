@@ -2,6 +2,7 @@ package vminsertapi
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 // RPCCall defines rpc call from vminsert to vmstorage
@@ -15,10 +16,15 @@ var (
 		Name:          "metric_rows",
 		VersionedName: "writeRows_v1",
 	}
+	MetricMetadataRpcCall = RPCCall{
+		Name:          "metricmetadata_rows",
+		VersionedName: "writeMetadata_v1",
+	}
 )
 
 // API must implement vminsert API.
 type API interface {
 	WriteRows(rows []storage.MetricRow) error
+	WriteMetadata(mrs []metricsmetadata.Row) error
 	IsReadOnly() bool
 }

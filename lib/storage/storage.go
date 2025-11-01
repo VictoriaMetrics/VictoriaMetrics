@@ -29,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
@@ -183,6 +184,8 @@ type Storage struct {
 
 	// logNewSeriesUntil is the timestamp until which new series will be logged. We will log new series when logNewSeries is true or logNewSeriesUntil is greater than the current time.
 	logNewSeriesUntil atomic.Uint64
+
+	metadataStore *metricsmetadata.Store
 }
 
 type pendingHourMetricIDEntry struct {
@@ -291,6 +294,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		}
 	}
 
+	s.metadataStore = metricsmetadata.NewStore(getMetadataStoreSize())
+
 	// Load metadata
 	metadataDir := filepath.Join(path, metadataDirname)
 	isEmptyDB := !fs.IsPathExist(filepath.Join(path, indexdbDirname))
@@ -393,6 +398,20 @@ func getMetricNamesCacheSize() int {
 		return memory.Allowed() / 10
 	}
 	return maxMetricNameCacheSize
+}
+
+var maxMetadataStoreSize int
+
+// SetMetadataStoreSize overrides the default size of the metadata store
+func SetMetadataStoreSize(size int) {
+	maxMetadataStoreSize = size
+}
+
+func getMetadataStoreSize() int {
+	if maxMetadataStoreSize <= 0 {
+		return memory.Allowed() / 100
+	}
+	return maxMetadataStoreSize
 }
 
 func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
@@ -680,6 +699,10 @@ type Metrics struct {
 
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
+
+	MetadataStoreItemsCurrent     uint64
+	MetadataStoreCurrentSizeBytes uint64
+	MetadataStoreMaxSizeBytes     uint64
 }
 
 // Reset resets m.
@@ -779,6 +802,12 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricNamesUsageTrackerSizeBytes = tm.CurrentSizeBytes
 	m.MetricNamesUsageTrackerSize = tm.CurrentItemsCount
 	m.MetricNamesUsageTrackerSizeMaxBytes = tm.MaxSizeBytes
+
+	var mr metricsmetadata.MetadataStoreMetrics
+	s.metadataStore.UpdateMetrics(&mr)
+	m.MetadataStoreItemsCurrent = uint64(mr.ItemsCurrent)
+	m.MetadataStoreCurrentSizeBytes = mr.CurrentSizeBytes
+	m.MetadataStoreMaxSizeBytes = mr.MaxSizeBytes
 
 	d := s.nextRetentionSeconds()
 	if d < 0 {
@@ -1042,6 +1071,9 @@ func (s *Storage) MustClose() {
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
 	s.metricsTracker.MustClose()
+
+	s.metadataStore.MustClose()
+
 	// Release lock file.
 	fs.MustClose(s.flockF)
 	s.flockF = nil
@@ -3128,4 +3160,23 @@ func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, tt *TenantToken, li
 // ResetMetricNamesStats resets state for metric names usage tracker
 func (s *Storage) ResetMetricNamesStats(_ *querytracer.Tracer) {
 	s.metricsTracker.Reset(s.tsidCache.Reset)
+}
+
+// GetMetadataRows returns time series metric names metadata for the given args
+func (s *Storage) GetMetadataRows(qt *querytracer.Tracer, tt *TenantToken, limit int, metricName string, _ uint64) ([]*metricsmetadata.Row, error) {
+	var (
+		res []*metricsmetadata.Row
+	)
+	if tt != nil {
+		res = s.metadataStore.GetForTenant(tt.AccountID, tt.ProjectID, limit, metricName)
+	} else {
+		res = s.metadataStore.Get(limit, metricName)
+	}
+	qt.Printf("found %d metadata rows", len(res))
+	return res, nil
+}
+
+// AddMetadataRows writes time series metric names metadata into storage
+func (s *Storage) AddMetadataRows(rows []metricsmetadata.Row) {
+	s.metadataStore.Add(rows)
 }

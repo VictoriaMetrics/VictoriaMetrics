@@ -104,6 +104,10 @@ var (
 		"In most cases, this value should not be changed. The maximum allowed value is 23h.")
 
 	logNewSeriesAuthKey = flagutil.NewPassword("logNewSeriesAuthKey", "authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*")
+
+	metadataStoreSize = flagutil.NewBytes("storage.maxMetadataStoreSize", 0, "Overrides max size for metadata entries storage. "+
+		"If set to 0 or a negative value, defaults to 1% of allowed memory. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
 )
 
 func main() {
@@ -135,6 +139,7 @@ func main() {
 	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
 	storage.SetMetricNamesStatsCacheSize(cacheSizeMetricNamesStats.IntN())
 	storage.SetMetricNameCacheSize(cacheSizeStorageMetricName.IntN())
+	storage.SetMetadataStoreSize(metadataStoreSize.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
@@ -630,6 +635,11 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
 
 	metrics.WriteGaugeUint64(w, `vm_search_max_unique_timeseries`, uint64(servers.GetMaxUniqueTimeSeries()))
+
+	metrics.WriteGaugeUint64(w, `vm_metadata_rows`, m.MetadataStoreItemsCurrent)
+	metrics.WriteCounterUint64(w, `vm_metadata_current_size_bytes`, m.MetadataStoreCurrentSizeBytes)
+	metrics.WriteCounterUint64(w, `vm_metadata_max_size_bytes`, m.MetadataStoreMaxSizeBytes)
+
 }
 
 func jsonResponseError(w http.ResponseWriter, err error) {

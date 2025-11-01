@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
@@ -598,6 +599,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processMetricNamesUsageStats(ctx)
 	case "resetMetricNamesStats_v1":
 		return s.processResetMetricUsageStats(ctx)
+	case "searchMetadata_v1":
+		return s.processSearchMetadata(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", rpcName)
 	}
@@ -1181,5 +1184,69 @@ func (s *Server) processResetMetricUsageStats(ctx *vmselectRequestCtx) error {
 	if err := s.api.ResetMetricNamesUsageStats(ctx.qt, ctx.deadline); err != nil {
 		return fmt.Errorf("cannot reset state of the metric names usage tracker: %w", err)
 	}
+	return nil
+}
+
+func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
+	// Read request.
+	hasTenant, err := ctx.readBool()
+	if err != nil {
+		return fmt.Errorf("cannot read hasTenant: %w", err)
+	}
+	var at *storage.TenantToken
+	if hasTenant {
+		accountID, err := ctx.readUint32()
+		if err != nil {
+			return fmt.Errorf("cannot read accountID: %w", err)
+		}
+		projectID, err := ctx.readUint32()
+		if err != nil {
+			return fmt.Errorf("cannot read projectID: %w", err)
+		}
+		at = &storage.TenantToken{
+			AccountID: accountID,
+			ProjectID: projectID,
+		}
+	}
+	limit, err := ctx.readLimit()
+	if err != nil {
+		return fmt.Errorf("cannot read limit: %w", err)
+	}
+	if err := ctx.readDataBufBytes(1024); err != nil {
+		return fmt.Errorf("cannot read metric name: %w", err)
+	}
+	metricName := string(ctx.dataBuf)
+
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
+	result, err := s.api.GetMetadataRecords(ctx.qt, at, limit, metricName, ctx.deadline)
+	if err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+	if err := writeMetadataRows(ctx, result); err != nil {
+		return fmt.Errorf("cannot write metadata rows: %w", err)
+	}
+	return nil
+}
+
+func writeMetadataRows(ctx *vmselectRequestCtx, records []*metricsmetadata.Row) error {
+	if err := ctx.writeUint64(uint64(len(records))); err != nil {
+		return fmt.Errorf("cannot write metadata rows count: %w", err)
+	}
+	for _, r := range records {
+		ctx.dataBuf = r.MarshalTo(ctx.dataBuf[:0])
+		if err := ctx.writeDataBufBytes(); err != nil {
+			return fmt.Errorf("cannot write metadata rows: %w", err)
+		}
+	}
+
 	return nil
 }

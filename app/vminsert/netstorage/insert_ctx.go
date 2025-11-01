@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -12,8 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
-	"github.com/cespare/xxhash/v2"
 )
 
 // InsertCtx is a generic context for inserting data.
@@ -21,11 +23,14 @@ import (
 // InsertCtx.Reset must be called before the first usage.
 type InsertCtx struct {
 	snb           *storageNodesBucket
+	metadataSnb   *storageNodesBucket
 	Labels        sortedLabels
 	MetricNameBuf []byte
+	MetadataBuf   []byte
 
-	bufRowss  []bufRows
-	labelsBuf []byte
+	bufRowss         []bufRows
+	metadataBufRowss []bufRows
+	labelsBuf        []byte
 
 	relabelCtx relabel.Ctx
 
@@ -42,9 +47,9 @@ func (br *bufRows) reset() {
 	br.rows = 0
 }
 
-func (br *bufRows) pushTo(snb *storageNodesBucket, sn *storageNode) error {
+func (br *bufRows) pushTo(snb *storageNodesBucket, sn *storageNode, getRowParser func() rowUnmarshaler) error {
 	bufLen := len(br.buf)
-	err := sn.push(snb, br.buf, br.rows)
+	err := sn.push(snb, br.buf, br.rows, getRowParser)
 	br.reset()
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
@@ -58,7 +63,7 @@ func (br *bufRows) pushTo(snb *storageNodesBucket, sn *storageNode) error {
 // Reset resets ctx.
 func (ctx *InsertCtx) Reset() {
 	ctx.snb = getStorageNodesBucket()
-
+	ctx.metadataSnb = getMetadataStorageNodesBucket()
 	labels := ctx.Labels
 	for i := range labels {
 		labels[i] = prompb.Label{}
@@ -66,12 +71,20 @@ func (ctx *InsertCtx) Reset() {
 	ctx.Labels = labels[:0]
 
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
+	ctx.MetadataBuf = ctx.MetadataBuf[:0]
 
 	if ctx.bufRowss == nil || len(ctx.bufRowss) != len(ctx.snb.sns) {
 		ctx.bufRowss = make([]bufRows, len(ctx.snb.sns))
 	}
 	for i := range ctx.bufRowss {
 		ctx.bufRowss[i].reset()
+	}
+
+	if ctx.metadataBufRowss == nil || len(ctx.metadataBufRowss) != len(ctx.metadataSnb.sns) {
+		ctx.metadataBufRowss = make([]bufRows, len(ctx.metadataSnb.sns))
+	}
+	for i := range ctx.metadataBufRowss {
+		ctx.metadataBufRowss[i].reset()
 	}
 	ctx.labelsBuf = ctx.labelsBuf[:0]
 	ctx.relabelCtx.Reset()
@@ -138,7 +151,7 @@ func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
 	if len(bufNew) >= maxBufSizePerStorageNode {
 		// Send buf to sn, since it is too big.
-		if err := br.pushTo(snb, sn); err != nil {
+		if err := br.pushTo(snb, sn, getMetricRowParser); err != nil {
 			return err
 		}
 		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
@@ -147,6 +160,58 @@ func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte
 	}
 	br.rows++
 	return nil
+}
+
+// WriteMetadata writes the given MetricMetadata to the storage buffer
+func (ctx *InsertCtx) WriteMetadata(at *auth.Token, m *prompb.MetricMetadata) error {
+	mdr := metricsmetadata.Row{
+		Type:             m.Type,
+		MetricFamilyName: []byte(m.MetricFamilyName),
+		Unit:             []byte(m.Unit),
+		Help:             []byte(m.Help),
+	}
+	if at != nil {
+		mdr.AccountID = at.AccountID
+		mdr.ProjectID = at.ProjectID
+	}
+	ctx.MetadataBuf = mdr.MarshalTo(ctx.MetadataBuf[:0])
+	storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.MetadataBuf)
+	return ctx.WriteMetadataExt(storageNodeIdx, ctx.MetadataBuf)
+}
+
+// WriteMetadataExt writes the given buffer to the storage buffer by provided storageNodeIdx
+func (ctx *InsertCtx) WriteMetadataExt(storageNodeIdx int, buf []byte) error {
+	br := &ctx.metadataBufRowss[storageNodeIdx]
+	snb := ctx.metadataSnb
+	sn := snb.sns[storageNodeIdx]
+	bufNew := append(br.buf, buf...)
+	if len(bufNew) >= maxBufSizePerStorageNode {
+		// Send metaBuf to sn, since it is too big.
+		if err := br.pushTo(snb, sn, getMetadataRowParser); err != nil {
+			return err
+		}
+		br.buf = append(bufNew[:0], buf...)
+	} else {
+		br.buf = bufNew
+	}
+	br.rows++
+	return nil
+}
+
+// GetStorageNodeIdxForMeta returns storage node ID for given buffer
+//
+// The returned index must be passed to WriteMetadataExt.
+func (ctx *InsertCtx) GetStorageNodeIdxForMeta(buf []byte) int {
+	if len(ctx.metadataSnb.sns) == 1 {
+		// Fast path - only a single storage node.
+		return 0
+	}
+
+	h := xxhash.Sum64(buf)
+
+	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
+	idx := ctx.metadataSnb.nodesHash.getNodeIdx(h, nil)
+	return idx
 }
 
 // FlushBufs flushes ctx bufs to remote storage nodes.
@@ -159,7 +224,19 @@ func (ctx *InsertCtx) FlushBufs() error {
 		if len(br.buf) == 0 {
 			continue
 		}
-		if err := br.pushTo(snb, sns[i]); err != nil && firstErr == nil {
+		if err := br.pushTo(snb, sns[i], getMetricRowParser); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	metadataSnb := ctx.metadataSnb
+	metadataSns := metadataSnb.sns
+	for i := range ctx.metadataBufRowss {
+		br := &ctx.metadataBufRowss[i]
+		if len(br.buf) == 0 {
+			continue
+		}
+		if err := br.pushTo(metadataSnb, metadataSns[i], getMetadataRowParser); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -186,7 +263,7 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	h := xxhash.Sum64(buf)
 	ctx.labelsBuf = buf
 
-	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
+	// Do not exclude unavailable storage nodes in order to properly account for rerouted Rows in storageNode.push().
 	idx := ctx.snb.nodesHash.getNodeIdx(h, nil)
 	return idx
 }
@@ -258,4 +335,28 @@ func (ctx *InsertCtx) TryPrepareLabels(hasRelabeling bool) bool {
 	}
 	ctx.SortLabelsIfNeeded()
 	return true
+}
+
+type rowUnmarshaler func(src []byte) (metricNameRaw []byte, tail []byte, err error)
+
+func getMetricRowParser() rowUnmarshaler {
+	var mr storage.MetricRow
+	return func(src []byte) (metricNameRaw []byte, tail []byte, err error) {
+		mr.ResetX()
+		tail, err = mr.UnmarshalX(src)
+		return mr.MetricNameRaw, tail, err
+	}
+}
+
+func getMetadataRowParser() rowUnmarshaler {
+	var mm metricsmetadata.Row
+	return func(src []byte) (metricNameRaw []byte, tail []byte, err error) {
+		mm.Reset()
+		tail, err = mm.Unmarshal(src)
+		if err != nil {
+			return
+		}
+
+		return mm.MetricFamilyName, tail, err
+	}
 }
