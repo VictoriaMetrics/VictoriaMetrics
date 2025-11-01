@@ -38,9 +38,9 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 	)
 	wrapErr := func(err error, isWriteErr bool) error {
 		wg.Wait()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			// Remote end gracefully closed the connection.
-			return callbackErr
+			return err
 		}
 		if isWriteErr {
 			writeErrors.Inc()
@@ -98,11 +98,6 @@ func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricR
 
 	reqBuf, err := readBlock(r)
 	if err != nil {
-		if err == io.EOF {
-			// Remote end gracefully closed the connection.
-			return nil
-		}
-
 		return err
 	}
 	blocksRead.Inc()
