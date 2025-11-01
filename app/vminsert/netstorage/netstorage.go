@@ -702,6 +702,10 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 		if sn.avgSendDuration.Value() == 0 {
 			return false
 		}
+		if !sn.isReady() {
+			continue
+		}
+
 		// Do not allow rerouting if there is a slower storage node
 		snAvgSendDuration := sn.avgSendDuration.Value()
 		if snSourceAvgSendDuration < snAvgSendDuration {
@@ -709,9 +713,7 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 		}
 
 		sumAvgSendDuration += snAvgSendDuration
-		if sn.isReady() {
-			readySns++
-		}
+		readySns++
 	}
 	// Do not allow rerouting if there are less than 2 ready storage nodes.
 	if readySns < 2 {
