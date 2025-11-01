@@ -667,9 +667,15 @@ var reroutingLogger = logger.WithThrottler("allowRerouting", 5*time.Second)
 //
 // It returns true only when snSource is the slowest node in the cluster
 // and significantly slower than the cluster on average, ensuring that rerouting happens only from the bottleneck.
-// The cluster as a whole is not overloaded.
-//
 // See the comments below for detailed conditions.
+//
+// The PromQL query below can be used to estimate when rerouting would be triggered.
+// Replace "the-slowest-storage" with the actual address of the slowest node.
+// A flat line at 0.01 on the resulting graph indicates that rerouting would be allowed.
+//
+//	(avg(rate(vm_rpc_send_duration_seconds_total{addr!="the-slowest-storage"}[3m])) < 0.5
+//	and
+//	max(rate(vm_rpc_send_duration_seconds_total{addr="the-slowest-storage"}[3m])) > 0.8) * 0.01
 func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 	if *disableRerouting {
 		return false
