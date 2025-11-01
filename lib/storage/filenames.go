@@ -11,7 +11,13 @@ const (
 	appliedRetentionFilename    = "appliedRetention.txt"
 	resetCacheOnStartupFilename = "reset_cache_on_startup"
 
-	nextDayMetricIDsFilename = "next_day_metric_ids_v3"
+	tsidCacheFilename         = "metricName_tsid"
+	metricIDCacheFilename     = "metricID_tsid"
+	metricNameCacheFilename   = "metricID_metricName"
+	prevHourMetricIDsFilename = "prev_hour_metric_ids_v2"
+	currHourMetricIDsFilename = "curr_hour_metric_ids_v2"
+	nextDayMetricIDsFilename  = "next_day_metric_ids_v3"
+	metricNameTrackerFilename = "metric_usage_tracker"
 )
 
 const (

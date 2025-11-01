@@ -231,13 +231,13 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache("metricName_tsid", getTSIDCacheSize())
-	s.metricIDCache = s.mustLoadCache("metricID_tsid", mem/16)
-	s.metricNameCache = s.mustLoadCache("metricID_metricName", getMetricNamesCacheSize())
+	s.tsidCache = s.mustLoadCache(tsidCacheFilename, getTSIDCacheSize())
+	s.metricIDCache = s.mustLoadCache(metricIDCacheFilename, mem/16)
+	s.metricNameCache = s.mustLoadCache(metricNameCacheFilename, getMetricNamesCacheSize())
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	if opts.TrackMetricNamesStats {
-		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_usage_tracker"), uint64(getMetricNamesStatsCacheSize()))
+		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, metricNameTrackerFilename), uint64(getMetricNamesStatsCacheSize()))
 		s.metricsTracker = mnt
 		if mnt.IsEmpty() {
 			// metric names tracker performs attempt to track timeseries during ingestion only at tsid cache miss.
@@ -300,8 +300,8 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	// after the data table is opened since they require the partition index to
 	// operate properly.
 	hour := fasttime.UnixHour()
-	hmCurr := s.mustLoadHourMetricIDs(hour, "curr_hour_metric_ids_v2")
-	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids_v2")
+	hmCurr := s.mustLoadHourMetricIDs(hour, currHourMetricIDsFilename)
+	hmPrev := s.mustLoadHourMetricIDs(hour-1, prevHourMetricIDsFilename)
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
 	s.pendingHourEntries = &uint64set.Set{}
@@ -853,7 +853,7 @@ func (s *Storage) resetAndSaveTSIDCache() {
 	// from inconsistent behaviour after possible unclean shutdown.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	s.tsidCache.Reset()
-	s.mustSaveCache(s.tsidCache, "metricName_tsid")
+	s.mustSaveCache(s.tsidCache, tsidCacheFilename)
 }
 
 // MustClose closes the storage.
@@ -872,17 +872,17 @@ func (s *Storage) MustClose() {
 	s.legacyMustCloseIndexDBs()
 
 	// Save caches.
-	s.mustSaveCache(s.tsidCache, "metricName_tsid")
+	s.mustSaveCache(s.tsidCache, tsidCacheFilename)
 	s.tsidCache.Stop()
-	s.mustSaveCache(s.metricIDCache, "metricID_tsid")
+	s.mustSaveCache(s.metricIDCache, metricIDCacheFilename)
 	s.metricIDCache.Stop()
-	s.mustSaveCache(s.metricNameCache, "metricID_metricName")
+	s.mustSaveCache(s.metricNameCache, metricNameCacheFilename)
 	s.metricNameCache.Stop()
 
 	hmCurr := s.currHourMetricIDs.Load()
-	s.mustSaveHourMetricIDs(hmCurr, "curr_hour_metric_ids_v2")
+	s.mustSaveHourMetricIDs(hmCurr, currHourMetricIDsFilename)
 	hmPrev := s.prevHourMetricIDs.Load()
-	s.mustSaveHourMetricIDs(hmPrev, "prev_hour_metric_ids_v2")
+	s.mustSaveHourMetricIDs(hmPrev, prevHourMetricIDsFilename)
 
 	nextDayMetricIDs := s.nextDayMetricIDs.Load()
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)

@@ -2509,6 +2509,7 @@
                 "cellOptions": {
                   "type": "auto"
                 },
+                "filterable": true,
                 "inspect": false
               },
               "mappings": [],
@@ -2570,6 +2571,8 @@
               "show": false
             },
             "showHeader": true,
+            "showSearch": true,
+            "filterable": true,
             "sortBy": [
               {
                 "desc": true,

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -179,6 +180,60 @@ func benchmarkStorageOpOnVariousTimeRanges(b *testing.B, op func(b *testing.B, t
 			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 			MaxTimestamp: time.Date(2003, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
+	})
+}
+
+func BenchmarkStorageAddRows_VariousDataPatterns(b *testing.B) {
+	f := func(b *testing.B, sameSeries, sameDate bool) {
+		const numSeries = 1000
+		rng := rand.New(rand.NewSource(1))
+		start := time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+		end := start + numSeries*msecPerDay - 1
+		if sameDate {
+			end = start + msecPerDay - 1
+		}
+		mrs := make([]MetricRow, numSeries)
+		for i := range numSeries {
+			name := fmt.Sprintf("metric_%09d", i)
+			if sameSeries {
+				name = "metric"
+			}
+			mn := MetricName{
+				MetricGroup: []byte(name),
+			}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = start + rng.Int63n(end-start)
+			mrs[i].Value = rng.NormFloat64() * 1e6
+		}
+
+		b.ResetTimer()
+		for i := range b.N {
+			b.StopTimer()
+			path := filepath.Join(b.Name(), fmt.Sprintf("%09d", i))
+			s := MustOpenStorage(path, OpenOptions{})
+			b.StartTimer()
+
+			s.AddRows(mrs, defaultPrecisionBits)
+
+			b.StopTimer()
+			s.MustClose()
+			b.StartTimer()
+		}
+
+		fs.MustRemoveDir(b.Name())
+	}
+
+	b.Run("SameSeries-SameDate", func(b *testing.B) {
+		f(b, true, true)
+	})
+	b.Run("SameSeries-DiffDate", func(b *testing.B) {
+		f(b, true, false)
+	})
+	b.Run("DiffSeries-SameDate", func(b *testing.B) {
+		f(b, false, true)
+	})
+	b.Run("DiffSeries-DiffDate", func(b *testing.B) {
+		f(b, false, false)
 	})
 }
 

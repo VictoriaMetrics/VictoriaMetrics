@@ -3,15 +3,18 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -32,9 +35,12 @@ var (
 		"See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels")
 )
 
-var labelsGlobal []prompb.Label
-
 var (
+	labelsGlobal []prompb.Label
+
+	remoteWriteRelabelConfigData    atomic.Pointer[[]byte]
+	remoteWriteURLRelabelConfigData atomic.Pointer[[]interface{}]
+
 	relabelConfigReloads      *metrics.Counter
 	relabelConfigReloadErrors *metrics.Counter
 	relabelConfigSuccess      *metrics.Gauge
@@ -67,6 +73,42 @@ func initRelabelConfigs() {
 	}
 }
 
+// WriteRelabelConfigData writes -remoteWrite.relabelConfig contents to w
+func WriteRelabelConfigData(w io.Writer) {
+	p := remoteWriteRelabelConfigData.Load()
+	if p == nil {
+		// Nothing to write to w
+		return
+	}
+	_, _ = w.Write(*p)
+}
+
+// WriteURLRelabelConfigData writes -remoteWrite.urlRelabelConfig contents to w
+func WriteURLRelabelConfigData(w io.Writer) {
+	p := remoteWriteURLRelabelConfigData.Load()
+	if p == nil {
+		// Nothing to write to w
+		return
+	}
+	type urlRelabelCfg struct {
+		Url           string      `yaml:"url"`
+		RelabelConfig interface{} `yaml:"relabel_config"`
+	}
+	var cs []urlRelabelCfg
+	for i, url := range *remoteWriteURLs {
+		cfgData := (*p)[i]
+		if !*showRemoteWriteURL {
+			url = fmt.Sprintf("%d:secret-url", i+1)
+		}
+		cs = append(cs, urlRelabelCfg{
+			Url:           url,
+			RelabelConfig: cfgData,
+		})
+	}
+	d, _ := yaml.Marshal(cs)
+	_, _ = w.Write(d)
+}
+
 func reloadRelabelConfigs() {
 	rcs := allRelabelConfigs.Load()
 	if !rcs.isSet() {
@@ -90,28 +132,42 @@ func reloadRelabelConfigs() {
 func loadRelabelConfigs() (*relabelConfigs, error) {
 	var rcs relabelConfigs
 	if *relabelConfigPathGlobal != "" {
-		global, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
+		global, rawCfg, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
 		if err != nil {
 			return nil, fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %w", *relabelConfigPathGlobal, err)
 		}
+		remoteWriteRelabelConfigData.Store(&rawCfg)
 		rcs.global = global
 	}
 	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
 		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
 			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
 	}
+
+	var urlRelabelCfgs []interface{}
 	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
-			// Skip empty relabel config.
+			urlRelabelCfgs = append(urlRelabelCfgs, nil)
 			continue
 		}
-		prc, err := promrelabel.LoadRelabelConfigs(path)
+		prc, rawCfg, err := promrelabel.LoadRelabelConfigs(path)
 		if err != nil {
 			return nil, fmt.Errorf("cannot load relabel configs from -remoteWrite.urlRelabelConfig=%q: %w", path, err)
 		}
 		rcs.perURL[i] = prc
+
+		var parsedCfg interface{}
+		_ = yaml.Unmarshal(rawCfg, &parsedCfg)
+		urlRelabelCfgs = append(urlRelabelCfgs, parsedCfg)
 	}
+	if len(*remoteWriteURLs) > len(*relabelConfigPaths) {
+		// fill the urlRelabelCfgs with empty relabel configs if not set
+		for i := len(*relabelConfigPaths); i < len(*remoteWriteURLs); i++ {
+			urlRelabelCfgs = append(urlRelabelCfgs, nil)
+		}
+	}
+	remoteWriteURLRelabelConfigData.Store(&urlRelabelCfgs)
 	return &rcs, nil
 }
 

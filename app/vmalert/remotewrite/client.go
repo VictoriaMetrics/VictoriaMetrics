@@ -173,9 +173,8 @@ func (c *Client) run(ctx context.Context) {
 
 		cancel()
 	}
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
+
+	c.wg.Go(func() {
 		defer ticker.Stop()
 		for {
 			select {
@@ -197,7 +196,7 @@ func (c *Client) run(ctx context.Context) {
 				}
 			}
 		}
-	}()
+	})
 }
 
 var (
