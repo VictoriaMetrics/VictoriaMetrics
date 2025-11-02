@@ -220,6 +220,7 @@ Below are aggregation functions that can be put in the `outputs` list at [stream
 * [stddev](#stddev)
 * [stdvar](#stdvar)
 * [sum_samples](#sum_samples)
+* [sum_series](#sum_series)
 * [total](#total)
 * [total_prometheus](#total_prometheus)
 * [unique_samples](#unique_samples)
@@ -506,6 +507,26 @@ See also:
 
 - [count_samples](#count_samples)
 - [count_series](#count_series)
+
+### sum_series
+
+`sum_series` sums the last values of unique [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) over the given `interval`.
+`sum_series` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge).
+
+The results of `sum_series` is equal to the following [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) query:
+
+```metricsql
+sum(last_over_time(some_metric[interval]))
+```
+
+`sum_series` tracks unique time series by their labels and stores the last seen value for each series.
+At flush time, it sums all the stored values. This is useful for calculating totals across distinct instances
+or pods, where each time series represents a different entity.
+
+See also:
+
+- [count_series](#count_series)
+- [sum_samples](#sum_samples)
 
 ### total
 
