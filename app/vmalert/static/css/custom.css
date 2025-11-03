@@ -111,3 +111,9 @@ textarea.curl-area {
 .w-60 {
   width: 60%;
 }
+
+.annotations {
+  white-space: pre-wrap;
+  color: gray;
+  word-wrap: break-word;
+}

@@ -86,7 +86,7 @@ func loadRelabelConfig() (*promrelabel.ParsedConfigs, error) {
 	if len(*relabelConfig) == 0 {
 		return nil, nil
 	}
-	pcs, err := promrelabel.LoadRelabelConfigs(*relabelConfig)
+	pcs, _, err := promrelabel.LoadRelabelConfigs(*relabelConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error when reading -relabelConfig=%q: %w", *relabelConfig, err)
 	}
