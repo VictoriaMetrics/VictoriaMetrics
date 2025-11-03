@@ -27,18 +27,14 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}
-	metric = strings.TrimSpace(metric)
 
-	if !strings.Contains(metric, `{`) && !strings.Contains(metric, `}`) && strings.Contains(metric, `=`) {
-		// special case for input like:
-		// 1. __name__=metric_name, label1=value1, ...
-		// 2. label1=value1, ...
-		// 3. __name__=metric_name
-		// add curly braces to turn it into a more common format that `promutil.NewLabelsFromString` can handle.
-		//
-		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8584 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9900
-		metric = `{` + metric + `}`
+	metric, err = completeInputLabels(metric)
+	if err != nil {
+		err = fmt.Errorf("cannot parse metric: %w", err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
+		return
 	}
+
 	labels, err := promutil.NewLabelsFromString(metric)
 	if err != nil {
 		err = fmt.Errorf("cannot parse metric: %w", err)
@@ -134,4 +130,38 @@ func getChangedLabelNames(in, out *promutil.Labels) map[string]struct{} {
 		}
 	}
 	return changed
+}
+
+// completeInputLabels does two things:
+// 1. check if the input is (not) surrounded by braces. Inputs with or without braces are valid, but unclosed braces are not allowed.
+// 2. add missing `{` and `}` to the input if needed.
+// 
+// it does not handle complex edge cases like `{` or `}` appears for multiple time. they're invalid and will not pass `NewLabelsFromString`.
+func completeInputLabels(metric string) (string, error) {
+	metric = strings.TrimSpace(metric)
+
+	openBrace := strings.Contains(metric, `{`)
+	closeBrace := strings.Contains(metric, `}`)
+
+	if openBrace != closeBrace {
+		// only either `{` or `}` exist, this must be an invalid expression.
+		return "", fmt.Errorf("cannot unmarshal Prometheus line %q", metric)
+	}
+
+	if openBrace && closeBrace {
+		return metric, nil
+	}
+
+	if strings.Contains(metric, `=`) {
+		// special case for input like:
+		// 1. __name__=metric_name, label1=value1, ...
+		// 2. label1=value1, ...
+		// 3. __name__=metric_name
+		// add curly braces to turn it into a more common format that `NewLabelsFromString` can handle.
+		//
+		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8584 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9900
+		metric = `{` + metric + `}`
+	}
+
+	return metric, nil
 }

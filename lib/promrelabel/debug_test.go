@@ -39,4 +39,6 @@ func TestWriteRelabelDebugSupportFormats(t *testing.T) {
 
 	// special case: incorrect input format
 	f(`{_name__="metric_name"`, ruleTestParsing, ``)
+	f(`_name__="metric_name}"`, ruleTestParsing, ``)
+	f(`metrics_name}"`, ruleTestParsing, ``)
 }
