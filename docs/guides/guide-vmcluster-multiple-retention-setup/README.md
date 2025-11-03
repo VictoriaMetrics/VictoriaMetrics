@@ -8,7 +8,7 @@ sitemap:
 ---
 **Objective**
 
-Setup Victoria Metrics Cluster with support of multiple retention periods within one installation.
+Setup a VictoriaMetrics Cluster with support of multiple retention periods within one installation.
 
 **Enterprise Solution**
 
@@ -37,15 +37,15 @@ Solution contains 3 groups of vmstorages + vminserts and one group of vmselects.
 by [splitting data streams](https://docs.victoriametrics.com/victoriametrics/vmagent/#splitting-data-streams-among-multiple-systems). 
 The [-retentionPeriod](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) sets how long to keep the metrics.
 
-The diagram below shows a proposed solution
+The diagram below shows a proposed solution.
 
 ![Setup](setup.webp)
 
 **Implementation Details**
 
-1. Groups of vminserts A know about only vmstorages A and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup). 
-1. Groups of vminserts B know about only vmstorages B and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup). 
-1. Groups of vminserts C know about only vmstorages C and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup). 
+1. Groups of vminserts A know about only vmstorages A, and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup). 
+1. Groups of vminserts B know about only vmstorages B, and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup). 
+1. Groups of vminserts C know about only vmstorages C, and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup). 
 1. vmselect reads data from all vmstorage nodes via `-storageNode` [configuration](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) 
    with [deduplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) setting equal to vmagent's scrape interval or minimum interval between collected samples. 
 1. vmagent routes incoming metrics to the given set of `vminsert` nodes using relabeling rules specified at `-remoteWrite.urlRelabelConfig` [configuration](https://docs.victoriametrics.com/victoriametrics/relabeling/).
@@ -65,7 +65,7 @@ The index can be quite large on systems where they have time series that change 
 
 Configuration complexity is also a concern; each retention period would have its own storage nodes and unique configurations. Adding a new retention policy requires:
 
-1. Deploy a new set of vmstorage and vminsert nodes with the desired retention period
+1. Deploy a new set of vmstorage and VMInsert nodes with the desired retention period
 2. Configure vmagent to route metrics to the new cluster based on relabeling rules
 3. Update vmselect to include the new vmstorage nodes in its configuration
 4. Restart vmselect to apply the changes
