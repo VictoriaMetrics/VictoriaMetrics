@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
@@ -485,6 +486,9 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 			matchIdxs.B = sas.Push(tssBlock, matchIdxs.B)
 			if !*streamAggrGlobalKeepInput {
 				tssBlock = dropAggregatedSeries(tssBlock, matchIdxs.B, *streamAggrGlobalDropInput)
+			} else if *streamAggrGlobalDropInput {
+				// if both keep_input and drop_input are true, we keep only the aggregated series
+				tssBlock = dropUnaggregatedSeries(tssBlock, matchIdxs.B)
 			}
 			matchIdxsPool.Put(matchIdxs)
 		}
@@ -988,7 +992,17 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 				tss = append(*v, tss...)
 			}
 			tss = dropAggregatedSeries(tss, matchIdxs.B, rwctx.streamAggrDropInput)
+		} else if rwctx.streamAggrDropInput {
+			// if both keep_input and drop_input are true, we keep only the aggregated series
+			if rctx == nil {
+				rctx = getRelabelCtx()
+				// Make a copy of tss before dropping aggregated series
+				v = tssPool.Get().(*[]prompb.TimeSeries)
+				tss = append(*v, tss...)
+			}
+			tss = dropUnaggregatedSeries(tss, matchIdxs.B)
 		}
+
 		matchIdxsPool.Put(matchIdxs)
 	}
 	if rwctx.deduplicator != nil {
@@ -1011,9 +1025,10 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 	return false
 }
 
-var matchIdxsPool bytesutil.ByteBufferPool
+var matchIdxsPool slicesutil.BufferPool[uint32]
 
-func dropAggregatedSeries(src []prompb.TimeSeries, matchIdxs []byte, dropInput bool) []prompb.TimeSeries {
+// dropAggregatedSeries drops matched series, also the unmatched if dropInput is true.
+func dropAggregatedSeries(src []prompb.TimeSeries, matchIdxs []uint32, dropInput bool) []prompb.TimeSeries {
 	dst := src[:0]
 	if !dropInput {
 		for i, match := range matchIdxs {
@@ -1022,6 +1037,20 @@ func dropAggregatedSeries(src []prompb.TimeSeries, matchIdxs []byte, dropInput b
 			}
 			dst = append(dst, src[i])
 		}
+	}
+	tail := src[len(dst):]
+	clear(tail)
+	return dst
+}
+
+// dropUnaggregatedSeries drops unmatched series.
+func dropUnaggregatedSeries(src []prompb.TimeSeries, matchIdxs []uint32) []prompb.TimeSeries {
+	dst := src[:0]
+	for i, match := range matchIdxs {
+		if match == 0 {
+			continue
+		}
+		dst = append(dst, src[i])
 	}
 	tail := src[len(dst):]
 	clear(tail)

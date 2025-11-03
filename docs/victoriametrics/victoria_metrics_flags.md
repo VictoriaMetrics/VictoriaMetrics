@@ -6,7 +6,7 @@ build:
 sitemap:
   disable: true
 ---
-<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used periodically to ensure the flags in sync. -->
+<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used peridically to ensure the flags in sync. -->
 ```shellhelp
 
 victoria-metrics is a time series database and monitoring solution.
@@ -76,6 +76,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
      Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -fs.maxConcurrency int
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 64)
   -graphite.sanitizeMetricName
      Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
   -graphiteListenAddr string
@@ -305,7 +307,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -promscrape.dockerswarmSDCheckInterval duration
      Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#dockerswarm_sd_configs for details (default 30s)
   -promscrape.dropOriginalLabels
-     Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs
+     Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs (default true)
   -promscrape.ec2SDCheckInterval duration
      Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/victoriametrics/sd_configs/#ec2_sd_configs for details (default 1m0s)
   -promscrape.eurekaSDCheckInterval duration
@@ -522,6 +524,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
+  -secret.flags array
+     Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -selfScrapeInstance string
      Value for 'instance' label, which is added to self-scraped metrics (default "self")
   -selfScrapeInterval duration
@@ -582,7 +588,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -streamAggr.dedupInterval duration
      Input samples are de-duplicated with this interval before optional aggregation with -streamAggr.config . See also -streamAggr.dropInputLabels and -dedup.minScrapeInterval and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication
   -streamAggr.dropInput
-     Whether to drop all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+     Whether to drop input samples that not matching any rule in -streamAggr.config. By default, only matched raw samples are dropped, while unmatched samples are written to the remote storage. See also -streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
   -streamAggr.dropInputLabels array
      An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
@@ -594,7 +600,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -streamAggr.ignoreOldSamples
      Whether to ignore input samples with old timestamps outside the current aggregation interval. See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#ignoring-old-samples
   -streamAggr.keepInput
-     Whether to keep all the input samples after the aggregation with -streamAggr.config. By default, only aggregated samples are dropped, while the remaining samples are stored in the database. See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
+     Whether to keep input samples that match any rule in  -streamAggr.config. By default, matched raw samples are aggregated and dropped, while unmatched samples are written to the remote storage. See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.

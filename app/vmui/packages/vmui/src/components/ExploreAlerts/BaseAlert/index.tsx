@@ -4,10 +4,10 @@ import { Alert as APIAlert } from "../../../types";
 import { createSearchParams } from "react-router-dom";
 import Button from "../../Main/Button/Button";
 import Badges, { BadgeColor } from "../Badges";
+import { formatEventTime } from "../helpers";
 import {
   SearchIcon,
 } from "../../Main/Icons";
-import dayjs from "dayjs";
 import CodeExample from "../../Main/CodeExample/CodeExample";
 
 interface BaseAlertProps {
@@ -66,7 +66,7 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
           </tr>
           <tr>
             <td>Active at</td>
-            <td>{dayjs(item.activeAt).format("DD MMM YYYY HH:mm:ss")}</td>
+            <td>{formatEventTime(item.activeAt)}</td>
           </tr>
           {!!Object.keys(alertLabels).length && (
             <tr>
@@ -82,7 +82,7 @@ const BaseAlert = ({ item }: BaseAlertProps) => {
       </table>
       {!!Object.keys(item.annotations || {}).length && (
         <>
-          <span className="title">Annotations</span>
+          <span className="vm-alerts-title">Annotations</span>
           <table>
             <colgroup>
               <col className="vm-col-md"/>

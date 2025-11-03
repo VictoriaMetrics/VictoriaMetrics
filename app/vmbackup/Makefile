@@ -31,6 +31,9 @@ vmbackup-linux-ppc64le-prod:
 vmbackup-linux-386-prod:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-via-docker-linux-386
 
+vmbackup-linux-s390x-prod:
+	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-via-docker-linux-s390x
+
 vmbackup-darwin-amd64-prod:
 	APP_NAME=vmbackup EXTRA_GO_BUILD_TAGS=$(VMBACKUP_GO_BUILD_TAGS) $(MAKE) app-via-docker-darwin-amd64
 

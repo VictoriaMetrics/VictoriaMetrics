@@ -192,6 +192,14 @@ func main() {
 						return fmt.Errorf("failed to create transport for -%s=%q: %s", remoteReadSrcAddr, addr, err)
 					}
 
+					// Backwards compatible default values if none provided by user
+					rrLabelNames := c.StringSlice(remoteReadFilterLabel)
+					rrLabelValues := c.StringSlice(remoteReadFilterLabelValue)
+					if len(rrLabelNames) == 0 && len(rrLabelValues) == 0 {
+						rrLabelNames = []string{"__name__"}
+						rrLabelValues = []string{".*"}
+					}
+
 					rr, err := remoteread.NewClient(remoteread.Config{
 						Addr:              addr,
 						Transport:         tr,
@@ -200,8 +208,8 @@ func main() {
 						Timeout:           c.Duration(remoteReadHTTPTimeout),
 						UseStream:         c.Bool(remoteReadUseStream),
 						Headers:           c.String(remoteReadHeaders),
-						LabelName:         c.String(remoteReadFilterLabel),
-						LabelValue:        c.String(remoteReadFilterLabelValue),
+						LabelNames:        rrLabelNames,
+						LabelValues:       rrLabelValues,
 						DisablePathAppend: c.Bool(remoteReadDisablePathAppend),
 					})
 					if err != nil {

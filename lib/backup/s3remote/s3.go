@@ -174,6 +174,12 @@ func (fs *FS) Init(ctx context.Context) error {
 	// based on additional configuration from environment variables.
 	// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858
 	c := awshttp.NewBuildableClient()
+	if cfg.HTTPClient != nil {
+		trOpts, ok := cfg.HTTPClient.(*awshttp.BuildableClient)
+		if ok {
+			c = trOpts
+		}
+	}
 	cfg.HTTPClient = c.WithTransportOptions(func(t *http.Transport) {
 		if fs.TLSInsecureSkipVerify {
 			if t.TLSClientConfig == nil {

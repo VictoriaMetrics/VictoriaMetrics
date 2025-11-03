@@ -6,7 +6,7 @@ build:
 sitemap:
   disable: true
 ---
-<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used periodically to ensure the flags in sync. -->
+<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used peridically to ensure the flags in sync. -->
 ```shellhelp
 
 vminsert accepts data via popular data ingestion protocols and routes it to vmstorage nodes configured via -storageNode.
@@ -64,6 +64,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -fs.maxConcurrency int
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 64)
   -graphite.sanitizeMetricName
      Sanitize metric names for the ingested Graphite data. See https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting
   -graphiteListenAddr string
@@ -204,6 +206,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -newrelic.maxInsertRequestSize size
      The maximum size in bytes of a single NewRelic request to /newrelic/infra/v2/metrics/events/bulk
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
+  -opentelemetry.convertMetricNamesToPrometheus
+     Whether to convert only metric names into Prometheus-compatible format for the metrics ingested via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry
   -opentelemetry.maxRequestSize size
      The maximum size in bytes of a single OpenTelemetry request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
@@ -253,11 +257,15 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -replicationFactor int
      Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. Higher values for -dedup.minScrapeInterval at vmselect is OK (default 1)
   -rpc.disableCompression
-     Whether to disable compression for the data sent from vminsert to vmstorage. This reduces CPU usage at the cost of higher network bandwidth usage
+     Flag is deprecated and kept for backward compatibility, vminsert performs per block compression instead of streaming compression on RPC connection
   -rpc.handshakeTimeout duration
      Timeout for RPC handshake between vminsert/vmselect and vmstorage. Increase this value if transient handshake failures occur. See https://docs.victoriametrics.com/victoriametrics/troubleshooting/#cluster-instability section for more details. (default 5s)
   -search.denyPartialResponse
      Whether to deny partial responses if a part of -storageNode instances fail to perform queries; this trades availability over consistency; see also -search.maxQueryDuration
+  -secret.flags array
+     Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storageNode array
