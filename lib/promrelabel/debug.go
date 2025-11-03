@@ -28,10 +28,16 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 		return
 	}
 	metric = strings.TrimSpace(metric)
-	if !strings.HasPrefix(metric, "{") || !strings.HasSuffix(metric, "}") {
-		err = fmt.Errorf(`labels set must be using {label="value"} format; got: %q`, metric)
-		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
-		return
+
+	if !strings.Contains(metric, `{`) && !strings.Contains(metric, `}`) && strings.Contains(metric, `=`) {
+		// special case for input like:
+		// 1. __name__=metric_name, label1=value1, ...
+		// 2. label1=value1, ...
+		// 3. __name__=metric_name
+		// add curly braces to turn it into a more common format that `promutil.NewLabelsFromString` can handle.
+		//
+		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8584 and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9900
+		metric = `{` + metric + `}`
 	}
 	labels, err := promutil.NewLabelsFromString(metric)
 	if err != nil {

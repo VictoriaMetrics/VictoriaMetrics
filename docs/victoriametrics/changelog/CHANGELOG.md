@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+FEATURE: [vmui relabeling playground](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling): relax the validation for the labels text area. It now accepts input labels without being enclosed in curly braces. See [#9900](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9900) for details.
+
 ## [v1.129.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.129.0)
 
 Released at 2025-10-31
