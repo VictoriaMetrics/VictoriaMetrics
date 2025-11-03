@@ -13,14 +13,14 @@ Setup Victoria Metrics Cluster with support of multiple retention periods within
 **Enterprise Solution**
 
 [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports multiple retention periods natively on both the [cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#retention-filters) and the [single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multiple-retentions) versions.
-You can filter which metrics a retention filter applies to. Below you can see 3 retention filters. The first one matches any metrics with the `juniors` tag and will keep those for 3 days. The second filter says anything with `dev` or `staging` should be kept for 30 days. And finally, the last filter is the default filter of 1 year.
+You can filter which metrics a retention filter applies to. Below you can see 3 retention filters. The first one matches any metrics with the `juniors` tag and will be kept for 3 days. The second filter says anything with `dev` or `staging` should be kept for 30 days. And finally, the last filter is the default filter of 1 year.
 ```bash
 -retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
 ```
 
-When using the cluster version, it is also possible to set retention filters by tenant ID. Below is a retention filter that will keep metrics from tenant 5 for only 5 days while keeping everyone else's for 1 year. This can be combined with labels to get even finer control.
+When using the cluster version, it is also possible to set retention filters by tenant ID. Below is a retention filter that will keep metrics from tenant 5 for 5 days, keep tenant 10's for 1 month, and keep everyone else's for 1 year. This can be combined with labels to get even finer control.
 ```bash
--retentionFilter='{vm_account_id="5"}:5d' -retentionFilter='{vm_account_id="10"}:1m' -retentionPeriod=1y
+-retentionFilter='{vm_account_id="5"}:5d,{vm_account_id="10"}:1m' -retentionPeriod=1y
 ```
 
 ![Enterprise](Enterprise.webp)
@@ -60,9 +60,16 @@ You can set up [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/
 
 **Downsides Of This Approach**
 
-This approach requires storing the index for Victoriametrics once per retention period instead of having 1 index for all metrics, which means that this approach requires more disk space than enterprise.
+This approach requires running multipule VictoriaMetrics instances, each storing their own separate, with Enterprise, you only run one VictoriaMetrics instance, so your only storing the index once, reducing storage space.
 The index can be quite large on systems where they have time series that change frequently. In some cases, the index size can be larger than the space you're saving with separate retention periods. See [What is high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)
 
-Configuration complexity is also a concern; each retention period would have its own storage nodes and unique configurations. Adding a new retention policy requires a multi-step process. First stop writes going to the cluster, create a new cluster, backup and restore data from an other cluster, change the configuration of all storage nodes to the new retention policy, restart the cluster, than re-add the cluster to the write path. While the cluster is down reads will not contain complete results.
+Configuration complexity is also a concern; each retention period would have its own storage nodes and unique configurations. Adding a new retention policy requires:
+
+1. Deploy a new set of vmstorage and vminsert nodes with the desired retention period
+2. Configure vmagent to route metrics to the new cluster based on relabeling rules
+3. Update vmselect to include the new vmstorage nodes in its configuration
+4. Restart vmselect to apply the changes
+
+During the restart, queries may experience brief disruptions or return incomplete results.
 
 Networking is also more complex; each retention period has its own write path, increasing network complexity.
