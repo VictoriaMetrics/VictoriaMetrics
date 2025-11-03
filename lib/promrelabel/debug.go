@@ -135,7 +135,7 @@ func getChangedLabelNames(in, out *promutil.Labels) map[string]struct{} {
 // completeInputLabels does two things:
 // 1. check if the input is (not) surrounded by braces. Inputs with or without braces are valid, but unclosed braces are not allowed.
 // 2. add missing `{` and `}` to the input if needed.
-// 
+//
 // it does not handle complex edge cases like `{` or `}` appears for multiple time. they're invalid and will not pass `NewLabelsFromString`.
 func completeInputLabels(metric string) (string, error) {
 	metric = strings.TrimSpace(metric)
