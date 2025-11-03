@@ -208,7 +208,7 @@ To run `vmanomaly`, use YAML files or directories containing YAML files. The con
 >     vmanomaly config1.yaml config2.yaml ./config_dir/
 > ```
 
-Before deploying, check the correctness of your configuration validate config file(s) with `--dryRun` [command-line](#command-line-arguments) flag for chosen deployment method (Docker, Kubernetes, etc.). This will parse and merge all YAML files, run schema checks, log errors and warnings (if found) and then exit without starting the service and requiring a license.
+Before deploying, check the correctness of your configuration validate config file(s) with `--dryRun` [command-line](#command-line-arguments) flag for chosen deployment method (Docker, Kubernetes, etc.). This will parse and merge all YAML files, run schema checks, log errors and warnings (if found) and then exit without starting the service and requiring a license. {{% available_from "v1.27.0" anomaly %}} it can be also used to check for migration compatibility issues when upgrading to a newer version of `vmanomaly`. See [Migration](https://docs.victoriametrics.com/anomaly-detection/migration/) section for more details.
 
 ### Example
 
@@ -292,7 +292,7 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 - Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query [timezone](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-timezones) or [sampling period](https://docs.victoriametrics.com/anomaly-detection/components/reader/#sampling-period).
 - For longer `fit_window` intervals in scheduler, consider splitting queries into smaller time ranges to avoid excessive memory usage, timeouts and hitting server-side constraints, so they can be queried separately and reconstructed on `vmanomaly` side. Please refer to this [example](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-large-queries-in-vmanomaly) for more details.
 
-> If applicable - consider trying [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) {{% available_from "v1.26.0" anomaly %}} to perform anomaly detection on log-derived **metrics**. This is particularly useful for scenarios where log data needs to be analyzed for unusual patterns or behaviors, such as error rates or request latencies.
+> If applicable - consider [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) {{% available_from "v1.26.0" anomaly %}} to perform anomaly detection on **log-derived metrics**. This is particularly useful for scenarios where log data needs to be analyzed for unusual patterns or behaviors, such as error rates or request latencies.
 
 **Writer**:
 - Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
@@ -320,5 +320,7 @@ Please refer to the following links for a deeper understanding of Anomaly Detect
 - [State Restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration)
 - [Guide: Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 - [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/)
+- [Migration Guide](https://docs.victoriametrics.com/anomaly-detection/migration/)
 - [CHANGELOG](https://docs.victoriametrics.com/anomaly-detection/changelog/)
+- [UI CHANGELOG](https://docs.victoriametrics.com/anomaly-detection/ui/#changelog)
 - [Anomaly Detection Blog](https://victoriametrics.com/tags/anomaly-detection/)
