@@ -26,7 +26,7 @@ func TestWriteRelabelDebugSupportFormats(t *testing.T) {
 	}
 
 	// test pure parsing
-	// ruleTestParsing rule should NOT drop anything. it should ask `writeRelabelDebug` to response whatever the input is (after parsing).
+	// ruleTestParsing rule should NOT drop anything. it should ask `writeRelabelDebug` to respond with whatever the input is (after parsing).
 	ruleTestParsing := `
 - action: labeldrop
   regex: "a_not_exist_label"
