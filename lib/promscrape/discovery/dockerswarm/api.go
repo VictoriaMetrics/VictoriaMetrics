@@ -66,7 +66,9 @@ func (cfg *apiConfig) getAPIResponse(path, filtersQueryArg string) ([]byte, erro
 		}
 		path += separator + "filters=" + cfg.filtersQueryArg
 	}
-	return cfg.client.GetAPIResponse(path)
+	resp, err := cfg.client.GetAPIResponse(path)
+	logger.Infof("request path: %s, err: %v, resp: %s", path, err, string(resp))
+	return resp, err
 }
 
 // Encodes filters as `map[string][]string` and then marshals it to JSON.
