@@ -531,6 +531,9 @@ func (tb *Table) MustClose() {
 
 	for _, pw := range fileParts {
 		pw.decRef()
+		if refCount := pw.refCount.Load(); refCount != 0 {
+			logger.Panicf("BUG: unexpected non-zero partWrapper.refCount when closing indexdb table: %d", refCount)
+		}
 	}
 }
 
