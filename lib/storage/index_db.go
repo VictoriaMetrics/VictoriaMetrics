@@ -45,6 +45,7 @@ const (
 	// It is much more efficient from memory usage PoV to query per-day MetricName->TSID index
 	// (aka nsPrefixDateMetricNameToTSID) when the TSID must be obtained for the given MetricName
 	// during data ingestion under high churn rate and big retention.
+	//
 	nsPrefixMetricNameToTSID = 0
 
 	// Prefix for Tag->MetricID entries.
@@ -643,6 +644,7 @@ func (db *indexDB) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID
 	if err != nil {
 		return nil, err
 	}
+
 	qt.Printf("found %d label names", len(lns))
 	return lns, nil
 }
@@ -961,7 +963,6 @@ func (db *indexDB) SearchLabelValues(qt *querytracer.Tracer, accountID, projectI
 		lvs, err := is.searchLabelValuesOnTimeRange(qt, labelName, nil, tr, maxMetrics, maxMetrics)
 		db.putIndexSearch(is)
 		if err != nil {
-			qt.Donef("found %d label values", len(lvs))
 			return nil, err
 		}
 
@@ -1468,9 +1469,7 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 	}
 }
 
-// GetSeriesCount returns the total number of time series registered in all
-// indexDBs. It can return inflated value if the same time series are stored in
-// more than one indexDB.
+// GetSeriesCount returns the approximate number of unique timeseries in the db.
 //
 // It includes the deleted series.
 func (db *indexDB) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
