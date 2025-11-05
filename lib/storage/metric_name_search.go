@@ -4,14 +4,14 @@ import (
 	"sync"
 )
 
-// metricNameSearch is used for for searching a metricName by a metricID in curr
-// and prev indexDBs. If useSparseCache is false the name is first searched in
-// metricNameCache and also stored in that cache when found in one of the
-// indexDBs.
+// metricNameSearch is used for for searching a metricName by a metricID in
+// partition and legacy indexDBs. If useSparseCache is false the name is first
+// searched in metricNameCache and also stored in that cache when found in one
+// of the indexDBs.
 //
 // Most index search methods invoked only once per API call. For example, one
 // request to /api/v1/series results in one invocation of
-// Storage.SearchMetricNames() method. However, searching is metricName by
+// Storage.SearchMetricNames() method. However, searching a metricName by
 // metricID is done multiple times per API call. For example, data search
 // performs the the metricName search for each data block (see search.go).
 //
@@ -82,7 +82,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	// Not deleting metricID if no corresponding metricName has been found
 	// because it is not known which indexDB metricID belongs to.
 	// For cases when this does happen see indexDB.SearchMetricNames() and
-	// indexDB.getTSIDsFromMetricIDs()).
+	// indexDB.SearchTSIDs().
 
 	return dst, false
 }
