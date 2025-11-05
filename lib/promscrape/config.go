@@ -84,6 +84,8 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets for more info")
 	maxScrapeSize = flagutil.NewBytes("promscrape.maxScrapeSize", 16*1024*1024, "The maximum size of scrape response in bytes to process from Prometheus targets. "+
 		"Bigger responses are rejected. See also max_scrape_size option at https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs")
+	ignoreBrokenScrapeTargets = flag.Bool("promscrape.ignoreBrokenScrapeTargets", false, "If this flag is set, scrape work for job will be generated even"+
+		"if some scrape config targets where unavaliable. Default is false")
 )
 
 var clusterMemberID int
@@ -831,7 +833,9 @@ func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visi
 			targetLabels, err := sdc.GetLabels(cfg.baseDir)
 			if err != nil {
 				logger.Errorf("skipping %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
-				ok = false
+				if !*ignoreBrokenScrapeTargets {
+					ok = false
+				}
 				return
 			}
 			dst = appendScrapeWorkForTargetLabels(dst, sc.swc, targetLabels, discoveryType)
