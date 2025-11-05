@@ -1194,7 +1194,7 @@ The needed storage space for the given retention (the retention is set via `-ret
 
 It is recommended leaving the following amounts of spare resources:
 
-* 50% of free RAM for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
+* 50% of free RAM for reducing the probability of OOM (out of memory) crashes. Exceeding 50% of free RAM may cause cache evictions, excessive I/O and overall slowdown (see [#9895-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9895#issuecomment-3442491150) for more details).
 * 50% of spare CPU for reducing the probability of slowdowns during temporary spikes in workload.
 * At least [20% of free storage space](#storage) at the directory pointed by `-storageDataPath` command-line flag. See also `-storage.minFreeDiskSpaceBytes` command-line [flag description](#list-of-command-line-flags).
 
