@@ -21,7 +21,7 @@ The scope of the failure you are designing for is your **"blast radius".** Befor
 
 It is also crucial to distinguish between two fundamental goals:
 
-* **Resilience (or Availability)** is about surviving failures. We achieve it by creating copies ([replicas](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)) of our components and data.  
+* **Resilience (or Availability)** is about surviving failures. We achieve it by creating copies ([replicas](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)) of our components and data.  
 * **Scalability (or Performance)** is about handling load. We achieve it by [adding more components](https://docs.victoriametrics.com/victoriametrics/#scalability-and-cluster-version) on every layer to distribute the work.
 
 The architectures in this guide are simply different combinations of these two approaches, designed to handle a specific blast radius.
