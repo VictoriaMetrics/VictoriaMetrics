@@ -23,7 +23,6 @@ var (
 // This function must be called instead of flag.Parse() before using any flags in the program.
 func Parse() {
 	ParseFlagSet(flag.CommandLine, os.Args[1:])
-	applySecretFlags()
 }
 
 // ParseFlagSet parses the given args into the given fs.
