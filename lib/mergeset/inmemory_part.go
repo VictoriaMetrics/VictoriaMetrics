@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -42,12 +43,12 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	itemsPath := filepath.Join(path, itemsFilename)
 	lensPath := filepath.Join(path, lensFilename)
 
-	var psw filestream.ParallelStreamWriter
-	psw.Add(metaindexPath, &mp.metaindexData)
-	psw.Add(indexPath, &mp.indexData)
-	psw.Add(itemsPath, &mp.itemsData)
-	psw.Add(lensPath, &mp.lensData)
-	psw.Run()
+	var pe fsutil.ParallelExecutor
+	pe.Add(filestream.NewStreamWriterTask(metaindexPath, &mp.metaindexData))
+	pe.Add(filestream.NewStreamWriterTask(indexPath, &mp.indexData))
+	pe.Add(filestream.NewStreamWriterTask(itemsPath, &mp.itemsData))
+	pe.Add(filestream.NewStreamWriterTask(lensPath, &mp.lensData))
+	pe.Run()
 
 	mp.ph.MustWriteMetadata(path)
 

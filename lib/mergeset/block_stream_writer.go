@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 )
 
 type blockStreamWriter struct {
@@ -85,22 +86,22 @@ func (bsw *blockStreamWriter) MustInitFromFilePart(path string, nocache bool, co
 	// Create part files in the directory in parallel in order to speedup the process
 	// on high-latency storage systems such as NFS or Ceph.
 
-	var pfc filestream.ParallelFileCreator
+	var pe fsutil.ParallelExecutor
 
 	indexPath := filepath.Join(path, indexFilename)
 	itemsPath := filepath.Join(path, itemsFilename)
 	lensPath := filepath.Join(path, lensFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 
-	pfc.Add(indexPath, &bsw.indexWriter, nocache)
-	pfc.Add(itemsPath, &bsw.itemsWriter, nocache)
-	pfc.Add(lensPath, &bsw.lensWriter, nocache)
+	pe.Add(filestream.NewFileCreatorTask(indexPath, &bsw.indexWriter, nocache))
+	pe.Add(filestream.NewFileCreatorTask(itemsPath, &bsw.itemsWriter, nocache))
+	pe.Add(filestream.NewFileCreatorTask(lensPath, &bsw.lensWriter, nocache))
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
-	pfc.Add(metaindexPath, &bsw.metaindexWriter, false)
+	pe.Add(filestream.NewFileCreatorTask(metaindexPath, &bsw.metaindexWriter, false))
 
-	pfc.Run()
+	pe.Run()
 }
 
 // MustClose closes the bsw.
@@ -116,13 +117,12 @@ func (bsw *blockStreamWriter) MustClose() {
 
 	// Close writers in parallel in order to reduce the time needed for closing them
 	// on high-latency storage systems such as NFS or Ceph.
-	cs := []fs.MustCloser{
-		bsw.metaindexWriter,
-		bsw.indexWriter,
-		bsw.itemsWriter,
-		bsw.lensWriter,
-	}
-	fs.MustCloseParallel(cs)
+	var pe fsutil.ParallelExecutor
+	pe.Add(fs.NewCloserTask(bsw.metaindexWriter))
+	pe.Add(fs.NewCloserTask(bsw.indexWriter))
+	pe.Add(fs.NewCloserTask(bsw.itemsWriter))
+	pe.Add(fs.NewCloserTask(bsw.lensWriter))
+	pe.Run()
 
 	bsw.reset()
 }
