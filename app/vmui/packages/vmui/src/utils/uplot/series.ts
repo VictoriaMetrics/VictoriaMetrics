@@ -3,7 +3,7 @@ import uPlot, { Series as uPlotSeries } from "uplot";
 import { getNameForMetric, promValueToNumber } from "../metric";
 import { BarSeriesItem, Disp, Fill, ForecastType, HideSeriesArgs, LegendItemType, SeriesItem, Stroke } from "../../types";
 import { anomalyColors, baseContrastColors, getColorFromString } from "../color";
-import { getLastFromArray, getMaxFromArray, getMedianFromArray, getMinFromArray } from "../math";
+import { getMathStats } from "../math";
 import { formatPrettyNumber } from "./helpers";
 
 // Helper function to extract freeFormFields values as a comma-separated string
@@ -65,19 +65,13 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
 
 const getSeriesStatistics = (d: MetricResult) => {
   const values = d.values.map(v => promValueToNumber(v[1]));
-  const { min, max, median, last } = {
-    min: getMinFromArray(values),
-    max: getMaxFromArray(values),
-    median: getMedianFromArray(values),
-    last: getLastFromArray(values),
-  };
+  const { min, max, median } = getMathStats(values, { min: true, max: true, median: true });
   return {
-    median,
+    median: Number(median),
     statsFormatted: {
       min: formatPrettyNumber(min, min, max),
       max: formatPrettyNumber(max, min, max),
       median: formatPrettyNumber(median, min, max),
-      last: formatPrettyNumber(last, min, max),
     },
   };
 };

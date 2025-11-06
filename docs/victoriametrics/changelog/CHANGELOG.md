@@ -28,6 +28,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add ability to set `attach_metadata.namespace=true` option for all the [`kubernetes_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) defined at [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/vmagent/#quick-start), or via `-promscrape.kubernetes.attachNamespaceMetadataAll` command-line flag. This allows attaching namespace labels and annotations to discovered targets for `pod`, `service`, `endpoints`, `endpointslice`, and `ingress` roles. See [#9880](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9880) for more details. Thank you, @clementnuss, for the contribution. 
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix median value calculation displayed below series graph. See [#9926](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9926).
+
 ## [v1.129.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.129.1)
 
 Released at 2025-11-04
