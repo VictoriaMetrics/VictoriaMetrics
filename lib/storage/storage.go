@@ -12,6 +12,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -27,8 +30,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -159,8 +160,8 @@ type Storage struct {
 // OpenOptions optional args for MustOpenStorage
 type OpenOptions struct {
 	Retention             time.Duration
-	MaxHourlySeries       int
-	MaxDailySeries        int
+	MaxHourlySeries       int32
+	MaxDailySeries        int32
 	DisablePerDayIndex    bool
 	TrackMetricNamesStats bool
 	IDBPrefillStart       time.Duration
@@ -221,10 +222,10 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	fs.MustMkdirIfNotExist(snapshotsPath)
 
 	// Initialize series cardinality limiter.
-	if opts.MaxHourlySeries > 0 {
+	if bloomfilter.IsLimiterEnabled(opts.MaxHourlySeries) {
 		s.hourlySeriesLimiter = bloomfilter.NewLimiter(opts.MaxHourlySeries, time.Hour)
 	}
-	if opts.MaxDailySeries > 0 {
+	if bloomfilter.IsLimiterEnabled(opts.MaxDailySeries) {
 		s.dailySeriesLimiter = bloomfilter.NewLimiter(opts.MaxDailySeries, 24*time.Hour)
 	}
 
@@ -2053,7 +2054,7 @@ func (s *Storage) registerSeriesCardinality(metricNameRaw []byte) bool {
 	return true
 }
 
-func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int) {
+func logSkippedSeries(metricNameRaw []byte, flagName string, flagValue int32) {
 	select {
 	case <-logSkippedSeriesTicker.C:
 		// Do not use logger.WithThrottler() here, since this will result in increased CPU load

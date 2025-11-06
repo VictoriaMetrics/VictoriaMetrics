@@ -3,7 +3,6 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
@@ -33,7 +34,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -84,11 +84,11 @@ var (
 		`Enabled sorting for labels can slow down ingestion performance a bit`)
 	maxHourlySeries = flag.Int("remoteWrite.maxHourlySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. "+
-		"Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits. "+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", bloomfilter.MaxLimit)+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. "+
-		"Setting this flag to '-1' sets limit to maximum possible value which is useful in order to enable series tracking without enforcing limits. "+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", bloomfilter.MaxLimit)+
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. "+
 		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
@@ -163,10 +163,7 @@ func Init() {
 	if len(*remoteWriteURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
-	if limit := *maxHourlySeries; limit > 0 || limit == -1 {
-		if limit == -1 {
-			limit = math.MaxInt32
-		}
+	if limit := int32(*maxHourlySeries); limit > 0 || limit == -1 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(limit, time.Hour)
 		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
 			return float64(hourlySeriesLimiter.MaxItems())
@@ -175,10 +172,7 @@ func Init() {
 			return float64(hourlySeriesLimiter.CurrentItems())
 		})
 	}
-	if limit := *maxDailySeries; limit > 0 || limit == -1 {
-		if limit == -1 {
-			limit = math.MaxInt32
-		}
+	if limit := int32(*maxDailySeries); limit > 0 || limit == -1 {
 		dailySeriesLimiter = bloomfilter.NewLimiter(limit, 24*time.Hour)
 		_ = metrics.NewGauge(`vmagent_daily_series_limit_max_series`, func() float64 {
 			return float64(dailySeriesLimiter.MaxItems())
@@ -821,7 +815,7 @@ func getLabelsHash(labels []prompb.Label) uint64 {
 
 var labelsHashBufPool bytesutil.ByteBufferPool
 
-func logSkippedSeries(labels []prompb.Label, flagName string, flagValue int) {
+func logSkippedSeries(labels []prompb.Label, flagName string, flagValue int32) {
 	select {
 	case <-logSkippedSeriesTicker.C:
 		// Do not use logger.WithThrottler() here, since this will increase CPU usage

@@ -10,13 +10,21 @@ import (
 const hashesCount = 4
 const bitsPerItem = 16
 
+// MaxLimit is the maximum allowed number of items in a filter.
+// It is set to avoid excessive memory usage.
+const MaxLimit = int32(2e9)
+
 type filter struct {
-	maxItems int
+	maxItems int32
 	bits     []uint64
 }
 
-func newFilter(maxItems int) *filter {
-	bitsCount := maxItems * bitsPerItem
+// maxItems is capped by MaxLimit to avoid excessive memory usage.
+func newFilter(maxItems int32) *filter {
+	if maxItems == -1 || maxItems > MaxLimit {
+		maxItems = MaxLimit
+	}
+	bitsCount := uint64(maxItems) * bitsPerItem
 	bits := make([]uint64, (bitsCount+63)/64)
 	return &filter{
 		maxItems: maxItems,

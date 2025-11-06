@@ -331,7 +331,7 @@ type ScrapeConfig struct {
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
 	ScrapeAlignInterval *promutil.Duration         `yaml:"scrape_align_interval,omitempty"`
 	ScrapeOffset        *promutil.Duration         `yaml:"scrape_offset,omitempty"`
-	SeriesLimit         *int                       `yaml:"series_limit,omitempty"`
+	SeriesLimit         *int32                     `yaml:"series_limit,omitempty"`
 	NoStaleMarkers      *bool                      `yaml:"no_stale_markers,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
@@ -965,7 +965,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if sc.NoStaleMarkers != nil {
 		noStaleTracking = *sc.NoStaleMarkers
 	}
-	seriesLimit := *seriesLimitPerTarget
+	seriesLimit := int32(*seriesLimitPerTarget)
 	if sc.SeriesLimit != nil {
 		seriesLimit = *sc.SeriesLimit
 	}
@@ -1031,7 +1031,7 @@ type scrapeWorkConfig struct {
 	streamParse          bool
 	scrapeAlignInterval  time.Duration
 	scrapeOffset         time.Duration
-	seriesLimit          int
+	seriesLimit          int32
 	noStaleMarkers       bool
 }
 
@@ -1251,7 +1251,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __series_limit__=%q: %w", s, err)
 		}
-		seriesLimit = n
+		seriesLimit = int32(n)
 	}
 	// Read sample_limit option from __sample_limit__ label.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics
