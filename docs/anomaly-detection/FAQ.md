@@ -401,7 +401,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.27.0
+    image: victoriametrics/vmanomaly:v1.27.1
     # ...
     ports:
       - "8490:8490"
@@ -616,7 +616,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.27.0 && docker image tag victoriametrics/vmanomaly:v1.27.0 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.27.1 && docker image tag victoriametrics/vmanomaly:v1.27.1 vmanomaly
 ```
 
 ```sh
