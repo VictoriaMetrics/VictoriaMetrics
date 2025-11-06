@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { descendingComparator } from "./helpers";
-import { getNanoTimestamp } from "../../utils/time"; // используем реальную реализацию
+import { getNanoTimestamp } from "../../utils/time";
 
 describe("descendingComparator", () => {
   it("returns 0 for equal numbers", () => {
