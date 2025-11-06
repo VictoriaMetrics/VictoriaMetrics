@@ -1,8 +1,7 @@
 import { useMemo } from "preact/compat";
 import "./style.scss";
 import { Group as APIGroup } from "../../../types";
-import dayjs from "dayjs";
-import { formatDuration } from "../helpers";
+import { formatDuration, formatEventTime } from "../helpers";
 import Badges, { BadgeColor } from "../Badges";
 
 interface BaseGroupProps {
@@ -48,12 +47,10 @@ const BaseGroup = ({ group }: BaseGroupProps) => {
               <td>{formatDuration(group.interval)}</td>
             </tr>
           )}
-          {!!group.lastEvaluation && (
-            <tr>
-              <td className="vm-col-md">Last evaluation</td>
-              <td>{dayjs(group.lastEvaluation).format("DD MMM YYYY HH:mm:ss")}</td>
-            </tr>
-          )}
+          <tr>
+            <td className="vm-col-md">Last evaluation</td>
+            <td>{formatEventTime(group.lastEvaluation)}</td>
+          </tr>
           {!!group.eval_offset && (
             <tr>
               <td className="vm-col-md">Eval offset</td>

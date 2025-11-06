@@ -151,7 +151,7 @@ To analyze anomalies effectively, start from a high-level overview and progressi
 
 5. **Zoom in on the most anomalous groups:**  
    - Focus on the most affected category (`context_switch` in this case).  
-   - Notice when the anomaly score first exceeded the threshold—around 15:35 in the example.
+   - Notice when the anomaly score first exceeded the threshold — around 15:35 in the example.
 
    ![dashboard-as-example-step-1](vmanomaly-default-dashboard-example-step-1.webp)
 

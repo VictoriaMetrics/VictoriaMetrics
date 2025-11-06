@@ -27,6 +27,9 @@ victoria-metrics-linux-ppc64le-prod:
 victoria-metrics-linux-386-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-386
 
+victoria-metrics-linux-s390x-prod:
+	APP_NAME=victoria-metrics $(MAKE) app-via-docker-linux-s390x
+
 victoria-metrics-darwin-amd64-prod:
 	APP_NAME=victoria-metrics $(MAKE) app-via-docker-darwin-amd64
 

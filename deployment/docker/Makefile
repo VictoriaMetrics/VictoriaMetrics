@@ -176,6 +176,9 @@ app-via-docker-linux-ppc64le:
 app-via-docker-linux-386:
 	CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-via-docker-goos-goarch
 
+app-via-docker-linux-s390x:
+	CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-via-docker-goos-goarch
+
 app-via-docker-darwin-amd64:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 

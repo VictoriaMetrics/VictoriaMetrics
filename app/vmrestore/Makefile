@@ -31,6 +31,9 @@ vmrestore-linux-ppc64le-prod:
 vmrestore-linux-386-prod:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-linux-386
 
+vmrestore-linux-s390x-prod:
+	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-linux-s390x
+
 vmrestore-darwin-amd64-prod:
 	APP_NAME=vmrestore EXTRA_GO_BUILD_TAGS=$(VMRESTORE_GO_BUILD_TAGS) $(MAKE) app-via-docker-darwin-amd64
 

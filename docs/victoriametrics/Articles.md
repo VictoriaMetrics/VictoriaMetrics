@@ -100,6 +100,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [How We Saved 80% on Our Observability Bill!](https://blog.devops.dev/how-we-saved-80-on-our-observability-bill-402421edfc1d)
 * [When metrics leak secrets: Kubernetes CTF lessons](https://programmerprodigy.code.blog/2025/09/01/when-metrics-leak-secrets-kubernetes-ctf-lessons/)
 * [K3S and monitoring with VictoriaMetrics, kube-state-metrics, node-exporter and Grafana](https://j.hommet.net/k3s-victoriametrics-kube-state-metrics-node-exporter-grafana/)
+* [How We Eliminated $10K+/Year in AWS Cross-Zone Data Transfer Costs with Zone-Aware Kubernetes Monitoring](https://medium.com/@vijayrauniyar1818/how-we-eliminated-10k-year-in-aws-cross-zone-data-transfer-costs-with-zone-aware-kubernetes-09fff0c2435b)
 
 ## Third-party articles and slides about VictoriaLogs
 

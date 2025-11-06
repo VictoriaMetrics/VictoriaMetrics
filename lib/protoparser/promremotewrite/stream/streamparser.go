@@ -7,13 +7,13 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/snappy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/golang/snappy"
 )
 
 var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*1024, "The maximum size in bytes of a single Prometheus remote_write API request")
@@ -49,13 +49,13 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 			// The logic is preserved for backwards compatibility.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650
 			zstdErr := err
-			bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
+			bb.B, err = snappy.Decode(bb.B, ctx.reqBuf.B, maxInsertRequestSize.IntN())
 			if err != nil {
 				return fmt.Errorf("cannot decompress zstd-encoded request with length %d: %w", len(ctx.reqBuf.B), zstdErr)
 			}
 		}
 	} else {
-		bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
+		bb.B, err = snappy.Decode(bb.B, ctx.reqBuf.B, maxInsertRequestSize.IntN())
 		if err != nil {
 			// Fall back to zstd decompression, since vmagent may send zstd-encoded messages
 			// without 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.

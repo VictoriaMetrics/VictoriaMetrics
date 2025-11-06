@@ -262,7 +262,7 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		updateCh: make(chan *Group),
 	}
 	g.Init()
-	go g.Start(context.Background(), nil, nil, nil)
+	go g.Start(context.Background(), nil, nil)
 
 	rule1 := AlertingRule{
 		Name: "jobDown",
@@ -346,7 +346,8 @@ func TestGroupStart(t *testing.T) {
 	}
 
 	fs := &datasource.FakeQuerier{}
-	fn := &notifier.FakeNotifier{}
+	fn, cleanup := notifier.InitFakeNotifier()
+	defer cleanup()
 
 	const evalInterval = time.Millisecond
 	g := NewGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
@@ -395,7 +396,7 @@ func TestGroupStart(t *testing.T) {
 	fs.Add(m2)
 	g.Init()
 	go func() {
-		g.Start(context.Background(), func() []notifier.Notifier { return []notifier.Notifier{fn} }, nil, fs)
+		g.Start(context.Background(), nil, fs)
 		close(finished)
 	}()
 
@@ -472,15 +473,10 @@ func TestFaultyNotifier(t *testing.T) {
 	r := newTestAlertingRule("instant", 0)
 	r.q = fq
 
-	fn := &notifier.FakeNotifier{}
-	e := &executor{
-		Notifiers: func() []notifier.Notifier {
-			return []notifier.Notifier{
-				&notifier.FaultyNotifier{},
-				fn,
-			}
-		},
-	}
+	fn, cleanup := notifier.InitFakeNotifier()
+	defer cleanup()
+
+	e := &executor{}
 	delay := 5 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), delay)
 	defer cancel()
@@ -553,7 +549,7 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 	g := NewGroup(groups[0], fq, evalInterval, nil)
 	g.Init()
 
-	go g.Start(context.Background(), nil, nil, nil)
+	go g.Start(context.Background(), nil, nil)
 
 	time.Sleep(evalInterval * 20)
 
@@ -571,9 +567,10 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 
 func TestGroupStartDelay(t *testing.T) {
 	g := &Group{}
+	g.id = uint64(math.MaxUint64 / 10)
 	// interval of 5min and key generate a static delay of 30s
 	g.Interval = time.Minute * 5
-	key := uint64(math.MaxUint64 / 10)
+	maxDelay := time.Minute * 5
 
 	f := func(atS, expS string) {
 		t.Helper()
@@ -585,7 +582,7 @@ func TestGroupStartDelay(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		delay := delayBeforeStart(at, key, g.Interval, g.EvalOffset)
+		delay := g.delayBeforeStart(at, maxDelay)
 		gotStart := at.Add(delay)
 		if expTS != gotStart {
 			t.Fatalf("expected to get %v; got %v instead", expTS, gotStart)
@@ -606,6 +603,15 @@ func TestGroupStartDelay(t *testing.T) {
 	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:03:00.000+00:00")
 	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:00.000+00:00")
 	f("2023-01-01T00:08:00.000+00:00", "2023-01-01T00:08:00.000+00:00")
+
+	maxDelay = time.Minute * 1
+	g.EvalOffset = nil
+
+	// test group with maxDelay, and offset disabled
+	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:00:06.000+00:00")
+	f("2023-01-01T00:00:01.000+00:00", "2023-01-01T00:00:06.000+00:00")
+	f("2023-01-01T00:00:06.100+00:00", "2023-01-01T00:01:06.000+00:00")
+	f("2023-01-01T00:00:11.000+00:00", "2023-01-01T00:01:06.000+00:00")
 }
 
 func TestGetPrometheusReqTimestamp(t *testing.T) {

@@ -47,6 +47,15 @@ Filtering by labels can be configured via flags `--remote-read-filter-label` and
 For example, `--remote-read-filter-label=tenant` and `--remote-read-filter-label-value="team-eu"` will select only series
 with `tenant="team-eu"` label-value pair.
 
+Filtering flags can be provided multiple times {{% available_from "v1.129.0" %}} to narrow down the selection of timeseries to migrate.
+For example:
+```sh
+./vmctl remote-read \
+    --remote-read-filter-label=tenant --remote-read-filter-label-value="team-eu" \
+    --remote-read-filter-label=__name__ --remote-read-filter-label-value="cpu_.*"
+```
+will select only timeseries with `tenant="team-eu"` label and metric names matching `cpu_.*` regex.
+
 ## Configuration 
 
 Migrating big volumes of data may result in remote read client reaching the timeout. Increase the value of 
