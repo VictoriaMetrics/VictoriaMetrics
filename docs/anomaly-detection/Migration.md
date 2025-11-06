@@ -19,7 +19,7 @@ aliases:
 
 This document provides guidelines for migrating to the latest version of [VictoriaMetrics Anomaly Detection](https://docs.victoriametrics.com/anomaly-detection/) (`vmanomaly`). It covers the key changes, compatibility considerations, and best practices to ensure a smooth transition for [stateful](#stateful-mode) and [stateless](#stateless-mode) modes of operation.
 
-> **Upgrading to [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270) or newer is recommended to benefit from simplified migration process.**
+> **Upgrading to [v1.27.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270) or newer is recommended to benefit from simplified migration process.**
 
 ## Dry Run
 
@@ -45,8 +45,8 @@ There are 2 types of compatibilitity to consider when migrating in stateful mode
 
 | Group start | Group end | Compatibility | Notes |
 |---------|--------- |------------|-------|
-| [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270) | Latest* | Fully Compatible | Just a placeholder for new releases |
-| [v1.26.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1262) | [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270) | Fully Compatible | - |
+| [v1.27.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1271) | Latest* | Fully Compatible | Just a placeholder for new releases |
+| [v1.26.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1262) | [v1.27.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270) | Fully Compatible | - |
 | [v1.25.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1253) | [v1.26.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270) | Partially Compatible* | [v1.25.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1253) introduced `forecast_at` argument for base [univariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) and `Prophet` [models](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet), however, itself remains backward-reversible from newer states like [v1.26.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1262), [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270). (All models except `isolation_forest_multivariate` class will be dropped) |
 | [v1.25.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1251) | [v1.25.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1252) | Fully Compatible | In [v1.25.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1251) there was a change to `vmanomaly.db` metadata database format, so migrating from v1.24.0-v1.25.0 requires deletion of a state, see note above the table |
 | [v1.24.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1241) | [v1.25.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1250) | Partially Compatible* | In [v1.25.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1250) there were changes to **data dump layout** and to `online_quantile` and `isolation_forest_multivariate` [model](https://docs.victoriametrics.com/anomaly-detection/components/models/) states, so to migrate from v1.24.0-v1.24.1 it is recommended to drop the state |
