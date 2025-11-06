@@ -14,6 +14,13 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.27.1
+Released: 2025-11-05
+
+- SECURITY: Updated base images and 3rd party dependencies to eliminate recently discovered medium+ CVEs.
+
+- BUGFIX: Fixed a bug in 3rd party dependency that silently prevented creation of anomaly detection tasks in [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) when hitting "Detect Anomalies" button. Versions affected: [v1.27.0](#v1270).
+
 ## v1.27.0
 Released: 2025-10-31
 

@@ -363,6 +363,8 @@ Released: 2025-10-31
 
 vmanomaly version: [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270)
 
+> A bug, found in [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270) that prevents "Detect Anomalies" button ([model panel](#model-panel)) from working has been fixed in the patch release [v1.27.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1271). Please do the upgrade.
+
 - FEATURE: Added support of auth headers, that can be forwarded from vmanomaly to datasources configured in the UI (VictoriaMetrics, VictoriaLogs), see [authentication](#authentication) for details.
 
 - FEATURE: queries (`config.reader.queries.[xxx].expr` values) if [mixed mode is used](#mixed-usage) are read from the server reader config on the first UI initialization, to ease the exploration of existing production queries without the need to retype them in the UI. Press "show history" button next to "execute query" button (in the [Query Explorer](#query-explorer) section) and choose the tab "Server Queries".

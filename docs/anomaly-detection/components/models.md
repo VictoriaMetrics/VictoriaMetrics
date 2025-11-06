@@ -1272,6 +1272,7 @@ You can find out more about configuration parameters in `vmanomaly` [config docs
 ```yaml
 schedulers:
   s1:
+    class: "periodic"
     infer_every: "1m"
     fit_every: "1m"
     fit_window: "1d"
@@ -1281,13 +1282,14 @@ models:
     class: "custom"  # or 'model.model.CustomModel' until v1.13.0
     percentage: 0.9
 
-
 reader:
   datasource_url: "http://victoriametrics:8428/"
   sampling_period: '1m'
   queries:
-    ingestion_rate: 'sum(rate(vm_rows_inserted_total)) by (type)'
-    churn_rate: 'sum(rate(vm_new_timeseries_created_total[5m]))'
+    ingestion_rate: 
+      expr: 'sum(rate(vm_rows_inserted_total)) by (type)'
+    churn_rate: 
+      expr: 'sum(rate(vm_new_timeseries_created_total[5m]))'
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
@@ -1312,7 +1314,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.27.0
+docker pull victoriametrics/vmanomaly:v1.27.1
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1326,7 +1328,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.27.0 /config.yaml \
+victoriametrics/vmanomaly:v1.27.1 /config.yaml \
 --licenseFile=/license
 --watch
 ```
