@@ -121,63 +121,55 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.26.2
+docker pull victoriametrics/vmanomaly:latest
 ```
 
-2. (Optional step) tag the `vmanomaly` Docker image:
+2. Create the license file with your license key.
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.26.2 vmanomaly
+export LICENSE_KEY=YOUR_LICENSE_KEY
+echo $LICENSE_KEY > license
 ```
 
-3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
+3. Create and modify your `config.yml` file to your liking. An example can be found [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#example)
+
+4. Start the `vmanomaly` Docker container with a *license file*, use the command below.
 **Make sure to replace `YOUR_LICENSE_FILE_PATH`, and `YOUR_CONFIG_FILE_PATH` with your specific details**:
 
 ```sh
-export YOUR_LICENSE_FILE_PATH=path/to/license/file
-export YOUR_CONFIG_FILE_PATH=path/to/config/file
-docker run -it -v $YOUR_LICENSE_FILE_PATH:/license \
-               -v $YOUR_CONFIG_FILE_PATH:/config.yml \
-               vmanomaly /config.yml \
-               --licenseFile=/license \
-               --loggerLevel=INFO \
-               --watch
-```
-
-In case you found `PermissionError: [Errno 13] Permission denied:` in `vmanomaly` logs, set user/user group to 1000 in the run command above / in a docker-compose file:
-
-```sh
-export YOUR_LICENSE_FILE_PATH=path/to/license/file
-export YOUR_CONFIG_FILE_PATH=path/to/config/file
-docker run -it --user 1000:1000 \
-               -v $YOUR_LICENSE_FILE_PATH:/license \
-               -v $YOUR_CONFIG_FILE_PATH:/config.yml \
-               vmanomaly /config.yml \
+docker run -it \
+               -v ./license:/license \
+               -v ./config.yml:/config.yml \
+#              -v ./data:/tmp/vmanomaly \ # Enable if you are using settings.restore_state: True
+               victoriametrics/vmanomaly:latest /config.yml \
+               --port 8490:8490 \
                --licenseFile=/license \
                --loggerLevel=INFO \
                --watch
 ```
 
 ```yaml
-# docker-compose file
+# docker-compose.yml file
 services:
-  # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.26.2
+    image: victoriametrics/vmanomaly:latest
     volumes:
-        $YOUR_LICENSE_FILE_PATH:/license
-        $YOUR_CONFIG_FILE_PATH:/config.yml
+      - ./license:/license
+      - ./config.yml:/config.yml
+      # - ./data:/tmp/vmanomaly # Enable if you are using settings.restore_state: True
     command:
       - "/config.yml"
       - "--licenseFile=/license"
       - "--loggerLevel=INFO"
       - "--watch"
-    # ...
+    ports:
+      - "8490:8490"
+    # environment: # Enable if you are using settings.restore_state: True
+    #   - "VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models"
+    #   - "VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data"
 ```
 
 For a complete docker-compose example please refer to [our alerting guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/), chapter [docker-compose](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/#docker-compose)
-
-
 
 See also:
 
@@ -208,11 +200,11 @@ To run `vmanomaly`, use YAML files or directories containing YAML files. The con
 >     vmanomaly config1.yaml config2.yaml ./config_dir/
 > ```
 
-Before deploying, check the correctness of your configuration validate config file(s) with `--dryRun` [command-line](#command-line-arguments) flag for chosen deployment method (Docker, Kubernetes, etc.). This will parse and merge all YAML files, run schema checks, log errors and warnings (if found) and then exit without starting the service and requiring a license.
+Before deploying, check the correctness of your configuration validate config file(s) with `--dryRun` [command-line](#command-line-arguments) flag for chosen deployment method (Docker, Kubernetes, etc.). This will parse and merge all YAML files, run schema checks, log errors and warnings (if found) and then exit without starting the service or require a license.
 
 ### Example
 
-Here is an example of config file that will run [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) model on `vm_cache_entries` metric, with periodic scheduler that runs inference every minute and fits the model every day. The model will be trained on the last 2 weeks of data each time it is (re)fitted. The model will produce `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging purposes. The model will be timezone-aware and will use cyclical encoding for the hour of the day and day of the week seasonality.
+Here is an example of a config file that will run the [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) model on `vm_cache_entries` metric, with periodic scheduler that runs inference every minute and fits the model every day. The model will be trained on the last 2 weeks of data each time it is (re)fitted. The model will produce `anomaly_score`, `yhat`, `yhat_lower`, and `yhat_upper` [series](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) for debugging purposes. The model will be timezone-aware and will use cyclical encoding for the hour of the day and day of the week seasonality.
 
 ```yaml
 settings:
@@ -223,11 +215,11 @@ settings:
   # https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels
   # to override service-global logger levels, use the `logger_levels` section
   logger_levels:  
-    # vmanomaly: info
-    # scheduler: info
-    # reader: info
-    # writer: info
-    model.prophet: warning
+    # vmanomaly: INFO
+    # scheduler: INFO
+    # reader: INFO
+    # writer: INFO
+    model.prophet: WARNING
 
 schedulers:
   1d_1m:
