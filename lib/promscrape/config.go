@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"net/url"
 	"path/filepath"
 	"slices"
@@ -17,6 +18,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -1251,7 +1253,11 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __series_limit__=%q: %w", s, err)
 		}
-		seriesLimit = int32(n)
+		if n > math.MaxInt32 {
+			seriesLimit = bloomfilter.MaxLimit
+		} else {
+			seriesLimit = int32(n)
+		}
 	}
 	// Read sample_limit option from __sample_limit__ label.
 	// See https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics
