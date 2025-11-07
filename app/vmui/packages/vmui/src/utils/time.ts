@@ -3,6 +3,7 @@ import dayjs, { UnitTypeShort } from "dayjs";
 import { getQueryStringValue } from "./query-string";
 import { DATE_ISO_FORMAT } from "../constants/date";
 import timezones from "../constants/timezones";
+import { roundToThousandths } from "./math";
 
 const MAX_ITEMS_PER_CHART = window.innerWidth / 4;
 const MAX_ITEMS_PER_HISTOGRAM = window.innerWidth / 40;
@@ -28,14 +29,16 @@ export const supportedDurations = [
 
 const shortDurations = supportedDurations.map(d => d.short);
 
-export const roundToMilliseconds = (num: number): number => Math.round(num*1000)/1000;
+export const sameTs = (a: number, b: number) => {
+  return roundToThousandths(a) === roundToThousandths(b);
+}
 
 export const humanizeSeconds = (num: number): string => {
   return getDurationFromMilliseconds(dayjs.duration(num, "seconds").asMilliseconds());
 };
 
 export const roundStep = (step: number): string => {
-  let result = roundToMilliseconds(step);
+  let result = roundToThousandths(step);
   const integerStep = Math.round(step);
 
   if (step >= 100) {
@@ -54,14 +57,24 @@ export const roundStep = (step: number): string => {
   return humanize.replace(/\s/g, "");
 };
 
-export const isSupportedDuration = (str: string): Partial<Record<UnitTypeShort, string>> | undefined => {
+export const parseSupportedDuration = (str: string): Partial<Record<UnitTypeShort, string>> | undefined => {
+  if (!str) return;
 
-  const digits = str.match(/\d+/g);
-  const words = str.match(/[a-zA-Z]+/g);
+  const s = str.trim().replace(/,/g, ".");
+  const pairs = s.match(/\d*\.?\d+\s*[a-zA-Z]+/g);
+  if (!pairs) return;
 
-  if (words && digits && shortDurations.includes(words[0])) {
-    return { [words[0]]: digits[0] };
+  const result: Partial<Record<UnitTypeShort, string>> = {};
+
+  for (const pair of pairs) {
+    const digits = pair.match(/\d*\.?\d+/)?.[0];
+    const word = pair.match(/[a-zA-Z]+/)?.[0]?.toLowerCase() as UnitTypeShort;
+
+    if (!digits || !word || !shortDurations.includes(word)) return;
+    result[word] = digits;
   }
+
+  return Object.keys(result).length ? result : undefined;
 };
 
 export const getSecondsFromDuration = (dur: string) => {
@@ -71,7 +84,7 @@ export const getSecondsFromDuration = (dur: string) => {
 
   const durObject = durItems.reduce((prev, curr) => {
 
-    const dur = isSupportedDuration(curr);
+    const dur = parseSupportedDuration(curr);
     if (dur) {
       return {
         ...prev,
@@ -137,21 +150,6 @@ export const getDurationFromMilliseconds = (ms: number): string => {
 export const getDurationFromPeriod = (p: TimePeriod): string => {
   const ms = p.to.valueOf() - p.from.valueOf();
   return getDurationFromMilliseconds(ms);
-};
-
-export const checkDurationLimit = (dur: string): string => {
-  const durItems = dur.trim().split(" ");
-
-  const durObject = durItems.reduce((prev, curr) => {
-    const dur = isSupportedDuration(curr);
-    return dur ? { ...prev, ...dur } : { ...prev };
-  }, {});
-
-  const delta = dayjs.duration(durObject).asMilliseconds();
-
-  if (delta < limitsDurations.min) return getDurationFromMilliseconds(limitsDurations.min);
-  if (delta > limitsDurations.max) return getDurationFromMilliseconds(limitsDurations.max);
-  return dur;
 };
 
 export const dateFromSeconds = (epochTimeInSeconds: number): Date => {

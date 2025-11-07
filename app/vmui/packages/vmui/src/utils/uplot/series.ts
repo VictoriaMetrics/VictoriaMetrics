@@ -1,7 +1,7 @@
 import { MetricBase, MetricResult } from "../../api/types";
 import uPlot, { Series as uPlotSeries } from "uplot";
 import { getNameForMetric, promValueToNumber } from "../metric";
-import { BarSeriesItem, Disp, Fill, ForecastType, HideSeriesArgs, LegendItemType, SeriesItem, Stroke } from "../../types";
+import { ForecastType, HideSeriesArgs, LegendItemType, SeriesItem } from "../../types";
 import { anomalyColors, baseContrastColors, getColorFromString } from "../color";
 import { getMathStats } from "../math";
 import { formatPrettyNumber } from "./helpers";
@@ -110,28 +110,6 @@ export const getHideSeries = ({ hideSeries, legend, metaKey, series, isAnomalyVi
 
 export const includesHideSeries = (label: string, hideSeries: string[]): boolean => {
   return hideSeries.includes(`${label}`);
-};
-
-export const getBarSeries = (
-  which: number[],
-  ori: number,
-  dir: number,
-  radius: number,
-  disp: Disp): BarSeriesItem => {
-  return {
-    which: which,
-    ori: ori,
-    dir: dir,
-    radius: radius,
-    disp: disp,
-  };
-};
-
-export const barDisp = (stroke: Stroke, fill: Fill): Disp => {
-  return {
-    stroke: stroke,
-    fill: fill
-  };
 };
 
 export const delSeries = (u: uPlot) => {
