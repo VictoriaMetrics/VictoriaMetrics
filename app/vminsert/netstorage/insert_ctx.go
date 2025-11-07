@@ -187,7 +187,7 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	ctx.labelsBuf = buf
 
 	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
-	idx := ctx.snb.nodesHash.getNodeIdx(h, nil)
+	idx := ctx.snb.nodesHash.GetNodeIdx(h, nil)
 	return idx
 }
 

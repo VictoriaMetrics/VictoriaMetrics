@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
@@ -436,7 +437,7 @@ type storageNodesBucket struct {
 	ms *metrics.Set
 
 	// nodesHash is used for consistently selecting a storage node by key.
-	nodesHash *consistentHash
+	nodesHash *consistenthash.ConsistentHash
 
 	// sns is a list of storage nodes.
 	sns []*storageNode
@@ -483,7 +484,7 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 
 	rpcCall := vminsertapi.MetricRowsRpcCall
 	ms := metrics.NewSet()
-	nodesHash := newConsistentHash(addrs, hashSeed)
+	nodesHash := consistenthash.NewConsistentHash(addrs, hashSeed)
 	sns := make([]*storageNode, 0, len(addrs))
 	stopCh := make(chan struct{})
 	for _, addr := range addrs {
@@ -600,7 +601,7 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 		mr.ResetX()
 		var sn *storageNode
 		for {
-			idx := nodesHash.getNodeIdx(h, idxsExclude)
+			idx := nodesHash.GetNodeIdx(h, idxsExclude)
 			sn = sns[idx]
 			if sn.isReady() {
 				break
@@ -636,7 +637,7 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 		}
 		// If the re-routing is enabled, then try sending the row to another storage node.
 		idxsExcludeNew = getNotReadyStorageNodeIdxs(snb, idxsExcludeNew[:0], sn)
-		idx := nodesHash.getNodeIdx(h, idxsExcludeNew)
+		idx := nodesHash.GetNodeIdx(h, idxsExcludeNew)
 		snNew := sns[idx]
 		if !snNew.trySendBuf(rowBuf, 1) {
 			// The row cannot be sent to both snSource, sn and snNew without blocking.
@@ -690,12 +691,12 @@ func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNod
 			continue
 		}
 		// The row couldn't be sent to snSrouce. Try re-routing it to other node.
-		idx := nodesHash.getNodeIdx(h, idxsExclude)
+		idx := nodesHash.GetNodeIdx(h, idxsExclude)
 		sn := sns[idx]
 		for !sn.isReady() && len(idxsExclude) < len(sns) {
 			// re-generate idxsExclude list, since sn and snSource must be put there.
 			idxsExclude = getNotReadyStorageNodeIdxs(snb, idxsExclude[:0], snSource)
-			idx := nodesHash.getNodeIdx(h, idxsExclude)
+			idx := nodesHash.GetNodeIdx(h, idxsExclude)
 			sn = sns[idx]
 		}
 		if !sn.trySendBuf(rowBuf, 1) {
