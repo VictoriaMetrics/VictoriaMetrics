@@ -2247,7 +2247,7 @@ func TestIndexSearchContainsTimeRange_Concurrent(t *testing.T) {
 	defer idb.MustClose()
 
 	minTimestamp := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
-	concurrency := 100
+	concurrency := int64(100)
 	var wg sync.WaitGroup
 	for i := range concurrency {
 		wg.Add(1)
@@ -2256,7 +2256,7 @@ func TestIndexSearchContainsTimeRange_Concurrent(t *testing.T) {
 			_ = is.containsTimeRange(TimeRange{ts, ts})
 			idb.putIndexSearch(is)
 			wg.Done()
-		}(minTimestamp + int64(msecPerDay*i))
+		}(minTimestamp + msecPerDay*i)
 	}
 	wg.Wait()
 
