@@ -14,6 +14,7 @@ import LegendConfigs from "../../Chart/Line/Legend/LegendConfigs/LegendConfigs";
 import Modal from "../../Main/Modal/Modal";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import { useEffect } from "react";
+import PointsConfigurator from "./PointsConfigurator/PointsConfigurator";
 
 const title = "Graph & Legend Settings";
 
@@ -26,10 +27,14 @@ interface GraphSettingsProps {
     value: boolean,
     onChange: (value: boolean) => void,
   },
+  showAllPoints: {
+    value: boolean,
+    onChange: (value: boolean) => void,
+  },
   isHistogram?: boolean,
 }
 
-const GraphSettings: FC<GraphSettingsProps> = ({ data, yaxis, setYaxisLimits, toggleEnableLimits, spanGaps }) => {
+const GraphSettings: FC<GraphSettingsProps> = ({ data, yaxis, setYaxisLimits, toggleEnableLimits, spanGaps, showAllPoints }) => {
   const { openSettings } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
@@ -83,6 +88,10 @@ const GraphSettings: FC<GraphSettingsProps> = ({ data, yaxis, setYaxisLimits, to
                 <LinesConfigurator
                   spanGaps={spanGaps.value}
                   onChange={spanGaps.onChange}
+                />
+                <PointsConfigurator
+                  showAllPoints={showAllPoints.value}
+                  onChangeShow={showAllPoints.onChange}
                 />
                 {displayHistogramMode && <GraphTypeSwitcher onChange={handleClose}/>}
               </div>

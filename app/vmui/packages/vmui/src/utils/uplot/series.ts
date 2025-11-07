@@ -31,7 +31,7 @@ export const isForecast = (metric: MetricBase["metric"]): ForecastMetricInfo => 
   };
 };
 
-export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[], isAnomalyUI?: boolean) => {
+export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[], showPoints?: boolean, isAnomalyUI?: boolean) => {
   const colorState: {[key: string]: string} = {};
   const maxColors = isAnomalyUI ? 0 : Math.min(data.length, baseContrastColors.length);
 
@@ -51,7 +51,7 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
       dash: getDashSeries(metricInfo),
       width: getWidthSeries(metricInfo),
       stroke: getStrokeSeries({ metricInfo, label, isAnomalyUI, colorState }),
-      points: getPointsSeries(metricInfo),
+      points: getPointsSeries(metricInfo, showPoints),
       spanGaps: false,
       forecast: metricInfo?.value,
       forecastGroup: metricInfo?.group,
@@ -118,9 +118,10 @@ export const delSeries = (u: uPlot) => {
   }
 };
 
-export const addSeries = (u: uPlot, series: uPlotSeries[], spanGaps = false) => {
+export const addSeries = (u: uPlot, series: uPlotSeries[], spanGaps = false, showPoints = false) => {
   series.forEach((s,i) => {
     if (s.label) s.spanGaps = spanGaps;
+    if (s.points) s.points.filter = showPoints ? undefined : filterPoints;
     i && u.addSeries(s);
   });
 };
@@ -156,7 +157,7 @@ const getWidthSeries = (metricInfo: ForecastMetricInfo | null): number => {
   return 1.4;
 };
 
-const getPointsSeries = (metricInfo: ForecastMetricInfo | null): uPlotSeries.Points => {
+const getPointsSeries = (metricInfo: ForecastMetricInfo | null, showPoints: boolean = false): uPlotSeries.Points => {
   const isAnomalyMetric = metricInfo?.value === ForecastType.anomaly;
 
   if (isAnomalyMetric) {
@@ -166,7 +167,7 @@ const getPointsSeries = (metricInfo: ForecastMetricInfo | null): uPlotSeries.Poi
     size: 4,
     width: 0,
     show: true,
-    filter: filterPoints,
+    filter: showPoints ? null : filterPoints,
   };
 };
 
@@ -177,7 +178,7 @@ const filterPoints = (self: uPlot, seriesIdx: number): number[] | null => {
   for (let i = 0; i < data.length; i++) {
     const prev = data[i - 1];
     const next = data[i + 1];
-    if (prev === null && next === null) {
+    if (prev === null || next === null) {
       indices.push(i);
     }
   }
