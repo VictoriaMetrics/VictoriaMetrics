@@ -26,9 +26,66 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add ability to set `attach_metadata.namespace=true` option for all the [`kubernetes_sd_configs`](https://docs.victoriametrics.com/victoriametrics/sd_configs/#kubernetes_sd_configs) defined at [`-promscrape.config`](https://docs.victoriametrics.com/victoriametrics/vmagent/#quick-start), or via `-promscrape.kubernetes.attachNamespaceMetadataAll` command-line flag. This allows attaching namespace labels and annotations to discovered targets for `pod`, `service`, `endpoints`, `endpointslice`, and `ingress` roles. See [#9880](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9880) for more details. Thank you, @clementnuss, for the contribution. 
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add option to always show all points on the chart.
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix display of isolated points on the chart. See [#9666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9666).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix median value calculation displayed below series graph. See [#9926](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9926).
+
+## [v1.129.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.129.1)
+
+Released at 2025-11-04
+
+* BUGFIX: `vminsert`, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly apply `maxDataSize` memory limits to the `snappy` encoded requests. It protects ingest endpoints from malicious requests.
+
+## [v1.129.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.129.0)
+
+Released at 2025-10-31
+
+* FEATURE: `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce new RPC protocol for insert-storage communication. See this PR [#9820](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9820) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): explicitly check response type for [range queries](https://docs.victoriametrics.com/keyConcepts.html#range-query) during [replay](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling) and return error on type mismatch. This change should reduce confusions like in [#9779](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9779).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): allow providing multiple filters for [remote-read migration mode](https://docs.victoriametrics.com/victoriametrics/vmctl/remoteread/) via multiple `--remote-read-filter-label` and `--remote-read-filter-label-value` flags. This is useful in order to narrow down the data being migrated by using more precise filters. See this PR [#9917](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9917) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support `alert_relabel_configs` per each notifier in `-notifier.config` file. See [#5980](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5980).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add template function `now` to return the Unix timestamp in seconds at the time of the template evaluation. For example, `{{ (now | toTime).Sub $activeAt }}` can calculate duration the alert has been active. See this issue [#9864](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9864) for more details. Thank you @nguu0123 for the pull request.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): start groups with `group.interval > 5m` faster. Before, vmalert was [delaying group start](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/724) for random duration up to `group.interval`. This could significantly delay group's evaluation if their interval was set to big values. With this change, vmalert limits the max start delay via new command-line flag `--group.maxStartDelay` (by default, 5m).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `/remotewrite-relabel-config` and `/api/v1/status/remotewrite-relabel-config` API handlers for returning content of `--remoteWrite.relabelConfig` cmd-line flag. Useful for inspecting and verifying the final global relabeling rules used by vmagent. Access to new handlers can be protected via `--configAuthKey` command-line flag. See [#9504](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9504).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `/remotewrite-url-relabel-config` and `/api/v1/status/remotewrite-url-relabel-config` API handlers for returning content of `--remoteWrite.urlRelabelConfig` cmd-line flag. Useful for inspecting and verifying the final per-remote-write relabeling rules used by vmagent. Access to new handlers can be protected via `--configAuthKey` command-line flag. See [#9504](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9504).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): improve performance for the [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) with multiple configured rules. See this issue [#9878](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9878) for details.
+* FEATURE: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): change the behavior when both `streamAggr.dropInput` and `streamAggr.keepInput` are set to true. Previously, all input samples were kept when both flags were `true`. Now, only input samples matching any aggregation are retained; all others are dropped. See [#9724](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9724).
+* FEATURE: [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/): slow query statistics logging is now enabled by default with `-search.logSlowQueryStats=5s`. This makes it easier to analyze query performance via the [Query Stats dashboard](https://grafana.sandbox.victoriametrics.com/d/feg3od1zt1fy8e/query-stats). See [Query execution stats](https://docs.victoriametrics.com/victoriametrics/enterprise/#query-execution-stats) for more details.
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): make the load distribution more even among the backends which execute queries with various durations. See [#9712](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9712).
+* FEATURE: [dashboards/all](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): enable column filters in `Non-default flags` panel. See [#9910](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9910). Thanks to @SamarthBagga for enhancement!
+* FEATURE: add linux/s390x artifact to releases. See [#9697](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9697) for the details.
+
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): complete a fix of environment variables configuration parsing for connection to AWS S3. Previously, such settings were ignored starting from [v1.115.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11150) and releases [v1.128.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.128.0), [v1.122.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.6) and [v1.110.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.21) did not fix an issue completely. See this issue [#9858](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix search over group names and other attributes in vmalert's WEB UI. This functionality was broken since [v1.117.0](https://docs.victoriametrics.com/CHANGELOG.html#v11170). See [#9886](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9886) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): preserve HTML formatting in rule's annotations in vmalert's [WEB UI](https://docs.victoriametrics.com/vmalert.html#web) and [vmui's alerting page](https://docs.victoriametrics.com/victoriametrics/#vmui). See [#9892](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9892) for details.
+* BUGFIX [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): consistently set `vm_backup_last_created_at{type="latest"}` to the latest backup start time.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): prevent breaking shell formatting when using `vmbackupmanager` CLI mode by adding a newline after the command output. Previously, using CLI mode would not always include newline at the end of output, which could break shell formatting.
+
+## [v1.128.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.128.0)
+
+Released at 2025-10-17
+
+**Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): default value of the flag `-promscrape.dropOriginalLabels` changed from `false` to `true`.
+It disables `Discovered targets` debug UI by default.
+
+* SECURITY: upgrade Go builder from Go1.25.1 to Go1.25.3. See [the list of issues addressed in Go1.25.3](https://github.com/golang/go/issues?q=milestone%3AGo1.25.3%20label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.22.1 to 3.22.2. See [Alpine 3.22.2 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.9-3.20.8-3.21.5-3.22.2-released.html).
+
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `opentelemetry` format for [kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/#reading-metrics) consumer. See this issue [#9734](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9734) for details.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): add `-opentelemetry.convertMetricNamesToPrometheus` command-line flag, which can be used for enabling automatic conversion of the ingested metric names into Prometheus-compatible format. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry) and this issue [#9830](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9830).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-secret.flags` command-line flag to configure flags to be hidden in logs and on `/metrics`. This is useful for protecting sensitive flag values (for example `-remoteWrite.headers`) from being exposed in logs or metrics. See [#6938](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6938). Thank you @truepele for the issue and PR
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): change default value of the flag `-promscrape.dropOriginalLabels` from `false` to `true`. This helps reducing CPU and Memory usage by dropping targets original labels during [service discovery](https://docs.victoriametrics.com/victoriametrics/sd_configs/), but disables [relabel debugging UI](https://docs.victoriametrics.com/victoriametrics/relabeling/#relabel-debugging). This change gives constant improvement on resource usage, and relabel debugging can be turned on on demand. See this issue [#9665](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9665) for details.
+* FEATURE: add `-fs.maxConcurrency` command-line flag for adjusting the limit on the number of parallel operations with files. This flag may be useful for tuning data ingestion performance on systems with high-latency storage such as NFS or Ceph. This flag can be useful also for reducing Go scheduling latency on systems with small number of CPU cores. See [VictoriaLogs#774](https://github.com/VictoriaMetrics/VictoriaLogs/issues/774).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): on the [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) page, rename `Reset` to `Reset filters` and disable the button when no filters are modified. See [#9609](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9609).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): reflect query visibility state in URL on `Query` or `Raw Query` pages. Now, when sharing URL with a query, its visibility state will be preserved. See [#9826](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9826) for more details.
+
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix issue where updating one query parameter removed others. See [#9816](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9816) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) alerting tab: update the search filter if the corresponding query argument was passed. Reset selected items in dropdown filters if they are not available anymore after the update. See [#9825](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9825) for more details.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): properly apply additional configuration of connection provided via environment variables (such as `AWS_CA_BUNDLE`). Previously, such settings were ignored starting from [v1.115.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11150). See this issue [#9858](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858) for details.
+* BUGFIX: [dashboards/victoriametrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victoriametrics.json), [dashboards/victoriametrics-cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victoriametrics-cluster.json): fixed full disk space ETA queries, before average size of a row in indexdb was one for all vm storages, now it's calculated per each storage. See [#9848](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9848) for details.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): remove impact of `flush_on_shutdown` on timestamps of flushed samples. See [#9642](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9642).
 
 ## [v1.127.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.127.0)
 
@@ -136,6 +193,45 @@ Released at 2025-08-01
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
 
+## [v1.122.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.8)
+
+Released at 2025-11-04
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+
+* BUGFIX: `vminsert`, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly apply `maxDataSize` memory limits to the `snappy` encoded requests. It protects ingest endpoints from malicious requests.
+
+## [v1.122.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.7)
+
+Released at 2025-10-31
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): complete a fix of environment variables configuration parsing for connection to AWS S3. Previously, such settings were ignored starting from [v1.115.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11150) and releases [v1.128.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.128.0), [v1.122.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.6) and [v1.110.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.21) did not fix an issue completely. See this issue [#9858](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix search over group names and other attributes in vmalert's WEB UI. See [#9886](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9886) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): preserve HTML formatting in rule's annotations in vmalert's [WEB UI](https://docs.victoriametrics.com/vmalert.html#web). See [#9892](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9892) for details.
+* BUGFIX [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): consistently set `vm_backup_last_created_at{type="latest"}` to the latest backup start time.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): prevent breaking shell formatting when using `vmbackupmanager` CLI mode by adding a newline after the command output. Previously, using CLI mode would not always include newline at the end of output, which could break shell formatting.
+
+## [v1.122.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.6)
+
+Released at 2025-10-17
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.22.1 to 3.22.2. See [Alpine 3.22.2 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.9-3.20.8-3.21.5-3.22.2-released.html).
+* SECURITY: upgrade Go builder from Go1.24.7 to Go1.24.9. See [the list of issues addressed in Go1.24.9](https://github.com/golang/go/issues?q=milestone%3AGo1.24.9%20label%3ACherryPickApproved).
+
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): properly apply additional configuration of connection provided via environment variables (such as `AWS_CA_BUNDLE`). Previously, such settings were ignored starting from [v1.115.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11150). See this issue [#9858](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858) for details.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/): remove impact of `flush_on_shutdown` on timestamps of flushed samples. See [#9642](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9642).
+
 ## [v1.122.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.5)
 
 Released at 2025-10-03
@@ -146,7 +242,7 @@ The v1.122.x line will be supported for at least 12 months since [v1.122.0](http
 
 * SECURITY: upgrade Go builder from Go1.24.6 to Go1.24.7. See [the list of issues addressed in Go1.24.7](https://github.com/golang/go/issues?q=milestone%3AGo1.24.7+label%3ACherryPickApproved).
 
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent unexpected performance degradation caused by cache misses (exposed via `vm_cache_misses_total` metric) during rotation. See this PR (#9769)[https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9769] for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent unexpected performance degradation caused by cache misses (exposed via `vm_cache_misses_total` metric) during rotation. See this PR [#9769](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/9769) for details.
 * BUGFIX: all components: restore sorting order of summary and quantile metrics exposed by VictoriaMetrics components on `/metrics` page. See [metrics#105](https://github.com/VictoriaMetrics/metrics/pull/105) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): avoid applying offset modifier twice to the request time when an instant query uses rollup functions `rate()` or `avg_over_time()` with cache enabled. See [#9762](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): restore support for `query` templates in alert rule labels after the regression introduced in [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543). See [#9783](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9783) for details.
@@ -561,6 +657,41 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+
+## [v1.110.23](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.23)
+
+Released at 2025-11-04
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
+
+* BUGFIX: `vminsert`, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly apply `maxDataSize` memory limits to the `snappy` encoded requests. It protects ingest endpoints from malicious requests.
+
+## [v1.110.22](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.22)
+
+Released at 2025-10-31
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
+
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): complete a fix of environment variables configuration parsing for connection to AWS S3. Previously, such settings were ignored starting from [v1.115.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11150) and releases [v1.128.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.128.0), [v1.122.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.6) and [v1.110.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.21) did not fix an issue completely. See this issue [#9858](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858) for details.
+* BUGFIX [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): consistently set `vm_backup_last_created_at{type="latest"}` to the latest backup start time.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): prevent breaking shell formatting when using `vmbackupmanager` CLI mode by adding a newline after the command output. Previously, using CLI mode would not always include newline at the end of output, which could break shell formatting.
+
+## [v1.110.21](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.21)
+
+Released at 2025-10-17
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.22.1 to 3.22.2. See [Alpine 3.22.2 release notes](https://www.alpinelinux.org/posts/Alpine-3.19.9-3.20.8-3.21.5-3.22.2-released.html).
+* SECURITY: upgrade Go builder from Go1.24.7 to Go1.24.9. See [the list of issues addressed in Go1.24.9](https://github.com/golang/go/issues?q=milestone%3AGo1.24.9%20label%3ACherryPickApproved).
+
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): properly apply additional configuration of connection provided via environment variables (such as `AWS_CA_BUNDLE`). Previously, such settings were ignored starting from [v1.115.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11150). See this issue [#9858](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9858) for details.
 
 ## [v1.110.20](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.20)
 

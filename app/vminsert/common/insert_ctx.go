@@ -221,7 +221,7 @@ func (ctx *InsertCtx) FlushBufs() error {
 	}
 }
 
-func (ctx *InsertCtx) dropAggregatedRows(matchIdxs []byte) {
+func (ctx *InsertCtx) dropAggregatedRows(matchIdxs []uint32) {
 	dst := ctx.mrs[:0]
 	src := ctx.mrs
 	if !*streamAggrDropInput {
@@ -239,4 +239,4 @@ func (ctx *InsertCtx) dropAggregatedRows(matchIdxs []byte) {
 	ctx.mrs = dst
 }
 
-var matchIdxsPool bytesutil.ByteBufferPool
+var matchIdxsPool slicesutil.BufferPool[uint32]

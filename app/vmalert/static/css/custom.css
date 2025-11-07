@@ -34,11 +34,12 @@ body {
   padding-top: 4.5rem;
 }
 
-.group-items {
+.vm-group {
   cursor: pointer;
   padding: 5px;
   margin-top: 5px;
   position: relative;
+  display: none;
 }
 
 .btn svg, .dropdown-item svg {
@@ -55,12 +56,20 @@ body {
   height: 38px;
 }
 
-.group-items:not(:has(.sub-item:not(.d-none))) {
-  display: none !important;
+.vm-item:not(.vm-found) {
+  display: none;
 }
 
-.group-items:hover {
+.vm-group:has(.vm-item:is(.vm-found)), .vm-group:is(.vm-found) {
+  display: flex;
+}
+
+.vm-group:hover {
   background-color: #f8f9fa!important;
+}
+
+.vm-group:is(.vm-found) .vm-item {
+  display: table-row;
 }
 
 .table {
@@ -110,4 +119,10 @@ textarea.curl-area {
 
 .w-60 {
   width: 60%;
+}
+
+.annotations {
+  white-space: pre-wrap;
+  color: gray;
+  word-wrap: break-word;
 }

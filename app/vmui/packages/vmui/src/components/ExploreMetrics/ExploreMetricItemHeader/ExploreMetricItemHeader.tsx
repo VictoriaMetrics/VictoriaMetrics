@@ -106,7 +106,7 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
                 onClick={handleClickRemove}
                 fullWidth
               >
-                  Remove graph
+                Remove graph
               </Button>
             </div>
           </Modal>

@@ -32,11 +32,11 @@ This behaviour can be changed via the following command-line flags:
 - `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
   and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
   `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
-  If one of these flags is set, then all the input samples are written to the storage alongside the aggregated samples.
+  If either of these flags is set, input samples that match any rule in the corresponding streamAggr configuration are preserved and written to storage.
 - `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
   and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
   `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
-  If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
+  If either of these flags is set, input samples that do not match any rule in the corresponding streamAggr configuration are dropped.
 
 ## Stream aggregation config
 
@@ -95,6 +95,17 @@ specified individually per each `-remoteWrite.url`:
   # See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#staleness for more details.
   #
   # staleness_interval: 2m
+
+  # ignore_first_sample_interval specifies the interval after which the agent begins sending samples.
+  # By default, it is set to the staleness interval, and it helps reduce the initial sample load after an agent restart.
+  # This parameter is relevant only for the following outputs:
+  # - total
+  # - total_prometheus
+  # - increase
+  # - increase_prometheus
+  # - histogram_bucket
+  #
+  # ignore_first_sample_interval: 2m
   
   # no_align_flush_to_interval disables aligning of flush times for the aggregated data to multiples of interval.
   # By default, flush times for the aggregated data is aligned to multiples of interval.

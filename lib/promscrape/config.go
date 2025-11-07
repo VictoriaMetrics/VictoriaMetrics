@@ -59,7 +59,7 @@ var (
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"See also -promscrape.config.strictParse command-line flag. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output.")
-	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", false, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
+	dropOriginalLabels = flag.Bool("promscrape.dropOriginalLabels", true, "Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. "+
 		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
 		"Note that this reduces debuggability for improper per-target relabeling configs")
 	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 1, "The number of members in a cluster of scrapers. "+

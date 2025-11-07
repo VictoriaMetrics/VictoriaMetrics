@@ -354,7 +354,7 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	if !ok {
 		return 0, false
 	}
-	nsecs -= offsetNsecs
+	nsecs = subNoOverflowInt64(nsecs, offsetNsecs)
 	s = prefix
 
 	// Parse optional fractional part of seconds.
@@ -1426,4 +1426,9 @@ const iso8601Timestamp = "2006-01-02T15:04:05.000Z"
 // marshalTimestampRFC3339NanoString appends RFC3339Nano-formatted nsecs to dst and returns the result.
 func marshalTimestampRFC3339NanoString(dst []byte, nsecs int64) []byte {
 	return time.Unix(0, nsecs).UTC().AppendFormat(dst, time.RFC3339Nano)
+}
+
+// marshalTimestampRFC3339NanoPreciseString appends RFC3339-formatted nsecs with nanosecond precision to dst and returns the result.
+func marshalTimestampRFC3339NanoPreciseString(dst []byte, nsecs int64) []byte {
+	return time.Unix(0, nsecs).UTC().AppendFormat(dst, "2006-01-02T15:04:05.000000000Z07:00")
 }

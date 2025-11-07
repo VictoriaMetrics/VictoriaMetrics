@@ -15,7 +15,7 @@ import {
 } from "../../../utils/uplot";
 import { TimeParams, SeriesItem, LegendItemType } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
-import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../../utils/math";
+import { getMathStats } from "../../../utils/math";
 import classNames from "classnames";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import HeatmapChart from "../../Chart/Heatmap/HeatmapChart/HeatmapChart";
@@ -171,8 +171,9 @@ const GraphView: FC<GraphViewProps> = ({
 
       // stabilize float numbers
       const resultAsNumber = results.filter(s => s !== null) as number[];
-      const avg = Math.abs(getAvgFromArray(resultAsNumber));
-      const range = getMinMaxBuffer(getMinFromArray(resultAsNumber), getMaxFromArray(resultAsNumber));
+      const { min, max, avg: avgRaw } = getMathStats(resultAsNumber, { min: true, max: true, avg: true });
+      const avg = Math.abs(Number(avgRaw));
+      const range = getMinMaxBuffer(min, max);
       const rangeStep = Math.abs(range[1] - range[0]);
 
       return (avg > rangeStep * 1e10) && !isAnomalyView ? results.map(() => avg) : results;

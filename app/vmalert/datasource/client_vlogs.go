@@ -40,8 +40,28 @@ func (c *Client) setVLogsRangeReqParams(r *http.Request, query string, start, en
 	c.setReqParams(r, query)
 }
 
-func parseVLogsResponse(req *http.Request, resp *http.Response) (res Result, err error) {
-	res, err = parsePrometheusResponse(req, resp)
+func parseVLogsInstantResponse(resp *http.Response) (res Result, err error) {
+	res, err = parsePrometheusInstantResponse(resp)
+	if err != nil {
+		return Result{}, err
+	}
+	for i := range res.Data {
+		m := &res.Data[i]
+		for j := range m.Labels {
+			// reserve the stats func result name with a new label `stats_result` instead of dropping it,
+			// since there could be multiple stats results in a single query, for instance:
+			// 	_time:5m | stats quantile(0.5, request_duration_seconds) p50, quantile(0.9, request_duration_seconds) p90
+			if m.Labels[j].Name == "__name__" {
+				m.Labels[j].Name = "stats_result"
+				break
+			}
+		}
+	}
+	return
+}
+
+func parseVLogsRangeResponse(resp *http.Response) (res Result, err error) {
+	res, err = parsePrometheusRangeResponse(resp)
 	if err != nil {
 		return Result{}, err
 	}

@@ -4,7 +4,7 @@
 
 **koanf** is a library for reading configuration from different sources in different formats in Go applications. It is a cleaner, lighter [alternative to spf13/viper](#alternative-to-viper) with better abstractions and extensibility and far fewer dependencies.
 
-koanf v2 has modules (Providers) for reading configuration from a variety of sources such as files, command line flags, environment variables, Vault, and S3 and for parsing (Parsers) formats such as JSON, YAML, TOML, Hashicorp HCL. It is easy to plug in custom parsers and providers.
+koanf v2 has modules (Providers) for reading configuration from a variety of sources such as files, command line flags, environment variables, Vault, and S3 and for parsing (Parsers) formats such as JSON, YAML, TOML, HUML, Hashicorp HCL. It is easy to plug in custom parsers and providers.
 
 All external dependencies in providers and parsers are detached from the core and can be installed separately as necessary.
 
@@ -26,7 +26,7 @@ go get -u github.com/knadh/koanf/providers/file
 
 
 # Install the necessary Parser(s).
-# Available: toml, toml/v2, json, yaml, dotenv, hcl, hjson, nestedtext
+# Available: toml, toml/v2, json, yaml, huml, dotenv, hcl, hjson, nestedtext
 # go get -u github.com/knadh/koanf/parsers/$parser
 
 go get -u github.com/knadh/koanf/parsers/toml
@@ -41,6 +41,7 @@ go get -u github.com/knadh/koanf/parsers/toml
 - [Watching file for changes](#watching-file-for-changes)
 - [Reading from command line](#reading-from-command-line)
 - [Reading environment variables](#reading-environment-variables)
+- [Reading from an S3 bucket](#reading-from-an-s3-bucket)
 - [Reading raw bytes](#reading-raw-bytes)
 - [Reading from maps and structs](#reading-from-nested-maps)
 - [Unmarshalling and marshalling](#unmarshalling-and-marshalling)
@@ -269,8 +270,8 @@ func main() {
 	fmt.Println("name is =", k.String("parent1.child1.name"))
 	fmt.Println("time is =", k.Time("time", time.DateOnly))
 	fmt.Println("ids are =", k.Strings("parent1.child1.grandchild1.ids"))
-}```
-
+}
+```
 
 ### Reading from an S3 bucket
 
@@ -664,6 +665,7 @@ Install with `go get -u github.com/knadh/koanf/providers/$provider`
 | parameterstore/v2 | `parameterstore.Provider(parameterstore.Config{})` | AWS Systems Manager Parameter Store provider |
 | cliflagv2  |  `cliflagv2.Provider(ctx *cli.Context, delimiter string)` |  Reads commands and flags from urfave/cli/v2 context including global flags and nested command flags and provides a nested config map based on delim. |
 | cliflagv3  |  `cliflagv3.Provider(ctx *cli.Context, delimiter string)` |  Reads commands and flags from urfave/cli/v3 and provides a nested config map based on delim. |
+| kiln   |  `kiln.Provider(configPath, keyPath, file string)` | Takes an optional prefix to filter environment variables keys by, an optional function that takes and returns a string to transform environment variables, and returns a nested config map. |
 
 
 ### Bundled Parsers
@@ -678,8 +680,9 @@ Install with `go get -u github.com/knadh/koanf/parsers/$parser`
 | toml/v2    | `toml.Parser()`                  | Parses TOML bytes into a nested map (using go-toml v2)                                                                                                    |
 | dotenv     | `dotenv.Parser()`              | Parses DotEnv bytes into a flat map                                                                                                                       |
 | hcl        | `hcl.Parser(flattenSlices bool)` | Parses Hashicorp HCL bytes into a nested map. `flattenSlices` is recommended to be set to true. [Read more](https://github.com/hashicorp/hcl/issues/162). |
+| hjson		 | `hjson.Parser()`					| Parses HJSON bytes into a nested map                                                                                                                     |
+| huml       | `huml.Parser()`                   | Parses HUML (Human-Oriented Markup Language) bytes into a nested map                                                                                     |
 | nestedtext | `nestedtext.Parser()`              | Parses NestedText bytes into a flat map                                                                                                                 |
-| hjson		 | `hjson.Parser()`					| Parses HJSON bytes into a nested map
 																							|
 
 

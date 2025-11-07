@@ -310,14 +310,21 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 
 	rtb, rtbOK := req.Body.(*readTrackingBody)
 	res, err := ui.rt.RoundTrip(req)
+
+	if ctxErr := r.Context().Err(); ctxErr != nil {
+		// Override the error returned by the RoundTrip with the context error if it isn't non-nil
+		// This makes sure the proper logging for canceled and timed out requests - log the real cause of the error
+		// instead of the random error, which could be returned from RoundTrip because of canceled or timed out request.
+		err = ctxErr
+	}
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			// Do not retry canceled or timed out requests
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
-			logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
 			if errors.Is(err, context.DeadlineExceeded) {
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
+				logger.Warnf("remoteAddr: %s; requestURI: %s; timeout while proxying the response from %s: %s", remoteAddr, requestURI, targetURL, err)
 				ui.backendErrors.Inc()
 			}
 			return false, false

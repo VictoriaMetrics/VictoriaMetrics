@@ -765,7 +765,7 @@ func streamdiscoveredTargets(qw422016 *qt422016.Writer, tsr *targetsStatusResult
 //line lib/promscrape/targetstatus.qtpl:289
 	if !tsr.hasOriginalLabels {
 //line lib/promscrape/targetstatus.qtpl:289
-		qw422016.N().S(`<div class="alert alert-warning" role="alert">Discovered targets are unavailable when <b>-promscrape.dropOriginalLabels</b> command-line flag is set</div>`)
+		qw422016.N().S(`<div class="alert alert-warning" role="alert">Discovered targets are unavailable, set <b>-promscrape.dropOriginalLabels=false</b> command-line flag to enable it</div>`)
 //line lib/promscrape/targetstatus.qtpl:293
 		return
 //line lib/promscrape/targetstatus.qtpl:294

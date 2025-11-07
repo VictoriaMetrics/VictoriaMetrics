@@ -293,8 +293,8 @@ func matchStringByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, valu
 	})
 }
 
-func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
-	n, ok := tryParseUint64(phrase)
+func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
+	n, ok := tryParseUint64(value)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
 		return
@@ -305,8 +305,8 @@ func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phras
 	bbPool.Put(bb)
 }
 
-func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
-	n, ok := tryParseUint64(phrase)
+func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
+	n, ok := tryParseUint64(value)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
 		return
@@ -317,8 +317,8 @@ func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phra
 	bbPool.Put(bb)
 }
 
-func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
-	n, ok := tryParseUint64(phrase)
+func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
+	n, ok := tryParseUint64(value)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
 		return
@@ -329,8 +329,8 @@ func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phra
 	bbPool.Put(bb)
 }
 
-func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
-	n, ok := tryParseUint64(phrase)
+func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
+	n, ok := tryParseUint64(value)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
 		return
@@ -341,8 +341,8 @@ func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phra
 	bbPool.Put(bb)
 }
 
-func matchInt64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
-	n, ok := tryParseInt64(phrase)
+func matchInt64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
+	n, ok := tryParseInt64(value)
 	if !ok || n < int64(ch.minValue) || n > int64(ch.maxValue) {
 		bm.resetBits()
 		return

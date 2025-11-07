@@ -30,7 +30,7 @@ type Logger interface {
 	// concurrently.
 	Emit(ctx context.Context, record Record)
 
-	// Enabled returns whether the Logger emits for the given context and
+	// Enabled reports whether the Logger emits for the given context and
 	// param.
 	//
 	// This is useful for users that want to know if a [Record]

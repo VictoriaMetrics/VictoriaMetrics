@@ -198,7 +198,7 @@ const TableSettings: FC<TableSettingsProps> = ({
           {toggleTableCompact && tableCompact !== undefined && (
             <div className="vm-table-settings-modal-section">
               <div className="vm-table-settings-modal-section__title">
-              Table view
+                Table view
               </div>
               <div className="vm-table-settings-modal-columns-list__item">
                 <Switch

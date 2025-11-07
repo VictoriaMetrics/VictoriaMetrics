@@ -946,9 +946,15 @@ func (pt *partition) MustClose() {
 
 	for _, pw := range smallParts {
 		pw.decRef()
+		if refCount := pw.refCount.Load(); refCount != 0 {
+			logger.Panicf("BUG: unexpected non-zero refCount: %d", refCount)
+		}
 	}
 	for _, pw := range bigParts {
 		pw.decRef()
+		if refCount := pw.refCount.Load(); refCount != 0 {
+			logger.Panicf("BUG: unexpected non-zero refCount: %d", refCount)
+		}
 	}
 }
 

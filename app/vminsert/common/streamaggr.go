@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/metrics"
@@ -22,11 +23,11 @@ var (
 	streamAggrConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/victoriametrics/stream-aggregation/ . "+
 		"See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval")
-	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep all the input samples after the aggregation with -streamAggr.config. "+
-		"By default, only aggregated samples are dropped, while the remaining samples are stored in the database. "+
+	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep input samples that match any rule in -streamAggr.config. "+
+		"By default, matched raw samples are aggregated and dropped, while unmatched samples are written to the remote storage. "+
 		"See also -streamAggr.dropInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/")
-	streamAggrDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation with -streamAggr.config. "+
-		"By default, only aggregated samples are dropped, while the remaining samples are stored in the database. "+
+	streamAggrDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop input samples that not matching any rule in -streamAggr.config. "+
+		"By default, only matched raw samples are dropped, while unmatched samples are written to the remote storage."+
 		"See also -streamAggr.keepInput and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/")
 	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before optional aggregation with -streamAggr.config . "+
 		"See also -streamAggr.dropInputLabels and -dedup.minScrapeInterval and https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication")
@@ -189,7 +190,7 @@ func (ctx *streamAggrCtx) Reset() {
 	ctx.buf = ctx.buf[:0]
 }
 
-func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte {
+func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []uint32) []uint32 {
 	mn := &ctx.mn
 	tss := ctx.tss
 	labels := ctx.labels
@@ -248,7 +249,7 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow, matchIdxs []byte) []byte
 	if sas.IsEnabled() {
 		matchIdxs = sas.Push(tss, matchIdxs)
 	} else if deduplicator != nil {
-		matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
+		matchIdxs = slicesutil.SetLength(matchIdxs, len(tss))
 		for i := range matchIdxs {
 			matchIdxs[i] = 1
 		}

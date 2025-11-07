@@ -27,6 +27,9 @@ vmalert-tool-linux-ppc64le-prod:
 vmalert-tool-linux-386-prod:
 	APP_NAME=vmalert-tool $(MAKE) app-via-docker-linux-386
 
+vmalert-tool-linux-s390x-prod:
+	APP_NAME=vmalert-tool $(MAKE) app-via-docker-linux-s390x
+
 vmalert-tool-darwin-amd64-prod:
 	APP_NAME=vmalert-tool $(MAKE) app-via-docker-darwin-amd64
 

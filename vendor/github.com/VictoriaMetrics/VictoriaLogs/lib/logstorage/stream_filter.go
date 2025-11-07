@@ -106,9 +106,7 @@ func parseStreamFilter(lex *lexer) (*StreamFilter, error) {
 	if !lex.isKeyword("{") {
 		return nil, fmt.Errorf("unexpected token %q instead of '{' in _stream filter", lex.token)
 	}
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("incomplete _stream filter after '{'")
-	}
+	lex.nextToken()
 	var filters []*andStreamFilter
 	for {
 		f, err := parseAndStreamFilter(lex)
@@ -124,9 +122,7 @@ func parseStreamFilter(lex *lexer) (*StreamFilter, error) {
 			}
 			return sf, nil
 		case lex.isKeyword("or"):
-			if !lex.mustNextToken() {
-				return nil, fmt.Errorf("incomplete _stream filter after 'or'")
-			}
+			lex.nextToken()
 			if lex.isKeyword("}") {
 				return nil, fmt.Errorf("unexpected '}' after 'or' in _stream filter")
 			}
@@ -157,18 +153,16 @@ func parseAndStreamFilter(lex *lexer) (*andStreamFilter, error) {
 			}
 			return asf, nil
 		case lex.isKeyword(","):
-			if !lex.mustNextToken() {
-				return nil, fmt.Errorf("missing stream filter after ','")
-			}
+			lex.nextToken()
 		default:
-			return nil, fmt.Errorf("unexpected token %q in _stream filter; want 'or', 'and', '}' or ','", lex.token)
+			return nil, fmt.Errorf("unexpected token %q in _stream filter after %q; want 'or', 'and', '}' or ','", lex.token, f)
 		}
 	}
 }
 
 func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 	// parse tagName
-	tagName, err := parseStreamTagName(lex)
+	tagName, err := lex.nextCompoundToken()
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse stream tag name inside {...}: %w", err)
 	}
@@ -183,7 +177,7 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 	// parse tag value
 	value := ""
 	if op == "in" || op == "not_in" {
-		args, err := parseArgsInParens(lex)
+		args, isWildcard, err := parseArgsInParensPossibleWildcard(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %s() args inside {...}: %w", op, err)
 		}
@@ -192,7 +186,7 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 		} else {
 			op = "!~"
 		}
-		if len(args) == 1 && args[0] == "*" {
+		if isWildcard {
 			value = ".*"
 		} else {
 			argsEscaped := make([]string, len(args))
@@ -202,7 +196,7 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 			value = strings.Join(argsEscaped, "|")
 		}
 	} else {
-		v, err := parseStreamTagValue(lex)
+		v, err := lex.nextCompoundToken()
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse value for tag %q inside {...}: %w", tagName, err)
 		}
@@ -222,16 +216,6 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 		stf.regexp = re
 	}
 	return stf, nil
-}
-
-func parseStreamTagName(lex *lexer) (string, error) {
-	stopTokens := []string{"=", "!=", "=~", "!~", ",", "{", "}", "'", `"`, "`", ""}
-	return getCompoundTokenExt(lex, stopTokens)
-}
-
-func parseStreamTagValue(lex *lexer) (string, error) {
-	stopTokens := []string{",", "{", "}", "(", "'", `"`, "`", ""}
-	return getCompoundTokenExt(lex, stopTokens)
 }
 
 func getStreamName() *streamName {

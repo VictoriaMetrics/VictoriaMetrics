@@ -11,14 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 const (
@@ -63,9 +64,9 @@ type Config struct {
 	UseStream bool
 	// Headers optional HTTP headers to send with each request to the corresponding remote storage
 	Headers string
-	// LabelName, LabelValue stands for label=~value pair used for read requests.
+	// LabelNames, LabelValues stands for label=~value pair used for read requests.
 	// Is optional.
-	LabelName, LabelValue string
+	LabelNames, LabelValues []string
 }
 
 // Filter defines a list of filters applied to requested data
@@ -94,12 +95,22 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, err
 	}
 
-	var m *prompb.LabelMatcher
-	if cfg.LabelName != "" && cfg.LabelValue != "" {
-		m = &prompb.LabelMatcher{
-			Type:  prompb.LabelMatcher_RE,
-			Name:  cfg.LabelName,
-			Value: cfg.LabelValue,
+	var matchers []*prompb.LabelMatcher
+	if len(cfg.LabelNames) > 0 || len(cfg.LabelValues) > 0 {
+		if len(cfg.LabelNames) != len(cfg.LabelValues) {
+			return nil, fmt.Errorf("the number of label names and label values must be the same")
+		}
+
+		for i := range cfg.LabelNames {
+			if cfg.LabelNames[i] == "" {
+				return nil, fmt.Errorf("label name cannot be empty")
+			}
+			matcher := &prompb.LabelMatcher{
+				Type:  prompb.LabelMatcher_RE,
+				Name:  cfg.LabelNames[i],
+				Value: cfg.LabelValues[i],
+			}
+			matchers = append(matchers, matcher)
 		}
 	}
 
@@ -116,7 +127,7 @@ func NewClient(cfg Config) (*Client, error) {
 		password:          cfg.Password,
 		useStream:         cfg.UseStream,
 		headers:           headers,
-		matchers:          []*prompb.LabelMatcher{m},
+		matchers:          matchers,
 	}
 
 	return c, nil

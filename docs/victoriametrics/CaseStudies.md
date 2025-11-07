@@ -463,19 +463,19 @@ VictoriaMetrics has allowed us to extend data retention for our metrics effortle
 
 Across our production VictoriaMetrics clusters, in a 12 months period we go beyond the following figures.
 
-- Active time series: 20M
+- Active time series: 25M
 - Ingestion rate: 1M samples per second (2M before stream aggregation)
-- Total number of datapoints: 15T+
-- Data size on disk: 12+ TiB
-- Available memory: 1.2 TiB as seen by kubernetes (640 GiB physical memory for the hosts)
-- CPU: 80 cores (AMD EPYC 7763), about 50 % idle
+- Total number of datapoints: ~20T
+- Data size on disk: ~20 TiB
+- Available memory: ~2 TiB as seen by kubernetes (1024 GiB physical memory for the hosts)
+- CPU: 128 cores (AMD EPYC 9004), about 60 % idle
 - Retention period: ~1 year
 - Churn rate: 16M new time series per day (monthly average)
 - Query rate:
-  - `/api/v1/query_range`: 15 queries per second
-  - `/api/v1/query`: 10 queries per second
+  - `/api/v1/query_range`: 6 queries per second
+  - `/api/v1/query`: 20 queries per second
 - Query duration for `/api/v1/query_range` (weekly mean):
-  - 99th percentile: 1.5 s
+  - 99th percentile: 2 s
   - median: 15 ms
 
 ## Roblox

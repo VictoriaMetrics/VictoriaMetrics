@@ -288,7 +288,7 @@
 {% func discoveredTargets(tsr *targetsStatusResult) %}
     {% if !tsr.hasOriginalLabels %}
         <div class="alert alert-warning" role="alert">
-            Discovered targets are unavailable when <b>-promscrape.dropOriginalLabels</b> command-line flag is set
+            Discovered targets are unavailable, set <b>-promscrape.dropOriginalLabels=false</b> command-line flag to enable it
         </div>
         {% return %}
     {% endif %}

@@ -6,13 +6,12 @@ package otelgrpc // import "go.opentelemetry.io/contrib/instrumentation/google.g
 import (
 	"context"
 
-	"google.golang.org/grpc/stats"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/stats"
 )
 
 // ScopeName is the instrumentation scope name.
@@ -215,6 +214,8 @@ func (o spanStartOption) apply(c *config) {
 
 // WithSpanOptions configures an additional set of
 // trace.SpanOptions, which are applied to each new span.
+//
+// Deprecated: It is only used by the deprecated interceptor, and is unused by [NewClientHandler] and [NewServerHandler].
 func WithSpanOptions(opts ...trace.SpanStartOption) Option {
 	return spanStartOption{opts}
 }
