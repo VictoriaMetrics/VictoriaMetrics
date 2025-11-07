@@ -823,20 +823,23 @@ func (cfg *Config) getScrapeWorkGeneric(visitConfigs func(sc *ScrapeConfig, visi
 	dst := make([]*ScrapeWork, 0, len(prev))
 	for _, sc := range cfg.ScrapeConfigs {
 		dstLen := len(dst)
-		ok := true
+
+		// hasSuccess indicates that at least one xxxSDConfig in the []*xxxSDConfig list has returned a successful response.
+		// Therefore, the service discovery result should be updated based on the current round of results.
+		//
+		// If no successful response is received (i.e., hasSuccess is false), fall back to the result from the previous round.
+		hasSuccess := false
 		visitConfigs(sc, func(sdc targetLabelsGetter) {
-			if !ok {
-				return
-			}
 			targetLabels, err := sdc.GetLabels(cfg.baseDir)
 			if err != nil {
-				logger.Errorf("skipping %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
-				ok = false
+				logger.Errorf("skipping some %s targets for job_name=%s because of error: %s", discoveryType, sc.swc.jobName, err)
+				hasSuccess = hasSuccess || false
 				return
 			}
+			hasSuccess = true
 			dst = appendScrapeWorkForTargetLabels(dst, sc.swc, targetLabels, discoveryType)
 		})
-		if !ok {
+		if !hasSuccess {
 			dst = sc.appendPrevTargets(dst[:dstLen], swsPrevByJob, discoveryType)
 		}
 	}
