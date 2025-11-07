@@ -47,7 +47,7 @@ Filtering by labels can be configured via flags `--remote-read-filter-label` and
 For example, `--remote-read-filter-label=tenant` and `--remote-read-filter-label-value="team-eu"` will select only series
 with `tenant="team-eu"` label-value pair.
 
-Filtering flags can be provided multiple times {{% available_from "#" %}} to narrow down the selection of timeseries to migrate.
+Filtering flags can be provided multiple times {{% available_from "v1.129.0" %}} to narrow down the selection of timeseries to migrate.
 For example:
 ```sh
 ./vmctl remote-read \

@@ -27,6 +27,9 @@ vmagent-linux-ppc64le-prod:
 vmagent-linux-386-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-linux-386
 
+vmagent-linux-s390x-prod:
+	APP_NAME=vmagent $(MAKE) app-via-docker-linux-s390x
+
 vmagent-darwin-amd64-prod:
 	APP_NAME=vmagent $(MAKE) app-via-docker-darwin-amd64
 

@@ -988,7 +988,7 @@ or add a review to the dashboard.
   Access to endpoint can be protected via `-configAuthKey` command-line flag.
 
 * Pages `http://vmagent-host:8429/remotewrite-relabel-config` and `http://vmagent-host:8429/remotewrite-url-relabel-config`
-  {{% available_from "#" %}} show current active `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` configuration
+  {{% available_from "v1.129.0" %}} show current active `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` configuration
   correspondingly. Access to endpoints can be protected via `-configAuthKey` command-line flag.
 
 * The `http://vmagent-host:8429/service-discovery` page could be useful for debugging the relabeling process for scrape targets.
@@ -1107,7 +1107,7 @@ Additional notes:
 
 See general recommendations regarding [security](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#security).
 
-vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "#" %}} 
+vmagent's `/remotewrite-relabel-config` and `/remotewrite-url-relabel-config` endpoints {{% available_from "v1.129.0" %}} 
 can be protected via `-configAuthKey` command-line flag.
 
 ### mTLS protection

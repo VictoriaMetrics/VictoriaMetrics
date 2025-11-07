@@ -38,6 +38,8 @@ var (
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 	remoteReadLookBack     = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries. "+
 		"For example, if lookback=1h then range from now() to now()-1h will be scanned.")
+	maxStartDelay = flag.Duration("group.maxStartDelay", 5*time.Minute, "Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval"+
+		" [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other.")
 )
 
 // Group is an entity for grouping rules
@@ -333,9 +335,9 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	defer func() { close(g.finishedCh) }()
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
-	// over time to reduce the load on datasource.
+	// over maxStartDelay to reduce the load on datasource.
 	if !SkipRandSleepOnGroupStart {
-		sleepBeforeStart := g.delayBeforeStart(evalTS)
+		sleepBeforeStart := g.delayBeforeStart(evalTS, *maxStartDelay)
 		g.infof("will start in %v", sleepBeforeStart)
 
 		sleepTimer := time.NewTimer(sleepBeforeStart)
@@ -474,21 +476,28 @@ func (g *Group) UpdateWith(newGroup *Group) {
 }
 
 // delayBeforeStart returns duration for delaying the evaluation start
-// based on given ts and Group settings.
-func (g *Group) delayBeforeStart(ts time.Time) time.Duration {
-	interval := g.Interval
-	offset := g.EvalOffset
-	if offset != nil {
-		// if offset is specified, return a duration aligned with offset
-		currentOffsetPoint := ts.Truncate(interval).Add(*offset)
+// based on given ts and Group settings. The delay can't exceed maxDelay.
+// maxDelay is ignored if g.EvalOffset != nil.
+//
+// Delaying is important to smooth out the load on the datasource when all groups start at the same time.
+// delayBeforeStart calculates delay based on Group ID, so all groups will start at different moments of time.
+func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Duration {
+	if g.EvalOffset != nil {
+		// if offset is specified, ignore the maxDelay and return a duration aligned with offset
+		currentOffsetPoint := ts.Truncate(g.Interval).Add(*g.EvalOffset)
 		if currentOffsetPoint.Before(ts) {
 			// wait until the next offset point
-			return currentOffsetPoint.Add(interval).Sub(ts)
+			return currentOffsetPoint.Add(g.Interval).Sub(ts)
 		}
 		return currentOffsetPoint.Sub(ts)
 	}
 
-	// otherwise, return a random duration between [0..interval] based on group ID
+	// otherwise, return a random duration between [0..min(interval, maxDelay)] based on group ID
+	interval := g.Interval
+	if interval > maxDelay {
+		// artificially limit interval, so groups with big intervals could start sooner.
+		interval = maxDelay
+	}
 	var randSleep time.Duration
 	randSleep = time.Duration(float64(interval) * (float64(g.GetID()) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
