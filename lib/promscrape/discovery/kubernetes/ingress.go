@@ -91,13 +91,13 @@ type HTTPIngressPath struct {
 // getTargetLabels returns labels for ig.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ingress
-func (ig *Ingress) getTargetLabels(_ *groupWatcher) []*promutil.Labels {
+func (ig *Ingress) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 	var ms []*promutil.Labels
 	for _, r := range ig.Spec.Rules {
 		paths := getIngressRulePaths(r.HTTP.Paths)
 		scheme := getSchemeForHost(r.Host, ig.Spec.TLS)
 		for _, path := range paths {
-			m := getLabelsForIngressPath(ig, scheme, r.Host, path)
+			m := getLabelsForIngressPath(ig, gw, scheme, r.Host, path)
 			ms = append(ms, m)
 		}
 	}
@@ -131,7 +131,7 @@ func matchesHostPattern(pattern, host string) bool {
 	return pattern == host
 }
 
-func getLabelsForIngressPath(ig *Ingress, scheme, host, path string) *promutil.Labels {
+func getLabelsForIngressPath(ig *Ingress, gw *groupWatcher, scheme, host, path string) *promutil.Labels {
 	m := promutil.GetLabels()
 	m.Add("__address__", host)
 	m.Add("__meta_kubernetes_namespace", ig.Metadata.Namespace)
@@ -140,6 +140,13 @@ func getLabelsForIngressPath(ig *Ingress, scheme, host, path string) *promutil.L
 	m.Add("__meta_kubernetes_ingress_host", host)
 	m.Add("__meta_kubernetes_ingress_path", path)
 	m.Add("__meta_kubernetes_ingress_class_name", ig.Spec.IngressClassName)
+	if gw.attachNamespaceMetadata {
+		o := gw.getObjectByRoleLocked("namespace", "", ig.Metadata.Namespace)
+		if o != nil {
+			ns := o.(*Namespace)
+			ns.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
+		}
+	}
 	ig.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_ingress", m)
 	return m
 }
