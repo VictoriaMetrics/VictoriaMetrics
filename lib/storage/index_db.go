@@ -109,7 +109,7 @@ type indexDB struct {
 	// with bigger timestamps at any time.
 	minMissingTimestampByKey map[string]int64
 	// protects minMissingTimestampByKey
-	minMissingTimestampByKeyLock sync.RWMutex
+	minMissingTimestampByKeyLock sync.Mutex
 
 	// generation identifies the index generation ID
 	// and is used for syncing items from different indexDBs
@@ -2063,9 +2063,9 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	key := kb.B
 
-	db.minMissingTimestampByKeyLock.RLock()
+	db.minMissingTimestampByKeyLock.Lock()
 	minMissingTimestamp, ok := db.minMissingTimestampByKey[string(key)]
-	db.minMissingTimestampByKeyLock.RUnlock()
+	db.minMissingTimestampByKeyLock.Unlock()
 
 	if ok && tr.MinTimestamp >= minMissingTimestamp {
 		return false
@@ -2075,7 +2075,10 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 	}
 
 	db.minMissingTimestampByKeyLock.Lock()
-	db.minMissingTimestampByKey[string(key)] = tr.MinTimestamp
+	minMissingTimestamp, ok = db.minMissingTimestampByKey[string(key)]
+	if !ok || tr.MinTimestamp < minMissingTimestamp {
+		db.minMissingTimestampByKey[string(key)] = tr.MinTimestamp
+	}
 	db.minMissingTimestampByKeyLock.Unlock()
 
 	return false
