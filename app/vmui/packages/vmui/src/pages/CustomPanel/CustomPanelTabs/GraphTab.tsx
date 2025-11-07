@@ -20,7 +20,7 @@ type Props = {
 const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef, isAnomalyView }) => {
   const { isMobile } = useDeviceDetect();
 
-  const { customStep, yaxis, spanGaps } = useGraphState();
+  const { customStep, yaxis, spanGaps, showAllPoints } = useGraphState();
   const { period } = useTimeState();
   const { query } = useQueryState();
 
@@ -39,6 +39,10 @@ const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef, isAnomalyVie
     graphDispatch({ type: "SET_SPAN_GAPS", payload: value });
   };
 
+  const setShowPoints = (value: boolean) => {
+    graphDispatch({ type: "SET_SHOW_POINTS", payload: value });
+  };
+
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
@@ -53,6 +57,7 @@ const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef, isAnomalyVie
         setYaxisLimits={setYaxisLimits}
         toggleEnableLimits={toggleEnableLimits}
         spanGaps={{ value: spanGaps, onChange: setSpanGaps }}
+        showAllPoints={{ value: showAllPoints, onChange: setShowPoints }}
       />
     </div>
   );
@@ -72,6 +77,7 @@ const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef, isAnomalyVie
         isHistogram={isHistogram}
         isAnomalyView={isAnomalyView}
         spanGaps={spanGaps}
+        showAllPoints={showAllPoints}
       />
     </>
   );

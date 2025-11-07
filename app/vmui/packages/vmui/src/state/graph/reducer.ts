@@ -1,4 +1,5 @@
 import { getQueryStringValue } from "../../utils/query-string";
+import { getFromStorage, saveToStorage } from "../../utils/storage";
 
 export interface AxisRange {
   [key: string]: [number, number]
@@ -18,6 +19,7 @@ export interface GraphState {
   isEmptyHistogram: boolean
   /** when true, null data values will not cause line breaks */
   spanGaps: boolean
+  showAllPoints: boolean
   openSettings: boolean
 }
 
@@ -28,6 +30,7 @@ export type GraphAction =
   | { type: "SET_IS_HISTOGRAM", payload: boolean }
   | { type: "SET_IS_EMPTY_HISTOGRAM", payload: boolean }
   | { type: "SET_SPAN_GAPS", payload: boolean }
+  | { type: "SET_SHOW_POINTS", payload: boolean }
   | { type: "SET_OPEN_SETTINGS", payload: boolean }
 
 export const initialGraphState: GraphState = {
@@ -38,6 +41,7 @@ export const initialGraphState: GraphState = {
   isHistogram: false,
   isEmptyHistogram: false,
   spanGaps: false,
+  showAllPoints: Boolean(getFromStorage("POINTS_SHOW_ALL")),
   openSettings: false
 };
 
@@ -84,6 +88,12 @@ export function reducer(state: GraphState, action: GraphAction): GraphState {
       return {
         ...state,
         spanGaps: action.payload
+      };
+    case "SET_SHOW_POINTS":
+      saveToStorage("POINTS_SHOW_ALL", action.payload);
+      return {
+        ...state,
+        showAllPoints: action.payload
       };
     case "SET_OPEN_SETTINGS":
       return {

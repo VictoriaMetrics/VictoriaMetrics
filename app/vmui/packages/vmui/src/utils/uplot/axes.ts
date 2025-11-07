@@ -1,5 +1,5 @@
 import uPlot, { Axis, Series } from "uplot";
-import { getMaxFromArray, getMinFromArray } from "../math";
+import { getMathStats } from "../math";
 import { getSecondsFromDuration, roundToMilliseconds } from "../time";
 import { AxisRange } from "../../state/graph/reducer";
 import { formatTicks, getTextWidth } from "./helpers";
@@ -73,9 +73,8 @@ export const getLimitsYAxis = (values: { [key: string]: number[] }, buffer: bool
   const result: AxisRange = {};
   const numbers = Object.values(values).flat();
   const key = "1";
-  const min = getMinFromArray(numbers) || 0;
-  const max = getMaxFromArray(numbers) || 1;
-  result[key] = buffer ? getMinMaxBuffer(min, max) : [min, max];
+  const { min, max } = getMathStats(numbers, {min: true, max: true})
+  result[key] = buffer ? getMinMaxBuffer(min, max) : [min || -1, max || 1];
   return result;
 };
 

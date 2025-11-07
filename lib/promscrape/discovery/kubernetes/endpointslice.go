@@ -89,7 +89,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154
 			p.appendEndpointSliceLabels(m, eps)
 			if svc != nil {
-				svc.appendCommonLabels(m)
+				svc.appendCommonLabels(m, gw)
 			}
 			// Remove possible duplicate labels, which can appear after appendCommonLabels() call
 			m.RemoveDuplicates()
@@ -121,7 +121,7 @@ func getEndpointSliceLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[
 	p *Pod, svc *Service) *promutil.Labels {
 	m := getEndpointSliceLabels(eps, addr, ea, epp)
 	if svc != nil {
-		svc.appendCommonLabels(m)
+		svc.appendCommonLabels(m, gw)
 	}
 	// See https://github.com/prometheus/prometheus/issues/10284
 	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpointslice", m)
