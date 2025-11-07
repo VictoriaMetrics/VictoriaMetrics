@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import dayjs from "dayjs";
-import { getNanoTimestamp } from "./time";
+import { getNanoTimestamp, parseSupportedDuration } from "./time";
 
 describe("Time utils", () => {
   describe("getNanoTimestamp", () => {
@@ -48,6 +48,38 @@ describe("Time utils", () => {
       const baseMs = dayjs(dateStr).valueOf();
       const expected = BigInt(baseMs) * 1000000n;
       expect(getNanoTimestamp(dateStr)).toBe(expected);
+    });
+  });
+
+  describe("parseSupportedDuration (multi-unit)", () => {
+    it("should parse single units", () => {
+      expect(parseSupportedDuration("1h")).toEqual({ h: "1" });
+      expect(parseSupportedDuration("1.5h")).toEqual({ h: "1.5" });
+      expect(parseSupportedDuration(".5h")).toEqual({ h: ".5" });
+    });
+
+    it("should parse multiple units", () => {
+      expect(parseSupportedDuration("1h30m")).toEqual({ h: "1", m: "30" });
+      expect(parseSupportedDuration("1h 30m")).toEqual({ h: "1", m: "30" });
+      expect(parseSupportedDuration("1h30.333m")).toEqual({ h: "1", m: "30.333" });
+      expect(parseSupportedDuration("2h15s")).toEqual({ h: "2", s: "15" });
+      expect(parseSupportedDuration("1.5h10m30s")).toEqual({ h: "1.5", m: "10", s: "30" });
+    });
+
+    it("should handle signs and commas", () => {
+      expect(parseSupportedDuration("-2m")).toEqual({ m: "2" });
+      expect(parseSupportedDuration("1,25h")).toEqual({ h: "1.25" });
+    });
+
+    it("should ignore spaces", () => {
+      expect(parseSupportedDuration("  1h   30m")).toEqual({ h: "1", m: "30" });
+    });
+
+    it("should return undefined for unsupported or invalid input", () => {
+      expect(parseSupportedDuration("1x")).toBeUndefined();
+      expect(parseSupportedDuration("abc")).toBeUndefined();
+      expect(parseSupportedDuration("")).toBeUndefined();
+      expect(parseSupportedDuration("   ")).toBeUndefined();
     });
   });
 });

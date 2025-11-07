@@ -31,7 +31,7 @@ import QueryEditorAutocomplete from "../../../components/Configurators/QueryEdit
 import { getUpdatedHistory } from "../../../components/QueryHistory/utils";
 
 export interface QueryConfiguratorProps {
-  queryErrors: string[];
+  queryErrors?: string[];
   setQueryErrors: Dispatch<SetStateAction<string[]>>;
   setHideError: Dispatch<SetStateAction<boolean>>;
   stats: QueryStats[];
@@ -217,7 +217,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             value={stateQuery[i]}
             autocomplete={!hideButtons?.autocomplete && (autocomplete || autocompleteQuick)}
             autocompleteEl={QueryEditorAutocomplete}
-            error={queryErrors[i]}
+            error={queryErrors && queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
