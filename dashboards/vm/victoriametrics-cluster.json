@@ -63,7 +63,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 2,
+  "id": 5,
   "links": [
     {
       "icon": "doc",
@@ -3474,7 +3474,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "${ds}"
           },
-          "description": "Show the  page faults rate by job",
+          "description": "Show minor page faults rate by (job, instance)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3563,26 +3563,116 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job)",
-              "legendFormat": "{{job}}-minor page faults",
+              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job, instance)",
+              "legendFormat": "{{job}}-{{instance}}",
               "range": true,
               "refId": "A"
+            }
+          ],
+          "title": "Minor Page faults rate  ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "description": "Show major page faults rate by (job, instance)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
             },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 102
+          },
+          "id": 225,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\",instance=~\"$instance\"})) by (job)",
-              "hide": false,
-              "instant": false,
-              "legendFormat": "{{job}}-major page faults",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job, instance)",
+              "legendFormat": "{{job}}-{{instance}}",
               "range": true,
-              "refId": "B"
+              "refId": "A"
             }
           ],
-          "title": "Page faults rate  ($instance)",
+          "title": "Major Page faults rate  ($instance)",
           "type": "timeseries"
         }
       ],
@@ -3609,7 +3699,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 2346
+            "y": 2717
           },
           "id": 211,
           "options": {
@@ -3710,7 +3800,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2348
+            "y": 2719
           },
           "id": 102,
           "options": {
@@ -3828,7 +3918,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2348
+            "y": 2719
           },
           "id": 108,
           "options": {
@@ -3933,7 +4023,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2356
+            "y": 2727
           },
           "id": 170,
           "options": {
@@ -4042,7 +4132,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2356
+            "y": 2727
           },
           "id": 107,
           "options": {
@@ -4145,7 +4235,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2364
+            "y": 2735
           },
           "id": 144,
           "options": {
@@ -4252,7 +4342,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2364
+            "y": 2735
           },
           "id": 58,
           "options": {
@@ -4363,7 +4453,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2373
+            "y": 2744
           },
           "id": 142,
           "links": [
@@ -4478,7 +4568,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2373
+            "y": 2744
           },
           "id": 215,
           "options": {
@@ -4584,7 +4674,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2381
+            "y": 2752
           },
           "id": 135,
           "options": {
@@ -4707,7 +4797,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2381
+            "y": 2752
           },
           "id": 217,
           "options": {
@@ -4808,7 +4898,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2389
+            "y": 2760
           },
           "id": 183,
           "options": {
@@ -4946,7 +5036,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2389
+            "y": 2760
           },
           "id": 214,
           "options": {
@@ -5050,7 +5140,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2397
+            "y": 2768
           },
           "id": 222,
           "options": {
@@ -5174,7 +5264,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 5768
+            "y": 6139
           },
           "id": 76,
           "options": {
@@ -5289,7 +5379,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 5768
+            "y": 6139
           },
           "id": 86,
           "options": {
@@ -5413,7 +5503,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5777
+            "y": 6148
           },
           "id": 80,
           "options": {
@@ -5517,7 +5607,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5777
+            "y": 6148
           },
           "id": 78,
           "options": {
@@ -5632,7 +5722,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5785
+            "y": 6156
           },
           "id": 82,
           "options": {
@@ -5739,7 +5829,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5785
+            "y": 6156
           },
           "id": 74,
           "options": {
@@ -5863,7 +5953,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 868
+            "y": 1239
           },
           "id": 113,
           "options": {
@@ -5972,7 +6062,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3214
+            "y": 3585
           },
           "id": 100,
           "options": {
@@ -6086,7 +6176,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3214
+            "y": 3585
           },
           "id": 167,
           "options": {
@@ -6242,7 +6332,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3221
+            "y": 3592
           },
           "id": 133,
           "options": {
@@ -6370,7 +6460,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3222
+            "y": 3593
           },
           "id": 151,
           "options": {
@@ -6526,7 +6616,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3229
+            "y": 3600
           },
           "id": 212,
           "links": [
@@ -6656,7 +6746,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3229
+            "y": 3600
           },
           "id": 55,
           "options": {
@@ -6763,7 +6853,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3237
+            "y": 3608
           },
           "id": 54,
           "options": {
@@ -6869,7 +6959,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3237
+            "y": 3608
           },
           "id": 22,
           "options": {
@@ -6999,7 +7089,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3245
+            "y": 3616
           },
           "id": 20,
           "options": {
@@ -7152,7 +7242,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3245
+            "y": 3616
           },
           "id": 14,
           "options": {
@@ -7277,7 +7367,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3253
+            "y": 3624
           },
           "id": 202,
           "options": {
@@ -7397,7 +7487,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3253
+            "y": 3624
           },
           "id": 141,
           "links": [
@@ -7518,7 +7608,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3261
+            "y": 3632
           },
           "id": 206,
           "options": {
@@ -7637,7 +7727,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3261
+            "y": 3632
           },
           "id": 216,
           "options": {
@@ -7750,7 +7840,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5781
+            "y": 6152
           },
           "id": 92,
           "options": {
@@ -7875,7 +7965,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5781
+            "y": 6152
           },
           "id": 95,
           "options": {
@@ -7996,7 +8086,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5789
+            "y": 6160
           },
           "id": 163,
           "options": {
@@ -8140,7 +8230,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5789
+            "y": 6160
           },
           "id": 165,
           "options": {
@@ -8279,7 +8369,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5797
+            "y": 6168
           },
           "id": 178,
           "options": {
@@ -8385,7 +8475,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5797
+            "y": 6168
           },
           "id": 180,
           "options": {
@@ -8491,7 +8581,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5805
+            "y": 6176
           },
           "id": 179,
           "options": {
@@ -8597,7 +8687,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5805
+            "y": 6176
           },
           "id": 181,
           "options": {
@@ -8714,7 +8804,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5813
+            "y": 6184
           },
           "id": 93,
           "options": {
@@ -8843,7 +8933,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5813
+            "y": 6184
           },
           "id": 207,
           "options": {
@@ -8974,7 +9064,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5782
+            "y": 6153
           },
           "id": 97,
           "options": {
@@ -9099,7 +9189,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5782
+            "y": 6153
           },
           "id": 99,
           "options": {
@@ -9222,7 +9312,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5790
+            "y": 6161
           },
           "id": 185,
           "options": {
@@ -9366,7 +9456,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5790
+            "y": 6161
           },
           "id": 187,
           "options": {
@@ -9505,7 +9595,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5798
+            "y": 6169
           },
           "id": 139,
           "options": {
@@ -9611,7 +9701,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5798
+            "y": 6169
           },
           "id": 114,
           "options": {
@@ -9725,7 +9815,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5806
+            "y": 6177
           },
           "id": 208,
           "options": {
@@ -9854,7 +9944,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5806
+            "y": 6177
           },
           "id": 209,
           "options": {
@@ -9972,7 +10062,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5814
+            "y": 6185
           },
           "id": 88,
           "options": {
@@ -10036,7 +10126,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 5831
+            "y": 6202
           },
           "id": 198,
           "options": {
@@ -10113,7 +10203,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5833
+            "y": 6204
           },
           "id": 189,
           "options": {
@@ -10213,7 +10303,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5833
+            "y": 6204
           },
           "id": 190,
           "options": {
@@ -10313,7 +10403,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5841
+            "y": 6212
           },
           "id": 192,
           "options": {
@@ -10419,7 +10509,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5841
+            "y": 6212
           },
           "id": 196,
           "options": {
@@ -10523,7 +10613,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5848
+            "y": 6219
           },
           "id": 200,
           "options": {
@@ -10624,7 +10714,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5848
+            "y": 6219
           },
           "id": 201,
           "options": {
@@ -10742,7 +10832,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5856
+            "y": 6227
           },
           "id": 203,
           "options": {
@@ -10977,5 +11067,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - cluster (VM)",
   "uid": "oS7Bi_0Wz_vm",
-  "version": 1
+  "version": 2
 }

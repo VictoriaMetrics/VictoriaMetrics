@@ -51,7 +51,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 3,
+  "id": 2,
   "links": [
     {
       "icon": "doc",
@@ -1747,7 +1747,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 102
           },
           "id": 111,
           "options": {
@@ -1862,7 +1862,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 102
           },
           "id": 157,
           "options": {
@@ -1974,7 +1974,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 110
           },
           "id": 155,
           "options": {
@@ -2081,7 +2081,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 110
           },
           "id": 158,
           "options": {
@@ -2204,7 +2204,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 118
           },
           "id": 156,
           "options": {
@@ -2348,7 +2348,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 118
           },
           "id": 81,
           "options": {
@@ -2475,7 +2475,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 126
           },
           "id": 39,
           "options": {
@@ -2581,7 +2581,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 62
+            "y": 126
           },
           "id": 159,
           "options": {
@@ -2707,7 +2707,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 134
           },
           "id": 41,
           "options": {
@@ -2827,7 +2827,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 134
           },
           "id": 7,
           "options": {
@@ -2949,7 +2949,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 78
+            "y": 142
           },
           "id": 135,
           "options": {
@@ -3059,7 +3059,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 78
+            "y": 142
           },
           "id": 149,
           "options": {
@@ -3165,7 +3165,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 86
+            "y": 150
           },
           "id": 154,
           "options": {
@@ -3275,7 +3275,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 86
+            "y": 150
           },
           "id": 83,
           "options": {
@@ -3320,7 +3320,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "${ds}"
           },
-          "description": "Show the page faults rate by instance",
+          "description": "Show minor page faults rate by (job,instance)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3381,7 +3381,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 94
+            "y": 158
           },
           "id": 160,
           "options": {
@@ -3409,26 +3409,118 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
-              "legendFormat": "{{instance}} - major page faults",
+              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{job}}-{{instance}}",
               "range": true,
-              "refId": "A"
+              "refId": "B"
+            }
+          ],
+          "title": "Minor page faults rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "description": "Show major  page faults rate by (job,instance)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
             },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 158
+          },
+          "id": 161,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
-              "hide": false,
-              "instant": false,
-              "legendFormat": "{{instance}} - minor page faults",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
+              "legendFormat": "{{job}}-{{instance}}",
               "range": true,
-              "refId": "B"
+              "refId": "A"
             }
           ],
-          "title": "Page faults rate",
+          "title": "Major Page faults rate",
           "type": "timeseries"
         }
       ],
@@ -3510,7 +3602,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1996
+            "y": 2300
           },
           "id": 92,
           "options": {
@@ -3616,7 +3708,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1996
+            "y": 2300
           },
           "id": 95,
           "options": {
@@ -3725,7 +3817,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2004
+            "y": 2308
           },
           "id": 98,
           "options": {
@@ -3834,7 +3926,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2004
+            "y": 2308
           },
           "id": 99,
           "options": {
@@ -3942,7 +4034,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2012
+            "y": 2316
           },
           "id": 79,
           "options": {
@@ -4050,7 +4142,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2012
+            "y": 2316
           },
           "id": 18,
           "links": [
@@ -4164,7 +4256,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2020
+            "y": 2324
           },
           "id": 127,
           "options": {
@@ -4270,7 +4362,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2020
+            "y": 2324
           },
           "id": 50,
           "options": {
@@ -4372,7 +4464,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 2028
+            "y": 2332
           },
           "id": 129,
           "options": {
@@ -4507,7 +4599,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 2028
+            "y": 2332
           },
           "id": 150,
           "options": {
@@ -4610,7 +4702,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2035
+            "y": 2339
           },
           "id": 151,
           "options": {
@@ -4731,7 +4823,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 2241
+            "y": 2545
           },
           "id": 48,
           "options": {
@@ -4839,7 +4931,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 2241
+            "y": 2545
           },
           "id": 76,
           "options": {
@@ -4945,7 +5037,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 2248
+            "y": 2552
           },
           "id": 132,
           "options": {
@@ -5053,7 +5145,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 2248
+            "y": 2552
           },
           "id": 133,
           "options": {
@@ -5160,7 +5252,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2255
+            "y": 2559
           },
           "id": 20,
           "options": {
@@ -5266,7 +5358,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2255
+            "y": 2559
           },
           "id": 126,
           "options": {
@@ -5371,7 +5463,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2263
+            "y": 2567
           },
           "id": 46,
           "options": {
@@ -5476,7 +5568,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2263
+            "y": 2567
           },
           "id": 148,
           "options": {
@@ -5581,7 +5673,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2271
+            "y": 2575
           },
           "id": 31,
           "options": {
@@ -5748,7 +5840,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1963
+            "y": 2267
           },
           "id": 73,
           "options": {
@@ -5865,7 +5957,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1963
+            "y": 2267
           },
           "id": 131,
           "options": {
@@ -5969,7 +6061,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2239
+            "y": 2543
           },
           "id": 130,
           "options": {
@@ -6086,7 +6178,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2239
+            "y": 2543
           },
           "id": 77,
           "options": {
@@ -6211,7 +6303,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2286
+            "y": 2590
           },
           "id": 146,
           "options": {
@@ -6313,7 +6405,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2286
+            "y": 2590
           },
           "id": 143,
           "options": {
@@ -6409,7 +6501,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2294
+            "y": 2598
           },
           "id": 147,
           "options": {
@@ -6512,7 +6604,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2294
+            "y": 2598
           },
           "id": 139,
           "options": {
@@ -6623,7 +6715,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2302
+            "y": 2606
           },
           "id": 142,
           "options": {
@@ -6720,7 +6812,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2302
+            "y": 2606
           },
           "id": 137,
           "options": {
@@ -6833,7 +6925,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2342
+            "y": 2646
           },
           "id": 141,
           "options": {
@@ -6961,7 +7053,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2244
+            "y": 2548
           },
           "id": 60,
           "options": {
@@ -7067,7 +7159,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2244
+            "y": 2548
           },
           "id": 66,
           "options": {
@@ -7173,7 +7265,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2252
+            "y": 2556
           },
           "id": 61,
           "options": {
@@ -7279,7 +7371,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2252
+            "y": 2556
           },
           "id": 65,
           "options": {
@@ -7384,7 +7476,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2260
+            "y": 2564
           },
           "id": 88,
           "options": {
@@ -7486,7 +7578,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2260
+            "y": 2564
           },
           "id": 84,
           "options": {
@@ -7591,7 +7683,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2268
+            "y": 2572
           },
           "id": 90,
           "options": {
@@ -7649,7 +7741,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 516
+            "y": 820
           },
           "id": 115,
           "options": {
@@ -7729,7 +7821,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 518
+            "y": 822
           },
           "id": 119,
           "options": {
@@ -7835,7 +7927,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 518
+            "y": 822
           },
           "id": 117,
           "options": {
@@ -7943,7 +8035,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 526
+            "y": 830
           },
           "id": 125,
           "links": [
@@ -8067,7 +8159,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 526
+            "y": 830
           },
           "id": 123,
           "options": {
@@ -8199,7 +8291,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 534
+            "y": 838
           },
           "id": 121,
           "options": {

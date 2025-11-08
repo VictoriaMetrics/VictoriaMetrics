@@ -51,7 +51,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 4,
+  "id": 3,
   "links": [
     {
       "asDropdown": false,
@@ -2414,7 +2414,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "${ds}"
           },
-          "description": "Show the page faults rate by instance",
+          "description": "Show minor page faults rate by (job,instance)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2503,26 +2503,15 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
-              "legendFormat": "{{instance}} - major page faults",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
+              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{instance}} - minor page faults",
+              "legendFormat": "{{job}}-{{instance}}",
               "range": true,
               "refId": "B"
             }
           ],
-          "title": "Page faults rate",
+          "title": "Minor page faults rate",
           "type": "timeseries"
         },
         {
@@ -2630,6 +2619,109 @@
           ],
           "title": "Memory allocations rate",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "description": "Show major page faults rate by (job,instance)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 74
+          },
+          "id": 69,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
+              "legendFormat": "{{job}}-{{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Major page faults rate",
+          "type": "timeseries"
         }
       ],
       "title": "Resource usage",
@@ -2708,7 +2800,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 569
+            "y": 704
           },
           "id": 50,
           "options": {
@@ -2842,7 +2934,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 569
+            "y": 704
           },
           "id": 58,
           "options": {
@@ -2947,7 +3039,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 576
+            "y": 711
           },
           "id": 63,
           "options": {
@@ -3060,7 +3152,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 594
+            "y": 729
           },
           "id": 14,
           "options": {
@@ -3162,7 +3254,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 594
+            "y": 729
           },
           "id": 13,
           "options": {
@@ -3264,7 +3356,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 602
+            "y": 737
           },
           "id": 20,
           "options": {
@@ -3367,7 +3459,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 602
+            "y": 737
           },
           "id": 32,
           "options": {
@@ -3466,7 +3558,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 610
+            "y": 745
           },
           "id": 26,
           "options": {
@@ -3580,7 +3672,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 609
+            "y": 744
           },
           "id": 31,
           "options": {
@@ -3682,7 +3774,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 609
+            "y": 744
           },
           "id": 33,
           "options": {
@@ -3783,7 +3875,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 617
+            "y": 752
           },
           "id": 30,
           "options": {
@@ -3895,7 +3987,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 575
+            "y": 710
           },
           "id": 52,
           "options": {
@@ -3987,7 +4079,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 575
+            "y": 710
           },
           "id": 53,
           "options": {
@@ -4084,7 +4176,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 602
+            "y": 737
           },
           "id": 54,
           "options": {
@@ -4187,7 +4279,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 602
+            "y": 737
           },
           "id": 60,
           "options": {

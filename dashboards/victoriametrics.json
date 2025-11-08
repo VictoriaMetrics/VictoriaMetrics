@@ -267,7 +267,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Shows the rate of HTTP read requests.",
+      "description": "Average disk usage per datapoint.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -283,7 +283,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -293,7 +293,7 @@
         "x": 14,
         "y": 1
       },
-      "id": 108,
+      "id": 82,
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -322,7 +322,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\".*(/write|/metrics)\"}[$__rate_interval]))",
+          "expr": "max(sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) / sum(vm_rows{job=~\"$job\", instance=~\"$instance\"}))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -331,7 +331,7 @@
           "refId": "A"
         }
       ],
-      "title": "Read requests",
+      "title": "Bytes per point",
       "type": "stat"
     },
     {
@@ -630,7 +630,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Average disk usage per datapoint.",
+      "description": "Shows the rate of HTTP read requests.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -646,7 +646,7 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -656,7 +656,7 @@
         "x": 14,
         "y": 3
       },
-      "id": 82,
+      "id": 108,
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -685,7 +685,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) / sum(vm_rows{job=~\"$job\", instance=~\"$instance\"}))",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\".*(/write|/metrics)\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -694,7 +694,7 @@
           "refId": "A"
         }
       ],
-      "title": "Bytes per point",
+      "title": "Read requests",
       "type": "stat"
     },
     {
@@ -1519,7 +1519,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 111
+            "y": 119
           },
           "id": 112,
           "options": {
@@ -1628,7 +1628,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 111
+            "y": 119
           },
           "id": 114,
           "options": {
@@ -1740,7 +1740,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 119
+            "y": 127
           },
           "id": 123,
           "options": {
@@ -1866,7 +1866,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 119
+            "y": 127
           },
           "id": 57,
           "options": {
@@ -1993,7 +1993,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 127
+            "y": 135
           },
           "id": 44,
           "options": {
@@ -2160,7 +2160,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 127
+            "y": 135
           },
           "id": 134,
           "options": {
@@ -2283,7 +2283,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 135
+            "y": 143
           },
           "id": 135,
           "options": {
@@ -2421,7 +2421,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 135
+            "y": 143
           },
           "id": 76,
           "options": {
@@ -2548,7 +2548,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 143
+            "y": 151
           },
           "id": 47,
           "options": {
@@ -2670,7 +2670,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 143
+            "y": 151
           },
           "id": 124,
           "options": {
@@ -2797,7 +2797,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 151
+            "y": 159
           },
           "id": 48,
           "options": {
@@ -2904,7 +2904,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 151
+            "y": 159
           },
           "id": 136,
           "options": {
@@ -3030,7 +3030,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 159
+            "y": 167
           },
           "id": 49,
           "options": {
@@ -3141,7 +3141,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 159
+            "y": 167
           },
           "id": 37,
           "options": {
@@ -3269,7 +3269,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 167
+            "y": 175
           },
           "id": 75,
           "options": {
@@ -3382,7 +3382,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 167
+            "y": 175
           },
           "id": 125,
           "options": {
@@ -3503,7 +3503,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 175
+            "y": 183
           },
           "id": 127,
           "options": {
@@ -3625,7 +3625,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 175
+            "y": 183
           },
           "id": 133,
           "options": {
@@ -3670,7 +3670,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "description": "Show the page faults rate by instance",
+          "description": "Show minor page faults rate by (job,instance)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3731,7 +3731,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 183
+            "y": 191
           },
           "id": 137,
           "options": {
@@ -3759,26 +3759,15 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
-              "legendFormat": "{{instance}} - major page faults",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
+              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{instance}} - minor page faults",
+              "legendFormat": "{{job}}-{{instance}}",
               "range": true,
               "refId": "B"
             }
           ],
-          "title": "Page faults rate",
+          "title": "Minor page faults rate",
           "type": "timeseries"
         },
         {
@@ -3851,7 +3840,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 183
+            "y": 191
           },
           "id": 128,
           "options": {
@@ -3889,6 +3878,109 @@
             }
           ],
           "title": "Go scheduling latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "description": "Show major page faults rate by (job, instance)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 199
+          },
+          "id": 138,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job, instance)",
+              "legendFormat": "{{job}}-{{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Major page faults rate",
           "type": "timeseries"
         }
       ],
@@ -3972,7 +4064,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1173
+            "y": 1581
           },
           "id": 66,
           "options": {
@@ -4092,7 +4184,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1173
+            "y": 1581
           },
           "id": 68,
           "options": {
@@ -4202,7 +4294,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1181
+            "y": 1589
           },
           "id": 116,
           "options": {
@@ -4310,7 +4402,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1181
+            "y": 1589
           },
           "id": 60,
           "options": {
@@ -4417,7 +4509,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 1189
+            "y": 1597
           },
           "id": 90,
           "options": {
@@ -4526,7 +4618,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 1189
+            "y": 1597
           },
           "id": 118,
           "options": {
@@ -4635,7 +4727,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1198
+            "y": 1606
           },
           "id": 131,
           "options": {
@@ -4757,7 +4849,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1198
+            "y": 1606
           },
           "id": 132,
           "links": [
@@ -4881,7 +4973,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1206
+            "y": 1614
           },
           "id": 126,
           "options": {
@@ -4986,7 +5078,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1206
+            "y": 1614
           },
           "id": 129,
           "options": {
@@ -5105,7 +5197,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 743
+            "y": 1151
           },
           "id": 73,
           "options": {
@@ -5215,7 +5307,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 765
+            "y": 1173
           },
           "id": 10,
           "options": {
@@ -5341,7 +5433,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 765
+            "y": 1173
           },
           "id": 34,
           "options": {
@@ -5462,7 +5554,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 773
+            "y": 1181
           },
           "id": 53,
           "options": {
@@ -5598,7 +5690,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 773
+            "y": 1181
           },
           "id": 36,
           "options": {
@@ -5737,7 +5829,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 781
+            "y": 1189
           },
           "id": 30,
           "options": {
@@ -5861,7 +5953,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 781
+            "y": 1189
           },
           "id": 62,
           "options": {
@@ -5965,7 +6057,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 789
+            "y": 1197
           },
           "id": 58,
           "options": {
@@ -6075,7 +6167,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 789
+            "y": 1197
           },
           "id": 64,
           "options": {
@@ -6198,7 +6290,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 797
+            "y": 1205
           },
           "id": 59,
           "options": {
@@ -6318,7 +6410,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 797
+            "y": 1205
           },
           "id": 103,
           "options": {
@@ -6428,7 +6520,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 805
+            "y": 1213
           },
           "id": 99,
           "options": {
@@ -6538,7 +6630,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 805
+            "y": 1213
           },
           "id": 105,
           "options": {
@@ -6648,7 +6740,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 813
+            "y": 1221
           },
           "id": 122,
           "options": {
@@ -6755,7 +6847,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 813
+            "y": 1221
           },
           "id": 130,
           "options": {
@@ -6906,5 +6998,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - single-node",
   "uid": "wNf0q_kZk",
-  "version": 1
+  "version": 2
 }
