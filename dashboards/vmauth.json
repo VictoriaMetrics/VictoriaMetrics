@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 4,
+  "id": 5,
   "links": [
     {
       "asDropdown": false,
@@ -1215,7 +1215,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 86
+            "y": 134
           },
           "id": 25,
           "options": {
@@ -1324,7 +1324,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 86
+            "y": 134
           },
           "id": 26,
           "options": {
@@ -1436,7 +1436,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 94
+            "y": 142
           },
           "id": 27,
           "options": {
@@ -1612,7 +1612,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 94
+            "y": 142
           },
           "id": 28,
           "options": {
@@ -1735,7 +1735,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 102
+            "y": 150
           },
           "id": 23,
           "options": {
@@ -1844,7 +1844,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 102
+            "y": 150
           },
           "id": 24,
           "options": {
@@ -1972,7 +1972,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 110
+            "y": 158
           },
           "id": 20,
           "options": {
@@ -2084,7 +2084,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 110
+            "y": 158
           },
           "id": 21,
           "options": {
@@ -2192,7 +2192,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 118
+            "y": 166
           },
           "id": 29,
           "options": {
@@ -2236,7 +2236,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "description": "Show minor page faults rate by (job,instance)",
+          "description": "Minor page faults occur when a process accesses data that already exists in physical memory but isn't yet mapped to its address space. \n\nIt usually increases with system memory pressure and frequent memory allocation, it will cause performance slowdown if it continue to increase",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2297,7 +2297,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 118
+            "y": 166
           },
           "id": 38,
           "options": {
@@ -2341,7 +2341,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "description": "Show major page faults rate by (job,instance)",
+          "description": "Major page faults occur when required data is not in physical memory and must be loaded from disk (storage or swap). It usually happens with:\n- insufficient physical memory\n- active use of swap space\n- file mapping access\n\nIt may cause significant performance slowdown if sustained high.\n\nPossible workaround:\n- Extend RAM to scale up\n- Reduce swap usage by adjusting vm.swappiness",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2402,7 +2402,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 126
+            "y": 174
           },
           "id": 39,
           "options": {
@@ -2516,7 +2516,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 510
+            "y": 729
           },
           "id": 34,
           "options": {
@@ -2641,7 +2641,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 510
+            "y": 729
           },
           "id": 8,
           "options": {
@@ -2744,7 +2744,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 518
+            "y": 737
           },
           "id": 37,
           "options": {

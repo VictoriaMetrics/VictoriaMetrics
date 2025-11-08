@@ -3670,7 +3670,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "description": "Show minor page faults rate by (job,instance)",
+          "description": "Minor page faults occur when a process accesses data that already exists in physical memory but isn't yet mapped to its address space. \n\nIt usually increases with system memory pressure and frequent memory allocation, it will cause performance slowdown if it continue to increase",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3885,7 +3885,7 @@
             "type": "prometheus",
             "uid": "${ds}"
           },
-          "description": "Show major page faults rate by (job, instance)",
+          "description": "Major page faults occur when required data is not in physical memory and must be loaded from disk (storage or swap). It usually happens with:\n- insufficient physical memory\n- active use of swap space\n- file mapping access\n\nIt may cause significant performance slowdown if sustained high.\n\nPossible workaround:\n- Extend RAM to scale up\n- Reduce swap usage by adjusting vm.swappiness",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4064,7 +4064,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1581
+            "y": 1869
           },
           "id": 66,
           "options": {
@@ -4184,7 +4184,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1581
+            "y": 1869
           },
           "id": 68,
           "options": {
@@ -4294,7 +4294,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1589
+            "y": 1877
           },
           "id": 116,
           "options": {
@@ -4402,7 +4402,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1589
+            "y": 1877
           },
           "id": 60,
           "options": {
@@ -4509,7 +4509,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 1597
+            "y": 1885
           },
           "id": 90,
           "options": {
@@ -4618,7 +4618,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 1597
+            "y": 1885
           },
           "id": 118,
           "options": {
@@ -4727,7 +4727,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1606
+            "y": 1894
           },
           "id": 131,
           "options": {
@@ -4849,7 +4849,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1606
+            "y": 1894
           },
           "id": 132,
           "links": [
@@ -4973,7 +4973,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1614
+            "y": 1902
           },
           "id": 126,
           "options": {
@@ -5078,7 +5078,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1614
+            "y": 1902
           },
           "id": 129,
           "options": {
@@ -5197,7 +5197,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1151
+            "y": 1439
           },
           "id": 73,
           "options": {
@@ -5307,7 +5307,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1173
+            "y": 1461
           },
           "id": 10,
           "options": {
@@ -5433,7 +5433,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1173
+            "y": 1461
           },
           "id": 34,
           "options": {
@@ -5554,7 +5554,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1181
+            "y": 1469
           },
           "id": 53,
           "options": {
@@ -5690,7 +5690,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1181
+            "y": 1469
           },
           "id": 36,
           "options": {
@@ -5829,7 +5829,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1189
+            "y": 1477
           },
           "id": 30,
           "options": {
@@ -5953,7 +5953,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1189
+            "y": 1477
           },
           "id": 62,
           "options": {
@@ -6057,7 +6057,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1197
+            "y": 1485
           },
           "id": 58,
           "options": {
@@ -6167,7 +6167,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1197
+            "y": 1485
           },
           "id": 64,
           "options": {
@@ -6290,7 +6290,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1205
+            "y": 1493
           },
           "id": 59,
           "options": {
@@ -6410,7 +6410,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1205
+            "y": 1493
           },
           "id": 103,
           "options": {
@@ -6520,7 +6520,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1213
+            "y": 1501
           },
           "id": 99,
           "options": {
@@ -6630,7 +6630,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1213
+            "y": 1501
           },
           "id": 105,
           "options": {
@@ -6740,7 +6740,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1221
+            "y": 1509
           },
           "id": 122,
           "options": {
@@ -6847,7 +6847,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1221
+            "y": 1509
           },
           "id": 130,
           "options": {
@@ -6998,5 +6998,5 @@
   "timezone": "",
   "title": "VictoriaMetrics - single-node",
   "uid": "wNf0q_kZk",
-  "version": 2
+  "version": 1
 }

@@ -1194,7 +1194,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 26
+            "y": 82
           },
           "id": 37,
           "links": [
@@ -1311,7 +1311,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 26
+            "y": 82
           },
           "id": 35,
           "links": [
@@ -1430,7 +1430,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 34
+            "y": 90
           },
           "id": 65,
           "options": {
@@ -1540,7 +1540,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 34
+            "y": 90
           },
           "id": 56,
           "links": [
@@ -1675,7 +1675,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 42
+            "y": 98
           },
           "id": 57,
           "links": [
@@ -1789,7 +1789,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 42
+            "y": 98
           },
           "id": 66,
           "options": {
@@ -1912,7 +1912,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 106
           },
           "id": 67,
           "options": {
@@ -2038,7 +2038,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 106
           },
           "id": 41,
           "options": {
@@ -2148,7 +2148,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 114
           },
           "id": 39,
           "options": {
@@ -2259,7 +2259,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 114
           },
           "id": 61,
           "options": {
@@ -2369,7 +2369,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 66
+            "y": 122
           },
           "id": 59,
           "options": {
@@ -2414,7 +2414,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "${ds}"
           },
-          "description": "Show minor page faults rate by (job,instance)",
+          "description": "Minor page faults occur when a process accesses data that already exists in physical memory but isn't yet mapped to its address space. \n\nIt usually increases with system memory pressure and frequent memory allocation, it will cause performance slowdown if it continue to increase",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2475,7 +2475,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 66
+            "y": 122
           },
           "id": 68,
           "options": {
@@ -2580,7 +2580,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 74
+            "y": 130
           },
           "id": 64,
           "options": {
@@ -2625,7 +2625,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "${ds}"
           },
-          "description": "Show major page faults rate by (job,instance)",
+          "description": "Major page faults occur when required data is not in physical memory and must be loaded from disk (storage or swap). It usually happens with:\n- insufficient physical memory\n- active use of swap space\n- file mapping access\n\nIt may cause significant performance slowdown if sustained high.\n\nPossible workaround:\n- Extend RAM to scale up\n- Reduce swap usage by adjusting vm.swappiness",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2686,7 +2686,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 74
+            "y": 130
           },
           "id": 69,
           "options": {
@@ -2800,7 +2800,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 704
+            "y": 888
           },
           "id": 50,
           "options": {
@@ -2934,7 +2934,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 704
+            "y": 888
           },
           "id": 58,
           "options": {
@@ -3039,7 +3039,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 711
+            "y": 895
           },
           "id": 63,
           "options": {
@@ -3152,7 +3152,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 729
+            "y": 913
           },
           "id": 14,
           "options": {
@@ -3254,7 +3254,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 729
+            "y": 913
           },
           "id": 13,
           "options": {
@@ -3356,7 +3356,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 737
+            "y": 921
           },
           "id": 20,
           "options": {
@@ -3459,7 +3459,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 737
+            "y": 921
           },
           "id": 32,
           "options": {
@@ -3558,7 +3558,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 745
+            "y": 929
           },
           "id": 26,
           "options": {
@@ -3672,7 +3672,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 744
+            "y": 928
           },
           "id": 31,
           "options": {
@@ -3774,7 +3774,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 744
+            "y": 928
           },
           "id": 33,
           "options": {
@@ -3875,7 +3875,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 752
+            "y": 936
           },
           "id": 30,
           "options": {
@@ -3987,7 +3987,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 710
+            "y": 894
           },
           "id": 52,
           "options": {
@@ -4079,7 +4079,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 710
+            "y": 894
           },
           "id": 53,
           "options": {
@@ -4176,7 +4176,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 737
+            "y": 921
           },
           "id": 54,
           "options": {
@@ -4279,7 +4279,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 737
+            "y": 921
           },
           "id": 60,
           "options": {
