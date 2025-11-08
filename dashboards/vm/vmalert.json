@@ -51,7 +51,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 3,
+  "id": 4,
   "links": [
     {
       "asDropdown": false,
@@ -2503,7 +2503,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
               "legendFormat": "{{instance}} - major page faults",
               "range": true,
               "refId": "A"
@@ -2514,7 +2514,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
+              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
               "hide": false,
               "instant": false,
               "legendFormat": "{{instance}} - minor page faults",
@@ -2708,7 +2708,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 513
+            "y": 569
           },
           "id": 50,
           "options": {
@@ -2842,7 +2842,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 513
+            "y": 569
           },
           "id": 58,
           "options": {
@@ -2947,7 +2947,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 520
+            "y": 576
           },
           "id": 63,
           "options": {
@@ -3060,7 +3060,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 538
+            "y": 594
           },
           "id": 14,
           "options": {
@@ -3162,7 +3162,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 538
+            "y": 594
           },
           "id": 13,
           "options": {
@@ -3264,7 +3264,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 546
+            "y": 602
           },
           "id": 20,
           "options": {
@@ -3367,7 +3367,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 546
+            "y": 602
           },
           "id": 32,
           "options": {
@@ -3466,7 +3466,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 554
+            "y": 610
           },
           "id": 26,
           "options": {
@@ -3580,7 +3580,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 553
+            "y": 609
           },
           "id": 31,
           "options": {
@@ -3682,7 +3682,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 553
+            "y": 609
           },
           "id": 33,
           "options": {
@@ -3783,7 +3783,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 561
+            "y": 617
           },
           "id": 30,
           "options": {
@@ -3895,7 +3895,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 519
+            "y": 575
           },
           "id": 52,
           "options": {
@@ -3987,7 +3987,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 519
+            "y": 575
           },
           "id": 53,
           "options": {
@@ -4084,7 +4084,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 546
+            "y": 602
           },
           "id": 54,
           "options": {
@@ -4187,7 +4187,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 546
+            "y": 602
           },
           "id": 60,
           "options": {

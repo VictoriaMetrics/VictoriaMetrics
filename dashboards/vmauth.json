@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 5,
+  "id": 1,
   "links": [
     {
       "asDropdown": false,
@@ -1215,7 +1215,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 78
           },
           "id": 25,
           "options": {
@@ -1324,7 +1324,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 78
           },
           "id": 26,
           "options": {
@@ -1436,7 +1436,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 86
           },
           "id": 27,
           "options": {
@@ -1612,7 +1612,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 86
           },
           "id": 28,
           "options": {
@@ -1735,7 +1735,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 94
           },
           "id": 23,
           "options": {
@@ -1844,7 +1844,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 94
           },
           "id": 24,
           "options": {
@@ -1972,7 +1972,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 102
           },
           "id": 20,
           "options": {
@@ -2084,7 +2084,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 62
+            "y": 102
           },
           "id": 21,
           "options": {
@@ -2192,7 +2192,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 110
           },
           "id": 29,
           "options": {
@@ -2297,7 +2297,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 110
           },
           "id": 38,
           "options": {
@@ -2325,7 +2325,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
               "legendFormat": "{{instance}} - major page faults",
               "range": true,
               "refId": "A"
@@ -2336,7 +2336,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
+              "expr": "sum(rate(process_minor_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (instance)",
               "hide": false,
               "instant": false,
               "legendFormat": "{{instance}} - minor page faults",
@@ -2424,7 +2424,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 146
+            "y": 253
           },
           "id": 34,
           "options": {
@@ -2549,7 +2549,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 146
+            "y": 253
           },
           "id": 8,
           "options": {
@@ -2652,7 +2652,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 154
+            "y": 261
           },
           "id": 37,
           "options": {
