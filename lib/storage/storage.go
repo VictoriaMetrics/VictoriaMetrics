@@ -162,7 +162,7 @@ type Storage struct {
 	// missingMetricIDs maps metricID to the deadline in unix timestamp seconds
 	// after which all the indexdb entries for the given metricID
 	// must be deleted if index entry isn't found by the given metricID.
-	// This is used inside searchMetricNameWithCache() and getTSIDsFromMetricIDs()
+	// This is used inside searchMetricNameWithCache() and SearchTSIDs()
 	// for detecting permanently missing metricID->metricName/TSID entries.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
 	missingMetricIDsLock          sync.Mutex
