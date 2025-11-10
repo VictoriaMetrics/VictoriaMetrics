@@ -20,6 +20,8 @@ func TestLoadFromFileOrNewError(t *testing.T) {
 	defer fs.MustRemoveDir(t.Name())
 
 	f := func(path string, expErr string) {
+		t.Helper()
+
 		logBuffer := &bytes.Buffer{}
 		logger.SetOutputForTests(logBuffer)
 		defer logger.ResetOutputForTest()
@@ -52,7 +54,7 @@ func TestLoadFromFileOrNewError(t *testing.T) {
 	f(path, "invalid: cannot read maxBucketChunks")
 
 	path = initCacheForTest(t, `cacheMismatch`, 87654321)
-	f(path, "contains maxBytes=10000; want 33554432; init new cache")
+	f(path, "unexpected number of bucket chunks; got 2; want 1; init new cache")
 }
 
 func TestLoadFromFileOrNewOK(t *testing.T) {
