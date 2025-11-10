@@ -195,8 +195,8 @@ func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 2,
 		SetCalls:     2,
-		GetCalls:     3,
-		Misses:       2,
+		GetCalls:     2,
+		Misses:       1,
 	})
 
 	// Wait until prev and curr cache are rotated.
@@ -208,16 +208,16 @@ func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 3,
 		SetCalls:     3,
-		GetCalls:     5,
-		Misses:       3,
+		GetCalls:     3,
+		Misses:       1,
 	})
 
 	c.Get(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 3,
 		SetCalls:     3,
-		GetCalls:     6,
-		Misses:       3,
+		GetCalls:     4,
+		Misses:       1,
 	})
 
 	// Wait until prev and curr caches are rotated. k1 is now in prev, k2 is
@@ -229,8 +229,8 @@ func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 1,
 		SetCalls:     3,
-		GetCalls:     8,
-		Misses:       5,
+		GetCalls:     5,
+		Misses:       2,
 	})
 
 	// Wait until prev and curr caches are rotated. The both caches should
@@ -242,8 +242,8 @@ func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 0,
 		SetCalls:     3,
-		GetCalls:     10,
-		Misses:       7,
+		GetCalls:     6,
+		Misses:       3,
 	})
 }
 
@@ -328,8 +328,8 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 14,
 		SetCalls:     14,
-		GetCalls:     4,
-		Misses:       2,
+		GetCalls:     3,
+		Misses:       1,
 	})
 
 	// Wait until prev and curr cache are rotated.
@@ -339,32 +339,32 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 14,
 		SetCalls:     14,
-		GetCalls:     4,
-		Misses:       2,
+		GetCalls:     3,
+		Misses:       1,
 	})
 
 	c.GetBig(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 16,
 		SetCalls:     16,
-		GetCalls:     7,
-		Misses:       3,
+		GetCalls:     4,
+		Misses:       1,
 	})
 
 	c.GetBig(dst[:0], k3)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 19,
 		SetCalls:     19,
-		GetCalls:     11,
-		Misses:       4,
+		GetCalls:     5,
+		Misses:       1,
 	})
 
 	c.GetBig(dst[:0], k5)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 23,
 		SetCalls:     23,
-		GetCalls:     16,
-		Misses:       5,
+		GetCalls:     6,
+		Misses:       1,
 	})
 
 	// Wait until prev and curr caches are rotated.
@@ -374,24 +374,24 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 9, // 14-2-3
 		SetCalls:     23,
-		GetCalls:     16,
-		Misses:       5,
+		GetCalls:     6,
+		Misses:       1,
 	})
 
 	c.GetBig(dst[:0], k2)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 9,
 		SetCalls:     23,
-		GetCalls:     18,
-		Misses:       7,
+		GetCalls:     7,
+		Misses:       2,
 	})
 
 	c.GetBig(dst[:0], k4)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 9,
 		SetCalls:     23,
-		GetCalls:     20,
-		Misses:       9,
+		GetCalls:     8,
+		Misses:       3,
 	})
 
 	// Wait until prev and curr caches are rotated.
@@ -401,16 +401,16 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 0,
 		SetCalls:     23,
-		GetCalls:     20,
-		Misses:       9,
+		GetCalls:     8,
+		Misses:       3,
 	})
 
 	c.GetBig(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 0,
 		SetCalls:     23,
-		GetCalls:     22,
-		Misses:       11,
+		GetCalls:     9,
+		Misses:       4,
 	})
 }
 
@@ -543,10 +543,9 @@ func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) 
 			dst     []byte
 		)
 
-		// Cache loaded from file operates in whole mode only if the file was
-		// not empty.
+		// Cache loaded from file operates in whole mode only if the file was not empty.
 		c := Load(t.Name(), 1024*1024)
-		assertMode(t, c, whole)
+		assertMode(t, c, split)
 		c.SetBig(k1, v1)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 2,
