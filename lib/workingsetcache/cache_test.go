@@ -112,7 +112,7 @@ func assertStats(t *testing.T, c *Cache, want fastcache.Stats) {
 	t.Helper()
 	var got fastcache.Stats
 	c.UpdateStats(&got)
-	ignoreFields := cmpopts.IgnoreFields(fastcache.Stats{}, "BytesSize", "MaxBytesSize", "EvictedBytes")
+	ignoreFields := cmpopts.IgnoreFields(fastcache.Stats{}, "BytesSize", "MaxBytesSize")
 	if diff := cmp.Diff(want, got, ignoreFields); diff != "" {
 		t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
 	}

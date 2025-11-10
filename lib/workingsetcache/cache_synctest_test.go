@@ -195,8 +195,8 @@ func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 2,
 		SetCalls:     2,
-		GetCalls:     2,
-		Misses:       1,
+		GetCalls:     3,
+		Misses:       2,
 	})
 
 	// Wait until prev and curr cache are rotated.
@@ -206,18 +206,18 @@ func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
 
 	c.Get(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
-		EntriesCount: 2,
-		SetCalls:     2,
-		GetCalls:     3,
-		Misses:       1,
+		EntriesCount: 3,
+		SetCalls:     3,
+		GetCalls:     5,
+		Misses:       3,
 	})
 
 	c.Get(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
-		EntriesCount: 2,
-		SetCalls:     2,
-		GetCalls:     4,
-		Misses:       1,
+		EntriesCount: 3,
+		SetCalls:     3,
+		GetCalls:     6,
+		Misses:       3,
 	})
 
 	// Wait until prev and curr caches are rotated. k1 is now in prev, k2 is
@@ -228,9 +228,9 @@ func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
 	c.Get(dst[:0], k2)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 1,
-		SetCalls:     2,
-		GetCalls:     5,
-		Misses:       2,
+		SetCalls:     3,
+		GetCalls:     8,
+		Misses:       5,
 	})
 
 	// Wait until prev and curr caches are rotated. The both caches should
@@ -241,9 +241,9 @@ func testSetGetStatsInSplitMode(t *testing.T, c *Cache) {
 	c.Get(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 0,
-		SetCalls:     2,
-		GetCalls:     6,
-		Misses:       3,
+		SetCalls:     3,
+		GetCalls:     10,
+		Misses:       7,
 	})
 }
 
@@ -290,46 +290,46 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 	c.SetBig(k1, v1)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 2, // SetBig creates at least 2 entries per call.
-		SetCalls:     1,
+		SetCalls:     2,
 	})
 	c.SetBig(k2, v2)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 4,
-		SetCalls:     2,
+		SetCalls:     4,
 	})
 	c.SetBig(k3, v3)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 7,
-		SetCalls:     3,
+		SetCalls:     7,
 	})
 	c.SetBig(k4, v4)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 10,
-		SetCalls:     4,
+		SetCalls:     10,
 	})
 	c.SetBig(k5, v5)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 14,
-		SetCalls:     5,
+		SetCalls:     14,
 	})
 	c.Get(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 14,
-		SetCalls:     5,
+		SetCalls:     14,
 		GetCalls:     1,
 	})
 	c.Get(dst[:0], k3)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 14,
-		SetCalls:     5,
+		SetCalls:     14,
 		GetCalls:     2,
 	})
 	c.Get(dst[:0], kAbsent)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 14,
-		SetCalls:     5,
-		GetCalls:     3,
-		Misses:       1,
+		SetCalls:     14,
+		GetCalls:     4,
+		Misses:       2,
 	})
 
 	// Wait until prev and curr cache are rotated.
@@ -338,33 +338,33 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 	synctest.Wait()
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 14,
-		SetCalls:     5,
-		GetCalls:     3,
-		Misses:       1,
+		SetCalls:     14,
+		GetCalls:     4,
+		Misses:       2,
 	})
 
 	c.GetBig(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
-		EntriesCount: 14,
-		SetCalls:     5,
-		GetCalls:     4,
-		Misses:       1,
+		EntriesCount: 16,
+		SetCalls:     16,
+		GetCalls:     7,
+		Misses:       3,
 	})
 
 	c.GetBig(dst[:0], k3)
 	assertStats(t, c, fastcache.Stats{
-		EntriesCount: 14,
-		SetCalls:     5,
-		GetCalls:     5,
-		Misses:       1,
+		EntriesCount: 19,
+		SetCalls:     19,
+		GetCalls:     11,
+		Misses:       4,
 	})
 
 	c.GetBig(dst[:0], k5)
 	assertStats(t, c, fastcache.Stats{
-		EntriesCount: 14,
-		SetCalls:     5,
-		GetCalls:     6,
-		Misses:       1,
+		EntriesCount: 23,
+		SetCalls:     23,
+		GetCalls:     16,
+		Misses:       5,
 	})
 
 	// Wait until prev and curr caches are rotated.
@@ -373,25 +373,25 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 	synctest.Wait()
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 9, // 14-2-3
-		SetCalls:     5,
-		GetCalls:     6,
-		Misses:       1,
+		SetCalls:     23,
+		GetCalls:     16,
+		Misses:       5,
 	})
 
 	c.GetBig(dst[:0], k2)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 9,
-		SetCalls:     5,
-		GetCalls:     7,
-		Misses:       2,
+		SetCalls:     23,
+		GetCalls:     18,
+		Misses:       7,
 	})
 
 	c.GetBig(dst[:0], k4)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 9,
-		SetCalls:     5,
-		GetCalls:     8,
-		Misses:       3,
+		SetCalls:     23,
+		GetCalls:     20,
+		Misses:       9,
 	})
 
 	// Wait until prev and curr caches are rotated.
@@ -400,17 +400,17 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 	synctest.Wait()
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 0,
-		SetCalls:     5,
-		GetCalls:     8,
-		Misses:       3,
+		SetCalls:     23,
+		GetCalls:     20,
+		Misses:       9,
 	})
 
 	c.GetBig(dst[:0], k1)
 	assertStats(t, c, fastcache.Stats{
 		EntriesCount: 0,
-		SetCalls:     5,
-		GetCalls:     9,
-		Misses:       4,
+		SetCalls:     23,
+		GetCalls:     22,
+		Misses:       11,
 	})
 }
 
@@ -515,6 +515,14 @@ func TestSetGetStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) {
 }
 
 func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) {
+	// maxSubvalueLen is used for calculating how many big entries have been copied
+	// from previous to current fastcache instance.
+	//
+	// This value is implementation detail of fastcache (see fastcache/bigcache.go).
+	// However it needs to be known here in order to accurately calculate the number
+	// of copied entries.
+	const maxSubvalueLen = 64*1024 - 16 - 4 - 1
+
 	defer removeAll(t)
 	synctest.Test(t, func(t *testing.T) {
 		v := func(seed, size int) []byte {
@@ -538,11 +546,11 @@ func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) 
 		// Cache loaded from file operates in whole mode only if the file was
 		// not empty.
 		c := Load(t.Name(), 1024*1024)
-		assertMode(t, c, split)
+		assertMode(t, c, whole)
 		c.SetBig(k1, v1)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 2,
-			SetCalls:     1,
+			SetCalls:     2,
 		})
 		c.MustSave(t.Name())
 		c.Stop()
@@ -556,40 +564,40 @@ func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) 
 		c.SetBig(k2, v2)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 4,
-			SetCalls:     1,
+			SetCalls:     2,
 		})
 		c.SetBig(k3, v3)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 7,
-			SetCalls:     2,
+			SetCalls:     5,
 		})
 		c.SetBig(k4, v4)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 10,
-			SetCalls:     3,
+			SetCalls:     8,
 		})
 		c.SetBig(k5, v5)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
+			SetCalls:     12,
 		})
 		c.GetBig(dst[:0], k1)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     1,
+			SetCalls:     12,
+			GetCalls:     2,
 		})
 		c.GetBig(dst[:0], k3)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     2,
+			SetCalls:     12,
+			GetCalls:     5,
 		})
 		c.GetBig(dst[:0], kAbsent)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     3,
+			SetCalls:     12,
+			GetCalls:     6,
 			Misses:       1,
 		})
 
@@ -599,31 +607,31 @@ func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) 
 		synctest.Wait()
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     3,
+			SetCalls:     12,
+			GetCalls:     6,
 			Misses:       1,
 		})
 		c.GetBig(dst[:0], k1)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     4,
+			SetCalls:     12,
+			GetCalls:     8,
 			Misses:       1,
 		})
 
 		c.GetBig(dst[:0], k3)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     5,
+			SetCalls:     12,
+			GetCalls:     11,
 			Misses:       1,
 		})
 
 		c.GetBig(dst[:0], k5)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     6,
+			SetCalls:     12,
+			GetCalls:     15,
 			Misses:       1,
 		})
 
@@ -633,24 +641,24 @@ func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) 
 		synctest.Wait()
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     6,
+			SetCalls:     12,
+			GetCalls:     15,
 			Misses:       1,
 		})
 
 		c.GetBig(dst[:0], k2)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     7,
+			SetCalls:     12,
+			GetCalls:     17,
 			Misses:       1,
 		})
 
 		c.GetBig(dst[:0], k4)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     8,
+			SetCalls:     12,
+			GetCalls:     20,
 			Misses:       1,
 		})
 
@@ -662,8 +670,8 @@ func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) 
 		c.GetBig(dst[:0], k1)
 		assertStats(t, c, fastcache.Stats{
 			EntriesCount: 14,
-			SetCalls:     4,
-			GetCalls:     9,
+			SetCalls:     12,
+			GetCalls:     22,
 			Misses:       1,
 		})
 
