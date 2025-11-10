@@ -2,8 +2,9 @@ package promrelabel
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -19,19 +20,40 @@ func BenchmarkIfExpression(b *testing.B) {
 		labels[i] = label
 	}
 
+	bloomFilter := BloomFilter{}
+	for _, l := range labels {
+		bloomFilter.AddTokens([]string{l.Name, l.Value})
+	}
+
 	b.Run("equal label: last", func(b *testing.B) {
 		n := maxLabels - 1
 		ifExpr := fmt.Sprintf(`'{foo%d="bar%d"}'`, n, n)
 		benchIfExpr(b, ifExpr, labels)
 	})
+	b.Run("filter: equal label: last", func(b *testing.B) {
+		n := maxLabels - 1
+		ifExpr := fmt.Sprintf(`'{foo%d="bar%d"}'`, n, n)
+		benchIfExpressionWithFilters(b, ifExpr, labels, &bloomFilter)
+	})
+
 	b.Run("equal label: middle", func(b *testing.B) {
 		n := maxLabels / 2
 		ifExpr := fmt.Sprintf(`'{foo%d="bar%d"}'`, n, n)
 		benchIfExpr(b, ifExpr, labels)
 	})
+	b.Run("filter: equal label: middle", func(b *testing.B) {
+		n := maxLabels / 2
+		ifExpr := fmt.Sprintf(`'{foo%d="bar%d"}'`, n, n)
+		benchIfExpressionWithFilters(b, ifExpr, labels, &bloomFilter)
+	})
+
 	b.Run("equal label: first", func(b *testing.B) {
 		ifExpr := fmt.Sprintf(`'{foo%d="bar%d"}'`, 0, 0)
 		benchIfExpr(b, ifExpr, labels)
+	})
+	b.Run("filter: equal label: first", func(b *testing.B) {
+		ifExpr := fmt.Sprintf(`'{foo%d="bar%d"}'`, 0, 0)
+		benchIfExpressionWithFilters(b, ifExpr, labels, &bloomFilter)
 	})
 
 	labels[maxLabels-1] = prompb.Label{
@@ -42,6 +64,10 @@ func BenchmarkIfExpression(b *testing.B) {
 		ifExpr := `foo`
 		benchIfExpr(b, ifExpr, labels)
 	})
+	b.Run("filter: equal __name__: last", func(b *testing.B) {
+		ifExpr := `foo`
+		benchIfExpressionWithFilters(b, ifExpr, labels, &bloomFilter)
+	})
 
 	labels[maxLabels/2] = prompb.Label{
 		Name:  "__name__",
@@ -51,6 +77,10 @@ func BenchmarkIfExpression(b *testing.B) {
 		ifExpr := `foo`
 		benchIfExpr(b, ifExpr, labels)
 	})
+	b.Run("filter: equal __name__: middle", func(b *testing.B) {
+		ifExpr := `foo`
+		benchIfExpressionWithFilters(b, ifExpr, labels, &bloomFilter)
+	})
 
 	labels[0] = prompb.Label{
 		Name:  "__name__",
@@ -59,6 +89,10 @@ func BenchmarkIfExpression(b *testing.B) {
 	b.Run("equal __name__: first", func(b *testing.B) {
 		ifExpr := `foo`
 		benchIfExpr(b, ifExpr, labels)
+	})
+	b.Run("filter: equal __name__: first", func(b *testing.B) {
+		ifExpr := `foo`
+		benchIfExpressionWithFilters(b, ifExpr, labels, &bloomFilter)
 	})
 }
 
@@ -71,6 +105,21 @@ func benchIfExpr(b *testing.B, expr string, labels []prompb.Label) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			if !ie.Match(labels) {
+				panic(fmt.Sprintf("expected to have a match for %q", expr))
+			}
+		}
+	})
+}
+
+func benchIfExpressionWithFilters(b *testing.B, expr string, labels []prompb.Label, filter *BloomFilter) {
+	b.Helper()
+	var ie IfExpression
+	if err := yaml.UnmarshalStrict([]byte(expr), &ie); err != nil {
+		b.Fatalf("unexpected error during unmarshal: %s", err)
+	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if !ie.MatchWithFilters(labels, filter) {
 				panic(fmt.Sprintf("expected to have a match for %q", expr))
 			}
 		}

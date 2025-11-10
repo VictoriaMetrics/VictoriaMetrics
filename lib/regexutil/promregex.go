@@ -134,3 +134,26 @@ func (pr *PromRegex) MatchString(s string) bool {
 func (pr *PromRegex) String() string {
 	return pr.exprStr
 }
+
+// GetHashableStrings computes the required string hashes for bloom filter matching
+// The returned hashes can be used to quickly rule out non-matching strings
+// we can only use the case where the regex is only a prefix
+// for bloom filter optimization since bloom filters won't match substrings
+func (pr *PromRegex) GetHashableStrings() []string {
+	if pr.isOnlyPrefix {
+		return []string{pr.prefix}
+	}
+	return []string{}
+}
+
+func (pr *PromRegex) MatchesEmpty() bool {
+	if pr.prefix == "" && (pr.isOnlyPrefix || pr.isSuffixDotStar || pr.substrDotStar != "") {
+		return true
+	}
+	for _, v := range pr.orValues {
+		if v == "" {
+			return true
+		}
+	}
+	return false
+}
