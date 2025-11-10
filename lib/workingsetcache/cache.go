@@ -164,11 +164,13 @@ func (c *Cache) runWatchers(expireDuration time.Duration) {
 		defer c.wg.Done()
 		c.expirationWatcher(expireDuration)
 	}()
+
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
 		c.prevCacheWatcher()
 	}()
+
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
@@ -186,21 +188,24 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 			return
 		case <-t.C:
 		}
+
 		c.mu.Lock()
+
 		if c.mode.Load() != split {
 			// Do nothing in non-split mode.
 			c.mu.Unlock()
 			continue
 		}
+
 		// Reset prev cache and swap it with the curr cache.
 		prev := c.prev.Load()
 		curr := c.curr.Load()
+		c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
+
 		c.prev.Store(curr)
-		var cs fastcache.Stats
-		prev.UpdateStats(&cs)
-		updateCacheStatsHistory(&c.csHistory, &cs)
 		prev.Reset()
 		c.curr.Store(prev)
+
 		c.mu.Unlock()
 	}
 }
@@ -218,6 +223,7 @@ func (c *Cache) prevCacheWatcher() {
 	checkInterval := timeutil.AddJitterToDuration(time.Second * 60)
 	t := time.NewTicker(checkInterval)
 	defer t.Stop()
+
 	prevGetCalls := uint64(0)
 	currGetCalls := uint64(0)
 	for {
@@ -226,17 +232,22 @@ func (c *Cache) prevCacheWatcher() {
 			return
 		case <-t.C:
 		}
+
 		c.mu.Lock()
+
 		if c.mode.Load() != split {
 			// Do nothing in non-split mode.
 			c.mu.Unlock()
 			continue
 		}
+
 		prev := c.prev.Load()
 		curr := c.curr.Load()
-		var csCurr, csPrev fastcache.Stats
-		curr.UpdateStats(&csCurr)
+
+		var csPrev, csCurr fastcache.Stats
 		prev.UpdateStats(&csPrev)
+		curr.UpdateStats(&csCurr)
+
 		currRequests := csCurr.GetCalls
 		if currRequests >= currGetCalls {
 			currRequests -= currGetCalls
@@ -245,16 +256,19 @@ func (c *Cache) prevCacheWatcher() {
 		if prevRequests >= prevGetCalls {
 			prevRequests -= prevGetCalls
 		}
+
 		currGetCalls = csCurr.GetCalls
 		prevGetCalls = csPrev.GetCalls
+
 		if currRequests >= minCurrRequests && float64(prevRequests)/float64(currRequests) < p {
 			// The majority of requests are served from the curr cache,
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {
-				updateCacheStatsHistory(&c.csHistory, &csPrev)
+				c.updateCacheStatsHistoryBeforeRotationLocked(prev, nil)
 				prev.Reset()
 			}
 		}
+
 		c.mu.Unlock()
 	}
 }
@@ -264,28 +278,33 @@ func (c *Cache) cacheSizeWatcher() {
 	t := time.NewTicker(checkInterval)
 	defer t.Stop()
 
-	var maxBytesSize uint64
 	for {
 		select {
 		case <-c.stopCh:
 			return
 		case <-t.C:
 		}
+
+		c.mu.Lock()
+
 		if c.mode.Load() != split {
 			// Do nothing in non-split mode.
+			c.mu.Unlock()
 			continue
 		}
+
 		var cs fastcache.Stats
 		curr := c.curr.Load()
 		curr.UpdateStats(&cs)
 		if cs.BytesSize >= uint64(0.9*float64(cs.MaxBytesSize)) {
-			maxBytesSize = cs.MaxBytesSize
-			c.transitIntoWholeMode(maxBytesSize, t)
+			c.transitIntoWholeModeLocked(cs.MaxBytesSize, t)
 		}
+
+		c.mu.Unlock()
 	}
 }
 
-func (c *Cache) transitIntoWholeMode(maxBytesSize uint64, t *time.Ticker) {
+func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) {
 	// curr cache size exceeds 90% of its capacity. It is better
 	// to double the size of curr cache and stop using prev cache,
 	// since this will result in higher summary cache capacity.
@@ -298,52 +317,63 @@ func (c *Cache) transitIntoWholeMode(maxBytesSize uint64, t *time.Ticker) {
 	// 5) switch to mode=whole
 	// 6) drop prev cache
 
-	c.mu.Lock()
 	c.mode.Store(switching)
+
 	prev := c.prev.Load()
 	curr := c.curr.Load()
+	c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
+
 	c.prev.Store(curr)
-	var cs fastcache.Stats
-	prev.UpdateStats(&cs)
-	updateCacheStatsHistory(&c.csHistory, &cs)
 	prev.Reset()
+
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.
 	c.curr.Store(newFastCacheWithCleanup(c.maxBytes))
+
 	c.mu.Unlock()
 
+	// Wait until curr cache size exceeds maxBytesSize.
 	for {
 		select {
 		case <-c.stopCh:
+			c.mu.Lock()
 			return
 		case <-t.C:
 		}
+
+		c.mu.Lock()
+
 		if c.mode.Load() != switching {
 			// mode was changed by the Reset call
 			return
 		}
+
 		var cs fastcache.Stats
 		curr := c.curr.Load()
 		curr.UpdateStats(&cs)
 		if cs.BytesSize >= maxBytesSize {
+			// curr cache size became bigger than maxBytesSize.
 			break
 		}
+
+		c.mu.Unlock()
 	}
 
-	c.mu.Lock()
 	if c.mode.Load() != switching {
 		// mode was changed by the Reset call
-		c.mu.Unlock()
 		return
 	}
+
+	// Switch to mode=whole
+
 	c.mode.Store(whole)
+
 	prev = c.prev.Load()
+	curr = c.curr.Load()
+	c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
+
 	c.prev.Store(newFastCacheWithCleanup(1024))
-	cs.Reset()
-	prev.UpdateStats(&cs)
-	updateCacheStatsHistory(&c.csHistory, &cs)
 	prev.Reset()
-	c.mu.Unlock()
 }
 
 // MustSave saves the cache to filePath.
@@ -378,6 +408,8 @@ func (c *Cache) Reset() {
 	// load caches first to properly release memory
 	prev := c.prev.Load()
 	curr := c.curr.Load()
+	c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
+	c.updateCacheStatsHistoryBeforeRotationLocked(curr, nil)
 
 	// Reset the mode to `split` in order to properly reset background workers.
 	mode := c.mode.Load()
@@ -386,14 +418,12 @@ func (c *Cache) Reset() {
 		// so we have to restore it into original size for split mode
 		c.prev.Store(newFastCacheWithCleanup(c.maxBytes / 2))
 		c.curr.Store(newFastCacheWithCleanup(c.maxBytes / 2))
+
+		c.mode.Store(split)
 	}
-	var cs fastcache.Stats
-	prev.UpdateStats(&cs)
+
 	prev.Reset()
-	curr.UpdateStats(&cs)
-	updateCacheStatsHistory(&c.csHistory, &cs)
 	curr.Reset()
-	c.mode.Store(split)
 }
 
 // UpdateStats updates fcs with cache stats.
@@ -401,36 +431,62 @@ func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	updateCacheStatsHistory(fcs, &c.csHistory)
-
-	var cs fastcache.Stats
 	curr := c.curr.Load()
-	curr.UpdateStats(&cs)
-	updateCacheStats(fcs, &cs)
-
 	prev := c.prev.Load()
-	cs.Reset()
-	prev.UpdateStats(&cs)
-	updateCacheStats(fcs, &cs)
+
+	var csPrev, csCurr fastcache.Stats
+	prev.UpdateStats(&csPrev)
+	curr.UpdateStats(&csCurr)
+
+	csHistory := &c.csHistory
+
+	fcs.GetCalls += csHistory.GetCalls + csCurr.GetCalls
+	fcs.SetCalls += csHistory.SetCalls + csCurr.SetCalls
+
+	fcs.Collisions += csHistory.Collisions + csCurr.Collisions
+	fcs.Corruptions += csHistory.Corruptions + csCurr.Corruptions
+
+	misses := csHistory.Misses
+	if c.mode.Load() != whole {
+		// Take into account only the misses from csPrev, since csCurr misses always incur get() calls at csPrev in non-whole mode.
+		// This is needed for the proper tracking of cache misses at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9553
+		misses += csPrev.Misses
+	} else {
+		// Take into account misses from csCurr in whole mode, since csPrev isn't used in this mode.
+		misses += csCurr.Misses
+	}
+	fcs.Misses += misses
+
+	// Track the total number of entries across prev and curr, since they all occupy memory.
+	fcs.EntriesCount += csPrev.EntriesCount + csCurr.EntriesCount
+	fcs.BytesSize += csPrev.EntriesCount + csCurr.EntriesCount
+	fcs.MaxBytesSize += csPrev.MaxBytesSize + csCurr.MaxBytesSize
 }
 
-func updateCacheStats(dst, src *fastcache.Stats) {
-	dst.GetCalls += src.GetCalls
-	dst.SetCalls += src.SetCalls
-	dst.Misses += src.Misses
-	dst.Collisions += src.Collisions
-	dst.Corruptions += src.Corruptions
-	dst.EntriesCount += src.EntriesCount
-	dst.BytesSize += src.BytesSize
-	dst.MaxBytesSize += src.MaxBytesSize
-}
+// updateCacheStatsHistoryBeforeRotationLocked updates c.csHistory before the rotation of curr and prev.
+//
+// c.mu.Lock() must be taken while calling this function.
+func (c *Cache) updateCacheStatsHistoryBeforeRotationLocked(prev, curr *fastcache.Cache) {
+	var csPrev, csCurr fastcache.Stats
+	prev.UpdateStats(&csPrev)
+	if curr != nil {
+		curr.UpdateStats(&csCurr)
+	}
 
-func updateCacheStatsHistory(dst, src *fastcache.Stats) {
-	atomic.AddUint64(&dst.GetCalls, atomic.LoadUint64(&src.GetCalls))
-	atomic.AddUint64(&dst.SetCalls, atomic.LoadUint64(&src.SetCalls))
-	atomic.AddUint64(&dst.Misses, atomic.LoadUint64(&src.Misses))
-	atomic.AddUint64(&dst.Collisions, atomic.LoadUint64(&src.Collisions))
-	atomic.AddUint64(&dst.Corruptions, atomic.LoadUint64(&src.Corruptions))
+	csHistory := &c.csHistory
+
+	if c.mode.Load() != whole {
+		atomic.AddUint64(&csHistory.GetCalls, csCurr.GetCalls)
+		atomic.AddUint64(&csHistory.SetCalls, csCurr.SetCalls)
+
+		atomic.AddUint64(&csHistory.Collisions, csCurr.Collisions)
+		atomic.AddUint64(&csHistory.Corruptions, csCurr.Corruptions)
+	}
+
+	// Subtract csCurr misses from csPrev misses, since csCurr replaces csPrev after the rotation.
+	// This guarantees that csCurr.Misses are taken into account only once after the rotation at Cache.UpdateStats().
+	// This is needed for the proper tracking of cache misses at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9553
+	atomic.AddUint64(&csHistory.Misses, csPrev.Misses-csCurr.Misses)
 
 	// Do not add EntriesCount, BytesSize and MaxBytesSize, since these metrics
 	// are calculated from c.curr and c.prev caches.
