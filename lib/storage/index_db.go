@@ -136,6 +136,11 @@ type indexDB struct {
 	// the amount of work when matching a set of filters.
 	loopsPerDateTagFilterCache *workingsetcache.Cache
 
+	// dateMetricIDCache is (date, metricID) cache that is used to speed up the
+	// data ingestion by storing the is.hasDateMetricID() search results in
+	// memory.
+	dateMetricIDCache *dateMetricIDCache
+
 	indexSearchPool sync.Pool
 }
 
@@ -183,6 +188,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegiste
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
+		dateMetricIDCache:          newDateMetricIDCache(),
 	}
 	db.noRegisterNewSeries.Store(noRegisterNewSeries)
 	db.incRef()
@@ -198,6 +204,11 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheSizeMaxBytes uint64
 	TagFiltersToMetricIDsCacheRequests     uint64
 	TagFiltersToMetricIDsCacheMisses       uint64
+
+	DateMetricIDCacheSize        uint64
+	DateMetricIDCacheSizeBytes   uint64
+	DateMetricIDCacheSyncsCount  uint64
+	DateMetricIDCacheResetsCount uint64
 
 	IndexDBRefCount uint64
 
@@ -245,6 +256,11 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheSizeMaxBytes += cs.MaxBytesSize
 	m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
 	m.TagFiltersToMetricIDsCacheMisses += cs.Misses
+
+	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
+	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
+	m.DateMetricIDCacheSyncsCount += db.dateMetricIDCache.syncsCount.Load()
+	m.DateMetricIDCacheResetsCount += db.dateMetricIDCache.resetsCount.Load()
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
@@ -2765,6 +2781,12 @@ func (db *indexDB) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) 
 	if db.s.disablePerDayIndex {
 		return
 	}
+
+	// The chances are high that we will see the samples for this
+	// (date, metricID) soon again. Thus, add this pair to dateMetricIDCache
+	// to speed up the data ingestion.
+	db.dateMetricIDCache.Set(db.generation, date, tsid.MetricID)
+
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
@@ -2904,6 +2926,10 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 		return is.hasMetricID(metricID)
 	}
 
+	if is.db.dateMetricIDCache.Has(is.db.generation, date, metricID) {
+		return true
+	}
+
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
@@ -2915,6 +2941,7 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 			logger.Panicf("FATAL: unexpected entry for (date=%s, metricID=%d); got %q; want %q", dateToString(date), metricID, ts.Item, kb.B)
 		}
 		// Fast path - the (date, metricID) entry is found in the current indexdb.
+		is.db.dateMetricIDCache.Set(is.db.generation, date, metricID)
 		return true
 	}
 	if err != io.EOF {
