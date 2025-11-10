@@ -85,9 +85,7 @@ func initCacheForTest(t *testing.T, testCase string, maxBytes int) string {
 	}
 
 	path := filepath.Join(t.Name(), "workingsetcache", testCase)
-	if err := c.Save(path); err != nil {
-		t.Fatalf("Save error: %s", err)
-	}
+	c.MustSave(path)
 
 	return path
 }

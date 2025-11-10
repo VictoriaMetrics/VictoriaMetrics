@@ -89,8 +89,9 @@ func Load(filePath string, maxBytes int) *Cache {
 	return loadWithExpire(filePath, maxBytes, *cacheExpireDuration)
 }
 
-// loadFromFileOrNew attempts to load a fastcache.Cache from the given file path
-// If loading fails due to an error (e.g. corrupted or unreadable file), the error is logged
+// loadFromFileOrNew attempts to load a fastcache.Cache from the given file path.
+//
+// If the load fails due to an error (e.g. corrupted or unreadable file), the error is logged
 // and a new cache is created with the specified maxBytes size.
 func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
 	cache, err := fastcache.LoadFromFileMaxBytes(filePath, maxBytes)
@@ -107,6 +108,7 @@ func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
 	} else {
 		logger.Errorf("invalid cache at %s: %s; creating new cache", filePath, err)
 	}
+
 	return newFastCacheWithCleanup(maxBytes)
 }
 
@@ -357,11 +359,18 @@ func (c *Cache) transitIntoWholeMode(maxBytesSize uint64, t *time.Ticker) {
 	c.mu.Unlock()
 }
 
-// Save saves the cache to filePath.
-func (c *Cache) Save(filePath string) error {
+// MustSave saves the cache to filePath.
+func (c *Cache) MustSave(filePath string) {
 	curr := c.curr.Load()
+	mustSaveCacheToFile(curr, filePath)
+}
+
+func mustSaveCacheToFile(c *fastcache.Cache, filePath string) {
 	concurrency := cgroup.AvailableCPUs()
-	return curr.SaveToFileConcurrent(filePath, concurrency)
+	err := c.SaveToFileConcurrent(filePath, concurrency)
+	if err != nil {
+		logger.Panicf("FATAL: cannot save cache to %s: %s", filePath, err)
+	}
 }
 
 // Stop stops the cache.

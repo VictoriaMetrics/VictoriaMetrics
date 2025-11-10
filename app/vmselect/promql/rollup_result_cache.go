@@ -138,10 +138,7 @@ func StopRollupResultCache() {
 	}
 	logger.Infof("saving rollupResult cache to %q...", rollupResultCachePath)
 	startTime := time.Now()
-	if err := rollupResultCacheV.c.Save(rollupResultCachePath); err != nil {
-		logger.Errorf("cannot save rollupResult cache at %q: %s", rollupResultCachePath, err)
-		return
-	}
+	rollupResultCacheV.c.MustSave(rollupResultCachePath)
 	mustSaveRollupResultCacheKeyPrefix(rollupResultCachePath)
 	var fcs fastcache.Stats
 	rollupResultCacheV.c.UpdateStats(&fcs)

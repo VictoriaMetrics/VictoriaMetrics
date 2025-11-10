@@ -428,9 +428,7 @@ func TestSetGetStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) {
 		// not empty.
 		c := Load(t.Name(), 1024)
 		c.Set(k1, v1)
-		if err := c.Save(t.Name()); err != nil {
-			t.Fatalf("could not save cache to file: %v", err)
-		}
+		c.MustSave(t.Name())
 		c.Stop()
 		c = Load(t.Name(), 1024)
 		defer c.Stop()
@@ -546,9 +544,7 @@ func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) 
 			EntriesCount: 2,
 			SetCalls:     1,
 		})
-		if err := c.Save(t.Name()); err != nil {
-			t.Fatalf("could not save cache to file: %v", err)
-		}
+		c.MustSave(t.Name())
 		c.Stop()
 		c = Load(t.Name(), 1024*1024)
 		defer c.Stop()
