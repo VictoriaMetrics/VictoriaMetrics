@@ -42,10 +42,6 @@ type Cache struct {
 	// csHistory holds cache stats history
 	csHistory fastcache.Stats
 
-	ExpireEvictionBytes atomic.Uint64
-	MissEvictionBytes   atomic.Uint64
-	SizeEvictionBytes   atomic.Uint64
-
 	getCalls       atomic.Uint64
 	setCalls       atomic.Uint64
 	misses         atomic.Uint64
@@ -208,7 +204,6 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 		var cs fastcache.Stats
 		prev.UpdateStats(&cs)
 		updateCacheStatsHistory(&c.csHistory, &cs)
-		c.ExpireEvictionBytes.Add(cs.BytesSize)
 		prev.Reset()
 		c.curr.Store(prev)
 		c.copiedFromPrev.Store(0)
@@ -263,7 +258,6 @@ func (c *Cache) prevCacheWatcher() {
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {
 				updateCacheStatsHistory(&c.csHistory, &csPrev)
-				c.MissEvictionBytes.Add(csPrev.BytesSize)
 				prev.Reset()
 			}
 		}
@@ -318,7 +312,6 @@ func (c *Cache) transitIntoWholeMode(maxBytesSize uint64, t *time.Ticker) {
 	var cs fastcache.Stats
 	prev.UpdateStats(&cs)
 	updateCacheStatsHistory(&c.csHistory, &cs)
-	c.SizeEvictionBytes.Add(cs.BytesSize)
 	prev.Reset()
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.
