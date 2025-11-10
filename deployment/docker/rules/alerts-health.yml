@@ -82,15 +82,15 @@ groups:
             Worth to check logs for specific error messages.
 
       - alert: TooManyTSIDMisses
-        expr: rate(vm_missing_tsids_for_metric_id_total[5m]) > 0
+        expr: increase(vm_missing_tsids_for_metric_id_total[5m]) > 0
         for: 15m
         labels:
           severity: critical
         annotations:
-          summary: "Too many TSID misses for job \"{{ $labels.job }}\" ({{ $labels.instance }}) for the last 15 minutes"
+          summary: "Unexpected TSID misses for job \"{{ $labels.job }}\" ({{ $labels.instance }}) for the last 15 minutes"
           description: |
-            The rate of TSID misses is too high for \"{{ $labels.job }}\" ({{ $labels.instance }})
-            for the last 15 minutes. If this happens after unclean shutdown of VictoriaMetrics process (via \"kill -9\", OOM or power off),
+            Unexpected TSID misses for \"{{ $labels.job }}\" ({{ $labels.instance }}) for the last 15 minutes.
+            If this happens after unclean shutdown of VictoriaMetrics process (via \"kill -9\", OOM or power off),
             then this is OK - the alert must go away in a few minutes after the restart.
             Otherwise this may point to the corruption of index data.
 
