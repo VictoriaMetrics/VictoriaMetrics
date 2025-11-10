@@ -2785,7 +2785,7 @@ func (db *indexDB) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) 
 	// The chances are high that we will see the samples for this
 	// (date, metricID) soon again. Thus, add this pair to dateMetricIDCache
 	// to speed up the data ingestion.
-	db.dateMetricIDCache.Set(db.generation, date, tsid.MetricID)
+	db.dateMetricIDCache.Set(date, tsid.MetricID)
 
 	ii := getIndexItems()
 	defer putIndexItems(ii)
@@ -2926,7 +2926,7 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 		return is.hasMetricID(metricID)
 	}
 
-	if is.db.dateMetricIDCache.Has(is.db.generation, date, metricID) {
+	if is.db.dateMetricIDCache.Has(date, metricID) {
 		return true
 	}
 
@@ -2941,7 +2941,7 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 			logger.Panicf("FATAL: unexpected entry for (date=%s, metricID=%d); got %q; want %q", dateToString(date), metricID, ts.Item, kb.B)
 		}
 		// Fast path - the (date, metricID) entry is found in the current indexdb.
-		is.db.dateMetricIDCache.Set(is.db.generation, date, metricID)
+		is.db.dateMetricIDCache.Set(date, metricID)
 		return true
 	}
 	if err != io.EOF {
