@@ -1,9 +1,7 @@
 package workingsetcache
 
 import (
-	"errors"
 	"flag"
-	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/fastcache"
@@ -26,9 +25,9 @@ var (
 
 // Cache modes.
 const (
-	split     = 0
-	switching = 1
-	whole     = 2
+	modeSplit     = 0
+	modeSwitching = 1
+	modeWhole     = 2
 )
 
 // Cache is a cache for working set entries.
@@ -44,93 +43,87 @@ type Cache struct {
 
 	// mode indicates whether to use only curr and skip prev.
 	//
-	// This flag is set to switching if curr is filled for more than 50% space.
+	// This flag is set to modeSwitching if curr is filled for more than 50% space.
 	// In this case using prev would result in RAM waste,
 	// it is better to use only curr cache with doubled size.
-	// After the process of switching, this flag will be set to whole.
+	// After the process of switching, this flag will be set to modeWhole.
 	mode atomic.Uint32
 
 	// The maxBytes value passed to New() or to Load().
+	//
+	// It is used for initialization of the curr cache with the proper size in modeSwitching.
 	maxBytes int
 
 	// mu serializes access to curr, prev and mode
-	// in expirationWatcher, prevCacheWatcher, cacheSizeWatcher, UpdateStats and Reset.
 	mu sync.Mutex
 
+	// wg and stopCh are used for graceful shutdown of background watchers.
 	wg     sync.WaitGroup
 	stopCh chan struct{}
 }
 
-func newFastCacheWithCleanup(maxBytes int) *fastcache.Cache {
+func newWithAutoCleanup(maxBytes int) *fastcache.Cache {
 	c := fastcache.New(maxBytes)
-	// additionally call reset when cache is no longer reacheable
-	// since due to atomic pointers, cache could be in-use by Set or Get method
-	// during it's replacement by newFastCacheWithCleanup
+
+	// Reset the cache after it is no longer reacheable since the cache
+	// could remain in use at Set or Get methods after the rotation.
 	runtime.SetFinalizer(c, func(c *fastcache.Cache) {
 		c.Reset()
 	})
 	return c
 }
 
-// Load loads the cache from filePath and limits its size to maxBytes
-// and evicts inactive entries in *cacheExpireDuration minutes.
+// Load loads the cache from filePath and limits its size to maxBytes.
+//
+// Inactive entries are removed from the cache in *cacheExpireDuration.
 //
 // Stop must be called on the returned cache when it is no longer needed.
 func Load(filePath string, maxBytes int) *Cache {
 	return loadWithExpire(filePath, maxBytes, *cacheExpireDuration)
 }
 
-// loadFromFileOrNew attempts to load a fastcache.Cache from the given file path.
-//
-// If the load fails due to an error (e.g. corrupted or unreadable file), the error is logged
-// and a new cache is created with the specified maxBytes size.
-func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
-	cache, err := fastcache.LoadFromFileMaxBytes(filePath, maxBytes)
-	if err == nil {
-		return cache
-	}
-
-	if errors.Is(err, os.ErrNotExist) {
-		logger.Infof("missing cache at %s; creating new cache", filePath)
-	} else if strings.Contains(err.Error(), "unexpected number of bucket chunks") {
-		// covers the cache reset due to max memory size change at
-		// https://github.com/VictoriaMetrics/fastcache/blob/9bc541587b1df2a9198cb2a0425b9ada4005a505/file.go#L147
-		logger.Warnf("%s; the most likely reason: changed the cache size via command-line flags during the last restart; creating new cache", err)
-	} else {
-		logger.Errorf("invalid cache at %s: %s; creating new cache", filePath, err)
-	}
-
-	return newFastCacheWithCleanup(maxBytes)
-}
-
 func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
-	var curr, prev *fastcache.Cache
-	var mode int
+	if !fs.IsPathExist(filePath) {
+		// There is no cache at the filePath. Create it
+		logger.Infof("creating new cache at %s with max size %d bytes", filePath, maxBytes)
+		return newWithExpire(maxBytes, expireDuration)
+	}
 
-	curr = loadFromFileOrNew(filePath, maxBytes)
-	var cs fastcache.Stats
-	curr.UpdateStats(&cs)
-	if cs.EntriesCount == 0 {
-		curr.Reset()
-		// The cache couldn't be loaded with maxBytes size.
-		// This may mean that the cache is split into curr and prev caches.
-		// Try loading it again with maxBytes / 2 size.
+	// Try loading the cache in modeWhole
+	curr, err := fastcache.LoadFromFileMaxBytes(filePath, maxBytes)
+	if err == nil {
+		// Successfully loaded the cache in modeWhole
+		logger.Infof("loaded cache at %s in modeWhole with maxSize %d bytes", filePath, maxBytes)
+		prev := newWithAutoCleanup(1024)
+		return newCacheInternal(curr, prev, modeWhole, maxBytes, expireDuration)
+	}
+
+	// Fall back loading the cache in modeSplit
+	curr, err = fastcache.LoadFromFileMaxBytes(filePath, maxBytes/2)
+	if err == nil {
+		// Successfully loaded the cache in modeSplit
 		// Put the loaded cache into `prev` instead of `curr`
 		// in order to limit the growth of the cache for the current period of time.
-		curr = newFastCacheWithCleanup(maxBytes / 2)
-		prev = loadFromFileOrNew(filePath, maxBytes/2)
-		mode = split
-	} else {
-		// The cache has been successfully loaded in full.
-		// Set its' mode to `whole`.
-		prev = newFastCacheWithCleanup(1024)
-		mode = whole
+		logger.Infof("loaded cache at %s in modeSplit with maxSize %d bytes", filePath, maxBytes)
+		prev := curr
+		curr = newWithAutoCleanup(maxBytes / 2)
+		return newCacheInternal(curr, prev, modeSplit, maxBytes, expireDuration)
 	}
 
-	c := newCacheInternal(curr, prev, mode, maxBytes)
-	c.runWatchers(expireDuration)
+	// Failed loading the cache in modeSplit. Verify and log the most likely errors
+	if strings.Contains(err.Error(), "unexpected number of bucket chunks") {
+		// covers the cache reset due to max memory size change at
+		// https://github.com/VictoriaMetrics/fastcache/blob/9bc541587b1df2a9198cb2a0425b9ada4005a505/file.go#L147
+		logger.Warnf("%s; the most likely reason: changed the cache size via command-line flags or changed the number of available CPU cores during the last restart", err)
+	} else {
+		logger.Errorf("invalid cache at %s: %s", filePath, err)
+	}
 
-	return c
+	// Remove the invalid cache.
+	fs.MustRemoveDir(filePath)
+
+	logger.Infof("creating new cache at %s with max size %d bytes", filePath, maxBytes)
+	return newWithExpire(maxBytes, expireDuration)
 }
 
 // New creates new cache with the given maxBytes capacity and *cacheExpireDuration expiration.
@@ -141,20 +134,20 @@ func New(maxBytes int) *Cache {
 }
 
 func newWithExpire(maxBytes int, expireDuration time.Duration) *Cache {
-	curr := newFastCacheWithCleanup(maxBytes / 2)
-	prev := newFastCacheWithCleanup(1024)
-	c := newCacheInternal(curr, prev, split, maxBytes)
-	c.runWatchers(expireDuration)
+	curr := newWithAutoCleanup(maxBytes / 2)
+	prev := newWithAutoCleanup(maxBytes / 2)
+	c := newCacheInternal(curr, prev, modeSplit, maxBytes, expireDuration)
 	return c
 }
 
-func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int) *Cache {
+func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int, expireDuration time.Duration) *Cache {
 	var c Cache
 	c.maxBytes = maxBytes
 	c.curr.Store(curr)
 	c.prev.Store(prev)
 	c.stopCh = make(chan struct{})
 	c.mode.Store(uint32(mode))
+	c.runWatchers(expireDuration)
 	return &c
 }
 
@@ -191,7 +184,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 
 		c.mu.Lock()
 
-		if c.mode.Load() != split {
+		if c.mode.Load() != modeSplit {
 			// Do nothing in non-split mode.
 			c.mu.Unlock()
 			continue
@@ -235,7 +228,7 @@ func (c *Cache) prevCacheWatcher() {
 
 		c.mu.Lock()
 
-		if c.mode.Load() != split {
+		if c.mode.Load() != modeSplit {
 			// Do nothing in non-split mode.
 			c.mu.Unlock()
 			continue
@@ -287,7 +280,7 @@ func (c *Cache) cacheSizeWatcher() {
 
 		c.mu.Lock()
 
-		if c.mode.Load() != split {
+		if c.mode.Load() != modeSplit {
 			// Do nothing in non-split mode.
 			c.mu.Unlock()
 			continue
@@ -310,14 +303,14 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 	// since this will result in higher summary cache capacity.
 	//
 	// Do this in the following steps:
-	// 1) switch to mode=switching
+	// 1) switch to modeSwitching
 	// 2) move curr cache to prev
 	// 3) create curr cache with doubled size
 	// 4) wait until curr cache size exceeds maxBytesSize, i.e. it is populated with new data
-	// 5) switch to mode=whole
+	// 5) switch to modeWhole
 	// 6) drop prev cache
 
-	c.mode.Store(switching)
+	c.mode.Store(modeSwitching)
 
 	prev := c.prev.Load()
 	curr := c.curr.Load()
@@ -328,7 +321,7 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 
 	// use c.maxBytes instead of maxBytesSize*2 for creating new cache, since otherwise the created cache
 	// couldn't be loaded from file with c.maxBytes limit after saving with maxBytesSize*2 limit.
-	c.curr.Store(newFastCacheWithCleanup(c.maxBytes))
+	c.curr.Store(newWithAutoCleanup(c.maxBytes))
 
 	c.mu.Unlock()
 
@@ -343,7 +336,7 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 
 		c.mu.Lock()
 
-		if c.mode.Load() != switching {
+		if c.mode.Load() != modeSwitching {
 			// mode was changed by the Reset call
 			return
 		}
@@ -359,35 +352,40 @@ func (c *Cache) transitIntoWholeModeLocked(maxBytesSize uint64, t *time.Ticker) 
 		c.mu.Unlock()
 	}
 
-	if c.mode.Load() != switching {
+	if c.mode.Load() != modeSwitching {
 		// mode was changed by the Reset call
 		return
 	}
 
-	// Switch to mode=whole
+	// Switch to modeWhole
 
-	c.mode.Store(whole)
+	c.mode.Store(modeWhole)
 
 	prev = c.prev.Load()
 	curr = c.curr.Load()
 	c.updateCacheStatsHistoryBeforeRotationLocked(prev, curr)
 
-	c.prev.Store(newFastCacheWithCleanup(1024))
+	c.prev.Store(newWithAutoCleanup(1024))
 	prev.Reset()
 }
 
 // MustSave saves the cache to filePath.
 func (c *Cache) MustSave(filePath string) {
-	curr := c.curr.Load()
-	mustSaveCacheToFile(curr, filePath)
-}
+	startTime := time.Now()
 
-func mustSaveCacheToFile(c *fastcache.Cache, filePath string) {
+	var cs fastcache.Stats
+	curr := c.curr.Load()
+	curr.UpdateStats(&cs)
+
 	concurrency := cgroup.AvailableCPUs()
-	err := c.SaveToFileConcurrent(filePath, concurrency)
+
+	logger.Infof("saving cache to %s by using %d concurrent workers", filePath, concurrency)
+	err := curr.SaveToFileConcurrent(filePath, concurrency)
 	if err != nil {
 		logger.Panicf("FATAL: cannot save cache to %s: %s", filePath, err)
 	}
+
+	logger.Infof("cache has been successfully saved to %s in %.3f seconds; entriesCount: %d, sizeBytes: %d", filePath, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
 }
 
 // Stop stops the cache.
@@ -413,13 +411,13 @@ func (c *Cache) Reset() {
 
 	// Reset the mode to `split` in order to properly reset background workers.
 	mode := c.mode.Load()
-	if mode != split {
+	if mode != modeSplit {
 		// non-split mode changes size of the caches
 		// so we have to restore it into original size for split mode
-		c.prev.Store(newFastCacheWithCleanup(c.maxBytes / 2))
-		c.curr.Store(newFastCacheWithCleanup(c.maxBytes / 2))
+		c.prev.Store(newWithAutoCleanup(c.maxBytes / 2))
+		c.curr.Store(newWithAutoCleanup(c.maxBytes / 2))
 
-		c.mode.Store(split)
+		c.mode.Store(modeSplit)
 	}
 
 	prev.Reset()
@@ -447,12 +445,12 @@ func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
 	fcs.Corruptions += csHistory.Corruptions + csCurr.Corruptions
 
 	misses := csHistory.Misses
-	if c.mode.Load() != whole {
+	if c.mode.Load() != modeWhole {
 		// Take into account only the misses from csPrev, since csCurr misses always incur get() calls at csPrev in non-whole mode.
 		// This is needed for the proper tracking of cache misses at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9553
 		misses += csPrev.Misses
 	} else {
-		// Take into account misses from csCurr in whole mode, since csPrev isn't used in this mode.
+		// Take into account misses from csCurr in modeWhole, since csPrev isn't used in this mode.
 		misses += csCurr.Misses
 	}
 	fcs.Misses += misses
@@ -475,7 +473,7 @@ func (c *Cache) updateCacheStatsHistoryBeforeRotationLocked(prev, curr *fastcach
 
 	csHistory := &c.csHistory
 
-	if c.mode.Load() != whole {
+	if c.mode.Load() != modeWhole {
 		atomic.AddUint64(&csHistory.GetCalls, csCurr.GetCalls)
 		atomic.AddUint64(&csHistory.SetCalls, csCurr.SetCalls)
 
@@ -500,7 +498,7 @@ func (c *Cache) Get(dst, key []byte) []byte {
 		// Fast path - the entry is found in the current cache.
 		return result
 	}
-	if c.mode.Load() == whole {
+	if c.mode.Load() == modeWhole {
 		// Nothing found.
 		return result
 	}
@@ -523,7 +521,7 @@ func (c *Cache) Has(key []byte) bool {
 	if curr.Has(key) {
 		return true
 	}
-	if c.mode.Load() == whole {
+	if c.mode.Load() == modeWhole {
 		return false
 	}
 	prev := c.prev.Load()
@@ -554,7 +552,7 @@ func (c *Cache) GetBig(dst, key []byte) []byte {
 		// Fast path - the entry is found in the current cache.
 		return result
 	}
-	if c.mode.Load() == whole {
+	if c.mode.Load() == modeWhole {
 		// Nothing found.
 		return result
 	}
