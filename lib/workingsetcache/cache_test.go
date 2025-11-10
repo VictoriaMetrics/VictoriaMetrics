@@ -33,28 +33,28 @@ func TestLoadFromFileOrNewError(t *testing.T) {
 
 		testCacheEntriesEqual(t, cache, 0)
 		if !strings.Contains(logBuffer.String(), expErr) {
-			t.Fatalf("expected log message not found; got: %s", logBuffer.String())
+			t.Fatalf("unexpected log message\ngot\n%s\nmust contain\n%s", logBuffer.String(), expErr)
 		}
 	}
 
-	f("cacheDirNotExist", "missing files; init new cache")
+	f("cacheDirNotExist", "missing cache")
 
 	path := filepath.Join(t.Name(), "workingsetcache", "emptyDir")
 	if err := os.MkdirAll(path, 0777); err != nil {
 		t.Fatalf("failed to create cache directory: %v", err)
 	}
-	f(path, "missing files; init new cache")
+	f(path, "missing cache")
 
 	path = initCacheForTest(t, `missingMetadata`, 10000)
 	fs.MustRemovePath(filepath.Join(path, `metadata.bin`))
-	f(path, "missing files; init new cache")
+	f(path, "missing cache")
 
 	path = initCacheForTest(t, `invalidMetadata`, 10000)
 	fs.MustWriteSync(filepath.Join(path, `metadata.bin`), nil)
-	f(path, "invalid: cannot read maxBucketChunks")
+	f(path, "invalid cache")
 
 	path = initCacheForTest(t, `cacheMismatch`, 87654321)
-	f(path, "unexpected number of bucket chunks; got 2; want 1; init new cache")
+	f(path, "unexpected number of bucket chunks")
 }
 
 func TestLoadFromFileOrNewOK(t *testing.T) {

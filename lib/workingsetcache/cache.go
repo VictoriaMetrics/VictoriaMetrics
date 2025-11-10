@@ -99,13 +99,13 @@ func loadFromFileOrNew(filePath string, maxBytes int) *fastcache.Cache {
 	}
 
 	if errors.Is(err, os.ErrNotExist) {
-		logger.Infof("cache at path %s missing files; init new cache", filePath)
+		logger.Infof("missing cache at %s; creating new cache", filePath)
 	} else if strings.Contains(err.Error(), "unexpected number of bucket chunks") {
 		// covers the cache reset due to max memory size change at
 		// https://github.com/VictoriaMetrics/fastcache/blob/9bc541587b1df2a9198cb2a0425b9ada4005a505/file.go#L147
-		logger.Warnf("%s; init new cache", err)
+		logger.Warnf("%s; the most likely reason: changed the cache size via command-line flags during the last restart; creating new cache", err)
 	} else {
-		logger.Errorf("cache at path %s is invalid: %s; init new cache", filePath, err)
+		logger.Errorf("invalid cache at %s: %s; creating new cache", filePath, err)
 	}
 	return newFastCacheWithCleanup(maxBytes)
 }
