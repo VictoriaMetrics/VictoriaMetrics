@@ -1218,9 +1218,7 @@ func (s *Storage) mustSaveCache(c *workingsetcache.Cache, name string) {
 	defer saveCacheLock.Unlock()
 
 	path := filepath.Join(s.cachePath, name)
-	if err := c.Save(path); err != nil {
-		logger.Panicf("FATAL: cannot save cache to %q: %s", path, err)
-	}
+	c.MustSave(path)
 }
 
 // saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
