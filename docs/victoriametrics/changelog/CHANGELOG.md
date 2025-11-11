@@ -31,6 +31,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): improve overall chart rendering performance. See [#9699](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9699).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): prevent early exit when one of multiple service discovery configs (under the same service discovery type) fails. see this issue [#9949](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9949) for details.
+* BUGFIX: all VictoriaMetrics components: prevent from misleading log messages containing `init new cache` substring when opening various cache files at startup. See [9750](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9750).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix display of isolated points on the chart. See [#9666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9666).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix median value calculation displayed below series graph. See [#9926](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9926).
 

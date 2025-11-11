@@ -156,7 +156,7 @@ type Storage struct {
 	// missingMetricIDs maps metricID to the deadline in unix timestamp seconds
 	// after which all the indexdb entries for the given metricID
 	// must be deleted if index entry isn't found by the given metricID.
-	// This is used inside searchMetricNameWithCache() and getTSIDsFromMetricIDs()
+	// This is used inside searchMetricNameWithCache() and SearchTSIDs()
 	// for detecting permanently missing metricID->metricName/TSID entries.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
 	missingMetricIDsLock          sync.Mutex
@@ -608,35 +608,26 @@ type Metrics struct {
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
 
-	TSIDCacheSize                uint64
-	TSIDCacheSizeBytes           uint64
-	TSIDCacheSizeMaxBytes        uint64
-	TSIDCacheRequests            uint64
-	TSIDCacheMisses              uint64
-	TSIDCacheCollisions          uint64
-	TSIDCacheSizeEvictionBytes   uint64
-	TSIDCacheExpireEvictionBytes uint64
-	TSIDCacheMissEvictionBytes   uint64
+	TSIDCacheSize         uint64
+	TSIDCacheSizeBytes    uint64
+	TSIDCacheSizeMaxBytes uint64
+	TSIDCacheRequests     uint64
+	TSIDCacheMisses       uint64
+	TSIDCacheCollisions   uint64
 
-	MetricIDCacheSize                uint64
-	MetricIDCacheSizeBytes           uint64
-	MetricIDCacheSizeMaxBytes        uint64
-	MetricIDCacheRequests            uint64
-	MetricIDCacheMisses              uint64
-	MetricIDCacheCollisions          uint64
-	MetricIDCacheSizeEvictionBytes   uint64
-	MetricIDCacheExpireEvictionBytes uint64
-	MetricIDCacheMissEvictionBytes   uint64
+	MetricIDCacheSize         uint64
+	MetricIDCacheSizeBytes    uint64
+	MetricIDCacheSizeMaxBytes uint64
+	MetricIDCacheRequests     uint64
+	MetricIDCacheMisses       uint64
+	MetricIDCacheCollisions   uint64
 
-	MetricNameCacheSize                uint64
-	MetricNameCacheSizeBytes           uint64
-	MetricNameCacheSizeMaxBytes        uint64
-	MetricNameCacheRequests            uint64
-	MetricNameCacheMisses              uint64
-	MetricNameCacheCollisions          uint64
-	MetricNameCacheSizeEvictionBytes   uint64
-	MetricNameCacheExpireEvictionBytes uint64
-	MetricNameCacheMissEvictionBytes   uint64
+	MetricNameCacheSize         uint64
+	MetricNameCacheSizeBytes    uint64
+	MetricNameCacheSizeMaxBytes uint64
+	MetricNameCacheRequests     uint64
+	MetricNameCacheMisses       uint64
+	MetricNameCacheCollisions   uint64
 
 	DateMetricIDCacheSize        uint64
 	DateMetricIDCacheSizeBytes   uint64
@@ -706,9 +697,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.TSIDCacheRequests += cs.GetCalls
 	m.TSIDCacheMisses += cs.Misses
 	m.TSIDCacheCollisions += cs.Collisions
-	m.TSIDCacheExpireEvictionBytes += s.tsidCache.ExpireEvictionBytes.Load()
-	m.TSIDCacheMissEvictionBytes += s.tsidCache.MissEvictionBytes.Load()
-	m.TSIDCacheSizeEvictionBytes += s.tsidCache.SizeEvictionBytes.Load()
 
 	cs.Reset()
 	s.metricIDCache.UpdateStats(&cs)
@@ -718,9 +706,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricIDCacheRequests += cs.GetCalls
 	m.MetricIDCacheMisses += cs.Misses
 	m.MetricIDCacheCollisions += cs.Collisions
-	m.MetricIDCacheExpireEvictionBytes += s.metricIDCache.ExpireEvictionBytes.Load()
-	m.MetricIDCacheMissEvictionBytes += s.metricIDCache.MissEvictionBytes.Load()
-	m.MetricIDCacheSizeEvictionBytes += s.metricIDCache.SizeEvictionBytes.Load()
 
 	cs.Reset()
 	s.metricNameCache.UpdateStats(&cs)
@@ -730,9 +715,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricNameCacheRequests += cs.GetCalls
 	m.MetricNameCacheMisses += cs.Misses
 	m.MetricNameCacheCollisions += cs.Collisions
-	m.MetricNameCacheExpireEvictionBytes += s.metricNameCache.ExpireEvictionBytes.Load()
-	m.MetricNameCacheMissEvictionBytes += s.metricNameCache.MissEvictionBytes.Load()
-	m.MetricNameCacheSizeEvictionBytes += s.metricNameCache.SizeEvictionBytes.Load()
 
 	m.DateMetricIDCacheSize += uint64(s.dateMetricIDCache.EntriesCount())
 	m.DateMetricIDCacheSizeBytes += uint64(s.dateMetricIDCache.SizeBytes())
@@ -1218,9 +1200,7 @@ func (s *Storage) mustSaveCache(c *workingsetcache.Cache, name string) {
 	defer saveCacheLock.Unlock()
 
 	path := filepath.Join(s.cachePath, name)
-	if err := c.Save(path); err != nil {
-		logger.Panicf("FATAL: cannot save cache to %q: %s", path, err)
-	}
+	c.MustSave(path)
 }
 
 // saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
