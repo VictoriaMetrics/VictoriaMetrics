@@ -552,13 +552,11 @@ per each registered time series in order to speed up searching for these time se
 So the size of the `indexdb` grows proportionally to the total number of time series registered in VictoriaMetrics,
 and proportionally to the total length of all the labels seen across all the registered time series.
 
-Typical monitoring in Kubernetes generates has moderate-to-high churn rate for time series because every restart of the `pod` creates a new set of time series with a new `pod` label.
+Typical monitoring in Kubernetes generates moderate-to-high churn rate for time series because every restart of the `pod` creates a new set of time series
+for all the [metrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#what-is-a-metric) exposed by that pod, with a new `pod` label.
 The number of labels and the summary length of `label=value` pairs per every time series in Kubernetes is quite large
 (~30-40 labels with ~1KB summary length of `label=value` pairs per time series). This contributes to quick growth of the `indexdb` over time,
-so its' size may exceed the size of the `data` folder by up to 2x.
-
-VictoriaMetrics also adds per-day entries into `indexdb` for time series seen during the particular day, in order to speed up searches for time series seen at that day.
-This gradually increases `indexdb` size over time even if time series remain the same over multiple days.
+so its' size may exceed the size of the `data` folder by up to 2x in typical production cases.
 
 There are the following workarounds, which can reduce the growth rate of the `indexdb`:
 
@@ -571,6 +569,11 @@ There are the following workarounds, which can reduce the growth rate of the `in
   by using [aggregate functions at MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)
   or via [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) according
   to [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#reducing-the-number-of-stored-series).
+
+VictoriaMetrics also adds per-day entries into `indexdb` for time series seen during the particular day, in order to speed up searches for time series seen at that day.
+This gradually increases `indexdb` size over time even if time series remain the same over multiple days. If the set of monitored time series
+in your case is constant over many days, then it is a good idea to disable the per-day index and rely only on global index during queries.
+This reduces `indexdb` growth rate. See [how to disable per-day index](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning-for-low-churn-rate).
 
 Note that the [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication)
 and [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling)
