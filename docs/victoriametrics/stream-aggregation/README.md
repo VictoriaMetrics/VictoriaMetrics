@@ -48,7 +48,7 @@ can become slow, since it needs to scan too big number of unique [time series](h
 with `http_request_duration_seconds_bucket` name. This alerting query can be accelerated by pre-calculating
 the `sum(increase(http_request_duration_seconds_bucket[5m])) without (instance)` via [recording rule](https://docs.victoriametrics.com/victoriametrics/vmalert/#recording-rules).
 But this recording rule may take too much time to execute too. In this case the slow recording rule can be substituted
-with the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config):
+with the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config):
 
 ```yaml
 - match: 'http_request_duration_seconds_bucket'
@@ -79,7 +79,7 @@ in slow queries, since too much data must be processed during queries.
 
 This can be fixed with the stream aggregation by increasing the interval between per-series samples stored in the database.
 
-For example, the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) reduces the frequency of input samples
+For example, the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) reduces the frequency of input samples
 to one sample per 5 minutes per each input time series (this operation is also known as downsampling):
 
 ```yaml
@@ -143,7 +143,7 @@ If the monitored application generates event-based metrics, then it may be usefu
 at stream aggregation level.
 
 For example, if an advertising server generates `hits{some="labels"} 1` and `clicks{some="labels"} 1` metrics
-per each incoming hit and click, then the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config)
+per each incoming hit and click, then the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config)
 can be used for counting these metrics per every 30 second interval:
 
 ```yaml
@@ -170,7 +170,7 @@ at irregular intervals or at too high frequency, then stream aggregation can be 
 and writing the aggregate sums to the storage at regular intervals.
 
 For example, if an advertising server generates `hits{some="labels} N` and `clicks{some="labels"} M` metrics
-at irregular intervals, then the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config)
+at irregular intervals, then the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config)
 can be used for summing these metrics per every minute:
 
 ```yaml
@@ -195,7 +195,7 @@ If the monitored application generates measurement metrics per each request, the
 the pre-defined set of [percentiles](https://en.wikipedia.org/wiki/Percentile) over these measurements.
 
 For example, if the monitored application generates `request_duration_seconds N` and `response_size_bytes M` metrics
-per each incoming request, then the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config)
+per each incoming request, then the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config)
 can be used for calculating 50th and 99th percentiles for these metrics every 30 seconds:
 
 ```yaml
@@ -225,7 +225,7 @@ If the monitored application generates measurement metrics per each request, the
 a [histogram](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) over these metrics.
 
 For example, if the monitored application generates `request_duration_seconds N` and `response_size_bytes M` metrics
-per each incoming request, then the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config)
+per each incoming request, then the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config)
 can be used for calculating [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 for these metrics every 60 seconds:
 
@@ -352,7 +352,7 @@ before sending them to the configured `-remoteWrite.url`. The de-duplication can
   The de-deduplication is performed after applying [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) and
   before performing the aggregation.
 
-- By specifying `dedup_interval` option individually per each [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) 
+- By specifying `dedup_interval` option individually per each [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config)
   in `-remoteWrite.streamAggr.config` or `-streamAggr.config` configs.
 
 [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) supports two types of de-duplication:
@@ -363,7 +363,7 @@ before sending them to the configured `-remoteWrite.url`. The de-duplication can
     seen [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) per every 30 seconds.
     The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling).
 
-  - By specifying `dedup_interval` option individually per each [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) at `-streamAggr.config`.
+  - By specifying `dedup_interval` option individually per each [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) at `-streamAggr.config`.
 
 It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
 
@@ -374,7 +374,7 @@ De-deuplication is applied before stream aggreation rules and can drop samples b
 # Relabeling
 
 It is possible to apply [arbitrary relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) to input and output metrics
-during stream aggregation via `input_relabel_configs` and `output_relabel_configs` options in [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+during stream aggregation via `input_relabel_configs` and `output_relabel_configs` options in [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
 Relabeling rules inside `input_relabel_configs` are applied to samples matching the `match` filters before optional [deduplication](#deduplication).
 Relabeling rules inside `output_relabel_configs` are applied to aggregated samples before sending them to the remote storage.
@@ -405,14 +405,14 @@ See also [dropping unneeded labels](#dropping-unneeded-labels).
 ## Ignoring old samples
 
 By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps 
-outside the current [aggregation interval](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) must be ignored, then the following options can be used:
+outside the current [aggregation interval](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) must be ignored, then the following options can be used:
 
 - To pass `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
   or to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). At [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
   `-remoteWrite.streamAggr.ignoreOldSamples` flag can be specified individually per each `-remoteWrite.url`.
-  This enables ignoring old samples for all the [aggregation configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+  This enables ignoring old samples for all the [aggregation configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
-- To set `ignore_old_samples: true` option at the particular [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+- To set `ignore_old_samples: true` option at the particular [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
   This enables ignoring old samples for that particular aggregation config.
 
 ## Ignore aggregation intervals on start
@@ -420,15 +420,15 @@ outside the current [aggregation interval](https://docs.victoriametrics.com/vict
 Streaming aggregation results may be incorrect for some time after the restart of [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 or [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) until all the buffered [samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
 are sent from remote sources to the `vmagent` or single-node VictoriaMetrics via [supported data ingestion protocols](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-push-data-to-vmagent).
-In this case it may be a good idea to drop the aggregated data during the first `N` [aggregation intervals](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config)
+In this case it may be a good idea to drop the aggregated data during the first `N` [aggregation intervals](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config)
 just after the restart of `vmagent` or single-node VictoriaMetrics. This can be done via the following options:
 
 - The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
-  [aggregation intervals](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) just after the restart across all the [configured stream aggregation configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/).
+  [aggregation intervals](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) just after the restart across all the [configured stream aggregation configs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/).
 
   The `-remoteWrite.streamAggr.ignoreFirstIntervals` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
 
-- The `ignore_first_intervals: N` option at the particular [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+- The `ignore_first_intervals: N` option at the particular [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
 See also:
 
@@ -437,19 +437,19 @@ See also:
 
 ## Flush time alignment
 
-By default, the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+By default, the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
 For example:
 
 - if `interval: 1m` is set, then the aggregated data is flushed to the storage at the end of every minute
 - if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
 
-If you do not need such an alignment, then set `no_align_flush_to_interval: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+If you do not need such an alignment, then set `no_align_flush_to_interval: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 In this case aggregated data flushes will be aligned to the `vmagent` start time or to [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update) time.
 
 The aggregated data on the first and the last interval is dropped during `vmagent` start, restart or [config reload](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#configuration-update),
 since the first and the last aggregation intervals are incomplete, so they usually contain incomplete confusing data.
-If you need preserving the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+If you need preserving the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
 See also:
 
@@ -465,24 +465,24 @@ Output metric names for stream aggregation are constructed according to the foll
 ```
 
 - `<metric_name>` is the original metric name.
-- `<interval>` is the interval specified in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
-- `<by_labels>` is `_`-delimited sorted list of `by` labels specified in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+- `<interval>` is the interval specified in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
+- `<by_labels>` is `_`-delimited sorted list of `by` labels specified in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
   If the `by` list is missing in the config, then the `_by_<by_labels>` part isn't included in the output metric name.
-- `<without_labels>` is an optional `_`-delimited sorted list of `without` labels specified in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+- `<without_labels>` is an optional `_`-delimited sorted list of `without` labels specified in the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
   If the `without` list is missing in the config, then the `_without_<without_labels>` part isn't included in the output metric name.
 - `<output>` is the aggregate used for constructing the output metric. The aggregate name is taken from the `outputs` list
-  at the corresponding [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+  at the corresponding [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
 Both input and output metric names can be modified if needed via relabeling according to [these docs](#relabeling).
 
-It is possible to leave the original metric name after the aggregation by specifying `keep_metric_names: true` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+It is possible to leave the original metric name after the aggregation by specifying `keep_metric_names: true` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 The `keep_metric_names` option can be used if only a single output is set in [`outputs` list](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-outputs).
 
 ## Aggregating by labels
 
 All the labels for the input metrics are preserved by default in the output metrics. For example,
 the input metric `foo{app="bar",instance="host1"}` results to the output metric `foo:1m_sum_samples{app="bar",instance="host1"}`
-when the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) is used:
+when the following [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) is used:
 
 ```yaml
 - interval: 1m
@@ -555,7 +555,7 @@ while `instance` is dropped for the `bar` target:
   -remoteWrite.streamAggr.dropInputLabels="instance"
 ```
 
-**Config based label drop** can be defined within the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) using the `drop_input_labels` key.
+**Config based label drop** can be defined within the [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) using the `drop_input_labels` key.
 This method applies to configurations provided via either the `-streamAggr.config` or `-remoteWrite.streamAggr.config` flag.
 When specified, `drop_input_labels` takes precedence over any label drop definitions set via flags.
 
@@ -598,7 +598,7 @@ the following settings:
   `-remoteWrite.streamAggr.enableWindows` flag can be specified individually per each `-remoteWrite.url`.
   If one of these flags is set, then all aggregators will be using fixed windows. In conjunction with `-remoteWrite.streamAggr.dedupInterval` or
   `-streamAggr.dedupInterval` fixed aggregation windows are enabled on deduplicator as well.
- - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregation-config).
+ - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#stream-aggregation-config).
   It allows enabling aggregation windows for a specific aggregator.
 
 ## Staleness
@@ -614,7 +614,7 @@ The following outputs track the last seen per-series values in order to properly
 - [total_prometheus](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#total_prometheus)
 
 The last seen per-series value is dropped if no new samples are received for the given time series during two consecutive aggregation
-intervals specified in [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config) via `interval` option.
+intervals specified in [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config) via `interval` option.
 If a new sample for the existing time series is received after that, then it is treated as the first sample for a new time series.
 This may lead to the following issues:
 
@@ -624,18 +624,18 @@ This may lead to the following issues:
 
 These issues can be fixed in the following ways:
 
-- By increasing the `interval` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config), so it covers the expected
+- By increasing the `interval` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines.
-- By specifying the `staleness_interval` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config), so it covers the expected
+- By specifying the `staleness_interval` option at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines. By default, the `staleness_interval` equals to `2 x interval`.
 
 ## High resource usage
 
 The following solutions can help reducing memory usage and CPU usage during streaming aggregation:
 
-- To use more specific `match` filters at [streaming aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config), so only the really needed
+- To use more specific `match` filters at [streaming aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config), so only the really needed
   [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) are aggregated.
-- To increase aggregation interval by specifying bigger duration for the `interval` option at [streaming aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+- To increase aggregation interval by specifying bigger duration for the `interval` option at [streaming aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 - To generate lower number of output time series by using less specific [`by` list](#aggregating-by-labels) or more specific [`without` list](#aggregating-by-labels).
 - To drop unneeded long labels in input samples via [input_relabel_configs](#relabeling).
 
@@ -737,7 +737,7 @@ Moved to [stream-aggregation/configuration](https://docs.victoriametrics.com/vic
 
 ###### Stream aggregation config
 
-Moved to [stream-aggregation/configuration/#aggregation-config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+Moved to [stream-aggregation/configuration/#stream-aggregation-config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
 ###### Configuration update
 
