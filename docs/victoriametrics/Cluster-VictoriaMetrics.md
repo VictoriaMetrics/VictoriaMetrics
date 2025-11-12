@@ -960,6 +960,14 @@ deduplication can't be guaranteed when samples and sample duplicates for the sam
 It is recommended to set **the same** `-dedup.minScrapeInterval` command-line flag value to both `vmselect` and `vmstorage` nodes
 to ensure query results consistency, even if storage layer didn't complete deduplication yet.
 
+## Metrics Metadata
+
+Cluster version of VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "#" %}}.
+Metadata ingestion and querying are disabled by default. To enable them, set `-enableMetadata=true` on `vmselect`, `vminsert`, and `vmagent`.
+
+The metadata is stored in memory and can use up to 1% of available memory by default. The size could be adjusted by `-storage.maxMetadataStorageSize` flag.
+Please note that metadata is lost after `vmstorage` restarts. It is ingested independently from metrics, so a metric may exist without metadata, and vice versa.
+
 ## Backups
 
 For backup configuration, please refer for [vmbackup documentation](https://docs.victoriametrics.com/victoriametrics/vmbackup/).
