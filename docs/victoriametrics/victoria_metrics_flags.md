@@ -495,7 +495,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -search.maxTSDBStatusSeries int
      The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
   -search.maxTSDBStatusTopNSeries int
-     The maximum value of topN argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats (default 1000)
+     The maximum value of 'topN' argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats (default 1000)
   -search.maxTagKeys int
      The maximum number of tag keys returned from /api/v1/labels . See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxTagValueSuffixesPerSearch int
