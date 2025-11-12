@@ -1387,6 +1387,9 @@ Metadata ingestion and querying are disabled by default. To enable them, set `-e
 The metadata is stored in memory and can use up to 1% of available memory by default. The size could be adjusted by `-storage.maxMetadataStorageSize` flag.
 Please note that metadata is lost after restarts. It is ingested independently from metrics, so a metric may exist without metadata, and vice versa.
 
+Metadata can be queried via the `/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
+See [/api/v1/metadata](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1metadata) example.
+
 ## Storage
 
 VictoriaMetrics buffers the ingested data in memory for up to a second. Then the buffered data is written to in-memory `parts`,
