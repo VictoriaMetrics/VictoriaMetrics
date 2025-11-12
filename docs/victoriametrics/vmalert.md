@@ -913,29 +913,29 @@ Try the following tips to avoid common issues:
 1. Always set [group's interval](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) to be **equal to or greater than**
    the [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
 1. Don't set labels with dynamic values to `labels` [param](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules).
-    * 👉 Example: setting `label: {{$value}}` to the rule will break its [alert state tracking](https://docs.victoriametrics.com/victoriametrics/vmalert/#alert-state)
+    * Example: setting `label: {{$value}}` to the rule will break its [alert state tracking](https://docs.victoriametrics.com/victoriametrics/vmalert/#alert-state)
       because every evaluation could change the `label` value. If you need to attach `$value` to the alert notification - add it to `annotations` instead.
 1. vmalert runs [instant queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) during rule evaluation
-   using the `&step` parameter, which defaults  to `-datasource.queryStep` (default is `5m`).
+   using the `step` parameter, which defaults  to `-datasource.queryStep` (default is `5m`).
    In VictoriaMetrics, `step` controls how far back the query can look for a recent datapoint.
    If [series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution)
    is `>=5m`, the query might return no data.
-   * 👉 To fix this, set `-datasource.queryStep` to value at least **2x larger** than the resolution.
+   * To fix this, set `-datasource.queryStep` to value at least **2x larger** than the resolution.
      You can also set `step` per group using the `params` setting.
 1. Be careful when chaining rules. If rule B uses results from rule A, make sure rule A is evaluated with an
    interval **less than 5 minutes** (or less than `-datasource.queryStep`). Otherwise, rule B might get empty results during evaluation.
    See how to [chain groups](https://docs.victoriametrics.com/victoriametrics/vmalert/#chaining-groups).
 1. Don't skip `[lookbehind-window]` in rollup functions.
-   * 👉 Example: `rate(errors_total) > 0`. MetricsQL [allows omitting lookbehind window](https://docs.victoriametrics.com/victoriametrics/metricsql/#metricsql-features)
+   * Example: `rate(errors_total) > 0`. MetricsQL [allows omitting lookbehind window](https://docs.victoriametrics.com/victoriametrics/metricsql/#metricsql-features)
    but that works well only with [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
    For [instant requests](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) setting window
    makes the query predictable.
 1. Make sure the `[lookbehind-window]` in your expression is at least **2× larger** than [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
-    * 👉 Example: in `rate(my_metric[2m]) > 0`, ensure that `my_metric` is scraped every 1 minute or better, every 30 seconds.
+    * Example: in `rate(my_metric[2m]) > 0`, ensure that `my_metric` is scraped every 1 minute or better, every 30 seconds.
 1. Increase `[lookbehind-window]` to help tolerate data delays.
-   * 👉 Example: `max_over_time(node_memory_MemAvailable_bytes[10m]) > 0` will still work even if no data was present in the last 9 minutes.
+   * Example: `max_over_time(node_memory_MemAvailable_bytes[10m]) > 0` will still work even if no data was present in the last 9 minutes.
 1. Don't skip step in [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries).
-   * 👉 Example: `sum(count_over_time((metric == 0)[1h:]))` is missing a step after `1h:`.
+   * Example: `sum(count_over_time((metric == 0)[1h:]))` is missing a step after `1h:`.
     In that case, the default step will be used (`-datasource.queryStep`) and may cause unexpected results compared to
     executing this query in vmui/Grafana, where step is adjusted differently.
 
