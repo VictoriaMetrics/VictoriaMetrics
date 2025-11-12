@@ -1882,6 +1882,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 					}
+					s.invalidRawMetricNames.Add(1)
 					continue
 				}
 				mn.sortTags()
@@ -1922,8 +1923,6 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		// Slowest path - there isCurr no TSID in indexdb for the given mr.MetricNameRaw. Create it.
 		generateTSID(&genTSID.TSID, mn)
 
-		// Schedule creating TSID indexes instead of creating them synchronously.
-		// This should keep stable the ingestion rate when new time series are ingested.
 		createAllIndexesForMetricName(idbCurr, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
 		s.storeTSIDToCache(&genTSID, mr.MetricNameRaw)
