@@ -181,6 +181,7 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheIgnoredDupes uint64
 	TagFiltersToMetricIDsCacheIgnoredNoCap uint64
+	TagFiltersToMetricIDsCacheResets       uint64
 
 	IndexDBRefCount uint64
 
@@ -227,6 +228,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheMisses += cs.misses
 	m.TagFiltersToMetricIDsCacheIgnoredDupes += cs.ignoredDupes
 	m.TagFiltersToMetricIDsCacheIgnoredNoCap += cs.ignoredNoCap
+	m.TagFiltersToMetricIDsCacheResets += cs.resets
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
