@@ -38,6 +38,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
 - [Roblox](#roblox)
 - [Sensedia](#sensedia)
 - [Smarkets](#smarkets)
+- [Spotify](#spotify)
 - [Synthesio](#synthesio)
 - [Wedos.com](#wedoscom)
 - [Wix.com](#wixcom)
@@ -553,6 +554,41 @@ Numbers:
 > We selected Victoria Metrics. Our new architecture has been very stable since it was put into production. With the previous setup we would have had two or three cardinality explosions in a two-week period, with this new one we have none.
 
 See [the full article](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3).
+
+## Spotify
+
+[Spotify](https://spotify.com/) is the largest provider of music streaming services.
+
+Spotify was using an internally developed observability system - [Heroic](https://spotify.github.io/heroic/docs/overview).
+This system had performance and scalability issues, so they started searching for the replacement, which satisfies the following requirements:
+
+- Low latency for data ingestion, querying and alerts
+- Open source and aligned with Prometheus ecosystem
+- Cost efficient with low operational overhead
+- Compatible with Grafana and PromQL
+- Scalable alerting
+- Active community
+
+Five different solutions matching these requirements were evaluated, and VictoriaMetrics was selected
+as a clear winner after running a proof of concept for a production-like workload on these solutions.
+
+The migration from Heroic to VictoriaMetrics was very smooth across internal teams at Spotify
+who relied on the observability provided by Heroic. Here are some quotes from these teams after the migration is complete:
+
+> What strikes me is how fast our panels load. Looking at the time span over 6 hours
+> with high granularity was impossible before but is now doable with the new platform.
+
+> I'm loving the new Grafana. Feels faster and more up-to-date on features.
+
+> This graph is the most beatiful thing I've seen in a long while. It's been literally years since I've seen something like that!
+
+Migration results:
+
+- 10x faster queries
+- Significant cost savings
+- Improved dashboards, more accurate metrics and alerts
+
+See [the talk from the observability team at Spotify](https://www.youtube.com/watch?v=87koDlpKDR4).
 
 ## Synthesio
 

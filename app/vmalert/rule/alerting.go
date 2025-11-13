@@ -246,16 +246,6 @@ func (ar *AlertingRule) GetAlerts() []*notifier.Alert {
 	return alerts
 }
 
-// GetAlert returns alert if id exists
-func (ar *AlertingRule) GetAlert(id uint64) *notifier.Alert {
-	ar.alertsMu.RLock()
-	defer ar.alertsMu.RUnlock()
-	if ar.alerts == nil {
-		return nil
-	}
-	return ar.alerts[id]
-}
-
 func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...any) {
 	if !ar.Debug {
 		return
@@ -321,6 +311,11 @@ type labelSet struct {
 // On k conflicts in origin set, the original value is preferred and copied
 // to processed with `exported_%k` key. The copy happens only if passed v isn't equal to origin[k] value.
 func (ls *labelSet) add(k, v string) {
+	// do not add label with empty value, since it has no meaning.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9984
+	if v == "" {
+		return
+	}
 	ls.processed[k] = v
 	ov, ok := ls.origin[k]
 	if !ok {
