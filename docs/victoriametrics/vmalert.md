@@ -954,8 +954,8 @@ The rows in this section show the rule's evaluations in order, along with their 
 
 Every state has the following attributes:
 
-1. `Updated at` - the actual time when vmalert ran this rule.
-1. `Executed at` - the `time` param that was sent to the datasource with evaluation request.
+1. `Updated at` - the actual time when vmalert executed this rule.
+1. `Execution timestamp` - the `time` param that was sent to the datasource with evaluation request.
 1. `Series returned` - the number of series returned in this evaluation:
     * A recording rule with 0 series means it produced no results;
     * An alerting rule with 0 series means the rule is in inactive state.
