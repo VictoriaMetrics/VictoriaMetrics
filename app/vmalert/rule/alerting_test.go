@@ -1373,7 +1373,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 			"instance":      "override", // this should override instance with new value
 			"group":         "vmalert",  // this shouldn't have effect since value in metric is equal
 			"invalid_label": "{{ .Values.mustRuntimeFail }}",
-      "empty_label": "",         // this should be dropped
+			"empty_label":   "", // this should be dropped
 		},
 		Expr:      "sum(vmalert_alerting_rules_error) by(instance, group, alertname) > 0",
 		Name:      "AlertingRulesError",
