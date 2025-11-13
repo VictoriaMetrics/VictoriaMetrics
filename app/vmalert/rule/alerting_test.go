@@ -1370,8 +1370,9 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 
 	ar := &AlertingRule{
 		Labels: map[string]string{
-			"instance": "override", // this should override instance with new value
-			"group":    "vmalert",  // this shouldn't have effect since value in metric is equal
+			"instance":    "override", // this should override instance with new value
+			"group":       "vmalert",  // this shouldn't have effect since value in metric is equal
+			"empty_label": "",         // this should be dropped
 		},
 		Expr:      "sum(vmalert_alerting_rules_error) by(instance, group, alertname) > 0",
 		Name:      "AlertingRulesError",

@@ -311,6 +311,11 @@ type labelSet struct {
 // On k conflicts in origin set, the original value is preferred and copied
 // to processed with `exported_%k` key. The copy happens only if passed v isn't equal to origin[k] value.
 func (ls *labelSet) add(k, v string) {
+	// do not add label with empty value, since it has no meaning.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9984
+	if v == "" {
+		return
+	}
 	ls.processed[k] = v
 	ov, ok := ls.origin[k]
 	if !ok {
