@@ -246,16 +246,6 @@ func (ar *AlertingRule) GetAlerts() []*notifier.Alert {
 	return alerts
 }
 
-// GetAlert returns alert if id exists
-func (ar *AlertingRule) GetAlert(id uint64) *notifier.Alert {
-	ar.alertsMu.RLock()
-	defer ar.alertsMu.RUnlock()
-	if ar.alerts == nil {
-		return nil
-	}
-	return ar.alerts[id]
-}
-
 func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...any) {
 	if !ar.Debug {
 		return
