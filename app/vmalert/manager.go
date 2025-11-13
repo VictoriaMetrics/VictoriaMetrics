@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
@@ -45,13 +46,14 @@ func (m *manager) ruleAPI(gID, rID uint64) (rule.ApiRule, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
-	g, ok := m.groups[gID]
+	group, ok := m.groups[gID]
 	if !ok {
 		return rule.ApiRule{}, fmt.Errorf("can't find group with id %d", gID)
 	}
+	g := group.ToAPI()
 	for _, r := range g.Rules {
-		if r.ID() == rID {
-			return r.ToAPI(), nil
+		if r.ID == strconv.FormatUint(rID, 10) {
+			return r, nil
 		}
 	}
 	return rule.ApiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
@@ -62,17 +64,20 @@ func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
-	g, ok := m.groups[gID]
+	group, ok := m.groups[gID]
 	if !ok {
 		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
+	g := group.ToAPI()
 	for _, r := range g.Rules {
-		ar, ok := r.(*rule.AlertingRule)
-		if !ok {
+		if r.Type != rule.TypeAlerting {
 			continue
 		}
-		if apiAlert := ar.AlertToAPI(aID); apiAlert != nil {
-			return apiAlert, nil
+		for _, a := range r.Alerts {
+			if a.ID == strconv.FormatUint(aID, 10) {
+				return a, nil
+			}
+
 		}
 	}
 	return nil, fmt.Errorf("can't find alert with id %d in group %q", aID, g.Name)
