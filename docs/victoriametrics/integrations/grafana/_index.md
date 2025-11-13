@@ -52,7 +52,7 @@ in Grafana. Follow the same connection instructions as for [VictoriaMetrics data
 In the "Type and version" section set the type to "Prometheus" and the version to at least "2.24.x".
 This allows Grafana to use a more efficient API to get label values:
 
-![Datasource](grafana-datasource-prometheus.webp)
+![Datasource](datasource-prometheus.webp)
 
 Once connected, you can build graphs and dashboards using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 

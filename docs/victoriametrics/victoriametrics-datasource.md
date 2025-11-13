@@ -1,10 +1,6 @@
 ---
 title: Grafana datasource
 editLink: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
-build:
-  list: never
-  publishResources: false
-  render: never
 sitemap:
   disable: true
 aliases:
@@ -13,4 +9,4 @@ aliases:
 - /grafana-datasource/
 - /grafana-datasource.html
 ---
-{{% content "integrations/grafana/README.md" %}}
+{{% content "integrations/grafana/datasource/_index.md" %}}
