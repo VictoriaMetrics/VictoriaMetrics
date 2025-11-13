@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestTagFiltersCache(t *testing.T) {
@@ -52,4 +53,72 @@ func TestTagFiltersCache_EmptyMetricIDs(t *testing.T) {
 
 	f(&uint64set.Set{})
 	f(nil)
+}
+
+func TestTagFiltersCache_Stats(t *testing.T) {
+	maxBytesSize := uint64(getTagFiltersCacheSize())
+	metricIDs := func(items ...uint64) *uint64set.Set {
+		v := &uint64set.Set{}
+		v.AddMulti(items)
+		return v
+	}
+	c := newTagFiltersCache()
+	assertStats := func(want tagFiltersCacheStats) {
+		t.Helper()
+		got := c.stats()
+		if diff := cmp.Diff(want, got, cmp.AllowUnexported(tagFiltersCacheStats{})); diff != "" {
+			t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
+		}
+	}
+
+	assertStats(tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+	})
+
+	k1 := []byte("k1")
+	v1 := metricIDs(1, 100, 1000, 10000)
+	c.set(nil, v1, k1)
+	assertStats(tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
+	})
+
+	if _, ok := c.get(nil, k1); !ok {
+		t.Fatalf("missing entry for key %v", k1)
+	}
+	assertStats(tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
+		getCalls:     1,
+	})
+
+	k2 := []byte("non-existent")
+	if _, ok := c.get(nil, k2); ok {
+		t.Fatalf("unexpected entry for key %v", k2)
+	}
+	assertStats(tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
+		getCalls:     2,
+		misses:       1,
+	})
+
+	// Duplicates are ignored.
+	v2 := metricIDs(2, 200, 2000, 20000)
+	c.set(nil, v2, k1)
+	assertStats(tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
+		getCalls:     2,
+		misses:       1,
+	})
+
+	c.reset()
+	assertStats(tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+	})
 }
