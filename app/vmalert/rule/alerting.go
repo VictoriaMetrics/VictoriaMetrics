@@ -350,9 +350,6 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		Value:  m.Values[0],
 		Expr:   ar.Expr,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to expand labels: %w", err)
-	}
 	for k, v := range extraLabels {
 		ls.add(k, v)
 	}
@@ -363,7 +360,7 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 	if !*disableAlertGroupLabel && ar.GroupName != "" {
 		ls.add(alertGroupNameLabel, ar.GroupName)
 	}
-	return ls, nil
+	return ls, err
 }
 
 // execRange executes alerting rule on the given time range similarly to exec.
@@ -479,8 +476,9 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	for i, m := range res.Data {
 		ls, err := ar.expandLabelTemplates(m, qFn)
 		if err != nil {
+			// only set error in current state, but do not break alert processing
 			curState.Err = err
-			return nil, curState.Err
+			logger.Errorf("got templating error in rule %s: %q", ar.Name, err)
 		}
 		at := ts
 		alertID := hash(ls.processed)
@@ -492,8 +490,9 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 		as, err := ar.expandAnnotationTemplates(m, qFn, at, ls)
 		if err != nil {
+			// only set error in current state, but do not break alert processing
 			curState.Err = err
-			return nil, curState.Err
+			logger.Errorf("got templating error in rule %s: %q", ar.Name, err)
 		}
 		expandedLabels[i] = ls
 		expandedAnnotations[i] = as
@@ -602,7 +601,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 func (ar *AlertingRule) expandLabelTemplates(m datasource.Metric, qFn templates.QueryFn) (*labelSet, error) {
 	ls, err := ar.toLabels(m, qFn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand label templates: %s", err)
+		return ls, fmt.Errorf("failed to expand label templates: %s", err)
 	}
 	return ls, nil
 }
@@ -620,7 +619,7 @@ func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templ
 	}
 	as, err := notifier.ExecTemplate(qFn, ar.Annotations, tplData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to expand annotation templates: %s", err)
+		return as, fmt.Errorf("failed to expand annotation templates: %s", err)
 	}
 	return as, nil
 }
