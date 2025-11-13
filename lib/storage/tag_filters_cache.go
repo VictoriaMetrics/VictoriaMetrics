@@ -77,8 +77,9 @@ func (c *tagFiltersCache) set(qt *querytracer.Tracer, metricIDs *uint64set.Set, 
 		return
 	}
 
+	bytesSize := uint64(len(key)) + metricIDs.SizeBytes()
 	// Do not add new entry if the total bytesSize will exceed maxBytesSize.
-	if c.s.bytesSize+uint64(len(key))+metricIDs.SizeBytes() > c.s.maxBytesSize {
+	if c.s.bytesSize+bytesSize > c.s.maxBytesSize {
 		qt.Printf("could not store: cache is full")
 		return
 	}
@@ -90,6 +91,7 @@ func (c *tagFiltersCache) set(qt *querytracer.Tracer, metricIDs *uint64set.Set, 
 
 	c.m[string(keyCopy)] = metricIDs.Clone()
 	c.s.entriesCount++
+	c.s.bytesSize += bytesSize
 
 	qt.Printf("stored %d metricIDs to cache", metricIDs.Len())
 }
