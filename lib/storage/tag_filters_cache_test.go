@@ -115,6 +115,7 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 	c.reset()
 	assertTagFiltersCacheStats(t, c, tagFiltersCacheStats{
 		maxBytesSize: maxBytesSize,
+		resets:       1,
 	})
 }
 

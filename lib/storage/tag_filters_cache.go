@@ -49,6 +49,7 @@ type tagFiltersCacheStats struct {
 	misses       uint64
 	ignoredDupes uint64
 	ignoredNoCap uint64
+	resets       uint64
 }
 
 type tagFiltersCache struct {
@@ -129,5 +130,6 @@ func (c *tagFiltersCache) reset() {
 	c.m = make(map[string]*uint64set.Set)
 	c.s = tagFiltersCacheStats{
 		maxBytesSize: c.s.maxBytesSize,
+		resets:       c.s.resets + 1,
 	}
 }
