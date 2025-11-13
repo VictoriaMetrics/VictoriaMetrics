@@ -185,6 +185,8 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheSizeMaxBytes uint64
 	TagFiltersToMetricIDsCacheRequests     uint64
 	TagFiltersToMetricIDsCacheMisses       uint64
+	TagFiltersToMetricIDsCacheIgnoredDupes uint64
+	TagFiltersToMetricIDsCacheIgnoredNoCap uint64
 
 	DateMetricIDCacheSize        uint64
 	DateMetricIDCacheSizeBytes   uint64
@@ -234,6 +236,8 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheSizeMaxBytes += cs.maxBytesSize
 	m.TagFiltersToMetricIDsCacheRequests += cs.getCalls
 	m.TagFiltersToMetricIDsCacheMisses += cs.misses
+	m.TagFiltersToMetricIDsCacheIgnoredDupes += cs.ignoredDupes
+	m.TagFiltersToMetricIDsCacheIgnoredNoCap += cs.ignoredNoCap
 
 	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
 	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())

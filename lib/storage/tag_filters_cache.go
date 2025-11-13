@@ -47,6 +47,8 @@ type tagFiltersCacheStats struct {
 	maxBytesSize uint64
 	getCalls     uint64
 	misses       uint64
+	ignoredDupes uint64
+	ignoredNoCap uint64
 }
 
 type tagFiltersCache struct {
@@ -74,6 +76,7 @@ func (c *tagFiltersCache) set(qt *querytracer.Tracer, metricIDs *uint64set.Set, 
 	// Need to check if the entry is present to calculate the total bytesSize
 	// correctly.
 	if _, ok := c.m[string(key)]; ok {
+		c.s.ignoredDupes++
 		return
 	}
 
@@ -81,6 +84,7 @@ func (c *tagFiltersCache) set(qt *querytracer.Tracer, metricIDs *uint64set.Set, 
 	// Do not add new entry if the total bytesSize will exceed maxBytesSize.
 	if c.s.bytesSize+bytesSize > c.s.maxBytesSize {
 		qt.Printf("could not store: cache is full")
+		c.s.ignoredNoCap++
 		return
 	}
 

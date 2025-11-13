@@ -109,6 +109,7 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
 		getCalls:     2,
 		misses:       1,
+		ignoredDupes: 1,
 	})
 
 	c.reset()
@@ -146,6 +147,7 @@ func TestTagFiltersCache_Utilization(t *testing.T) {
 		if i > maxEntries {
 			want.entriesCount = maxEntries
 			want.bytesSize = maxBytesSize
+			want.ignoredNoCap = i - maxEntries
 		}
 		assertTagFiltersCacheStats(t, c, want)
 	}
