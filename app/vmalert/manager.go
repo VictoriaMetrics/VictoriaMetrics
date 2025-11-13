@@ -51,8 +51,9 @@ func (m *manager) ruleAPI(gID, rID uint64) (rule.ApiRule, error) {
 		return rule.ApiRule{}, fmt.Errorf("can't find group with id %d", gID)
 	}
 	g := group.ToAPI()
+	ruleID := strconv.FormatUint(rID, 10)
 	for _, r := range g.Rules {
-		if r.ID == strconv.FormatUint(rID, 10) {
+		if r.ID == ruleID {
 			return r, nil
 		}
 	}
@@ -73,11 +74,11 @@ func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
 		if r.Type != rule.TypeAlerting {
 			continue
 		}
+		alertID := strconv.FormatUint(aID, 10)
 		for _, a := range r.Alerts {
-			if a.ID == strconv.FormatUint(aID, 10) {
+			if a.ID == alertID {
 				return a, nil
 			}
-
 		}
 	}
 	return nil, fmt.Errorf("can't find alert with id %d in group %q", aID, g.Name)
