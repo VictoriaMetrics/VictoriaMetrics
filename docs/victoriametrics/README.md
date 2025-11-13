@@ -249,10 +249,11 @@ VictoriaMetrics has the following publicly available demo resources:
   3 cluster installations for the recent OS and LTS versions running under the constant benchmark.
 1. [https://play-vmlogs.victoriametrics.com/](https://play-vmlogs.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) of VictoriaLogs installation.
    It is available for testing the query engine on demo logs set.
+1. [https://play-vtraces.victoriametrics.com/](https://play-vmlogs.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) of VictoriaTraces installation.
+   It is available for testing the query engine on demo traces set.
 
-Additionally, we provide a [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics)
-for VictoriaMetrics and VictoriaLogs components. They are already configured, provisioned and interconnected.
-It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
+Additionally, we provide a docker-compose environment for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md), [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md) and [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
+They are already configured, provisioned and interconnected. It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
 
 ## How to upgrade VictoriaMetrics
 
