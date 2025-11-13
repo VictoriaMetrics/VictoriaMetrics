@@ -1,11 +1,11 @@
 ---
-weight: 5
+weight: 6
 title: FAQ
 menu:
   docs:
     identifier: "vmanomaly-faq"
     parent: "anomaly-detection"
-    weight: 5
+    weight: 6
 aliases:
 - /anomaly-detection/FAQ.html
 ---
@@ -132,6 +132,10 @@ Please refer to the [state restoration section](https://docs.victoriametrics.com
 ## Deploying vmanomaly
 
 `vmanomaly` can be deployed in various environments, including Docker, Kubernetes, and VM Operator. For detailed deployment instructions, refer to the [QuickStart section](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly).
+
+## Migration
+
+For information on migrating between different versions of `vmanomaly`, please refer to the [Migration section](https://docs.victoriametrics.com/anomaly-detection/migration/) for compatibility considerations and steps for a smooth transition.
 
 ## Choosing the right model for vmanomaly
 Selecting the best model for `vmanomaly` depends on the data's nature and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) to detect. For instance, [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet).
@@ -397,7 +401,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.26.2
+    image: victoriametrics/vmanomaly:v1.27.1
     # ...
     ports:
       - "8490:8490"
@@ -612,7 +616,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.26.2 && docker image tag victoriametrics/vmanomaly:v1.26.2 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.27.1 && docker image tag victoriametrics/vmanomaly:v1.27.1 vmanomaly
 ```
 
 ```sh

@@ -21,7 +21,7 @@ The scope of the failure you are designing for is your **"blast radius".** Befor
 
 It is also crucial to distinguish between two fundamental goals:
 
-* **Resilience (or Availability)** is about surviving failures. We achieve it by creating copies ([replicas](https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety)) of our components and data.  
+* **Resilience (or Availability)** is about surviving failures. We achieve it by creating copies ([replicas](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)) of our components and data.  
 * **Scalability (or Performance)** is about handling load. We achieve it by [adding more components](https://docs.victoriametrics.com/victoriametrics/#scalability-and-cluster-version) on every layer to distribute the work.
 
 The architectures in this guide are simply different combinations of these two approaches, designed to handle a specific blast radius.
@@ -30,11 +30,11 @@ The architectures in this guide are simply different combinations of these two a
 
 Each subsequent section of this guide presents an architecture designed to handle a specific blast radius, moving from the most straightforward setup to the most resilient.
 
-* **[Basic](#basic) (No Resilience).** This architecture is the baseline for non-critical systems. It has no fault tolerance, and its blast radius is the instance itself. Any failure leads to a complete outage.  
-* **[Single AZ Cluster](#single-availability-zone) (Node-Level Resilience).** This architecture protects against the failure of individual servers (nodes) or application instances within a single Availability Zone. However, its blast radius is the entire AZ; it will not survive a datacenter-wide outage.  
-* **[Multi-Cluster and Multi-AZ](#multi-cluster-and-multi-az) (Cluster/AZ/Datacenter-Level Resilience).** Designed as a disaster recovery solution, this architecture can withstand the complete failure of an entire availability zone or data center.  
-* **[Hyperscale](#the-hyperscale-cell-based) (Cell/AZ and Region-Level Resilience).** An advanced architecture is built to survive failures of entire Availability Zones or logical "cells" within a region, often degrading gracefully instead of failing.  
-* **[Logical Layers](#logical-layers) (Logical Resilience).** This is not a physical resilience level but an architectural layer on top of any setup. It addresses the risk of data access conflicts by providing strong logical isolation between different teams or customers.
+* **[Basic](https://docs.victoriametrics.com/guides/vm-architectures/#basic) (No Resilience).** This architecture is the baseline for non-critical systems. It has no fault tolerance, and its blast radius is the instance itself. Any failure leads to a complete outage.  
+* **[Single AZ Cluster](https://docs.victoriametrics.com/guides/vm-architectures/#single-availability-zone) (Node-Level Resilience).** This architecture protects against the failure of individual servers (nodes) or application instances within a single Availability Zone. However, its blast radius is the entire AZ; it will not survive a datacenter-wide outage.  
+* **[Multi-Cluster and Multi-AZ](https://docs.victoriametrics.com/guides/vm-architectures/#multi-cluster-and-multi-az) (Cluster/AZ/Datacenter-Level Resilience).** Designed as a disaster recovery solution, this architecture can withstand the complete failure of an entire availability zone or data center.  
+* **[Hyperscale](https://docs.victoriametrics.com/guides/vm-architectures/#the-hyperscale-cell-based) (Cell/AZ and Region-Level Resilience).** An advanced architecture is built to survive failures of entire Availability Zones or logical "cells" within a region, often degrading gracefully instead of failing.  
+* **[Logical Layers](https://docs.victoriametrics.com/guides/vm-architectures/#logical-layers) (Logical Resilience).** This is not a physical resilience level but an architectural layer on top of any setup. It addresses the risk of data access conflicts by providing strong logical isolation between different teams or customers.
 
 ### The decision tree
 
@@ -46,7 +46,7 @@ Each subsequent section of this guide presents an architecture designed to handl
 
 **Recommended for:** Pet projects, development/test stages, and non-critical systems monitoring.
 
-Installation guide reference: [https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single)
+Installation guide reference: [VictoriaMetrics Single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/)
 
 **Key characteristics**: Single instance that does everything: stores, retrieves, and provides metrics.
 
@@ -75,9 +75,9 @@ For this section, you can increase availability by utilizing backup and restore 
 
 **Recommended for:** Single availability zone hosted systems of any scale
 
-Installation guide reference: [https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster)
+Installation guide reference: [VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
 
-High availability implementation: [https://docs.victoriametrics.com/guides/k8s-ha-monitoring-via-vm-cluster](https://docs.victoriametrics.com/guides/k8s-ha-monitoring-via-vm-cluster)
+High availability implementation: [HA VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-ha-monitoring-via-vm-cluster/)
 
 **Key characteristics:** This is a complete VictoriaMetrics cluster, commonly running in a single Kubernetes cluster. Each component of the cluster: vminsert, vmselect, and vmstorage has multiple copies (replicas). The data is also copied and sharded between vmstorage nodes using the `--replicationFactor` setting on vminsert. [See the official documentation](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) to determine the optimal replication factor for your needs.
 
@@ -190,9 +190,9 @@ For Enterprise users, the queueing can be offloaded to an external message broke
 
 **Recommended for:** Large-scale workloads or services with high SLA requirements that must survive the complete failure of a datacenter or an Availability Zone (AZ).
 
-High availability implementation: [https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions)
+High availability implementation: [VictoriaMetrics Multi-Regional Setup](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions/)
 
-**Key characteristics:** The core principle of this architecture is to run two or more independent, self-contained VictoriaMetrics clusters (from the [Single AZ](#single-availability-zone) section) in separate failure domains, such as different Availability Zones or geographic regions. A global, stateless layer is responsible for routing write and read traffic to these clusters. Each participating AZ must be provisioned to handle the entire workload if another AZ fails. 
+**Key characteristics:** The core principle of this architecture is to run two or more independent, self-contained VictoriaMetrics clusters (from the [Single AZ](https://docs.victoriametrics.com/guides/vm-architectures/#single-availability-zone) section) in separate failure domains, such as different Availability Zones or geographic regions. A global, stateless layer is responsible for routing write and read traffic to these clusters. Each participating AZ must be provisioned to handle the entire workload if another AZ fails. 
 
 There are no differences in the VictoriaMetrics clusters' topology regarding the multi-AZ approach. It can be Active-Active or Active-Passive - the schema will be the same.  
 
@@ -354,7 +354,7 @@ Just like the read path, your alerting strategy in a hyperscale setup also invol
 
 **Recommended for:** Companies of any scale that need to serve multiple internal teams or external customers with separate data. Each tenant may have different requirements for data isolation and performance.
 
-The other use case is a different retention across tenants, which is described in this guide: [https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup) 
+The other use case is a different retention across tenants, which is described in this guide: [VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup/) 
 
 **Key characteristics:** This architecture introduces a logical layer of multitenancy on top of the physical architectures mentioned before.
 
