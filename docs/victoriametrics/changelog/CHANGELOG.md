@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-FEATURE: [vmui relabeling playground](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling): relax the validation for the labels text area. It now accepts input labels without being enclosed in curly braces. See [#9900](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9900) for details.
+FEATURE: [vmui relabeling playground](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#relabeling): relax the validation for the labels text area. It now accepts labels without curly braces (e.g. `__name__=metric_name, label1=value1`). The regression was introduced in [#8770](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8770). See [#9900](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9900) for details.
 
 ## [v1.129.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.129.0)
 

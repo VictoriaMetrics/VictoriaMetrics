@@ -137,7 +137,7 @@ func getChangedLabelNames(in, out *promutil.Labels) map[string]struct{} {
 // 2. add missing `{` and `}` to the input if needed.
 //
 // it does not handle complex edge cases like `{` or `}` appear multiple times. they're invalid and will not pass `NewLabelsFromString`.
-func completeInputLabels(metric string) (string, error) {
+func normalizeInputLabels(metric string) (string, error) {
 	metric = strings.TrimSpace(metric)
 
 	openBrace := strings.Contains(metric, `{`)
