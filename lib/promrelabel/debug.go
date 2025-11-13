@@ -28,7 +28,7 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 		return
 	}
 
-	metric, err = completeInputLabels(metric)
+	metric, err = normalizeInputLabels(metric)
 	if err != nil {
 		err = fmt.Errorf("cannot parse metric: %w", err)
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
@@ -132,7 +132,7 @@ func getChangedLabelNames(in, out *promutil.Labels) map[string]struct{} {
 	return changed
 }
 
-// completeInputLabels does two things:
+// normalizeInputLabels does two things:
 // 1. check if the input is (not) surrounded by braces. Inputs with or without braces are valid, but unclosed braces are not allowed.
 // 2. add missing `{` and `}` to the input if needed.
 //
