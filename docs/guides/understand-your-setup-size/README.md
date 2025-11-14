@@ -156,12 +156,15 @@ See a blog post about [reducing expenses on monitoring](https://victoriametrics.
 
 It is [recommended](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) to run many small vmstorage
 nodes over a few big vmstorage nodes. This reduces the workload increase on the remaining vmstorage nodes when some of
-vmstorage nodes become temporarily unavailable. Prefer giving at least 2 vCPU per each vmstorage node.
+vmstorage nodes become temporarily unavailable. Prefer allocating the whole number of vCPU cores per each vmstorage node
+for optimal performance.
 
 In general, the optimal number of vmstorage nodes is between 10 and 50. Please note, while adding more vmstorage nodes
 is a straightforward process, decreasing number of vmstorage nodes is a very complex process that should be avoided.
 
 vminsert and vmselect components are stateless, and can be easily scaled up or down. Scale them accordingly to your load.
+
+See also [Capacity planning docs for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
 
 ## Align Terms with VictoriaMetrics setups
 
