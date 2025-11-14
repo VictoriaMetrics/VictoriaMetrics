@@ -124,6 +124,7 @@ Released at 2025-10-03
 * BUGFIX: all components: restore sorting order of summary and quantile metrics exposed by VictoriaMetrics components on `/metrics` page. See [metrics#105](https://github.com/VictoriaMetrics/metrics/pull/105) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): avoid applying offset modifier twice to the request time when an instant query uses rollup functions `rate()` or `avg_over_time()` with cache enabled. See [#9762](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): restore support for `query` templates in alert rule labels after the regression introduced in [#9543](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9543). See [#9783](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9783) for details.
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): add support for SSE KMS Key ID and ACLfor use with S3-compatible storages.
 
 ## [v1.126.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.126.0)
 
