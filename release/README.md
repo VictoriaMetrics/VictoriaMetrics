@@ -91,10 +91,7 @@ and the candidate is deployed to the sandbox environment.
    GOlang update [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/7dbe569fe71ac3a5e0068b1cd85adfff41e5a365) example.
 
    ```sh
-   make govulncheck
-   
-   make package-base
-   grype db update && grype  --only-fixed [base-image-tag]
+   make security
    ```
 
 1. Re-build `vmui` static files. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650).

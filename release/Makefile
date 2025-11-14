@@ -71,5 +71,9 @@ tests:
 security:
 	(cd tmp/VictoriaMetrics && git checkout master)
 	(cd tmp/VictoriaMetrics && make govulncheck)
-	(cd tmp/VictoriaMetrics && make package-victoria-metrics)
+
+	@echo "Checking image tag: docker.io/victoriametrics/victoria-metrics:$(NEXT_TAG)-security-checks"
+	(cd tmp/VictoriaMetrics && BUILDINFO_TAG=$(NEXT_TAG)-security-checks make package-victoria-metrics)
+	grype db update && grype --only-fixed docker.io/victoriametrics/victoria-metrics:$(NEXT_TAG)-security-checks
+	docker scout cves docker.io/victoriametrics/victoria-metrics:$(NEXT_TAG)-security-checks
 	@echo "SUCCESS: all security checks passed"
