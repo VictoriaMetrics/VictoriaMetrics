@@ -43,7 +43,7 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   const step = isHeatmap && customStep === defaultStep ? heatmapStep : customStep;
 
 
-  const query = useMemo(() => {
+  const queries = useMemo(() => {
     const params = Object.entries({ job, instance })
       .filter(val => val[1])
       .map(([key, val]) => `${key}=${JSON.stringify(val)}`);
@@ -55,19 +55,19 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
 
     const base = `{${params.join(",")}}`;
     if (isBucket) {
-      return `sum(rate(${base})) by (vmrange, le)`;
+      return [`sum(rate(${base})) by (vmrange, le)`];
     }
     const queryBase = rateEnabled ? `rollup_rate(${base})` : `rollup(${base})`;
-    return `
+    return [`
 with (q = ${queryBase}) (
   alias(min(label_match(q, "rollup", "min")), "min"),
   alias(max(label_match(q, "rollup", "max")), "max"),
   alias(avg(label_match(q, "rollup", "avg")), "avg"),
-)`;
+)`];
   }, [name, job, instance, rateEnabled, isBucket]);
 
   const { isLoading, graphData, error, queryErrors, warning, isHistogram } = useFetchQuery({
-    predefinedQuery: [query],
+    predefinedQuery: queries,
     visible: true,
     customStep: step,
     showAllSeries
@@ -98,7 +98,7 @@ with (q = ${queryBase}) (
       {warning && (
         <WarningLimitSeries
           warning={warning}
-          query={[query]}
+          query={queries}
           onChange={setShowAllSeries}
         />
       )}
@@ -107,7 +107,7 @@ with (q = ${queryBase}) (
           data={graphData}
           period={period}
           customStep={step}
-          query={[query]}
+          query={queries}
           yaxis={yaxis}
           setYaxisLimits={setYaxisLimits}
           setPeriod={setPeriod}

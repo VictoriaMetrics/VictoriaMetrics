@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix ability to select multiple metrics in `Explore Metrics` tab. See [#9995](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9995).
+
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 
 Released at 2025-11-14
