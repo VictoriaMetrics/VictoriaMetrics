@@ -1384,7 +1384,7 @@ see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggrega
 
 ## Metrics Metadata
 
-Single-node VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "#" %}}.
+Single-node VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "v1.130.0" %}}.
 Metadata ingestion and querying are disabled by default. To enable them, set `-enableMetadata=true`.
 
 The metadata is stored in memory and can use up to 1% of available memory by default. The size could be adjusted by `-storage.maxMetadataStorageSize` flag.
