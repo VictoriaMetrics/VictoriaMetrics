@@ -67,4 +67,9 @@ tests:
 	(cd tmp/VictoriaMetrics && git checkout enterprise-cluster && make test check-all integration-test)
 	@echo "SUCCESS: all tests passed"
 
-
+.PHONY: security
+security:
+	(cd tmp/VictoriaMetrics && git checkout master)
+	(cd tmp/VictoriaMetrics && make govulncheck)
+	(cd tmp/VictoriaMetrics && make package-victoria-metrics)
+	@echo "SUCCESS: all security checks passed"
