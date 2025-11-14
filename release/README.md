@@ -75,11 +75,7 @@ and the candidate is deployed to the sandbox environment.
 1. Make sure tests pass on branches `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster`.
 
    ```sh
-   git checkout master && make test check-all integration-test && \
-   git checkout cluster && make test check-all integration-test && \
-   git checkout enterprise-single-node && make test check-all integration-test && \
-   git checkout enterprise-cluster && make test check-all integration-test && \
-   echo "SUCCESS: all tests passed"
+   make tests
    ```
 
 1. Verify no CVEs in Go code or base images according to the [CVE handling policy](https://docs.victoriametrics.com/victoriametrics/#cve-handling-policy).
