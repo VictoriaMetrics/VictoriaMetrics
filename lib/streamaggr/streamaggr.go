@@ -48,6 +48,7 @@ var supportedOutputs = []string{
 	"stddev",
 	"stdvar",
 	"sum_samples",
+	"sum_series",
 	"total",
 	"total_prometheus",
 	"unique_samples",
@@ -204,6 +205,7 @@ type Config struct {
 	// - stddev - standard deviation across all the samples
 	// - stdvar - standard variance across all the samples
 	// - sum_samples - sums the input sample values
+	// - sum_series - sums the last value across unique input series
 	// - total - aggregates input counters
 	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
 	// - unique_samples - counts the number of unique sample values
@@ -792,6 +794,8 @@ func newOutputConfig(output string, outputsSeen map[string]struct{}, useSharedSt
 		return newStdvarAggrConfig(), nil
 	case "sum_samples":
 		return newSumSamplesAggrConfig(), nil
+	case "sum_series":
+		return newSumSeriesAggrConfig(), nil
 	case "total":
 		return newTotalAggrConfig(ignoreFirstSampleIntervalSecs, false, true), nil
 	case "total_prometheus":
