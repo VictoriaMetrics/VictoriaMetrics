@@ -82,8 +82,6 @@ and the candidate is deployed to the sandbox environment.
    echo "SUCCESS: all tests passed"
    ```
 
-----------
-
 1. Verify no CVEs in Go code or base images according to the [CVE handling policy](https://docs.victoriametrics.com/victoriametrics/#cve-handling-policy).
    It’s sufficient to run `govulncheck` on the `master` branch since other branches are checked in CI on regular bases.
    For image scanning, build and check Alpine base image.
@@ -97,9 +95,11 @@ and the candidate is deployed to the sandbox environment.
 1. Re-build `vmui` static files. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650).
 
    ```sh
-   make vmui-update && \
-   echo "SUCCESS: vmui static files are rebuilt"
+   make vmui-opensource-update
+   make vmui-enterprise-update
    ```
+
+----------
 
 1. Update "available from" tooltip in docs and commit. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/70afdd02854990cbf44ac2272b191c5d14d6e118).
 

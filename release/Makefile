@@ -77,3 +77,50 @@ security:
 	grype db update && grype --only-fixed docker.io/victoriametrics/victoria-metrics:$(NEXT_TAG)-security-checks
 	docker scout cves docker.io/victoriametrics/victoria-metrics:$(NEXT_TAG)-security-checks
 	@echo "SUCCESS: all security checks passed"
+
+.PHONY: vmui-opensource-update
+vmui-opensource-update:
+	@echo "=== Updating VMUI on master branch ==="
+	#(cd tmp/VictoriaMetrics && git checkout master)
+	(cd tmp/VictoriaMetrics && make vmui-update)
+	@echo ""
+	@echo "=== Changes in master branch ==="
+	(cd tmp/VictoriaMetrics && git diff --name-only)
+	@echo ""
+	@read -p "Commit changes to master? (y/n): " answer; \
+	if [ "$$answer" != "y" ]; then \
+		echo "Aborting. Rolling back changes..."; \
+		(cd tmp/VictoriaMetrics && git checkout .); \
+		exit 1; \
+	fi
+	(cd tmp/VictoriaMetrics && git add -A && git commit -m "app/vmui: update vmui build for release $(NEXT_TAG)")
+	@echo "Changes committed to master"
+	@echo ""
+	@echo "=== Cherry-picking to cluster branch ==="
+	(cd tmp/VictoriaMetrics && git checkout cluster && git cherry-pick master)
+	@echo "Cherry-picked to cluster"
+	@echo "SUCCESS: VMUI updated on master and cluster branches"
+
+.PHONY: vmui-enterprise-update
+vmui-enterprise-update:
+	@echo "=== Updating VMUI on enterprise-single-node branch ==="
+	(cd tmp/VictoriaMetrics && git checkout enterprise-single-node)
+	(cd tmp/VictoriaMetrics && make vmui-update)
+	@echo ""
+	@echo "=== Changes in enterprise-single-node branch ==="
+	(cd tmp/VictoriaMetrics && git diff --name-only)
+	@echo ""
+	@read -p "Commit changes to enterprise-single-node? (y/n): " answer; \
+	if [ "$$answer" != "y" ]; then \
+		echo "Aborting. Rolling back changes..."; \
+		(cd tmp/VictoriaMetrics && git checkout .); \
+		exit 1; \
+	fi
+	(cd tmp/VictoriaMetrics && git add -A && git commit -m "app/vmui: update vmui build for release $(NEXT_TAG)")
+	@echo "Changes committed to enterprise-single-node"
+	@echo ""
+	@echo "=== Cherry-picking to enterprise-cluster branch ==="
+	(cd tmp/VictoriaMetrics && git checkout enterprise-cluster && git cherry-pick enterprise-single-node)
+	@echo "Cherry-picked to enterprise-cluster"
+	@echo ""
+	@echo "SUCCESS: VMUI updated on enterprise-single-node and enterprise-cluster branches"
