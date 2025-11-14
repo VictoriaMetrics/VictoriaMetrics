@@ -71,7 +71,15 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   [router.home]: getDefaultOptions(APP_TYPE),
   [router.rawQuery]: {
     title: "Raw query",
-    ...routerOptionsDefault,
+    header: {
+      tenant: true,
+      stepControl: false,
+      timeSelector: true,
+      executionControls: {
+        tooltip: "Refresh dashboard",
+        useAutorefresh: true,
+      }
+    },
   },
   [router.metrics]: {
     title: "Explore Prometheus metrics",
