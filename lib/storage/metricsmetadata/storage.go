@@ -356,10 +356,17 @@ func rowSize(r *Row) int64 {
 
 func sortRows(rows []*Row) {
 	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].lastWriteTime == rows[j].lastWriteTime {
+		if rows[i].lastWriteTime != rows[j].lastWriteTime {
+			return rows[i].lastWriteTime < rows[j].lastWriteTime
+		}
+		if !bytes.Equal(rows[i].MetricFamilyName, rows[j].MetricFamilyName) {
 			return string(rows[i].MetricFamilyName) < string(rows[j].MetricFamilyName)
 		}
-		return rows[i].lastWriteTime < rows[j].lastWriteTime
+		if rows[i].AccountID != rows[j].AccountID {
+			return rows[i].AccountID < rows[j].AccountID
+		}
+
+		return rows[i].ProjectID < rows[j].ProjectID
 	})
 }
 
