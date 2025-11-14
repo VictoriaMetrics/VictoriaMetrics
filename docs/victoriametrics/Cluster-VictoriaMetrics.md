@@ -803,6 +803,35 @@ Some capacity planning tips for VictoriaMetrics cluster:
 
 See also [resource usage limits docs](#resource-usage-limits).
 
+## Rebalancing
+
+Every `vminsert` node evenly spreads (shards) incoming data among `vmstorage` nodes specified in the `-storageNode` command-line flag.
+This guarantees even distribution of the ingested data among `vmstorage` nodes. When new `vmstorage` nodes are added to the `-storageNode`
+command-line flag at `vminsert`, then only newly ingested data is distributed evenly among old and new `vmstorage` nodes, while
+historical data remains on the old `vmstorage` nodes. This speeds up data ingestion and querying for the majority of production workloads,
+since newly ingested data is evenly distributed among all the `vmstorage` nodes, while querying is usually performed over recently ingested data,
+which is already stored among all the `vmstorage` nodes. This also provides the following benefits:
+
+- Cluster availability and performance remains stable just after adding new `vmstorage` nodes, since network bandwidth, disk IO and CPU
+  isn't spent on data rebalancing among `vmstorage` nodes.
+- This eliminates all the possible hard-to-troubleshoot failures which may happen during automatic data rebalancing.
+  For example, what happens when some of `vmstorage` nodes become unavailable during data rebalancing?
+  Or what happens if new `vmstorage` nodes are added to the cluster while the previous data rebalancing isn't finished yet?
+- This allows building flexible cluster schemes when distinct subsets of `vminsert` nodes distribute incoming
+  data among different subsets of `vmstorage` nodes with different configs and hardware resources.
+
+There are the following approaches exist for data rebalancing among old and new `vmstorage` nodes:
+
+- To wait until historical data on the old `vmstorage` nodes is automatically deleted according
+  to the configured [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention).
+- To pass only new `vmstorage` addresses to `-storageNode` command-line flag at `vminsert` nodes, while passing all the `vmstorage`
+  addresses to `-storageNode` command-line flag at `vmselect` nodes. This enables writing new data only to new `vmstorage` nodes,
+  while historical data from old `vmstorage` nodes remain available for querying via `vmselect` together with the newly ingested data.
+  Then wait until data sizes among old and new `vmstorage` nodes become equal and then add old `vmstorage` nodes the `-storageNode`
+  command-line flag at `vminsert` nodes.
+
+See also [Capacity planning](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
+
 ## Resource usage limits
 
 By default, cluster components of VictoriaMetrics are tuned for an optimal resource usage under typical workloads.
