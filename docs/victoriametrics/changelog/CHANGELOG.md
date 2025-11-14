@@ -48,6 +48,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix display of isolated points on the chart. See [#9666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9666).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix median value calculation displayed below series graph. See [#9926](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9926).
 * BUGFIX: VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): disallow having a duration in `-retentionFilter` bigger than `-retentionPeriod`. Previously, it was allowed but had no effect, the data retention period remains limited to `-retentionPeriod`. See commit [9a8463df](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9a8463df42bb4afef41982f57dd3569348dd5cb9).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): remove the “step” control from the Raw Query page, since it didn't affect the chart rendering. See [#9667](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9667).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix display of multiple points at the same timestamp on the chart. See [#9666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9666).
 
 ## [v1.129.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.129.1)
 
