@@ -11,9 +11,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
@@ -50,8 +52,9 @@ var (
 type InsertCtx struct {
 	Labels sortedLabels
 
-	mrs            []storage.MetricRow
-	metricNamesBuf []byte
+	mrs           []storage.MetricRow
+	mms           []metricsmetadata.Row
+	metricNameBuf []byte
 
 	relabelCtx    relabel.Ctx
 	streamAggrCtx streamAggrCtx
@@ -73,8 +76,13 @@ func (ctx *InsertCtx) Reset(rowsLen int) {
 	}
 	mrs = slicesutil.SetLength(mrs, rowsLen)
 	ctx.mrs = mrs[:0]
+	mms := ctx.mms
+	for i := range mms {
+		cleanMetricMetadata(&mms[i])
+	}
+	ctx.mms = mms[:0]
 
-	ctx.metricNamesBuf = ctx.metricNamesBuf[:0]
+	ctx.metricNameBuf = ctx.metricNameBuf[:0]
 	ctx.relabelCtx.Reset()
 	ctx.streamAggrCtx.Reset()
 	ctx.skipStreamAggr = false
@@ -84,11 +92,20 @@ func cleanMetricRow(mr *storage.MetricRow) {
 	mr.MetricNameRaw = nil
 }
 
+func cleanMetricMetadata(mm *metricsmetadata.Row) {
+	mm.MetricFamilyName = nil
+	mm.Unit = nil
+	mm.Help = nil
+	mm.Type = 0
+	mm.ProjectID = 0
+	mm.AccountID = 0
+}
+
 func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompb.Label) []byte {
-	start := len(ctx.metricNamesBuf)
-	ctx.metricNamesBuf = append(ctx.metricNamesBuf, prefix...)
-	ctx.metricNamesBuf = storage.MarshalMetricNameRaw(ctx.metricNamesBuf, labels)
-	metricNameRaw := ctx.metricNamesBuf[start:]
+	start := len(ctx.metricNameBuf)
+	ctx.metricNameBuf = append(ctx.metricNameBuf, prefix...)
+	ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf, labels)
+	metricNameRaw := ctx.metricNameBuf[start:]
 	return metricNameRaw[:len(metricNameRaw):len(metricNameRaw)]
 }
 
@@ -143,9 +160,58 @@ func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float6
 	mr.MetricNameRaw = metricNameRaw
 	mr.Timestamp = timestamp
 	mr.Value = value
-	if len(ctx.metricNamesBuf) > 16*1024*1024 {
+	if len(ctx.metricNameBuf) > 16*1024*1024 {
 		if err := ctx.FlushBufs(); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// WriteMetadata writes given prometheus protobuf  metadata into the storage.
+func (ctx *InsertCtx) WriteMetadata(mmpbs []prompb.MetricMetadata) error {
+	if len(mmpbs) == 0 {
+		return nil
+	}
+	mms := ctx.mms
+	mms = slicesutil.SetLength(mms, len(mmpbs))
+	for idx, mmpb := range mmpbs {
+		mm := &mms[idx]
+		mm.MetricFamilyName = bytesutil.ToUnsafeBytes(mmpb.MetricFamilyName)
+		mm.Help = bytesutil.ToUnsafeBytes(mmpb.Help)
+		mm.Type = mmpb.Type
+		mm.Unit = bytesutil.ToUnsafeBytes(mmpb.Unit)
+	}
+
+	err := vmstorage.AddMetadataRows(mms)
+	if err != nil {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot store metrics metadata: %w", err),
+			StatusCode: http.StatusServiceUnavailable,
+		}
+	}
+	return nil
+}
+
+// WritePromMetadata writes given prometheus metric metadata into the storage
+func (ctx *InsertCtx) WritePromMetadata(mmps []prometheus.Metadata) error {
+	if len(mmps) == 0 {
+		return nil
+	}
+	mms := ctx.mms
+	mms = slicesutil.SetLength(mms, len(mmps))
+	for idx, mmpb := range mmps {
+		mm := &mms[idx]
+		mm.MetricFamilyName = bytesutil.ToUnsafeBytes(mmpb.Metric)
+		mm.Help = bytesutil.ToUnsafeBytes(mmpb.Help)
+		mm.Type = mmpb.Type
+	}
+
+	err := vmstorage.AddMetadataRows(mms)
+	if err != nil {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot store prometheus metrics metadata: %w", err),
+			StatusCode: http.StatusServiceUnavailable,
 		}
 	}
 	return nil

@@ -116,7 +116,7 @@ func TestParse_Failure(t *testing.T) {
 
 	f([]string{"testdata/rules/rules_interval_bad.rules"}, "eval_offset should be smaller than interval")
 	f([]string{"testdata/rules/rules0-bad.rules"}, "unexpected token")
-	f([]string{"testdata/dir/rules0-bad.rules"}, "error parsing annotation")
+	f([]string{"testdata/dir/rules0-bad.rules"}, "invalid annotations")
 	f([]string{"testdata/dir/rules1-bad.rules"}, "duplicate in file")
 	f([]string{"testdata/dir/rules2-bad.rules"}, "function \"unknown\" not defined")
 	f([]string{"testdata/dir/rules3-bad.rules"}, "either `record` or `alert` must be set")
@@ -343,7 +343,6 @@ func TestGroupValidate_Failure(t *testing.T) {
 			},
 		},
 	}, true, "bad prometheus expr")
-
 }
 
 func TestGroupValidate_Success(t *testing.T) {
