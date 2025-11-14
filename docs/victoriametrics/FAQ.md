@@ -521,6 +521,8 @@ from [alerting and recording rules](https://docs.victoriametrics.com/victoriamet
 such as a few hours to a few days at most. This means that the query load between old `vmstorage` nodes and new `vmstorage` nodes
 should become even within few hours / days after adding new `vmstorage` nodes.
 
+See also [rebalancing docs at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#rebalancing).
+
 ## Why VictoriaMetrics misses automatic recovery of replication factor?
 
 VictoriaMetrics doesn't restore [replication factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
