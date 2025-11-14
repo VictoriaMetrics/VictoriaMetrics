@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -119,6 +120,43 @@ func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricR
 	return nil
 }
 
+// ParseMetricsMetadataBlock parses metrics metadata block sent from vminsert to bc and calls callback for parsed rows.
+// Optional function isReadOnly must return true if the storage cannot accept new data.
+// In this case the data read from bc isn't accepted and storage.ErrReadOnly returned.
+//
+// callback shouldn't hold block after returning.
+func ParseMetricsMetadataBlock(bc *handshake.BufferedConn, callback func(rows []metricsmetadata.Row) error, isReadOnly func() bool) error {
+	wcr := writeconcurrencylimiter.GetReader(bc)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r := io.Reader(wcr)
+
+	reqBuf, err := readMetadataBlock(r)
+	if err != nil {
+		if err == io.EOF {
+			// Remote end gracefully closed the connection.
+			return nil
+		}
+
+		return err
+	}
+	metadataBlocksRead.Inc()
+	wcr.DecConcurrency()
+	if isReadOnly != nil && isReadOnly() {
+		return storage.ErrReadOnly
+	}
+
+	uw := getMetricsMetadataUnmarshalWork()
+	uw.reqBuf = reqBuf
+	uw.callback = func(rows []metricsmetadata.Row) {
+		if err := callback(rows); err != nil {
+			processMetadataErrors.Inc()
+			logger.Errorf("error when processing metrics metadata block: %s", err)
+		}
+	}
+	protoparserutil.ScheduleUnmarshalWork(uw)
+	return nil
+}
+
 // readBlock reads the next data block  and returns the result.
 func readBlock(r io.Reader) ([]byte, error) {
 	sizeBuf := auxBufPool.Get()
@@ -144,6 +182,31 @@ func readBlock(r io.Reader) ([]byte, error) {
 	return dst, nil
 }
 
+// readMetadataBlock reads the next data block  and returns the result.
+func readMetadataBlock(r io.Reader) ([]byte, error) {
+	sizeBuf := auxBufPool.Get()
+	defer auxBufPool.Put(sizeBuf)
+	sizeBuf.B = bytesutil.ResizeNoCopyMayOverallocate(sizeBuf.B, 8)
+	if _, err := io.ReadFull(r, sizeBuf.B); err != nil {
+		if err != io.EOF {
+			readMetadataErrors.Inc()
+			err = fmt.Errorf("cannot read packet size: %w", err)
+		}
+		return nil, err
+	}
+	packetSize := encoding.UnmarshalUint64(sizeBuf.B)
+	if packetSize > consts.MaxInsertPacketSizeForVMStorage {
+		parseMetadataErrors.Inc()
+		return nil, fmt.Errorf("too big packet size: %d; shouldn't exceed %d", packetSize, consts.MaxInsertPacketSizeForVMStorage)
+	}
+	dst := make([]byte, int(packetSize))
+	if n, err := io.ReadFull(r, dst); err != nil {
+		readMetadataErrors.Inc()
+		return dst, fmt.Errorf("cannot read packet with size %d bytes: %w; read only %d bytes", packetSize, err, n)
+	}
+	return dst, nil
+}
+
 func sendAck(bc *handshake.BufferedConn, status byte) error {
 	deadline := time.Now().Add(5 * time.Second)
 	if err := bc.SetWriteDeadline(deadline); err != nil {
@@ -161,13 +224,20 @@ func sendAck(bc *handshake.BufferedConn, status byte) error {
 var auxBufPool bytesutil.ByteBufferPool
 
 var (
-	readErrors  = metrics.NewCounter(`vm_protoparser_read_errors_total{type="clusternative"}`)
-	writeErrors = metrics.NewCounter(`vm_protoparser_write_errors_total{type="clusternative"}`)
-	rowsRead    = metrics.NewCounter(`vm_protoparser_rows_read_total{type="clusternative"}`)
-	blocksRead  = metrics.NewCounter(`vm_protoparser_blocks_read_total{type="clusternative"}`)
+	readErrors  = metrics.NewCounter(`vm_protoparser_read_errors_total{type="clusternative",block_type="metric_rows"}`)
+	writeErrors = metrics.NewCounter(`vm_protoparser_write_errors_total{type="clusternative",block_type="metric_rows"}`)
+	rowsRead    = metrics.NewCounter(`vm_protoparser_rows_read_total{type="clusternative",block_type="metric_rows"}`)
+	blocksRead  = metrics.NewCounter(`vm_protoparser_blocks_read_total{type="clusternative",block_type="metric_rows"}`)
 
-	parseErrors   = metrics.NewCounter(`vm_protoparser_parse_errors_total{type="clusternative"}`)
-	processErrors = metrics.NewCounter(`vm_protoparser_process_errors_total{type="clusternative"}`)
+	parseErrors   = metrics.NewCounter(`vm_protoparser_parse_errors_total{type="clusternative",block_type="metric_rows"}`)
+	processErrors = metrics.NewCounter(`vm_protoparser_process_errors_total{type="clusternative",block_type="metric_rows"}`)
+
+	readMetadataErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="clusternative",block_type="metricsmetadata_rows"}`)
+	metadataRowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="clusternative",block_type="metricsmetadata_rows"}`)
+	metadataBlocksRead = metrics.NewCounter(`vm_protoparser_blocks_read_total{type="clusternative",block_type="metricsmetadata_rows"}`)
+
+	parseMetadataErrors   = metrics.NewCounter(`vm_protoparser_parse_errors_total{type="clusternative",block_type="metricsmetadata_rows"}`)
+	processMetadataErrors = metrics.NewCounter(`vm_protoparser_process_errors_total{type="clusternative",block_type="metricsmetadata_rows"}`)
 )
 
 type unmarshalWork struct {
@@ -242,6 +312,67 @@ func putUnmarshalWork(uw *unmarshalWork) {
 	unmarshalWorkPool.Put(uw)
 }
 
-var unmarshalWorkPool sync.Pool
+type unmarshalMetadataWork struct {
+	callback func(rows []metricsmetadata.Row)
+	reqBuf   []byte
+	mmrs     []metricsmetadata.Row
+}
+
+func (uw *unmarshalMetadataWork) reset() {
+	uw.callback = nil
+	// Zero reqBuf, since it may occupy big amounts of memory (consts.MaxInsertPacketSizeForVMStorage).
+	uw.reqBuf = nil
+	uw.mmrs = uw.mmrs[:0]
+}
+
+// Unmarshal implements protoparserutil.UnmarshalWork
+func (uw *unmarshalMetadataWork) Unmarshal() {
+	reqBuf := uw.reqBuf
+
+	zb := zbPool.Get()
+	defer zbPool.Put(zb)
+	var err error
+	zb.B, err = zstd.Decompress(zb.B[:0], reqBuf)
+	if err != nil {
+		parseMetadataErrors.Inc()
+		logger.Errorf("cannot decompress clusternative metricsmetadata block with size %d : %s", len(reqBuf), err)
+		putUnmarshalMetadataWork(uw)
+		return
+	}
+	reqBuf = zb.B
+	for len(reqBuf) > 0 {
+		// Limit the number of rows passed to callback in order to reduce memory usage
+		// when processing big packets of rows.
+		mrs, tail, err := metricsmetadata.UnmarshalRows(uw.mmrs[:0], reqBuf, maxRowsPerCallback)
+		uw.mmrs = mrs
+		if err != nil {
+			parseMetadataErrors.Inc()
+			logger.Errorf("cannot unmarshal metricsmetadata.Row from clusternative block with size %d (remaining %d bytes): %s", len(reqBuf), len(tail), err)
+			break
+		}
+		metadataRowsRead.Add(len(mrs))
+		uw.callback(mrs)
+		reqBuf = tail
+	}
+	putUnmarshalMetadataWork(uw)
+}
+
+func getMetricsMetadataUnmarshalWork() *unmarshalMetadataWork {
+	v := unmarshalMetricsMetadataWorkPool.Get()
+	if v == nil {
+		return &unmarshalMetadataWork{}
+	}
+	return v.(*unmarshalMetadataWork)
+}
+
+func putUnmarshalMetadataWork(uw *unmarshalMetadataWork) {
+	uw.reset()
+	unmarshalMetricsMetadataWorkPool.Put(uw)
+}
+
+var (
+	unmarshalWorkPool                sync.Pool
+	unmarshalMetricsMetadataWorkPool sync.Pool
+)
 
 var zbPool bytesutil.ByteBufferPool

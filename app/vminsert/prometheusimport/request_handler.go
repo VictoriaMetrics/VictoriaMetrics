@@ -1,6 +1,7 @@
 package prometheusimport
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
@@ -12,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -20,6 +22,7 @@ var (
 	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="prometheus"}`)
 	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="prometheus"}`)
 	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="prometheus"}`)
+	metadataInserted   = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="prometheus"}`)
 )
 
 // InsertHandler processes `/api/v1/import/prometheus` request.
@@ -33,14 +36,14 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	encoding := req.Header.Get("Content-Encoding")
-	return stream.Parse(req.Body, defaultTimestamp, encoding, true, prommetadata.IsEnabled(), func(rows []prometheus.Row, _ []prometheus.Metadata) error {
-		return insertRows(at, rows, extraLabels)
+	return stream.Parse(req.Body, defaultTimestamp, encoding, true, prommetadata.IsEnabled(), func(rows []prometheus.Row, mms []prometheus.Metadata) error {
+		return insertRows(at, rows, mms, extraLabels)
 	}, func(s string) {
 		httpserver.LogError(req, s)
 	})
 }
 
-func insertRows(at *auth.Token, rows []prometheus.Row, extraLabels []prompb.Label) error {
+func insertRows(at *auth.Token, rows []prometheus.Row, mms []prometheus.Metadata, extraLabels []prompb.Label) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
@@ -71,5 +74,31 @@ func insertRows(at *auth.Token, rows []prometheus.Row, extraLabels []prompb.Labe
 	rowsInserted.Add(len(rows))
 	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(len(rows)))
-	return ctx.FlushBufs()
+	if err := ctx.FlushBufs(); err != nil {
+		return fmt.Errorf("cannot flush metric bufs: %w", err)
+	}
+
+	if prommetadata.IsEnabled() {
+		ctx.ResetForMetricsMetadata()
+		for i := range mms {
+			m := &mms[i]
+			mdr := metricsmetadata.Row{
+				Type:             m.Type,
+				MetricFamilyName: []byte(m.Metric),
+				Help:             []byte(m.Help),
+			}
+			if at != nil {
+				mdr.AccountID = at.AccountID
+				mdr.ProjectID = at.ProjectID
+			}
+			ctx.Buf = mdr.MarshalTo(ctx.Buf[:0])
+			storageNodeIdx := ctx.GetStorageNodeIdxForMeta(ctx.Buf)
+			if err := ctx.WriteMetadataExt(storageNodeIdx, ctx.Buf); err != nil {
+				return err
+			}
+		}
+		metadataInserted.Add(len(mms))
+		return ctx.FlushBufs()
+	}
+	return nil
 }

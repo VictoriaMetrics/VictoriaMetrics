@@ -64,7 +64,7 @@ func insertRows(at *auth.Token, block *stream.Block, extraLabels []prompb.Label)
 	}
 	// use tenant info from data if it's a multi-tenant import.
 	atLocal := ctx.GetLocalAuthToken(at)
-	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+	ctx.Buf = storage.MarshalMetricNameRaw(ctx.Buf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 	values := block.Values
 	timestamps := block.Timestamps
@@ -73,7 +73,7 @@ func insertRows(at *auth.Token, block *stream.Block, extraLabels []prompb.Label)
 	}
 	for j, value := range values {
 		timestamp := timestamps[j]
-		if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
+		if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.Buf, timestamp, value); err != nil {
 			return err
 		}
 	}

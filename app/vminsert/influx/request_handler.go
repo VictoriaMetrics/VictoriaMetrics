@@ -114,12 +114,12 @@ func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prom
 					continue
 				}
 				atLocal := ic.GetLocalAuthToken(at)
-				ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, nil)
+				ic.Buf = storage.MarshalMetricNameRaw(ic.Buf[:0], atLocal.AccountID, atLocal.ProjectID, nil)
 				for i := range ic.Labels {
-					ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[i])
+					ic.Buf = storage.MarshalMetricLabelRaw(ic.Buf, &ic.Labels[i])
 				}
 				storageNodeIdx := ic.GetStorageNodeIdx(atLocal, ic.Labels)
-				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				if err := ic.WriteDataPointExt(storageNodeIdx, ic.Buf, r.Timestamp, f.Value); err != nil {
 					return err
 				}
 				perTenantRows[*atLocal]++
@@ -135,8 +135,8 @@ func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prom
 				}
 			}
 			atLocal := ic.GetLocalAuthToken(at)
-			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ic.Labels)
-			metricNameBufLen := len(ic.MetricNameBuf)
+			ic.Buf = storage.MarshalMetricNameRaw(ic.Buf[:0], atLocal.AccountID, atLocal.ProjectID, ic.Labels)
+			metricNameBufLen := len(ic.Buf)
 			labelsLen := len(ic.Labels)
 			for j := range r.Fields {
 				f := &r.Fields[j]
@@ -151,10 +151,10 @@ func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prom
 						continue
 					}
 				}
-				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
-				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[len(ic.Labels)-1])
+				ic.Buf = ic.Buf[:metricNameBufLen]
+				ic.Buf = storage.MarshalMetricLabelRaw(ic.Buf, &ic.Labels[len(ic.Labels)-1])
 				storageNodeIdx := ic.GetStorageNodeIdx(atLocal, ic.Labels)
-				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				if err := ic.WriteDataPointExt(storageNodeIdx, ic.Buf, r.Timestamp, f.Value); err != nil {
 					return err
 				}
 				perTenantRows[*atLocal]++

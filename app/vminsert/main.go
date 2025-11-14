@@ -122,7 +122,7 @@ func main() {
 	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
 	protoparserutil.StartUnmarshalWorkers()
 	if len(*clusternativeListenAddr) > 0 {
-		s, err := clusternative.NewVMInsertServer(*clusternativeListenAddr)
+		s, err := clusternative.NewVMinsertServer(*clusternativeListenAddr, nil)
 		if err != nil {
 			logger.Fatalf("cannot initialize vminsertapi server: %s", err)
 		}

@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 func TestProtocolMigration(t *testing.T) {
@@ -143,14 +144,22 @@ func TestProtocolMigration(t *testing.T) {
 type testStorage struct {
 	isReadOnly atomic.Bool
 
-	mu         sync.Mutex
-	parsedRows []storage.MetricRow
+	mu             sync.Mutex
+	parsedRows     []storage.MetricRow
+	parsedMetadata []metricsmetadata.Row
 }
 
 func (ts *testStorage) WriteRows(rows []storage.MetricRow) error {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	ts.parsedRows = append(ts.parsedRows, rows...)
+	return nil
+}
+
+func (ts *testStorage) WriteMetadata(mrs []metricsmetadata.Row) error {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	ts.parsedMetadata = append(ts.parsedMetadata, mrs...)
 	return nil
 }
 
