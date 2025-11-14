@@ -12,9 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -235,6 +236,11 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+var (
+	mu            sync.Mutex
+	filePathCache = sync.Map{}
+)
+
 func logMessage(level, msg string, skipframes int) {
 	timestamp := ""
 	if !*disableTimestamps {
@@ -246,10 +252,7 @@ func logMessage(level, msg string, skipframes int) {
 		file = "???"
 		line = 0
 	}
-	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
-		// Strip /VictoriaMetrics/ prefix
-		file = file[n+len("/VictoriaMetrics/"):]
-	}
+	file = simplifyFilePath(file)
 	location := fmt.Sprintf("%s:%d", file, line)
 
 	// rate limit ERROR and WARN log messages with given limit.
@@ -318,7 +321,37 @@ func logMessage(level, msg string, skipframes int) {
 	}
 }
 
-var mu sync.Mutex
+func simplifyFilePath(file string) string {
+	// fast path: cache
+	if result, ok := filePathCache.Load(file); ok {
+		return result.(string)
+	}
+
+	// slow path
+	key := file
+	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
+		file = file[n+len("/VictoriaMetrics/"):]
+	}
+
+	keyword := "/vendor/github.com/VictoriaMetrics/VictoriaMetrics"
+	if vendorIdx := strings.Index(file, keyword); vendorIdx >= 0 {
+		// the path may under vendor folder
+		if slashOffset := strings.Index(file[vendorIdx+len(keyword):], "/"); slashOffset > 0 {
+			// There is no trailing '/' after '/vendor/github.com/VictoriaMetrics/VictoriaMetrics',
+			// so it must contain a Go module version number.
+			//
+			// example:
+			// VictoriaTraces/vendor/github.com/VictoriaMetrics/VictoriaMetrics@v0.0.0-00010101000000-000000000000/1.go
+			// |  vendorIdx |                   len(keyword)                   |             slashOffset          |   |
+			//
+			// remove Go module version number in |<-slashOffset->|.
+			file = file[:vendorIdx+len(keyword)] + file[vendorIdx+len(keyword)+slashOffset:]
+		}
+	}
+	filePathCache.Store(key, file)
+
+	return file
+}
 
 func shouldSkipLog(level string) bool {
 	switch *loggerLevel {
