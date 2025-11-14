@@ -150,7 +150,7 @@ const Select: FC<SelectProps> = ({
               onRemoveItem={handleSelected}
             />
           )}
-          {!hideInput && !selectedValues?.length && (
+          {!hideInput && (
             <input
               value={textFieldValue}
               type="text"
