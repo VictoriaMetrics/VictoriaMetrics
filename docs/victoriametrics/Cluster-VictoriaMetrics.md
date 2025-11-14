@@ -830,7 +830,8 @@ There are the following approaches exist for data rebalancing among old and new 
   Then wait until data sizes among old and new `vmstorage` nodes become equal and then add old `vmstorage` nodes the `-storageNode`
   command-line flag at `vminsert` nodes.
 
-See also [Capacity planning](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
+See also [capacity planning docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
+and [Why VictoriaMetrics misses automatic data re-balancing among vmstorage nodes?](https://docs.victoriametrics.com/victoriametrics/faq/#why-victoriametrics-misses-automatic-data-re-balancing-between-vmstorage-nodes).
 
 ## Resource usage limits
 
