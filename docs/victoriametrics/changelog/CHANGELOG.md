@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
+
+Released at 2025-11-14
+
 **Update Note 1:** VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Make sure that, if `-retentionFilter` is used, its duration is lower than `-retentionPeriod` before upgrading; otherwise, the deployment will fail. Read more in [retention filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) documentation.
 
 * SECURITY: upgrade Go builder from Go1.25.3 to Go1.25.4. See [the list of issues addressed in Go1.25.4](https://github.com/golang/go/issues?q=milestone%3AGo1.25.4%20label%3ACherryPickApproved).
