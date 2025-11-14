@@ -158,7 +158,11 @@ func TestSingleIngestionProtocols(t *testing.T) {
 
 	// prometheus text exposition format
 	sut.PrometheusAPIV1ImportPrometheus(t, []string{
-		`importprometheus_series 10 1707123456700`,                               // 2024-02-05T08:57:36.700Z
+		`# HELP importprometheus_series some help message`,
+		`# TYPE importprometheus_series gauge`,
+		`importprometheus_series 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+		`# HELP importprometheus_series2 some help message second one`,
+		`# TYPE importprometheus_series2 gauge`,
 		`importprometheus_series2{label="foo",label1="value1"} 20 1707123456800`, // 2024-02-05T08:57:36.800Z
 	}, apptest.QueryOpts{
 		ExtraLabels: []string{"el1=elv1", "el2=elv2"},
@@ -187,42 +191,58 @@ func TestSingleIngestionProtocols(t *testing.T) {
 	})
 
 	// prometheus remote write format
-	pbData := []prompb.TimeSeries{
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series",
+	pbData := prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series",
+					},
+				},
+				Samples: []prompb.Sample{
+					{
+						Value:     10,
+						Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
+
+					},
 				},
 			},
-			Samples: []prompb.Sample{
-				{
-					Value:     10,
-					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
-
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series2",
+					},
+					{
+						Name:  "label",
+						Value: "foo2",
+					},
+					{
+						Name:  "label1",
+						Value: "value1",
+					},
+				},
+				Samples: []prompb.Sample{
+					{
+						Value:     20,
+						Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
+					},
 				},
 			},
 		},
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series2",
-				},
-				{
-					Name:  "label",
-					Value: "foo2",
-				},
-				{
-					Name:  "label1",
-					Value: "value1",
-				},
+		Metadata: []prompb.MetricMetadata{
+			{
+				Type:             1,
+				MetricFamilyName: "prometheusrw_series",
+				Help:             "some help",
+				Unit:             "",
 			},
-			Samples: []prompb.Sample{
-				{
-					Value:     20,
-					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
-				},
+			{
+				Type:             1,
+				MetricFamilyName: "prometheusrw_series2",
+				Help:             "some help2",
+				Unit:             "",
 			},
 		},
 	}
@@ -245,7 +265,6 @@ func TestSingleIngestionProtocols(t *testing.T) {
 			{Timestamp: 1707123456800, Value: 20}, // 2024-02-05T08:57:36.700Z
 		},
 	})
-
 }
 
 func TestClusterIngestionProtocols(t *testing.T) {
@@ -297,7 +316,11 @@ func TestClusterIngestionProtocols(t *testing.T) {
 
 	// prometheus text exposition format
 	vminsert.PrometheusAPIV1ImportPrometheus(t, []string{
-		`importprometheus_series 10 1707123456700`,                               // 2024-02-05T08:57:36.700Z
+		`# HELP importprometheus_series some help message`,
+		`# TYPE importprometheus_series gauge`,
+		`importprometheus_series 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+		`# HELP importprometheus_series2 some help message second one`,
+		`# TYPE importprometheus_series2 gauge`,
 		`importprometheus_series2{label="foo",label1="value1"} 20 1707123456800`, // 2024-02-05T08:57:36.800Z
 	}, apptest.QueryOpts{
 		ExtraLabels: []string{"el1=elv1", "el2=elv2"},
@@ -434,42 +457,58 @@ func TestClusterIngestionProtocols(t *testing.T) {
 	})
 
 	// prometheus remote write format
-	pbData := []prompb.TimeSeries{
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series",
+	pbData := prompb.WriteRequest{
+		Timeseries: []prompb.TimeSeries{
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series",
+					},
+				},
+				Samples: []prompb.Sample{
+					{
+						Value:     10,
+						Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
+
+					},
 				},
 			},
-			Samples: []prompb.Sample{
-				{
-					Value:     10,
-					Timestamp: 1707123456700, // 2024-02-05T08:57:36.700Z
-
+			{
+				Labels: []prompb.Label{
+					{
+						Name:  "__name__",
+						Value: "prometheusrw_series2",
+					},
+					{
+						Name:  "label",
+						Value: "foo2",
+					},
+					{
+						Name:  "label1",
+						Value: "value1",
+					},
+				},
+				Samples: []prompb.Sample{
+					{
+						Value:     20,
+						Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
+					},
 				},
 			},
 		},
-		{
-			Labels: []prompb.Label{
-				{
-					Name:  "__name__",
-					Value: "prometheusrw_series2",
-				},
-				{
-					Name:  "label",
-					Value: "foo2",
-				},
-				{
-					Name:  "label1",
-					Value: "value1",
-				},
+		Metadata: []prompb.MetricMetadata{
+			{
+				Type:             1,
+				MetricFamilyName: "prometheusrw_series",
+				Help:             "some help",
+				Unit:             "",
 			},
-			Samples: []prompb.Sample{
-				{
-					Value:     20,
-					Timestamp: 1707123456800, // 2024-02-05T08:57:36.800Z
-				},
+			{
+				Type:             1,
+				MetricFamilyName: "prometheusrw_series2",
+				Help:             "some help2",
+				Unit:             "",
 			},
 		},
 	}

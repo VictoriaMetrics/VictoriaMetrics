@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -211,10 +212,9 @@ func (app *Vmsingle) OpenTSDBAPIPut(t *testing.T, records []string, opts QueryOp
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vmsingle endpoint.
-func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []prompb.TimeSeries, _ QueryOpts) {
+func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, _ QueryOpts) {
 	t.Helper()
 
-	wr := prompb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
 	if statusCode != http.StatusNoContent {
@@ -362,6 +362,20 @@ func (app *Vmsingle) PrometheusAPIV1LabelValues(t *testing.T, labelName, matchQu
 	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/label/%s/values", app.httpListenAddr, labelName)
 	res, _ := app.cli.PostForm(t, queryURL, values)
 	return NewPrometheusAPIV1LabelValuesResponse(t, res)
+}
+
+// PrometheusAPIV1Metadata sends a query to a /prometheus/api/v1/metadata endpoint
+// and returns the results.
+func (app *Vmsingle) PrometheusAPIV1Metadata(t *testing.T, metric string, limit int, opts QueryOpts) *PrometheusAPIV1Metadata {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("metric", metric)
+	values.Add("limit", strconv.Itoa(limit))
+	queryURL := fmt.Sprintf("http://%s/prometheus/api/v1/metadata", app.httpListenAddr)
+
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1Metadata(t, res)
 }
 
 // APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending

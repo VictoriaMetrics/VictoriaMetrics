@@ -6,6 +6,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/stream"
@@ -14,8 +15,9 @@ import (
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="opentelemetry"}`)
-	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="opentelemetry"}`)
+	rowsInserted     = metrics.NewCounter(`vm_rows_inserted_total{type="opentelemetry"}`)
+	rowsPerInsert    = metrics.NewHistogram(`vm_rows_per_insert{type="opentelemetry"}`)
+	metadataInserted = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="opentelemetry"}`)
 )
 
 // InsertHandler processes opentelemetry metrics.
@@ -33,12 +35,12 @@ func InsertHandler(req *http.Request) error {
 			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 		}
 	}
-	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
-		return insertRows(tss, extraLabels)
+	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
+		return insertRows(tss, mms, extraLabels)
 	})
 }
 
-func insertRows(tss []prompb.TimeSeries, extraLabels []prompb.Label) error {
+func insertRows(tss []prompb.TimeSeries, mms []prompb.MetricMetadata, extraLabels []prompb.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
@@ -75,5 +77,14 @@ func insertRows(tss []prompb.TimeSeries, extraLabels []prompb.Label) error {
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
-	return ctx.FlushBufs()
+	if err := ctx.FlushBufs(); err != nil {
+		return fmt.Errorf("cannot flush metric bufs: %w", err)
+	}
+	if prommetadata.IsEnabled() {
+		if err := ctx.WriteMetadata(mms); err != nil {
+			return err
+		}
+		metadataInserted.Add(len(mms))
+	}
+	return nil
 }

@@ -639,6 +639,37 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	return nil
 }
 
+// MetadataHandler processes /api/v1/metadata request.
+//
+// See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
+func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+
+	limit, err := httputil.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
+	if limit < 0 {
+		limit = 0
+	}
+
+	metricName := r.FormValue("metric")
+
+	metadata, err := netstorage.GetMetricsMetadata(qt, limit, metricName)
+	if err != nil {
+		return fmt.Errorf("cannot get metadata: %w", err)
+	}
+	qt.Done()
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetadataResponse(bw, metadata, qt)
+	if err := bw.Flush(); err != nil {
+		return fmt.Errorf("cannot send metadata response to remote client: %w", err)
+	}
+
+	return nil
+}
+
 var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels"}`)
 
 // SeriesCountHandler processes /api/v1/series/count request.
