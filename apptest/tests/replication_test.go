@@ -973,7 +973,7 @@ func testGroupSkipSlowReplicas(tc *apptest.TestCase, opts *testGroupReplicationO
 
 	// The data is replicated across N groups of M nodes. Replication factor is
 	// globalRF. There is no replication across the nodes within each group or
-	//it is unknown it there is one.
+	// it is unknown it there is one.
 	//
 	// Max number of nodes to skip is M*(globalRF-1). This corresponds to the
 	// case when N-globalRF+1 groups have received the response from all of

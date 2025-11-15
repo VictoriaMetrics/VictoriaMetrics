@@ -25,6 +25,14 @@ func NewTransport(enableHTTP2 bool, metricsPrefix string) *http.Transport {
 		tr.ForceAttemptHTTP2 = false
 		tr.TLSNextProto = nil
 		tr.Protocols = nil
+
+		// Clone http.DefaultTransport and disable HTTP/2 without resetting TLSClientConfig.NextProtos will cause the request to HTTP/2 server to fail.
+		// See https://github.com/golang/go/issues/39302
+		//
+		// Explicitly specify client supported protocol here
+		// The identification sequence for http1.1 and http2 are "http/1.1" and "h2", respectively.
+		// According https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml
+		tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
 	}
 	return tr
 }

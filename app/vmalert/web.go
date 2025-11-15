@@ -412,18 +412,18 @@ func (rh *requestHandler) groupAlerts() []rule.GroupAlerts {
 	defer rh.m.groupsMu.RUnlock()
 
 	var gAlerts []rule.GroupAlerts
-	for _, g := range rh.m.groups {
+	for _, group := range rh.m.groups {
 		var alerts []*rule.ApiAlert
+		g := group.ToAPI()
 		for _, r := range g.Rules {
-			a, ok := r.(*rule.AlertingRule)
-			if !ok {
+			if r.Type != rule.TypeAlerting {
 				continue
 			}
-			alerts = append(alerts, a.AlertsToAPI()...)
+			alerts = append(alerts, r.Alerts...)
 		}
 		if len(alerts) > 0 {
 			gAlerts = append(gAlerts, rule.GroupAlerts{
-				Group:  g.ToAPI(),
+				Group:  g,
 				Alerts: alerts,
 			})
 		}
@@ -444,12 +444,12 @@ func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
 		if !rf.matchesGroup(group) {
 			continue
 		}
-		for _, r := range group.Rules {
-			a, ok := r.(*rule.AlertingRule)
-			if !ok {
+		g := group.ToAPI()
+		for _, r := range g.Rules {
+			if r.Type != rule.TypeAlerting {
 				continue
 			}
-			lr.Data.Alerts = append(lr.Data.Alerts, a.AlertsToAPI()...)
+			lr.Data.Alerts = append(lr.Data.Alerts, r.Alerts...)
 		}
 	}
 

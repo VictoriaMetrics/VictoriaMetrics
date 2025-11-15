@@ -1,10 +1,12 @@
 package promremotewrite
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -12,8 +14,9 @@ import (
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="promremotewrite"}`)
-	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="promremotewrite"}`)
+	rowsInserted     = metrics.NewCounter(`vm_rows_inserted_total{type="promremotewrite"}`)
+	rowsPerInsert    = metrics.NewHistogram(`vm_rows_per_insert{type="promremotewrite"}`)
+	metadataInserted = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="promremotewrite"}`)
 )
 
 // InsertHandler processes remote write for prometheus.
@@ -23,12 +26,12 @@ func InsertHandler(req *http.Request) error {
 		return err
 	}
 	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
-	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
-		return insertRows(tss, extraLabels)
+	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
+		return insertRows(tss, mms, extraLabels)
 	})
 }
 
-func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompb.Label) error {
+func insertRows(timeseries []prompb.TimeSeries, mms []prompb.MetricMetadata, extraLabels []prompb.Label) error {
 	ctx := common.GetInsertCtx()
 	defer common.PutInsertCtx(ctx)
 
@@ -68,5 +71,15 @@ func insertRows(timeseries []prompb.TimeSeries, extraLabels []prompb.Label) erro
 	}
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
-	return ctx.FlushBufs()
+
+	if err := ctx.FlushBufs(); err != nil {
+		return fmt.Errorf("cannot flush metric bufs: %w", err)
+	}
+	if prommetadata.IsEnabled() {
+		if err := ctx.WriteMetadata(mms); err != nil {
+			return err
+		}
+		metadataInserted.Add(len(mms))
+	}
+	return nil
 }

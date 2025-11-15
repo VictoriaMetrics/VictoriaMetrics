@@ -144,7 +144,7 @@ func load(filePath string, maxBytes int) (*Cache, error) {
 		maxBucketBytes := uint64((maxBytes + bucketsCount - 1) / bucketsCount)
 		expectedBucketChunks := (maxBucketBytes + chunkSize - 1) / chunkSize
 		if maxBucketChunks != expectedBucketChunks {
-			return nil, fmt.Errorf("cache file %s contains maxBytes=%d; want %d", filePath, maxBytes, expectedBucketChunks*chunkSize*bucketsCount)
+			return nil, fmt.Errorf("cache file %s contains unexpected number of bucket chunks; got %d; want %d", filePath, maxBucketChunks, expectedBucketChunks)
 		}
 	}
 

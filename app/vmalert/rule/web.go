@@ -209,15 +209,6 @@ func (ar *AlertingRule) AlertsToAPI() []*ApiAlert {
 	return alerts
 }
 
-// AlertToAPI generates apiAlert object from alert by its id(hash)
-func (ar *AlertingRule) AlertToAPI(id uint64) *ApiAlert {
-	a := ar.GetAlert(id)
-	if a == nil {
-		return nil
-	}
-	return NewAlertAPI(ar, a)
-}
-
 // NewAlertAPI creates apiAlert for notifier.Alert
 func NewAlertAPI(ar *AlertingRule, a *notifier.Alert) *ApiAlert {
 	aa := &ApiAlert{

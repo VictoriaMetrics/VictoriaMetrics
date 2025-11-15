@@ -22,6 +22,8 @@ func CompressZSTDLevel(dst, src []byte, compressLevel int) []byte {
 
 // DecompressZSTD decompresses src, appends the result to dst and returns
 // the appended dst.
+//
+// This function must be called only for the trusted src.
 func DecompressZSTD(dst, src []byte) ([]byte, error) {
 	decompressCalls.Inc()
 	b, err := zstd.Decompress(dst, src)

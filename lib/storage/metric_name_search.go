@@ -62,7 +62,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	// Not deleting metricID if no corresponding metricName has been found
 	// because it is not known which indexDB metricID belongs to.
 	// For cases when this does happen see indexDB.SearchMetricNames() and
-	// indexDB.getTSIDsFromMetricIDs()).
+	// indexDB.SearchTSIDs()).
 
 	return dst, false
 }

@@ -56,7 +56,7 @@ var (
 	maxTSDBStatusSeries     = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
 	maxSeriesLimit          = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
 	maxDeleteSeries         = flag.Int("search.maxDeleteSeries", 1e6, "The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage")
-	maxTSDBStatusTopNSeries = flag.Int("search.maxTSDBStatusTopNSeries", 1000, "The maximum value of `topN` argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats")
+	maxTSDBStatusTopNSeries = flag.Int("search.maxTSDBStatusTopNSeries", 1000, "The maximum value of 'topN' argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats")
 	maxLabelsAPISeries      = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the matching time series "+
 		"at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, "+
 		"-search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI")
@@ -636,6 +636,37 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
+	return nil
+}
+
+// MetadataHandler processes /api/v1/metadata request.
+//
+// See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
+func MetadataHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+
+	limit, err := httputil.GetInt(r, "limit")
+	if err != nil {
+		return err
+	}
+	if limit < 0 {
+		limit = 0
+	}
+
+	metricName := r.FormValue("metric")
+
+	metadata, err := netstorage.GetMetricsMetadata(qt, limit, metricName)
+	if err != nil {
+		return fmt.Errorf("cannot get metadata: %w", err)
+	}
+	qt.Done()
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteMetadataResponse(bw, metadata, qt)
+	if err := bw.Flush(); err != nil {
+		return fmt.Errorf("cannot send metadata response to remote client: %w", err)
+	}
+
 	return nil
 }
 

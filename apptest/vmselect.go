@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"testing"
 )
 
@@ -184,6 +185,20 @@ func (app *Vmselect) PrometheusAPIV1LabelValues(t *testing.T, labelName, matchQu
 
 	res, _ := app.cli.PostForm(t, queryURL, values)
 	return NewPrometheusAPIV1LabelValuesResponse(t, res)
+}
+
+// PrometheusAPIV1Metadata sends a query to a /prometheus/api/v1/metadata endpoint
+// and returns the results.
+func (app *Vmselect) PrometheusAPIV1Metadata(t *testing.T, metric string, limit int, opts QueryOpts) *PrometheusAPIV1Metadata {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("metric", metric)
+	values.Add("limit", strconv.Itoa(limit))
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/metadata", app.httpListenAddr, opts.getTenant())
+
+	res, _ := app.cli.PostForm(t, queryURL, values)
+	return NewPrometheusAPIV1Metadata(t, res)
 }
 
 // APIV1AdminTSDBDeleteSeries deletes the series that match the query by sending

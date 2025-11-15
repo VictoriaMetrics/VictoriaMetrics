@@ -1,0 +1,36 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
+  "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+) %}
+
+{% stripspace %}
+MetadataResponse generates response for /api/v1/metadata
+See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
+{% func MetadataResponse( result []*metricsmetadata.Row, qt *querytracer.Tracer) %}
+{
+	"status":"success",
+	"data": {
+		{% code
+			mapItems := len(result)
+			currentItem := 0
+		 %}
+		{% for _, row := range result %}
+			"{%s string(row.MetricFamilyName) %}": [
+					{
+						"type": {%q= prompb.MetricMetadataTypeToString(row.Type) %},
+            {% if len(row.Unit) > 0 -%}
+						"unit": {%q= string(row.Unit) %},
+            {% endif -%}
+						"help": {%q= string(row.Help) %}
+					}
+			]
+			{% if currentItem != mapItems-1 %},{% endif %}
+			{% code currentItem++ %}
+		{% endfor %}
+	}
+	{%= dumpQueryTrace(qt) %}
+}
+{% endfunc %}
+
+{% endstripspace %}

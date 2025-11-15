@@ -71,25 +71,23 @@ func TestDateMetricIDCacheConcurrent(t *testing.T) {
 
 func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	type dmk struct {
-		generation uint64
-		date       uint64
-		metricID   uint64
+		date     uint64
+		metricID uint64
 	}
 	m := make(map[dmk]bool)
 	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
 		date := uint64(i) % 2
 		metricID := uint64(i) % 1237
-		if !concurrent && c.Has(generation, date, metricID) {
-			if !m[dmk{generation, date, metricID}] {
-				return fmt.Errorf("c.Has(%d, %d, %d) must return false, but returned true", generation, date, metricID)
+		if !concurrent && c.Has(date, metricID) {
+			if !m[dmk{date, metricID}] {
+				return fmt.Errorf("c.Has(%d, %d) must return false, but returned true", date, metricID)
 			}
 			continue
 		}
-		c.Set(generation, date, metricID)
-		m[dmk{generation, date, metricID}] = true
-		if !concurrent && !c.Has(generation, date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d, %d) must return true, but returned false", generation, date, metricID)
+		c.Set(date, metricID)
+		m[dmk{date, metricID}] = true
+		if !concurrent && !c.Has(date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d) must return true, but returned false", date, metricID)
 		}
 		if i%11234 == 0 {
 			c.mu.Lock()
@@ -106,20 +104,18 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 
 	// Verify fast path after sync.
 	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
 		date := uint64(i) % 2
 		metricID := uint64(i) % 123
-		c.Set(generation, date, metricID)
+		c.Set(date, metricID)
 	}
 	c.mu.Lock()
 	c.syncLocked()
 	c.mu.Unlock()
 	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
 		date := uint64(i) % 2
 		metricID := uint64(i) % 123
-		if !concurrent && !c.Has(generation, date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d, %d) must return true after sync", generation, date, metricID)
+		if !concurrent && !c.Has(date, metricID) {
+			return fmt.Errorf("c.Has(%d, %d) must return true after sync", date, metricID)
 		}
 	}
 
@@ -150,8 +146,8 @@ func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 		go func() {
 			defer wg.Done()
 			for id := uint64(i * numMetrics); id < uint64((i+1)*numMetrics); id++ {
-				dmc.Set(generation, date, id)
-				if !dmc.Has(generation, date, id) {
+				dmc.Set(date, id)
+				if !dmc.Has(date, id) {
 					panic(fmt.Errorf("dmc.Has(metricID=%d): unexpected cache miss after adding the entry to cache", id))
 				}
 			}

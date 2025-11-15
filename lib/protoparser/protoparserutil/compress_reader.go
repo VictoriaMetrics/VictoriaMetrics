@@ -34,7 +34,10 @@ func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.By
 
 	if encoding == "zstd" {
 		// Fast path for zstd encoding - read the data in full and then decompress it by a single call.
-		return readUncompressedData(wcr, maxDataSize, zstd.Decompress, callback)
+		dcompress := func(dst, src []byte) ([]byte, error) {
+			return zstd.DecompressLimited(dst, src, maxDataSize.IntN())
+		}
+		return readUncompressedData(wcr, maxDataSize, dcompress, callback)
 	}
 	if encoding == "snappy" {
 		// Special case for snappy. The snappy data must be read in full and then decompressed,

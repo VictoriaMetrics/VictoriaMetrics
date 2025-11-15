@@ -1,7 +1,9 @@
 package logger
 
 import (
+	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -32,7 +34,8 @@ func WithThrottler(name string, throttle time.Duration) *LogThrottler {
 //
 // LogThrottler must be created via WithThrottler() call.
 type LogThrottler struct {
-	ch chan struct{}
+	ch      chan struct{}
+	dropped atomic.Uint64
 }
 
 func newLogThrottler(throttle time.Duration) *LogThrottler {
@@ -52,8 +55,11 @@ func newLogThrottler(throttle time.Duration) *LogThrottler {
 func (lt *LogThrottler) Errorf(format string, args ...any) {
 	select {
 	case lt.ch <- struct{}{}:
+		dropped := lt.dropped.Swap(0)
+		format = fmt.Sprintf("%s. (Similar %d log messages were dropped due to throttling)", format, dropped)
 		ErrorfSkipframes(1, format, args...)
 	default:
+		lt.dropped.Add(1)
 	}
 }
 
@@ -61,7 +67,10 @@ func (lt *LogThrottler) Errorf(format string, args ...any) {
 func (lt *LogThrottler) Warnf(format string, args ...any) {
 	select {
 	case lt.ch <- struct{}{}:
+		dropped := lt.dropped.Swap(0)
+		format = fmt.Sprintf("%s. (Similar %d log messages were dropped due to throttling)", format, dropped)
 		WarnfSkipframes(1, format, args...)
 	default:
+		lt.dropped.Add(1)
 	}
 }

@@ -1136,6 +1136,14 @@ For example, if `vmagent` needs to scrape thousands of targets in resource-const
   This reduces RAM and CPU usage when `vmagent` runs in an environment with a large number of available CPU cores. Note that it may be necessary to increase the `-remoteWrite.queues`
   command-line flag to a larger value if `GOMAXPROCS` is set to too small of a value, since by default `-remoteWrite.queues` is proportional to `GOMAXPROCS`.
 
+* Avoid increasing the value for the `-maxConcurrentRequests` command-line flag. The default value is optimized for the best performance in most cases,
+  even if many clients send data to `vmagent` via many concurrent connections and the number of these connections significantly exceeds the default value
+  for the `-maxConcurrentRequests` command-line flag. `vmagent` puts incoming requests into a wait queue if the number of concurrently executed requests
+  exceeds `-maxConcurrentRequests`. The pending requests at the wait queue do not consume CPU and do not consume significant amounts of RAM, so it is OK to have
+  thousands of pending requests in the wait queue. Pending requests in the wait queue are canceled if they wait for their exection for longer than
+  the duration specified in the `-insert.maxQueueDuration` command-line flag. Canceled requests can be [monitored](https://docs.victoriametrics.com/victoriametrics/vmagent/#monitoring)
+  via `vm_concurrent_insert_limit_timeout_total` metric.
+
 * Disable response compression at scrape targets via `-promscrape.disableCompression` command-line flag or via `disable_compression: true` option
   in the [scrape_config](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs). This reduces CPU usage at the cost of higher network bandwidth usage
   between `vmagent` and scrape targets.

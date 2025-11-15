@@ -38,7 +38,7 @@ Once connected, you can start building graphs and dashboards using [PromQL](http
 or [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/).
 
 VictoriaMetrics datasource is publicly available on [GitHub](https://github.com/VictoriaMetrics/victoriametrics-datasource).
-See more in [plugin docs](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/).
+See more in [plugin docs](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/).
 
 _Creating a datasource may require [specific permissions](https://grafana.com/docs/grafana/latest/administration/data-source-management/).
 If you don't see an option to create a data source - try contacting system administrator._
@@ -52,7 +52,7 @@ in Grafana. Follow the same connection instructions as for [VictoriaMetrics data
 In the "Type and version" section set the type to "Prometheus" and the version to at least "2.24.x".
 This allows Grafana to use a more efficient API to get label values:
 
-![Datasource](grafana-datasource-prometheus.webp)
+![Datasource](datasource-prometheus.webp)
 
 Once connected, you can build graphs and dashboards using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 

@@ -236,7 +236,8 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 			Labels: stringToLabels(k),
 			Samples: []prompb.Sample{
 				{Value: decimal.StaleNaN, Timestamp: ts.UnixNano() / 1e6},
-			}})
+			},
+		})
 	}
 	rr.lastEvaluation = curEvaluation
 	return tss, nil
@@ -291,6 +292,11 @@ func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompb.TimeSeries {
 	}
 	// add extra labels configured by user
 	for k := range rr.Labels {
+		// do not add label with empty value, since it has no meaning.
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9984
+		if rr.Labels[k] == "" {
+			continue
+		}
 		existingLabel := promrelabel.GetLabelByName(m.Labels, k)
 		if existingLabel != nil { // there is a conflict between extra and existing label
 			if existingLabel.Value == rr.Labels[k] {

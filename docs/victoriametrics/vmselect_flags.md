@@ -241,8 +241,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      HTTP request header keys to log for queries exceeding the threshold set by -search.logSlowQueryStats. Case-insensitive. By default, no headers are logged. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/query-stats/#log-fields for details and examples.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -search.maxBinaryOpPushdownLabelValues instance
-     The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example instance, and storage resources are abundant. (default 100)
+  -search.maxBinaryOpPushdownLabelValues int
+     The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label (e.g., 'instance') contains numerous values, and storage resources are abundant. (default 100)
   -search.maxConcurrentRequests int
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default vmselect.getDefaultMaxConcurrentRequests())
   -search.maxDeleteDuration duration
@@ -301,8 +301,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
   -search.maxTSDBStatusSeries int
      The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
-  -search.maxTSDBStatusTopNSeries topN
-     The maximum value of topN argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats (default 1000)
+  -search.maxTSDBStatusTopNSeries int
+     The maximum value of 'topN' argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats (default 1000)
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxUniqueTimeseries -search.maxUniqueTimeseries

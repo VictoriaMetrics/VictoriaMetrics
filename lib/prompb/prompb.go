@@ -378,6 +378,41 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
+// MetricMetadataTypeToString maps given uint32 value to the human read-able string
+func MetricMetadataTypeToString(mt uint32) string {
+	//   enum MetricType {
+	//     UNKNOWN = 0;
+	//     COUNTER = 1;
+	//     GAUGE = 2;
+	//     HISTOGRAM = 3;
+	//     GAUGEHISTOGRAM = 4;
+	//     SUMMARY = 5;
+	//     INFO = 6;
+	//     STATESET = 7;
+	//   }
+	// source https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.proto#L22
+	switch mt {
+	case 0:
+		return "unknown"
+	case 1:
+		return "counter"
+	case 2:
+		return "gauge"
+	case 3:
+		return "histogram"
+	case 4:
+		return "gauge histogram"
+	case 5:
+		return "summary"
+	case 6:
+		return "info"
+	case 7:
+		return "stateset"
+	default:
+		return fmt.Sprintf("unknown(%d)", mt)
+	}
+}
+
 // IsEmpty checks if the WriteRequest has data to push.
 func (m *WriteRequest) IsEmpty() bool {
 	return m == nil || (len(m.Timeseries) == 0 && len(m.Metadata) == 0)

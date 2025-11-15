@@ -33,6 +33,10 @@ static unsigned long long ZSTD_findDecompressedSize_wrapper(uintptr_t src, size_
     return ZSTD_findDecompressedSize((const void*)src, srcSize);
 }
 
+static size_t ZSTD_DCtx_setMaxWindowSize_wrapper(uintptr_t ctx, size_t value) {
+    return ZSTD_DCtx_setMaxWindowSize((ZSTD_DCtx*)ctx, value);
+}
+
 */
 import "C"
 
@@ -185,10 +189,30 @@ func Decompress(dst, src []byte) ([]byte, error) {
 	return DecompressDict(dst, src, nil)
 }
 
+// DecompressLimited appends decompressed src to dst and returns the result.
+//
+// returns error if uncompressed data size exceeds provided limit
+func DecompressLimited(dst, src []byte, limit int) ([]byte, error) {
+	return decompressDict(dst, src, nil, limit)
+}
+
 // DecompressDict appends decompressed src to dst and returns the result.
 //
 // The given dictionary dd is used for the decompression.
 func DecompressDict(dst, src []byte, dd *DDict) ([]byte, error) {
+	return decompressDict(dst, src, dd, 0)
+}
+
+// DecompressDictLimited appends decompressed src to dst and returns the result.
+//
+// The given dictionary dd is used for the decompression.
+//
+// returns error if uncompressed data size exceeds provided limit
+func DecompressDictLimited(dst, src []byte, dd *DDict, limit int) ([]byte, error) {
+	return decompressDict(dst, src, dd, limit)
+}
+
+func decompressDict(dst, src []byte, dd *DDict, limit int) ([]byte, error) {
 	var dctx, dctxDict *dctxWrapper
 	if dd == nil {
 		dctx = dctxPool.Get().(*dctxWrapper)
@@ -197,7 +221,7 @@ func DecompressDict(dst, src []byte, dd *DDict) ([]byte, error) {
 	}
 
 	var err error
-	dst, err = decompress(dctx, dctxDict, dst, src, dd)
+	dst, err = decompress(dctx, dctxDict, dst, src, dd, limit)
 
 	if dd == nil {
 		dctxPool.Put(dctx)
@@ -233,7 +257,7 @@ type dctxWrapper struct {
 	dctx *C.ZSTD_DCtx
 }
 
-func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte, error) {
+func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict, limit int) ([]byte, error) {
 	if len(src) == 0 {
 		return dst, nil
 	}
@@ -244,6 +268,9 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 		result := decompressInternal(dctx, dctxDict, dst[dstLen:cap(dst)], src, dd)
 		decompressedSize := int(result)
 		if decompressedSize >= 0 {
+			if limit > 0 && decompressedSize > limit {
+				return dst, fmt.Errorf("decompressed source size: %d exceeds limit: %d", decompressedSize, limit)
+			}
 			// All OK.
 			return dst[:dstLen+decompressedSize], nil
 		}
@@ -261,9 +288,12 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 	runtime.KeepAlive(src)
 	switch uint64(decompressBound) {
 	case uint64(C.ZSTD_CONTENTSIZE_UNKNOWN):
-		return streamDecompress(dst, src, dd)
+		return streamDecompress(dst, src, dd, limit)
 	case uint64(C.ZSTD_CONTENTSIZE_ERROR):
 		return dst, fmt.Errorf("cannot decompress invalid src")
+	}
+	if limit > 0 && decompressBound > limit {
+		return dst, fmt.Errorf("decompressed source size: %d exceeds limit: %d", decompressBound, limit)
 	}
 	decompressBound++
 
@@ -327,8 +357,8 @@ func ensureNoError(funcName string, result C.size_t) {
 	}
 }
 
-func streamDecompress(dst, src []byte, dd *DDict) ([]byte, error) {
-	sd := getStreamDecompressor(dd)
+func streamDecompress(dst, src []byte, dd *DDict, limit int) ([]byte, error) {
+	sd := getStreamDecompressor(dd, limit)
 	sd.dst = dst
 	sd.src = src
 	_, err := sd.zr.WriteTo(sd)
@@ -362,7 +392,7 @@ func (sd *streamDecompressor) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func getStreamDecompressor(dd *DDict) *streamDecompressor {
+func getStreamDecompressor(dd *DDict, limit int) *streamDecompressor {
 	v := streamDecompressorPool.Get()
 	if v == nil {
 		sd := &streamDecompressor{
@@ -372,6 +402,11 @@ func getStreamDecompressor(dd *DDict) *streamDecompressor {
 	}
 	sd := v.(*streamDecompressor)
 	sd.zr.Reset((*srcReader)(sd), dd)
+	if limit > 0 {
+		result := C.ZSTD_DCtx_setMaxWindowSize_wrapper(C.uintptr_t(uintptr(unsafe.Pointer(sd.zr.ds))), C.size_t(limit))
+		ensureNoError("ZSTD_DCtx_setMaxWindowSize", result)
+		sd.zr.limit = limit
+	}
 	return sd
 }
 

@@ -19,13 +19,13 @@ Stream aggregation can be configured via the following command-line flags:
   per each `-remoteWrite.url`, so the aggregation happens independently per each remote storage destination.
   This allows writing different aggregates to different remote storage systems.
 
-These flags must point to a file containing [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+These flags must point to a file containing [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
 
 By default, the following data is written to the storage when stream aggregation is enabled:
 
 - the aggregated samples;
-- the raw input samples, which didn't match any `match` option in the provided [config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config).
+- the raw input samples, which didn't match any `match` option in the provided [config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config).
 
 This behaviour can be changed via the following command-line flags:
 
@@ -198,13 +198,13 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 ## Aggregation outputs
 
-The aggregations are calculated during the `interval` specified in the [config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config)
+The aggregations are calculated during the `interval` specified in the [config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config)
 and then sent to the storage once per `interval`. The aggregated samples are named according to [output metric naming](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#output-metric-names).
 
-If `by` and `without` lists are specified in the [config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config),
+If `by` and `without` lists are specified in the [config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config),
 then the [aggregation by labels](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#aggregating-by-labels) is performed additionally to aggregation by `interval`.
 
-Below are aggregation functions that can be put in the `outputs` list at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#aggregation-config):
+Below are aggregation functions that can be put in the `outputs` list at [stream aggregation config](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/configuration/#stream-aggregation-config):
 
 * [avg](#avg)
 * [count_samples](#count_samples)

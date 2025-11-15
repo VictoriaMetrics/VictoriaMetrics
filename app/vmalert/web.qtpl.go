@@ -1717,7 +1717,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule rule.Api
         <table class="table table-striped table-hover table-sm">
             <thead>
                 <tr>
-                    <th scope="col" title="The time when event was created">Updated at</th>
+                    <th scope="col" title="The time when the rule was executed">Updated at</th>
                     <th scope="col" class="w-10 text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
                     `)
 //line app/vmalert/web.qtpl:607
@@ -1729,7 +1729,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule rule.Api
 //line app/vmalert/web.qtpl:607
 	qw422016.N().S(`
                     <th scope="col" class="w-10 text-center" title="How many seconds request took">Duration</th>
-                    <th scope="col" class="text-center" title="Time used for rule execution">Executed at</th>
+                    <th scope="col" class="text-center" title="The time used in execution query request">Execution timestamp</th>
                     <th scope="col" class="text-center" title="cURL command with request example">cURL</th>
                 </tr>
             </thead>
