@@ -1,6 +1,29 @@
 @use "src/styles/variables" as *;
 
 .vm-select {
+  position: relative;
+  display: grid;
+  &-label {
+    color: var(--color-text-secondary);
+    width: fit-content;
+    margin-top: calc(($font-size-small/-2) - 1px);
+    margin-bottom: calc(($font-size-small/-2) - 1px);
+    margin-left: calc($padding-global/2);
+    max-width: calc(100% - $padding-global);
+    padding: 0 3px;
+    font-size: $font-size-small;
+    line-height: calc($font-size-small + 2px);
+    pointer-events: none;
+    user-select: none;
+    background-color: $color-background-block;
+    z-index: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1; /* number of lines to show */
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
   &-input {
     position: relative;
     display: flex;

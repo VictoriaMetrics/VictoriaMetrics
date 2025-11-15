@@ -150,17 +150,17 @@
 
   &__icon-start,
   &__icon-end {
-    align-self: center;
+    align-content: center;
     max-width: 15px;
     position: absolute;
     color: $color-text-secondary;
   }
 
   &__icon-start {
-    left: $padding-global;
+    left: $padding-small;
   }
 
   &__icon-end {
-    right: $padding-global;
+    right: $padding-small;
   }
 }
