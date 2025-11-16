@@ -29,7 +29,7 @@ The following options are available:
 
 ### Command-line arguments
 
-The `vmanomaly` service supports a set of command-line arguments to configure its behavior, including options for licensing, logging levels, and more. 
+The `vmanomaly` service supports a set of command-line arguments to configure its behavior, including options for licensing, logging levels, and more.
 
 > `vmanomaly` supports {{% available_from "v1.18.5" anomaly %}} running on config **directories**, see the `config` positional arg description in help message below.
 
@@ -48,7 +48,7 @@ options:
   -h                    Show this help message and exit
   --license STRING      License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
   --licenseFile PATH    Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
-  --license.forceOffline 
+  --license.forceOffline
                         Whether to force offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued
                         license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification.
   --loggerLevel {DEBUG,WARNING,FATAL,ERROR,INFO}
@@ -90,7 +90,7 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 30 days"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}.
             Please make sure to update the license before it expires."
 
       - alert: LicenseExpiresInLessThan7Days
@@ -99,22 +99,24 @@ groups:
           severity: critical
         annotations:
           summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 7 days"
-          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}.
             Please make sure to update the license before it expires."
 ```
 
 ### Docker
 
 > To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/). <br><br>
-> Due to the upcoming [DockerHub pull limits](https://docs.docker.com/docker-hub/usage/pulls), an additional image registry, **Quay.io**, has been introduced for VictoriaMetrics images, including [`vmanomaly`](https://quay.io/repository/victoriametrics/vmanomaly). If you encounter pull rate limits, switch from:  
+> Due to the upcoming [DockerHub pull limits](https://docs.docker.com/docker-hub/usage/pulls), an additional image registry, **Quay.io**, has been introduced for VictoriaMetrics images, including [`vmanomaly`](https://quay.io/repository/victoriametrics/vmanomaly). If you encounter pull rate limits, switch from:
+>
 > ```
 > docker pull victoriametrics/vmanomaly:vX.Y.Z
 > ```
-> to:  
+>
+> to:
+>
 > ```
 > docker pull quay.io/victoriametrics/vmanomaly:vX.Y.Z
 > ```
-
 
 Below are the steps to get `vmanomaly` up and running inside a Docker container:
 
@@ -177,8 +179,6 @@ services:
 
 For a complete docker-compose example please refer to [our alerting guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/), chapter [docker-compose](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/#docker-compose)
 
-
-
 See also:
 
 - Verify the license online OR offline. See the details [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).
@@ -198,13 +198,13 @@ with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/mas
 
 If you are using [VM Operator](https://docs.victoriametrics.com/operator/) to manage your Kubernetes cluster, `vmanomaly` can be deployed using the following [custom resource guide](https://docs.victoriametrics.com/operator/resources/vmanomaly/).
 
-
 ## How to configure vmanomaly
 
 To run `vmanomaly`, use YAML files or directories containing YAML files. The configuration files support shallow merge, allowing splitting the configuration into multiple files for better organization.
 
-> If you are using directories, all `.yaml` files inside will be shallow merged, without deeper recursion. If you want to merge multiple YAML files, you can specify them as separate arguments, e.g. 
-> ```shellhelp 
+> If you are using directories, all `.yaml` files inside will be shallow merged, without deeper recursion. If you want to merge multiple YAML files, you can specify them as separate arguments, e.g.
+>
+> ```shellhelp
 >     vmanomaly config1.yaml config2.yaml ./config_dir/
 > ```
 
@@ -222,7 +222,7 @@ settings:
   restore_state: True  # restore state from previous run, available since v1.24.0
   # https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels
   # to override service-global logger levels, use the `logger_levels` section
-  logger_levels:  
+  logger_levels:
     # vmanomaly: info
     # scheduler: info
     # reader: info
@@ -260,7 +260,7 @@ reader:
   # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
   datasource_url: "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
   sampling_period: "1m"
-  queries: 
+  queries:
     # define your queries with MetricsQL - https://docs.victoriametrics.com/victoriametrics/metricsql/
     cache: "sum(rate(vm_cache_entries))"
 
@@ -283,11 +283,13 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 - Set up **config hot-reloading** {{% available_from "v1.25.0" anomaly %}} to automatically reload configurations on config files changes. This can be enabled via the `--watch` [CLI argument](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) and allows for configuration updates without explicit service restarts.
 
 **Schedulers**:
-- Configure the **inference frequency** in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of the configuration file.  
-- Ensure that `infer_every` aligns with your **minimum required alerting frequency**.  
-  - For example, if receiving **alerts every 15 minutes** is sufficient (when `anomaly_score > 1`), set `infer_every` to match `reader.sampling_period` or override it per query via `reader.queries.query_xxx.step` for an optimal setup.  
+
+- Configure the **inference frequency** in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of the configuration file.
+- Ensure that `infer_every` aligns with your **minimum required alerting frequency**.
+  - For example, if receiving **alerts every 15 minutes** is sufficient (when `anomaly_score > 1`), set `infer_every` to match `reader.sampling_period` or override it per query via `reader.queries.query_xxx.step` for an optimal setup.
 
 **Reader**:
+
 - Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section. Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) (`multitenant` value {{% available_from "v1.16.2" anomaly %}} can be also used here).
 - Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) under `reader.queries` section. Note, it's possible to override reader-level arguments at query level for increased flexibility, e.g. specifying per-query [timezone](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-timezones) or [sampling period](https://docs.victoriametrics.com/anomaly-detection/components/reader/#sampling-period).
 - For longer `fit_window` intervals in scheduler, consider splitting queries into smaller time ranges to avoid excessive memory usage, timeouts and hitting server-side constraints, so they can be queried separately and reconstructed on `vmanomaly` side. Please refer to this [example](https://docs.victoriametrics.com/anomaly-detection/faq/#handling-large-queries-in-vmanomaly) for more details.
@@ -295,21 +297,25 @@ For optimal service behavior, consider the following tweaks when configuring `vm
 > If applicable - consider [`VLogsReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vlogs-reader) {{% available_from "v1.26.0" anomaly %}} to perform anomaly detection on **log-derived metrics**. This is particularly useful for scenarios where log data needs to be analyzed for unusual patterns or behaviors, such as error rates or request latencies.
 
 **Writer**:
+
 - Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
 - Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) for writing the results.
 - Adding `for` label to `metric_format` argument is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Please refer to `metric_format` argument description [here](https://docs.victoriametrics.com/anomaly-detection/components/writer/#config-parameters).
 
 **Models**:
+
 - Configure built-in models hyperparameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section. Where possible, incorporate [domain knowledge](https://docs.victoriametrics.com/anomaly-detection/faq/#incorporating-domain-knowledge) for optimal results.
 - (Optional) Develop or integrate your [custom models](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
 - Adding `y` to `provide_series` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) values is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Also, other `vmanomaly` [output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) series can be specified in `provide_series`, such as `yhat`, `yhat_lower`, `yhat_upper`, etc. This will allow you to visualize the expected values and their confidence intervals in the dashboard.
   > Only [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) support the generation of such output. Other models, such as [multivariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) or [custom](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide), may not support this feature.
 
 **Visualization**:
+
 - Set up [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard) to visualize the results of anomaly detection.
 - Set up [self-monitoring dashboard](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/) to monitor the health of `vmanomaly` service and its components.
 
 **Logging**:
+
 - Tune logging levels in the `settings.logger_levels` [section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels) to control the verbosity of logs. This can help in debugging and monitoring the service behavior, as well as in disabling excessive logging for production environments.
 
 ## Check also

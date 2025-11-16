@@ -30,7 +30,7 @@ schedulers:
     fit_every: "10m"
     fit_window: "3h"
 ...
-```  
+```
 
 Old-style configs {{% deprecated_from "v1.11.0" anomaly %}}
 
@@ -60,7 +60,7 @@ schedulers:
 `class`: str, default=`"scheduler.periodic.PeriodicScheduler"`,
 options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffScheduler"`, `"scheduler.backtesting.BacktestingScheduler"`}
 
--  `"scheduler.periodic.PeriodicScheduler"`: Used in production. Periodically runs the models on new data to generate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). Also does consecutive re-trainings of attached [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) to counter [data drift](https://www.datacamp.com/tutorial/understanding-data-drift-model-drift) and model degradation over time. 
+-  `"scheduler.periodic.PeriodicScheduler"`: Used in production. Periodically runs the models on new data to generate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). Also does consecutive re-trainings of attached [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) to counter [data drift](https://www.datacamp.com/tutorial/understanding-data-drift-model-drift) and model degradation over time.
 -  `"scheduler.oneoff.OneoffScheduler"`: Runs the job once and exits. Useful for testing or for one-off backfilling on historical data.
 -  `"scheduler.backtesting.BacktestingScheduler"`: Imitates running PeriodicScheduler, but runs only once and exits. Used for [backtesting](https://en.wikipedia.org/wiki/Backtesting) or for consecutive backfilling on historical data. One may evaluate the model performance on past data which already contained labeled incidents, to see how well the model would have performed in the past. See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#how-to-backtest-particular-configuration-on-historical-data) for the example and [BacktestingScheduler](#backtesting-scheduler) section below for the configuration details.
 
@@ -68,7 +68,7 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 
 **Depending on selected class, different parameters should be used**
 
-## Periodic scheduler 
+## Periodic scheduler
 
 > If `start_from` [parameter](#parameters-1) is used, it's suggested to also set `restore_state: true` in the [Settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) of a config, so that the scheduler can restore its state from the previous run **if terminated or restarted in between scheduled runs** and continue producing anomaly scores without interruptions, otherwise the service will be idle until future `start_from` time is reached. E.g. if `start_from` is set to `20:00` and the service is started and then terminated and restarted at `20:30`, it will not produce any anomaly scores until the next day's `20:00` is reached (+23:30 of being idle), which introduces inconvenience for the users.
 
@@ -76,7 +76,7 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 
 For periodic scheduler parameters are defined as differences in times, expressed in difference units, e.g. days, hours, minutes, seconds.
 
-Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`. 
+Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
 
 <table class="params">
     <thead>
@@ -115,7 +115,7 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
             <th>Parameter</th>
             <th>Type</th>
             <th>Example</th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -198,8 +198,8 @@ schedulers:
   periodic_scheduler_alias:
     class: "periodic"
     # (or class: "scheduler.periodic.PeriodicScheduler" for versions before v1.13.0, without class alias support)
-    fit_window: "14d" 
-    infer_every: "1m" 
+    fit_window: "14d"
+    infer_every: "1m"
     fit_every: "1h"
     start_from: "20:00"  # If launched before 20:00 (local Kyiv time), the first run starts today at 20:00. Otherwise, it starts tomorrow at 20:00.
     tz: "Europe/Kyiv"  # Defaults to 'UTC' if not specified.
@@ -212,8 +212,10 @@ This configuration specifies that `vmanomaly` will calculate a 14-day time windo
 > As of latest version, the Oneoff scheduler can't be explicitly used with a combination of [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration). It is designed to run once and exit, so it does not maintain state across runs. A warning will be raised in logs and internal state for such scheduler will not be saved and restored upon restart. If you need to run the scheduler periodically and/or maintain state, consider using the [Periodic scheduler](#periodic-scheduler) instead.
 
 ### Parameters
-For Oneoff scheduler timeframes can be defined in Unix time in seconds or ISO 8601 string format. 
+
+For Oneoff scheduler timeframes can be defined in Unix time in seconds or ISO 8601 string format.
 ISO format supported time zone offset formats are:
+
 * Z (UTC)
 * ±HH:MM
 * ±HHMM
@@ -222,6 +224,7 @@ ISO format supported time zone offset formats are:
 If a time zone is omitted, a timezone-naive datetime is used.
 
 ### Defining fitting timeframe
+
 <table class="params">
     <thead>
         <tr>
@@ -229,7 +232,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <th>Parameter</th>
             <th><span style="white-space: nowrap;">Type</span></th>
             <th>Example</th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -269,7 +272,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
 
 `"2022-04-10T00:00:00Z", "2022-04-10T00:00:00+01:00", "2022-04-10T00:00:00+0100", "2022-04-10T00:00:00+01"`
             </td>
-            <td rowspan=2>End datetime to use for training a model. Must be greater than 
+            <td rowspan=2>End datetime to use for training a model. Must be greater than
 
 `fit_start_*`
 . ISO string or UNIX time in seconds.</td>
@@ -287,6 +290,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
 </table>
 
 ### Defining inference timeframe
+
 <table class="params">
     <thead>
         <tr>
@@ -294,7 +298,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <th>Parameter</th>
             <th><span style="white-space: nowrap;">Type</span></th>
             <th>Example</th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -334,7 +338,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
 
 `"2022-04-14T00:00:00Z", "2022-04-14T00:00:00+01:00", "2022-04-14T00:00:00+0100", "2022-04-14T00:00:00+01"`
             </td>
-            <td rowspan=2>End datetime to use for a model inference. Must be greater than 
+            <td rowspan=2>End datetime to use for a model inference. Must be greater than
 
 `infer_start_*`
 . ISO string or UNIX time in seconds.</td>
@@ -352,6 +356,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
 </table>
 
 ### ISO format scheduler config example
+
 ```yaml
 schedulers:
   oneoff_scheduler_alias:
@@ -363,8 +368,8 @@ schedulers:
     infer_end_iso: "2022-04-14T00:00:00Z"
 ```
 
+### UNIX time format scheduler config example
 
-### UNIX time format scheduler config example               
 ```yaml
 schedulers:
   oneoff_scheduler_alias:
@@ -383,16 +388,18 @@ schedulers:
 > As of latest version, the Backtesting scheduler can't be explicitly used with a combination of [state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration). It is designed to run once and exit, so it does not maintain state across runs. A warning will be raised in logs and internal state for such scheduler will not be saved and restored upon restart. If you need to run the scheduler periodically and/or maintain state, consider using the [Periodic scheduler](#periodic-scheduler) instead.
 
 > A new, more intuitive backtesting mode is available {{% available_from "v1.22.1" anomaly %}}. In **Inference only** mode, the window you specify via `[from, to]` (or `[from_iso, to_iso]`) is used *solely for inference*, and the corresponding training (“fit”) windows are determined automatically. To enable this behavior, set:
+>
 > ```yaml
 > inference_only: true
 > ```
 >
 > in your scheduler configuration. (The default is `false` for backward-compatibility.) For full details, see [Inference only mode](#inference-only-mode).
 
-
 ### Parameters
-As for [Oneoff scheduler](#oneoff-scheduler), timeframes can be defined in Unix time in seconds or ISO 8601 string format. 
+
+As for [Oneoff scheduler](#oneoff-scheduler), timeframes can be defined in Unix time in seconds or ISO 8601 string format.
 ISO format supported time zone offset formats are:
+
 * Z (UTC)
 * ±HH:MM
 * ±HHMM
@@ -401,6 +408,7 @@ ISO format supported time zone offset formats are:
 If a time zone is omitted, a timezone-naive datetime is used.
 
 ### Parallelization
+
 <table class="params">
     <thead>
         <tr>
@@ -416,7 +424,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
 
 <span style="white-space: nowrap;">Example</span>
 </th>
-            <th>Description</th>  
+            <th>Description</th>
         </tr>
     </thead>
     <tbody>
@@ -442,14 +450,15 @@ Allows *proportionally faster (yet more resource-intensive)* evaluations of a co
 
 In **Inference only** mode {{% available_from "v1.22.1" anomaly %}}, the scheduler splits your overall time window into non-overlapping inference segments and automatically derives the preceding training segments:
 
-1. **Inference Window**  
+1. **Inference Window**
    - Defined by your `from`/`to` (or `from_iso`/`to_iso`) parameters.
    - Each inference segment spans the configured `fit_every` duration.
-2. **Training Window**  
+2. **Training Window**
    - Automatically set to the configured `fit_window` immediately preceding each inference segment.
    - Ensures each model is trained on the most recent `fit_window` of data before inferring, see [example](#example) section for the details
 
 #### Configuration Parameters
+
 - `inference_only: true`: Enables of such inference-only behavior.
 - `from`, `to` (or `from_iso`, `to_iso`): Overall inference-only timeframe.
 - `fit_window`: Duration of historical data used for each training run (e.g. `P7D`, `PT1H`).
@@ -478,7 +487,7 @@ will result in 2 intervals:
 - Complete inference interval (12h): `2025-05-08T12:00:00Z` - `2025-05-09T00:00:00Z`
 <br>Training window (7d): `2025-05-01T12:00:00Z` - `2025-05-08T12:00:00Z`
 
-- Partial inference interval (9h): `2025-05-08T03:00:00Z` - `2025-05-08T12:00:00Z` 
+- Partial inference interval (9h): `2025-05-08T03:00:00Z` - `2025-05-08T12:00:00Z`
 <br>(start is "clipped" by `from_iso` so it's less than `fit_every`)
 <br>Training window (7d): `2025-05-01T03:00:00Z` - `2025-05-08T03:00:00Z`
 
@@ -508,7 +517,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
 
 <span style="white-space: nowrap;">Example</span>
             </th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -545,7 +554,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
 
 `"2022-04-10T00:00:00Z", "2022-04-10T00:00:00+01:00", "2022-04-10T00:00:00+0100", "2022-04-10T00:00:00+01"`
             </td>
-            <td rowspan=2>End datetime to use for backtesting. Must be greater than 
+            <td rowspan=2>End datetime to use for backtesting. Must be greater than
 
 `from_start_*`
             </td>
@@ -563,6 +572,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
 </table>
 
 ### Defining training timeframe
+
 The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
 <table class="params">
     <thead>
@@ -571,7 +581,7 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
             <th>Parameter</th>
             <th><span style="white-space: nowrap;">Type</span></th>
             <th><span style="white-space: nowrap;">Example</span></th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -599,6 +609,7 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
 </table>
 
 ### Defining inference timeframe
+
 In `BacktestingScheduler`, the inference window is *implicitly* defined as a period between 2 consecutive model `fit_every` runs. The *latest* inference window starts from `to_s` - `fit_every` and ends on the *latest available* time point, which is `to_s`. The previous periods for fit/infer are defined the same way, by shifting `fit_every` seconds backwards until we get the last full fit period of `fit_window` size, which start is >= `from_s`.
 <table class="params">
     <thead>
@@ -607,7 +618,7 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
             <th>Parameter</th>
             <th><span style="white-space: nowrap;">Type</span></th>
             <th><span style="white-space: nowrap;">Example</span></th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -635,6 +646,7 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
 </table>
 
 ### ISO format scheduler config example
+
 ```yaml
 schedulers:
   backtesting_scheduler_alias:
@@ -647,7 +659,8 @@ schedulers:
     n_jobs: 1  # default = 1 (sequential), set it up to # of CPUs for parallel execution
 ```
 
-### UNIX time format scheduler config example                 
+### UNIX time format scheduler config example
+
 ```yaml
 schedulers:
   backtesting_scheduler_alias:

@@ -39,7 +39,8 @@ This section outlines the compatibility of different `vmanomaly` versions with v
 
 > Used if `settings.restore_state` is set to `true`. See argument details in the [configuration documentation](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration).
 
-There are 2 types of compatibilitity to consider when migrating in stateful mode:
+There are 2 types of compatibility to consider when migrating in stateful mode:
+
 - **Global (in)compatibility**: The new version can seamlessly read and utilize the existing state without any modifications or data loss. Or, in case of incompatibility, the existing state must be dropped completely to proceed with the migration.
 - **Component (in)compatibility**: The new version may introduce changes that affect specific components (e.g., specific models, data formats) but can still operate with the existing state with some adjustments or drop of incompatible on disk artifacts.
 
@@ -58,9 +59,9 @@ There are 2 types of compatibilitity to consider when migrating in stateful mode
 For releases [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270) and newer, the migration process is automatically handled by `vmanomaly` when started with `settings.restore_state: true`, so no manual intervention is required to clear existing state if incompatible.
 
 However, for releases [v1.24.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1240) - [v1.26.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1262), to clear the existing state (if ended with `settings.restore_state: true`), please **manually delete** the existing state database and on-disk artifacts before starting the new version of `vmanomaly - either:
+
 - Manually delete the content of `VMANOMALY_MODEL_DUMPS_DIR` / `VMANOMALY_DATA_DUMPS_DIR` folders or
 - Set `settings.restore_state: false` in the config the first run of the new version, then stop `vmanomaly`, set back `settings.restore_state: true`, and restart `vmanomaly`.
-
 
 ### Stateless Mode
 

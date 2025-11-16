@@ -29,7 +29,6 @@ The self-monitoring assets of `vmanomaly` include Grafana dashboard and accompan
 
 > Recent revision of Grafana dashboard is designed to work with metrics produced by `vmanomaly` version [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184) or higher.
 
-
 ### Overview
 
 To visualize and interact with the self-monitoring metrics, `vmanomaly` provides a [Grafana Dashboard](https://grafana.com/grafana/dashboards/22337). It offers an overview of service health (per job, instance) and performance metrics from different operational stages, including model behavior, reader, and writer components.
@@ -55,6 +54,7 @@ The Grafana Dashboard for `vmanomaly` is organized into various panels that offe
 This panel provides general information about the state at individual `instance` level, including metrics such as uptime, restarts, errors, license expiration, and overall status. It serves as a critical starting point for assessing the health of the anomaly detection service. If any issues are identified with a particular instance — such as a low success rate, a high number of skipped or erroneous runs, or increased resource consumption — you can drill down further by using the dashboard filter `instance={{instance}}` for more detailed analysis.
 
 **Healthy scenario**:
+
 - **I/O: Reads, Writes, Total**: These should all be close to 100%, indicating successful data handling.
 - **Acceptance Rate (`r:acc.rate`)**: Should be close to 100%, meaning there is no invalid data (e.g., `Inf` or `NaN`).
 - **Resource Usage (CPU, RAM)**: CPU and RAM usage should be within expected limits.
@@ -64,7 +64,9 @@ This panel provides general information about the state at individual `instance`
 ### Global Statistics
 
 #### Models
+
 This global panel holds statistics related to models, filtered by the dashboard settings, including:
+
 - The number of unique models in use and the entities they interact with (e.g., queries, schedulers, instances).
 - Counts of successful, skipped, or erroneous model runs.
 - Average timings for different model stages.
@@ -72,6 +74,7 @@ This global panel holds statistics related to models, filtered by the dashboard 
 ![vmanomaly-dashboard-3-global-panel-models](vmanomaly-dashboard-3-global-panel-models.webp)
 
 **Healthy scenario**:
+
 - **Data Acceptance**: Should be consistently high, ideally close to 100%. This indicates that the system is successfully processing the majority of incoming data without issues (e.g., no NaNs or Inf values).
 - **Erroneous Runs**: There should be zero erroneous runs. Any errors suggest potential issues with the service or uncaught corner cases that need immediate attention.
 - **Skipped Runs**: Should be minimal, ideally none. A significant number of skipped runs may indicate missing data, configuration problems, high churn rate (resulting in no models trained yet for new time series), or other underlying issues.
@@ -79,20 +82,24 @@ This global panel holds statistics related to models, filtered by the dashboard 
 - **Timings**: Processing time sparklines should remain stable over time without significant peaks.
 
 #### I/O
+
 This global panel holds statistics related to I/O operations and data processing, filtered by the dashboard settings.
 
 ![vmanomaly-dashboard-3-global-panel-io](vmanomaly-dashboard-3-global-panel-io.webp)
 
 **Healthy scenario**:
+
 - **I/O success, %**: Should be close to 100%.
 - **Timeseries graphs**: Should appear stable over time, without significant spikes or drops.
 
 #### Latency
+
 This global panel holds latency statistics (reads, writes, response processing by stages), filtered by the dashboard settings.
 
 ![vmanomaly-dashboard-3-global-panel-latency](vmanomaly-dashboard-3-global-panel-latency.webp)
 
 **Healthy scenario**:
+
 - **Timeseries graphs**: Should appear stable over time, without significant spikes or drops.
 - **Histograms**: Should not have right-hand buckets significantly higher than all the other buckets, indicating the absence of consecutive latency spikes.
 
@@ -103,6 +110,7 @@ This global panel holds resource utilization (CPU, RAM, File Descriptors) on bot
 ![vmanomaly-dashboard-3-global-panel-resources](vmanomaly-dashboard-3-global-panel-resources.webp)
 
 **Healthy scenario**:
+
 - **Timeseries graphs**: Should appear stable over time, without significant spikes or drops. An absence of upward trends (e.g., trends in RAM usage may indicate a [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) in your input data).
 
 ### Model Statistics
@@ -112,6 +120,7 @@ These panels contain repeated blocks for each unique `model_alias` (a distinct e
 ![vmanomaly-dashboard-4-model-sections](vmanomaly-dashboard-4-model-sections.webp)
 
 **Healthy scenario**:
+
 - **Erroneous Runs**: There should be zero erroneous runs. Any errors suggest potential issues with the service or uncaught corner cases that need immediate attention.
 - **Skipped Runs**: Should be minimal, ideally none. A significant number of skipped runs may indicate missing data, configuration problems, high churn rate (resulting in no models trained yet for new time series), or other underlying issues.
 - **Timeseries graphs**: Should remain stable over time, without significant spikes or drops. An absence of upward trends (e.g., in RAM usage) could indicate normal operation without excessive [churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
@@ -133,6 +142,7 @@ These alerting rules complements the [dashboard](#grafana-dashboard) to monitor 
 ![firing-alerts-groups](firing-alerts-groups.webp)
 
 `vmanomaly-health` alerting group:
+
 - **`TooManyRestarts`**: Triggers if an instance restarts more than twice within 15 minutes, suggesting the process might be crashlooping and needs investigation.
 - **`ServiceDown`**: Alerts if an instance is down for more than 5 minutes, indicating a service outage.
 - **`ProcessNearFDLimits`**: Alerts when the number of available file descriptors falls below 100, which could lead to severe degradation if the limit is exhausted.
@@ -144,6 +154,7 @@ These alerting rules complements the [dashboard](#grafana-dashboard) to monitor 
 ![firing-alerts-example-too-many-restarts](firing-alerts-example-too-many-restarts.webp)
 
 `vmanomaly-issues` alerting group:
+
 - **`ServiceErrorsDetected`**: Alerts if model run errors are detected, indicating problems with the anomaly detection service or its dependencies.
 - **`SkippedModelRunsDetected`**: Alerts if model runs are skipped, potentially due to no new valid data, absence of trained ML models for new time series, or invalid data points (like `Inf` or `NaN`).
 - **`HighReadErrorRate`**: Alerts when the error rate for read operations exceeds 5% in a 5-minute window, suggesting issues with the data source, server constraints, or network.

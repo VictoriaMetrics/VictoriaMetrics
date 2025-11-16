@@ -16,7 +16,6 @@ VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-re
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 
-
 ## VM reader
 
 > There is backward-compatible change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
@@ -66,7 +65,7 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
 
 - `data_range`{{% available_from "v1.15.1" anomaly %}} (list[float | string]): It allows defining **valid** data ranges for input per individual query in `queries`, resulting in:
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data range constraint violation (e.g. improperly configured metricsQL query, sensor malfunction, overflows in underlying metrics, etc.). Anomaly scores can be set to a specific value, like `5`, to indicate a strong violation, using the `anomaly_score_outside_data_range` [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) of a respective model this query is used in.
-  - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions that does not really aligh with the data.
+  - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions that does not really align with the data.
 
   Works together with `anomaly_score_outside_data_range` [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) of a model to determine the anomaly score for such cases as well as with `clip_predictions` [arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) of a model to clip the predictions to the expected range.
 
@@ -88,6 +87,7 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
 - `offset` {{% available_from "v1.25.3" anomaly %}} (string): this optional argument allows specifying a time offset for the query, which can be useful for adjusting the query time range to account for data collection delays or other timing issues. The offset is specified as a string (e.g., "15s", "-20s") and will be applied to the query time range. Valid resolutions are `ms`, `s`, `m`, `h`, `d` (miliseconds, seconds, minutes, hours, days). If not set, defaults to `0s` (0). See [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#using-offsets) for more details.
 
 ### Per-query config example
+
 ```yaml
 reader:
   class: 'vm'
@@ -123,7 +123,7 @@ reader:
         <tr>
             <th>Parameter</th>
             <th>Example</th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -266,8 +266,8 @@ Timeout for the requests, passed as a string
 `false`
             </td>
             <td>
-Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
-If `True`, it will verify the certificate using the system's CA store. 
+Verify TLS certificate. If `False`, it will not verify the TLS certificate.
+If `True`, it will verify the certificate using the system's CA store.
 If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
             </td>
         </tr>
@@ -445,9 +445,10 @@ reader:
 
 `vmanomaly` supports [mutual TLS (mTLS)](https://en.wikipedia.org/wiki/Mutual_authentication){{% available_from "v1.16.3" anomaly %}} for secure communication across its components, including [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters). This allows for mutual authentication between the client and server when querying or writing data to [VictoriaMetrics Enterprise, configured for mTLS](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#mtls-protection).
 
-mTLS ensures that both the client and server verify each other's identity using certificates, which enhances security by preventing unauthorized access. 
+mTLS ensures that both the client and server verify each other's identity using certificates, which enhances security by preventing unauthorized access.
 
 To configure mTLS, the following parameters can be set in the [config](#config-parameters):
+
 - `verify_tls`: If set to a string, it functions like the `-mtlsCAFile` command-line argument of VictoriaMetrics, specifying the CA bundle to use. Set to `True` to use the system's default certificate store.
 - `tls_cert_file`: Specifies the path to the client certificate, analogous to the `-tlsCertFile` argument of VictoriaMetrics.
 - `tls_key_file`: Specifies the path to the client certificate key, similar to the `-tlsKeyFile` argument of VictoriaMetrics.
@@ -474,24 +475,24 @@ reader:
 # other config sections, like models, schedulers, writer, ...
 ```
 
-
 ### Healthcheck metrics
 
 `VmReader` exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).
 
-
 ## VictoriaLogs reader
 
-{{% available_from "v1.26.0" anomaly %}} `vmanomaly` adds support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows quering and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs.
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly` adds support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows querying and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs.
 
 Its queries should be expressed in a subset of [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/), which is similar to MetricsQL/PromQL but adapted for log data.
 
 > Please be aware that `VLogsReader` is designed to work with a `/select/stats_query_range` endpoint of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), so the `<query>` expressions must contain `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) (see [query-examples](#query-examples) section below). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe, where `stats_func*` is any of the supported [stats function subset](#valid-stats-functions) of [available stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions), while the `result_name*` is the name of the log field to store the result of the corresponding stats function. The `as` keyword is optional.
 
 ### Valid stats functions
+
 `VLogsReader` relies on [stats pipe functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) that return **numeric values**, which can be used for anomaly detection on timeseries (metrics). The future addition of similar stats functions in VictoriaLogs will be supported automatically, as long as they return **numeric values**.
 
 The supported stats functions currently include:
+
 - `avg` - returns the average value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - `count` - returns the number of log entries.
 - `count_empty` - returns the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -516,7 +517,7 @@ The following query returns the average value for the duration field over logs m
 
 ```
 error | stats avg(duration) as avg_error_duration
-``` 
+```
 
 It is possible to calculate the average over fields with common prefix via `avg(prefix*)` syntax. For example, the following query calculates the number of logs with `foo` prefix having `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word):
 
@@ -531,7 +532,7 @@ error | stats count(foo*) as foo_error_count
         <tr>
             <th>Parameter</th>
             <th>Example</th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -672,8 +673,8 @@ Frequency of the points returned. Will be converted to `/select/stats_query_rang
 `false`
             </td>
             <td>
-Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
-If `True`, it will verify the certificate using the system's CA store. 
+Verify TLS certificate. If `False`, it will not verify the TLS certificate.
+If `True`, it will verify the certificate using the system's CA store.
 If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
             </td>
         </tr>
@@ -681,7 +682,7 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
             <td>
 <span style="white-space: nowrap;">`tls_cert_file`</span>
             </td>
-            <td>    
+            <td>
 
 `path/to/cert.crt`
             </td>
@@ -794,7 +795,7 @@ reader:
       step: '2m'  # overrides global `sampling_period` of 1m
       # other per-query parameters as needed
   # other reader-level parameters as needed
-    
+
 # other config sections, like models, schedulers, writer, ...
 ```
 

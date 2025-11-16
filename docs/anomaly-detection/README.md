@@ -13,12 +13,12 @@ Unlike traditional threshold-based alerting, which relies on **raw metric values
 
 By shifting to anomaly-based detection, teams can **identify and respond to potential issues faster**, enhancing system reliability and operational efficiency while significantly **reducing the engineering effort spent on handcrafting and maintaining alerting rules**.
 
-
 ## What does it do?
 
-`vmanomaly` is designed to **periodically analyze new data points** across selected metrics (either requested from [VictoriaMetrics TSDB](https://docs.victoriametrics.com/victoriametrics/) or produced by [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) metrics [endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats)), generating a **unified metric** called [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). 
+`vmanomaly` is designed to **periodically analyze new data points** across selected metrics (either requested from [VictoriaMetrics TSDB](https://docs.victoriametrics.com/victoriametrics/) or produced by [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) metrics [endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats)), generating a **unified metric** called [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score).
 
 Key functions:
+
 - **Automated anomaly detection** - continuously scans time-series data to identify deviations from expected behavior.
 - **Seamless integration** - anomaly scores are stored in VictoriaMetrics TSDB for use in **alerting, visualization, and downstream analytics**.
 
@@ -33,8 +33,8 @@ VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learni
 - **Automated anomaly scoring** - ML models calculate [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) for new data points based on a predefined [schedule](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/).
 - **Simplified alerting** - alerts can be triggered using **straightforward thresholds** (e.g., `anomaly_score > 1`), reducing complexity in observability setups.
 - **Additional model outputs** - beyond anomaly scores, models provide [supplementary outputs](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output), including:
-  - **Point estimates** (`yhat`)  
-  - **Confidence intervals** (`[yhat_lower, yhat_upper]`)  
+  - **Point estimates** (`yhat`)
+  - **Confidence intervals** (`[yhat_lower, yhat_upper]`)
   These outputs integrate seamlessly into downstream applications, making it easier to **visually inspect anomalies**, e.g. in respective [Grafana dashboards](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard).
 
 <img src="https://docs.victoriametrics.com/anomaly-detection/components/vmanomaly-components.webp" alt="node_exporter_example_diagram" style="width:80%"/>
@@ -44,7 +44,7 @@ VictoriaMetrics Anomaly Detection **continuously re-fit and apply machine learni
 `vmanomaly` is designed to **reduce MTTR (Mean Time to Resolution)** in observability workflows by **automating anomaly detection** and **eliminating the need for manual threshold tuning**. It is particularly beneficial for:
 
 - **Reducing alerting rule maintenance** – shifts from manually maintaining static thresholds on raw metric values to a **stable anomaly score threshold** that remains **reliable and interpretable over time**.
-  
+
 - **Handling complex metrics** – effectively detects anomalies in **trending, seasonal, or dynamically scaling data**, where **fixed thresholds and simpler models usually fail**.
 
 - **Detecting anomalies in interconnected metrics** – supports **[multivariate anomaly detection](http://docs.victoriametrics.com/anomaly-detection/components/models#multivariate-models)**, identifying patterns across **related metrics** instead of treating them in isolation as [univariate metrics](http://docs.victoriametrics.com/anomaly-detection/components/models#univariate-models).
@@ -72,7 +72,9 @@ Get started with VictoriaMetrics Anomaly Detection by following our guides and i
 > Starting from [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v150) `vmanomaly` requires a [license key](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Key Components
+
 Explore the [integral components](https://docs.victoriametrics.com/anomaly-detection/components/) that define VictoriaMetrics Anomaly Detection:
+
 - [Models](https://docs.victoriametrics.com/anomaly-detection/components/models/)
 - [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/)
 - [Scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/)
@@ -80,7 +82,9 @@ Explore the [integral components](https://docs.victoriametrics.com/anomaly-detec
 - [Monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/)
 
 ## Deep Dive into Anomaly Detection
+
 Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analysis and stay updated:
+
 * Anomaly Detection Handbook
     - [Introduction to Time Series Anomaly Detection](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/)
     - [Types of Anomalies in Time Series Data](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/)
@@ -88,15 +92,19 @@ Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analy
 * Follow the [`#anomaly-detection`](https://victoriametrics.com/tags/anomaly-detection/) tag in our blog
 
 ## Product Updates
+
 Stay up-to-date with the latest improvements and features in VictoriaMetrics Anomaly Detection, and the rest of our products on our [blog](https://victoriametrics.com/tags/product-updates/).
 
 ## Frequently Asked Questions (FAQ)
-Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got the answers ready for you. 
+
+Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got the answers ready for you.
 
 Dive into [our FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/) to find responses to common questions.
 
 ## Get in Touch
+
 We are eager to connect with you and adapt our solutions to your specific needs. Here's how you can engage with us:
+
 * [Book a Demo](https://calendly.com/victoriametrics-anomaly-detection) to discover what our product can do.
 * Interested in exploring our [Enterprise features](https://victoriametrics.com/products/enterprise), including [Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection)? [Request your trial license](https://victoriametrics.com/products/enterprise/trial/) today and take the first step towards advanced system observability.
 

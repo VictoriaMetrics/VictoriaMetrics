@@ -15,6 +15,7 @@ aliases:
 There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#push-model) and [pull](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#pull-model). Parameters for each of them should be specified in the config file, `monitoring` section.
 
 > There was an enhancement of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics for consistency across the components ([v.1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)). Documentation was updated accordingly. Key changes included:
+
 - Converting several [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics from `Summary` to `Histogram` to enable quantile calculation. This addresses the limitation of the `prometheus_client`'s [Summary](https://prometheus.github.io/client_python/instrumenting/summary/) implementation, which does not support quantiles. The change ensures metrics are more informative for performance analysis. Affected metrics are:
     - `vmanomaly_reader_request_duration_seconds` ([VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics))
     - `vmanomaly_reader_response_parsing_seconds` ([VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics))
@@ -31,7 +32,7 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
         <tr>
             <th>Parameter</th>
             <th>Default</th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -71,7 +72,7 @@ The `push_frequency` parameter{{% available_from "v1.18.7" anomaly %}} (default 
         <tr>
             <th>Parameter</th>
             <th>Default</th>
-            <th>Description</th>  
+            <th>Description</th>
         </tr>
     </thead>
     <tbody>
@@ -137,7 +138,7 @@ Tenant ID for cluster version. Example: `"0:0"`
 `token`
             </td>
             <td>
-Token is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}. 
+Token is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}.
             </td>
         </tr>
         <tr>
@@ -163,8 +164,8 @@ Path to a file, which contains token, that is passed in the standard format with
 `false`
             </td>
             <td>
-Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
-If `True`, it will verify the certificate using the system's CA store. 
+Verify TLS certificate. If `False`, it will not verify the TLS certificate.
+If `True`, it will verify the certificate using the system's CA store.
 If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
             </td>
         </tr>
@@ -178,7 +179,7 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
 <span style="white-space: nowrap;">`path/to/cert.crt`</span>
             </td>
             <td>
-Path to a file with the client certificate, i.e. `client.crt`{{% available_from "v1.16.3" anomaly %}}. 
+Path to a file with the client certificate, i.e. `client.crt`{{% available_from "v1.16.3" anomaly %}}.
             </td>
         </tr>
         <tr>
@@ -267,7 +268,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
         <tr>
             <th>Metric</th>
             <th><span style="white-space: nowrap;">Type</span></th>
-            <th><span style="white-space: nowrap;">Description</span></th>  
+            <th><span style="white-space: nowrap;">Description</span></th>
         </tr>
     </thead>
     <tbody>
@@ -358,6 +359,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
 ### Reader behaviour metrics
+
 Label names [description](#labelnames)
 
 > To improve consistency across the components additional labels (`scheduler_alias`, `preset`) were added to writer and reader metrics{{% available_from "v1.17.0" anomaly %}}. Also, metrics `vmanomaly_reader_request_duration_seconds` and `vmanomaly_reader_response_parsing_seconds` changed their type to `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}).
@@ -467,6 +469,7 @@ Label names [description](#labelnames)
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
 ### Models behaviour metrics
+
 Label names [description](#labelnames)
 
 > There is a new label key `model_alias` introduced in multi-model support{{% available_from "v1.10.0" anomaly %}}. This label key adjustment was made to preserve unique label set production during writing produced metrics back to VictoriaMetrics.
@@ -593,6 +596,7 @@ Label names [description](#labelnames)
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
 ### Writer behaviour metrics
+
 Label names [description](#labelnames)
 
 > Additional labels (`scheduler_alias`, `preset`){{% available_from "v1.17.0" anomaly %}} were added to writer and reader metrics to improve consistency across the components. Also, metrics `vmanomaly_writer_request_duration_seconds` and `vmanomaly_writer_request_serialize_seconds` changed their type to `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}).
@@ -716,13 +720,11 @@ Label names [description](#labelnames)
 
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
-
 ## Logs generated by vmanomaly
 
 The `vmanomaly` service logs operations, errors, and performance for its components (service, reader, writer), alongside [self-monitoring metrics](#metrics-generated-by-vmanomaly) updates. Below is a description of key logs {{% available_from "v1.17.1" anomaly %}} for each component and the related metrics affected.
 
 `{{X}}` indicates a placeholder in the log message templates described below, which will be replaced with the appropriate entity during logging.
-
 
 > By default, `vmanomaly` uses the `INFO` logging level. You can change this by specifying the `--loggerLevel` argument. See command-line arguments [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments).
 
@@ -730,7 +732,6 @@ The `vmanomaly` service logs operations, errors, and performance for its compone
 - [Reader  logs](#reader-logs)
 - [Service logs](#service-logs)
 - [Writer  logs](#writer-logs)
-
 
 ### Startup logs
 
@@ -767,12 +768,15 @@ Config has been loaded successfully.
 ```text
 Using ENV MODEL_DUMP_DIR=`{{model_dump_dir}}` to store anomaly detection models.
 ```
+
 ```text
 ENV MODEL_DUMP_DIR is not set. Models will be kept in RAM between consecutive `fit` calls.
 ```
+
 ```text
 Using ENV DATA_DUMP_DIR=`{{data_dump_dir}}` to store anomaly detection data.
 ```
+
 ```text
 ENV DATA_DUMP_DIR is not set. Models' training data will be stored in RAM.
 ```
@@ -784,9 +788,11 @@ ENV DATA_DUMP_DIR is not set. Models' training data will be stored in RAM.
 ```text
 Scheduler {{scheduler_alias}} wrapped and initialized with {{N}} model spec(s).
 ```
+
 ```text
 No model spec(s) found for scheduler `{{scheduler_alias}}`, skipping setting it up.
 ```
+
 ```text
 Active schedulers: {{list_of_schedulers}}.
 ```
@@ -806,18 +812,20 @@ The `reader` component logs events during the process of querying VictoriaMetric
 ```text
 [Scheduler {{scheduler_alias}}] Max points per timeseries set as: {{vm_max_datapoints_per_ts}}
 ```
+
 ```text
 [Scheduler {{scheduler_alias}}] Reader endpoint SSL error {{url}}: {{error_message}}
 ```
+
 ```text
 [Scheduler {{scheduler_alias}}] Reader endpoint inaccessible {{url}}: {{error_message}}
 ```
+
 ```text
 [Scheduler {{scheduler_alias}}] Reader endpoint timeout {{url}}: {{error_message}}
 ```
 
 ---
-
 
 **No data found (False)**. Based on [`query_from_last_seen_timestamp`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) VmReader flag. A `warning` log is generated when no data is found in the requested range. This could indicate that the query was misconfigured or that no new data exists for the time period requested. Log message format:
 
@@ -862,7 +870,7 @@ The label vm_account_id was not found in the label set of {{query_key}}, but ten
 **Metrics updated in read operations**. During successful query execution process, the following reader [self-monitoring metrics](#reader-behaviour-metrics) are updated:
 
 - `vmanomaly_reader_request_duration_seconds`: Records the time (in seconds) taken to complete the query request.
-  
+
 - `vmanomaly_reader_responses`: Tracks the number of response codes received from VictoriaMetrics.
 
 - `vmanomaly_reader_received_bytes`: Counts the number of bytes received in the response.
@@ -888,15 +896,19 @@ The `model` component (wrapped in service) logs operations during the fitting an
 **Skipped runs**. When there are insufficient valid data points to fit or infer using a model, the run is skipped and a `warning` log is generated. This can occur when the query returns no new data or when the data contains invalid values (e.g., `NaN`, `INF`). The skipped run is also reflected in the `vmanomaly_model_runs_skipped` metric. Log messages:
 
 When there are insufficient valid data points (at least 1 for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) and 2 for [offline models](https://docs.victoriametrics.com/anomaly-detection/components/models/#offline-models))
+
 ```text
 [Scheduler {{scheduler_alias}}] Skipping run for stage 'fit' for model '{{model_alias}}' (query_key: {{query_key}}): Not enough valid data to fit: {{valid_values_cnt}}
 ```
 
 When all the received timestamps during an `infer` call have already been processed, meaning the [`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) has already been produced for those points
+
 ```text
 [Scheduler {{scheduler_alias}}] Skipping run for stage 'infer' for model '{{model_alias}}' (query_key: {{query_key}}): No unseen data to infer on.
 ```
+
 When the model fails to produce any valid or finite outputs (such as [`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score))
+
 ```text
 [Scheduler {{scheduler_alias}}] Skipping run for stage 'infer' for model '{{model_alias}}' (query_key: {{query_key}}): No (valid) datapoints produced.
 ```
@@ -904,9 +916,11 @@ When the model fails to produce any valid or finite outputs (such as [`anomaly_s
 ---
 
 **Errors during model execution**. If the model fails to fit or infer data due to internal service errors or model spec misconfigurations, an `error` log is generated and the error is also reflected in the `vmanomaly_model_run_errors` metric. This can occur during both `fit` and `infer` stages. Log messages:
+
 ```text
 [Scheduler {{scheduler_alias}}] Error during stage 'fit' for model '{{model_alias}}' (query_key: {{query_key}}): {{error_message}}
 ```
+
 ```text
 [Scheduler {{scheduler_alias}}] Error during stage 'infer' for model '{{model_alias}}' (query_key: {{query_key}}): {{error_message}}
 ```
@@ -918,18 +932,23 @@ When the model fails to produce any valid or finite outputs (such as [`anomaly_s
 ```text
 [Scheduler {{scheduler_alias}}] Model instance '{{model_alias}}' created for '{{query_key}}' during inference.
 ```
+
 ---
 
 **Successful model runs**. When a model successfully fits, logs track the number of valid datapoints processed and the time taken for the operation. These logs are accompanied by updates to [self-monitoring metrics](#models-behaviour-metrics) like `vmanomaly_model_runs`, `vmanomaly_model_run_duration_seconds`, `vmanomaly_model_datapoints_accepted`, and `vmanomaly_model_datapoints_produced`. Log messages:
 
 For [non-rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#non-rolling-models)
+
 ```text
 [Scheduler {{scheduler_alias}}] Fitting on {{valid_values_cnt}}/{{total_values_cnt}} valid datapoints for "{{query_key}}" using model "{{model_alias}}".
 ```
+
 ```text
 [Scheduler {{scheduler_alias}}] Model '{{model_alias}}' fit completed in {{model_run_duration}} seconds for {{query_key}}.
 ```
+
 For [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) (combined stage)
+
 ```text
 [Scheduler {{scheduler_alias}}] Fit-Infer on {{datapoint_count}} points for "{{query_key}}" using model "{{model_alias}}".
 ```
@@ -983,9 +1002,11 @@ The `writer` component logs events during the process of sending produced data (
 ```text
 [Scheduler {{scheduler_alias}}] Cannot write {{N}} points for {{query_key}}: connection error {{url}} {{error_message}}
 ```
+
 ```text
 [Scheduler {{scheduler_alias}}] Cannot write {{N}} points for {{query_key}}: timeout for {{url}} {{error_message}}
 ```
+
 ```text
 [Scheduler {{scheduler_alias}}] Cannot write {{N}} points for {{query_key}}: I/O error for {{url}} {{error_message}}
 ```
@@ -997,6 +1018,7 @@ The `writer` component logs events during the process of sending produced data (
 ```text
 The label vm_account_id was not found in the label set of {{query_key}}, but tenant_id='multitenant' is set in writer...
 ```
+
 ```text
 The label set for the metric {{query_key}} contains multi-tenancy labels, but the write endpoint is configured for single-tenant mode (tenant_id != 'multitenant')...
 ```
@@ -1017,6 +1039,6 @@ The label set for the metric {{query_key}} contains multi-tenancy labels, but th
 
 - `vmanomaly_writer_timeseries_sent`: Tracks the number of timeseries sent to VictoriaMetrics.
 
-**Metrics skipped in case of failures**. If an error occurs (connection, timeout, or I/O error), only `vmanomaly_writer_request_duration_seconds` is updated with appropriate error code. 
+**Metrics skipped in case of failures**. If an error occurs (connection, timeout, or I/O error), only `vmanomaly_writer_request_duration_seconds` is updated with appropriate error code.
 
 [Back to logging sections](#logs-generated-by-vmanomaly)

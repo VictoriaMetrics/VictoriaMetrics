@@ -94,7 +94,7 @@ reader:
   "offset": "0s"  # offset to apply to all queries, e.g. to account for data delays, can be overridden on per-query basis
   queries:  # aliases to MetricsQL expressions
     cpu_seconds_total:
-      expr: 'avg(rate(node_cpu_seconds_total[5m])) by (mode)' 
+      expr: 'avg(rate(node_cpu_seconds_total[5m])) by (mode)'
       # step: '30s'  # if not set, will be equal to reader-level sampling_period
       data_range: [0, 'inf']  # expected value range, anomaly_score = anomaly_score_outside_data_range if y (real value) is outside
     host_network_receive_errors:
@@ -167,7 +167,7 @@ reader:
       expr: 'rate(node_network_receive_errs_total[3m]) / rate(node_network_receive_packets_total[3m])'
       step: '15s'
       data_range: [0, 'inf']
-  
+
 models:
   zscore:
     class: 'zscore'
@@ -203,7 +203,6 @@ After saving the changes, hot reload will automatically detect the changes in `c
 
 - All the model instances of class `zscore`, that were trained on `host_network_receive_errors` can be reused as they are still valid and "fresh" for making inference on new datapoints until the next `fit_every` happens (10m - 5m).
 - All the model instances of class `zscore`, that were trained on `cpu_seconds_total` will be re-trained with the new query expression and frequency, as old model instances are not valid anymore.
-
 
 ## Environment variables
 
