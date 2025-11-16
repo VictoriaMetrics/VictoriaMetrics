@@ -243,7 +243,9 @@ schedulers:
     inference_only: True  # to treat from-to as inference period, with automated fit intervals construction
     # copy these from your PeriodicScheduler args
     fit_window: 'P14D'
-    fit_every: 'PT1H'
+    fit_every: 'PT1D'
+    exact: True  # to imitate exact fit/infer calls as in PeriodicScheduler for online models
+    infer_every: 'PT1H'  # used only for exact=True, to imitate PeriodicScheduler behavior
     # number of parallel jobs to run. Default is 1, each job is a separate OneOffScheduler fit/inference run.
     n_jobs: 1
 
@@ -401,7 +403,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.27.1
+    image: victoriametrics/vmanomaly:v1.28.0
     # ...
     ports:
       - "8490:8490"
@@ -616,7 +618,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.27.1 && docker image tag victoriametrics/vmanomaly:v1.27.1 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.28.0 && docker image tag victoriametrics/vmanomaly:v1.28.0 vmanomaly
 ```
 
 ```sh
