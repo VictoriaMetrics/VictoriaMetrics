@@ -1271,15 +1271,15 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -httpAuthHeader array
      HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpInternalListenAddr array
      TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. If flag is set, vmauth no longer serves internal API at -httpListenAddr.
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array
      TCP address to listen for incoming http requests. By default, serves internal API and proxy requests.  See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
      Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
      Supports array of values separated by comma or specified via multiple flags.
@@ -1341,7 +1341,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -mergeQueryArgs array
      An optional list of client query arg names, which must be merged with args at backend urls. The rest of client query args are replaced by the corresponding query args from backend urls for security reasons; see https://docs.victoriametrics.com/victoriametrics/vmauth/#query-args-handling
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -metrics.exposeMetadata
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
   -metricsAuthKey value
@@ -1354,7 +1354,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -mtlsCAFile array
      Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
@@ -1363,17 +1363,17 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.header array
      Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
@@ -1396,23 +1396,23 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -tlsAutocertHosts array
      Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array
      Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsKeyFile array
      Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsMinVersion array
      Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
      Show VictoriaMetrics version
 ```
