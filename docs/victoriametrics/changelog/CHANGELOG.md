@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: prevent different logs in OpenTelemetry parser from being suppressed by logger throttling. See [#9447] for an example caused by this behavior.
+
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 
 Released at 2025-11-14
