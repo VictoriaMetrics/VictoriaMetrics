@@ -109,7 +109,7 @@ type indexDB struct {
 	// with bigger timestamps at any time.
 	minMissingTimestampByKey map[string]int64
 	// protects minMissingTimestampByKey
-	minMissingTimestampByKeyLock sync.RWMutex
+	minMissingTimestampByKeyLock sync.Mutex
 
 	// generation identifies the index generation ID
 	// and is used for syncing items from different indexDBs
@@ -135,6 +135,11 @@ type indexDB struct {
 	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
 	loopsPerDateTagFilterCache *workingsetcache.Cache
+
+	// dateMetricIDCache is (date, metricID) cache that is used to speed up the
+	// data ingestion by storing the is.hasDateMetricID() search results in
+	// memory.
+	dateMetricIDCache *dateMetricIDCache
 
 	indexSearchPool sync.Pool
 }
@@ -183,6 +188,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegiste
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
+		dateMetricIDCache:          newDateMetricIDCache(),
 	}
 	db.noRegisterNewSeries.Store(noRegisterNewSeries)
 	db.incRef()
@@ -198,6 +204,11 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheSizeMaxBytes uint64
 	TagFiltersToMetricIDsCacheRequests     uint64
 	TagFiltersToMetricIDsCacheMisses       uint64
+
+	DateMetricIDCacheSize        uint64
+	DateMetricIDCacheSizeBytes   uint64
+	DateMetricIDCacheSyncsCount  uint64
+	DateMetricIDCacheResetsCount uint64
 
 	IndexDBRefCount uint64
 
@@ -245,6 +256,11 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheSizeMaxBytes += cs.MaxBytesSize
 	m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
 	m.TagFiltersToMetricIDsCacheMisses += cs.Misses
+
+	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
+	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
+	m.DateMetricIDCacheSyncsCount += db.dateMetricIDCache.syncsCount.Load()
+	m.DateMetricIDCacheResetsCount += db.dateMetricIDCache.resetsCount.Load()
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
@@ -1932,9 +1948,9 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
 	key := kb.B
 
-	db.minMissingTimestampByKeyLock.RLock()
+	db.minMissingTimestampByKeyLock.Lock()
 	minMissingTimestamp, ok := db.minMissingTimestampByKey[string(key)]
-	db.minMissingTimestampByKeyLock.RUnlock()
+	db.minMissingTimestampByKeyLock.Unlock()
 
 	if ok && tr.MinTimestamp >= minMissingTimestamp {
 		return false
@@ -1944,7 +1960,10 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 	}
 
 	db.minMissingTimestampByKeyLock.Lock()
-	db.minMissingTimestampByKey[string(key)] = tr.MinTimestamp
+	minMissingTimestamp, ok = db.minMissingTimestampByKey[string(key)]
+	if !ok || tr.MinTimestamp < minMissingTimestamp {
+		db.minMissingTimestampByKey[string(key)] = tr.MinTimestamp
+	}
 	db.minMissingTimestampByKeyLock.Unlock()
 
 	return false
@@ -2759,9 +2778,18 @@ const (
 )
 
 func (db *indexDB) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
+	// Note that even if per-day indexes are disabled (i.e.
+	// db.s.disablePerDayIndex == true), we still need to add the entry to this
+	// cache because Storage.prefillNextIndexDB() relies on
+	// indexDB.hasDateMetricID() to decide whether the index records given
+	// metricID need to be created and without this cache the next indexDB
+	// prefill will be significantly slower when per-day indexes are disabled.
+	db.dateMetricIDCache.Set(date, tsid.MetricID)
+
 	if db.s.disablePerDayIndex {
 		return
 	}
+
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
@@ -2897,10 +2925,24 @@ func reverseBytes(dst, src []byte) []byte {
 }
 
 func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
-	if date == globalIndexDate {
-		return is.hasMetricID(metricID)
+	if is.db.dateMetricIDCache.Has(date, metricID) {
+		return true
 	}
 
+	var ok bool
+	if date == globalIndexDate {
+		ok = is.hasMetricID(metricID)
+	} else {
+		ok = is.hasDateMetricIDSlow(date, metricID)
+	}
+
+	if ok {
+		is.db.dateMetricIDCache.Set(date, metricID)
+	}
+	return ok
+}
+
+func (is *indexSearch) hasDateMetricIDSlow(date, metricID uint64) bool {
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)

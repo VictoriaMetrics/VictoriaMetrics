@@ -149,6 +149,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 			t.Fatalf("unexpected item found for key=%q in snapshot2; got %q", key, ts2.Item)
 		}
 	}
+	ts.MustClose()
 	ts1.MustClose()
 	ts2.MustClose()
 

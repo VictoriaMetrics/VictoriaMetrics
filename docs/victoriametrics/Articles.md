@@ -15,6 +15,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 
 ## Third-party articles and slides about VictoriaMetrics
 
+* [Spotify: faster insights and improved accuracy after the upgrade from Heroic to VictoriaMetrics](https://www.youtube.com/watch?v=87koDlpKDR4)
 * [Datanami: Why Roblox Picked VictoriaMetrics for Observability Data Overhaul](https://www.datanami.com/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/)
 * [Cloudflare: Introducing notifications for HTTP Traffic Anomalies](https://blog.cloudflare.com/introducing-http-traffic-anomalies-notifications/)
 * [Grammarly: Better, Faster, Cheaper: How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/)
@@ -101,6 +102,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [When metrics leak secrets: Kubernetes CTF lessons](https://programmerprodigy.code.blog/2025/09/01/when-metrics-leak-secrets-kubernetes-ctf-lessons/)
 * [K3S and monitoring with VictoriaMetrics, kube-state-metrics, node-exporter and Grafana](https://j.hommet.net/k3s-victoriametrics-kube-state-metrics-node-exporter-grafana/)
 * [How We Eliminated $10K+/Year in AWS Cross-Zone Data Transfer Costs with Zone-Aware Kubernetes Monitoring](https://medium.com/@vijayrauniyar1818/how-we-eliminated-10k-year-in-aws-cross-zone-data-transfer-costs-with-zone-aware-kubernetes-09fff0c2435b)
+* [We do our billing with Prometheus](https://www.tigrisdata.com/blog/billing-prometheus/)
 
 ## Third-party articles and slides about VictoriaLogs
 

@@ -48,9 +48,22 @@ func (cm *ConnsMap) Delete(c net.Conn) {
 // If shutdownDuration <= 0, then all the connections are closed simultaneously.
 func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	cm.mu.Lock()
-	conns := make([]net.Conn, 0, len(cm.m))
+	conns := make([]remoteConns, 0, len(cm.m))
+	connsByIP := make(map[string]int, len(cm.m))
+
+	// group remote connection by IP address
+	// it's needed to properly close multiple opened connections
+	// from the same instance at once
 	for c := range cm.m {
-		conns = append(conns, c)
+		remoteIP, _, _ := net.SplitHostPort(c.RemoteAddr().String())
+		idx, ok := connsByIP[remoteIP]
+		if !ok {
+			connsByIP[remoteIP] = len(conns)
+			conns = append(conns, remoteConns{remoteIP: remoteIP, clientName: cm.clientName})
+			idx = len(conns) - 1
+		}
+		rcs := &conns[idx]
+		rcs.conns = append(rcs.conns, c)
 		delete(cm.m, c)
 	}
 	cm.isClosed = true
@@ -59,7 +72,7 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	if shutdownDuration <= 0 {
 		// Close all the connections at once.
 		for _, c := range conns {
-			_ = c.Close()
+			c.closeAll()
 		}
 		return
 	}
@@ -68,27 +81,36 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	}
 	if len(conns) == 1 {
 		// Simple case - just close a single connection and that's it!
-		_ = conns[0].Close()
+		conns[0].closeAll()
 		return
 	}
 
 	// Sort conns in order to make the order of closing connections deterministic across clients.
 	// This should reduce resource usage spikes at clients during rolling restarts.
 	sort.Slice(conns, func(i, j int) bool {
-		return conns[i].RemoteAddr().String() < conns[j].RemoteAddr().String()
+		return conns[i].remoteIP < conns[j].remoteIP
 	})
 
 	shutdownInterval := shutdownDuration / time.Duration(len(conns)-1)
 	startTime := time.Now()
 	logger.Infof("closing %d %s connections with %dms interval between them", len(conns), cm.clientName, shutdownInterval.Milliseconds())
-	remoteAddr := conns[0].RemoteAddr().String()
-	_ = conns[0].Close()
-	logger.Infof("closed %s connection %s", cm.clientName, remoteAddr)
-	for _, c := range conns[1:] {
+	for _, c := range conns {
+		c.closeAll()
 		time.Sleep(shutdownInterval)
-		remoteAddr := c.RemoteAddr().String()
-		_ = c.Close()
-		logger.Infof("closed %s connection %s", cm.clientName, remoteAddr)
 	}
 	logger.Infof("closed %d %s connections in %s", len(conns), cm.clientName, time.Since(startTime))
+}
+
+type remoteConns struct {
+	clientName string
+	remoteIP   string
+	conns      []net.Conn
+}
+
+func (rcs *remoteConns) closeAll() {
+	for _, c := range rcs.conns {
+		remoteAddr := c.RemoteAddr().String()
+		_ = c.Close()
+		logger.Infof("closed %s connection %s", rcs.clientName, remoteAddr)
+	}
 }

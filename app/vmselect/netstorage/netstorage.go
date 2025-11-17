@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 var (
@@ -942,6 +943,23 @@ func mergeStrings(a, b []string) []string {
 		result = append(result, s)
 	}
 	return result
+}
+
+// GetMetricsMetadata returns time series metric names metadata for the given args
+func GetMetricsMetadata(qt *querytracer.Tracer, limit int, metricName string) ([]*metricsmetadata.Row, error) {
+	qt = qt.NewChild("get metrics metadata: limit=%d, metric_name=%q", limit, metricName)
+	defer qt.Done()
+
+	metadata := vmstorage.Storage.GetMetadataRows(qt, limit, metricName)
+
+	sort.Slice(metadata, func(i, j int) bool {
+		return string(metadata[i].MetricFamilyName) < string(metadata[j].MetricFamilyName)
+	})
+	if limit > 0 && len(metadata) >= limit {
+		metadata = metadata[:limit]
+	}
+
+	return metadata, nil
 }
 
 // GraphiteTagValues returns tag values for the given tagName until the given deadline.

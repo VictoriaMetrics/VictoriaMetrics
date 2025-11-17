@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	decoder *zstd.Decoder
+	decodersMu sync.Mutex
+	decoders   atomic.Value
 
 	mu sync.Mutex
 
@@ -24,15 +25,27 @@ func init() {
 	av.Store(r)
 
 	var err error
-	decoder, err = zstd.NewReader(nil)
+	decoder, err := zstd.NewReader(nil)
 	if err != nil {
 		logger.Panicf("BUG: failed to create ZSTD reader: %s", err)
 	}
+	d := make(map[int]*zstd.Decoder)
+	d[0] = decoder
+	decoders.Store(d)
 }
 
 // Decompress appends decompressed src to dst and returns the result.
+//
+// This function must be called only for the trusted src.
 func Decompress(dst, src []byte) ([]byte, error) {
-	return decoder.DecodeAll(src, dst)
+	d := getDecoder(0)
+	return d.DecodeAll(src, dst)
+}
+
+// Decompress appends decompressed src to dst and returns the result.
+func DecompressLimited(dst, src []byte, maxDataSizeBytes int) ([]byte, error) {
+	d := getDecoder(maxDataSizeBytes)
+	return d.DecodeAll(src, dst)
 }
 
 // CompressLevel appends compressed src to dst and returns the result.
@@ -48,6 +61,34 @@ func CompressLevel(dst, src []byte, compressionLevel int) []byte {
 
 	e := getEncoder(realCompressionLevel)
 	return e.EncodeAll(src, dst)
+}
+
+func getDecoder(maxMemory int) *zstd.Decoder {
+	r := decoders.Load().(map[int]*zstd.Decoder)
+	d := r[maxMemory]
+	if d != nil {
+		return d
+	}
+	decodersMu.Lock()
+	// Create the decoder under lock in order to prevent from wasted work
+	// when concurrent goroutines create decoder for the same compressionLevel.
+	r1 := decoders.Load().(map[int]*zstd.Decoder)
+	if d = r1[maxMemory]; d == nil {
+		var err error
+		d, err = zstd.NewReader(nil, zstd.WithDecoderMaxMemory(uint64(maxMemory)))
+		if err != nil {
+			logger.Panicf("BUG: failed to create ZSTD reader: %s", err)
+		}
+		r2 := make(map[int]*zstd.Decoder)
+		for k, v := range r1 {
+			r2[k] = v
+		}
+		r2[maxMemory] = d
+		decoders.Store(r2)
+	}
+	decodersMu.Unlock()
+
+	return d
 }
 
 func getEncoder(compressionLevel zstd.EncoderLevel) *zstd.Encoder {

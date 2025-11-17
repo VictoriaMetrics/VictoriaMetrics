@@ -33,13 +33,13 @@ Yes. See [these benchmarks](https://docs.victoriametrics.com/victoriametrics/art
 
 See the list of technical articles on VictoriaMetrics components:
 
-1. [How VictoriaMetrics Agent (**vmagent**) Works](https://victoriametrics.com/blog/vmagent-how-it-works)
-1. [How **vmstorage** Handles Data Ingestion](https://victoriametrics.com/blog/vmstorage-how-it-handles-data-ingestion)
-1. [How **vmstorage** Processes Data: Retention, Merging, Deduplication,...](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication)
-1. [When Metrics Meet **vminsert**: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works)
-1. [How **vmstorage**'s IndexDB Works](https://victoriametrics.com/blog/vmstorage-how-indexdb-works)
-1. [How **vmstorage** Handles Query Requests From vmselect](https://victoriametrics.com/blog/vmstorage-how-it-handles-query-requests)
-1. [Inside **vmselect**: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works)
+1. [How VictoriaMetrics Agent (**vmagent**) Works](https://victoriametrics.com/blog/vmagent-how-it-works/)
+1. [How **vmstorage** Handles Data Ingestion](https://victoriametrics.com/blog/vmstorage-how-it-handles-data-ingestion/)
+1. [How **vmstorage** Processes Data: Retention, Merging, Deduplication,...](https://victoriametrics.com/blog/vmstorage-retention-merging-deduplication/)
+1. [When Metrics Meet **vminsert**: A Data-Delivery Story](https://victoriametrics.com/blog/vminsert-how-it-works/)
+1. [How **vmstorage**'s IndexDB Works](https://victoriametrics.com/blog/vmstorage-how-indexdb-works/)
+1. [How **vmstorage** Handles Query Requests From vmselect](https://victoriametrics.com/blog/vmstorage-how-it-handles-query-requests/)
+1. [Inside **vmselect**: The Query Processing Engine of VictoriaMetrics](https://victoriametrics.com/blog/vmselect-how-it-works/)
 
 ## How to start using VictoriaMetrics?
 
@@ -363,7 +363,8 @@ The number of active time series is displayed on the official Grafana dashboard 
 
 ## What is high churn rate?
 
-If old time series are constantly substituted by new time series at a high rate, then such a state is called `high churn rate`. High churn rate has the following negative consequences:
+If old [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) are constantly substituted by new time series at a high rate,
+then such a state is called `high churn rate`. High churn rate has the following negative consequences:
 
 * Increased total number of time series stored in the database.
 * Increased size of inverted index, which is stored at `<-storageDataPath>/indexdb`, since the inverted index contains entries for every label of every time series with at least a single ingested sample.
@@ -520,6 +521,8 @@ from [alerting and recording rules](https://docs.victoriametrics.com/victoriamet
 such as a few hours to a few days at most. This means that the query load between old `vmstorage` nodes and new `vmstorage` nodes
 should become even within few hours / days after adding new `vmstorage` nodes.
 
+See also [rebalancing docs at VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#rebalancing).
+
 ## Why VictoriaMetrics misses automatic recovery of replication factor?
 
 VictoriaMetrics doesn't restore [replication factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
@@ -534,3 +537,47 @@ when some of `vmstorage` nodes are removed from the cluster because of the follo
 
 It is recommended reading [replication and data safety docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety)
 for more details.
+
+## Why IndexDB size is so large?
+
+VictoriaMetrics stores [index data](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#indexdb) into `<-storageDataPath>/indexdb` subdirectory,
+while the [data itself](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage) is stored in the `<-storageDataPath>/data` subdirectory,
+(the `<-storageDataPath>` is the corresponding command-line flag value, which points to the directory where VictoriaMetrics stores all its data).
+The size of the `indexdb` subdirectory is [exposed](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring)
+via `vm_data_size_bytes{type="indexdb/file"}` metric, while the size of the `data` subdirectory is exposed via `vm_data_size_bytes{type="storage/big"}`
+and `vm_data_size_bytes{type="storage/small"}` metrics.
+
+The size of the `indexdb` subdirectory can exceed the size of the `data` subdirectory in cases of [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)
+when old [time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) are replaced by new time series at a high rate.
+VictoriaMetrics stores various index data into `indexdb` per each [label](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels)
+per each registered time series in order to speed up searching for these time series by [label filters](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#filtering).
+So the size of the `indexdb` grows proportionally to the total number of time series registered in VictoriaMetrics,
+and proportionally to the total length of all the labels seen across all the registered time series.
+
+Typical monitoring in Kubernetes generates moderate-to-high churn rate for time series because every restart of the `pod` creates a new set of time series
+for all the [metrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#what-is-a-metric) exposed by that pod, with a new `pod` label.
+The number of labels and the summary length of `label=value` pairs per every time series in Kubernetes is quite large
+(~30-40 labels with ~1KB summary length of `label=value` pairs per time series). This contributes to quick growth of the `indexdb` over time,
+so its' size may exceed the size of the `data` folder by up to 2x in typical production cases.
+
+There are the following workarounds, which can reduce the growth rate of the `indexdb`:
+
+- To drop unneeded long labels from the ingested metrics before they are stored in VictoriaMetrics.
+  See [how to drop unneeded labels from scrape targets](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-remove-labels-from-targets)
+  and [how to drop unneeded labels from metrics](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-remove-labels-from-metrics-subset).
+
+- To aggregate multiple time series into a single output time series before storing them into VictoriaMetrics.
+  The aggregation can be performed via [recording rules at vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#recording-rules)
+  by using [aggregate functions at MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/#aggregate-functions)
+  or via [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) according
+  to [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#reducing-the-number-of-stored-series).
+
+VictoriaMetrics also adds per-day entries into `indexdb` for time series seen during the particular day, in order to speed up searches for time series seen at that day.
+This gradually increases `indexdb` size over time even if time series remain the same over multiple days. If the set of monitored time series
+in your case is constant over many days, then it is a good idea to disable the per-day index and rely only on global index during queries.
+This reduces `indexdb` growth rate. See [how to disable per-day index](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning-for-low-churn-rate).
+
+Note that the [deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication)
+and [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling)
+may reduce the number of [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+per each stored time series, but they **do not reduce the number of stored time series**, so they cannot reduce `indexdb` size.

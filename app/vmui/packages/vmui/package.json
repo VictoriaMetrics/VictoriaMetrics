@@ -12,6 +12,7 @@
     "build": "vite build",
     "build:anomaly": "vite build --mode vmanomaly",
     "lint": "eslint --output-file vmui-lint-report.json --format json 'src/**/*.{ts,tsx}'",
+    "lint:local": "eslint --ext .ts,.tsx -f stylish src",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true",
     "preview": "vite preview",
