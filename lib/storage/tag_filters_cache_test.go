@@ -76,6 +76,7 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 		maxBytesSize: maxBytesSize,
 		entriesCount: 1,
 		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
+		setCalls:     1,
 	})
 
 	if _, ok := c.get(nil, k1); !ok {
@@ -86,6 +87,7 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 		entriesCount: 1,
 		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
 		getCalls:     1,
+		setCalls:     1,
 	})
 
 	k2 := []byte("non-existent")
@@ -98,6 +100,7 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
 		getCalls:     2,
 		misses:       1,
+		setCalls:     1,
 	})
 
 	// Duplicates are ignored.
@@ -109,7 +112,8 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
 		getCalls:     2,
 		misses:       1,
-		ignoredDupes: 1,
+		setCalls:     2,
+		collisions:   1,
 	})
 
 	c.reset()
@@ -144,6 +148,7 @@ func TestTagFiltersCache_Utilization(t *testing.T) {
 			maxBytesSize: maxBytesSize,
 			entriesCount: i,
 			bytesSize:    i * bytesSize,
+			setCalls:     i,
 		}
 		if i > maxEntries {
 			want.entriesCount = maxEntries

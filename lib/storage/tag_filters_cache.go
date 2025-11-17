@@ -47,7 +47,8 @@ type tagFiltersCacheStats struct {
 	maxBytesSize uint64
 	getCalls     uint64
 	misses       uint64
-	ignoredDupes uint64
+	setCalls     uint64
+	collisions   uint64
 	ignoredNoCap uint64
 	resets       uint64
 }
@@ -74,10 +75,12 @@ func (c *tagFiltersCache) set(qt *querytracer.Tracer, metricIDs *uint64set.Set, 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.s.setCalls++
+
 	// Need to check if the entry is present to calculate the total bytesSize
 	// correctly.
 	if _, ok := c.m[string(key)]; ok {
-		c.s.ignoredDupes++
+		c.s.collisions++
 		return
 	}
 
