@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/gcsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/s3remote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 var (
@@ -264,22 +262,6 @@ func NewRemoteFS(ctx context.Context, path string) (common.RemoteFS, error) {
 			return nil, fmt.Errorf("cannot parse s3 tags %q: %w", *s3Tags, err)
 		}
 
-		sseAlgorithm := s3types.ServerSideEncryptionAwsKms
-		if s3SSEAlgorithm != nil && *s3SSEAlgorithm != "" {
-			if !slices.Contains(sseAlgorithm.Values(), s3types.ServerSideEncryption(*s3SSEAlgorithm)) {
-				return nil, fmt.Errorf("unsupported SSE algorithm: %s. Supported values: %v", *s3SSEAlgorithm, sseAlgorithm.Values())
-			}
-			sseAlgorithm = s3types.ServerSideEncryption(*s3SSEAlgorithm)
-		}
-
-		acl := s3types.ObjectCannedACL("")
-		if s3ACL != nil && *s3ACL != "" {
-			if !slices.Contains(acl.Values(), s3types.ObjectCannedACL(*s3ACL)) {
-				return nil, fmt.Errorf("unsupported ACL: %s. Supported values: %v", *s3ACL, acl.Values())
-			}
-			acl = s3types.ObjectCannedACL(*s3ACL)
-		}
-
 		fs := &s3remote.FS{
 			CredsFilePath:         *credsFilePath,
 			ConfigFilePath:        *configFilePath,
@@ -288,9 +270,9 @@ func NewRemoteFS(ctx context.Context, path string) (common.RemoteFS, error) {
 			StorageClass:          s3remote.StringToStorageClass(*s3StorageClass),
 			ChecksumAlgorithm:     s3remote.StringToChecksumAlgorithm(*s3ChecksumAlgorithm),
 			S3ForcePathStyle:      *s3ForcePathStyle,
-			ACL:                   acl,
+			ACL:                   s3remote.StringToObjectACL(*s3ACL),
 			SSEKMSKeyId:           *s3SSEKMSKeyId,
-			SSEAlgorithm:          sseAlgorithm,
+			SSEAlgorithm:          s3remote.StringToEncryptionAlgorithm(*s3SSEAlgorithm),
 			ProfileName:           *configProfile,
 			Bucket:                bucket,
 			Dir:                   dir,
