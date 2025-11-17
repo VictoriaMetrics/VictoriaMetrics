@@ -5,6 +5,7 @@ import { ForecastType, HideSeriesArgs, LegendItemType, SeriesItem } from "../../
 import { anomalyColors, baseContrastColors, getColorFromString } from "../color";
 import { getMathStats } from "../math";
 import { formatPrettyNumber } from "./helpers";
+import { drawPoints } from "./scatter";
 
 // Helper function to extract freeFormFields values as a comma-separated string
 export const extractFields = (metric: MetricBase["metric"]): string => {
@@ -31,7 +32,7 @@ export const isForecast = (metric: MetricBase["metric"]): ForecastMetricInfo => 
   };
 };
 
-export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[], showPoints?: boolean, isAnomalyUI?: boolean) => {
+export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[], showPoints?: boolean, isAnomalyUI?: boolean, isRawQuery?: boolean) => {
   const colorState: {[key: string]: string} = {};
   const maxColors = isAnomalyUI ? 0 : Math.min(data.length, baseContrastColors.length);
 
@@ -51,13 +52,14 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
       dash: getDashSeries(metricInfo),
       width: getWidthSeries(metricInfo),
       stroke: getStrokeSeries({ metricInfo, label, isAnomalyUI, colorState }),
-      points: getPointsSeries(metricInfo, showPoints),
+      points: getPointsSeries(metricInfo, showPoints, isRawQuery),
       spanGaps: false,
       forecast: metricInfo?.value,
       forecastGroup: metricInfo?.group,
       freeFormFields: d.metric,
       show: !includesHideSeries(label, hideSeries),
       scale: "1",
+      paths: isRawQuery ? drawPoints : undefined,
       ...getSeriesStatistics(d),
     };
   };
@@ -118,10 +120,10 @@ export const delSeries = (u: uPlot) => {
   }
 };
 
-export const addSeries = (u: uPlot, series: uPlotSeries[], spanGaps = false, showPoints = false) => {
+export const addSeries = (u: uPlot, series: uPlotSeries[], spanGaps = false, showPoints = false, isRawQuery?: boolean) => {
   series.forEach((s,i) => {
     if (s.label) s.spanGaps = spanGaps;
-    if (s.points) s.points.filter = showPoints ? undefined : filterPoints;
+    if (s.points) s.points.filter = showPoints || isRawQuery ? undefined : filterPoints;
     i && u.addSeries(s);
   });
 };
@@ -157,17 +159,17 @@ const getWidthSeries = (metricInfo: ForecastMetricInfo | null): number => {
   return 1.4;
 };
 
-const getPointsSeries = (metricInfo: ForecastMetricInfo | null, showPoints: boolean = false): uPlotSeries.Points => {
+const getPointsSeries = (metricInfo: ForecastMetricInfo | null, showPoints: boolean = false, isRawQuery?: boolean): uPlotSeries.Points => {
   const isAnomalyMetric = metricInfo?.value === ForecastType.anomaly;
 
   if (isAnomalyMetric) {
     return { size: 8, width: 4, space: 0 };
   }
   return {
-    size: 4,
+    size: isRawQuery ? 0 : 4,
     width: 0,
     show: true,
-    filter: showPoints ? null : filterPoints,
+    filter: showPoints || isRawQuery ? null : filterPoints,
   };
 };
 
