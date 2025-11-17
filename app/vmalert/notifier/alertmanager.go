@@ -3,6 +3,7 @@ package notifier
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -86,6 +87,9 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert, alertLabels []
 	err := am.send(ctx, alerts, alertLabels, headers)
 	am.metrics.alertsSendDuration.UpdateDuration(startTime)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
 		am.metrics.alertsSendErrors.Add(len(alerts))
 		am.lastError = err.Error()
 	} else {

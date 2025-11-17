@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): don't increment alertmanager errors context cancel errors, that may happen during configuration reload. See [#10027](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10027).
+
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 
 Released at 2025-11-14
