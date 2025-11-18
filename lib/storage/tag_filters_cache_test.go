@@ -56,7 +56,7 @@ func TestTagFiltersCache_EmptyMetricIDs(t *testing.T) {
 	f(nil)
 }
 
-func TestTagFiltersCache_Stats(t *testing.T) {
+func TestTagFiltersCache_GetSetStats(t *testing.T) {
 	maxBytesSize := uint64(getTagFiltersCacheSize())
 	metricIDs := func(items ...uint64) *uint64set.Set {
 		v := &uint64set.Set{}
@@ -76,7 +76,6 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 		maxBytesSize: maxBytesSize,
 		entriesCount: 1,
 		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
-		setCalls:     1,
 	})
 
 	if _, ok := c.get(nil, k1); !ok {
@@ -87,7 +86,6 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 		entriesCount: 1,
 		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
 		getCalls:     1,
-		setCalls:     1,
 	})
 
 	k2 := []byte("non-existent")
@@ -100,20 +98,67 @@ func TestTagFiltersCache_Stats(t *testing.T) {
 		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
 		getCalls:     2,
 		misses:       1,
-		setCalls:     1,
 	})
 
-	// Duplicates are ignored.
+	// Duplicates are accepted, the old value is overwritten with the new one.
+	// Duplicate value of the same size.
 	v2 := metricIDs(2, 200, 2000, 20000)
 	c.set(nil, v2, k1)
 	assertTagFiltersCacheStats(t, c, tagFiltersCacheStats{
 		maxBytesSize: maxBytesSize,
 		entriesCount: 1,
-		bytesSize:    uint64(len(k1)) + v1.SizeBytes(),
+		bytesSize:    uint64(len(k1)) + v2.SizeBytes(),
 		getCalls:     2,
 		misses:       1,
-		setCalls:     2,
-		collisions:   1,
+	})
+	got, _ := c.get(nil, k1)
+	assertTagFiltersCacheValue(t, got, v2)
+	assertTagFiltersCacheStats(t, c, tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v2.SizeBytes(),
+		getCalls:     3,
+		misses:       1,
+	})
+
+	// Duplicate value of bigger size.
+	v3 := metricIDs(3, 3e2, 3e3, 3e4, 3e5)
+	c.set(nil, v3, k1)
+	assertTagFiltersCacheStats(t, c, tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v3.SizeBytes(),
+		getCalls:     3,
+		misses:       1,
+	})
+	got, _ = c.get(nil, k1)
+	assertTagFiltersCacheValue(t, got, v3)
+	assertTagFiltersCacheStats(t, c, tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v3.SizeBytes(),
+		getCalls:     4,
+		misses:       1,
+	})
+
+	// Duplicate value of smaller size.
+	v4 := metricIDs(4, 4e2)
+	c.set(nil, v4, k1)
+	assertTagFiltersCacheStats(t, c, tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v4.SizeBytes(),
+		getCalls:     4,
+		misses:       1,
+	})
+	got, _ = c.get(nil, k1)
+	assertTagFiltersCacheValue(t, got, v4)
+	assertTagFiltersCacheStats(t, c, tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 1,
+		bytesSize:    uint64(len(k1)) + v4.SizeBytes(),
+		getCalls:     5,
+		misses:       1,
 	})
 
 	c.reset()
@@ -140,7 +185,8 @@ func TestTagFiltersCache_Utilization(t *testing.T) {
 		maxBytesSize: maxBytesSize,
 	})
 
-	for i := uint64(1); i <= 2*maxEntries; i++ {
+	// Fill up the cache so there is no room for new entries.
+	for i := uint64(1); i <= maxEntries; i++ {
 		key := []byte(fmt.Sprintf("key-%03d", i))
 		c.set(nil, value, key)
 
@@ -148,15 +194,22 @@ func TestTagFiltersCache_Utilization(t *testing.T) {
 			maxBytesSize: maxBytesSize,
 			entriesCount: i,
 			bytesSize:    i * bytesSize,
-			setCalls:     i,
-		}
-		if i > maxEntries {
-			want.entriesCount = maxEntries
-			want.bytesSize = maxBytesSize
-			want.ignoredNoCap = i - maxEntries
 		}
 		assertTagFiltersCacheStats(t, c, want)
 	}
+
+	// Add one more entry. 10% of the cache must be freed.
+	// One entry is 1%, so the resulting utilization after adding the entry must
+	//be 91%.
+	key = []byte(fmt.Sprintf("key-%03d", maxEntries+1))
+	c.set(nil, value, key)
+
+	want := tagFiltersCacheStats{
+		maxBytesSize: maxBytesSize,
+		entriesCount: 91,
+		bytesSize:    91 * bytesSize,
+	}
+	assertTagFiltersCacheStats(t, c, want)
 }
 
 func assertTagFiltersCacheStats(t *testing.T, c *tagFiltersCache, want tagFiltersCacheStats) {
@@ -164,5 +217,14 @@ func assertTagFiltersCacheStats(t *testing.T, c *tagFiltersCache, want tagFilter
 	got := c.stats()
 	if diff := cmp.Diff(want, got, cmp.AllowUnexported(tagFiltersCacheStats{})); diff != "" {
 		t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
+	}
+}
+
+func assertTagFiltersCacheValue(t *testing.T, gotSet, wantSet *uint64set.Set) {
+	t.Helper()
+	got := gotSet.AppendTo(nil)
+	want := wantSet.AppendTo(nil)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected value (-want, +got):\n%s", diff)
 	}
 }
