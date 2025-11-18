@@ -75,7 +75,7 @@ type tagFiltersCacheStats struct {
 // randomly delete its entries until at least 10% of cache space is available.
 //
 // The cache is expected to be reset everytime a new timeseries is added to the
-// database. In typical production environments, this is a quite frequent event,
+// database. This is a quite frequent event in a typical prod environment and
 // therefore the cache implementation is very simple, compared to other
 // important caches, such as tsidCache. Namely, 1) it is completely in-memory
 // (i.e. it is never persisted to disk), 2) it has no rotation, it is just a map
@@ -86,10 +86,10 @@ type tagFiltersCacheStats struct {
 // the caller stores or retrieves a value to/from the cache (by calling cache
 // set() or get() method) the caller must not modify that value. Additionally,
 // the caller must stop holding the value as soon as possible, so that the Go
-// garbage collector could free the space in the even of cache is reset or
-// forced clean up (see set() method). Note than the cache does copy the byte
-// keys but only because it is implemented on top of the Go map that can only
-// accept strings as a key.
+// garbage collector could free the space when the cache is reset or is forced
+// to free up space (see set() method). Note that the cache does copy the keys
+// but only because it is implemented on top of the Go map that can only accept
+// strings as a key.
 type tagFiltersCache struct {
 	m  map[string]*uint64set.Set
 	s  tagFiltersCacheStats
@@ -105,11 +105,12 @@ func newTagFiltersCache() *tagFiltersCache {
 	}
 }
 
-// set adds a new entry to the cache optionally freeing space if there is no
+// set adds a new entry to the cache optionally freeing up space if there is no
 // room. If the entry with the same key already exists, the entry value will be
-// overwritten. The method copies the key but not the value, and callers are
-// 1) not expected to modify the value after calling this method and 2) stop
-// referencing this value as soon as possible.
+// overwritten and the cache by bytesSize metric will be adjusted accordingly.
+// The method copies the key but not the value, and, after calling this method,
+// the callers are 1) not expected to modify the value and 2) stop referencing
+// it as soon as possible.
 //
 // See the description of the tagFiltersCache type for details.
 func (c *tagFiltersCache) set(qt *querytracer.Tracer, value *uint64set.Set, key []byte) {
@@ -122,13 +123,13 @@ func (c *tagFiltersCache) set(qt *querytracer.Tracer, value *uint64set.Set, key 
 	defer c.mu.Unlock()
 
 	// In case there is no room for the new entry, make space by deleting random
-	// cache entries until 10% of space is freed.
-	// Note that the space won't really be freed until the calling code holds
-	// the pointer to the value(s) which have been removed from the cache.
+	// cache entries until 10% of space is freed. Note that the space won't
+	// really be freed until the calling code holds the pointer to the values
+	// which have been removed from the cache during the cleanup.
 	//
-	// Ideally when calculating the bitesSize, we would need to take into
+	// Ideally, when calculating the bitesSize, we would need to take into
 	// account the case when the entry with this key is already in the cache
-	// (see below) - then the bytesSize would be precise and often much smaller.
+	// (see below). Then, the bytesSize would be precise and often much smaller.
 	// However, we would then need to ensure that the key is not deleted from
 	// the cache in case if the cache clean up still needs to be performed. I.e.
 	// we would need to compare the random key with keyCopy which is expensive.
@@ -148,7 +149,7 @@ func (c *tagFiltersCache) set(qt *querytracer.Tracer, value *uint64set.Set, key 
 	}
 
 	// Adjust the entry count and bytesSize to account for cases when the entry
-	// with this key may already exist. It's ok for resulting bytesSize to be
+	// with this key already exists. It's ok for resulting bytesSize to be
 	// negative because the new value size may smaller than the current value
 	// size.
 	entriesCount := uint64(1)
@@ -165,8 +166,9 @@ func (c *tagFiltersCache) set(qt *querytracer.Tracer, value *uint64set.Set, key 
 }
 
 // get retrieves the value by key. The returned value is not a copy but the
-// actual value, and the callers are 1) not expected to modify it and
-// 2) expected to stop referencing it as soon as possible.
+// actual value, and after calling this method the callers are 1) not expected
+// to modify the value and 2) expected to stop referencing the value as soon as
+// possible.
 //
 // See the description of the tagFiltersCache type for details.
 func (c *tagFiltersCache) get(qt *querytracer.Tracer, key []byte) (*uint64set.Set, bool) {
@@ -193,6 +195,14 @@ func (c *tagFiltersCache) stats() tagFiltersCacheStats {
 	return c.s
 }
 
+// reset removes all entries from the cache and resets the stats (except
+// `maxByteSize`, which stays the same, and `resets`, which is incremented by
+// 1). Note that the entries are not removed from the memory right away but
+// after some time and by the Go garbage collector. And in order for this to
+// happen, the callers that stored and/or retrieved the values from the cache
+// must not hold the pointer to the cache values.
+//
+// See the description of the tagFiltersCache type for details.
 func (c *tagFiltersCache) reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
