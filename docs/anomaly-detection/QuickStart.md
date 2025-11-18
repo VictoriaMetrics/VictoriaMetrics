@@ -138,14 +138,18 @@ echo $LICENSE_KEY > license
 
 ```sh
 docker run -it \
-               -v ./license:/license \
-               -v ./config.yml:/config.yml \
-#              -v ./data:/tmp/vmanomaly \ # Enable if you are using settings.restore_state: True
-               victoriametrics/vmanomaly:v1.28.0 /config.yml \
-               --port 8490:8490 \
-               --licenseFile=/license \
-               --loggerLevel=INFO \
-               --watch
+    -v ./license:/license \
+    -v ./config.yml:/config.yml \
+    -p 8490:8490 \
+    victoriametrics/vmanomaly:v1.28.0 \
+    /config.yml \
+    --licenseFile=/license \
+    --loggerLevel=INFO \
+    --watch
+```
+
+```sh
+   -v ./data:/tmp/vmanomaly \ # Enable if you are using settings.restore_state: True
 ```
 
 ```yaml
@@ -168,8 +172,6 @@ services:
     #   - "VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models"
     #   - "VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data"
 ```
-
-> In case of `PermissionError: [Errno 13] Permission denied:` in `vmanomaly` logs {{% deprecated_from "v1.28.0" anomaly %}}, set user/user group to 1000, e.g. `--user 1000:1000` in the `docker run` command or `user: "1000:1000"` in the `docker-compose.yml` file.
 
 For a complete docker-compose example please refer to [our alerting guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/), chapter [docker-compose](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/#docker-compose)
 
