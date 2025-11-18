@@ -79,9 +79,9 @@ preset: ui
 This will start vmanomaly instance with a no-operation schedulers, readers, models and the other components, and **will only enable the UI for interactive exploration of anomaly detection models**, so all the resources are dedicated to the UI and no resources are wasted on other components, such as production jobs of anomaly detection (retrieving metrics, running models, writing results, etc.).
 
 The best applications of this mode are:
+
 - Deploy vmanomaly UI as a service to hide the deployment complexity and allow internal users to explore anomaly detection models and their configurations, without the need to run any production jobs of anomaly detection.
 - When there is a quick need to explore and validate anomaly detection models and their configurations before deploying them in production jobs, at minimal resource usage.
-
 
 > However, the UI can be **combined with existing production jobs of anomaly detection, as it is available in non-blocking mode for all running vmanomaly instances** {{% available_from "v1.26.0" anomaly %}}, regardless of the preset or configuration used, just at a cost of increased resource usage.
 
@@ -96,11 +96,12 @@ The vmanomaly UI provides a user-friendly interface for exploring and configurin
 
 ### Query Explorer
 
-The Query Explorer provides a vmui-like interface for typing and executing MetricsQL/LogsQL queries to visualize data. 
+The Query Explorer provides a vmui-like interface for typing and executing MetricsQL/LogsQL queries to visualize data.
 
 ![vmanomaly-ui-sections-explore](vmanomaly-ui-sections-explore.webp)
 
 Users can:
+
 - Enter, autocomplete, prettify and execute queries to retrieve and plot the data from the configured data source (see [settings panel](#settings-panel) for data source configuration).
 - Adjust the (inference) time range and resolution (step) for data visualization and anomaly detection purposes.
 - Access query history and saved queries for quick access to frequently used queries.
@@ -155,7 +156,7 @@ The vmui-like "Settings" panel allows users to configure global settings and pre
 - Datasource URL (VictoriaMetrics, VictoriaLogs)
 - Timezone
 - UI Theme
-- {{% available_from "v1.27.0" anomaly %}} Auth Headers forwarding to datasource (VictoriaMetrics, VictoriaLogs). 
+- {{% available_from "v1.27.0" anomaly %}} Auth Headers forwarding to datasource (VictoriaMetrics, VictoriaLogs).
 
 ![vmanomaly-ui-sections-settings](vmanomaly-ui-sections-settings.webp)
 
@@ -163,7 +164,8 @@ The vmui-like "Settings" panel allows users to configure global settings and pre
 
 ## Configuration Sharing
 
-Based on the needs, either 
+Based on the needs, either
+
 - Full UI state can be [shared via URL](#url-sharing)
 - Or model part / full service configuration can be [viewed and exported in production-ready YAML format](#yaml-configuration).
 
@@ -188,7 +190,6 @@ Accessing the "YAML" Tab in the model configuration section
 ![vmanomaly-ui-model-config-menu](vmanomaly-ui-model-config-menu.webp)
 ![vmanomaly-ui-model-config-yaml-tab](vmanomaly-ui-model-config-menu-yaml-tab.webp)
 
-
 Clicking the "Show Config" button to access (model-only or full) configuration and hitting "Download" button to get the configuration as a YAML file.
 
 ![vmanomaly-ui-open-config-btn](vmanomaly-ui-open-config-btn.webp)
@@ -203,14 +204,14 @@ Based on expected usage patterns (quick experiments, internal team serving, numb
 server:
   # Port for the UI server (default: 8490)
   port: 8490
-  # Limit on concurrent tasks to manage UI load (default: 2) 
+  # Limit on concurrent tasks to manage UI load (default: 2)
   max_concurrent_tasks: 2
 
 settings:
   # Number of workers for single job speed-ups (default: 1)
   n_workers: 2
-  # Adjust logging levels to reduce verbosity  
-  logger_levels: 
+  # Adjust logging levels to reduce verbosity
+  logger_levels:
     vmanomaly: WARNING
     reader: INFO
     model: INFO
@@ -253,7 +254,7 @@ If mixing the UI alongside production jobs of anomaly detection is expected, it 
 
 settings:
   # Number of workers for mixed usage (numbers <= 0 mean number of available CPU cores)
-  n_workers: -1        
+  n_workers: -1
   # Adjust logging levels to reduce verbosity
   logger_levels:
     vmanomaly: WARNING
@@ -299,7 +300,6 @@ Pay attention to trends, seasonality, noise, outliers, and other patterns in the
 
 ![vmanomaly-ui-sections-plot-area-query-mode](vmanomaly-ui-sections-plot-area-query-mode.webp)
 
-
 ### Select and Configure Model
 
 Choose an appropriate anomaly detection model from the Model Panel based on the characteristics of the data and the specific requirements (domain knowledge) of the use case.
@@ -315,6 +315,7 @@ Tune the model hyperparameters and apply domain knowledge settings using the for
 For example, for a `rolling quantile` [model](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile), that should be run on a query, returning per-mode CPU utilization (as fractions of 1, data range `[0, 1]`), where you are interested in capturing **spikes of at least 5% deviations** from expected behavior:
 
 Set the **model-agnostic** parameters to encode the domain knowledge:
+
 - [detection direction](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) to `above expected` for capturing high anomalies (spikes)
 - data range to `[0, 1]` for CPU utilization fractions and proper prediction clipping
 - [minimum deviation from expected](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to `[0, 0.05]` for capturing spikes of at least 5% deviations in magnitude
@@ -323,6 +324,7 @@ Set the **model-agnostic** parameters to encode the domain knowledge:
 - [scale](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) to `[1, 1]` unless you will see improper width of confidence intervals from the experiments (e.g. too wide/narrow) given the model-specific hyperparameters and false positives/negatives observed in the results.
 
 Set the **model-specific** hyperparameters:
+
 - quantile to `0.9` for detecting high anomalies
 - window steps to `48` for capturing 1 day of active history with 30m step data (24/0.5 = 48)
 
@@ -359,6 +361,7 @@ If the **results** look good and the **model configuration should be deployed in
 ## Changelog
 
 ### v1.1.0
+
 Released: 2025-10-31
 
 vmanomaly version: [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1270)
@@ -375,8 +378,8 @@ vmanomaly version: [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/
 
 - IMPROVEMENT: datasource value is initialized from the server reader config (on the first UI initialization) if [mixed mode is used](#mixed-usage). Can be reset to the default value anytime by hitting the "Reset to Default" button next to the datasource field in the [Settings Panel](#settings-panel).
 
-
 ### v1.0.0
+
 Released: 2025-10-02
 
 vmanomaly version: [v1.26.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1260)

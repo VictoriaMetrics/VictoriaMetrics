@@ -39,7 +39,7 @@ models:
       random_state: 42
     # if there is no explicit `queries` arg, then the model will be run on ALL queries found in reader section
 # ...
-```  
+```
 
 Old-style configs (< [1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1100))
 
@@ -62,7 +62,6 @@ models:
     queries: ['q1', 'q2', 'q3']  # i.e., if your `queries` in `reader` section has exactly q1, q2, q3 aliases
 # ...
 ```
-
 
 ## Common args
 
@@ -132,12 +131,12 @@ models:
 > If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
 ### Detection direction
+
 `detection_direction`{{% available_from "v1.13.0" anomaly %}} arg can help in reducing the number of [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) and increasing the accuracy, when domain knowledge suggest to identify anomalies occurring when actual values (`y`) are *above, below, or in both directions* relative to the expected values (`yhat`). Available choices are: `both`, `above_expected`, `below_expected`.
 
 Here's how default (backward-compatible) behavior looks like - anomalies will be tracked in `both` directions (`y > yhat` or `y < yhat`). This is useful when there is no domain expertise to filter the required direction.
 
 ![schema_detection_direction=both](schema_detection_direction=both.webp)
-
 
 When set to `above_expected`, anomalies are tracked only when `y > yhat`.
 
@@ -145,13 +144,11 @@ When set to `above_expected`, anomalies are tracked only when `y > yhat`.
 
 ![schema_detection_direction=above_expected](schema_detection_direction=above_expected.webp)
 
-
-When set to `below_expected`, anomalies are tracked only when `y < yhat`. 
+When set to `below_expected`, anomalies are tracked only when `y < yhat`.
 
 *Example metrics*: Service Level Agreement (SLA) compliance, conversion rate, Customer Satisfaction Score (CSAT) - metrics where *higher values are better*, so **lower** values are typically tracked.
 
 ![schema_detection_direction=below_expected](schema_detection_direction=below_expected.webp)
-
 
 Config with a split example:
 
@@ -201,9 +198,7 @@ Visualizations below demonstrate this concept; the green zone defined as the `[y
 
 ![min_dev_from_expected-default](schema_min_dev_from_expected=0.webp)
 
-
 ![min_dev_from_expected-small](schema_min_dev_from_expected=1.0.webp)
-
 
 ![min_dev_from_expected-big](schema_min_dev_from_expected=5.0.webp)
 
@@ -249,14 +244,14 @@ reader:
     # return one timeseries for each CPU mode per host, total = N*M timeseries
     cpu: sum(rate(node_cpu_seconds_total[5m])) by (host, mode)
     # return one timeseries per host, total = 1*M timeseries
-    ram: | 
+    ram: |
       (
-       (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) 
+       (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
        / node_memory_MemTotal_bytes
       ) * 100 by (host)
     # return one timeseries per host for both network receive and transmit data, total = 1*M timeseries
     network: |
-      sum(rate(node_network_receive_bytes_total[5m])) by (host) 
+      sum(rate(node_network_receive_bytes_total[5m])) by (host)
       + sum(rate(node_network_transmit_bytes_total[5m])) by (host)
 
 models:
@@ -280,6 +275,7 @@ Previously available only to [ProphetModel](#prophet) and [OnlineQuantileModel](
 For backward compatibility, the previous format (`scale: x`) remains supported and will be automatically converted to `scale: [x, x]`.
 
 For example, setting `scale: [1.2, 0.75]` for particular model will:
+
 - **Increase** the width of the lower confidence interval by **20%**.
 - **Decrease** the width of the upper confidence boundary by **25%**.
 
@@ -305,6 +301,7 @@ models:
 A post-processing step to **clip model predictions** (`yhat`, `yhat_lower`, and `yhat_upper` series) to the configured [`data_range` values](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) in `VmReader` is available.
 
 This behavior is controlled by the boolean argument `clip_predictions` {{% available_from "v1.20.0" anomaly %}}:
+
 - **Disabled by default** for backward compatibility.
 - **Works** for models that generate predictions and estimates (e.g., [`ProphetModel`](#prophet)) by setting `clip_predictions` to `True` for respective model in `models` section.
 
@@ -317,7 +314,7 @@ The primary use case is to **align domain knowledge** about data behavior (defin
 reader:
   # ...
   queries:
-    q1_clipped: 
+    q1_clipped:
       expr: 'q1_metricsql'
       data_range: [0, "inf"]
     q2_no_clip:
@@ -343,11 +340,11 @@ models:
     z_threshold: 3
     # if not set, by default resolved to `clip_predictions: False`
     queries: [
-      # `yhat`, `yhat_lower`, `yhat_upper` won't be clipped to [0, inf] 
+      # `yhat`, `yhat_lower`, `yhat_upper` won't be clipped to [0, inf]
       # even though `data_range` for `q1_clipped` is set
       # however, anomaly scores > 1 will still be produced for y outside of data_range
       'q1_clipped',
-      # there will be no (explicit) clip of yhat, yhat_lower, yhat_upper  
+      # there will be no (explicit) clip of yhat, yhat_lower, yhat_upper
       # for all `zscore_mixed` instances that are fit on series returned by `q2_no_clip` query
       # as `clip_predictions` arg is not set, regardless of data_range for `q2_no_clip`
       'q2_no_clip',
@@ -362,6 +359,7 @@ The `anomaly_score_outside_data_range` {{% available_from "v1.20.0" anomaly %}} 
 - However, some users may require **higher anomaly scores** (e.g., `> 1.2`) to **trigger alerts reliably** in their monitoring setups.
 
 **How it works**
+
 - If **not set**, the **default value (`1.01`)** is used for backward compatibility.
 - If defined at the **service level** (`settings` [section](https://docs.victoriametrics.com/anomaly-detection/components/settings/#anomaly-score-outside-data-range)), it applies to all models **unless overridden at the model level**.
 - If set **per model**, it takes **priority over the global setting**.
@@ -396,7 +394,7 @@ models:
   model_higher_out_of_data_range_score:
     class: 'zscore_online'
     # explicitly set, takes priority over `settings`'s value
-    anomaly_score_outside_data_range: 3.0  
+    anomaly_score_outside_data_range: 3.0
 ```
 
 ### Decay
@@ -404,10 +402,12 @@ models:
 > The `decay` argument works only in combination with [online models](#online-models) like [`ZScoreOnlineModel`](#online-z-score) or [`OnlineQuantileModel`](#online-seasonal-quantile).
 
 The `decay` {{% available_from "v1.23.0" anomaly %}} argument is used to control the (exponential) **decay factor** for online models, which determines how quickly the model adapts to new data. It is a float value between `0.0` and `1.0`, where:
+
 - `1.0` means no decay (the model treats all data equally, without giving more weight to recent data). This is the default value for backward compatibility.
 - Less than `1.0` means that the model will give more weight to recent data, effectively "forgetting" older data over time.
 
 Roughly speaking, for the recent N datapoints model processes `decay` = `d` means that these datapoints will contribute to the model as [1 - d^X] percent of total importance, for example decay of
+
 - `0.99` means that 100 recent datapoints will contribute as [1 - 0.99^100] = 63.23% of total importance
 - `0.999` means that 1000 recent datapoints will contribute as [1 - 0.999^1000] = 63.23% of total importance
 
@@ -431,7 +431,6 @@ models:
     queries: ['q1']
 ```
 
-
 ## Model types
 
 There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible combinations**:
@@ -440,6 +439,7 @@ There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible
 - [Multivariate models](#multivariate-models)
 
 Each of these models can be of type
+
 - [Rolling](#rolling-models)
 - [Non-rolling](#non-rolling-models)
 
@@ -449,7 +449,7 @@ Moreover, {{% available_from "v1.15.0" anomaly %}}, there exist **[online (incre
 
 For a univariate type, **one separate model** is fit/used for inference per **each time series**, defined in its [queries](#queries) arg.
 
-For example, if you have some **univariate** model, defined to use 3 [MetricQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/), each returning 5 time series, there will be 3*5=15 models created in total. Each such model produce **individual [output](#vmanomaly-output)** for each of time series. 
+For example, if you have some **univariate** model, defined to use 3 [MetricQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/), each returning 5 time series, there will be 3*5=15 models created in total. Each such model produce **individual [output](#vmanomaly-output)** for each of time series.
 
 If during an inference, you got a series having **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step.
 
@@ -459,23 +459,21 @@ If during an inference, you got a series having **new labelset** (not present in
 
 ![vmanomaly-model-type-univariate](model-lifecycle-univariate.webp)
 
-
 ### Multivariate Models
 
-For a multivariate type, **one shared model** is fit/used for inference on **all time series** simultaneously, defined in its [queries](#queries) arg. 
+For a multivariate type, **one shared model** is fit/used for inference on **all time series** simultaneously, defined in its [queries](#queries) arg.
 
 For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/victoriametrics/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
 
 > {{% available_from "v1.16.0" anomaly %}} N models — one for each N unique combinations of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
 
-If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
+If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step.
 
 **Implications:** Multivariate models are a go-to default, when your queries returns **fixed** amount of **individual** time series (say, some aggregations), to be used for adding cross-series (and cross-query) context, useful for catching [collective anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#collective-anomalies) or [novelties](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties) (expanded to multi-input scenario). For example, you may set it up for anomaly detection of CPU usage in different modes (`idle`, `user`, `system`, etc.) and use its cross-dependencies to detect **unseen (in fit data)** behavior.
 
 **Examples:** [IsolationForest](#isolation-forest-multivariate)
 
 ![vmanomaly-model-type-multivariate](model-lifecycle-multivariate.webp)
-
 
 ### Rolling Models
 
@@ -493,10 +491,9 @@ Such models put **more pressure** on your reader's source, i.e. if your model sh
 
 ![vmanomaly-model-type-rolling](model-type-rolling.webp)
 
-
 ### Non-Rolling Models
 
-Everything that is not classified as [rolling](#rolling-models). 
+Everything that is not classified as [rolling](#rolling-models).
 
 Produced models can be explicitly used to **infer on data, not seen during its fit phase**, thus, it **doesn't require re-fit procedure**.
 
@@ -510,7 +507,6 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 
 ![vmanomaly-model-type-non-rolling](model-type-non-rolling.webp)
 
-
 ### Online Models
 
 > Online models are best used **in combination with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) {{% available_from "v1.24.0" anomaly %}} to ensure that the model state is preserved if the service restarts and any aggregated model updates are not lost**. E.g. if the model was already trained on many weeks of data and is being updated on new datapoints every minute, there is no need to re-train it from scratch on the same data after each restart, as it can continue to update restored state on new datapoints.
@@ -521,11 +517,13 @@ If the model doesn't support online mode, it's called **offline** (its parameter
 Main differences between offline and online:
 
 **Fit stage**
+
 - Both types have a `fit` stage, run on the `fit_window` data frame.
 - For offline models, `fit_window` should contain enough data to train the model (e.g., 2 seasonal periods).
 - For online models, training can start gradually from smaller chunks (e.g., 1 hour).
 
 **Infer stage**
+
 - Both types have an `infer` stage, run on new datapoints (timestamps > last seen timestamp of the previous `infer` call).
 - Offline models use a pre-trained (during `fit` call) *static* model to make every `infer` call until the next `fit` call, when the model is completely re-trained.
 - Online models use a pre-trained (during `fit` call) *dynamic* model, which is gradually updated during each `infer` call with new datapoints. However, to prevent the model from accumulating outdated behavior, each `fit` call resets the model from scratch.
@@ -543,18 +541,18 @@ Main differences between offline and online:
 - Not all models (e.g., complex ones like [Prophet](#prophet)) have a direct online alternative, thus their applicability can be somewhat limited.
 
 Each of the ([built-in](#built-in-models) or [custom](#custom-model-guide)) online models (like [`OnlineZscoreModel`](#online-z-score)) shares the following common parameters and properties:
+
 - `n_samples_seen_` (int) - this model *property* refers to the number of datapoints the model was trained on and increases from 0 (before the first `fit`) with each consecutive `infer` call.
 - `min_n_samples_seen` (int), optional - this *parameter* defines the minimum number of samples to be seen before reliably computing the [anomaly score](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score). Otherwise, the anomaly score will be 0 until `n_samples_seen_` > `min_n_samples_seen`, as there is not enough data to trust the model's predictions. For example, if your data has hourly seasonality and '1m' frequency, setting `min_n_samples_seen_` to 288 (1440 minutes in a day / 5 minutes) should be sufficient.
-
 
 ### Offline models
 
 Every other model that isn't [online](#online-models). Offline models are completely re-trained during `fit` call and aren't updated during consecutive `infer` calls.
 
-
-## Built-in Models 
+## Built-in Models
 
 ### Overview
+
 Built-in models support 2 groups of arguments:
 
 - **`vmanomaly`-specific** arguments - please refer to *Parameters specific for vmanomaly* and *Default model parameters* subsections for each of the models below.
@@ -562,8 +560,8 @@ Built-in models support 2 groups of arguments:
 
 > For users who may not be familiar with Python data types such as `list[dict]`, a [dictionary](https://www.w3schools.com/python/python_dictionaries.asp) in Python is a data structure that stores data values in key-value pairs. This structure allows for efficient data retrieval and management.
 
-
 **Models**:
+
 * [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best hyperparameters on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
 * [Prophet](#prophet) - the most versatile one for production usage, especially for complex data ([trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend), [change points](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties), [multi-seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality))
 * [Z-score](#z-score) - useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
@@ -577,11 +575,12 @@ Built-in models support 2 groups of arguments:
 * [Isolation forest (Multivariate)](#isolation-forest-multivariate) - useful for **metrics data interaction** (several queries/metrics -> single anomaly score) and **efficient in detecting anomalies in high-dimensional datasets**
 * [Custom model](#custom-model-guide) - benefit from your own models and expertise to better support your **unique use case**.
 
-
 ### AutoTuned
+
 Tuning [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning)) of a model can be tricky and often requires in-depth knowledge of Machine Learning or underlying model specific. `AutoTunedModel` wrapper is designed specifically to take off the cognitive load from the user, allowing any of built-in models below to be re-tuned for best hyperparameters on data seen during each `fit` phase of the algorithm - specify as little as `anomaly_percentage` param from `[0, 0.5)` interval and `tuned_model_class` (i.e. [`zscore`](https://docs.victoriametrics.com/anomaly-detection/components/models/#z-score)) to get it working with best settings that match your expectations.
 
 > Using autotune on `tuned_model_class` if run on a [query](#queries) that returns more than 1 timeseries, will result in **one model per each unique labelset** with **probably different [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_learning))** found for each of them. This is useful for further context separation in contrast to using `tuned_model_class` directly, which will result in the same amount of models as there are timeseries returned by the query, but with **the same hyperparameters** for each of them. E.g.
+>
 > ```yaml
 > models:
 >   # this may result in 1 model per each unique labelset with different hyperparameters, such as z_threshold
@@ -592,7 +591,9 @@ Tuning [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_l
 >       anomaly_percentage: 0.01
 >     queries: ['your_query']
 > ```
+>
 > will produce **one model per each unique labelset** found in `your_query` results, with different hyperparameters, such as `z_threshold`, while
+>
 > ```yaml
 > models:
 >   # this will result in 1 model per each timeseries returned by the query,
@@ -602,6 +603,7 @@ Tuning [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_l
 >     z_threshold: 3  # all models will have the same z_threshold, but different parameters, such as mean, std, etc.
 >     queries: ['your_query']
 > ```
+>
 > will produce **one model per each timeseries** returned by `your_query`, with the same hyperparameters, such as `z_threshold`, but different parameters, such as mean, std, etc.
 
 *Parameters specific for vmanomaly*:
@@ -619,7 +621,6 @@ Tuning [hyperparameters](https://en.wikipedia.org/wiki/Hyperparameter_(machine_l
   - `timeout` (float) - How many seconds in total can be spent on each model to tune hyperparameters. The higher, the longer it takes, allowing to test more trials out of defined `n_trials`, but the better the results can be.
 
 ![vmanomaly-autotune-schema](autotune.webp)
-
 
 ```yaml
 # ...
@@ -642,12 +643,13 @@ models:
 ```
 
 > There are some expected limitations of Autotune mode:
+>
 > - It can't be made on your [custom model](#custom-model-guide).
 > - It can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
 > - `AutoTunedModel` can't be used on [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
 
-
 ### [Prophet](https://facebook.github.io/prophet/)
+
 `vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
 
 > `ProphetModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
@@ -671,6 +673,7 @@ models:
 
 **Additional output metrics produced by FB Prophet**
 Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as:
+
 - `trend`, `trend_lower`, `trend_upper`
 - `additive_terms`, `additive_terms_lower`, `additive_terms_upper`,
 - `multiplicative_terms`, `multiplicative_terms_lower`, `multiplicative_terms_upper`,
@@ -744,7 +747,6 @@ models:
       country_holidays: 'US'
 ```
 
-
 Resulting metrics of the model are described [here](#vmanomaly-output)
 
 ### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
@@ -816,7 +818,6 @@ models:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-
 ### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 
 > `HoltWinters` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
@@ -835,7 +836,6 @@ Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels`
 Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
 
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to 2.5.
-
 
 *Default model parameters*:
 
@@ -870,9 +870,7 @@ models:
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
-
 Resulting metrics of the model are described [here](#vmanomaly-output).
-
 
 ### [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 
@@ -886,7 +884,6 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 * `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
 
 *Config Example*
-
 
 ```yaml
 models:
@@ -908,7 +905,6 @@ models:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-
 ### Online MAD
 
 > `OnlineMADModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
@@ -923,7 +919,6 @@ The MAD model is a robust method for anomaly detection that is *less sensitive* 
 * `compression` (int, optional) - the compression parameter for  underlying [t-digest](https://www.sciencedirect.com/science/article/pii/S2665963820300403). Higher values mean higher accuracy but higher memory usage. By default 100.
 
 *Config Example*
-
 
 ```yaml
 models:
@@ -947,7 +942,6 @@ models:
 ```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
-
 
 ### [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
 
@@ -983,7 +977,6 @@ models:
 ```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
-
 
 ### Online Seasonal Quantile
 
@@ -1041,7 +1034,6 @@ models:
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
-
 ### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
 
 > `StdModel` is a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
@@ -1054,9 +1046,7 @@ Here we use Seasonal Decompose implementation from `statsmodels` [library](https
 * `period` (integer) -  Number of datapoints in one season.
 * `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to `2.5`.
 
-
 *Config Example*
-
 
 ```yaml
 models:
@@ -1076,14 +1066,13 @@ models:
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
-
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
 **Additional output metrics produced by Seasonal Trend Decomposition model**
+
 * `resid` - The residual component of the data series.
 * `trend` - The trend component of the data series.
 * `seasonal` - The seasonal component of the data series.
-
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 
@@ -1103,7 +1092,7 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 * `contamination` (float or string, optional) - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5].
 
-* `seasonal_features` (list of string) - List of seasonality to encode through [cyclical encoding](https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca), i.e. `dow` (day of week). **Introduced in [1.12.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1120)**. 
+* `seasonal_features` (list of string) - List of seasonality to encode through [cyclical encoding](https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca), i.e. `dow` (day of week). **Introduced in [1.12.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1120)**.
   - Empty by default for backward compatibility.
   - Example: `seasonal_features: ['dow', 'hod']`.
   - Supported seasonalities:
@@ -1115,7 +1104,6 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 * `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest). Defaults to empty (not provided). Example:  {"random_state": 42, "n_estimators": 100}
 
 *Config Example*
-
 
 ```yaml
 models:
@@ -1137,7 +1125,6 @@ models:
     # queries: [all query aliases defined in `reader.queries` section]
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
-
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -1163,17 +1150,16 @@ The default metrics produced by `vmanomaly` include:
 
 **Important**: Be aware that if `NaN` (Not a Number) or `Inf` (Infinity) values are present in the input data during `infer` model calls, the model will produce `NaN` as the `anomaly_score` for these particular instances.
 
-
 ## vmanomaly monitoring metrics
 
 Each model exposes [several monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#models-behaviour-metrics) to its `health_path` endpoint:
-
 
 ## Custom Model Guide
 
 Apart from `vmanomaly` [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models), users can create their own custom models for anomaly detection.
 
 Here in this guide, we will
+
 - Make a file containing our custom model definition
 - Define VictoriaMetrics Anomaly Detection config file to use our custom model
 - Run service
@@ -1186,13 +1172,15 @@ Here in this guide, we will
 
 We'll create `custom_model.py` file with `CustomModel` class that will inherit from `vmanomaly`'s `Model` base class.
 In the `CustomModel` class, the following methods are required: - `__init__`, `fit`, `infer`, `serialize` and `deserialize`:
+
 * `__init__` method should initiate parameters for the model.
 
   if your model relies on configs that have `arg` [key-value pair argument, like Prophet](#prophet), do not forget to use Python's `**kwargs` in method's signature and to explicitly call
 
-  ```python 
+  ```python
   super().__init__(**kwargs)
-  ``` 
+  ```
+
   to initialize the base class each model derives from
 * `fit` method should contain the model training process. Please be aware that for `RollingModel` defining `fit` method is not needed, as the whole fit/infer process should be defined completely in `infer` method.
 * `infer` should return Pandas.DataFrame object with model's inferences.
@@ -1200,7 +1188,6 @@ In the `CustomModel` class, the following methods are required: - `__init__`, `f
 * `deserialize` load the saved model from disk.
 
 For the sake of simplicity, the model in this example will return one of two values of `anomaly_score` - 0 or 1 depending on input parameter `percentage`.
-
 
 ```python
 import numpy as np
@@ -1228,7 +1215,7 @@ class CustomModel(Model):
   # by default, each `Model` will be created as offline
   # uncomment line below for it to be of type online
   # is_online = True
-  
+
   def __init__(self, percentage: float = 0.95, **kwargs):
     super().__init__(**kwargs)
     self.percentage = percentage
@@ -1262,7 +1249,6 @@ class CustomModel(Model):
       return deserialize_basic(model)
 ```
 
-
 ### 2. Configuration file
 
 Next, we need to create `config.yaml` file with `vmanomaly` configuration and model input parameters.
@@ -1286,9 +1272,9 @@ reader:
   datasource_url: "http://victoriametrics:8428/"
   sampling_period: '1m'
   queries:
-    ingestion_rate: 
+    ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total)) by (type)'
-    churn_rate: 
+    churn_rate:
       expr: 'sum(rate(vm_new_timeseries_created_total[5m]))'
 
 writer:
@@ -1309,8 +1295,8 @@ monitoring:
       config: "custom.yaml"
 ```
 
-
 ### 3. Running custom model
+
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
@@ -1335,8 +1321,8 @@ victoriametrics/vmanomaly:v1.27.1 /config.yaml \
 
 Please find more detailed instructions (license, etc.) [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#docker)
 
-
 ### Output
+
 As the result, this model will return metric with labels, configured previously in `config.yaml`.
 In this particular example, 2 metrics will be produced. Also, there will be added other labels from input query result.
 

@@ -74,7 +74,7 @@ writer:
 
 A `vmanomaly` [global YAML configuration](#global-configuration) can be split into `N` validated [sub-configurations](#sub-configuration) based on logical entities such as [schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/), [queries](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries), [models](https://docs.victoriametrics.com/anomaly-detection/components/models/), and [extra_filters](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters).
 
-These [sub-configurations](#sub-configuration) can be assigned to a specific shard (node) indexed from `{0, K-1}` across `K` available nodes. 
+These [sub-configurations](#sub-configuration) can be assigned to a specific shard (node) indexed from `{0, K-1}` across `K` available nodes.
 
 Additionally, a replication factor `R ≥ 1` ensures [high availability](#high-availability) by enforcing redundancy across shards.
 

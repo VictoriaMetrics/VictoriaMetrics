@@ -69,7 +69,7 @@ reader:
   query_from_last_seen_timestamp: False
   verify_tls: False
   # other reader settings
-  
+
 writer:
   class: "vm"
   datasource_url: http://localhost:8428
@@ -128,7 +128,7 @@ reader:
   query_from_last_seen_timestamp: False
   verify_tls: False
   # other reader settings
-  
+
 writer:
   class: "vm"
   datasource_url: http://localhost:8428
@@ -144,7 +144,6 @@ monitoring:
   # other monitoring settings
 ```
 
-
 ## State Restoration
 
 > This feature is best used with config [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{% available_from "v1.25.0" anomaly %}} for increased deployment flexibility.
@@ -158,7 +157,8 @@ By default, `restore_state` is set to `false`, meaning the service will start fr
 ### Benefits
 
 This feature improves the experience of using the anomaly detection service in several ways:
-- **Operational continuity**: Production of anomaly scores is resumed from the last known state, minimizing downtime, especially useful in conbination with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with `start_from` argument explicitly defined.
+
+- **Operational continuity**: Production of anomaly scores is resumed from the last known state, minimizing downtime, especially useful in combination with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with `start_from` argument explicitly defined.
 - **Resource efficiency**: Avoids unnecessary resource and time consumption by not retraining models that have already been trained and remain actual, or querying redundant data from VictoriaMetrics TSDB.
 - **Config hot-reloading**: Allows for on-the-fly configuration changes with the reuse of unchanged models/data/scheduler combinations, avoiding unnecessary retraining, additional resource utilization and manual service restarts. Please refer to the [hot-reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) section for more details on how to use this feature.
 
@@ -167,6 +167,7 @@ This feature improves the experience of using the anomaly detection service in s
 **Storage**: The service dumps its state into a database file located at `$VMANOMALY_MODEL_DUMPS_DIR/vmanomaly.db`. This database contains metadata about model configurations, schedulers and references to the trained model instances and their respective data.
 
 **State restoration**: When the service starts with `restore_state` set to `true`, it will:
+
 1. Check for the existence of the database file in the specified directory.
 2. If the file does not exist, it will create a new database file and initialize the state with the current configuration, training models as needed. If the file exists, then it compares the loaded state with the current configuration to ensure compatibility - what can be reused and what needs to be retrained (e.g., if the model class or hyperparameters have changed, it will not restore the state for that model, same for schedulers or reader queries). For reusable components, previously saved state, including model configurations, trained model instances, and their training data, will be restored.
 3. Subsequently, it will check for model "staleness" and retrain models if necessary, based on the current configuration and the last training time stored in the database vs next scheduled training time. If the model is **actual**, it will continue to use the previously trained model instances or its training data. If the model is **stale** (e.g. `fit_every` time has passed since the last training), it will retrain the model using the latest data of `fit_window` length from VictoriaMetrics TSDB.
@@ -211,7 +212,7 @@ reader:
   query_from_last_seen_timestamp: False
   verify_tls: False
   # other reader settings
-  
+
 writer:
   class: "vm"
   datasource_url: http://localhost:8428
@@ -302,10 +303,11 @@ reader:  # can be partially reused, because its class and datasource URL are unc
   sampling_period: 30s  # unchanged, still the same sampling period
 # other components like writer, monitoring, etc. remain unchanged
 ```
+
 This means that the service upon restart:
+
 1. Won't restore the state of `zscore_online` model, because its `z_threshold` argument **has changed**, retraining from scratch is needed on the last `fit_window` = 24 hours of data for `q1`, `q2` and `q3` (as model's `queries` arg is not set so it defaults to all queries found in the reader).
 2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`prophet`, `q2`) combination will be removed from the database file and from the disk.
-
 
 ## Logger Levels
 
