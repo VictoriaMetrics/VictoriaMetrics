@@ -1182,11 +1182,11 @@ Here in this guide, we will
 - Define VictoriaMetrics Anomaly Detection config file to use our custom model
 - Run service
 
-> The file containing the model should be written in [Python language](https://www.python.org/) (3.11+)
+> The file containing the model should be written in [Python language](https://www.python.org/) (3.12+)
 
 ### 1. Custom model
 
-> By default, each custom model is created as [**univariate**](#univariate-models) / [**non-rolling**](#non-rolling-models) model. If you want to override this behavior, define models inherited from `RollingModel` (to get a rolling model), or having `is_multivariate` class arg set to `True` (please refer to the code example below).
+> By default, each custom model is created as [**univariate**](#univariate-models) model. If you want to override this behavior, define models having `is_multivariate` class argument set to `True` (please refer to the code example below).
 
 We'll create `custom_model.py` file with `CustomModel` class that will inherit from `vmanomaly`'s `Model` base class.
 In the `CustomModel` class, the following methods are required: - `__init__`, `fit`, `infer`, `serialize` and `deserialize`:
@@ -1198,7 +1198,7 @@ In the `CustomModel` class, the following methods are required: - `__init__`, `f
   super().__init__(**kwargs)
   ``` 
   to initialize the base class each model derives from
-* `fit` method should contain the model training process. Please be aware that for `RollingModel` defining `fit` method is not needed, as the whole fit/infer process should be defined completely in `infer` method.
+* `fit` method should contain the model training process.
 * `infer` should return Pandas.DataFrame object with model's inferences.
 * `serialize` method that saves the model on disk.
 * `deserialize` load the saved model from disk.
@@ -1270,7 +1270,7 @@ class CustomModel(Model):
 ### 2. Configuration file
 
 Next, we need to create `config.yaml` file with `vmanomaly` configuration and model input parameters.
-In the config file's `models` section we need to set our model class to `model.custom.CustomModel` (or `custom` with class alias support{{% available_from "v1.13.0" anomaly %}}) and define all parameters used in `__init__` method.
+In the config file's `models` section we need to set our model class to `model.custom.CustomModel` (or `custom` with class alias support {{% available_from "v1.13.0" anomaly %}}) and define all parameters used in `__init__` method.
 You can find out more about configuration parameters in `vmanomaly` [config docs](https://docs.victoriametrics.com/anomaly-detection/components/).
 
 ```yaml

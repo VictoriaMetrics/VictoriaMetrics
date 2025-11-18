@@ -405,28 +405,28 @@ services:
     container_name: vmanomaly
     image: victoriametrics/vmanomaly:v1.28.0
     # ...
-    ports:
-      - "8490:8490"
     restart: always
     volumes:
-      - ./vmanomaly_config.yml:/config.yaml
-      - ./vmanomaly_license:/license
+      - ./config.yaml:/config.yaml
+      - ./license:/license
       # map the host directory to the container directory
-      - vmanomaly_model_dump_dir:/vmanomaly/tmp/models
-      - vmanomaly_data_dump_dir:/vmanomaly/tmp/data
+      - vmanomaly_data:/tmp/vmanomaly
     environment:
       # set the environment variable for the model dump directory
-      - VMANOMALY_MODEL_DUMPS_DIR=/vmanomaly/tmp/models/
-      - VMANOMALY_DATA_DUMPS_DIR=/vmanomaly/tmp/data/
-    platform: "linux/amd64"
+      - VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models
+      - VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data
+    ports:
+      - "8490:8490"
     command:
       - "/config.yaml"
       - "--licenseFile=/license"
+      - "--loggerLevel=INFO"
+      - "--watch"
 
 volumes:
   # ...
-  vmanomaly_model_dump_dir: {}
-  vmanomaly_data_dump_dir: {}
+  # Enable if settings.restore_state is True
+  vmanomaly_data: {} 
 ```
 
 For Helm chart users, refer to the `persistentVolume` [section](https://github.com/VictoriaMetrics/helm-charts/blob/7f5a2c00b14c2c088d7d8d8bcee7a440a5ff11c6/charts/victoria-metrics-anomaly/values.yaml#L183) in the [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/values.yaml) file. Ensure that the boolean flags `dumpModels` and `dumpData` are set as needed (both are *enabled* by default).

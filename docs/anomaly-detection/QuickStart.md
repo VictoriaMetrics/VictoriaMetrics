@@ -131,7 +131,7 @@ export LICENSE_KEY=YOUR_LICENSE_KEY
 echo $LICENSE_KEY > license
 ```
 
-3. Create and modify your `config.yml` file to your liking. An example can be found [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#example)
+3. Create and modify your `config.yaml` file to your liking. An example can be found [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#example)
 
 4. Start the `vmanomaly` Docker container with a *license file*, use the command below.
 **Make sure to replace `YOUR_LICENSE_FILE_PATH`, and `YOUR_CONFIG_FILE_PATH` with your specific details**:
@@ -139,38 +139,64 @@ echo $LICENSE_KEY > license
 ```sh
 docker run -it \
     -v ./license:/license \
-    -v ./config.yml:/config.yml \
+    -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
     victoriametrics/vmanomaly:v1.28.0 \
-    /config.yml \
+    /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
     --watch
 ```
 
+Use the below configuration if settings.restore_state is True (vmanomaly runs in [stateful](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) mode) or [on-disk mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode) is preferred over in-memory.
+
 ```sh
-   -v ./data:/tmp/vmanomaly \ # Enable if you are using settings.restore_state: True
+docker run -it \
+    -v ./license:/license \
+    -v ./config.yaml:/config.yaml \
+    -v vmanomaly_data:/tmp/vmanomaly \
+    -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
+    -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
+    -p 8490:8490 \
+    victoriametrics/vmanomaly:v1.28.0 \
+    /config.yaml \
+    --licenseFile=/license \
+    --loggerLevel=INFO \
+    --watch
 ```
 
 ```yaml
 # docker-compose.yml file
 services:
+  # ...
   vmanomaly:
+    container_name: vmanomaly
     image: victoriametrics/vmanomaly:v1.28.0
+    # ...
+    restart: always
     volumes:
+      - ./config.yaml:/config.yaml
       - ./license:/license
-      - ./config.yml:/config.yml
-      # - ./data:/tmp/vmanomaly # Enable if you are using settings.restore_state: True
+      # Enable if settings.restore_state is True
+      # - vmanomaly_data:/tmp/vmanomaly
+    environment:
+      # Enable if on-disk mode over in-memory is preferred
+      # Required, if settings.restore_state is True
+      - VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models
+      - VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data
+    ports:
+      - "8490:8490"
     command:
-      - "/config.yml"
+      - "/config.yaml"
       - "--licenseFile=/license"
       - "--loggerLevel=INFO"
       - "--watch"
-    ports:
-      - "8490:8490"
-    # environment: # Enable if you are using settings.restore_state: True
-    #   - "VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models"
-    #   - "VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data"
+
+volumes:
+  # ...
+  # Enable if on-disk mode over in-memory is preferred
+  # Required, if settings.restore_state is True
+  vmanomaly_data: {} 
 ```
 
 For a complete docker-compose example please refer to [our alerting guide](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/), chapter [docker-compose](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/#docker-compose)
@@ -213,9 +239,9 @@ Here is an example of a config file that will run the [Prophet](https://docs.vic
 ```yaml
 settings:
   # https://docs.victoriametrics.com/anomaly-detection/components/settings/
-  n_workers: 4  # number of workers to run workload in parallel, set to 0 or negative number to use all available CPU cores
+  n_workers: 2  # number of workers to run workload in parallel, set to 0 or negative number to use all available CPU cores
   anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
-  restore_state: True  # restore state from previous run, available since v1.24.0
+  restore_state: true  # restore state from previous run, available since v1.24.0
   # https://docs.victoriametrics.com/anomaly-detection/components/settings/#logger-levels
   # to override service-global logger levels, use the `logger_levels` section
   logger_levels:  
@@ -229,7 +255,7 @@ schedulers:
   1d_1m:
     # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
     class: 'periodic'
-    infer_every: '1m'
+    infer_every: '5m'
     fit_every: '1d'
     fit_window: '2w'
 
@@ -254,16 +280,22 @@ models:
 reader:
   class: 'vm'  # use VictoriaMetrics as a data source
   # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
-  datasource_url: "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
-  sampling_period: "1m"
+  datasource_url: "https://play.victoriametrics.com/" # [YOUR_DATASOURCE_URL]
+  tenant_id: '0:0'
+  sampling_period: "5m"
   queries: 
     # define your queries with MetricsQL - https://docs.victoriametrics.com/victoriametrics/metricsql/
-    cache: "sum(rate(vm_cache_entries))"
+    cpu_user:
+      expr: 'sum(rate(node_cpu_seconds_total{mode=~"user"}[10m])) by (container)'
+      max_datapoints_per_query: 15000  # to deal with longer queries hitting seach.MaxPointsPerTimeseries
+    # other queries ...
 
 writer:
   class: 'vm'  # use VictoriaMetrics as a data destination
   # https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer
   datasource_url:  "http://victoriametrics:8428/" # [YOUR_DATASOURCE_URL]
+  # optional tenant ID
+  # tenant_id: "0:0"
 ```
 
 ### UI
