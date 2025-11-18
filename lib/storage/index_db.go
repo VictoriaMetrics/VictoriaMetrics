@@ -1830,13 +1830,13 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 
 		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
 		if !ok {
-			// Cannot find TSID for the given metricID.
+			// Cannot find metricName for the given metricID.
 			// This may be the case on incomplete indexDB
 			// due to snapshot or due to un-flushed entries.
 			// Mark the metricID as deleted, so it is created again when new sample
 			// for the given time series is ingested next time.
 			if db.s.wasMetricIDMissingBefore(metricID) {
-				db.missingTSIDsForMetricID.Add(1)
+				db.missingMetricNamesForMetricID.Add(1)
 				metricIDsToDelete.Add(metricID)
 			}
 			continue
