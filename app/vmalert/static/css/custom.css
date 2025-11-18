@@ -2,6 +2,23 @@ html {
   scroll-padding-top: 60px;
 }
 
+.body.searching {
+  .vm-group {
+    display: none;
+  }
+  .progress {
+    display: flex;
+  }
+}
+
+.progress {
+  display: none;
+  height: auto;
+  background: none;
+  column-gap: 20px;
+  justify-content: center;
+}
+
 .nav-link svg {
   fill: var(--bs-navbar-color);
 }
@@ -50,6 +67,25 @@ body {
 .btn:hover svg, .btn.show svg {
   fill: #fff;
   stroke: #fff;
+}
+
+.no-match {
+  font-size: 14px;
+  border: 1.6px solid #BD33FF;
+  padding: 4px;
+  border-radius: 5px;
+  color: #BD33FF;
+}
+
+.btn.details {
+  padding: 5px;
+  height: 44px;
+  &:hover {
+    svg {
+      fill: var(--bs-nav-link-color);
+      stroke: var(--bs-nav-link-color);
+    }
+  }
 }
 
 .btn:has(svg) {

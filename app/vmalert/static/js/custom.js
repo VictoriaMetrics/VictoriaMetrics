@@ -47,10 +47,17 @@ function search() {
     if (!searchBox) {
         return;
     }
+    const searchInput = window.localStorage.getItem("searchInput");
     const searchPhrase = searchBox.value.toLowerCase();
+    if (searchInput === searchPhrase) {
+        return;
+    }
 
+    document.body.classList.add("searching");
     filterRules(searchPhrase);
+    document.body.classList.remove("searching");
 
+    window.localStorage.setItem("searchInput", searchPhrase);
     setParamURL('search', searchPhrase)
 }
 
@@ -110,8 +117,4 @@ document.addEventListener('DOMContentLoaded', () => {
     search()
 
     showBySelector(window.location.hash);
-
-    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((tooltip) => {
-        new bootstrap.Tooltip(tooltip);
-    });
 });

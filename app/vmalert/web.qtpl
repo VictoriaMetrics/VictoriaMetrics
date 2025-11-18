@@ -73,6 +73,17 @@
             {% endif %}
         </div>
     </div>
+    <div class="progress">
+        <div class="spinner-grow" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="spinner-grow" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="spinner-grow" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
 {% endfunc %}
 
 {% func Welcome(r *http.Request) %}
@@ -165,9 +176,10 @@
                         <table class="table table-striped table-hover table-sm">
                             <thead>
                                 <tr>
-                                    <th scope="col" class="w-60">Rule</th>
-                                    <th scope="col" class="w-20" class="text-center" title="How many series were produced by the rule">Series</th>
-                                    <th scope="col" class="w-20" class="text-center" title="How many seconds ago rule was executed">Updated</th>
+                                    <th scope="col" class="w-50">Rule</th>
+                                    <th scope="col" class="w-20 text-center" title="How many series were produced by the rule">Series</th>
+                                    <th scope="col" class="w-20 text-center" title="How many seconds ago rule was executed">Updated</th>
+                                    <th scope="col" class="w-10"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -185,9 +197,6 @@
                                                     {% else %}
                                                         <b>record:</b> {%s r.Name %}
                                                     {% endif %}
-                                                    |
-                                                    {%= seriesFetchedWarn(prefix, r) %}
-                                                    <span><a target="_blank" href="{%s prefix+r.WebLink() %}">Details</a></span>
                                                 </div>
                                                 <div class="col-12">
                                                     <code><pre>{%s r.Query %}</pre></code>
@@ -214,6 +223,10 @@
                                          {% else %}
                                             {%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago
                                          {% endif %}
+                                        </td>
+                                        <td class="text-end align-middle">
+                                            {%= seriesFetchedWarn(prefix, r) %}
+                                            {%= details(prefix, r.WebLink()) %}
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -288,11 +301,11 @@
                              <table class="table table-striped table-hover table-sm">
                                  <thead>
                                      <tr>
-                                         <th scope="col">Labels</th>
+                                         <th class="w-50" scope="col">Labels</th>
                                          <th scope="col">State</th>
                                          <th scope="col">Active at</th>
                                          <th scope="col">Value</th>
-                                         <th scope="col">Link</th>
+                                         <th class="w-10" scope="col">Link</th>
                                      </tr>
                                  </thead>
                                  <tbody>
@@ -310,7 +323,7 @@
                                                  {% if ar.Stabilizing %}{%= badgeStabilizing() %}{% endif %}
                                              </td>
                                              <td>{%s ar.Value %}</td>
-                                             <td><a href="{%s prefix+ar.WebLink() %}">Details</a></td>
+                                             <td>{%= details(prefix, ar.WebLink()) %}</td>
                                          </tr>
                                      {% endfor %}
                                  </tbody>
@@ -641,38 +654,41 @@
 
 
 {% func badgeState(state string) %}
-{%code
-    badgeClass := "bg-warning text-dark"
-    if state == "firing" {
-        badgeClass = "bg-danger"
-    }
-%}
-<span class="badge {%s badgeClass %}">{%s state %}</span>
+    {%code
+        badgeClass := "bg-warning text-dark"
+        if state == "firing" {
+            badgeClass = "bg-danger"
+        }
+    %}
+    <span class="badge {%s badgeClass %}">{%s state %}</span>
 {% endfunc %}
 
 {% func badgeRestored() %}
-<span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
+    <span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
 {% endfunc %}
 
 {% func badgeStabilizing() %}
-<span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
+    <span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
 {% endfunc %}
 
 {% func seriesFetchedWarn(prefix string, r rule.ApiRule) %}
-{% if isNoMatch(r) %}
-<svg
-    data-bs-toggle="tooltip"
-    title="No match! This rule's last evaluation hasn't selected any time series from the datasource.
-    It might be that either this data is missing in the datasource or there is a typo in rule's expression.
-    See more in Details."
-    width="18" height="18" fill="currentColor" class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2" role="img" aria-label="Warning:">
-       <use href="{%s prefix %}static/icons/icons.svg#exclamation"/>
-</svg>
-{% endif %}
+    {% if isNoMatch(r) %}
+        <span class="no-match" title="This rule's last evaluation hasn't selected any time series from the datasource.
+It might be that either this data is missing in the datasource or there is a typo in rule's expression.
+See more in Details.">No match</span>
+    {% endif %}
 {% endfunc %}
 
 {%code
-  func isNoMatch (r rule.ApiRule) bool {
-    return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
-  }
+    func isNoMatch (r rule.ApiRule) bool {
+        return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
+    }
 %}
+
+{% func details(prefix, link string) %}
+    <a class="btn details" target="_blank" title="Details" href="{%s prefix + link %}">
+        <svg height="16" width="16">
+            <use href="{%s prefix %}static/icons/icons.svg#details"/>
+        </svg>
+    </a>
+{% endfunc %}
