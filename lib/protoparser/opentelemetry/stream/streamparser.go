@@ -61,7 +61,10 @@ func parseData(data []byte, callback func(tss []prompb.TimeSeries, mms []prompb.
 	return nil
 }
 
-var skippedSampleLogger = logger.WithThrottler("otlp_skipped_sample", 5*time.Second)
+var unsupportedDeltaTemporalitySumLogger = logger.WithThrottler("otlp_unsupported_delta_temporality_sum", 5*time.Second)
+var unsupportedDeltaTemporalityHistogramLogger = logger.WithThrottler("otlp_unsupported_delta_temporality_histogram", 5*time.Second)
+var unsupportedDeltaTemporalityExpHistogramLogger = logger.WithThrottler("otlp_unsupported_delta_temporality_exp_histogram", 5*time.Second)
+var unsupportedMetricTypeLogger = logger.WithThrottler("otlp_unsupported_type", 5*time.Second)
 
 func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList map[string]struct{}) {
 	for _, m := range sc.Metrics {
@@ -90,7 +93,7 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 		case m.Sum != nil:
 			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedSum.Inc()
-				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('sum'): skipping it", metricName)
+				unsupportedDeltaTemporalitySumLogger.Warnf("unsupported delta temporality for %q ('sum'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.Sum.DataPoints {
@@ -117,7 +120,7 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 		case m.Histogram != nil:
 			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedHistogram.Inc()
-				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('histogram'): skipping it", metricName)
+				unsupportedDeltaTemporalityHistogramLogger.Warnf("unsupported delta temporality for %q ('histogram'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.Histogram.DataPoints {
@@ -127,7 +130,7 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 		case m.ExponentialHistogram != nil:
 			if m.ExponentialHistogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedExponentialHistogram.Inc()
-				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('exponential histogram'): skipping it", metricName)
+				unsupportedDeltaTemporalityExpHistogramLogger.Warnf("unsupported delta temporality for %q ('exponential histogram'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.ExponentialHistogram.DataPoints {
@@ -136,7 +139,7 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 			metadata.Type = uint32(prompb.MetricMetadataHISTOGRAM)
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
-			skippedSampleLogger.Warnf("unsupported type for metric %q", metricName)
+			unsupportedMetricTypeLogger.Warnf("unsupported type for metric %q", metricName)
 			continue
 		}
 		if _, ok := metadataList[metadata.MetricFamilyName]; !ok {
@@ -185,6 +188,8 @@ func (wr *writeContext) appendSamplesFromSummary(metricName string, p *pb.Summar
 		wr.appendSampleWithExtraLabel(metricName, "quantile", qValue, t, q.Value, isStale)
 	}
 }
+
+var skippedSampleLogger = logger.WithThrottler("otlp_skipped_sample", 5*time.Second)
 
 // appendSamplesFromHistogram appends histogram p to wr.tss
 // histograms are processed according to spec at https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram
