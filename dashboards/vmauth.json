@@ -170,7 +170,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "(sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) or 0) + (sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) or 0)",
+          "expr": "(sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", username=~\"$user\"}[$__rate_interval])) or 0) + (sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])) or 0)",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -235,7 +235,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "count(vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
           "interval": "",
           "legendFormat": "",
           "range": true,
@@ -302,7 +302,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval]))",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -388,7 +388,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmauth_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
+          "expr": "count(vmauth_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"} < 1 ) or 0",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -478,7 +478,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by (job, short_version)",
+          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}) by (job, short_version)",
           "format": "table",
           "instant": true,
           "range": false,
@@ -586,7 +586,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(min_over_time(vm_app_uptime_seconds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+          "expr": "sum(min_over_time(vm_app_uptime_seconds{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])) by (job)",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -695,7 +695,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
+          "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", username=~\"$user\"}[$__rate_interval])) by(username)",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -707,7 +707,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval]))",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -810,7 +810,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
+          "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", username=~\"$user\"}\n) by(username) > 0\n",
           "hide": false,
           "interval": "5m",
           "legendFormat": "__auto",
@@ -907,7 +907,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason)",
+          "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])) by (reason)",
           "hide": false,
           "legendFormat": "__auto",
           "range": true,
@@ -1003,7 +1003,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
+          "expr": "sum(rate(vmauth_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", username=~\"$user\"}[$__rate_interval])) by(username)  > 0",
           "interval": "1m",
           "legendFormat": "__auto",
           "range": true,
@@ -1015,7 +1015,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
+          "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])) > 0",
           "hide": false,
           "legendFormat": "unauthorized",
           "range": true,
@@ -1129,7 +1129,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(vmauth_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
+          "expr": "max(vmauth_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
           "hide": false,
           "legendFormat": "user: {{username}} q: {{ quantile}}",
           "range": true,
@@ -1141,7 +1141,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
+          "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
           "hide": false,
           "legendFormat": "user: unauthorized q: {{ quantile}}",
           "range": true,
@@ -1257,7 +1257,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    max_over_time(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])\n    /\n    vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}\n) by(job)",
               "interval": "",
               "legendFormat": "__auto",
               "range": true,
@@ -1362,7 +1362,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}\n) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1468,7 +1468,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1480,7 +1480,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1492,7 +1492,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1504,7 +1504,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -1518,7 +1518,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -1640,7 +1640,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+              "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1653,7 +1653,7 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -1759,7 +1759,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1865,7 +1865,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval]))",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1989,7 +1989,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n/\nprocess_max_fds{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])\n/\nprocess_max_fds{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -2096,7 +2096,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "gc duration",
@@ -2200,7 +2200,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "threads",
@@ -2320,7 +2320,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
+              "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}) by(job, instance, name, value)",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -2441,7 +2441,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (level)",
+              "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", level!=\"info\"}[$__rate_interval])) by (level)",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -2545,7 +2545,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval]) > 0) by(job)",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}",
@@ -2632,19 +2632,46 @@
         "type": "query"
       },
       {
+        "allValue": ".*",
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\"}, pod)",
+        "includeAll": true,
+        "multi": true,
+        "name": "pod",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\"}, pod)",
+          "refId": "VictoriaMetrics-pod-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
         "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
+        "definition": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}, username)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "user",
         "options": [],
         "query": {
-          "query": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
+          "query": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}, username)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,

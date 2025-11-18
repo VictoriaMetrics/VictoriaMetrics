@@ -137,7 +137,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vm_app_version{job=~\"$job\", instance=~\"$instance\", version=~\"^vmbackupmanager.+\" })",
+          "expr": "count(vm_app_version{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\", version=~\"^vmbackupmanager.+\" })",
           "instant": true,
           "legendFormat": "__auto",
           "range": false,
@@ -278,7 +278,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(vm_backups_stored{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vm_backups_stored{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -344,7 +344,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -423,7 +423,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"}[1h]))",
+          "expr": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[1h]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -576,7 +576,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"}[1h]))",
+          "expr": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[1h]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -678,7 +678,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(flag{job=~\"$job\", instance=~\"$instance\",name=~\"disableDaily|disableHourly|disableWeekly|disableMonthly\"}) by (name, value, instance)",
+          "expr": "sum(flag{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\",name=~\"disableDaily|disableHourly|disableWeekly|disableMonthly\"}) by (name, value, instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -805,7 +805,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(flag{job=~\"$job\", instance=~\"$instance\",name=~\"keep(.*)\", is_set=\"true\"}) by (name, value, instance)",
+          "expr": "sum(flag{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\",name=~\"keep(.*)\", is_set=\"true\"}) by (name, value, instance)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -934,7 +934,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(increase(vm_backup_duration_seconds_total{job=~\"$job\", instance=~\"$instance\"})) by (type) > 0",
+              "expr": "max(increase(vm_backup_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})) by (type) > 0",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -1023,7 +1023,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"})[$__interval]) by (instance) > 0",
+              "expr": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})[$__interval]) by (instance) > 0",
               "legendFormat": "{{instance}}",
               "range": true,
               "refId": "A"
@@ -1113,7 +1113,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -1188,7 +1188,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk(10, sum(vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (backup, job, type))",
+              "expr": "topk(10, sum(vm_backups_size_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}) by (backup, job, type))",
               "format": "table",
               "instant": true,
               "legendFormat": "__auto",
@@ -1301,7 +1301,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(increase(vm_backups_total{job=~\"$job\", instance=~\"$instance\"}[24h])) by (type) > 0",
+              "expr": "sum(increase(vm_backups_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[24h])) by (type) > 0",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -1488,7 +1488,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(increase(vm_retention_duration_seconds_total{job=~\"$job\", instance=~\"$instance\"})) > 0",
+              "expr": "max(increase(vm_retention_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})) > 0",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -1577,7 +1577,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"})[$__interval]) by (instance) > 0",
+              "expr": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})[$__interval]) by (instance) > 0",
               "legendFormat": "{{instance}}",
               "range": true,
               "refId": "A"
@@ -1674,7 +1674,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "increase(vm_backup_duration_seconds_total{job=~\"$job\", instance=~\"$instance\"}) > 0",
+              "expr": "increase(vm_backup_duration_seconds_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}) > 0",
               "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
@@ -1762,6 +1762,33 @@
         "tagsQuery": "",
         "type": "query",
         "useTags": false
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\"}, pod)",
+        "includeAll": true,
+        "multi": true,
+        "name": "pod",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\"}, pod)",
+          "refId": "VictoriaMetrics-pod-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
       },
       {
         "datasource": {
