@@ -197,7 +197,7 @@ The result on the GCS bucket. We see only 3 daily backups:
 It is possible to enforce retention by using [object storage lifecycle rules](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html).
 In order to do that it is required not use `keepLast*` flags in `vmbackupmanager` and configure lifecycle rules
 in your object storage to remove objects under `/hourly/`, `/daily/`, `/weekly/` and `/monthly/` prefixes.
-In case, when multiple storage nodes of multiple clusters are storing backups into the same bucket you can set `-backupTypeTagName=VMBackupType` flag.
+In case, when multiple storage nodes of multiple clusters are storing backups into the same bucket you can set `-backupTypeTagName=VMBackupType` flag {{% available_from "#" %}}.
 With this flag set vmbackupmanager sets `VMBackupType` tag with value, that equals to backup type. It allows to set lifecycle policy per backup type
 
 ```
