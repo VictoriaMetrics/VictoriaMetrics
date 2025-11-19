@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -191,7 +192,7 @@ func getPartsSize(parts []common.Part) uint64 {
 }
 
 // NewRemoteFS returns new remote fs from the given path.
-func NewRemoteFS(ctx context.Context, path string) (common.RemoteFS, error) {
+func NewRemoteFS(ctx context.Context, path string, extraTags map[string]string) (common.RemoteFS, error) {
 	m, err := flagutil.ParseJSONMap(*objectMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse s3 objectMetadata %q: %w", *objectMetadata, err)
@@ -238,6 +239,7 @@ func NewRemoteFS(ctx context.Context, path string) (common.RemoteFS, error) {
 		}
 		bucket := dir[:n]
 		dir = dir[n:]
+
 		fs := &azremote.FS{
 			Container: bucket,
 			Dir:       dir,
@@ -257,6 +259,13 @@ func NewRemoteFS(ctx context.Context, path string) (common.RemoteFS, error) {
 		tags, err := flagutil.ParseJSONMap(*s3Tags)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse s3 tags %q: %w", *s3Tags, err)
+		}
+
+		if len(extraTags) > 0 {
+			if tags == nil {
+				tags = make(map[string]string)
+			}
+			maps.Copy(tags, extraTags)
 		}
 
 		fs := &s3remote.FS{

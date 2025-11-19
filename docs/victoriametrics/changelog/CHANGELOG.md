@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): add `-backupTypeTagName` flag that sets tag to each backup object with a name equal to flag value and value, that equals to backup type (`hourly`, `daily`, `monthly`, `latest`, `weekly`). Useful for [AWS S3 lifecycle policy management](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html).
+
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 
 Released at 2025-11-14
@@ -213,6 +215,25 @@ Released at 2025-08-01
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
+
+## [v1.122.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.9)
+
+Released at 2025-11-14
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+**Update Note 1:** VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Make sure that, if `-retentionFilter` is used, its duration is lower than `-retentionPeriod` before upgrading; otherwise, the deployment will fail. Read more in [retention filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) documentation.
+
+* SECURITY: upgrade Go builder from Go1.24.9 to Go1.24.10. See [the list of issues addressed in Go1.24.10](https://github.com/golang/go/issues?q=milestone%3AGo1.24.10%20label%3ACherryPickApproved).
+* SECURITY: upgrade golang.org/x/crypto to v0.43.0 to address CVE-2025-47913.
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly access service discovery servers with HTTP/2 protocol enabled. See this issue [#9981](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9981) for details. Thanks to the @JayiceZ
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): drop labels with empty values in generated alerts and time series. See [#9984](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9984).
+* BUGFIX: `vminsert`, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly apply `maxDataSize` memory limits to the `zstd` encoded requests. It protects ingest endpoints from malicious requests.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix median value calculation displayed below series graph. See [#9926](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9926).
+* BUGFIX: VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): disallow having a duration in `-retentionFilter` bigger than `-retentionPeriod`. Previously, it was allowed but had no effect, the data retention period remains limited to `-retentionPeriod`.
 
 ## [v1.122.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.8)
 
@@ -677,7 +698,24 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): improve clipboard error handling in tables and code snippets by showing detailed messages with possible reasons. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7778).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series.
+
+## [v1.110.24](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.24)
+
+Released at 2025-11-14
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
+
+**Update Note 1:** VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Make sure that, if `-retentionFilter` is used, its duration is lower than `-retentionPeriod` before upgrading; otherwise, the deployment will fail. Read more in [retention filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters) documentation.
+
+* SECURITY: upgrade Go builder from Go1.24.9 to Go1.24.10. See [the list of issues addressed in Go1.24.10](https://github.com/golang/go/issues?q=milestone%3AGo1.24.10%20label%3ACherryPickApproved).
+* SECURITY: upgrade golang.org/x/crypto to v0.43.0 to address CVE-2025-47913.
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): drop labels with empty values in generated alerts and time series. See [#9984](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9984).
+* BUGFIX: `vminsert`, [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly apply `maxDataSize` memory limits to the `zstd` encoded requests. It protects ingest endpoints from malicious requests.
+* BUGFIX: VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): disallow having a duration in `-retentionFilter` bigger than `-retentionPeriod`. Previously, it was allowed but had no effect, the data retention period remains limited to `-retentionPeriod`.
 
 ## [v1.110.23](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.23)
 
