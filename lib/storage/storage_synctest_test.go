@@ -91,6 +91,13 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		if diff := cmp.Diff(wantMetricIDs, searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
+		// Ensure the metric that counts metricIDs for which no TSIDs were found
+		// is not incremented yet.
+		var m Metrics
+		s.UpdateMetrics(&m)
+		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
+			t.Fatalf("unexpected MissingTSIDsForMetricID: got %d, want %d", got, want)
+		}
 
 		time.Sleep(61 * time.Second)
 		synctest.Wait()
@@ -103,6 +110,12 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		// As a result they cannot be searched anymore.
 		if diff := cmp.Diff([]uint64(nil), searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+		}
+		// Ensure the metric that counts metricIDs for which no TSIDs were found
+		// is incremented after the metricID deletion.
+		s.UpdateMetrics(&m)
+		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(numMetrics); got != want {
+			t.Fatalf("unexpected MissingTSIDsForMetricID: got %d, want %d", got, want)
 		}
 	})
 }
@@ -184,6 +197,13 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		if diff := cmp.Diff(wantMetricIDs, searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
 		}
+		// Ensure the metric that counts metricIDs for which no metric names
+		// were found is not incremented yet.
+		var m Metrics
+		s.UpdateMetrics(&m)
+		if got, want := m.IndexDBMetrics.MissingMetricNamesForMetricID, uint64(0); got != want {
+			t.Fatalf("unexpected MissingMetricNamesForMetricID: got %d, want %d", got, want)
+		}
 
 		time.Sleep(61 * time.Second)
 		synctest.Wait()
@@ -196,6 +216,12 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		// As a result they cannot be searched anymore.
 		if diff := cmp.Diff([]uint64(nil), searchMetricIDs()); diff != "" {
 			t.Fatalf("unexpected metricIDs (-want, +got):\n%s", diff)
+		}
+		// Ensure the metric that counts metricIDs for which no metric names
+		// were found is incremented after the metricID deletion.
+		s.UpdateMetrics(&m)
+		if got, want := m.IndexDBMetrics.MissingMetricNamesForMetricID, uint64(numMetrics); got != want {
+			t.Fatalf("unexpected MissingMetricNamesForMetricID: got %d, want %d", got, want)
 		}
 	})
 }
