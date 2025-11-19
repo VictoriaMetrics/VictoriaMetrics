@@ -264,14 +264,11 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
-	// this shouldn't increase the MissingTSIDsForMetricID value,
-	// as we only count it as missingTSIDs if it can't be found in both the current and previous indexdb.
-	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
-
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
 	m.DateRangeSearchHits += db.dateRangeSearchHits.Load()
 	m.GlobalSearchCalls += db.globalSearchCalls.Load()
 
+	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
 	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
