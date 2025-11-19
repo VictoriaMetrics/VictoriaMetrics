@@ -74,30 +74,27 @@ func (ls *listenerSwitch) worker() {
 			ls.closeLock.Lock()
 			ls.acceptErr = err
 			ls.closeLock.Unlock()
+			wg.Wait()
 			return
 		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			var buf [1]byte
-			// set a deadline for the initial read to avoid infinite blocking of the goroutine.
-			//
-			// todo: 5 seconds is sufficient based on experience. It can be changed to a configurable flag if truly needed.
 			if err := c.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 				logger.Errorf("listenerSwitch: cannot set read deadline for the underlying connection %q: %s", ls.ln.Addr(), err)
 				_ = c.Close()
 				return
 			}
 
-			// blocking read the 1st byte. It's necessary in order to distribute the connection to the telnet/http handler Ch.
+			// Block on reading the first byte. This determines the connection type and decides whether it goes to ls.telnetConnsCh or ls.httpConnsCh.
+			var buf [1]byte
 			if _, err := io.ReadFull(c, buf[:]); err != nil {
 				logger.Errorf("listenerSwitch: cannot read one byte from the underlying connection for %q: %s", ls.ln.Addr(), err)
 				_ = c.Close()
 				return
 			}
 
-			// Reset the deadline for future reads on this connection.
 			if err := c.SetReadDeadline(time.Time{}); err != nil {
 				logger.Errorf("listenerSwitch: cannot reset read deadline for the underlying connection %q: %s", ls.ln.Addr(), err)
 				_ = c.Close()
@@ -119,7 +116,6 @@ func (ls *listenerSwitch) worker() {
 			}
 		}()
 	}
-	wg.Wait()
 }
 
 type peekedConn struct {
