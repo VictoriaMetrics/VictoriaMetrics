@@ -62,6 +62,7 @@ func (ls *listenerSwitch) stop() error {
 
 func (ls *listenerSwitch) worker() {
 	wg := sync.WaitGroup{}
+	defer wg.Wait()
 	for {
 		c, err := ls.ln.Accept()
 		if err != nil {
@@ -74,7 +75,6 @@ func (ls *listenerSwitch) worker() {
 			ls.closeLock.Lock()
 			ls.acceptErr = err
 			ls.closeLock.Unlock()
-			wg.Wait()
 			return
 		}
 		wg.Add(1)
