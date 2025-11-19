@@ -81,10 +81,6 @@ type indexDB struct {
 	// if the mustDrop is set to true, then the indexDB must be dropped after refCount reaches zero.
 	mustDrop atomic.Bool
 
-	// The number of missing MetricID -> TSID entries.
-	// High rate for this value means corrupted indexDB.
-	missingTSIDsForMetricID atomic.Uint64
-
 	// The number of calls for date range searches.
 	dateRangeSearchCalls atomic.Uint64
 
@@ -93,6 +89,10 @@ type indexDB struct {
 
 	// The number of calls for global search.
 	globalSearchCalls atomic.Uint64
+
+	// The number of missing MetricID -> TSID entries.
+	// High rate for this value means corrupted indexDB.
+	missingTSIDsForMetricID atomic.Uint64
 
 	// missingMetricNamesForMetricID is a counter of missing MetricID -> MetricName entries.
 	// High rate may mean corrupted indexDB due to unclean shutdown.
@@ -212,8 +212,6 @@ type IndexDBMetrics struct {
 
 	IndexDBRefCount uint64
 
-	MissingTSIDsForMetricID uint64
-
 	RecentHourMetricIDsSearchCalls uint64
 	RecentHourMetricIDsSearchHits  uint64
 
@@ -221,6 +219,7 @@ type IndexDBMetrics struct {
 	DateRangeSearchHits  uint64
 	GlobalSearchCalls    uint64
 
+	MissingTSIDsForMetricID       uint64
 	MissingMetricNamesForMetricID uint64
 
 	IndexBlocksWithMetricIDsProcessed      uint64
