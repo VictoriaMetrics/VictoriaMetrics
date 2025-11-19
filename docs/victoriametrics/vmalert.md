@@ -107,8 +107,8 @@ See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/s
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
-If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
-to specify different `-external.label` command-line flags in order to define which `vmalert` generated rules or alerts.
+If you run multiple `vmalert` services on the same datastore or AlertManager and need to distinguish the results or alerts, 
+specify different `-external.label` command-line flags to indicate which `vmalert` generated them. 
 If rule result metrics have label that conflict with `-external.label`, `vmalert` will automatically rename
 it with prefix `exported_`.
 
