@@ -60,7 +60,7 @@ type Storage struct {
 	// nextRotationTimestamp is a timestamp in seconds of the next indexdb rotation.
 	//
 	// It is used for gradual pre-population of the idbNext during the last hour before the indexdb rotation.
-	// in order to reduce spikes in CPU and disk IO usage just after the rotiation.
+	// in order to reduce spikes in CPU and disk IO usage just after the rotation.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 	nextRotationTimestamp atomic.Int64
 
@@ -82,7 +82,7 @@ type Storage struct {
 	//
 	// It is started to be gradually pre-populated with the data for active time series during the last hour
 	// before nextRotationTimestamp.
-	// This reduces spikes in CPU and disk IO usage just after the rotiation.
+	// This reduces spikes in CPU and disk IO usage just after the rotation.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 	idbNext atomic.Pointer[indexDB]
 
@@ -2254,7 +2254,7 @@ func (s *Storage) prefillNextIndexDB(idbNext *indexDB, rows []rawRow, mrs []*Met
 
 	// Slower path: less than nextPrefillStartSeconds left for the next indexdb rotation.
 	// Pre-populate idbNext with the increasing probability until the rotation.
-	// The probability increases from 0% to 100% proportioinally to d=[nextPrefillStartSeconds .. 0].
+	// The probability increases from 0% to 100% proportionally to d=[nextPrefillStartSeconds .. 0].
 	pMin := float64(d) / float64(s.idbPrefillStartSeconds)
 
 	generation := idbNext.generation
