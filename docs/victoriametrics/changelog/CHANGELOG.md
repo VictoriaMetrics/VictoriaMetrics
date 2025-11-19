@@ -30,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): don't increase `vmalert_alerts_send_errors_total` for request context cancellation, which may occur during graceful shutdown or group configuration update. See [#10027](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10027).
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly increment `vm_missing_metric_names_for_metric_id_total` metric.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Avoid blocking when a connection to `-opentsdbListenAddr` doesn't send any data. This issue blocked other connections from being handled. See [#9987](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9987) for details.
 
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 

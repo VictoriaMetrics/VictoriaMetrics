@@ -76,25 +76,45 @@ func (ls *listenerSwitch) worker() {
 			ls.closeLock.Unlock()
 			return
 		}
-		if _, err := io.ReadFull(c, buf[:]); err != nil {
-			logger.Errorf("listenerSwitch: cannot read one byte from the underlying connection for %q: %s", ls.ln.Addr(), err)
-			_ = c.Close()
-			continue
-		}
 
-		// It is expected that both listeners - http and telnet consume incoming connections as soon as possible,
-		// so the below code shouldn't block for extended periods of time.
-		pc := &peekedConn{
-			Conn:      c,
-			firstChar: buf[0],
-		}
-		if buf[0] == 'p' {
-			// Assume the request starts with `put`.
-			ls.telnetConnsCh <- pc
-		} else {
-			// Assume the request starts with `POST`.
-			ls.httpConnsCh <- pc
-		}
+		go func() {
+			// set a deadline for the initial read to avoid infinite blocking of the goroutine.
+			//
+			// todo: 5 seconds is sufficient based on experience. It can be changed to a configurable flag if truly needed.
+			if err := c.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+				logger.Errorf("listenerSwitch: cannot set read deadline for the underlying connection %q: %s", ls.ln.Addr(), err)
+				_ = c.Close()
+				return
+			}
+
+			// blocking read the 1st byte. It's necessary in order to distribute the connection to the telnet/http handler Ch.
+			if _, err := io.ReadFull(c, buf[:]); err != nil {
+				logger.Errorf("listenerSwitch: cannot read one byte from the underlying connection for %q: %s", ls.ln.Addr(), err)
+				_ = c.Close()
+				return
+			}
+
+			// Reset the deadline for future reads on this connection.
+			if err := c.SetReadDeadline(time.Time{}); err != nil {
+				logger.Errorf("listenerSwitch: cannot reset read deadline for the underlying connection %q: %s", ls.ln.Addr(), err)
+				_ = c.Close()
+				return
+			}
+
+			// It is expected that both listeners - http and telnet consume incoming connections as soon as possible,
+			// so the below code shouldn't block for extended periods of time.
+			pc := &peekedConn{
+				Conn:      c,
+				firstChar: buf[0],
+			}
+			if buf[0] == 'p' {
+				// Assume the request starts with `put`.
+				ls.telnetConnsCh <- pc
+			} else {
+				// Assume the request starts with `POST`.
+				ls.httpConnsCh <- pc
+			}
+		}()
 	}
 }
 
