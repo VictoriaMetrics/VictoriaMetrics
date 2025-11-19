@@ -993,7 +993,7 @@ to ensure query results consistency, even if storage layer didn't complete dedup
 ## Metrics Metadata
 
 Cluster version of VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "v1.130.0" %}}.
-Metadata ingestion and querying are disabled by default. To enable them, set `-enableMetadata=true` on `vmselect`, `vminsert`, and `vmagent`.
+Metadata ingestion is disabled by default. To enable it, set `-enableMetadata=true` on `vminsert` and `vmagent`.
 
 The metadata is stored in memory and can use up to 1% of available memory by default. The size could be adjusted by `-storage.maxMetadataStorageSize` flag.
 Please note that metadata is lost after `vmstorage` restarts. It is ingested independently from metrics, so a metric may exist without metadata, and vice versa.

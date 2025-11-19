@@ -457,7 +457,7 @@ func (c *Cache) UpdateStats(fcs *fastcache.Stats) {
 
 	// Track the total number of entries across prev and curr, since they all occupy memory.
 	fcs.EntriesCount += csPrev.EntriesCount + csCurr.EntriesCount
-	fcs.BytesSize += csPrev.EntriesCount + csCurr.EntriesCount
+	fcs.BytesSize += csPrev.BytesSize + csCurr.BytesSize
 	fcs.MaxBytesSize += csPrev.MaxBytesSize + csCurr.MaxBytesSize
 }
 

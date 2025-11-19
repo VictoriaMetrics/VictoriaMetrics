@@ -212,7 +212,7 @@ func newSrcFS() (*fslocal.FS, error) {
 }
 
 func newDstFS(ctx context.Context) (common.RemoteFS, error) {
-	fs, err := actions.NewRemoteFS(ctx, *dst)
+	fs, err := actions.NewRemoteFS(ctx, *dst, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-dst`=%q: %w", *dst, err)
 	}
@@ -255,7 +255,7 @@ func newOriginFS(ctx context.Context) (common.OriginFS, error) {
 	if len(*origin) == 0 {
 		return &fsnil.FS{}, nil
 	}
-	fs, err := actions.NewRemoteFS(ctx, *origin)
+	fs, err := actions.NewRemoteFS(ctx, *origin, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-origin`=%q: %w", *origin, err)
 	}
@@ -266,7 +266,7 @@ func newRemoteOriginFS(ctx context.Context) (common.RemoteFS, error) {
 	if len(*origin) == 0 {
 		return nil, fmt.Errorf("-origin cannot be empty when -snapshotName and -snapshot.createURL aren't set")
 	}
-	fs, err := actions.NewRemoteFS(ctx, *origin)
+	fs, err := actions.NewRemoteFS(ctx, *origin, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-origin`=%q: %w", *origin, err)
 	}

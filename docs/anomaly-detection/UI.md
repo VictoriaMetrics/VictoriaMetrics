@@ -134,9 +134,11 @@ Also, timeseries (such as `y`, `y_hat`, etc.) can be toggled on/off by clicking 
 
 The Model Panel provides:
 
-Parameters, such as "Fit Every" and "Fit Window", to control how often and over what time window the model is retrained on new data to imitate production behavior, as well as overriding default anomaly detection thresholds (1.0).
+Parameters, such as "Fit Every", "Fit Window" and {{% available_from "v1.28.0" anomaly %}} "Infer Every" to imitate [production scheduling](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler), as well as overriding default [anomaly detection threshold](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) (1.0).
 
-Controls for running/canceling anomaly detection on the queried data, downloading the results as CSV/JSON, accessing and downloading the model configuration in YAML format.
+> {{% available_from "v1.28.0" anomaly %}} "Exact" mode checkbox is used in combination with "Infer Every" control for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) such as `mad_online` or `quantile_online`, to provide unbiased estimates of how production scheduler would perform anomaly detection on incoming data streams. In "exact" mode, the model is updated exactly at every "infer every" micro-batch interval, at a cost of increased computation time.
+
+Controls for running/canceling anomaly detection on the queried data, downloading the results as CSV/JSON, accessing and downloading the model configuration or example alerting rules in YAML format.
 
 A form-based menu for finetuning model hyperparameters and applying domain knowledge settings:
 
@@ -352,11 +354,28 @@ If the **results** do not look good, the model hyperparameters and domain knowle
 
 If the **results** look good, but should be shared with others first, timeseries can be downloaded as files by hitting the respective button in the Model Panel. See also [configuration sharing](#configuration-sharing) section for details.
 
-If the **results** look good and the **model configuration should be deployed in production jobs of anomaly detection**, the equivalent configuration in production-ready YAML format can be obtained by accessing the "YAML" Tab in the model configuration section and hitting the "Show Config" button to access (model-only or full) configuration and hitting "Download" button to get the configuration as a YAML file.
+If the **results** look good and the **model configuration should be deployed in production jobs of anomaly detection**, the equivalent configuration in production-ready YAML format can be obtained by accessing the "YAML" Tab in the model configuration section and hitting the "Show Config" button to access (model-only or full) configuration to download/copy as a YAML file.
 
 ![vmanomaly-ui-open-config-menu](vmanomaly-ui-open-config-menu.webp)
 
+{{% available_from "v1.28.0" anomaly %}} **Example alerting rules are generated** based on the current UI configuration. Hit the "Example Alert" button in the Model Panel to access and copy/download an example of parametrized [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) alerting rule snippet in YAML format to finetune and use in production alerting setup.
+
+![vmanomaly-ui-example-alert-btn](vmanomaly-ui-example-alert-btn.webp)
+
+![vmanomaly-ui-example-alert-menu](vmanomaly-ui-example-alert-menu.webp)
+
 ## Changelog
+
+### v1.2.0
+Released: 2025-11-17
+
+vmanomaly version: [v1.28.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1280)
+
+- FEATURE: Added "exact" mode to use in combination with "infer every" control for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) such as `mad_online` or `quantile_online`, to provide unbiased estimates of how production scheduler would perform anomaly detection on incoming data streams. In "exact" mode, the model is updated exactly at every "infer every" micro-batch interval, at a cost of increased computation time. See [model panel](#model-panel) for details.
+
+- FEATURE: Added "Example Alert" button in the [Model Panel](#model-panel) to provide an example of parametrized [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) alerting rule snippet based on the current UI configuration.
+
+- IMPROVEMENT: Added support for clipboard copy in addition to existing file download of the model/service configuration in YAML format from the [Model Panel](#model-panel) configuration menu.
 
 ### v1.1.0
 Released: 2025-10-31

@@ -104,7 +104,7 @@ func newDstFS() (*fslocal.FS, error) {
 }
 
 func newSrcFS(ctx context.Context) (common.RemoteFS, error) {
-	fs, err := actions.NewRemoteFS(ctx, *src)
+	fs, err := actions.NewRemoteFS(ctx, *src, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `-src`=%q: %w", *src, err)
 	}
