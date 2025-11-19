@@ -61,7 +61,7 @@ func (ls *listenerSwitch) stop() error {
 }
 
 func (ls *listenerSwitch) worker() {
-	var buf [1]byte
+	wg := sync.WaitGroup{}
 	for {
 		c, err := ls.ln.Accept()
 		if err != nil {
@@ -76,8 +76,11 @@ func (ls *listenerSwitch) worker() {
 			ls.closeLock.Unlock()
 			return
 		}
-
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
+
+			var buf [1]byte
 			// set a deadline for the initial read to avoid infinite blocking of the goroutine.
 			//
 			// todo: 5 seconds is sufficient based on experience. It can be changed to a configurable flag if truly needed.
@@ -116,6 +119,7 @@ func (ls *listenerSwitch) worker() {
 			}
 		}()
 	}
+	wg.Wait()
 }
 
 type peekedConn struct {
