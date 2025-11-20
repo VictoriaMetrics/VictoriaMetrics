@@ -77,35 +77,35 @@ func (ls *listenerSwitch) worker() {
 			ls.closeLock.Unlock()
 			return
 		}
-		
+
 		wg.Add(1)
 		go func(conn net.Conn) {
 			defer wg.Done()
 
-			if err := c.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 				logger.Errorf("listenerSwitch: cannot set read deadline for the underlying connection %q: %s", ls.ln.Addr(), err)
-				_ = c.Close()
+				_ = conn.Close()
 				return
 			}
 
 			// Block on reading the first byte. This determines the connection type and decides whether it goes to ls.telnetConnsCh or ls.httpConnsCh.
 			var buf [1]byte
-			if _, err := io.ReadFull(c, buf[:]); err != nil {
+			if _, err := io.ReadFull(conn, buf[:]); err != nil {
 				logger.Errorf("listenerSwitch: cannot read one byte from the underlying connection for %q: %s", ls.ln.Addr(), err)
-				_ = c.Close()
+				_ = conn.Close()
 				return
 			}
 
-			if err := c.SetReadDeadline(time.Time{}); err != nil {
+			if err := conn.SetReadDeadline(time.Time{}); err != nil {
 				logger.Errorf("listenerSwitch: cannot reset read deadline for the underlying connection %q: %s", ls.ln.Addr(), err)
-				_ = c.Close()
+				_ = conn.Close()
 				return
 			}
 
 			// It is expected that both listeners - http and telnet consume incoming connections as soon as possible,
 			// so the below code shouldn't block for extended periods of time.
 			pc := &peekedConn{
-				Conn:      c,
+				Conn:      conn,
 				firstChar: buf[0],
 			}
 			if buf[0] == 'p' {
