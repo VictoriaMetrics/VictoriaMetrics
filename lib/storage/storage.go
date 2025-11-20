@@ -2151,9 +2151,11 @@ func getUserReadableMetricName(metricNameRaw []byte) string {
 }
 
 // prefillNextIndexDB gradually pre-populates the indexDB of the next partition
-// during the last hour before that partition becomes the current one. This is
-// needed in order to reduce spikes in CPU and disk IO usage just after the
-// switch. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401.
+// during the last idbPrefillStartSeconds seconds before that partition becomes
+// the current one. This is needed in order to reduce spikes in CPU and disk IO
+// usage just after the switch.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401.
 func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	now := time.Unix(int64(fasttime.UnixTimestamp()), 0).UTC()
 	nextMonth := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
