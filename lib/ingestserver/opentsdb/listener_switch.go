@@ -77,8 +77,9 @@ func (ls *listenerSwitch) worker() {
 			ls.closeLock.Unlock()
 			return
 		}
+		
 		wg.Add(1)
-		go func() {
+		go func(conn net.Conn) {
 			defer wg.Done()
 
 			if err := c.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
@@ -114,7 +115,7 @@ func (ls *listenerSwitch) worker() {
 				// Assume the request starts with `POST`.
 				ls.httpConnsCh <- pc
 			}
-		}()
+		}(c)
 	}
 }
 
