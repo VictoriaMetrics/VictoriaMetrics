@@ -15,21 +15,15 @@ func RegisterSecretFlag(flagName string) {
 	secretFlags[lname] = true
 }
 
-var secretFlags = make(map[string]bool)
-
-// secretFlagsList contains names of flags with secret values obtained from
-// the `-secret.flags` command-line option.
-var secretFlagsList = NewArrayString("secret.flags",
-	"Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page")
-
-// ApplySecretFlags registers flags from `-secret.flags` after they are parsed.
+// UnregisterAllSecretFlags unregisters all secret flags.
 //
-// This function must be called after flag.Parse and before starting logging.
-func ApplySecretFlags() {
-	for _, f := range *secretFlagsList {
-		RegisterSecretFlag(f)
-	}
+// This function must be used in tests only.
+// It cannot be called from concurrent goroutines.
+func UnregisterAllSecretFlags() {
+	secretFlags = make(map[string]bool)
 }
+
+var secretFlags = make(map[string]bool)
 
 // IsSecretFlag returns true of s contains flag name with secret value, which shouldn't be exposed.
 func IsSecretFlag(s string) bool {

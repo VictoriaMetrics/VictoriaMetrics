@@ -107,8 +107,8 @@ See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/s
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
-If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
-to specify different `-external.label` command-line flags in order to define which `vmalert` generated rules or alerts.
+If you run multiple `vmalert` services on the same datastore or AlertManager and need to distinguish the results or alerts, 
+specify different `-external.label` command-line flags to indicate which `vmalert` generated them. 
 If rule result metrics have label that conflict with `-external.label`, `vmalert` will automatically rename
 it with prefix `exported_`.
 
@@ -741,7 +741,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 
 * `http://<vmalert-addr>` - UI;
-* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/2.53/querying/api/#rules);
+* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/notifiers` - list all available notifiers;
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
@@ -913,29 +913,29 @@ Try the following tips to avoid common issues:
 1. Always set [group's interval](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) to be **equal to or greater than**
    the [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
 1. Don't set labels with dynamic values to `labels` [param](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules).
-    * 👉 Example: setting `label: {{$value}}` to the rule will break its [alert state tracking](https://docs.victoriametrics.com/victoriametrics/vmalert/#alert-state)
+    * Example: setting `label: {{$value}}` to the rule will break its [alert state tracking](https://docs.victoriametrics.com/victoriametrics/vmalert/#alert-state)
       because every evaluation could change the `label` value. If you need to attach `$value` to the alert notification - add it to `annotations` instead.
 1. vmalert runs [instant queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) during rule evaluation
-   using the `&step` parameter, which defaults  to `-datasource.queryStep` (default is `5m`).
+   using the `step` parameter, which defaults  to `-datasource.queryStep` (default is `5m`).
    In VictoriaMetrics, `step` controls how far back the query can look for a recent datapoint.
    If [series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution)
    is `>=5m`, the query might return no data.
-   * 👉 To fix this, set `-datasource.queryStep` to value at least **2x larger** than the resolution.
+   * To fix this, set `-datasource.queryStep` to value at least **2x larger** than the resolution.
      You can also set `step` per group using the `params` setting.
 1. Be careful when chaining rules. If rule B uses results from rule A, make sure rule A is evaluated with an
    interval **less than 5 minutes** (or less than `-datasource.queryStep`). Otherwise, rule B might get empty results during evaluation.
    See how to [chain groups](https://docs.victoriametrics.com/victoriametrics/vmalert/#chaining-groups).
 1. Don't skip `[lookbehind-window]` in rollup functions.
-   * 👉 Example: `rate(errors_total) > 0`. MetricsQL [allows omitting lookbehind window](https://docs.victoriametrics.com/victoriametrics/metricsql/#metricsql-features)
+   * Example: `rate(errors_total) > 0`. MetricsQL [allows omitting lookbehind window](https://docs.victoriametrics.com/victoriametrics/metricsql/#metricsql-features)
    but that works well only with [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
    For [instant requests](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) setting window
    makes the query predictable.
 1. Make sure the `[lookbehind-window]` in your expression is at least **2× larger** than [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
-    * 👉 Example: in `rate(my_metric[2m]) > 0`, ensure that `my_metric` is scraped every 1 minute or better, every 30 seconds.
+    * Example: in `rate(my_metric[2m]) > 0`, ensure that `my_metric` is scraped every 1 minute or better, every 30 seconds.
 1. Increase `[lookbehind-window]` to help tolerate data delays.
-   * 👉 Example: `max_over_time(node_memory_MemAvailable_bytes[10m]) > 0` will still work even if no data was present in the last 9 minutes.
+   * Example: `max_over_time(node_memory_MemAvailable_bytes[10m]) > 0` will still work even if no data was present in the last 9 minutes.
 1. Don't skip step in [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries).
-   * 👉 Example: `sum(count_over_time((metric == 0)[1h:]))` is missing a step after `1h:`.
+   * Example: `sum(count_over_time((metric == 0)[1h:]))` is missing a step after `1h:`.
     In that case, the default step will be used (`-datasource.queryStep`) and may cause unexpected results compared to
     executing this query in vmui/Grafana, where step is adjusted differently.
 
@@ -954,8 +954,8 @@ The rows in this section show the rule's evaluations in order, along with their 
 
 Every state has the following attributes:
 
-1. `Updated at` - the actual time when vmalert ran this rule.
-1. `Executed at` - the `time` param that was sent to the datasource with evaluation request.
+1. `Updated at` - the actual time when vmalert executed this rule.
+1. `Execution timestamp` - the `time` param that was sent to the datasource with evaluation request.
 1. `Series returned` - the number of series returned in this evaluation:
     * A recording rule with 0 series means it produced no results;
     * An alerting rule with 0 series means the rule is in inactive state.

@@ -42,6 +42,7 @@ export interface LineChartProps {
   height?: number;
   isAnomalyView?: boolean;
   spanGaps?: boolean;
+  showAllPoints?: boolean;
 }
 
 const LineChart: FC<LineChartProps> = ({
@@ -55,7 +56,8 @@ const LineChart: FC<LineChartProps> = ({
   layoutSize,
   height,
   isAnomalyView,
-  spanGaps = false
+  spanGaps = false,
+  showAllPoints = false,
 }) => {
   const { isDarkTheme } = useAppState();
 
@@ -108,10 +110,10 @@ const LineChart: FC<LineChartProps> = ({
   useEffect(() => {
     if (!uPlotInst) return;
     delSeries(uPlotInst);
-    addSeries(uPlotInst, series, spanGaps);
+    addSeries(uPlotInst, series, spanGaps, showAllPoints);
     setBand(uPlotInst, series);
     uPlotInst.redraw();
-  }, [series, spanGaps]);
+  }, [series, spanGaps, showAllPoints]);
 
   useEffect(() => {
     if (!uPlotInst) return;

@@ -5,16 +5,23 @@ import (
 	"io"
 	"sync"
 
-	"github.com/golang/snappy"
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zlib"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/snappy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
+
+// snappy has default limit of 2_704_094_487 ( 2 GB)
+// which is too high for common VictoriaMetrics insert requests
+// limit to 56MB in order to prevent possible memory allocation attacks
+//
+// Later we could consider to make this limit configurable
+const maxSnappyBlockSize = 56_000_000
 
 // ReadUncompressedData reads uncompressed data from r using the given encoding and then passes it to the callback.
 //
@@ -27,13 +34,16 @@ func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.By
 
 	if encoding == "zstd" {
 		// Fast path for zstd encoding - read the data in full and then decompress it by a single call.
-		return readUncompressedData(wcr, maxDataSize, zstd.Decompress, callback)
+		dcompress := func(dst, src []byte) ([]byte, error) {
+			return zstd.DecompressLimited(dst, src, maxDataSize.IntN())
+		}
+		return readUncompressedData(wcr, maxDataSize, dcompress, callback)
 	}
 	if encoding == "snappy" {
 		// Special case for snappy. The snappy data must be read in full and then decompressed,
 		// since streaming snappy encoding is incompatible with block snappy encoding.
 		decompress := func(dst, src []byte) ([]byte, error) {
-			return snappy.Decode(dst[:cap(dst)], src)
+			return snappy.Decode(dst, src, maxDataSize.IntN())
 		}
 		return readUncompressedData(wcr, maxDataSize, decompress, callback)
 	}
@@ -198,7 +208,7 @@ func (sr *snappyReader) Reset(r io.Reader) error {
 		compressedBufPool.Put(cbb)
 		return fmt.Errorf("cannot read snappy-encoded data block: %w", err)
 	}
-	sr.b, err = snappy.Decode(sr.b[:cap(sr.b)], cbb.B)
+	sr.b, err = snappy.Decode(sr.b, cbb.B, maxSnappyBlockSize)
 	compressedBufPool.Put(cbb)
 	sr.offset = 0
 	if err != nil {

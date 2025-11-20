@@ -132,7 +132,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                 <th>Series returned</th>
                 <th>Series fetched</th>
                 <th>Duration</th>
-                <th>Executed at</th>
+                <th>Execution timestamp</th>
               </tr>
             </thead>
             <tbody>

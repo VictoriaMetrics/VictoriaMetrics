@@ -249,10 +249,11 @@ VictoriaMetrics has the following publicly available demo resources:
   3 cluster installations for the recent OS and LTS versions running under the constant benchmark.
 1. [https://play-vmlogs.victoriametrics.com/](https://play-vmlogs.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) of VictoriaLogs installation.
    It is available for testing the query engine on demo logs set.
+1. [https://play-vtraces.victoriametrics.com/](https://play-vtraces.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) of VictoriaTraces installation.
+   It is available for testing the query engine on demo traces set.
 
-Additionally, we provide a [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics)
-for VictoriaMetrics and VictoriaLogs components. They are already configured, provisioned and interconnected.
-It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
+Additionally, we provide a docker-compose environment for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/README.md), [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/deployment/docker/README.md) and [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/README.md). 
+They are already configured, provisioned and interconnected. It can be used as an example for a [quick start](https://docs.victoriametrics.com/victoriametrics/quick-start/).
 
 ## How to upgrade VictoriaMetrics
 
@@ -1194,7 +1195,7 @@ The needed storage space for the given retention (the retention is set via `-ret
 
 It is recommended leaving the following amounts of spare resources:
 
-* 50% of free RAM for reducing the probability of OOM (out of memory) crashes and slowdowns during temporary spikes in workload.
+* 50% of free RAM for reducing the probability of OOM (out of memory) crashes. Exceeding 50% of free RAM may cause cache evictions, excessive I/O and overall slowdown (see [#9895-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9895#issuecomment-3442491150) for more details).
 * 50% of spare CPU for reducing the probability of slowdowns during temporary spikes in workload.
 * At least [20% of free storage space](#storage) at the directory pointed by `-storageDataPath` command-line flag. See also `-storage.minFreeDiskSpaceBytes` command-line [flag description](#list-of-command-line-flags).
 
@@ -1368,6 +1369,8 @@ or Prometheus instances in HA pair write data to the same VictoriaMetrics instan
 These vmagent or Prometheus instances must have **identical** `external_labels` section in their configs,
 so they write data to the same time series.
 See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/victoriametrics/vmagent/#scraping-big-number-of-targets).
+Note that de-duplication doesn't reduce the [`indexdb`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#indexdb) size -
+see [why IndexDB size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large).
 
 It is recommended passing different `-promscrape.cluster.name` values to each distinct HA pair of `vmagent` instances,
 so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples
@@ -1378,6 +1381,17 @@ VictoriaMetrics stores all the ingested samples to disk even if `-dedup.minScrap
 The ingested samples are de-duplicated during [background merges](#storage) and during query execution.
 VictoriaMetrics also supports de-duplication during data ingestion before the data is stored to disk, via `-streamAggr.dedupInterval` command-line flag -
 see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication).
+
+## Metrics Metadata
+
+Single-node VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "v1.130.0" %}}.
+Metadata ingestion and querying are disabled by default. To enable them, set `-enableMetadata=true`.
+
+The metadata is stored in memory and can use up to 1% of available memory by default. The size could be adjusted by `-storage.maxMetadataStorageSize` flag.
+Please note that metadata is lost after restarts. It is ingested independently from metrics, so a metric may exist without metadata, and vice versa.
+
+Metadata can be queried via the `/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
+See [/api/v1/metadata](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1metadata) example.
 
 ## Storage
 
@@ -1465,27 +1479,29 @@ values to the corresponding TSIDs.
 VictoriaMetrics uses two types of inverted indexes:
 
 * Global index. Searches using this index is performed across the entire
-    retention period.
+  retention period.
 * Per-day index. This index stores mappings similar to ones in global index
-    but also includes the date in each mapping. This speeds up data retrieval
-    for queries within a shorter time range (which is often just the last day).
+  but also includes the date in each mapping. This speeds up data retrieval
+  for queries within a shorter time range (which is often just the last day).
 
 When the search query is executed, VictoriaMetrics decides which index to use
 based on the time range of the query:
 
 * Per-day index is used if the search time range is 40 days or less.
 * Global index is used for search queries with a time range greater than 40
-    days.
+  days.
 
 Mappings are added to the indexes during the data ingestion:
 
 * In global index each mapping is created only once per retention period.
 * In the per-day index each mapping is created for each unique date that
-    has been seen in the samples for the corresponding time series.
+  has been seen in the samples for the corresponding time series.
 
 IndexDB respects [retention period](#retention) and once it is over, the indexes
 are dropped. For the new retention period, the indexes are gradually populated
 again as the new samples arrive.
+
+See also [Why IndexDB size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large).
 
 ### Index tuning for low churn rate
 
@@ -1522,6 +1538,8 @@ What to expect:
 * Prefer setting this flag on fresh installations.
 * Disabling per-day index on installations with historical data is Ok.
 * Re-enabling per-day index on installations with historical data will make it unsearchable.
+
+See also [Why IndexDB size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large).
 
 ## Retention
 
@@ -1654,9 +1672,7 @@ of samples per each series. The downsampling doesn't improve query performance a
 of time series with small number of samples per each series, since downsampling doesn't reduce the number of time series.
 So there is little sense in applying downsampling to time series with [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 In this case the majority of query time is spent on searching for the matching time series instead of processing the found samples.
-It is possible to use [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/) in [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
-or [recording rules in vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules) in order to
-[reduce the number of time series](https://docs.victoriametrics.com/victoriametrics/vmalert/#downsampling-and-aggregation-via-vmalert).
+See [Why IndexDB size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large).
 
 Downsampling is performed during [background merges](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage).
 It cannot be performed if there is not enough of free disk space or if vmstorage is in [read-only mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode).

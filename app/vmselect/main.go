@@ -421,6 +421,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
+	case "/api/v1/metadata":
+		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
+		metadataRequests.Inc()
+		if err := prometheus.MetadataHandler(qt, startTime, w, r); err != nil {
+			metadataErrors.Inc()
+			httpserver.SendPrometheusError(w, r, err)
+			return true
+		}
+		return true
+
 	default:
 		return false
 	}
@@ -574,12 +584,6 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"status":"success","data":{"notifiers":[]}}`)
 		return true
-	case "/api/v1/metadata":
-		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
-		metadataRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{"status":"success","data":{}}`)
-		return true
 	case "/api/v1/status/buildinfo":
 		buildInfoRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
@@ -708,7 +712,9 @@ var (
 	alertsRequests    = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/alerts"}`)
 	notifiersRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/notifiers"}`)
 
-	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
+	metadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
+	metadataErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/metadata"}`)
+
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
 

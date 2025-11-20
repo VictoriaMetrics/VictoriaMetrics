@@ -383,6 +383,30 @@ Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-usage)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format)
 
+### /api/v1/metadata
+
+**Returns stored metrics metadata**. 
+`metric` query arg can be used to filter metadata for specific metrics.
+`limit` query arg can be used to limit the number of returned metadata entries.
+
+Single-node VictoriaMetrics:
+
+```sh
+curl http://localhost:8428/api/v1/metadata
+```
+
+Cluster version of VictoriaMetrics:
+
+```sh
+curl -X GET http://<vmselect>:8481/select/0/prometheus/api/v1/metadata
+```
+
+Additional information:
+
+* [Single-node - Metrics Metadata](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metric-metadata)
+* [Cluster - Metrics Metadata](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#metric-metadata)
+* [VMAgent - Metrics Metadata](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata)
+
 ### /datadog
 
 **DataDog URL for Single-node VictoriaMetrics**

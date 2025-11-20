@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1989,11 +1990,10 @@ func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
 
-		metricIDCache:     workingsetcache.New(1234),
-		metricNameCache:   workingsetcache.New(1234),
-		tsidCache:         workingsetcache.New(1234),
-		dateMetricIDCache: newDateMetricIDCache(),
-		retentionMsecs:    retentionMax.Milliseconds(),
+		metricIDCache:   workingsetcache.New(1234),
+		metricNameCache: workingsetcache.New(1234),
+		tsidCache:       workingsetcache.New(1234),
+		retentionMsecs:  retentionMax.Milliseconds(),
 	}
 	return s
 }
@@ -2012,4 +2012,39 @@ func sortedSlice(m map[string]struct{}) []string {
 	}
 	slices.Sort(s)
 	return s
+}
+
+func TestIndexSearchLegacyContainsTimeRange_Concurrent(t *testing.T) {
+	defer testRemoveAll(t)
+
+	// Create storage because indexDB depends on it.
+	s := MustOpenStorage(filepath.Join(t.Name(), "storage"), OpenOptions{})
+	defer s.MustClose()
+
+	idbName := "test"
+	idbPath := filepath.Join(t.Name(), indexdbDirname, idbName)
+	var readOnly atomic.Bool
+	readOnly.Store(true)
+	noRegisterNewSeries := true
+	idb := mustOpenIndexDB(123, TimeRange{}, idbName, idbPath, s, &readOnly, noRegisterNewSeries)
+	defer idb.MustClose()
+
+	minTimestamp := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	concurrency := int64(100)
+	var wg sync.WaitGroup
+	for i := range concurrency {
+		wg.Add(1)
+		go func(ts int64) {
+			is := idb.getIndexSearch(noDeadline)
+			_ = is.legacyContainsTimeRange(TimeRange{ts, ts})
+			idb.putIndexSearch(is)
+			wg.Done()
+		}(minTimestamp + msecPerDay*i)
+	}
+	wg.Wait()
+
+	key := marshalCommonPrefix(nil, nsPrefixDateToMetricID)
+	if got, want := idb.legacyMinMissingTimestampByKey[string(key)], minTimestamp; got != want {
+		t.Fatalf("unexpected min timestamp: got %v, want %v", time.UnixMilli(got).UTC(), time.UnixMilli(want).UTC())
+	}
 }

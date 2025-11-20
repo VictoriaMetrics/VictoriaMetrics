@@ -440,10 +440,10 @@ There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible
 - [Multivariate models](#multivariate-models)
 
 Each of these models can be of type
-- [Rolling](#rolling-models)
+- [Rolling](#rolling-models) - **no longer present {{% deprecated_from "v1.28.0" anomaly %}}, being reworked into [online models](#online-models)**
 - [Non-rolling](#non-rolling-models)
 
-Moreover, {{% available_from "v1.15.0" anomaly %}}, there exist **[online (incremental) models](#online-models)** subclass. Please refer to the [correspondent section](#online-models) for more details.
+Moreover, {{% available_from "v1.15.0" anomaly %}}, there exist **[online (incremental) models](#online-models)** subclass for effective streaming-like data processing. Please refer to the [correspondent section](#online-models) for more details.
 
 ### Univariate Models
 
@@ -479,6 +479,8 @@ If during an inference, you got a **different amount of series** or some series 
 
 ### Rolling Models
 
+> Rolling models as a class were deprecated {{% deprecated_from "v1.28.0" anomaly %}} in favor of [online models](#online-models), which provide similar benefits with additional advantages. Respective rolling models are refactored into online models (e.g., [RollingQuantile](#rolling-quantile)). Existing configurations that use rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`).
+
 A rolling model is a model that, once trained, **cannot be (naturally) used to make inference on data, not seen during its fit phase**.
 
 An instance of rolling model is **simultaneously fit and used for inference** during its `infer` method call.
@@ -495,6 +497,8 @@ Such models put **more pressure** on your reader's source, i.e. if your model sh
 
 
 ### Non-Rolling Models
+
+> Every model type is now {{% available_from "v1.28.0" anomaly %}} non-rolling. Configurations that used rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`).
 
 Everything that is not classified as [rolling](#rolling-models). 
 
@@ -650,7 +654,7 @@ models:
 ### [Prophet](https://facebook.github.io/prophet/)
 `vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
 
-> `ProphetModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> `ProphetModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
 > {{% available_from "v1.25.3" anomaly %}} Producing forecasts for future timestamps is now supported. To enable this, set the `forecast_at` argument to a list of relative future offsets (e.g., `['1h', '1d']`). The model will then generate forecasts for these future timestamps, which can be useful for planning and resource allocation. Output series are affected by [provide_series](#provide-series) argument, which need to include at least `yhat` for point-wise forecasts (and `yhat_lower` or/and `yhat_upper` for respective confidence intervals). See the example below for more details.
 
@@ -749,7 +753,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 
 ### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
 
-> `ZScoreModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> `ZScoreModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
 Model is useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data).
 
@@ -782,9 +786,9 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### Online Z-score
 
-> `OnlineZScoreModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+> `OnlineZScoreModel` is a [univariate](#univariate-models), [online](#online-models) model.
 
-Online version of existing [Z-score](#z-score) implementation with the same exact behavior and implications{{% available_from "v1.15.0" anomaly %}}.
+Online version of existing [Z-score](#z-score) implementation with the same exact behavior and implications {{% available_from "v1.15.0" anomaly %}}.
 
 *Parameters specific for vmanomaly*:
 
@@ -819,7 +823,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 
-> `HoltWinters` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing). All parameters from this library can be passed to the model.
 
@@ -876,7 +880,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 
-> `MADModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> `MADModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
@@ -911,7 +915,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### Online MAD
 
-> `OnlineMADModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+> `OnlineMADModel` is a [univariate](#univariate-models), [online](#online-models) model.
 
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large. This is the online approximate version, based on [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403) for online quantile estimation{{% available_from "v1.15.0" anomaly %}}.
 
@@ -951,7 +955,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
 
-> `RollingQuantileModel` is a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+> `RollingQuantileModel` **is** {{% available_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{% deprecated_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
 
 This model is best used on **data with short evolving patterns** (i.e. 10-100 datapoints of particular frequency), as it adapts to changes over a rolling window.
 
@@ -966,7 +970,7 @@ This model is best used on **data with short evolving patterns** (i.e. 10-100 da
 ```yaml
 models:
   your_desired_alias_for_a_model:
-    class: "rolling_quantile" # or 'model.rolling_quantile.RollingQuantileModel' until v1.13.0
+    class: "rolling_quantile"
     quantile: 0.9
     window_steps: 96
     # Common arguments for built-in model, if not set, default to
@@ -987,11 +991,11 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### Online Seasonal Quantile
 
-> `OnlineQuantileModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+> `OnlineQuantileModel` is a [univariate](#univariate-models), [online](#online-models) model.
 
-Online (seasonal) quantile utilizes a set of approximate distributions, based on [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403) for online quantile estimation{{% available_from "v1.15.0" anomaly %}}.
+Online (seasonal) quantile utilizes a set of approximate distributions, based on [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403) for online quantile estimation {{% available_from "v1.15.0" anomaly %}}.
 
-Best used on **[de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data with strong (possibly multiple) [seasonalities](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality)**. Can act as a (slightly less powerful) replacement to [`ProphetModel`](#prophet).
+Best used on **[de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data with strong (potentially multiple) [seasonalities](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality)**. Can act as a (slightly less flexible) replacement to [`ProphetModel`](#prophet).
 
 It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upper` [output](#vmanomaly-output), respectively, for each of the `min_subseasons` sub-intervals contained in `seasonal_interval`. For example, with '4d' + '2h' seasonality patterns (multiple), it will hold and update 24*4 / 2 = 48 consecutive estimates (each 2 hours long).
 
@@ -1044,9 +1048,9 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
 
-> `StdModel` is a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+> `StdModel` **is** {{% available_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [online](#online-models) model. It **was** {{% deprecated_from "v1.28.0" anomaly %}} a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
 
-Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user(`model`='additive', `two_sided`=False).
+Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user (`model`='additive', `two_sided`=False).
 
 *Parameters specific for vmanomaly*:
 
@@ -1087,9 +1091,9 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 
-> `IsolationForestModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> `IsolationForestModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
 
-> `IsolationForestMultivariateModel` is a [multivariate](#multivariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> `IsolationForestMultivariateModel` is a [multivariate](#multivariate-models), [offline](#offline-models) model.
 
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univariate and multivariate data, but it is more effective in multivariate case.
 
@@ -1099,7 +1103,7 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"` (or `isolation_forest_multivariate` with class alias support{{% available_from "v1.13.0" anomaly %}})
+* `class` (string) - model class name `"model.isolation_forest.IsolationForestMultivariateModel"` (or `isolation_forest_multivariate` with class alias support {{% available_from "v1.13.0" anomaly %}})
 
 * `contamination` (float or string, optional) - The amount of contamination of the data set, i.e. the proportion of outliers in the data set. Used when fitting to define the threshold on the scores of the samples. Default value - "auto". Should be either `"auto"` or be in the range (0.0, 0.5].
 
@@ -1178,11 +1182,11 @@ Here in this guide, we will
 - Define VictoriaMetrics Anomaly Detection config file to use our custom model
 - Run service
 
-> The file containing the model should be written in [Python language](https://www.python.org/) (3.11+)
+> The file containing the model should be written in [Python language](https://www.python.org/) (3.12+)
 
 ### 1. Custom model
 
-> By default, each custom model is created as [**univariate**](#univariate-models) / [**non-rolling**](#non-rolling-models) model. If you want to override this behavior, define models inherited from `RollingModel` (to get a rolling model), or having `is_multivariate` class arg set to `True` (please refer to the code example below).
+> By default, each custom model is created as [**univariate**](#univariate-models) model. If you want to override this behavior, define models having `is_multivariate` class argument set to `True` (please refer to the code example below).
 
 We'll create `custom_model.py` file with `CustomModel` class that will inherit from `vmanomaly`'s `Model` base class.
 In the `CustomModel` class, the following methods are required: - `__init__`, `fit`, `infer`, `serialize` and `deserialize`:
@@ -1194,7 +1198,7 @@ In the `CustomModel` class, the following methods are required: - `__init__`, `f
   super().__init__(**kwargs)
   ``` 
   to initialize the base class each model derives from
-* `fit` method should contain the model training process. Please be aware that for `RollingModel` defining `fit` method is not needed, as the whole fit/infer process should be defined completely in `infer` method.
+* `fit` method should contain the model training process.
 * `infer` should return Pandas.DataFrame object with model's inferences.
 * `serialize` method that saves the model on disk.
 * `deserialize` load the saved model from disk.
@@ -1266,12 +1270,13 @@ class CustomModel(Model):
 ### 2. Configuration file
 
 Next, we need to create `config.yaml` file with `vmanomaly` configuration and model input parameters.
-In the config file's `models` section we need to set our model class to `model.custom.CustomModel` (or `custom` with class alias support{{% available_from "v1.13.0" anomaly %}}) and define all parameters used in `__init__` method.
+In the config file's `models` section we need to set our model class to `model.custom.CustomModel` (or `custom` with class alias support {{% available_from "v1.13.0" anomaly %}}) and define all parameters used in `__init__` method.
 You can find out more about configuration parameters in `vmanomaly` [config docs](https://docs.victoriametrics.com/anomaly-detection/components/).
 
 ```yaml
 schedulers:
   s1:
+    class: "periodic"
     infer_every: "1m"
     fit_every: "1m"
     fit_window: "1d"
@@ -1281,13 +1286,14 @@ models:
     class: "custom"  # or 'model.model.CustomModel' until v1.13.0
     percentage: 0.9
 
-
 reader:
   datasource_url: "http://victoriametrics:8428/"
   sampling_period: '1m'
   queries:
-    ingestion_rate: 'sum(rate(vm_rows_inserted_total)) by (type)'
-    churn_rate: 'sum(rate(vm_new_timeseries_created_total[5m]))'
+    ingestion_rate: 
+      expr: 'sum(rate(vm_rows_inserted_total)) by (type)'
+    churn_rate: 
+      expr: 'sum(rate(vm_new_timeseries_created_total[5m]))'
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
@@ -1312,7 +1318,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.26.2
+docker pull victoriametrics/vmanomaly:v1.28.0
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1326,7 +1332,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.26.2 /config.yaml \
+victoriametrics/vmanomaly:v1.28.0 /config.yaml \
 --licenseFile=/license
 --watch
 ```

@@ -62,7 +62,7 @@ Although this mode is designed to be as flexible as possible, it includes a pre-
 
 ### Grafana Dashboard
 
-> [For additional benefits](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/#installation) to enable datasource in Grafana.
+> [For additional benefits](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/#installation) to enable datasource in Grafana.
 
 You can find the Grafana dashboard `.json` file either [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-default/dashboard.json) or, for already running `vmanomaly` instance: `http://localhost:8490/presets/dashboard.json`. 
 
@@ -151,7 +151,7 @@ To analyze anomalies effectively, start from a high-level overview and progressi
 
 5. **Zoom in on the most anomalous groups:**  
    - Focus on the most affected category (`context_switch` in this case).  
-   - Notice when the anomaly score first exceeded the threshold—around 15:35 in the example.
+   - Notice when the anomaly score first exceeded the threshold — around 15:35 in the example.
 
    ![dashboard-as-example-step-1](vmanomaly-default-dashboard-example-step-1.webp)
 

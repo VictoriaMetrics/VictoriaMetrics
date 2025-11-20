@@ -803,6 +803,36 @@ Some capacity planning tips for VictoriaMetrics cluster:
 
 See also [resource usage limits docs](#resource-usage-limits).
 
+## Rebalancing
+
+Every `vminsert` node evenly spreads (shards) incoming data among `vmstorage` nodes specified in the `-storageNode` command-line flag.
+This guarantees even distribution of the ingested data among `vmstorage` nodes. When new `vmstorage` nodes are added to the `-storageNode`
+command-line flag at `vminsert`, then only newly ingested data is distributed evenly among old and new `vmstorage` nodes, while
+historical data remains on the old `vmstorage` nodes. This speeds up data ingestion and querying for the majority of production workloads,
+since newly ingested data is evenly distributed among all the `vmstorage` nodes, while querying is usually performed over recently ingested data,
+which is already stored among all the `vmstorage` nodes. This also provides the following benefits:
+
+- Cluster availability and performance remains stable just after adding new `vmstorage` nodes, since network bandwidth, disk IO and CPU
+  isn't spent on data rebalancing among `vmstorage` nodes.
+- This eliminates all the possible hard-to-troubleshoot failures which may happen during automatic data rebalancing.
+  For example, what happens when some of `vmstorage` nodes become unavailable during data rebalancing?
+  Or what happens if new `vmstorage` nodes are added to the cluster while the previous data rebalancing isn't finished yet?
+- This allows building flexible cluster schemes when distinct subsets of `vminsert` nodes distribute incoming
+  data among different subsets of `vmstorage` nodes with different configs and hardware resources.
+
+There are the following approaches exist for data rebalancing among old and new `vmstorage` nodes:
+
+- To wait until historical data on the old `vmstorage` nodes is automatically deleted according
+  to the configured [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention).
+- To pass only new `vmstorage` addresses to `-storageNode` command-line flag at `vminsert` nodes, while passing all the `vmstorage`
+  addresses to `-storageNode` command-line flag at `vmselect` nodes. This enables writing new data only to new `vmstorage` nodes,
+  while historical data from old `vmstorage` nodes remain available for querying via `vmselect` together with the newly ingested data.
+  Then wait until data sizes among old and new `vmstorage` nodes become equal and then add old `vmstorage` nodes the `-storageNode`
+  command-line flag at `vminsert` nodes.
+
+See also [capacity planning docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning)
+and [Why VictoriaMetrics misses automatic data re-balancing among vmstorage nodes?](https://docs.victoriametrics.com/victoriametrics/faq/#why-victoriametrics-misses-automatic-data-re-balancing-between-vmstorage-nodes).
+
 ## Resource usage limits
 
 By default, cluster components of VictoriaMetrics are tuned for an optimal resource usage under typical workloads.
@@ -959,6 +989,18 @@ deduplication can't be guaranteed when samples and sample duplicates for the sam
 
 It is recommended to set **the same** `-dedup.minScrapeInterval` command-line flag value to both `vmselect` and `vmstorage` nodes
 to ensure query results consistency, even if storage layer didn't complete deduplication yet.
+
+## Metrics Metadata
+
+Cluster version of VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "v1.130.0" %}}.
+Metadata ingestion is disabled by default. To enable it, set `-enableMetadata=true` on `vminsert` and `vmagent`.
+
+The metadata is stored in memory and can use up to 1% of available memory by default. The size could be adjusted by `-storage.maxMetadataStorageSize` flag.
+Please note that metadata is lost after `vmstorage` restarts. It is ingested independently from metrics, so a metric may exist without metadata, and vice versa.
+
+Metadata can be queried via the `/select/0/prometheus/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
+If multiple vmstorage nodes return metadata for the same metric family name, or if multiple tenants have metadata for the same metric family name, vmselect returns only the first matching result. 
+Duplicate metadata entries are not merged or deduplicated across storages or tenants. See [/api/v1/metadata](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1metadata) example.
 
 ## Backups
 
