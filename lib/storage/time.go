@@ -104,6 +104,18 @@ func (tr *TimeRange) fromPartitionTime(t time.Time) {
 	tr.MaxTimestamp = maxTime.Unix()*1e3 - 1
 }
 
-const msecPerDay = 24 * 3600 * 1000
+// overlapsWith returns true if the time range overlaps with the given time
+// range.
+func (tr *TimeRange) overlapsWith(v TimeRange) bool {
+	return tr.MinTimestamp <= v.MaxTimestamp && tr.MaxTimestamp >= v.MinTimestamp
+}
 
-const msecPerHour = 3600 * 1000
+// contains returns true if the time range contains the given timestamp.
+func (tr *TimeRange) contains(timestamp int64) bool {
+	return tr.MinTimestamp <= timestamp && timestamp <= tr.MaxTimestamp
+}
+
+const (
+	msecPerDay  = 24 * 3600 * 1000
+	msecPerHour = 3600 * 1000
+)
