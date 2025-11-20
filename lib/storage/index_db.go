@@ -182,7 +182,7 @@ type indexDB struct {
 	// with bigger timestamps at any time.
 	legacyMinMissingTimestampByKey map[string]int64
 	// protects legacyMinMissingTimestampByKey
-	legacyMinMissingTimestampByKeyLock sync.RWMutex
+	legacyMinMissingTimestampByKeyLock sync.Mutex
 
 	// id identifies the indexDB. It is used for in various caches to know which
 	// indexDB contains a metricID and which does not.
