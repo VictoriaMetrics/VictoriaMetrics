@@ -97,32 +97,17 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		WriteRuleDetails(w, r, rule)
 		return true
-	case "/vmalert/groups":
+	case "/vmalert/groups", "/rules":
 		rf, err := newRulesFilter(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
 		data, _ := rh.groups(rf)
-		WriteListGroups(w, r, data, rf.filter)
+		WriteListGroups(w, r, data, rf.state)
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
-		return true
-
-	// special cases for Grafana requests,
-	// served without `vmalert` prefix:
-	case "/rules":
-		// Grafana makes an extra request to `/rules`
-		// handler in addition to `/api/v1/rules` calls in alerts UI
-		var data []*rule.ApiGroup
-		rf, err := newRulesFilter(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		data, _ = rh.groups(rf)
-		WriteListGroups(w, r, data, rf.filter)
 		return true
 
 	case "/vmalert/api/v1/notifiers", "/api/v1/notifiers":
@@ -285,9 +270,10 @@ type rulesFilter struct {
 	ruleNames     []string
 	ruleType      string
 	excludeAlerts bool
-	filter        string
+	state         string
 	dsType        config.Type
 	maxGroups     *int
+	pageNum       *int
 	nextGid       *uint64
 }
 
@@ -313,12 +299,12 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 		}
 	}
 
-	filter := strings.ToLower(query.Get("filter"))
-	if len(filter) > 0 {
-		if filter == "nomatch" || filter == "unhealthy" {
-			rf.filter = filter
+	state := strings.ToLower(query.Get("state"))
+	if len(state) > 0 {
+		if state == "nomatch" || state == "unhealthy" {
+			rf.state = state
 		} else {
-			return nil, errResponse(fmt.Errorf(`invalid parameter "filter": not supported value %q`, filter), http.StatusBadRequest)
+			return nil, errResponse(fmt.Errorf(`invalid parameter "state": not supported value %q`, state), http.StatusBadRequest)
 		}
 	}
 
@@ -329,25 +315,35 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 
 	nextToken := query.Get("group_next_token")
 	maxGroups := query.Get("group_limit")
-	if nextToken != "" {
+	pageNum := query.Get("page_num")
+	if nextToken != "" || pageNum != "" {
 		if maxGroups == "" {
 			return nil, errors.New("group_limit needs to be present in order to paginate over the groups")
 		}
-		nextGid, err := strconv.ParseUint(nextToken, 10, 64)
+	}
+	if nextToken != "" {
+		v, err := strconv.ParseUint(nextToken, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse group id from groupNextToken=%q argument", nextToken)
+			return nil, fmt.Errorf("failed to parse group id from group_next_token=%q argument", nextToken)
 		}
-		rf.nextGid = &nextGid
+		rf.nextGid = &v
+	}
+	if pageNum != "" {
+		v, err := strconv.Atoi(pageNum)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse page_num=%q", pageNum)
+		}
+		rf.pageNum = &v
 	}
 	if maxGroups != "" {
-		mgs, err := strconv.Atoi(maxGroups)
+		v, err := strconv.Atoi(maxGroups)
 		if err != nil {
 			return nil, fmt.Errorf("group_limit needs to be a valid number: %w", err)
 		}
-		if mgs <= 0 {
+		if v <= 0 {
 			return nil, errors.New("group_limit needs to be greater than 0")
 		}
-		rf.maxGroups = &mgs
+		rf.maxGroups = &v
 	}
 	return rf, nil
 }
@@ -373,15 +369,22 @@ func (rh *requestHandler) groups(rf *rulesFilter) ([]*rule.ApiGroup, string) {
 	internalGroups := rh.m.groups
 	if rf.maxGroups != nil {
 		var start int
+		var found bool
 		if rf.nextGid != nil {
 			nextGid := *rf.nextGid
-			if id, found := rh.m.groupsIds[nextGid]; found {
-				start = id
-			} else {
+			if start, found = rh.m.groupsIds[nextGid]; !found {
 				start = len(internalGroups)
 			}
 		}
-		end := start + *rf.maxGroups
+		maxGroups := *rf.maxGroups
+		if !found && rf.pageNum != nil {
+			pageNum := *rf.pageNum
+			start = (pageNum - 1) * maxGroups
+			if start > len(rh.m.groupsIds) {
+				start = 0
+			}
+		}
+		end := start + maxGroups
 		if end > len(internalGroups) {
 			end = len(internalGroups)
 		} else {
@@ -406,7 +409,7 @@ func (rh *requestHandler) groups(rf *rulesFilter) ([]*rule.ApiGroup, string) {
 			if len(rf.ruleNames) > 0 && !slices.Contains(rf.ruleNames, rule.Name) {
 				continue
 			}
-			if (rule.LastError == "" && rf.filter == "unhealthy") || (!isNoMatch(rule) && rf.filter == "nomatch") {
+			if (rule.LastError == "" && rf.state == "unhealthy") || (!isNoMatch(rule) && rf.state == "nomatch") {
 				continue
 			}
 			if rf.excludeAlerts {

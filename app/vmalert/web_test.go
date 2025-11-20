@@ -28,7 +28,7 @@ func TestHandler(t *testing.T) {
 
 	var ar *rule.AlertingRule
 	var rr *rule.RecordingRule
-	var groupIDs []uint64
+	var groupsIds []uint64
 	for _, dsType := range []string{"prometheus", "", "graphite"} {
 		g := rule.NewGroup(config.Group{
 			Name:        "group",
@@ -52,7 +52,7 @@ func TestHandler(t *testing.T) {
 		id := g.CreateID()
 		m.groupsIds[id] = len(m.groups)
 		m.groups = append(m.groups, g)
-		groupIDs = append(groupIDs, id)
+		groupsIds = append(groupsIds, id)
 	}
 	rh := &requestHandler{m: m}
 
@@ -196,7 +196,7 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/group?groupID", func(t *testing.T) {
-		id := groupIDs[0]
+		id := groupsIds[0]
 		gid := m.groupsIds[id]
 		g := m.groups[gid]
 		expGroup := g.ToAPI()
@@ -212,7 +212,7 @@ func TestHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("/api/v1/rules&filters", func(t *testing.T) {
+	t.Run("/api/v1/rules&states", func(t *testing.T) {
 		check := func(url string, statusCode, expGroups, expRules int) {
 			t.Helper()
 			lr := listGroupsResponse{}
@@ -262,6 +262,9 @@ func TestHandler(t *testing.T) {
 		check("/api/v1/rules?group_limit=1&type=alert", 200, 1, 1)
 		check("/api/v1/rules?group_limit=1&type=record", 200, 1, 1)
 		check("/api/v1/rules?group_limit=2", 200, 2, 4)
+		check(fmt.Sprintf("/api/v1/rules?group_limit=1&group_next_token=%d", groupsIds[1]), 200, 1, 2)
+		check("/api/v1/rules?group_limit=1&group_next_token=0", 400, 0, 0)
+		check("/api/v1/rules?group_limit=1&group_next_token=0&page_num=1", 200, 1, 2)
 	})
 	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
 		// check if response returns active alerts by default

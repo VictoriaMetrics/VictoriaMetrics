@@ -11,7 +11,7 @@
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 ) %}
 
-{% func Controls(prefix, currentIcon, currentText string, icons, filters map[string]string, search bool) %}
+{% func Controls(prefix, currentIcon, currentText string, icons, states map[string]string, search bool) %}
     <div class="btn-toolbar mb-3" role="toolbar">
         <div class="d-flex gap-2 justify-content-between w-100">
             <div class="d-flex gap-2 align-items-center">
@@ -27,10 +27,10 @@
                         <use href="{%s prefix %}static/icons/icons.svg#expand"/>
                     </svg>
                 </a>
-                {% if len(filters) > 0 %}
+                {% if len(states) > 0 %}
                     <span class="d-none d-md-inline-block">Filter by status:</span>
                     <svg class="d-md-none" width="20" height="20">
-                        <use href="{%s prefix %}static/icons/icons.svg#filter">
+                        <use href="{%s prefix %}static/icons/icons.svg#state">
                     </svg>
                     <div class="dropdown">
                         <button
@@ -45,10 +45,10 @@
                             </svg>
                         </button>
                         <ul class="dropdown-menu">
-                            {% for key, title := range filters %}
+                            {% for key, title := range states %}
                                 {% if title != currentText %}
                                     <li>
-                                        <a class="dropdown-item" onclick="groupFilter('{%s key %}')">
+                                        <a class="dropdown-item" onclick="groupForState('{%s key %}')">
                                             <span class="d-none d-md-inline-block">{%s title %}</span>
                                             <svg class="d-md-none" width="22" height="22">
                                                 <use href="{%s prefix %}static/icons/icons.svg#{%s icons[key] %}"/>
@@ -94,10 +94,10 @@
     {%= tpl.Footer(r) %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, groups []*rule.ApiGroup, filter string) %}
+{% func ListGroups(r *http.Request, groups []*rule.ApiGroup, state string) %}
     {%code
         prefix := vmalertutil.Prefix(r.URL.Path)
-        filters := map[string]string{
+        states := map[string]string{
             "":          "All",
             "unhealthy": "Unhealthy",
             "nomatch":   "No Match",
@@ -107,11 +107,11 @@
             "unhealthy": "unhealthy",
             "nomatch":   "nomatch",
         }
-        currentText := filters[filter]
-        currentIcon := icons[filter]
+        currentText := states[state]
+        currentIcon := icons[state]
     %}
     {%= tpl.Header(r, navItems, "Groups", getLastConfigError()) %}
-        {%= Controls(prefix, currentIcon, currentText, icons, filters, true) %}
+        {%= Controls(prefix, currentIcon, currentText, icons, states, true) %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups %}
                 <div id="group-{%s g.ID %}" class="w-100 border-0 flex-column vm-group{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
