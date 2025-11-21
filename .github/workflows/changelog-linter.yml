@@ -1,0 +1,19 @@
+name: 'changelog-linter'
+
+on:
+  pull_request:
+    paths:
+      - "docs/victoriametrics/changelog/CHANGELOG.md"
+
+jobs:
+  tip-lint:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: 'actions/checkout@v4'
+        with:
+          # needed for proper diff
+          fetch-depth: 0
+
+      - name: 'Validate that changelog changes are under ## tip'
+        run: |
+          GITHUB_BASE_REF=${{ github.base_ref }} ./.github/scripts/lint-changelog-tip.sh
