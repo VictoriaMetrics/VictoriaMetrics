@@ -81,18 +81,18 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 		return
 	}
 
-	filteredTsids := tsids
+	filteredTSIDs := tsids
 	deletedMetricsIDs := pt.idb.getDeletedMetricIDs()
 	if deletedMetricsIDs.Len() > 0 {
-		filteredTsids = make([]TSID, 0, len(tsids))
+		filteredTSIDs = make([]TSID, 0, len(tsids))
 		for _, tsid := range tsids {
 			if !deletedMetricsIDs.Has(tsid.MetricID) {
-				filteredTsids = append(filteredTsids, tsid)
+				filteredTSIDs = append(filteredTSIDs, tsid)
 			}
 		}
 	}
 
-	if len(filteredTsids) == 0 {
+	if len(filteredTSIDs) == 0 {
 		// Fast path - zero tsids.
 		pts.err = io.EOF
 		return
@@ -103,7 +103,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 	// Initialize psPool.
 	pts.psPool = slicesutil.SetLength(pts.psPool, len(pts.pws))
 	for i, pw := range pts.pws {
-		pts.psPool[i].Init(pw.p, filteredTsids, tr)
+		pts.psPool[i].Init(pw.p, filteredTSIDs, tr)
 	}
 
 	// Initialize the psHeap.
