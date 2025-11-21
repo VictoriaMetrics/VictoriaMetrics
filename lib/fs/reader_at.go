@@ -148,10 +148,10 @@ func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 	}
 }
 
-// MustOpenReaderAt opens ReaderAt for reading from the file located at path.
+// OpenReaderAt opens ReaderAt for reading from the file located at path.
 //
 // MustClose must be called on the returned ReaderAt when it is no longer needed.
-func MustOpenReaderAt(path string) *ReaderAt {
+func OpenReaderAt(path string) *ReaderAt {
 	var r ReaderAt
 	r.path = path
 	return &r
