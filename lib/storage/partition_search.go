@@ -75,7 +75,7 @@ func (pts *partitionSearch) Init(pt *partition, tsids []TSID, tr TimeRange) {
 		return
 	}
 
-	if pt.tr.MinTimestamp > tr.MaxTimestamp || pt.tr.MaxTimestamp < tr.MinTimestamp {
+	if !pt.tr.overlapsWith(tr) {
 		// Fast path - the partition doesn't contain rows for the given time range.
 		pts.err = io.EOF
 		return

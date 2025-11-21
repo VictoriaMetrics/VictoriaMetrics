@@ -110,6 +110,12 @@ func (tr *TimeRange) overlapsWith(v TimeRange) bool {
 	return tr.MinTimestamp <= v.MaxTimestamp && tr.MaxTimestamp >= v.MinTimestamp
 }
 
-const msecPerDay = 24 * 3600 * 1000
+// contains returns true if the time range contains the given timestamp.
+func (tr *TimeRange) contains(timestamp int64) bool {
+	return tr.MinTimestamp <= timestamp && timestamp <= tr.MaxTimestamp
+}
 
-const msecPerHour = 3600 * 1000
+const (
+	msecPerDay  = 24 * 3600 * 1000
+	msecPerHour = 3600 * 1000
+)
