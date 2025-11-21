@@ -45,6 +45,7 @@ var (
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode")
+	maxParseErrorsPerScrape       = flag.Int("promscrape.maxParseErrorsPerScrape", 10, "The maximum number of errors logged when parsing a single scrape response.")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -521,10 +522,11 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		up = 0
 		scrapesFailed.Inc()
 	} else {
+		parserErrLogger := logger.NewLogCapper(*maxParseErrorsPerScrape, sw.logError)
 		if prommetadata.IsEnabled() {
-			wc.rows, wc.metadataRows = parser.UnmarshalWithMetadata(wc.rows, wc.metadataRows, bodyString, sw.logError)
+			wc.rows, wc.metadataRows = parser.UnmarshalWithMetadata(wc.rows, wc.metadataRows, bodyString, parserErrLogger.Error)
 		} else {
-			wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+			wc.rows.UnmarshalWithErrLogger(bodyString, parserErrLogger.Error)
 		}
 	}
 	samplesPostRelabeling := 0
@@ -616,6 +618,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	cfg := sw.Config
 	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
+	parserErrLogger := logger.NewLogCapper(*maxParseErrorsPerScrape, sw.logError)
 	r := body.NewReader()
 	err := stream.Parse(r, scrapeTimestamp, "", false, prommetadata.IsEnabled(), func(rows []parser.Row, mms []parser.Metadata) error {
 		labelsLen := maxLabelsLen.Load()
@@ -658,7 +661,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 
 		sw.pushData(&wc.writeRequest)
 		return nil
-	}, sw.logError)
+	}, parserErrLogger.Error)
 
 	sw.prevLabelsLen = int(maxLabelsLen.Load())
 	scrapedSamples.Update(float64(samplesScraped.Load()))
