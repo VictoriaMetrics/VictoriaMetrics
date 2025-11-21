@@ -383,6 +383,10 @@ func getMetadataStorageSize() int {
 // since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
 	s.tb.DebugFlush()
+
+	// Legacy indexDBs do not accept new entries but they continue to accept
+	// deletes. I.e. they are not completely read-only and need to be flushed
+	// too.
 	s.legacyDebugFlush()
 
 	hour := fasttime.UnixHour()
