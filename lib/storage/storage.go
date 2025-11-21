@@ -2195,7 +2195,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	for i := range rows {
 		r := &rows[i]
 
-		if r.Timestamp < tr.MinTimestamp || r.Timestamp > tr.MaxTimestamp {
+		if !tr.contains(r.Timestamp) {
 			continue
 		}
 
