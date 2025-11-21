@@ -878,7 +878,7 @@ func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.T
 
 // HasTimestamp returns true if the pt contains the given timestamp.
 func (pt *partition) HasTimestamp(timestamp int64) bool {
-	return timestamp >= pt.tr.MinTimestamp && timestamp <= pt.tr.MaxTimestamp
+	return pt.tr.contains(timestamp)
 }
 
 // GetParts appends parts snapshot to dst and returns it.
