@@ -11,7 +11,7 @@ import (
 // NewArrayString returns new ArrayString with the given name and description.
 func NewArrayString(name, description string) *ArrayString {
 	description += "\nSupports an `array` of values separated by comma or specified via multiple flags."
-	description += "\nValue can contain comma inside single-quoted or double-quoted string, {}, [] and () braces."
+	description += "\nEach array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces."
 	var a ArrayString
 	flag.Var(&a, name, description)
 	return &a
