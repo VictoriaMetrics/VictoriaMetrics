@@ -265,6 +265,7 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 	// Create paths to parts if they are missing.
 	fs.MustMkdirIfNotExist(smallPartsPath)
 	fs.MustMkdirIfNotExist(bigPartsPath)
+	fs.MustMkdirIfNotExist(indexDBPartsPath)
 
 	name := filepath.Base(smallPartsPath)
 	var tr TimeRange
@@ -274,9 +275,8 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 	if !strings.HasSuffix(bigPartsPath, name) {
 		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
-	name = filepath.Base(indexDBPartsPath)
-	if !strings.HasSuffix(bigPartsPath, name) {
-		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match indexDBPartsPath %q; want %q", bigPartsPath, indexDBPartsPath, name)
+	if !strings.HasSuffix(indexDBPartsPath, name) {
+		logger.Panicf("FATAL: partition name in indexDBPartsPath %q doesn't match smallPartsPath %q; want %q", indexDBPartsPath, smallPartsPath, name)
 	}
 
 	partsFile := filepath.Join(smallPartsPath, partsFilename)
