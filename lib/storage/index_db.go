@@ -295,6 +295,8 @@ type IndexDBMetrics struct {
 	DateMetricIDCacheSyncsCount  uint64
 	DateMetricIDCacheResetsCount uint64
 
+	// Used by legacy indexDBs only.
+	// See UpdateMetrics() in index_db_legacy.go
 	IndexDBRefCount uint64
 
 	RecentHourMetricIDsSearchCalls uint64
