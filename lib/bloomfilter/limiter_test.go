@@ -8,12 +8,12 @@ import (
 )
 
 func TestLimiter(t *testing.T) {
-	for _, maxItems := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
+	for _, maxItems := range []int32{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6} {
 		testLimiter(t, maxItems)
 	}
 }
 
-func testLimiter(t *testing.T, maxItems int) {
+func testLimiter(t *testing.T, maxItems int32) {
 	r := rand.New(rand.NewSource(int64(0)))
 	l := NewLimiter(maxItems, time.Hour)
 	if n := l.MaxItems(); n != maxItems {
@@ -22,7 +22,7 @@ func testLimiter(t *testing.T, maxItems int) {
 	items := make(map[uint64]struct{}, maxItems)
 
 	// Populate the l with new items.
-	for i := 0; i < maxItems; i++ {
+	for i := int32(0); i < maxItems; i++ {
 		h := r.Uint64()
 		if !l.Add(h) {
 			t.Fatalf("cannot add item %d on iteration %d out of %d", h, i, maxItems)
@@ -41,7 +41,7 @@ func testLimiter(t *testing.T, maxItems int) {
 
 	// Verify that new items are rejected with high probability.
 	falseAdditions := 0
-	for i := 0; i < maxItems; i++ {
+	for i := int32(0); i < maxItems; i++ {
 		h := r.Uint64()
 		if l.Add(h) {
 			falseAdditions++
@@ -55,7 +55,7 @@ func testLimiter(t *testing.T, maxItems int) {
 
 func TestLimiterConcurrent(t *testing.T) {
 	concurrency := 3
-	maxItems := 10000
+	maxItems := int32(10000)
 	l := NewLimiter(maxItems, time.Hour)
 	doneCh := make(chan struct{}, concurrency)
 	for i := 0; i < concurrency; i++ {
@@ -64,7 +64,7 @@ func TestLimiterConcurrent(t *testing.T) {
 				panic(fmt.Errorf("unexpected maxItems returned; got %d; want %d", n, maxItems))
 			}
 			r := rand.New(rand.NewSource(0))
-			for i := 0; i < maxItems; i++ {
+			for i := int32(0); i < maxItems; i++ {
 				h := r.Uint64()
 				// Do not check whether the item is added, since less than maxItems can be added to l
 				// due to passible (expected) race in l.f.Add
@@ -72,7 +72,7 @@ func TestLimiterConcurrent(t *testing.T) {
 			}
 			// Verify that new items are rejected with high probability.
 			falseAdditions := 0
-			for i := 0; i < maxItems; i++ {
+			for i := int32(0); i < maxItems; i++ {
 				h := r.Uint64()
 				if l.Add(h) {
 					falseAdditions++
