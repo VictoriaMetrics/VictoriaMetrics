@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"math"
 	"testing"
 	"time"
 )
@@ -51,6 +52,51 @@ func testTimeRangeFromPartition(t *testing.T, initialTime time.Time) {
 	if nextY*12+int(nextM-1)-1 != maxY*12+int(maxM-1) {
 		t.Fatalf("unexpected nextY, nextM; got %d, %d; want %d, %d+1;\nnextTime=%s\nmaxTime=%s", nextY, nextM, maxY, maxM, nextTime, maxTime)
 	}
+}
+
+func TestTimeRangeOverlapsWith(t *testing.T) {
+	f := func(min1, max1, min2, max2 int64, want bool) {
+		tr1 := TimeRange{min1, max1}
+		tr2 := TimeRange{min2, max2}
+		if got := tr1.overlapsWith(tr2); got != want {
+			t.Errorf("unmet time range overlapping expectation: got %t, want %t", got, want)
+		}
+	}
+
+	f(0, 0, 0, 0, true)
+	f(0, 0, 0, 1, true)
+	f(0, 1, 0, 0, true)
+	f(1, 2, 0, 0, false)
+	f(0, 0, 1, 2, false)
+	f(1, 2, 0, 3, true)
+	f(1, 10, 5, 15, true)
+	f(5, 15, 1, 10, true)
+}
+
+func TestTimeRangeContains(t *testing.T) {
+	f := func(min, max, ts int64, want bool) {
+		tr := TimeRange{min, max}
+		if got := tr.contains(ts); got != want {
+			t.Errorf("unmet ts.contains() expectation: got %t, want %t", got, want)
+		}
+	}
+
+	f(0, 0, 0, true)
+	f(0, 0, 1, false)
+	f(0, 0, -1, false)
+
+	f(1, 3, 0, false)
+	f(1, 3, 1, true)
+	f(1, 3, 2, true)
+	f(1, 3, 3, true)
+	f(1, 3, 4, false)
+
+	f(0, math.MaxInt64, -1, false)
+	f(0, math.MaxInt64, 0, true)
+	f(0, math.MaxInt64, 1, true)
+	f(0, math.MaxInt64, math.MaxInt64/2, true)
+	f(0, math.MaxInt64, math.MaxInt64-1, true)
+	f(0, math.MaxInt64, math.MaxInt64, true)
 }
 
 func TestTimeRangeDateRange(t *testing.T) {
