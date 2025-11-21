@@ -38,7 +38,7 @@ type metricNameSearch struct {
 func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	if !s.useSparseCache {
 		n := len(dst)
-		dst := s.storage.getMetricNameFromCache(dst, metricID)
+		dst = s.storage.getMetricNameFromCache(dst, metricID)
 		if len(dst) > n {
 			return dst, true
 		}
