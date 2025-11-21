@@ -639,6 +639,11 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	}
 	tb.partsLock.Unlock()
 
+	// The dataBlockCache, dataBlockSparseCache, and IndexBlocksCache metrics
+	// are not summed up intentionally because these caches are shared by all
+	// mergeset table instances. I.e. each table instance will report exact same
+	// metrics for this cache.
+
 	m.DataBlocksCacheSize = uint64(ibCache.Len())
 	m.DataBlocksCacheSizeBytes = uint64(ibCache.SizeBytes())
 	m.DataBlocksCacheSizeMaxBytes = uint64(ibCache.SizeMaxBytes())
