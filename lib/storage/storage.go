@@ -1124,7 +1124,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *nextDayMetricIDs) {
 	dst = encoding.MarshalUint64(dst, e.generation)
 	dst = encoding.MarshalUint64(dst, e.date)
 
-	// Marshal e.v
+	// Marshal metricIDs
 	dst = marshalUint64Set(dst, &e.metricIDs)
 
 	fs.MustWriteSync(path, dst)
@@ -2681,7 +2681,7 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 		return
 	}
 
-	// Slow path: union pendingMetricIDs with e.v
+	// Slow path: union pendingMetricIDs with e.metricIDs
 	if e.generation == generation && e.date == date {
 		pendingMetricIDs.Union(&e.metricIDs)
 	} else {
