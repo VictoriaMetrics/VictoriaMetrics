@@ -544,7 +544,7 @@ func (tb *table) historicalMergeWatcher() {
 	}
 }
 
-// MustGetPartition returns a partition that corresponds to the given date.
+// MustGetPartition returns a partition that corresponds to the given timestamp.
 //
 // If the partition does not exist yet, it will be created.
 //
@@ -554,18 +554,37 @@ func (tb *table) MustGetPartition(timestamp int64) *partitionWrapper {
 	tb.ptwsLock.Lock()
 	defer tb.ptwsLock.Unlock()
 
+	ptw := tb.getPartitionLocked(timestamp)
+	if ptw != nil {
+		return ptw
+	}
+
+	pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
+	ptw = tb.addPartitionLocked(pt)
+	ptw.incRef()
+	return ptw
+}
+
+// GetPartition returns a partition that corresponds to the given timestamp or
+// nil if such partition does not exist.
+//
+// If the partition is found, the function increments its ref counter. When no
+// longer needed, the returned partition must be passed to PutPartition to
+// decrement its ref counter.
+func (tb *table) GetPartition(timestamp int64) *partitionWrapper {
+	tb.ptwsLock.Lock()
+	defer tb.ptwsLock.Unlock()
+	return tb.getPartitionLocked(timestamp)
+}
+
+func (tb *table) getPartitionLocked(timestamp int64) *partitionWrapper {
 	for _, ptw := range tb.ptws {
 		if ptw.pt.HasTimestamp(timestamp) {
 			ptw.incRef()
 			return ptw
 		}
 	}
-
-	pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
-	ptw := tb.addPartitionLocked(pt)
-	ptw.incRef()
-
-	return ptw
+	return nil
 }
 
 // GetAllPartitions appends tb's partitions snapshot to dst and returns the result.

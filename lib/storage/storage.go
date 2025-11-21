@@ -1529,20 +1529,18 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // indexDB and legacy indexDB statuses is non-trivial and not many users use
 // this status for historical data.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	ptws := s.tb.GetPartitions(TimeRange{
-		MinTimestamp: int64(date) * msecPerDay,
-		MaxTimestamp: int64(date+1)*msecPerDay - 1,
-	})
-	defer s.tb.PutPartitions(ptws)
-
-	if len(ptws) == 0 {
+	timestamp := int64(date) * msecPerDay
+	ptw := s.tb.GetPartition(timestamp)
+	if ptw == nil {
 		return &TSDBStatus{}, nil
 	}
+	defer s.tb.PutPartition(ptw)
+
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}
 
-	res, err := ptws[0].pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	res, err := ptw.pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
