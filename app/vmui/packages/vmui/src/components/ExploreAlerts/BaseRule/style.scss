@@ -44,6 +44,7 @@
     word-break: break-word;
     table-layout: fixed;
     width: 100%;
+
     td, th {
       line-height: 30px;
       padding: 4px $padding-small;
@@ -52,15 +53,33 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     th {
       white-space: nowrap;
     }
+
     td.align-center {
       text-align: center
     }
+
     th {
       font-weight: bold;
       padding: 0 $padding-small;
+    }
+  }
+
+  .vm-alerts-table {
+    tr {
+      border-bottom: $border-divider;
+
+      &:hover {
+        background: $color-background-hover;
+      }
+    }
+
+    td {
+      vertical-align: top;
+      padding-block: $padding-small;
     }
   }
 }
