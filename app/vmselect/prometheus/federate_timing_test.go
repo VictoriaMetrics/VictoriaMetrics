@@ -32,7 +32,7 @@ func BenchmarkFederate(b *testing.B) {
 		var bb bytes.Buffer
 		for pb.Next() {
 			bb.Reset()
-			WriteFederate(&bb, rs)
+			WriteFederate(&bb, rs, NoEscaping)
 		}
 	})
 }
