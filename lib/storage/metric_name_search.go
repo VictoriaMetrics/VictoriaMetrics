@@ -36,9 +36,10 @@ type metricNameSearch struct {
 // search searches the metricName of a metricID.
 func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	if !s.useSparseCache {
-		metricName := s.storage.getMetricNameFromCache(dst, metricID)
-		if len(metricName) > len(dst) {
-			return metricName, true
+		n := len(dst)
+		dst = s.storage.getMetricNameFromCache(dst, metricID)
+		if len(dst) > n {
+			return dst, true
 		}
 	}
 
@@ -62,7 +63,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	// Not deleting metricID if no corresponding metricName has been found
 	// because it is not known which indexDB metricID belongs to.
 	// For cases when this does happen see indexDB.SearchMetricNames() and
-	// indexDB.SearchTSIDs()).
+	// indexDB.SearchTSIDs().
 
 	return dst, false
 }
