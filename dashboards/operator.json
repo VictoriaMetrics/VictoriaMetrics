@@ -150,7 +150,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(operator_controller_objects_count{job=~\"$job\",instance=~\"$instance\"}) by (controller)",
+          "expr": "max(operator_controller_objects_count{job=~\"$job\",instance=~\"$instance\", pod=~\"$pod\"}) by (controller)",
           "legendFormat": "{{controller}}",
           "range": true,
           "refId": "A"
@@ -219,7 +219,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "vm_app_uptime_seconds{job=~\"$job\",instance=~\"$instance\"}",
+          "expr": "vm_app_uptime_seconds{job=~\"$job\",instance=~\"$instance\", pod=~\"$pod\"}",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -630,7 +630,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=~\"requeue_after|requeue|success\"}[$__rate_interval])) by(controller)",
+          "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\", pod=~\"$pod\",result=~\"requeue_after|requeue|success\"}[$__rate_interval])) by(controller)",
           "legendFormat": "{{controller}}",
           "range": true,
           "refId": "A"
@@ -730,7 +730,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(operator_log_messages_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) by (level)",
+          "expr": "sum(rate(operator_log_messages_total{job=~\"$job\",instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])) by (level)",
           "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
@@ -856,7 +856,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(controller_runtime_reconcile_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) by(controller) > 0 ",
+          "expr": "sum(rate(controller_runtime_reconcile_errors_total{job=~\"$job\",instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])) by(controller) > 0 ",
           "instant": false,
           "legendFormat": "{{controller}}",
           "range": true,
@@ -868,7 +868,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=\"error\"}[$__rate_interval])) by(controller) > 0",
+          "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\", pod=~\"$pod\",result=\"error\"}[$__rate_interval])) by(controller) > 0",
           "hide": false,
           "legendFormat": "result errors: {{controller}}",
           "range": true,
@@ -1067,7 +1067,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "max(workqueue_depth{job=~\"$job\",instance=~\"$instance\"}) by (name)",
+          "expr": "max(workqueue_depth{job=~\"$job\",instance=~\"$instance\", pod=~\"$pod\"}) by (name)",
           "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
@@ -1702,7 +1702,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) ",
+              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}) ",
               "legendFormat": "requested from system",
               "range": true,
               "refId": "A"
@@ -1713,7 +1713,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) ",
+              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}) ",
               "hide": false,
               "legendFormat": "heap inuse",
               "range": true,
@@ -1725,7 +1725,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "hide": false,
               "legendFormat": "stack inuse",
               "range": true,
@@ -1737,7 +1737,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "hide": false,
               "legendFormat": "resident",
               "range": true,
@@ -1833,7 +1833,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) ",
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval])) ",
               "legendFormat": "CPU cores used",
               "range": true,
               "refId": "A"
@@ -1928,7 +1928,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"})",
               "legendFormat": "goroutines",
               "range": true,
               "refId": "A"
@@ -2026,7 +2026,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+              "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval]))\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", pod=~\"$pod\"}[$__rate_interval]))",
               "legendFormat": "avg gc duration",
               "range": true,
               "refId": "A"
@@ -2112,6 +2112,33 @@
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\"}, pod)",
+        "includeAll": true,
+        "multi": true,
+        "name": "pod",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\"}, pod)",
+          "refId": "VictoriaMetrics-pod-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
         "type": "query"
       },
       {
