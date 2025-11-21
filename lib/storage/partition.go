@@ -213,6 +213,7 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 	fs.MustMkdirFailIfExist(smallPartsPath)
 	fs.MustMkdirFailIfExist(bigPartsPath)
 	fs.MustMkdirFailIfExist(indexDBPartsPath)
+
 	// Create parts.json file. Since we are creating a new partition, there
 	// will be no parts, i.e. the smallPartsPath and bigPartPath dirs will be
 	// empty. This is guaranteed by the code above: if eirher directory exists,
