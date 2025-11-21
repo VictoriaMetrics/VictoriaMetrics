@@ -85,7 +85,7 @@ func (dmc *dateMetricIDCache) hasSlow(date, metricID uint64) bool {
 		return true
 	}
 
-	// Then check immutable map.
+	// Then check mutable map.
 	vMutable := dmc.byDateMutable.get(date)
 	ok := vMutable.Has(metricID)
 	if ok {
