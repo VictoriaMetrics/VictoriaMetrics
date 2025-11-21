@@ -400,6 +400,13 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		return true
+	case "prometheus/api/v1/config":
+		httpserver.EnableCORS(w, r)
+		if err := prometheus.ConfigHandler(qt, startTime, w, r); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
 	case "prometheus/api/v1/export":
 		exportRequests.Inc()
 		if err := prometheus.ExportHandler(startTime, at, w, r); err != nil {
@@ -747,6 +754,13 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "prometheus/expand-with-exprs", "expand-with-exprs":
 		expandWithExprsRequests.Inc()
 		prometheus.ExpandWithExprs(w, r)
+		return true
+	case "prometheus/extract-metric-exprs", "extract-metric-exprs":
+		startTime := time.Now()
+		if err := prometheus.ExtractMetricExprsHandler(startTime, w, r); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		return true
 	case "prometheus/prettify-query", "prettify-query":
 		prettifyQueryRequests.Inc()
