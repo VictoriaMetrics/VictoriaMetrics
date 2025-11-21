@@ -103,7 +103,7 @@ type Storage struct {
 	// This is needed in order to remove CPU usage spikes at 00:00 UTC
 	// due to creation of per-day inverted index for active time series.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/430 for details.
-	nextDayMetricIDs atomic.Pointer[byDateMetricIDEntry]
+	nextDayMetricIDs atomic.Pointer[nextDayMetricIDs]
 
 	// Pending MetricID values to be added to currHourMetricIDs.
 	pendingHourEntriesLock sync.Mutex
@@ -655,7 +655,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.HourMetricIDCacheSizeBytes += hmCurr.m.SizeBytes()
 	m.HourMetricIDCacheSizeBytes += hmPrev.m.SizeBytes()
 
-	nextDayMetricIDs := &s.nextDayMetricIDs.Load().v
+	nextDayMetricIDs := &s.nextDayMetricIDs.Load().metricIDs
 	m.NextDayMetricIDCacheSize += uint64(nextDayMetricIDs.Len())
 	m.NextDayMetricIDCacheSizeBytes += nextDayMetricIDs.SizeBytes()
 
@@ -901,19 +901,17 @@ func (s *Storage) MustClose() {
 	}
 }
 
-func (s *Storage) mustLoadNextDayMetricIDs() *byDateMetricIDEntry {
+func (s *Storage) mustLoadNextDayMetricIDs() *nextDayMetricIDs {
 	nextDay := fasttime.UnixDate() + 1
 	ptw := s.tb.MustGetPartition(int64(nextDay) * msecPerDay)
 	nextDayIDBID := ptw.pt.idb.id
 	s.tb.PutPartition(ptw)
-	e := &byDateMetricIDEntry{
-		k: dateKey{
-			// idbID field is used only to cache idb id for the next day to
-			// avoid getting it every time a new batch of metric rows is
-			// ingested. See updatePerDateData().
-			idbID: nextDayIDBID,
-			date:  nextDay,
-		},
+	e := &nextDayMetricIDs{
+		// idbID field is used only to cache idb id for the next day to
+		// avoid getting it every time a new batch of metric rows is
+		// ingested. See updatePerDateData().
+		idbID: nextDayIDBID,
+		date:  nextDay,
 	}
 	path := filepath.Join(s.cachePath, nextDayMetricIDsFilename)
 	if !fs.IsPathExist(path) {
@@ -946,7 +944,7 @@ func (s *Storage) mustLoadNextDayMetricIDs() *byDateMetricIDEntry {
 		logger.Infof("discarding %s because non-empty tail left; len(tail)=%d", path, len(tail))
 		return e
 	}
-	e.v = *m
+	e.metricIDs = *m
 	return e
 }
 
@@ -990,15 +988,15 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	return hm
 }
 
-func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
+func (s *Storage) mustSaveNextDayMetricIDs(e *nextDayMetricIDs) {
 	path := filepath.Join(s.cachePath, nextDayMetricIDsFilename)
-	dst := make([]byte, 0, e.v.Len()*8+8)
+	dst := make([]byte, 0, e.metricIDs.Len()*8+8)
 
 	// Marshal header
-	dst = encoding.MarshalUint64(dst, e.k.date)
+	dst = encoding.MarshalUint64(dst, e.date)
 
-	// Marshal e.v
-	dst = marshalUint64Set(dst, &e.v)
+	// Marshal metricIDs
+	dst = marshalUint64Set(dst, &e.metricIDs)
 
 	fs.MustWriteSync(path, dst)
 }
@@ -2251,8 +2249,8 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 
 	hmPrevDate := hmPrev.hour / 24
 	nextDayMetricIDsCache := s.nextDayMetricIDs.Load()
-	nextDayIDBID := nextDayMetricIDsCache.k.idbID
-	nextDayMetricIDs := &nextDayMetricIDsCache.v
+	nextDayIDBID := nextDayMetricIDsCache.idbID
+	nextDayMetricIDs := &nextDayMetricIDsCache.metricIDs
 	ts := fasttime.UnixTimestamp()
 	// Start pre-populating the next per-day inverted index during the last hour of the current day.
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
@@ -2631,14 +2629,14 @@ func (dmm *byDateMetricIDMap) getOrCreate(date uint64) *uint64set.Set {
 	return metricIDs
 }
 
-type dateKey struct {
-	idbID uint64
-	date  uint64
-}
-
-type byDateMetricIDEntry struct {
-	k dateKey
-	v uint64set.Set
+// nextDayMetricIDs is a cache that holds the metricIDs for the next day.
+// The cache is used for improving the performance of data ingestion during
+// the last hour of the day when the per-day index is prefilled with the next
+// day entries (see updatePerDayData()).
+type nextDayMetricIDs struct {
+	idbID     uint64
+	date      uint64
+	metricIDs uint64set.Set
 }
 
 func (s *Storage) updateNextDayMetricIDs() {
@@ -2652,12 +2650,12 @@ func (s *Storage) updateNextDayMetricIDs() {
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 	s.pendingNextDayMetricIDsLock.Unlock()
 	// Not comparing indexDB IDs because different idb ids imply different date.
-	if pendingMetricIDs.Len() == 0 && e.k.date == nextDay {
+	if pendingMetricIDs.Len() == 0 && e.date == nextDay {
 		// Fast path: nothing to update.
 		return
 	}
 
-	// Slow path: union pendingMetricIDs with e.v
+	// Slow path: union pendingMetricIDs with e.metricIDs
 	//
 	// In partition index, two adjacent dates may correspond to two different
 	// indexDBs. For example, 2025-01-31 corresponds to 2025_01 partition
@@ -2667,24 +2665,21 @@ func (s *Storage) updateNextDayMetricIDs() {
 	// happens to be in a different indexDB the cache needs to be reset. But
 	// since different indexDBs imply different dates, it is enough to compare
 	// just dates.
-	if e.k.date == nextDay {
-		pendingMetricIDs.Union(&e.v)
+	if e.date == nextDay {
+		pendingMetricIDs.Union(&e.metricIDs)
 	} else {
 		// Do not add pendingMetricIDs from the previous day to the current day,
 		// since this may result in missing registration of the metricIDs in the per-day inverted index.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
 		pendingMetricIDs = &uint64set.Set{}
 	}
-	k := dateKey{
+	eNew := &nextDayMetricIDs{
 		// idbID field is used only to cache idb id for the next day to avoid
 		// getting it every time a new batch of metric rows is ingested (see
 		// updatePerDateData()).
-		idbID: nextDayIDBID,
-		date:  nextDay,
-	}
-	eNew := &byDateMetricIDEntry{
-		k: k,
-		v: *pendingMetricIDs,
+		idbID:     nextDayIDBID,
+		date:      nextDay,
+		metricIDs: *pendingMetricIDs,
 	}
 	s.nextDayMetricIDs.Store(eNew)
 }
