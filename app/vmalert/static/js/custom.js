@@ -8,9 +8,9 @@ function actionAll(isCollapse) {
     });
 }
 
-function groupFilter(key) {
+function groupForState(key) {
     if (key) {
-        location.href = `?filter=${key}`;
+        location.href = `?state=${key}`;
     } else {
         window.location = window.location.pathname;
     }
@@ -110,8 +110,4 @@ document.addEventListener('DOMContentLoaded', () => {
     search()
 
     showBySelector(window.location.hash);
-
-    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((tooltip) => {
-        new bootstrap.Tooltip(tooltip);
-    });
 });

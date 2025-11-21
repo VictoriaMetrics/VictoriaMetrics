@@ -52,6 +52,31 @@ body {
   stroke: #fff;
 }
 
+.no-match {
+  font-size: 14px;
+  border: 1.6px solid #BD33FF;
+  padding: 4px;
+  border-radius: 5px;
+  color: #BD33FF;
+  align-content: center;
+}
+
+.btn {
+  --bs-btn-padding-y: 5px;
+  --bs-btn-padding-x: 5px;
+}
+
+.btn.details {
+  padding: 5px;
+  height: 44px;
+  &:hover {
+    svg {
+      fill: var(--bs-nav-link-color);
+      stroke: var(--bs-nav-link-color);
+    }
+  }
+}
+
 .btn:has(svg) {
   height: 38px;
 }
@@ -117,12 +142,14 @@ textarea.curl-area {
   width: 20%;
 }
 
-.w-60 {
-  width: 60%;
-}
-
 .annotations {
   white-space: pre-wrap;
   color: gray;
   word-wrap: break-word;
+}
+
+.details {
+  display: flex;
+  justify-content: flex-end;
+  column-gap: 5px;
 }

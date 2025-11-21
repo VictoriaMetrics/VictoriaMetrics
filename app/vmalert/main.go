@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -231,7 +230,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
 	manager := &manager{
-		groups:         make(map[uint64]*rule.Group),
+		groupsIds:      make(map[uint64]int),
 		querierBuilder: q,
 		labels:         labels,
 	}
