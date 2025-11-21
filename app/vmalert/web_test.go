@@ -264,7 +264,8 @@ func TestHandler(t *testing.T) {
 		check("/api/v1/rules?group_limit=2", 200, 2, 4)
 		check(fmt.Sprintf("/api/v1/rules?group_limit=1&group_next_token=%d", groupsIds[1]), 200, 1, 2)
 		check("/api/v1/rules?group_limit=1&group_next_token=0", 400, 0, 0)
-		check("/api/v1/rules?group_limit=1&group_next_token=0&page_num=1", 200, 1, 2)
+		check("/api/v1/rules?group_limit=1&group_next_token=0&page_num=1", 400, 0, 0)
+		check("/api/v1/rules?group_limit=1&page_num=1", 200, 1, 2)
 	})
 	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
 		// check if response returns active alerts by default

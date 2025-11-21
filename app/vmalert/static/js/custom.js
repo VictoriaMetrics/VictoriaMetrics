@@ -110,8 +110,4 @@ document.addEventListener('DOMContentLoaded', () => {
     search()
 
     showBySelector(window.location.hash);
-
-    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((tooltip) => {
-        new bootstrap.Tooltip(tooltip);
-    });
 });

@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -100,7 +99,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/vmalert/groups", "/rules":
 		rf, err := newRulesFilter(r)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			httpserver.Errorf(w, r, "%s", errResponse(err, http.StatusBadRequest))
 			return true
 		}
 		data, _ := rh.groups(rf)
@@ -124,7 +123,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		var data []byte
 		rf, err := newRulesFilter(r)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			httpserver.Errorf(w, r, "%s", errResponse(err, http.StatusBadRequest))
 			return true
 		}
 		data, err = rh.listGroups(rf)
@@ -140,7 +139,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		// path used by Grafana for ng alerting
 		rf, err := newRulesFilter(r)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			httpserver.Errorf(w, r, "%s", errResponse(err, http.StatusBadRequest))
 			return true
 		}
 		data, err := rh.listAlerts(rf)
@@ -286,7 +285,7 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 		if ruleType, ok := ruleTypeMap[ruleTypeParam]; ok {
 			rf.ruleType = ruleType
 		} else {
-			return nil, errResponse(fmt.Errorf(`invalid parameter "type": not supported value %q`, ruleTypeParam), http.StatusBadRequest)
+			return nil, fmt.Errorf(`invalid parameter "type": not supported value %q`, ruleTypeParam)
 		}
 	}
 
@@ -295,7 +294,7 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 		if config.SupportedType(dsType) {
 			rf.dsType = config.NewRawType(dsType)
 		} else {
-			return nil, errResponse(fmt.Errorf(`invalid parameter "datasource_type": not supported value %q`, dsType), http.StatusBadRequest)
+			return nil, fmt.Errorf(`invalid parameter "datasource_type": not supported value %q`, dsType)
 		}
 	}
 
@@ -304,7 +303,7 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 		if state == "nomatch" || state == "unhealthy" {
 			rf.state = state
 		} else {
-			return nil, errResponse(fmt.Errorf(`invalid parameter "state": not supported value %q`, state), http.StatusBadRequest)
+			return nil, fmt.Errorf(`invalid parameter "state": not supported value %q`, state)
 		}
 	}
 
@@ -318,7 +317,10 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 	pageNum := query.Get("page_num")
 	if nextToken != "" || pageNum != "" {
 		if maxGroups == "" {
-			return nil, errors.New("group_limit needs to be present in order to paginate over the groups")
+			return nil, fmt.Errorf("group_limit needs to be present in order to paginate over the groups")
+		}
+		if nextToken != "" && pageNum != "" {
+			return nil, fmt.Errorf("group_next_token and page_num should not be defined together")
 		}
 	}
 	if nextToken != "" {
@@ -333,6 +335,9 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse page_num=%q", pageNum)
 		}
+		if v < 1 {
+			v = 1
+		}
 		rf.pageNum = &v
 	}
 	if maxGroups != "" {
@@ -341,7 +346,7 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 			return nil, fmt.Errorf("group_limit needs to be a valid number: %w", err)
 		}
 		if v <= 0 {
-			return nil, errors.New("group_limit needs to be greater than 0")
+			return nil, fmt.Errorf("group_limit needs to be greater than 0")
 		}
 		rf.maxGroups = &v
 	}
@@ -365,38 +370,30 @@ func (rh *requestHandler) groups(rf *rulesFilter) ([]*rule.ApiGroup, string) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	var nextToken string
+	var start, maxGroups int
 	internalGroups := rh.m.groups
 	if rf.maxGroups != nil {
-		var start int
-		var found bool
+		maxGroups = *rf.maxGroups
 		if rf.nextGid != nil {
 			nextGid := *rf.nextGid
-			if start, found = rh.m.groupsIds[nextGid]; !found {
-				start = len(internalGroups)
+			if offset, found := rh.m.groupsIds[nextGid]; found {
+				internalGroups = internalGroups[offset:]
+			} else {
+				internalGroups = internalGroups[:0]
 			}
-		}
-		maxGroups := *rf.maxGroups
-		if !found && rf.pageNum != nil {
+		} else if rf.pageNum != nil {
 			pageNum := *rf.pageNum
 			start = (pageNum - 1) * maxGroups
-			if start > len(rh.m.groupsIds) {
-				start = 0
-			}
 		}
-		end := start + maxGroups
-		if end > len(internalGroups) {
-			end = len(internalGroups)
-		} else {
-			g := internalGroups[end]
-			nextToken = strconv.FormatUint(g.GetID(), 10)
-		}
-		internalGroups = internalGroups[start:end]
 	}
+	var startFound bool
 	groups := make([]*rule.ApiGroup, 0)
 	for _, group := range internalGroups {
 		if !rf.matchesGroup(group) {
 			continue
+		}
+		if startFound && len(groups) == maxGroups {
+			return groups[:maxGroups], strconv.FormatUint(group.GetID(), 10)
 		}
 		g := group.ToAPI()
 		// the returned list should always be non-nil
@@ -427,8 +424,15 @@ func (rh *requestHandler) groups(rf *rulesFilter) ([]*rule.ApiGroup, string) {
 		}
 		g.Rules = filteredRules
 		groups = append(groups, g)
+		if !startFound && len(groups) > start {
+			groups = groups[start:]
+			startFound = true
+		}
 	}
-	return groups, nextToken
+	if maxGroups == 0 || maxGroups >= len(groups) {
+		return groups, ""
+	}
+	return groups[:maxGroups], groups[maxGroups].ID
 }
 
 func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, error) {
