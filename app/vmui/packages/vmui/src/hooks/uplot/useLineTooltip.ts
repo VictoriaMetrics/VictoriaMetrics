@@ -49,6 +49,26 @@ const useLineTooltip = ({ u, metrics, series, unit, isAnomalyView }: LineTooltip
     const max = u?.scales?.[1]?.max || 1;
     const date = u?.data?.[0]?.[dataIdx] || 0;
 
+    let duplicateCount = 1;
+
+    if (u && seriesIdx > 0 && dataIdx >= 0) {
+      const xs = u.data[0] as (number | null)[];
+      const ys = u.data[seriesIdx] as (number | null)[];
+
+      const xVal = xs[dataIdx];
+      const yVal = ys[dataIdx];
+
+      if (xVal != null && yVal != null) {
+        duplicateCount = 0;
+
+        for (let i = 0; i < xs.length; i++) {
+          if (xs[i] === xVal && ys[i] === yVal) {
+            duplicateCount++;
+          }
+        }
+      }
+    }
+
     const point = {
       top: u ? u.valToPos((value || 0), seriesItem?.scale || "1") : 0,
       left: u ? u.valToPos(date, "x") : 0,
@@ -65,6 +85,7 @@ const useLineTooltip = ({ u, metrics, series, unit, isAnomalyView }: LineTooltip
       info: getMetricName(metricItem, seriesItem),
       statsFormatted: seriesItem?.statsFormatted,
       marker: `${seriesItem?.stroke}`,
+      duplicateCount,
     };
   }, [u, tooltipIdx, metrics, series, unit, isAnomalyView]);
 
