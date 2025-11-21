@@ -37,9 +37,10 @@ type metricNameSearch struct {
 // search searches the metricName of a metricID.
 func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	if !s.useSparseCache {
-		metricName := s.storage.getMetricNameFromCache(dst, metricID)
-		if len(metricName) > len(dst) {
-			return metricName, true
+		n := len(dst)
+		dst := s.storage.getMetricNameFromCache(dst, metricID)
+		if len(dst) > n {
+			return dst, true
 		}
 	}
 
@@ -109,6 +110,7 @@ func putMetricNameSearch(s *metricNameSearch) {
 	s.storage.tb.PutPartitions(s.ptws)
 	s.storage.putLegacyIndexDBs(s.legacyIDBs)
 	s.storage = nil
+	s.ptws = nil
 	s.idbs = nil
 	s.legacyIDBs = nil
 	s.useSparseCache = false
