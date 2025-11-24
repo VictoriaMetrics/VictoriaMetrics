@@ -93,7 +93,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. In case of conflicts, original labels are kept with prefix 'exported_'.
-     Supports an `array` of values separated by comma or specified via multiple flags.
+     Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -external.url string
      External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.
@@ -106,7 +106,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int
-     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 64)
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default fsutil.getDefaultConcurrency())
   -group.maxStartDelay duration
      Defines the max delay before starting the group evaluation. Group's start is artificially delayed for random duration on interval [0..min(--group.maxStartDelay, group.interval)]. This helps smoothing out the load on the configured datasource, so evaluations aren't executed too close to each other. (default 5m0s)
   -http.connTimeout duration
