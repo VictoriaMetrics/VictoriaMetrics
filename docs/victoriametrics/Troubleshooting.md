@@ -230,6 +230,12 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
      provide [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer),
      that can help determining and fixing the source of [high cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality).
 
+   - Insert performance can degrade when the same time series arrives with labels in different order.
+     Ensure your ingestion client always sends labels in a consistent order for each series.
+     Prometheus and `vmagent` already guarantee this, but custom or third-party clients might not.
+     As a fallback, you can enable `-sortLabels=true` on VictoriaMetrics or on `vminsert` in cluster mode.
+     This forces the server to normalize label order, though it increases CPU usage during ingestion.
+
 1. [High churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate),
    e.g. when old time series are substituted with new time series at a high rate.
    When VictoriaMetrics encounters a sample for new time series, it needs to register the time series
