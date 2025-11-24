@@ -81,10 +81,6 @@ type indexDB struct {
 	// if the mustDrop is set to true, then the indexDB must be dropped after refCount reaches zero.
 	mustDrop atomic.Bool
 
-	// The number of missing MetricID -> TSID entries.
-	// High rate for this value means corrupted indexDB.
-	missingTSIDsForMetricID atomic.Uint64
-
 	// The number of calls for date range searches.
 	dateRangeSearchCalls atomic.Uint64
 
@@ -93,6 +89,10 @@ type indexDB struct {
 
 	// The number of calls for global search.
 	globalSearchCalls atomic.Uint64
+
+	// The number of missing MetricID -> TSID entries.
+	// High rate for this value means corrupted indexDB.
+	missingTSIDsForMetricID atomic.Uint64
 
 	// missingMetricNamesForMetricID is a counter of missing MetricID -> MetricName entries.
 	// High rate may mean corrupted indexDB due to unclean shutdown.
@@ -212,8 +212,6 @@ type IndexDBMetrics struct {
 
 	IndexDBRefCount uint64
 
-	MissingTSIDsForMetricID uint64
-
 	RecentHourMetricIDsSearchCalls uint64
 	RecentHourMetricIDsSearchHits  uint64
 
@@ -221,6 +219,7 @@ type IndexDBMetrics struct {
 	DateRangeSearchHits  uint64
 	GlobalSearchCalls    uint64
 
+	MissingTSIDsForMetricID       uint64
 	MissingMetricNamesForMetricID uint64
 
 	IndexBlocksWithMetricIDsProcessed      uint64
@@ -264,14 +263,11 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
-	// this shouldn't increase the MissingTSIDsForMetricID value,
-	// as we only count it as missingTSIDs if it can't be found in both the current and previous indexdb.
-	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
-
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
 	m.DateRangeSearchHits += db.dateRangeSearchHits.Load()
 	m.GlobalSearchCalls += db.globalSearchCalls.Load()
 
+	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
 	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
 
 	db.tb.UpdateMetrics(&m.TableMetrics)
@@ -1959,13 +1955,13 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 
 		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
 		if !ok {
-			// Cannot find TSID for the given metricID.
+			// Cannot find metricName for the given metricID.
 			// This may be the case on incomplete indexDB
 			// due to snapshot or due to un-flushed entries.
 			// Mark the metricID as deleted, so it is created again when new sample
 			// for the given time series is ingested next time.
 			if db.s.wasMetricIDMissingBefore(metricID) {
-				db.missingTSIDsForMetricID.Add(1)
+				db.missingMetricNamesForMetricID.Add(1)
 				metricIDsToDelete.Add(metricID)
 			}
 			continue

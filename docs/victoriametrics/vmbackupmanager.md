@@ -194,12 +194,34 @@ The result on the GCS bucket. We see only 3 daily backups:
 
 #### Retention by using object storage lifecycle rules
 
+> [!WARNING]
+> `<s3-backup-path-prefix>/latest/` prefix **must** be excluded from lifecycle rules as it saves files with original modification time.
+> This means that files under `<s3-backup-path-prefix>/latest/` prefix will be removed by lifecycle rules if they are older than specified in the rules.
+
 It is possible to enforce retention by using [object storage lifecycle rules](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html).
 In order to do that it is required not use `keepLast*` flags in `vmbackupmanager` and configure lifecycle rules
-in your object storage to remove objects under `/hourly/`, `/daily/`, `/weekly/` and `/monthly/` prefixes.
+in your object storage to remove objects under listed below prefixes:
+* `<s3-backup-path-prefix>/hourly/`
+* `<s3-backup-path-prefix>/daily/`
+* `<s3-backup-path-prefix>/weekly/`
+* `<s3-backup-path-prefix>/monthly/`
 
-Note that `/latest/` prefix must be excluded from lifecycle rules as it saves files with original modification time.
-This means that files under `/latest/` prefix will be removed by lifecycle rules if they are older than specified in the rules.
+In case, when multiple storage nodes of multiple clusters are storing backups into the same bucket you can set `-backupTypeTagName=VMBackupType` flag {{% available_from "#" %}}.
+With this flag set vmbackupmanager sets `VMBackupType` tag with value, that equals to backup type. It allows to set lifecycle policy per backup type
+
+```
+<LifecycleConfiguration>
+    <Rule>
+        <Tag>
+            <Key>VMBackupType</Key>
+            <Value>daily</Value>
+        </Tag>
+        <Expiration>
+            <Days>5</Days>
+        </Expiration>
+    </Rule>
+</LifecycleConfiguration>
+```
 
 #### Protection backups against deletion by retention policy
 

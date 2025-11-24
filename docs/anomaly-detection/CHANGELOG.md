@@ -14,6 +14,15 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.28.0
+Released: 2025-11-17
+
+- IMPROVEMENT: Deprecated [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) class. Reworked [`RollingQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) and [`StdModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#seasonal-trend-decomposition) into [online](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) type. Using full class format in config (e.g. `class: model.rolling_quantile.RollingQuantileModel`) is supported for backward compatibility and raises deprecation warnings, however it's recommended to just use alias format (`class: rolling_quantile`) which redirects to the new online version.
+
+- IMPROVEMENT: Added "exact" mode to [Backtesting Scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) to use in combination with "infer every" control for [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) such as `mad_online` or `quantile_online`, to provide unbiased estimates of how production scheduler would perform anomaly detection on incoming data streams. In "exact" mode, the model is updated exactly at every "infer every" micro-batch interval, at a cost of increased computation time. See [Backtesting Scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) for details.
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.1.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v110) to [v1.2.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v120), including dynamic alerting rule and exact mode for [online](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) models for production scheduling imitation, see full [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v120) for details.
+
 ## v1.27.1
 Released: 2025-11-05
 

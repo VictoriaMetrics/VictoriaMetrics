@@ -109,6 +109,8 @@ docs-update-flags:
 	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/victoria_metrics_flags.md
 	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/victoria_metrics_flags.md
 	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/victoria_metrics_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/victoria_metrics_flags.md
+
 
 	# ---- vmagent
 	(cd /tmp/vm-enterprise-single-node && make vmagent)
@@ -123,6 +125,7 @@ docs-update-flags:
 	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
 	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_flags.md
 	sed -i '/The number of concurrent queues to each -remoteWrite.url./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmagent_flags.md
 
 	# ---- vmalert
 	(cd /tmp/vm-enterprise-single-node && make vmalert)
@@ -136,6 +139,7 @@ docs-update-flags:
 	# adjust flags with dynamic default values
 	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
 	sed -i '/Defines number of writers for concurrent writing into remote write endpoint./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmalert_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmalert_flags.md
 
 	# ---- vminsert
 	(cd /tmp/vm-enterprise-cluster && make vminsert)
@@ -158,6 +162,7 @@ docs-update-flags:
 	# adjust flags with dynamic default values
 	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
 	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vminsert_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vminsert_flags.md
 
 	# ---- vmselect
 	(cd /tmp/vm-enterprise-cluster && make vmselect)
@@ -173,6 +178,7 @@ docs-update-flags:
 	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/vmselect_flags.md
 	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/vmselect_flags.md
 	sed -i '/The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmselect_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmselect_flags.md
 
 	# ---- vmstorage
 	(cd /tmp/vm-enterprise-cluster && make vmstorage)
@@ -187,3 +193,4 @@ docs-update-flags:
 	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
 	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_flags.md
 	sed -i '/The maximum number of concurrent vmselect requests the vmstorage can process at./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmstorage_flags.md
