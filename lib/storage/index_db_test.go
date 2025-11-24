@@ -80,11 +80,15 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		defer s.putIndexDBs(idbPrev, idbCurr, idbNext)
 
 		key := []byte("key")
-		idbCurr.putMetricIDsToTagFiltersCache(nil, want, key)
-		got, ok := idbCurr.getMetricIDsFromTagFiltersCache(nil, key)
+		wantSet := &uint64set.Set{}
+		wantSet.AddMulti(want)
+		idbCurr.putMetricIDsToTagFiltersCache(nil, wantSet, key)
+		gotSet, ok := idbCurr.getMetricIDsFromTagFiltersCache(nil, key)
 		if !ok {
 			t.Fatalf("expected metricIDs to be found in cache but they weren't: %v", want)
 		}
+		got := gotSet.AppendTo(nil)
+		slices.Sort(want)
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("unexpected metricIDs in cache: got %v, want %v", got, want)
 		}
@@ -105,14 +109,13 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 	key := []byte("key")
-	emptyMetricIDs := []uint64(nil)
-	idbCurr.putMetricIDsToTagFiltersCache(nil, emptyMetricIDs, key)
+	idbCurr.putMetricIDsToTagFiltersCache(nil, nil, key)
 	got, ok := idbCurr.getMetricIDsFromTagFiltersCache(nil, key)
 	if !ok {
 		t.Fatalf("expected empty metricID list to be found in cache but it wasn't")
 	}
-	if len(got) > 0 {
-		t.Fatalf("unexpected found metricID list to be empty but got %v", got)
+	if got.Len() > 0 {
+		t.Fatalf("unexpected found metricID list to be empty but got %v", got.AppendTo(nil))
 	}
 
 }

@@ -16,7 +16,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/cespare/xxhash/v2"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/lrucache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -127,7 +127,7 @@ type indexDB struct {
 	noRegisterNewSeries atomic.Bool
 
 	// Cache for fast TagFilters -> MetricIDs lookup.
-	tagFiltersToMetricIDsCache *workingsetcache.Cache
+	tagFiltersToMetricIDsCache *lrucache.Cache
 
 	// The parent storage.
 	s *Storage
@@ -174,20 +174,15 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegiste
 	}
 
 	tb := mergeset.MustOpenTable(path, dataFlushInterval, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
-
-	// Do not persist tagFiltersToMetricIDsCache in files, since it is very volatile because of tagFiltersKeyGen.
-	mem := memory.Allowed()
-	tagFiltersCacheSize := getTagFiltersCacheSize()
-
 	db := &indexDB{
 		generation: gen,
 		tb:         tb,
 		name:       name,
 
 		minMissingTimestampByKey:   make(map[string]int64),
-		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
+		tagFiltersToMetricIDsCache: lrucache.NewCache(getTagFiltersCacheSize),
 		s:                          s,
-		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
+		loopsPerDateTagFilterCache: workingsetcache.New(memory.Allowed() / 128),
 		dateMetricIDCache:          newDateMetricIDCache(),
 	}
 	db.noRegisterNewSeries.Store(noRegisterNewSeries)
@@ -246,15 +241,11 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
 	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
 
-	var cs fastcache.Stats
-
-	cs.Reset()
-	db.tagFiltersToMetricIDsCache.UpdateStats(&cs)
-	m.TagFiltersToMetricIDsCacheSize += cs.EntriesCount
-	m.TagFiltersToMetricIDsCacheSizeBytes += cs.BytesSize
-	m.TagFiltersToMetricIDsCacheSizeMaxBytes += cs.MaxBytesSize
-	m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
-	m.TagFiltersToMetricIDsCacheMisses += cs.Misses
+	m.TagFiltersToMetricIDsCacheSize += uint64(db.tagFiltersToMetricIDsCache.Len())
+	m.TagFiltersToMetricIDsCacheSizeBytes += uint64(db.tagFiltersToMetricIDsCache.SizeBytes())
+	m.TagFiltersToMetricIDsCacheSizeMaxBytes += uint64(db.tagFiltersToMetricIDsCache.SizeMaxBytes())
+	m.TagFiltersToMetricIDsCacheRequests += db.tagFiltersToMetricIDsCache.Requests()
+	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
 
 	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
 	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
@@ -296,7 +287,7 @@ func (db *indexDB) decRef() {
 	db.tb = nil
 
 	// Free space occupied by caches owned by db.
-	db.tagFiltersToMetricIDsCache.Stop()
+	db.tagFiltersToMetricIDsCache.MustStop()
 	db.loopsPerDateTagFilterCache.Stop()
 
 	db.tagFiltersToMetricIDsCache = nil
@@ -312,33 +303,30 @@ func (db *indexDB) decRef() {
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
-var tagBufPool bytesutil.ByteBufferPool
+type uint64setEntry struct {
+	v *uint64set.Set
+}
 
-func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key []byte) ([]uint64, bool) {
+func (e *uint64setEntry) SizeBytes() int {
+	return int(e.v.SizeBytes())
+}
+
+func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key []byte) (*uint64set.Set, bool) {
 	qt = qt.NewChild("search for metricIDs in tag filters cache")
-	defer qt.Done()
-	buf := tagBufPool.Get()
-	defer tagBufPool.Put(buf)
-	buf.B = db.tagFiltersToMetricIDsCache.GetBig(buf.B[:0], key)
-	if len(buf.B) == 0 {
+	v := db.tagFiltersToMetricIDsCache.GetEntry(string(key))
+	if v == nil {
 		qt.Printf("cache miss")
 		return nil, false
 	}
-	qt.Printf("found metricIDs with size: %d bytes", len(buf.B))
-	metricIDs := mustUnmarshalMetricIDs(nil, buf.B)
-	qt.Printf("unmarshaled %d metricIDs", len(metricIDs))
+	metricIDs := v.(*uint64setEntry).v
+	qt.Printf("found metricIDs with size: %d bytes", metricIDs.Len())
 	return metricIDs, true
 }
 
-func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricIDs []uint64, key []byte) {
-	qt = qt.NewChild("put %d metricIDs in cache", len(metricIDs))
-	defer qt.Done()
-	buf := tagBufPool.Get()
-	buf.B = marshalMetricIDs(buf.B, metricIDs)
-	qt.Printf("marshaled %d metricIDs into %d bytes", len(metricIDs), len(buf.B))
-	db.tagFiltersToMetricIDsCache.SetBig(key, buf.B)
-	qt.Printf("stored %d metricIDs into cache", len(metricIDs))
-	tagBufPool.Put(buf)
+func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricIDs *uint64set.Set, key []byte) {
+	qt = qt.NewChild("put %d metricIDs in cache", metricIDs.Len())
+	db.tagFiltersToMetricIDsCache.PutEntry(string(key), &uint64setEntry{metricIDs})
+	qt.Printf("stored %d metricIDs into cache", metricIDs.Len())
 }
 
 func (db *indexDB) getFromMetricIDCache(dst *TSID, metricID uint64) error {
@@ -1678,7 +1666,7 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 // searchMetricIDs returns metricIDs for the given tfss and tr.
 //
 // The returned metricIDs are sorted.
-func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]uint64, error) {
+func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
 	qt = qt.NewChild("search for matching metricIDs: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
@@ -1693,7 +1681,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	metricIDs, ok := db.getMetricIDsFromTagFiltersCache(qt, tfKeyBuf.B)
 	if ok {
 		// Fast path - metricIDs found in the cache
-		if len(metricIDs) > maxMetrics {
+		if metricIDs.Len() > maxMetrics {
 			return nil, errTooManyTimeseries(maxMetrics)
 		}
 		return metricIDs, nil
@@ -1701,12 +1689,11 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 
 	// Slow path - search for metricIDs in the db
 	is := db.getIndexSearch(deadline)
-	metricIDsSet, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
+	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
 		return nil, fmt.Errorf("error when searching for metricIDs: %w", err)
 	}
-	metricIDs = metricIDsSet.AppendTo(nil)
 
 	// Store metricIDs in the cache.
 	db.putMetricIDsToTagFiltersCache(qt, metricIDs, tfKeyBuf.B)
@@ -1729,56 +1716,61 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	if err != nil {
 		return nil, err
 	}
-	if len(metricIDs) == 0 {
+	if metricIDs.Len() == 0 {
 		return nil, nil
 	}
 
-	tsids := make([]TSID, len(metricIDs))
+	tsids := make([]TSID, metricIDs.Len())
 	metricIDsToDelete := &uint64set.Set{}
 	i := 0
-	err = func() error {
-		is := db.getIndexSearch(deadline)
-		defer db.putIndexSearch(is)
-		for loopsPaceLimiter, metricID := range metricIDs {
-			if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
-				if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-					return err
+	paceLimiter := 0
+	is := db.getIndexSearch(deadline)
+	defer db.putIndexSearch(is)
+	metricIDs.ForEach(func(metricIDs []uint64) bool {
+		for _, metricID := range metricIDs {
+			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
+				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return false
 				}
 			}
+			paceLimiter++
+
 			// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
 			// than scanning the mergeset if it contains a lot of metricIDs.
 			tsid := &tsids[i]
-			err := is.db.getFromMetricIDCache(tsid, metricID)
+			err = db.getFromMetricIDCache(tsid, metricID)
 			if err == nil {
 				// Fast path - the tsid for metricID is found in cache.
 				i++
 				continue
 			}
 			if err != io.EOF {
-				return err
+				return false
 			}
+			err = nil
 			if !is.getTSIDByMetricID(tsid, metricID) {
 				// Cannot find TSID for the given metricID.
 				// This may be the case on incomplete indexDB
 				// due to snapshot or due to un-flushed entries.
 				// Mark the metricID as deleted, so it is created again when new sample
 				// for the given time series is ingested next time.
-				if is.db.s.wasMetricIDMissingBefore(metricID) {
-					is.db.missingTSIDsForMetricID.Add(1)
+				if db.s.wasMetricIDMissingBefore(metricID) {
+					db.missingTSIDsForMetricID.Add(1)
 					metricIDsToDelete.Add(metricID)
 				}
 				continue
 			}
-			is.db.putToMetricIDCache(metricID, tsid)
+			db.putToMetricIDCache(metricID, tsid)
 			i++
 		}
-		return nil
-	}()
+		return true
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error when searching for TSIDs by metricIDs: %w", err)
 	}
+
 	tsids = tsids[:i]
-	qt.Printf("load %d TSIDs for %d metricIDs", len(tsids), len(metricIDs))
+	qt.Printf("found %d TSIDs for %d metricIDs", len(tsids), metricIDs.Len())
 
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.
@@ -1807,37 +1799,45 @@ func (db *indexDB) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters,
 	if err != nil {
 		return nil, err
 	}
-	if len(metricIDs) == 0 {
+	if metricIDs.Len() == 0 {
 		return nil, nil
 	}
 
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
-	metricNames := make([]string, 0, len(metricIDs))
+	metricNames := make([]string, 0, metricIDs.Len())
 	metricIDsToDelete := &uint64set.Set{}
 	var metricName []byte
 	var ok bool
-	for i, metricID := range metricIDs {
-		if i&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(deadline); err != nil {
-				return nil, err
+	paceLimiter := 0
+	is := db.getIndexSearch(deadline)
+	defer db.putIndexSearch(is)
+	metricIDs.ForEach(func(metricIDs []uint64) bool {
+		for _, metricID := range metricIDs {
+			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
+				if err = checkSearchDeadlineAndPace(deadline); err != nil {
+					return false
+				}
 			}
-		}
+			paceLimiter++
 
-		metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
-		if !ok {
-			// Cannot find metricName for the given metricID.
-			// This may be the case on incomplete indexDB
-			// due to snapshot or due to un-flushed entries.
-			// Mark the metricID as deleted, so it is created again when new sample
-			// for the given time series is ingested next time.
-			if db.s.wasMetricIDMissingBefore(metricID) {
-				db.missingMetricNamesForMetricID.Add(1)
-				metricIDsToDelete.Add(metricID)
+			metricName, ok = is.searchMetricNameWithCache(metricName[:0], metricID)
+			if !ok {
+				// Cannot find TSID for the given metricID.
+				// This may be the case on incomplete indexDB
+				// due to snapshot or due to un-flushed entries.
+				// Mark the metricID as deleted, so it is created again when new sample
+				// for the given time series is ingested next time.
+				if db.s.wasMetricIDMissingBefore(metricID) {
+					db.missingMetricNamesForMetricID.Add(1)
+					metricIDsToDelete.Add(metricID)
+				}
+				continue
 			}
-			continue
+			metricNames = append(metricNames, string(metricName))
 		}
-		metricNames = append(metricNames, string(metricName))
+		return true
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	if metricIDsToDelete.Len() > 0 {
