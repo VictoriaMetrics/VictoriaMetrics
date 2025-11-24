@@ -338,7 +338,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -selectNode array
-     Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
+     A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache' call. If this flag isn't set, then cache need to be purged from each vmselect individually. Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode array

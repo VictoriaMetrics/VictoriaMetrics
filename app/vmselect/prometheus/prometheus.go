@@ -49,7 +49,9 @@ var (
 		"If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
-	selectNodes = flagutil.NewArrayString("selectNode", "Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
+	selectNodes = flagutil.NewArrayString("selectNode", "A list of vmselect node addresses to propagate the '/internal/resetRollupResultCache' call. "+
+		"If this flag isn't set, then cache need to be purged from each vmselect individually. "+
+		"Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
 
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
 		"The limit can't exceed the explicitly set corresponding value `-search.maxUniqueTimeseries` on vmstorage side.")
