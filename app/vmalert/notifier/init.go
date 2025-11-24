@@ -63,6 +63,10 @@ var (
 	oauth2Scopes = flagutil.NewArrayString("notifier.oauth2.scopes", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
 	sendTimeout = flagutil.NewArrayDuration("notifier.sendTimeout", 10*time.Second, "Timeout when sending alerts to the corresponding -notifier.url")
+
+	vlogsURL    = flag.String("notifier.vlogs.url", "", "URL to VictoriaLogs for querying logs. If set, enables vlogs-webhook integration.")
+	slackURL    = flag.String("notifier.slack.url", "", "Slack Webhook URL for vlogs-webhook integration.")
+	vlogIngress = flag.String("notifier.vlogs.ingress", "", "Optional Ingress URL for VictoriaLogs to be used in Slack messages.")
 )
 
 // AlertURLGeneratorFn returns a URL to the passed alert object.
@@ -155,18 +159,30 @@ func Init(extLabels map[string]string, extURL string) error {
 		return nil
 	}
 
-	if *configPath == "" && len(*addrs) == 0 {
+	if *configPath == "" && len(*addrs) == 0 && *vlogsURL == "" {
 		return nil
 	}
 	if *configPath != "" && len(*addrs) > 0 {
 		return fmt.Errorf("only one of -notifier.config or -notifier.url flags must be specified")
 	}
 
+	var notifiers []Notifier
 	if len(*addrs) > 0 {
-		notifiers, err := notifiersFromFlags(AlertURLGeneratorFn)
+		ns, err := notifiersFromFlags(AlertURLGeneratorFn)
 		if err != nil {
 			return fmt.Errorf("failed to create notifier from flag values: %w", err)
 		}
+		notifiers = append(notifiers, ns...)
+	}
+
+	if *vlogsURL != "" {
+		if *slackURL == "" {
+			return fmt.Errorf("-notifier.slack.url must be set when -notifier.vlogs.url is used")
+		}
+		notifiers = append(notifiers, NewWebhookVLogs(*vlogsURL, *slackURL, *vlogIngress))
+	}
+
+	if len(notifiers) > 0 {
 		getActiveNotifiers = func() []Notifier {
 			return notifiers
 		}
@@ -192,6 +208,7 @@ func Init(extLabels map[string]string, extURL string) error {
 func InitSecretFlags() {
 	if !*showNotifierURL {
 		flagutil.RegisterSecretFlag("notifier.url")
+		flagutil.RegisterSecretFlag("notifier.slack.url")
 	}
 }
 
