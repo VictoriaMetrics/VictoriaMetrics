@@ -533,3 +533,62 @@ func BenchmarkMapHasMiss(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkSizeBytes_uint64slice(b *testing.B) {
+	benchmarkSizeBytes(b, func(start, n, step uint64) uint64 {
+		s := []uint64{}
+		for i := range n {
+			v := start + i*step
+			s = append(s, v)
+		}
+		return uint64(len(s) * 8)
+	})
+}
+
+func BenchmarkSizeBytes_uint64set(b *testing.B) {
+	benchmarkSizeBytes(b, func(start, n, step uint64) uint64 {
+		s := &Set{}
+		for i := range n {
+			v := start + i*step
+			s.Add(v)
+		}
+		return s.SizeBytes()
+	})
+}
+
+func BenchmarkSizeBytes_roaring(b *testing.B) {
+	benchmarkSizeBytes(b, func(start, n, step uint64) uint64 {
+		s := roaring64.New()
+		for i := range n {
+			v := start + i*step
+			s.Add(v)
+		}
+		stats := s.Stats()
+		sizeBytes := stats.ArrayContainerBytes
+		sizeBytes += stats.BitmapContainerBytes
+		sizeBytes += stats.RunContainerBytes
+		return sizeBytes
+	})
+}
+
+func benchmarkSizeBytes(b *testing.B, sizeBytesFunc func(start, n, step uint64) uint64) {
+	f := func(b *testing.B, n, step uint64) {
+		start := uint64(time.Now().UnixNano())
+		var sizeBytes uint64
+		for b.Loop() {
+			sizeBytes = sizeBytesFunc(start, n, step)
+		}
+
+		b.ReportAllocs()
+		b.ReportMetric(float64(sizeBytes), "bytes")
+	}
+
+	for _, n := range []uint64{15_000_000} {
+		for _, step := range []uint64{1, 10, 100, 1e3, 1e4, 1e5, 1e6} {
+			name := fmt.Sprintf("%d/%d", n, step)
+			b.Run(name, func(b *testing.B) {
+				f(b, n, step)
+			})
+		}
+	}
+}
