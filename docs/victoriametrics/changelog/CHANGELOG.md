@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: prevent different logs in OpenTelemetry parser from being suppressed by logger throttling. See [#9447] for an example caused by this behavior.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): Apply separate log throttlers per OpenTelemetry log type. This should help diagnose delta-temporality issues. See [#9447](https://github.com/VictoriaMetrics/victoriaMetrics/issues/9447) for more details. Thank to @veleek for the contribution.
 
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 
