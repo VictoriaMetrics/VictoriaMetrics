@@ -107,8 +107,8 @@ See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/s
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
-If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
-to specify different `-external.label` command-line flags in order to define which `vmalert` generated rules or alerts.
+If you run multiple `vmalert` services on the same datastore or AlertManager and need to distinguish the results or alerts, 
+specify different `-external.label` command-line flags to indicate which `vmalert` generated them. 
 If rule result metrics have label that conflict with `-external.label`, `vmalert` will automatically rename
 it with prefix `exported_`.
 
@@ -286,6 +286,7 @@ expr: <string>
 # In case of conflicts, original labels are kept with prefix `exported_`.
 # Note: do not set dynamic label values like `$value`, because each time the $value changes - the new alert will be
 # generated. It will also break `for` condition.
+# Labels could contain arbitrary dynamically generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
 labels:
   [ <labelname>: <tmpl_string> ]
 
@@ -297,7 +298,7 @@ annotations:
 
 #### Templating
 
-It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations to format data, iterate over
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations and labels to format data, iterate over
 or execute expressions.
 The following variables are available in templating:
 

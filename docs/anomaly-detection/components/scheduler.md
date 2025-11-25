@@ -454,6 +454,8 @@ In **Inference only** mode {{% available_from "v1.22.1" anomaly %}}, the schedul
 - `from`, `to` (or `from_iso`, `to_iso`): Overall inference-only timeframe.
 - `fit_window`: Duration of historical data used for each training run (e.g. `P7D`, `PT1H`).
 - `fit_every`: Interval between consecutive training/inference cycles.
+- {{% available_from "v1.28.0" anomaly %}} `exact`: If set to `true`, BacktestingScheduler will execute inference for online models in small chronological batches equal to `infer_every` to mimic the production scheduler. (default: `false`)
+- {{% available_from "v1.28.0" anomaly %}} `infer_every`: Optional inference cadence for exact mode, defining how often the scheduler should call infer between two fits, otherwise defaults to `fit_every` when unset.
 - `n_jobs`: Number of parallel jobs for backtesting (default: `1`).
 
 #### Example
@@ -467,6 +469,8 @@ schedulers:
     class: "backtesting"
     fit_window: "P7D"               # train on the 7-day window preceding each inference
     fit_every: "PT12H"              # inference interval of 12 hours
+    exact: true                    # enable exact mode for online models, doesn't affect offline models
+    infer_every: "PT1H"            # inference cadence for exact mode, only used if exact: true
     inference_only: true            # use [from, to] to construct inference windows only
     from_iso: "2025-05-08T03:00:00Z"
     to_iso:   "2025-05-09T00:00:00Z"
@@ -599,6 +603,9 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
 </table>
 
 ### Defining inference timeframe
+
+> {{% available_from "v1.28.0" anomaly %}} The inference window can be *explicitly* defined by `infer_every: {xxx}{unit}` and `exact=True` parameters above for [online](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) models, otherwise the legacy *implicit* logic below is used for both [offline](https://docs.victoriametrics.com/anomaly-detection/components/models/#offline-models) and online models with `exact=False`.
+
 In `BacktestingScheduler`, the inference window is *implicitly* defined as a period between 2 consecutive model `fit_every` runs. The *latest* inference window starts from `to_s` - `fit_every` and ends on the *latest available* time point, which is `to_s`. The previous periods for fit/infer are defined the same way, by shifting `fit_every` seconds backwards until we get the last full fit period of `fit_window` size, which start is >= `from_s`.
 <table class="params">
     <thead>
@@ -643,7 +650,9 @@ schedulers:
     from_iso: '2021-01-01T00:00:00Z'
     to_iso: '2021-01-14T00:00:00Z'
     fit_window: 'P14D'
-    fit_every: 'PT1H'
+    fit_every: 'PT1D'
+    exact: true                    # enable exact mode for online models, doesn't affect offline models
+    infer_every: 'PT1H'           # inference cadence for exact mode, only used if exact=true
     n_jobs: 1  # default = 1 (sequential), set it up to # of CPUs for parallel execution
 ```
 
@@ -656,6 +665,8 @@ schedulers:
     from_s: 167253120
     to_s: 167443200
     fit_window: '14d'
-    fit_every: '1h'
+    fit_every: '1d'
+    exact: true                    # enable exact mode for online models, doesn't affect offline models
+    infer_every: '1h'           # inference cadence for exact mode, only used if exact=true
     n_jobs: 1  # default = 1 (sequential), set it up to # of CPUs for parallel execution
 ```

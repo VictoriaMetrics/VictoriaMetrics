@@ -154,7 +154,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       {!!item?.alerts?.length && (
         <>
           <span className="vm-alerts-title">Alerts</span>
-          <table>
+          <table className="vm-alerts-table">
             <colgroup>
               <col className="vm-col-sm"/>
               <col className="vm-col-sm"/>
@@ -190,7 +190,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                   </td>
                   <td>
                     <Badges
-                      align="center"
+                      align="start"
                       items={Object.fromEntries(Object.entries(alert.labels || {}).map(([name, value]) => [name, {
                         color: "passive",
                         value: value,
