@@ -89,8 +89,8 @@ const GraphView: FC<GraphViewProps> = ({
   const [legendValue, setLegendValue] = useState<ChartTooltipProps | null>(null);
 
   const getSeriesItem = useMemo(() => {
-    return getSeriesItemContext(data, hideSeries, alias, showAllPoints, isAnomalyView);
-  }, [data, hideSeries, alias, showAllPoints, isAnomalyView]);
+    return getSeriesItemContext(data, hideSeries, alias, showAllPoints, isAnomalyView, isRawQuery);
+  }, [data, hideSeries, alias, showAllPoints, isAnomalyView, isRawQuery]);
 
   const setLimitsYaxis = (minVal: number, maxVal: number) => {
     let min = Number.isFinite(minVal) ? minVal : 0;
@@ -144,8 +144,8 @@ const GraphView: FC<GraphViewProps> = ({
   useEffect(() => {
     const dLen = data.length;
 
-    const tsAnchor = data?.[0]?.values?.[0]?.[0]
-    const tsSet = new Set<number>([])
+    const tsAnchor = data?.[0]?.values?.[0]?.[0];
+    const tsArray: number[] = [];
     const tempLegend = new Array<LegendItemType>(dLen);
     const tempSeries = new Array<uPlotSeries>(dLen + 1);
     tempSeries[0] = {};
@@ -162,7 +162,7 @@ const GraphView: FC<GraphViewProps> = ({
       const vals = d.values;
       for (let j = 0, vLen = vals.length; j < vLen; j++) {
         const v = vals[j];
-        if (isRawQuery) tsSet.add(v[0])
+        if (isRawQuery) tsArray.push(v[0]);
         const num = promValueToNumber(v[1]);
         if (Number.isFinite(num)) {
           if (num < minVal) minVal = num;
@@ -171,12 +171,12 @@ const GraphView: FC<GraphViewProps> = ({
       }
     }
 
-    const dpr = window.devicePixelRatio || 1
+    const dpr = window.devicePixelRatio || 1;
     const widthPx = containerSize.width || window.innerWidth || 4096;
     const pixels = Math.max(1, Math.floor(widthPx * Math.max(1, dpr)));
 
     const timeSeries = isRawQuery
-      ? Array.from(tsSet).sort((a,b) => a - b)
+      ? tsArray.sort((a, b) => a - b)
       : getTimeSeries(currentStep, period, pixels, tsAnchor);
 
     const timeDataSeries: (number | null)[][] = data.map(d => {
@@ -195,6 +195,8 @@ const GraphView: FC<GraphViewProps> = ({
           // Treat special values as nulls in order to satisfy uPlot.
           // Otherwise it may draw unexpected graphs.
           v = Number.isFinite(num) ? num : null;
+          // Advance to next value
+          j++;
         }
         results[k] = v;
       }
@@ -281,7 +283,7 @@ const GraphView: FC<GraphViewProps> = ({
           height={height}
           isAnomalyView={isAnomalyView}
           spanGaps={spanGaps}
-          showAllPoints={showAllPoints}
+          showAllPoints={isRawQuery ? true : showAllPoints}
         />
       )}
       {isHistogram && (
