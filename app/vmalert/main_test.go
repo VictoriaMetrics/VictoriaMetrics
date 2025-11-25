@@ -94,7 +94,7 @@ groups:
 
 	m := &manager{
 		querierBuilder: &datasource.FakeQuerier{},
-		groups:         make(map[uint64]*rule.Group),
+		groupsIds:      make(map[uint64]int),
 		labels:         map[string]string{},
 		rw:             &remotewrite.Client{},
 	}
