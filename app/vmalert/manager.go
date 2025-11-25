@@ -25,52 +25,61 @@ type manager struct {
 	wg     sync.WaitGroup
 	labels map[string]string
 
-	groupsMu sync.RWMutex
-	groups   map[uint64]*rule.Group
+	groupsMu  sync.RWMutex
+	groups    []*rule.Group
+	groupsIds map[uint64]int
+}
+
+func (m *manager) getGroup(gID uint64) (*rule.Group, error) {
+	m.groupsMu.RLock()
+	defer m.groupsMu.RUnlock()
+	gid, ok := m.groupsIds[gID]
+	if !ok {
+		return nil, fmt.Errorf("can't find group with id %d", gID)
+	}
+	if gid >= len(m.groups) {
+		logger.Fatalf("BUG: group index=%d cannot exceed amount of groups=%d", gid, len(m.groups))
+	}
+	g := m.groups[gid]
+	if g == nil {
+		logger.Fatalf("BUG: group with id=%d is nil", gid)
+	}
+	return g, nil
 }
 
 // groupAPI generates apiGroup object from group by its ID(hash)
 func (m *manager) groupAPI(gID uint64) (*rule.ApiGroup, error) {
-	m.groupsMu.RLock()
-	defer m.groupsMu.RUnlock()
-
-	g, ok := m.groups[gID]
-	if !ok {
-		return nil, fmt.Errorf("can't find group with id %d", gID)
+	g, err := m.getGroup(gID)
+	if err != nil {
+		return nil, err
 	}
-	return g.ToAPI(), nil
+	return g.ToAPI(true), nil
 }
 
 // ruleAPI generates apiRule object from alert by its ID(hash)
 func (m *manager) ruleAPI(gID, rID uint64) (rule.ApiRule, error) {
-	m.groupsMu.RLock()
-	defer m.groupsMu.RUnlock()
-
-	group, ok := m.groups[gID]
-	if !ok {
-		return rule.ApiRule{}, fmt.Errorf("can't find group with id %d", gID)
+	g, err := m.getGroup(gID)
+	if err != nil {
+		return rule.ApiRule{}, err
 	}
-	g := group.ToAPI()
+	group := g.ToAPI(true)
 	ruleID := strconv.FormatUint(rID, 10)
-	for _, r := range g.Rules {
+	for _, r := range group.Rules {
 		if r.ID == ruleID {
 			return r, nil
 		}
 	}
-	return rule.ApiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
+	return rule.ApiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, group.Name)
 }
 
 // alertAPI generates apiAlert object from alert by its ID(hash)
 func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
-	m.groupsMu.RLock()
-	defer m.groupsMu.RUnlock()
-
-	group, ok := m.groups[gID]
-	if !ok {
-		return nil, fmt.Errorf("can't find group with id %d", gID)
+	g, err := m.getGroup(gID)
+	if err != nil {
+		return nil, err
 	}
-	g := group.ToAPI()
-	for _, r := range g.Rules {
+	group := g.ToAPI(true)
+	for _, r := range group.Rules {
 		if r.Type != rule.TypeAlerting {
 			continue
 		}
@@ -81,7 +90,7 @@ func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("can't find alert with id %d in group %q", aID, g.Name)
+	return nil, fmt.Errorf("can't find alert with id %d in group %q", aID, group.Name)
 }
 
 func (m *manager) start(ctx context.Context, groupsCfg []config.Group) error {
@@ -98,8 +107,7 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
-	id := g.GetID()
+func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) {
 	g.Init()
 	m.wg.Go(func() {
 		if restore {
@@ -108,18 +116,14 @@ func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) e
 			g.Start(ctx, m.rw, nil)
 		}
 	})
-
-	m.groups[id] = g
-	return nil
 }
 
 func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore bool) error {
 	var rrPresent, arPresent bool
-	groupsRegistry := make(map[uint64]*rule.Group)
 	for _, cfg := range groupsCfg {
 		for _, r := range cfg.Rules {
 			if rrPresent && arPresent {
-				continue
+				break
 			}
 			if r.Record != "" {
 				rrPresent = true
@@ -128,10 +132,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 				arPresent = true
 			}
 		}
-		ng := rule.NewGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
-		groupsRegistry[ng.GetID()] = ng
 	}
-
 	if rrPresent && m.rw == nil {
 		return fmt.Errorf("config contains recording rules but `-remoteWrite.url` isn't set")
 	}
@@ -143,35 +144,45 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		old *rule.Group
 		new *rule.Group
 	}
-	var toUpdate []updateItem
+	var updateGroups []updateItem
+	var initGroups []int
+	newGroupsIds := make(map[uint64]int)
+	newGroups := make([]*rule.Group, 0, len(groupsCfg))
 
 	m.groupsMu.Lock()
-	for _, og := range m.groups {
-		ng, ok := groupsRegistry[og.GetID()]
-		if !ok {
-			// old group is not present in new list,
-			// so must be stopped and deleted
-			og.Close()
-			delete(m.groups, og.GetID())
-			og = nil
-			continue
-		}
-		delete(groupsRegistry, ng.GetID())
-		if og.GetCheckSum() != ng.GetCheckSum() {
-			toUpdate = append(toUpdate, updateItem{old: og, new: ng})
-		}
-	}
-	for _, ng := range groupsRegistry {
-		if err := m.startGroup(ctx, ng, restore); err != nil {
-			m.groupsMu.Unlock()
-			return err
+	oldGroupsIds := m.groupsIds
+	oldGroups := m.groups
+	for _, cfg := range groupsCfg {
+		ng := rule.NewGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
+		gid := ng.GetID()
+		newGroupsIds[gid] = len(newGroups)
+		if ogidx, ok := oldGroupsIds[gid]; ok {
+			og := oldGroups[ogidx]
+			if og.GetCheckSum() != ng.GetCheckSum() {
+				updateGroups = append(updateGroups, updateItem{old: og, new: ng})
+			}
+			newGroups = append(newGroups, og)
+		} else {
+			initGroups = append(initGroups, len(newGroups))
+			newGroups = append(newGroups, ng)
 		}
 	}
+	m.groups = newGroups
+	m.groupsIds = newGroupsIds
 	m.groupsMu.Unlock()
 
-	if len(toUpdate) > 0 {
+	for _, og := range oldGroups {
+		if _, ok := newGroupsIds[og.GetID()]; !ok {
+			og.Close()
+		}
+	}
+	for _, idx := range initGroups {
+		m.startGroup(ctx, newGroups[idx], restore)
+	}
+
+	if len(updateGroups) > 0 {
 		var wg sync.WaitGroup
-		for _, item := range toUpdate {
+		for _, item := range updateGroups {
 			oldG := item.old
 			newG := item.new
 			wg.Go(func() {

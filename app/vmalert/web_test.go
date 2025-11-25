@@ -22,13 +22,13 @@ func TestHandler(t *testing.T) {
 		Values:     []float64{1},
 		Timestamps: []int64{0},
 	})
-	m := &manager{groups: map[uint64]*rule.Group{}}
+	m := &manager{groupsIds: make(map[uint64]int)}
 	_, cleanup := notifier.InitFakeNotifier()
 	defer cleanup()
 
 	var ar *rule.AlertingRule
 	var rr *rule.RecordingRule
-	var groupIDs []uint64
+	var groupsIds []uint64
 	for _, dsType := range []string{"prometheus", "", "graphite"} {
 		g := rule.NewGroup(config.Group{
 			Name:        "group",
@@ -50,8 +50,9 @@ func TestHandler(t *testing.T) {
 		rr = g.Rules[1].(*rule.RecordingRule)
 		g.ExecOnce(context.Background(), nil, time.Time{})
 		id := g.CreateID()
-		m.groups[id] = g
-		groupIDs = append(groupIDs, id)
+		m.groupsIds[id] = len(m.groups)
+		m.groups = append(m.groups, g)
+		groupsIds = append(groupsIds, id)
 	}
 	rh := &requestHandler{m: m}
 
@@ -195,9 +196,10 @@ func TestHandler(t *testing.T) {
 		}
 	})
 	t.Run("/api/v1/group?groupID", func(t *testing.T) {
-		id := groupIDs[0]
-		g := m.groups[id]
-		expGroup := g.ToAPI()
+		id := groupsIds[0]
+		gid := m.groupsIds[id]
+		g := m.groups[gid]
+		expGroup := g.ToAPI(false)
 		gotGroup := rule.ApiGroup{}
 		getResp(t, ts.URL+"/"+expGroup.APILink(), &gotGroup, 200)
 		if expGroup.ID != gotGroup.ID {
@@ -210,7 +212,7 @@ func TestHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("/api/v1/rules&filters", func(t *testing.T) {
+	t.Run("/api/v1/rules&states", func(t *testing.T) {
 		check := func(url string, statusCode, expGroups, expRules int) {
 			t.Helper()
 			lr := listGroupsResponse{}
@@ -252,9 +254,16 @@ func TestHandler(t *testing.T) {
 		check("/api/v1/rules?rule_group[]=group&file[]=foo", 200, 0, 0)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml", 200, 3, 6)
 
-		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 200, 3, 0)
+		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 200, 0, 0)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert", 200, 3, 3)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert&rule_name[]=record", 200, 3, 6)
+
+		check("/api/v1/rules?group_limit=1", 200, 1, 2)
+		check("/api/v1/rules?group_limit=1&type=alert", 200, 1, 1)
+		check("/api/v1/rules?group_limit=1&type=record", 200, 1, 1)
+		check("/api/v1/rules?group_limit=2", 200, 2, 4)
+		check(fmt.Sprintf("/api/v1/rules?group_limit=1&group_next_token=%d", groupsIds[1]), 200, 1, 2)
+		check("/api/v1/rules?group_limit=1&group_next_token=9999999999", 400, 0, 0)
 	})
 	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
 		// check if response returns active alerts by default
@@ -286,7 +295,7 @@ func TestHandler(t *testing.T) {
 }
 
 func TestEmptyResponse(t *testing.T) {
-	rhWithNoGroups := &requestHandler{m: &manager{groups: make(map[uint64]*rule.Group)}}
+	rhWithNoGroups := &requestHandler{m: &manager{groupsIds: make(map[uint64]int)}}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithNoGroups.handler(w, r) }))
 	defer ts.Close()
 
@@ -339,7 +348,12 @@ func TestEmptyResponse(t *testing.T) {
 		}
 	})
 
-	rhWithEmptyGroup := &requestHandler{m: &manager{groups: map[uint64]*rule.Group{0: {Name: "test"}}}}
+	rhWithEmptyGroup := &requestHandler{
+		m: &manager{
+			groupsIds: map[uint64]int{0: 0},
+			groups:    []*rule.Group{{Name: "test"}},
+		},
+	}
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithEmptyGroup.handler(w, r) })
 
 	t.Run("empty group /api/v1/rules", func(t *testing.T) {
