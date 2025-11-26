@@ -144,16 +144,16 @@ type indexDB struct {
 	indexSearchPool sync.Pool
 }
 
-var maxTagFiltersCacheSize int
+var maxTagFiltersCacheSize uint64
 
 // SetTagFiltersCacheSize overrides the default size of tagFiltersToMetricIDsCache
 func SetTagFiltersCacheSize(size int) {
-	maxTagFiltersCacheSize = size
+	maxTagFiltersCacheSize = uint64(size)
 }
 
-func getTagFiltersCacheSize() int {
+func getTagFiltersCacheSize() uint64 {
 	if maxTagFiltersCacheSize <= 0 {
-		return int(float64(memory.Allowed()) / 32)
+		return uint64(float64(memory.Allowed()) / 32)
 	}
 	return maxTagFiltersCacheSize
 }
@@ -303,14 +303,6 @@ func (db *indexDB) decRef() {
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
-type uint64setEntry struct {
-	v *uint64set.Set
-}
-
-func (e *uint64setEntry) SizeBytes() int {
-	return int(e.v.SizeBytes())
-}
-
 func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key []byte) (*uint64set.Set, bool) {
 	qt = qt.NewChild("search for metricIDs in tag filters cache")
 	v := db.tagFiltersToMetricIDsCache.GetEntry(string(key))
@@ -318,14 +310,14 @@ func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key [
 		qt.Printf("cache miss")
 		return nil, false
 	}
-	metricIDs := v.(*uint64setEntry).v
+	metricIDs := v.(*uint64set.Set)
 	qt.Printf("found metricIDs with size: %d bytes", metricIDs.Len())
 	return metricIDs, true
 }
 
 func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricIDs *uint64set.Set, key []byte) {
 	qt = qt.NewChild("put %d metricIDs in cache", metricIDs.Len())
-	db.tagFiltersToMetricIDsCache.PutEntry(string(key), &uint64setEntry{metricIDs})
+	db.tagFiltersToMetricIDsCache.PutEntry(string(key), metricIDs)
 	qt.Printf("stored %d metricIDs into cache", metricIDs.Len())
 }
 
