@@ -17,6 +17,8 @@ import (
 //
 // Call NewCache() for creating new Cache.
 type Cache struct {
+	resets atomic.Uint64
+
 	shards []*cache
 
 	cleanerMustStopCh chan struct{}
@@ -62,6 +64,7 @@ func (c *Cache) MustStop() {
 
 // Reset resets the cache.
 func (c *Cache) Reset() {
+	c.resets.Add(1)
 	for _, shard := range c.shards {
 		shard.Reset()
 	}
@@ -138,11 +141,7 @@ func (c *Cache) Misses() uint64 {
 
 // Resets returns the number of cache resets since its creation.
 func (c *Cache) Resets() uint64 {
-	n := uint64(0)
-	for _, shard := range c.shards {
-		n += shard.Resets()
-	}
-	return n
+	return c.resets.Load()
 }
 
 func (c *Cache) cleaner() {
@@ -169,7 +168,6 @@ func (c *Cache) cleanByTimeout() {
 type cache struct {
 	requests atomic.Uint64
 	misses   atomic.Uint64
-	resets   atomic.Uint64
 
 	// sizeBytes contains an approximate size for all the blocks stored in the cache.
 	sizeBytes atomic.Uint64
@@ -220,7 +218,6 @@ func newCache(getMaxSizeBytes func() uint64) *cache {
 }
 
 func (c *cache) Reset() {
-	c.resets.Add(1)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -318,10 +315,6 @@ func (c *cache) Requests() uint64 {
 
 func (c *cache) Misses() uint64 {
 	return c.misses.Load()
-}
-
-func (c *cache) Resets() uint64 {
-	return c.resets.Load()
 }
 
 // lastAccessHeap implements heap.Interface
