@@ -7,7 +7,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.4
-	github.com/RoaringBitmap/roaring/v2 v2.10.0
+	github.com/RoaringBitmap/roaring/v2 v2.14.0
 	github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20260218111324-95b48d57d032
 	github.com/VictoriaMetrics/easyproto v1.2.0
 	github.com/VictoriaMetrics/fastcache v1.13.3
@@ -74,7 +74,7 @@ require (
 	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.12.0 // indirect
+	github.com/bits-and-blooms/bitset v1.24.2 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect

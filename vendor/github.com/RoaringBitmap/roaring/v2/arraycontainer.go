@@ -11,6 +11,7 @@ type arrayContainer struct {
 
 var (
 	ErrArrayIncorrectSort = errors.New("incorrectly sorted array")
+	ErrEmptyArray         = errors.New("empty array")
 	ErrArrayInvalidSize   = errors.New("invalid array size")
 )
 
@@ -417,8 +418,10 @@ func (ac *arrayContainer) iorArray(value2 *arrayContainer) container {
 func (ac *arrayContainer) iorBitmap(bc2 *bitmapContainer) container {
 	bc1 := ac.toBitmapContainer()
 	bc1.iorBitmap(bc2)
-	*ac = *newArrayContainerFromBitmap(bc1)
-	return ac
+	// DO NOT DO THIS:
+	// *ac = *newArrayContainerFromBitmap(bc1)
+	// This will create gigantic array containers in the case of repeated calls to iorBitmap.
+	return bc1
 }
 
 func (ac *arrayContainer) iorRun16(rc *runContainer16) container {
@@ -1289,7 +1292,7 @@ func (ac *arrayContainer) validate() error {
 	cardinality := ac.getCardinality()
 
 	if cardinality <= 0 {
-		return ErrArrayInvalidSize
+		return ErrEmptyArray
 	}
 
 	if cardinality > arrayDefaultMaxSize {
