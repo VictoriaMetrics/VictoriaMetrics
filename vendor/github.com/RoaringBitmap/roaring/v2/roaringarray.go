@@ -108,7 +108,7 @@ func rangeOfOnes(start, last int) container {
 	if last < 0 {
 		panic("rangeOfOnes called with last < 0")
 	}
-	return newRunContainer16Range(uint16(start), uint16(last))
+	return newRunContainer16Range(uint16(start), uint16(last)).toEfficientContainer()
 }
 
 type roaringArray struct {

@@ -25,6 +25,7 @@ Roaring bitmaps are used by several major systems such as [Apache Lucene][lucene
 [pinot]: http://github.com/linkedin/pinot/wiki
 [vsts]: https://www.visualstudio.com/team-services/
 [atlas]: https://github.com/Netflix/atlas
+[quanta]: https://github.com/disney/quanta
 
 Roaring bitmaps are found to work well in many important applications:
 
@@ -44,6 +45,10 @@ The ``roaring`` Go library is used by
 * [trident](https://github.com/NetApp/trident)
 * [Husky](https://www.datadoghq.com/blog/engineering/introducing-husky/)
 * [FrostDB](https://github.com/polarsignals/frostdb)
+* [Disney Quanta](https://github.com/disney/quanta)
+
+
+
 
 This library is used in production in several systems, it is part of the [Awesome Go collection](https://awesome-go.com).
 
@@ -415,6 +420,11 @@ The two versions were written independently.
 ### Mailing list/discussion group
 
 https://groups.google.com/g/roaring-bitmaps
+
+## Stars
+
+
+[![Star History Chart](https://api.star-history.com/svg?repos=RoaringBitmap/roaring&type=Date)](https://www.star-history.com/#RoaringBitmap/roaring&Date)
 
 ### Further reading
 
