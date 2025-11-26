@@ -303,20 +303,34 @@ func (db *indexDB) decRef() {
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
+// getMetricIDsFromTagFiltersCache retrieves the set of metricIDs that
+// correspond to the given (tffs, tr) key.
+//
+// The caller must convert the (tfss, tr) to a byte slice and use it as the key
+// when calling this method (see marshalTagFiltersKey()).
+//
+// The caller must not modify the set of metricIDs returned by this method.
 func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key []byte) (*uint64set.Set, bool) {
-	qt = qt.NewChild("search for metricIDs in tag filters cache")
+	qt.Printf("search for metricIDs in tag filters cache")
 	v := db.tagFiltersToMetricIDsCache.GetEntry(string(key))
 	if v == nil {
 		qt.Printf("cache miss")
 		return nil, false
 	}
 	metricIDs := v.(*uint64set.Set)
-	qt.Printf("found metricIDs with size: %d bytes", metricIDs.Len())
+	qt.Printf("found %d metricIDs in cache", metricIDs.Len())
 	return metricIDs, true
 }
 
+// putMetricIDsToTagFiltersCache stores the set of metricIDs that
+// correspond to the given (tffs, tr) key into the cache.
+//
+// The caller must convert the (tfss, tr) to a byte slice and use it as the key
+// when calling this method (see marshalTagFiltersKey()).
+//
+// The caller must not modify the set of metricIDs after calling this method.
 func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricIDs *uint64set.Set, key []byte) {
-	qt = qt.NewChild("put %d metricIDs in cache", metricIDs.Len())
+	qt.Printf("put %d metricIDs in cache", metricIDs.Len())
 	db.tagFiltersToMetricIDsCache.PutEntry(string(key), metricIDs)
 	qt.Printf("stored %d metricIDs into cache", metricIDs.Len())
 }
@@ -370,57 +384,6 @@ func invalidateTagFiltersCache() {
 }
 
 var tagFiltersKeyGen atomicutil.Uint64
-
-func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
-	if len(metricIDs) == 0 {
-		// Add one zero byte to indicate an empty metricID list and skip
-		// compression to save CPU cycles.
-		//
-		// An empty slice passed to ztsd won't be compressed and therefore
-		// nothing will be added to dst and if dst is empty the record won't be
-		// added to the cache. As the result, the search for a given filter will
-		// be performed again and again. This may lead to cases like this:
-		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7009
-		return append(dst, 0)
-	}
-
-	// Compress metricIDs, so they occupy less space in the cache.
-	//
-	// The srcBuf is a []byte cast of metricIDs.
-	srcBuf := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(metricIDs))), 8*len(metricIDs))
-
-	dst = encoding.CompressZSTDLevel(dst, srcBuf, 1)
-	return dst
-}
-
-func mustUnmarshalMetricIDs(dst []uint64, src []byte) []uint64 {
-	if len(src) == 1 && src[0] == 0 {
-		// One zero byte indicates an empty metricID list.
-		// See marshalMetricIDs().
-		return dst
-	}
-
-	// Decompress src into dstBuf.
-	//
-	// dstBuf is a []byte cast of dst.
-	dstBuf := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(dst))), 8*cap(dst))
-	dstBuf = dstBuf[:8*len(dst)]
-	dstBufLen := len(dstBuf)
-	var err error
-	dstBuf, err = encoding.DecompressZSTD(dstBuf, src)
-	if err != nil {
-		logger.Panicf("FATAL: cannot decompress metricIDs: %s", err)
-	}
-	if (len(dstBuf)-dstBufLen)%8 != 0 {
-		logger.Panicf("FATAL: cannot unmarshal metricIDs from buffer of %d bytes; the buffer length must divide by 8", len(dstBuf)-dstBufLen)
-	}
-
-	// Convert dstBuf back to dst
-	dst = unsafe.Slice((*uint64)(unsafe.Pointer(unsafe.SliceData(dstBuf))), cap(dstBuf)/8)
-	dst = dst[:len(dstBuf)/8]
-
-	return dst
-}
 
 type indexSearch struct {
 	db *indexDB
@@ -1656,8 +1619,6 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 }
 
 // searchMetricIDs returns metricIDs for the given tfss and tr.
-//
-// The returned metricIDs are sorted.
 func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) (*uint64set.Set, error) {
 	qt = qt.NewChild("search for matching metricIDs: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
