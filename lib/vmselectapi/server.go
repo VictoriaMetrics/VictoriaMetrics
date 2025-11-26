@@ -71,7 +71,6 @@ type Server struct {
 	searchMetadataRequests      *metrics.Counter
 
 	metricBlocksRead *metrics.Counter
-	metricRowsRead   *metrics.Counter
 }
 
 // Limits contains various limits for Server.
@@ -142,7 +141,6 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		searchMetadataRequests:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetadata",addr=%q}`, addr)),
 
 		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
-		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
 	}
 
 	s.connsMap.Init("vmselect")
@@ -300,7 +298,6 @@ type vmselectRequestCtx struct {
 
 	qt *querytracer.Tracer
 	sq storage.SearchQuery
-	mb storage.MetricBlock
 
 	// timeout in seconds for the current request
 	timeout uint64
@@ -1070,16 +1067,19 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 
 	// Send found blocks to vmselect.
 	blocksRead := 0
-	for bi.NextBlock(&ctx.mb) {
+	var ok bool
+	for {
+		ctx.dataBuf, ok = bi.NextBlock(ctx.dataBuf[:0])
+		if !ok {
+			break
+		}
 		blocksRead++
 		s.metricBlocksRead.Inc()
-		s.metricRowsRead.Add(ctx.mb.Block.RowsCount())
-
-		ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0])
 		if err := ctx.writeDataBufBytes(); err != nil {
 			return fmt.Errorf("cannot send MetricBlock: %w", err)
 		}
 	}
+
 	if err := bi.Error(); err != nil {
 		return fmt.Errorf("search error: %w", err)
 	}
