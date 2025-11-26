@@ -312,7 +312,7 @@ func (db *indexDB) decRef() {
 // The caller must not modify the set of metricIDs returned by this method.
 func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key []byte) (*uint64set.Set, bool) {
 	qt.Printf("search for metricIDs in tag filters cache")
-	v := db.tagFiltersToMetricIDsCache.GetEntry(string(key))
+	v := db.tagFiltersToMetricIDsCache.GetEntry(bytesutil.ToUnsafeString(key))
 	if v == nil {
 		qt.Printf("cache miss")
 		return nil, false
