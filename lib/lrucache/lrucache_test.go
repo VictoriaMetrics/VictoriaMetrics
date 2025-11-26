@@ -9,13 +9,13 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	sizeMaxBytes := 64 * 1024
+	sizeMaxBytes := uint64(64 * 1024)
 	// Multiply sizeMaxBytes by the square of available CPU cores
 	// in order to get proper distribution of sizes between cache shards.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2204
 	cpus := cgroup.AvailableCPUs()
-	sizeMaxBytes *= cpus * cpus
-	getMaxSize := func() int {
+	sizeMaxBytes *= uint64(cpus * cpus)
+	getMaxSize := func() uint64 {
 		return sizeMaxBytes
 	}
 	c := NewCache(getMaxSize)
@@ -86,8 +86,8 @@ func TestCache(t *testing.T) {
 }
 
 func TestCacheConcurrentAccess(_ *testing.T) {
-	const sizeMaxBytes = 16 * 1024 * 1024
-	getMaxSize := func() int {
+	const sizeMaxBytes = uint64(16 * 1024 * 1024)
+	getMaxSize := func() uint64 {
 		return sizeMaxBytes
 	}
 	c := NewCache(getMaxSize)
@@ -121,6 +121,6 @@ func testCacheSetGet(c *Cache, worker int) {
 
 type testEntry struct{}
 
-func (tb *testEntry) SizeBytes() int {
+func (tb *testEntry) SizeBytes() uint64 {
 	return 42
 }

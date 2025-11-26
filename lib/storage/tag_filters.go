@@ -527,12 +527,12 @@ func RegexpCacheSize() int {
 }
 
 // RegexpCacheSizeBytes returns an approximate size in bytes for the cached regexps for tag filters.
-func RegexpCacheSizeBytes() int {
+func RegexpCacheSizeBytes() uint64 {
 	return regexpCache.SizeBytes()
 }
 
 // RegexpCacheMaxSizeBytes returns the maximum size in bytes for the cached regexps for tag filters.
-func RegexpCacheMaxSizeBytes() int {
+func RegexpCacheMaxSizeBytes() uint64 {
 	return regexpCache.SizeMaxBytes()
 }
 
@@ -579,7 +579,7 @@ func getRegexpFromCache(expr string) (*regexpCacheValue, error) {
 	rcv.reCost = reCost
 	rcv.literalSuffix = literalSuffix
 	// heuristic for rcv in-memory size
-	rcv.sizeBytes = 8*len(exprOrig) + len(literalSuffix)
+	rcv.sizeBytes = uint64(8*len(exprOrig) + len(literalSuffix))
 	regexpCache.PutEntry(exprOrig, &rcv)
 
 	return &rcv, nil
@@ -867,15 +867,15 @@ var tagCharsReverseRegexpEscaper = strings.NewReplacer(
 	"\x002", "\x02", // kvSeparatorChar
 )
 
-func getMaxRegexpCacheSize() int {
+func getMaxRegexpCacheSize() uint64 {
 	maxRegexpCacheSizeOnce.Do(func() {
-		maxRegexpCacheSize = int(0.05 * float64(memory.Allowed()))
+		maxRegexpCacheSize = uint64(0.05 * float64(memory.Allowed()))
 	})
 	return maxRegexpCacheSize
 }
 
 var (
-	maxRegexpCacheSize     int
+	maxRegexpCacheSize     uint64
 	maxRegexpCacheSizeOnce sync.Once
 )
 
@@ -888,11 +888,11 @@ type regexpCacheValue struct {
 	reMatch       func(b []byte) bool
 	reCost        uint64
 	literalSuffix string
-	sizeBytes     int
+	sizeBytes     uint64
 }
 
 // SizeBytes implements lrucache.Entry interface
-func (rcv *regexpCacheValue) SizeBytes() int {
+func (rcv *regexpCacheValue) SizeBytes() uint64 {
 	return rcv.sizeBytes
 }
 
@@ -922,15 +922,15 @@ func simplifyRegexp(expr string) (string, string) {
 	return prefix, suffix
 }
 
-func getMaxPrefixesCacheSize() int {
+func getMaxPrefixesCacheSize() uint64 {
 	maxPrefixesCacheSizeOnce.Do(func() {
-		maxPrefixesCacheSize = int(0.05 * float64(memory.Allowed()))
+		maxPrefixesCacheSize = uint64(0.05 * float64(memory.Allowed()))
 	})
 	return maxPrefixesCacheSize
 }
 
 var (
-	maxPrefixesCacheSize     int
+	maxPrefixesCacheSize     uint64
 	maxPrefixesCacheSizeOnce sync.Once
 )
 
@@ -944,12 +944,12 @@ func RegexpPrefixesCacheSize() int {
 }
 
 // RegexpPrefixesCacheSizeBytes returns an approximate size in bytes for cached regexp prefixes for tag filters.
-func RegexpPrefixesCacheSizeBytes() int {
+func RegexpPrefixesCacheSizeBytes() uint64 {
 	return prefixesCache.SizeBytes()
 }
 
 // RegexpPrefixesCacheMaxSizeBytes returns the maximum size in bytes for cached regexp prefixes for tag filters in bytes.
-func RegexpPrefixesCacheMaxSizeBytes() int {
+func RegexpPrefixesCacheMaxSizeBytes() uint64 {
 	return prefixesCache.SizeMaxBytes()
 }
 
@@ -969,6 +969,6 @@ type prefixSuffix struct {
 }
 
 // SizeBytes implements lrucache.Entry interface
-func (ps *prefixSuffix) SizeBytes() int {
-	return len(ps.prefix) + len(ps.suffix) + int(unsafe.Sizeof(*ps))
+func (ps *prefixSuffix) SizeBytes() uint64 {
+	return uint64(len(ps.prefix) + len(ps.suffix) + int(unsafe.Sizeof(*ps)))
 }
