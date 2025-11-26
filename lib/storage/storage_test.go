@@ -1017,7 +1017,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
-		tfssKey := marshalTagFiltersKey(nil, tfss, tr, true)
+		tfssKey := marshalTagFiltersKey(nil, tfss, tr)
 		_, got := idbCurr.getMetricIDsFromTagFiltersCache(nil, tfssKey)
 		if got != want {
 			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)

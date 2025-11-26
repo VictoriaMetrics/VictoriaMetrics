@@ -173,14 +173,15 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegiste
 		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
 	}
 
-	tb := mergeset.MustOpenTable(path, dataFlushInterval, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
+	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
+	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
 		generation: gen,
 		tb:         tb,
 		name:       name,
 
 		minMissingTimestampByKey:   make(map[string]int64),
-		tagFiltersToMetricIDsCache: lrucache.NewCache(getTagFiltersCacheSize),
+		tagFiltersToMetricIDsCache: tfssCache,
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(memory.Allowed() / 128),
 		dateMetricIDCache:          newDateMetricIDCache(),
@@ -199,6 +200,7 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheSizeMaxBytes uint64
 	TagFiltersToMetricIDsCacheRequests     uint64
 	TagFiltersToMetricIDsCacheMisses       uint64
+	TagFiltersToMetricIDsCacheResets       uint64
 
 	DateMetricIDCacheSize        uint64
 	DateMetricIDCacheSizeBytes   uint64
@@ -246,6 +248,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheSizeMaxBytes += uint64(db.tagFiltersToMetricIDsCache.SizeMaxBytes())
 	m.TagFiltersToMetricIDsCacheRequests += db.tagFiltersToMetricIDsCache.Requests()
 	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
+	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
 
 	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
 	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
@@ -357,16 +360,9 @@ func (db *indexDB) putToMetricIDCache(metricID uint64, tsid *TSID) {
 	db.s.metricIDCache.Set(key[:], buf[:])
 }
 
-func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versioned bool) []byte {
-	// There is no need in versioning the tagFilters key, since the tagFiltersToMetricIDsCache
-	// isn't persisted to disk (it is very volatile because of tagFiltersKeyGen).
-	prefix := ^uint64(0)
-	if versioned {
-		prefix = tagFiltersKeyGen.Load()
-	}
+func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange) []byte {
 	// Round start and end times to per-day granularity according to per-day inverted index.
 	startDate, endDate := tr.DateRange()
-	dst = encoding.MarshalUint64(dst, prefix)
 	dst = encoding.MarshalUint64(dst, startDate)
 	dst = encoding.MarshalUint64(dst, endDate)
 	for _, tfs := range tfss {
@@ -377,13 +373,6 @@ func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versione
 	}
 	return dst
 }
-
-func invalidateTagFiltersCache() {
-	// This function must be fast, since it is called each time new timeseries is added.
-	tagFiltersKeyGen.Add(1)
-}
-
-var tagFiltersKeyGen atomicutil.Uint64
 
 type indexSearch struct {
 	db *indexDB
@@ -1560,7 +1549,7 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	db.s.updateDeletedMetricIDs(metricIDs)
 
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
-	invalidateTagFiltersCache()
+	db.tagFiltersToMetricIDsCache.Reset()
 
 	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
 	db.s.resetAndSaveTSIDCache()
@@ -1630,7 +1619,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
 
-	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, tr, true)
+	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, tr)
 	metricIDs, ok := db.getMetricIDsFromTagFiltersCache(qt, tfKeyBuf.B)
 	if ok {
 		// Fast path - metricIDs found in the cache
