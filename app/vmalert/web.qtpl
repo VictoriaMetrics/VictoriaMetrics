@@ -11,7 +11,7 @@
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
 ) %}
 
-{% func Controls(prefix, currentIcon, currentText string, icons, filters map[string]string, search bool) %}
+{% func Controls(prefix, currentIcon, currentText string, icons, states map[string]string, search bool) %}
     <div class="btn-toolbar mb-3" role="toolbar">
         <div class="d-flex gap-2 justify-content-between w-100">
             <div class="d-flex gap-2 align-items-center">
@@ -27,10 +27,10 @@
                         <use href="{%s prefix %}static/icons/icons.svg#expand"/>
                     </svg>
                 </a>
-                {% if len(filters) > 0 %}
+                {% if len(states) > 0 %}
                     <span class="d-none d-md-inline-block">Filter by status:</span>
                     <svg class="d-md-none" width="20" height="20">
-                        <use href="{%s prefix %}static/icons/icons.svg#filter">
+                        <use href="{%s prefix %}static/icons/icons.svg#state">
                     </svg>
                     <div class="dropdown">
                         <button
@@ -45,10 +45,10 @@
                             </svg>
                         </button>
                         <ul class="dropdown-menu">
-                            {% for key, title := range filters %}
+                            {% for key, title := range states %}
                                 {% if title != currentText %}
                                     <li>
-                                        <a class="dropdown-item" onclick="groupFilter('{%s key %}')">
+                                        <a class="dropdown-item" onclick="groupForState('{%s key %}')">
                                             <span class="d-none d-md-inline-block">{%s title %}</span>
                                             <svg class="d-md-none" width="22" height="22">
                                                 <use href="{%s prefix %}static/icons/icons.svg#{%s icons[key] %}"/>
@@ -94,10 +94,10 @@
     {%= tpl.Footer(r) %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, groups []*rule.ApiGroup, filter string) %}
+{% func ListGroups(r *http.Request, groups []*rule.ApiGroup, state string) %}
     {%code
         prefix := vmalertutil.Prefix(r.URL.Path)
-        filters := map[string]string{
+        states := map[string]string{
             "":          "All",
             "unhealthy": "Unhealthy",
             "nomatch":   "No Match",
@@ -107,14 +107,14 @@
             "unhealthy": "unhealthy",
             "nomatch":   "nomatch",
         }
-        currentText := filters[filter]
-        currentIcon := icons[filter]
+        currentText := states[state]
+        currentIcon := icons[state]
     %}
     {%= tpl.Header(r, navItems, "Groups", getLastConfigError()) %}
-        {%= Controls(prefix, currentIcon, currentText, icons, filters, true) %}
+        {%= Controls(prefix, currentIcon, currentText, icons, states, true) %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups %}
-                <div id="group-{%s g.ID %}" class="w-100 border-0 flex-column vm-group{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
+                <div id="group-{%s g.ID %}" class="w-100 border-0 flex-column vm-group{% if g.States["unhealthy"] > 0 %} alert-danger{% endif %}">
                     <span class="d-flex justify-content-between">
                         <a
                             class="vm-group-search"
@@ -127,9 +127,9 @@
                             data-bs-target="#item-{%s g.ID %}"
                         >
                             <span class="d-flex gap-2">
-                                {% if g.Unhealthy > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.Unhealthy %}</span> {% endif %}
-                                {% if g.NoMatch > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d g.NoMatch %}</span> {% endif %}
-                                <span class="badge bg-success" title="Number of rules with status Ok">{%d g.Healthy %}</span>
+                                {% if g.States["unhealthy"] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.States["unhealthy"] %}</span> {% endif %}
+                                {% if g.States["nomatch"] > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d g.States["nomatch"] %}</span> {% endif %}
+                                <span class="badge bg-success" title="Number of rules with status Ok">{%d g.States["healthy"] %}</span>
                             </span>
                         </span>
                     </span>
@@ -186,7 +186,7 @@
                                                         <b>record:</b> {%s r.Name %}
                                                     {% endif %}
                                                     |
-                                                    {%= seriesFetchedWarn(prefix, r) %}
+                                                    {%= seriesFetchedWarn(prefix, &r) %}
                                                     <span><a target="_blank" href="{%s prefix+r.WebLink() %}">Details</a></span>
                                                 </div>
                                                 <div class="col-12">
@@ -473,7 +473,7 @@
 {% endfunc %}
 
 
-{% func RuleDetails(r *http.Request, rule rule.ApiRule) %}
+{% func Rule(r *http.Request, rule rule.ApiRule) %}
     {%code prefix := vmalertutil.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "", getLastConfigError()) %}
     {%code
@@ -658,8 +658,8 @@
 <span class="badge bg-warning text-dark" title="This firing state is kept because of `keep_firing_for`">stabilizing</span>
 {% endfunc %}
 
-{% func seriesFetchedWarn(prefix string, r rule.ApiRule) %}
-{% if isNoMatch(r) %}
+{% func seriesFetchedWarn(prefix string, r *rule.ApiRule) %}
+{% if r.State == "nomatch" %}
 <svg
     data-bs-toggle="tooltip"
     title="No match! This rule's last evaluation hasn't selected any time series from the datasource.
@@ -670,9 +670,3 @@
 </svg>
 {% endif %}
 {% endfunc %}
-
-{%code
-  func isNoMatch (r rule.ApiRule) bool {
-    return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
-  }
-%}

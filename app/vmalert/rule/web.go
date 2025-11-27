@@ -57,12 +57,8 @@ type ApiGroup struct {
 	EvalOffset float64 `json:"eval_offset,omitempty"`
 	// EvalDelay will adjust the `time` parameter of rule evaluation requests to compensate intentional query delay from datasource.
 	EvalDelay float64 `json:"eval_delay,omitempty"`
-	// Unhealthy unhealthy rules count
-	Unhealthy int
-	// Healthy passing rules count
-	Healthy int
-	// NoMatch not matching rules count
-	NoMatch int
+	// States represents counts per each rule state
+	States map[string]int `json:"states"`
 }
 
 // APILink returns a link to the group's JSON representation.
@@ -132,6 +128,10 @@ type ApiRule struct {
 	MaxUpdates int `json:"max_updates_entries"`
 	// Updates contains the ordered list of recorded ruleStateEntry objects
 	Updates []StateEntry `json:"-"`
+}
+
+func (r *ApiRule) isNoMatch() bool {
+	return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
 }
 
 // ApiAlert represents a notifier.AlertingRule state
@@ -235,8 +235,22 @@ func NewAlertAPI(ar *AlertingRule, a *notifier.Alert) *ApiAlert {
 	return aa
 }
 
+func (r *ApiRule) extendState() {
+	if len(r.Alerts) > 0 {
+		return
+	}
+	if r.State == "" {
+		r.State = "ok"
+	}
+	if r.Health != "ok" {
+		r.State = "unhealthy"
+	} else if r.isNoMatch() {
+		r.State = "nomatch"
+	}
+}
+
 // ToAPI returns ApiGroup representation of g
-func (g *Group) ToAPI() *ApiGroup {
+func (g *Group) ToAPI(useExtendedStates bool) *ApiGroup {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	ag := ApiGroup{
@@ -252,6 +266,7 @@ func (g *Group) ToAPI() *ApiGroup {
 		Headers:         headersToStrings(g.Headers),
 		NotifierHeaders: headersToStrings(g.NotifierHeaders),
 		Labels:          g.Labels,
+		States:          make(map[string]int),
 	}
 	if g.EvalOffset != nil {
 		ag.EvalOffset = g.EvalOffset.Seconds()
@@ -261,7 +276,12 @@ func (g *Group) ToAPI() *ApiGroup {
 	}
 	ag.Rules = make([]ApiRule, 0)
 	for _, r := range g.Rules {
-		ag.Rules = append(ag.Rules, r.ToAPI())
+		ar := r.ToAPI()
+		if useExtendedStates {
+			ar.extendState()
+		}
+		ag.States[ar.State]++
+		ag.Rules = append(ag.Rules, ar)
 	}
 	return &ag
 }
