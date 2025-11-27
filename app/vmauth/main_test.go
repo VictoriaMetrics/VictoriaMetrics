@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
@@ -724,4 +726,324 @@ func newTestString(sLen int) string {
 		data[i] = byte(i)
 	}
 	return string(data)
+}
+
+func TestRequestBodyReadTimeout(t *testing.T) {
+	f := func(cfgStr string, bodyReader io.Reader, expectTimeout bool, expectedStatus string) {
+		t.Helper()
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Backend reads body and responds
+			_, _ = io.ReadAll(r.Body)
+			fmt.Fprintf(w, "backend_response")
+		}))
+		defer ts.Close()
+
+		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			_, err := reloadAuthConfigData(cfgOrig)
+			if err != nil {
+				t.Fatalf("cannot load the original config: %s", err)
+			}
+		}()
+
+		r, err := http.NewRequest(http.MethodPost, "http://some-host.com/test", bodyReader)
+		if err != nil {
+			t.Fatalf("cannot initialize http request: %s", err)
+		}
+
+		r.RequestURI = r.URL.RequestURI()
+		r.RemoteAddr = "1.2.3.4:5678"
+		r.Header.Set("X-Forwarded-For", "10.20.30.40")
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false is returned from requestHandler")
+		}
+
+		response := w.getResponse()
+
+		if expectTimeout {
+			if !strings.Contains(response, expectedStatus) {
+				t.Fatalf("expected status %s in response, got: %s", expectedStatus, response)
+			}
+			if !strings.Contains(response, "request body read timeout") {
+				t.Fatalf("expected timeout message in response: %s", response)
+			}
+		} else {
+			if strings.Contains(response, "408") {
+				t.Fatalf("unexpected timeout in response: %s", response)
+			}
+			if !strings.Contains(response, expectedStatus) {
+				t.Fatalf("expected status %s, got: %s", expectedStatus, response)
+			}
+		}
+	}
+
+	// Test timeout triggers with slow body
+	cfgStr := `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo
+  request_body_read_timeout: 100ms`
+	slowBody := &slowReader{
+		data:  []byte("slow test data"),
+		delay: 50 * time.Millisecond,
+	}
+	f(cfgStr, slowBody, true, "statusCode=408")
+
+	// Test timeout disabled (0 value)
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo
+  request_body_read_timeout: 0s`
+	slowBody2 := &slowReader{
+		data:  []byte("test"),
+		delay: 50 * time.Millisecond,
+	}
+	f(cfgStr, slowBody2, false, "statusCode=200")
+
+	// Test fast body - no timeout
+	cfgStr = `
+unauthorized_user:
+  url_prefix: {BACKEND}/foo
+  request_body_read_timeout: 5s`
+	fastBody := bytes.NewReader([]byte("fast data"))
+	f(cfgStr, fastBody, false, "statusCode=200")
+}
+
+func TestRequestBodyReadTimeoutPerUser(t *testing.T) {
+	f := func(cfgStr, requestURL string, bodyReader io.Reader, expectTimeout bool) {
+		t.Helper()
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.ReadAll(r.Body)
+			fmt.Fprintf(w, "ok")
+		}))
+		defer ts.Close()
+
+		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			_, err := reloadAuthConfigData(cfgOrig)
+			if err != nil {
+				t.Fatalf("cannot load the original config: %s", err)
+			}
+		}()
+
+		r, err := http.NewRequest(http.MethodPost, requestURL, bodyReader)
+		if err != nil {
+			t.Fatalf("cannot initialize http request: %s", err)
+		}
+
+		r.RequestURI = r.URL.RequestURI()
+		r.RemoteAddr = "1.2.3.4:5678"
+
+		w := &fakeResponseWriter{}
+		requestHandlerWithInternalRoutes(w, r)
+
+		response := w.getResponse()
+
+		if expectTimeout {
+			if !strings.Contains(response, "statusCode=408") {
+				t.Fatalf("expected timeout (408), got: %s", response)
+			}
+		} else {
+			if strings.Contains(response, "statusCode=408") {
+				t.Fatalf("unexpected timeout, got: %s", response)
+			}
+		}
+	}
+
+	// User with short timeout - should timeout
+	cfgStr := `
+users:
+- username: "fast-user"
+  password: "secret1"
+  url_prefix: {BACKEND}/foo
+  request_body_read_timeout: 50ms`
+	slowBody := &slowReader{
+		data:  []byte("data"),
+		delay: 30 * time.Millisecond,
+	}
+	requestURL := "http://fast-user:secret1@some-host.com/test"
+	f(cfgStr, requestURL, slowBody, true)
+
+	// User with long timeout - should NOT timeout
+	cfgStr = `
+users:
+- username: "slow-user"
+  password: "secret2"
+  url_prefix: {BACKEND}/bar
+  request_body_read_timeout: 5s`
+	slowBody2 := &slowReader{
+		data:  []byte("data"),
+		delay: 30 * time.Millisecond,
+	}
+	requestURL = "http://slow-user:secret2@some-host.com/test"
+	f(cfgStr, requestURL, slowBody2, false)
+}
+
+func TestReadTrackingBodyDuration(t *testing.T) {
+	f := func(data []byte) {
+		t.Helper()
+
+		// Use slowReader which adds actual delays during Read() calls
+		slowBody := &slowReader{
+			data:  data,
+			delay: 10 * time.Millisecond,
+		}
+
+		rtb := newReadTrackingBody(io.NopCloser(slowBody), len(data))
+
+		// Read all data
+		_, err := io.ReadAll(rtb)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		duration := rtb.getTotalReadDuration()
+
+		// With slowReader reading byte-by-byte with 10ms delay,
+		// duration should be at least (len(data) * 10ms)
+		minExpected := time.Duration(len(data)) * 10 * time.Millisecond
+		if duration < minExpected {
+			t.Fatalf("duration too short: got %v, want >= %v", duration, minExpected)
+		}
+
+		// Should not be unreasonably long (allow 3x overhead for test variability)
+		maxExpected := minExpected * 3
+		if duration > maxExpected {
+			t.Fatalf("duration too long: got %v, want <= %v", duration, maxExpected)
+		}
+	}
+
+	// Test with small data to keep test fast
+	f(make([]byte, 5))
+	f(make([]byte, 10))
+}
+
+func TestTimeoutReadCloser(t *testing.T) {
+	f := func(data []byte, timeout time.Duration, readDelay time.Duration, expectTimeout bool) {
+		t.Helper()
+
+		rc := io.NopCloser(bytes.NewReader(data))
+		trc := newTimeoutReadCloser(rc, timeout)
+
+		if readDelay > 0 {
+			time.Sleep(readDelay)
+		}
+
+		buf := make([]byte, len(data))
+		_, err := trc.Read(buf)
+
+		if expectTimeout {
+			if err == nil {
+				t.Fatal("expected timeout error, got nil")
+			}
+			// Check if it's our timeout error type
+			var timeoutErr *requestBodyTimeoutError
+			if !errors.As(err, &timeoutErr) {
+				t.Fatalf("expected requestBodyTimeoutError, got: %T: %v", err, err)
+			}
+		} else {
+			if err != nil && err != io.EOF {
+				t.Fatalf("unexpected error: %s", err)
+			}
+		}
+	}
+
+	data := []byte("test data")
+
+	// Read before timeout - should succeed
+	f(data, 100*time.Millisecond, 0, false)
+
+	// Read after timeout - should fail
+	f(data, 50*time.Millisecond, 100*time.Millisecond, true)
+}
+
+func TestTimeoutResponseWriter(t *testing.T) {
+	f := func(timeout time.Duration, writeDelay time.Duration, expectTimeout bool) {
+		t.Helper()
+
+		w := &fakeResponseWriter{}
+		tw := newTimeoutResponseWriter(w, timeout)
+
+		if writeDelay > 0 {
+			time.Sleep(writeDelay)
+		}
+
+		_, err := tw.Write([]byte("test data"))
+
+		if expectTimeout {
+			if err == nil {
+				t.Fatal("expected timeout error, got nil")
+			}
+			var timeoutErr *responseWriteTimeoutError
+			if !errors.As(err, &timeoutErr) {
+				t.Fatalf("expected responseWriteTimeoutError, got: %T: %v", err, err)
+			}
+		} else {
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			if !strings.Contains(w.bb.String(), "test data") {
+				t.Fatal("data not written to underlying writer")
+			}
+		}
+	}
+
+	// Write before timeout - should succeed
+	f(100*time.Millisecond, 0, false)
+
+	// Write after timeout - should fail
+	f(50*time.Millisecond, 100*time.Millisecond, true)
+}
+
+// slowReader simulates a slow client sending data byte-by-byte
+type slowReader struct {
+	data  []byte
+	pos   int
+	delay time.Duration
+}
+
+func (r *slowReader) Read(p []byte) (int, error) {
+	if r.pos >= len(r.data) {
+		return 0, io.EOF
+	}
+
+	// Simulate slow network by adding delay
+	if r.delay > 0 {
+		time.Sleep(r.delay)
+	}
+
+	// Read one byte at a time to simulate slow client
+	n := 1
+	if n > len(p) {
+		n = len(p)
+	}
+	if r.pos+n > len(r.data) {
+		n = len(r.data) - r.pos
+	}
+
+	copy(p, r.data[r.pos:r.pos+n])
+	r.pos += n
+
+	return n, nil
 }

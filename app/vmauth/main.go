@@ -44,7 +44,11 @@ var (
 		"See also -maxConcurrentRequests")
 	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
 		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
-	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
+	responseTimeout        = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
+	requestBodyReadTimeout = flag.Duration("requestBodyReadTimeout", 30*time.Second, "The maximum duration for reading the entire request body from the client. "+
+		"Requests exceeding this timeout receive HTTP 408 Request Timeout. This helps protect against slow-client attacks. Set to 0 to disable.")
+	responseWriteTimeout = flag.Duration("responseWriteTimeout", 60*time.Second, "The maximum duration for writing the response to the client. "+
+		"Connections exceeding this timeout are closed. This helps protect against slow-client attacks. Set to 0 to disable.")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
 		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
@@ -253,7 +257,16 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		isDefault = true
 	}
 
-	rtb := newReadTrackingBody(r.Body, maxRequestBodySizeToRetry.IntN())
+	body := r.Body
+	bodyTimeout := *requestBodyReadTimeout
+	if ui.RequestBodyReadTimeout != nil {
+		bodyTimeout = *ui.RequestBodyReadTimeout
+	}
+	if bodyTimeout > 0 && body != nil {
+		body = newTimeoutReadCloser(body, bodyTimeout)
+	}
+
+	rtb := newReadTrackingBody(body, maxRequestBodySizeToRetry.IntN())
 	r.Body = rtb
 
 	maxAttempts := up.getBackendsCount()
@@ -296,6 +309,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
 	req := sanitizeRequestHeaders(r)
+	ri := newRequestInfo(r, targetURL)
 
 	req.URL = targetURL
 	req.Header.Set("User-Agent", "vmauth")
@@ -311,6 +325,16 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	rtb, rtbOK := req.Body.(*readTrackingBody)
 	res, err := ui.rt.RoundTrip(req)
 
+	// This is placed before error checking intentionally - we want to track
+	// how long body reading took regardless of request success/failure.
+	if rtbOK && rtb != nil {
+		bodyReadDuration := rtb.getTotalReadDuration().Seconds()
+		requestBodyReadDuration.Update(bodyReadDuration)
+		if ui.requestBodyReadDuration != nil {
+			ui.requestBodyReadDuration.Update(bodyReadDuration)
+		}
+	}
+
 	if ctxErr := r.Context().Err(); ctxErr != nil {
 		// Override the error returned by the RoundTrip with the context error if it isn't non-nil
 		// This makes sure the proper logging for canceled and timed out requests - log the real cause of the error
@@ -318,13 +342,21 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		err = ctxErr
 	}
 	if err != nil {
+		var timeoutErr *requestBodyTimeoutError
+		if errors.As(err, &timeoutErr) {
+			err = &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("request body read timeout"),
+				StatusCode: http.StatusRequestTimeout,
+			}
+			httpserver.Errorf(w, r, "%s", err)
+			return true, false
+		}
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			// Do not retry canceled or timed out requests
-			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-			requestURI := httpserver.GetRequestURI(r)
 			if errors.Is(err, context.DeadlineExceeded) {
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
-				logger.Warnf("remoteAddr: %s; requestURI: %s; timeout while proxying the response from %s: %s", remoteAddr, requestURI, targetURL, err)
+				logger.Warnf("remoteAddr: %s; requestURI: %s; timeout while proxying the response from %s: %s",
+					ri.remoteAddr, ri.getRequestURI(r), ri.targetURL, err)
 				ui.backendErrors.Inc()
 			}
 			return false, false
@@ -332,7 +364,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		if !rtbOK || !rtb.canRetry() {
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
 			err = &httpserver.ErrorWithStatusCode{
-				Err:        fmt.Errorf("cannot proxy the request to %s: %w", targetURL, err),
+				Err:        fmt.Errorf("cannot proxy the request to %s: %w", ri.targetURL, err),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
@@ -345,10 +377,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 
 		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		// NOTE: do not use httpserver.GetRequestURI
-		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
+		// NOTE: do not use ri.getRequestURI() here - it reads request body, which may fail retries.
+		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s",
+			ri.remoteAddr, req.URL, ri.targetURL, err)
 		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
@@ -358,7 +389,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			// we consider such a request an error as well.
 			err := &httpserver.ErrorWithStatusCode{
 				Err: fmt.Errorf("got response status code=%d from %s, but cannot retry the request on another backend, because the request has been already consumed",
-					res.StatusCode, targetURL),
+					res.StatusCode, ri.targetURL),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
@@ -367,11 +398,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 		// Retry requests at other backends if it matches retryStatusCodes.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		// NOTE: do not use httpserver.GetRequestURI
-		// it explicitly reads request body, which may fail retries.
+		// NOTE: do not use ri.getRequestURI() here - it reads request body, which may fail retries.
 		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
-			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
+			ri.remoteAddr, req.URL, ri.targetURL, res.StatusCode, retryStatusCodes)
 		return false, false
 	}
 	removeHopHeaders(res.Header)
@@ -379,13 +408,31 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	updateHeadersByConfig(w.Header(), hc.ResponseHeaders)
 	w.WriteHeader(res.StatusCode)
 
-	err = copyStreamToClient(w, res.Body)
+	writer := w
+	writeTimeout := *responseWriteTimeout
+	if ui.ResponseWriteTimeout != nil {
+		writeTimeout = *ui.ResponseWriteTimeout
+	}
+	if writeTimeout > 0 {
+		writer = newTimeoutResponseWriter(w, writeTimeout)
+	}
+	writeStart := time.Now()
+	err = copyStreamToClient(writer, res.Body)
+	writeDuration := time.Since(writeStart).Seconds()
+	responseWriteDuration.Update(writeDuration)
+	if ui.responseWriteDuration != nil {
+		ui.responseWriteDuration.Update(writeDuration)
+	}
 	_ = res.Body.Close()
 	if err != nil && !netutil.IsTrivialNetworkError(err) && !errors.Is(err, context.Canceled) {
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
-
-		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
+		var writeTimeoutErr *responseWriteTimeoutError
+		if errors.As(err, &writeTimeoutErr) {
+			logger.Warnf("remoteAddr: %s; requestURI: %s; response write timeout while proxying from %s",
+				ri.remoteAddr, ri.getRequestURI(r), ri.targetURL)
+		} else {
+			logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s",
+				ri.remoteAddr, ri.getRequestURI(r), ri.targetURL, err)
+		}
 		return true, false
 	}
 	return true, false
@@ -513,6 +560,10 @@ var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	requestBodyTimeouts      = metrics.NewCounter("vmauth_request_body_read_timeouts_total")
+	responseWriteTimeouts    = metrics.NewCounter("vmauth_response_write_timeouts_total")
+	requestBodyReadDuration  = metrics.NewSummary("vmauth_request_body_read_duration_seconds")
+	responseWriteDuration    = metrics.NewSummary("vmauth_response_write_duration_seconds")
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
@@ -627,6 +678,9 @@ type readTrackingBody struct {
 
 	// bufComplete is set to true when buf contains complete request body read from r.
 	bufComplete bool
+
+	// totalReadDuration is cumulative time spent in Read() calls
+	totalReadDuration time.Duration
 }
 
 func newReadTrackingBody(r io.ReadCloser, maxBodySize int) *readTrackingBody {
@@ -671,7 +725,9 @@ func (rtb *readTrackingBody) Read(p []byte) (int, error) {
 		return 0, fmt.Errorf("cannot read client request body after closing client reader")
 	}
 
+	readStart := time.Now()
 	n, err := rtb.r.Read(p)
+	rtb.totalReadDuration += time.Since(readStart)
 	if rtb.cannotRetry {
 		return n, err
 	}
@@ -695,6 +751,11 @@ func (rtb *readTrackingBody) canRetry() bool {
 		return true
 	}
 	return rtb.r != nil
+}
+
+// getTotalReadDuration returns the cumulative time spent reading the body.
+func (rtb *readTrackingBody) getTotalReadDuration() time.Duration {
+	return rtb.totalReadDuration
 }
 
 // Close implements io.Closer interface.
@@ -729,4 +790,94 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
+}
+
+type requestBodyTimeoutError struct{}
+
+func (e *requestBodyTimeoutError) Error() string {
+	return "request body read timeout exceeded"
+}
+
+type responseWriteTimeoutError struct{}
+
+func (e *responseWriteTimeoutError) Error() string {
+	return "response write timeout exceeded"
+}
+
+// timeoutReadCloser wraps an io.ReadCloser with a deadline for reading.
+type timeoutReadCloser struct {
+	rc       io.ReadCloser
+	deadline time.Time
+	timedOut bool
+}
+
+func newTimeoutReadCloser(rc io.ReadCloser, timeout time.Duration) *timeoutReadCloser {
+	return &timeoutReadCloser{
+		rc:       rc,
+		deadline: time.Now().Add(timeout),
+	}
+}
+
+func (t *timeoutReadCloser) Read(p []byte) (n int, err error) {
+	if time.Now().After(t.deadline) {
+		t.timedOut = true
+		requestBodyTimeouts.Inc()
+		return 0, &requestBodyTimeoutError{}
+	}
+
+	return t.rc.Read(p)
+}
+
+func (t *timeoutReadCloser) Close() error {
+	return t.rc.Close()
+}
+
+// timeoutResponseWriter wraps http.ResponseWriter with a write deadline.
+type timeoutResponseWriter struct {
+	http.ResponseWriter
+
+	deadline time.Time
+	timedOut bool
+}
+
+func newTimeoutResponseWriter(w http.ResponseWriter, timeout time.Duration) *timeoutResponseWriter {
+	return &timeoutResponseWriter{
+		ResponseWriter: w,
+		deadline:       time.Now().Add(timeout),
+	}
+}
+
+func (t *timeoutResponseWriter) Write(p []byte) (int, error) {
+	if time.Now().After(t.deadline) {
+		t.timedOut = true
+		responseWriteTimeouts.Inc()
+		return 0, &responseWriteTimeoutError{}
+	}
+
+	return t.ResponseWriter.Write(p)
+}
+
+func (t *timeoutResponseWriter) Flush() {
+	if flusher, ok := t.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+// requestInfo holds common request metadata for logging
+type requestInfo struct {
+	remoteAddr string
+	targetURL  *url.URL
+}
+
+// getRequestURI returns the request URI.
+// Note: This reads the request body, so avoid calling it when retries are still possible.
+func (ri *requestInfo) getRequestURI(r *http.Request) string {
+	return httpserver.GetRequestURI(r)
+}
+
+func newRequestInfo(r *http.Request, targetURL *url.URL) requestInfo {
+	return requestInfo{
+		remoteAddr: httpserver.GetQuotedRemoteAddr(r),
+		targetURL:  targetURL,
+	}
 }
