@@ -193,6 +193,16 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			}},
 		}},
 	})
+	// Excess whitespace after final field. Issue #10049
+	f("foo bar=123   ", &Rows{
+		Rows: []Row{{
+			Measurement: "foo",
+			Fields: []Field{{
+				Key:   "bar",
+				Value: 123,
+			}},
+		}},
+	})
 	f("# comment\nfoo bar=123\r\n#comment2 sdsf dsf", &Rows{
 		Rows: []Row{{
 			Measurement: "foo",
