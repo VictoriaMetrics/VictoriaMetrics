@@ -692,6 +692,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexps"}`, storage.RegexpCacheMisses())
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMisses())
 
+	metrics.WriteCounterUint64(w, `vm_cache_resets_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheResets)
+
 	metrics.WriteCounterUint64(w, `vm_deleted_metrics_total{type="indexdb"}`, m.DeletedMetricsCount)
 
 	metrics.WriteCounterUint64(w, `vm_cache_collisions_total{type="storage/tsid"}`, m.TSIDCacheCollisions)

@@ -94,7 +94,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. In case of conflicts, original labels are kept with prefix 'exported_'.
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -external.url string
      External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.
   -filestream.disableFadvise
@@ -140,7 +140,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -httpListenAddr array
      Address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
      Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
      Supports array of values separated by comma or specified via multiple flags.
@@ -195,27 +195,27 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -mtlsCAFile array
      Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.basicAuth.password array
      Optional basic auth password for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.basicAuth.passwordFile array
      Optional path to basic auth password file for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.basicAuth.username array
      Optional basic auth username for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.bearerToken array
      Optional bearer token for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.bearerTokenFile array
      Optional path to bearer token file for -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.blackhole
      Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.
   -notifier.config string
@@ -223,31 +223,31 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -notifier.headers array
      Optional HTTP headers to send with each request to the corresponding -notifier.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -notifier.url. Multiple headers must be delimited by '^^': -notifier.headers='header1:value1^^header2:value2,header3:value3'
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.oauth2.clientID array
      Optional OAuth2 clientID to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.oauth2.clientSecret array
      Optional OAuth2 clientSecret to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.oauth2.clientSecretFile array
      Optional OAuth2 clientSecretFile to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.oauth2.endpointParams array
      Optional OAuth2 endpoint parameters to use for the corresponding -notifier.url . The endpoint parameters must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.oauth2.scopes array
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.oauth2.tokenUrl array
      Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.sendTimeout array
      Timeout when sending alerts to the corresponding -notifier.url (default 10s)
      Supports array of values separated by comma or specified via multiple flags.
@@ -259,11 +259,11 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -notifier.tlsCAFile array
      Optional path to TLS CA file to use for verifying connections to -notifier.url. By default, system CA is used
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.tlsCertFile array
      Optional path to client-side TLS certificate file to use when connecting to -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.tlsInsecureSkipVerify array
      Whether to skip tls verification when connecting to -notifier.url
      Supports array of values separated by comma or specified via multiple flags.
@@ -271,15 +271,15 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -notifier.tlsKeyFile array
      Optional path to client-side TLS certificate key to use when connecting to -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.tlsServerName array
      Optional TLS server name to use for connections to -notifier.url. By default, the server name from -notifier.url is used
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.url array
      Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file.
@@ -299,17 +299,17 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.header array
      Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file.
@@ -445,7 +445,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
      See https://docs.victoriametrics.com/victoriametrics/vmalert/#reading-rules-from-object-storage
      
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.defaultRuleType string
      Default type for rule expressions, can be overridden via "type" parameter on the group level, see https://docs.victoriametrics.com/victoriametrics/vmalert/#groups. Supported values: "graphite", "prometheus" and "vlogs". (default "prometheus")
   -rule.evalDelay duration
@@ -467,7 +467,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
       -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
      
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -rule.updateEntriesLimit int
      Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param. (default 20)
   -rule.validateExpressions
@@ -489,7 +489,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -secret.flags array
      Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
@@ -501,23 +501,23 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -tlsAutocertHosts array
      Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array
      Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsKeyFile array
      Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsMinVersion array
      Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
      Show VictoriaMetrics version
 ```
