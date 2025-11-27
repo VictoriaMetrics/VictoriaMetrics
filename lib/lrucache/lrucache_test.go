@@ -26,6 +26,9 @@ func TestCache(t *testing.T) {
 	if n := c.SizeMaxBytes(); n != sizeMaxBytes {
 		t.Fatalf("unexpected SizeMaxBytes(); got %d; want %d", n, sizeMaxBytes)
 	}
+	if n := c.Resets(); n != 0 {
+		t.Fatalf("unexpected Resets(); got %d; want %d", n, 0)
+	}
 	k := "foobar"
 	var e testEntry
 	entrySize := e.SizeBytes()
@@ -43,6 +46,9 @@ func TestCache(t *testing.T) {
 	if n := c.Misses(); n != 0 {
 		t.Fatalf("unexpected number of misses; got %d; want %d", n, 0)
 	}
+	if n := c.Resets(); n != 0 {
+		t.Fatalf("unexpected Resets(); got %d; want %d", n, 0)
+	}
 	// Obtain this entry from the cache
 	if e1 := c.GetEntry(k); e1 != &e {
 		t.Fatalf("unexpected entry obtained; got %v; want %v", e1, &e)
@@ -53,6 +59,9 @@ func TestCache(t *testing.T) {
 	if n := c.Misses(); n != 0 {
 		t.Fatalf("unexpected number of misses; got %d; want %d", n, 0)
 	}
+	if n := c.Resets(); n != 0 {
+		t.Fatalf("unexpected Resets(); got %d; want %d", n, 0)
+	}
 	// Obtain non-existing entry from the cache
 	if e1 := c.GetEntry("non-existing-key"); e1 != nil {
 		t.Fatalf("unexpected non-nil block obtained for non-existing key: %v", e1)
@@ -62,6 +71,9 @@ func TestCache(t *testing.T) {
 	}
 	if n := c.Misses(); n != 1 {
 		t.Fatalf("unexpected number of misses; got %d; want %d", n, 1)
+	}
+	if n := c.Resets(); n != 0 {
+		t.Fatalf("unexpected Resets(); got %d; want %d", n, 0)
 	}
 	// Store the entry again.
 	c.PutEntry(k, &e)
@@ -77,11 +89,32 @@ func TestCache(t *testing.T) {
 	if n := c.Misses(); n != 1 {
 		t.Fatalf("unexpected number of misses; got %d; want %d", n, 1)
 	}
+	if n := c.Resets(); n != 0 {
+		t.Fatalf("unexpected Resets(); got %d; want %d", n, 0)
+	}
 
 	// Manually clean the cache. The entry shouldn't be deleted because it was recently accessed.
 	c.cleanByTimeout()
 	if n := c.SizeBytes(); n != entrySize {
 		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, entrySize)
+	}
+
+	// Reset cache.
+	c.Reset()
+	if n := c.SizeMaxBytes(); n != sizeMaxBytes {
+		t.Fatalf("unexpected SizeMaxBytes(); got %d; want %d", n, sizeMaxBytes)
+	}
+	if n := c.SizeBytes(); n != 0 {
+		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, 0)
+	}
+	if n := c.Requests(); n != 0 {
+		t.Fatalf("unexpected number of requests; got %d; want %d", n, 0)
+	}
+	if n := c.Misses(); n != 0 {
+		t.Fatalf("unexpected number of misses; got %d; want %d", n, 0)
+	}
+	if n := c.Resets(); n != 1 {
+		t.Fatalf("unexpected Resets(); got %d; want %d", n, 1)
 	}
 }
 
