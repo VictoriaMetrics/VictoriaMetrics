@@ -1927,8 +1927,6 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 		if len(tail) > 0 {
 			return fmt.Errorf("non-empty tail after unmarshaling MetricBlock: (len=%d) %q", len(tail), tail)
 		}
-		sn := sns[workerID]
-		sn.metricRowsRead.Add(mb.Block.RowsCount())
 		return processBlock(mb, workerID)
 	}
 	return processBlocksInternal(qt, sns, denyPartialResponse, sq, f, deadline)
@@ -2333,9 +2331,6 @@ type storageNode struct {
 
 	// The number of metric blocks read.
 	metricBlocksRead *metrics.Counter
-
-	// The number of read metric rows.
-	metricRowsRead *metrics.Counter
 
 	// The number of list tenants requests to storageNode.
 	tenantsRequests *metrics.Counter
@@ -3294,7 +3289,6 @@ func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *sto
 		metricsMetadataErrors:       ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="metricsMetadata", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 
 		metricBlocksRead: ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-		metricRowsRead:   ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
 	}
 	return sn
 }
