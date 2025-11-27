@@ -2133,14 +2133,6 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	fs.MustRemoveDir(path)
 }
 
-func toTFPointers(tfs []tagFilter) []*tagFilter {
-	tfps := make([]*tagFilter, len(tfs))
-	for i := range tfs {
-		tfps[i] = &tfs[i]
-	}
-	return tfps
-}
-
 func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
