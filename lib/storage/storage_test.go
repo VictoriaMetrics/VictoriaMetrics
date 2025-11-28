@@ -1031,7 +1031,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		if idb.tr.MaxTimestamp < tfssTR.MaxTimestamp {
 			tfssTR.MaxTimestamp = idb.tr.MaxTimestamp
 		}
-		tfssKey := idb.marshalTagFiltersKey(nil, tfss, tr)
+		tfssKey := marshalTagFiltersKey(nil, tfss, tr)
 		_, got := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey)
 		if got != want {
 			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)

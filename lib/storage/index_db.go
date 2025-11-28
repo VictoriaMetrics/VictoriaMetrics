@@ -264,7 +264,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		legacyMinMissingTimestampByKey: make(map[string]int64),
 		tagFiltersToMetricIDsCache:     tfssCache,
 		s:                              s,
-		loopsPerDateTagFilterCache:     workingsetcache.New(mem / 128),
+		loopsPerDateTagFilterCache:     workingsetcache.New(memory.Allowed() / 128),
 		metricIDCache:                  newMetricIDCache(),
 		dateMetricIDCache:              newDateMetricIDCache(),
 	}
