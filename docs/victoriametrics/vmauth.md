@@ -841,6 +841,46 @@ users:
 
 See config example of using [IP filters](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
 
+## Slow client protection
+
+`vmauth` can limit how long clients take to send requests or receive responses. This protects against slow-client attacks (e.g., [slowloris](https://en.wikipedia.org/wiki/Slowloris_(computer_security))) that exhaust server resources.
+
+The following command-line flags control timeouts:
+
+* `-requestBodyReadTimeout` - maximum time to read the entire request body (default: `30s`). Clients exceeding this get HTTP 408. Set to `0` to disable.
+* `-responseWriteTimeout` - maximum time to write the response (default: `60s`). Connections exceeding this are closed. Set to `0` to disable.
+
+Per-user timeouts can be set in [`-auth.config`](#auth-config):
+
+```yaml
+users:
+- username: "default"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+
+- username: "slow-client"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+  request_body_read_timeout: 120s
+  response_write_timeout: 180s
+
+unauthorized_user:
+  url_prefix: "http://localhost:8428"
+  request_body_read_timeout: 5s
+  response_write_timeout: 10s
+```
+
+Timeout events are logged with client IP and `X-Forwarded-For` header.
+
+The following [metrics](#monitoring) are exposed:
+
+* `vmauth_request_body_read_duration_seconds` - time spent reading request bodies
+* `vmauth_response_write_duration_seconds` - time spent writing responses
+* `vmauth_request_body_read_timeouts_total` - number of request body read timeouts
+* `vmauth_response_write_timeouts_total` - number of response write timeouts
+
+Per-user variants are also available: `vmauth_user_request_body_read_duration_seconds` and `vmauth_user_response_write_duration_seconds`.
+
 ## Reading auth tokens from other HTTP headers
 
 `vmauth` reads `username`, `password` and `bearer_token` [config values](#auth-config) from `Authorization` request header.
@@ -1108,6 +1148,8 @@ See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/tr
 * `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of requests served for the given `username`
 * `vmauth_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of request errors for the given `username`
 * `vmauth_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - the duration of requests for the given `username`
+* `vmauth_user_request_body_read_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - time spent reading request body for the given `username`. See [slow client protection](#slow-client-protection)
+* `vmauth_user_response_write_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - time spent writing response for the given `username`. See [slow client protection](#slow-client-protection)
 * `vmauth_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of failed requests
   for the given `username` because of exceeded [concurrency limits](#concurrency-limiting)
 * `vmauth_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the maximum number of [concurrent requests](#concurrency-limiting)
@@ -1142,6 +1184,8 @@ users:
 * `vmauth_unauthorized_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of unauthorized requests served
 * `vmauth_unauthorized_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of unauthorized request errors
 * `vmauth_unauthorized_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - the duration of unauthorized requests
+* `vmauth_unauthorized_user_request_body_read_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - time spent reading request body for unauthorized requests. See [slow client protection](#slow-client-protection)
+* `vmauth_unauthorized_user_response_write_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - time spent writing response for unauthorized requests. See [slow client protection](#slow-client-protection)
 * `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of failed unauthorized requests because of exceeded [concurrency limits](#concurrency-limiting)
 * `vmauth_unauthorized_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the maximum number of [concurrent unauthorized requests](#concurrency-limiting)
 * `vmauth_unauthorized_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the current number of [concurrent unauthorized requests](#concurrency-limiting)
