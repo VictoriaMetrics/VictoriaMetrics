@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
@@ -133,44 +134,48 @@ func (api *vmstorageAPI) GetMetadataRecords(qt *querytracer.Tracer, tt *storage.
 // blockIterator implements vmselectapi.BlockIterator
 type blockIterator struct {
 	workCh chan workItem
+	wis    []workItem
 	wg     sync.WaitGroup
 	err    error
 }
 
 type workItem struct {
-	mb     *storage.MetricBlock
-	doneCh chan struct{}
+	rawMetricBlock []byte
+	doneCh         chan struct{}
 }
 
 func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutil.Deadline) *blockIterator {
-	var bi blockIterator
-	bi.workCh = make(chan workItem, 16)
+	bi := getBlockIterator()
 	bi.wg.Add(1)
+	workers, processBlocks := netstorage.PrepareProcessRawBlocks(qt, denyPartialResponse, sq, deadline)
+	bi.workCh = make(chan workItem, workers)
+	bi.wis = slicesutil.SetLength(bi.wis, workers)
+	for i := range bi.wis {
+		bi.wis[i].doneCh = make(chan struct{})
+	}
 	go func() {
-		_, err := netstorage.ProcessBlocks(qt, denyPartialResponse, sq, func(mb *storage.MetricBlock, _ uint) error {
-			wi := workItem{
-				mb:     mb,
-				doneCh: make(chan struct{}),
-			}
+		_, err := processBlocks(func(mb []byte, workerID uint) error {
+			wi := bi.wis[workerID]
+			wi.rawMetricBlock = mb
 			bi.workCh <- wi
 			<-wi.doneCh
 			return nil
-		}, deadline)
+		})
 		close(bi.workCh)
 		bi.err = err
 		bi.wg.Done()
 	}()
-	return &bi
+	return bi
 }
 
-func (bi *blockIterator) NextBlock(mb *storage.MetricBlock) bool {
+func (bi *blockIterator) NextBlock(dst []byte) ([]byte, bool) {
 	wi, ok := <-bi.workCh
 	if !ok {
-		return false
+		return nil, false
 	}
-	mb.CopyFrom(wi.mb)
+	dst = append(dst, wi.rawMetricBlock...)
 	wi.doneCh <- struct{}{}
-	return true
+	return dst, true
 }
 
 func (bi *blockIterator) Error() error {
@@ -179,11 +184,34 @@ func (bi *blockIterator) Error() error {
 }
 
 func (bi *blockIterator) MustClose() {
-	var mb storage.MetricBlock
-	for bi.NextBlock(&mb) {
+	var buf []byte
+	var ok bool
+	for {
+		buf, ok = bi.NextBlock(buf[:0])
+		if !ok {
+			break
+		}
 		// Drain pending blocks before exit in order to free up
 		// the goroutine started at newBlockIterator
 	}
 	// Wait until the goroutine from newBlockIterator is finished.
 	bi.wg.Wait()
+	for i := range bi.wis {
+		wi := &bi.wis[i]
+		wi.rawMetricBlock = nil
+		wi.doneCh = nil
+	}
+	bi.err = nil
+	bi.workCh = nil
+	blockIteratorsPool.Put(bi)
+}
+
+var blockIteratorsPool sync.Pool
+
+func getBlockIterator() *blockIterator {
+	v := blockIteratorsPool.Get()
+	if v == nil {
+		v = &blockIterator{}
+	}
+	return v.(*blockIterator)
 }

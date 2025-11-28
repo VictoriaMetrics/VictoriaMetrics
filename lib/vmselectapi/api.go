@@ -54,10 +54,10 @@ type API interface {
 //
 // MustClose must be called in order to free up allocated resources when BlockIterator is no longer needed.
 type BlockIterator interface {
-	// NextBlock reads the next block into mb.
+	// NextBlock marshals next storage.MetricBlock into dst.
 	//
 	// It returns true on success, false on error or if no blocks to read.
-	NextBlock(mb *storage.MetricBlock) bool
+	NextBlock(dst []byte) ([]byte, bool)
 
 	// MustClose frees up resources allocated by BlockIterator.
 	MustClose()
