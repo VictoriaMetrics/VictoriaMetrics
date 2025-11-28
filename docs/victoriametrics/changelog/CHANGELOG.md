@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
+
+Released at 2025-11-28
+
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): add `-backupTypeTagName` flag that sets tag to each backup object with a name equal to flag value and value, that equals to backup type (`hourly`, `daily`, `monthly`, `latest`, `weekly`). Useful for [AWS S3 lifecycle policy management](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html).
 * FEATURE: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): reduce query requests latency, CPU and Memory usage for [multi-level](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multi-level-cluster-setup) select requests. See [#9899](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9899) for details.
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): improve Alerting page styling so rule labels are clearly separated. See [#9856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9856).
