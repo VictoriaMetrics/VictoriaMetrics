@@ -1031,7 +1031,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		if idb.tr.MaxTimestamp < tfssTR.MaxTimestamp {
 			tfssTR.MaxTimestamp = idb.tr.MaxTimestamp
 		}
-		tfssKey := idb.marshalTagFiltersKey(nil, tfss, tr, true)
+		tfssKey := idb.marshalTagFiltersKey(nil, tfss, tr)
 		_, got := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey)
 		if got != want {
 			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)
@@ -3854,22 +3854,21 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 // The function is not a part of Storage because it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
 		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	}
-	merge := func(data [][]uint64) []uint64 {
-		s := &uint64set.Set{}
+	merge := func(data []*uint64set.Set) *uint64set.Set {
+		all := &uint64set.Set{}
 		for _, d := range data {
-			s.AddMulti(d)
+			all.Union(d)
 		}
-		all := s.AppendTo(nil)
 		return all
 	}
 	metricIDs, err := searchAndMerge(nil, s, tr, search, merge)
 	if err != nil {
 		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
 	}
-	return metricIDs
+	return metricIDs.AppendTo(nil)
 }
 
 // testCountAllMetricIDs is a test helper function that counts the IDs of

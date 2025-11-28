@@ -17,17 +17,13 @@
     transform: rotate(0);
     transition: transform 200ms ease-in-out;
 
+    &_open {
+      transform: rotate(180deg);
+    }
+
     svg {
       width: 14px;
       height: auto;
-    }
-  }
-}
-
-.vm-accordion-section[open] > summary {
-  & > .vm-accordion-header {
-    &__arrow {
-      transform: rotate(180deg);
     }
   }
 }

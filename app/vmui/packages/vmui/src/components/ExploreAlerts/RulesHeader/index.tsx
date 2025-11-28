@@ -61,7 +61,7 @@ const RulesHeader: FC<RulesHeaderProps> = ({
             value={states}
             list={allStates}
             label="State"
-            placeholder="Please rule state"
+            placeholder="Please select rule state"
             onChange={onChangeStates}
             noOptionsText={noStateText}
             includeAll

@@ -60,7 +60,7 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs
+			return metricIDs.AppendTo(nil)
 		}
 		searchTSIDs := func() []TSID {
 			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
@@ -162,7 +162,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs
+			return metricIDs.AppendTo(nil)
 		}
 		searchMetricNames := func() []string {
 			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)

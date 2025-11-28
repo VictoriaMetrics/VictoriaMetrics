@@ -22,49 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
-func TestMarshalUnmarshalMetricIDs(t *testing.T) {
-	f := func(metricIDs []uint64) {
-		t.Helper()
-
-		// Try marshaling and unmarshaling to an empty dst
-		data := marshalMetricIDs(nil, metricIDs)
-		result := mustUnmarshalMetricIDs(nil, data)
-		if !reflect.DeepEqual(result, metricIDs) {
-			t.Fatalf("unexpected metricIDs after unmarshaling;\ngot\n%d\nwant\n%d", result, metricIDs)
-		}
-
-		// Try marshaling and unmarshaling to non-empty dst
-		dataPrefix := []byte("prefix")
-		data = marshalMetricIDs(dataPrefix, metricIDs)
-		if len(data) < len(dataPrefix) {
-			t.Fatalf("too short len(data)=%d; must be at least len(dataPrefix)=%d", len(data), len(dataPrefix))
-		}
-		if string(data[:len(dataPrefix)]) != string(dataPrefix) {
-			t.Fatalf("unexpected prefix; got %q; want %q", data[:len(dataPrefix)], dataPrefix)
-		}
-		data = data[len(dataPrefix):]
-
-		resultPrefix := []uint64{889432422, 89243, 9823}
-		result = mustUnmarshalMetricIDs(resultPrefix, data)
-		if len(result) < len(resultPrefix) {
-			t.Fatalf("too short result returned; len(result)=%d; must be at least len(resultPrefix)=%d", len(result), len(resultPrefix))
-		}
-		if !reflect.DeepEqual(result[:len(resultPrefix)], resultPrefix) {
-			t.Fatalf("unexpected result prefix; got %d; want %d", result[:len(resultPrefix)], resultPrefix)
-		}
-		result = result[len(resultPrefix):]
-		if (len(metricIDs) > 0 || len(result) > 0) && !reflect.DeepEqual(result, metricIDs) {
-			t.Fatalf("unexpected metricIDs after unmarshaling from prefix;\ngot\n%d\nwant\n%d", result, metricIDs)
-		}
-	}
-
-	f(nil)
-	f([]uint64{0})
-	f([]uint64{1})
-	f([]uint64{1234, 678932943, 843289893843})
-	f([]uint64{1, 2, 3, 4, 5, 6, 8989898, 823849234, 1<<64 - 1, 1<<32 - 1, 0})
-}
-
 func TestTagFiltersToMetricIDsCache(t *testing.T) {
 	f := func(want []uint64) {
 		t.Helper()
@@ -80,11 +37,15 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		defer s.tb.PutPartition(ptw)
 
 		key := []byte("key")
-		idb.putMetricIDsToTagFiltersCache(nil, want, key)
-		got, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+		wantSet := &uint64set.Set{}
+		wantSet.AddMulti(want)
+		idb.putMetricIDsToTagFiltersCache(nil, wantSet, key)
+		gotSet, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
 		if !ok {
 			t.Fatalf("expected metricIDs to be found in cache but they weren't: %v", want)
 		}
+		got := gotSet.AppendTo(nil)
+		slices.Sort(want)
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("unexpected metricIDs in cache: got %v, want %v", got, want)
 		}
@@ -106,14 +67,13 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	defer s.tb.PutPartition(ptw)
 
 	key := []byte("key")
-	emptyMetricIDs := []uint64(nil)
-	idb.putMetricIDsToTagFiltersCache(nil, emptyMetricIDs, key)
+	idb.putMetricIDsToTagFiltersCache(nil, nil, key)
 	got, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
 	if !ok {
 		t.Fatalf("expected empty metricID list to be found in cache but it wasn't")
 	}
-	if len(got) > 0 {
-		t.Fatalf("unexpected found metricID list to be empty but got %v", got)
+	if got.Len() > 0 {
+		t.Fatalf("unexpected found metricID list to be empty but got %v", got.AppendTo(nil))
 	}
 
 }

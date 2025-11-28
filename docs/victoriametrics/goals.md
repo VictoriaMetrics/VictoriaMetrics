@@ -14,7 +14,7 @@ aliases:
 
 1. The main goal - **to help users and [clients](https://docs.victoriametrics.com/victoriametrics/enterprise/) using VictoriaMetrics and VictoriaLogs component in the most efficient way**.
 1. Fixing bugs in the essential functionality of VictoriaMetrics components. Small usability bugs are usually the most annoying,
-   so they **must be fixed first**.
+   so they **must be fixed first**. Bugs, which affect a small number of users at some rare edge cases, can be fixed later.
 1. Improving [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) for VictoriaMetrics components,
    so users could find answers to their questions via Google or [Perplexity](https://www.perplexity.ai/) without the need
    to ask these questions at our [support channels](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#community-and-contributions).

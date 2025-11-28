@@ -2168,7 +2168,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 
 	// Slower path: less than nextPrefillStartSeconds left for the next indexdb rotation.
 	// Pre-populate idbNext with the increasing probability until the rotation.
-	// The probability increases from 0% to 100% proportioinally to d=[nextPrefillStartSeconds .. 0].
+	// The probability increases from 0% to 100% proportionally to d=[nextPrefillStartSeconds .. 0].
 	pMin := d / float64(s.idbPrefillStartSeconds)
 
 	ptwNext := s.tb.MustGetPartition(nextMonth.UnixMilli())

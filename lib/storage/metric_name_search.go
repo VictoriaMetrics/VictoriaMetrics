@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-// metricNameSearch is used for for searching a metricName by a metricID in
+// metricNameSearch is used for searching a metricName by a metricID in
 // partition and legacy indexDBs. If useSparseCache is false the name is first
 // searched in metricNameCache and also stored in that cache when found in one
 // of the indexDBs.
@@ -13,7 +13,7 @@ import (
 // request to /api/v1/series results in one invocation of
 // Storage.SearchMetricNames() method. However, searching a metricName by
 // metricID is done multiple times per API call. For example, data search
-// performs the the metricName search for each data block (see search.go).
+// performs the metricName search for each data block (see search.go).
 //
 // Additionally, each search method must get a snapshot of idbs so that they
 // don't get rotated in the middle of the search. This works for methods that

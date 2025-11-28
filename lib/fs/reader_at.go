@@ -7,8 +7,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread() instead of mmap() for reading data files. "+
@@ -64,21 +66,19 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 
 	// Read len(p) bytes at offset off to p.
 	if len(mr.mmapData) == 0 {
-		n, err := mr.f.ReadAt(p, off)
-		if err != nil {
-			logger.Panicf("FATAL: cannot read %d bytes at offset %d of file %q: %s", len(p), off, r.path, err)
-		}
-		if n != len(p) {
-			logger.Panicf("FATAL: unexpected number of bytes read from file %q; got %d; want %d", r.path, n, len(p))
-		}
+		mr.mustReadAtViaSyscall(p, off)
 	} else {
 		if off > int64(len(mr.mmapData)-len(p)) {
 			logger.Panicf("BUG: off=%d is out of allowed range [0...%d] for len(p)=%d in file %q", off, len(mr.mmapData)-len(p), len(p), r.path)
 		}
-		src := mr.mmapData[off:]
-		// The copy() below may result in thread block as described at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d .
-		// But production workload proved this is OK in most cases, so use it without fear :)
-		copy(p, src)
+		if mr.canFastReadViaMmap(off, len(p)) {
+			src := mr.mmapData[off:]
+			copy(p, src)
+		} else {
+			// Fall back for reading the data via syscall in order to avoid thread stalls
+			// descirbed at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d
+			mr.mustReadAtViaSyscall(p, off)
+		}
 	}
 	if r.useLocalStats {
 		r.readCalls.Add(1)
@@ -173,6 +173,9 @@ func NewReaderAt(f *os.File) *ReaderAt {
 type mmapReader struct {
 	f        *os.File
 	mmapData []byte
+
+	mincoreBits                 []atomic.Uint64
+	mincoreNextCleanupTimestamp atomic.Uint64
 }
 
 func newMmapReaderFromPath(path string) *mmapReader {
@@ -185,6 +188,8 @@ func newMmapReaderFromPath(path string) *mmapReader {
 
 func newMmapReaderFromFile(f *os.File) *mmapReader {
 	var mmapData []byte
+	var mincoreBits []atomic.Uint64
+
 	if !*disableMmap {
 		fi, err := f.Stat()
 		if err != nil {
@@ -200,12 +205,23 @@ func newMmapReaderFromFile(f *os.File) *mmapReader {
 			logger.Panicf("FATAL: cannot mmap %q: %s", path, err)
 		}
 		mmapData = data
+
+		if hasMincore() {
+			mincoreBitsSize := (((uint64(size) + pageSizeBytes - 1) / pageSizeBytes) + 63) / 64
+			mincoreBits = make([]atomic.Uint64, mincoreBitsSize)
+		}
 	}
+
 	readersCount.Inc()
-	return &mmapReader{
+	mr := &mmapReader{
 		f:        f,
 		mmapData: mmapData,
+
+		mincoreBits: mincoreBits,
 	}
+	mr.mincoreNextCleanupTimestamp.Store(fasttime.UnixTimestamp() + 60)
+
+	return mr
 }
 
 func (mr *mmapReader) mustClose() {
@@ -222,6 +238,84 @@ func (mr *mmapReader) mustClose() {
 
 	readersCount.Dec()
 }
+
+func (mr *mmapReader) mustReadAtViaSyscall(p []byte, off int64) {
+	n, err := mr.f.ReadAt(p, off)
+	if err != nil {
+		logger.Panicf("FATAL: cannot read %d bytes at offset %d of file %q: %s", len(p), off, mr.f.Name(), err)
+	}
+	if n != len(p) {
+		logger.Panicf("FATAL: unexpected number of bytes read from file %q; got %d; want %d", mr.f.Name(), n, len(p))
+	}
+
+	if len(mr.mmapData) == 0 || !hasMincore() {
+		return
+	}
+
+	// Mark the just read data as available for fast read via mmap
+	mincoreBits := mr.mincoreBits
+	pageSize := pageSizeBytes
+
+	end := off + int64(n)
+	off -= int64(uint64(off) % pageSize)
+	pageIdx := uint64(off) / pageSize
+	for off < end {
+		wordIdx := pageIdx / 64
+		bitIdx := pageIdx % 64
+		mask := uint64(1) << bitIdx
+		wordPtr := &mincoreBits[wordIdx]
+		word := wordPtr.Load()
+		for (word&mask) == 0 && !wordPtr.CompareAndSwap(word, word|mask) {
+			word = wordPtr.Load()
+		}
+
+		off += int64(pageSize)
+		pageIdx++
+	}
+}
+
+func (mr *mmapReader) canFastReadViaMmap(off int64, n int) bool {
+	if !hasMincore() {
+		return true
+	}
+
+	mincoreBits := mr.mincoreBits
+	pageSize := pageSizeBytes
+
+	ct := fasttime.UnixTimestamp()
+	nextCleanup := mr.mincoreNextCleanupTimestamp.Load()
+	if ct > nextCleanup && mr.mincoreNextCleanupTimestamp.CompareAndSwap(nextCleanup, ct+60) {
+		for i := range mincoreBits {
+			mincoreBits[i].Store(0)
+		}
+	}
+
+	end := off + int64(n)
+	off -= int64(uint64(off) % pageSize)
+	pageIdx := uint64(off) / pageSize
+	for off < end {
+		wordIdx := pageIdx / 64
+		bitIdx := pageIdx % 64
+		mask := uint64(1) << bitIdx
+		wordPtr := &mincoreBits[wordIdx]
+		word := wordPtr.Load()
+		if (word & mask) == 0 {
+			if !mincore(&mr.mmapData[off]) {
+				return false
+			}
+			for (word&mask) == 0 && !wordPtr.CompareAndSwap(word, word|mask) {
+				word = wordPtr.Load()
+			}
+		}
+
+		off += int64(pageSize)
+		pageIdx++
+	}
+
+	return true
+}
+
+var pageSizeBytes = uint64(os.Getpagesize())
 
 func mmapFile(f *os.File, size int64) ([]byte, error) {
 	if size == 0 {
