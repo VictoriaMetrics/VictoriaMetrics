@@ -1152,12 +1152,348 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "Shows time spent reading request body from clients. Rising duration may indicate slow clients (e.g., slow-client attacks, unstable networks). Compare with ingestion rates to distinguish client issues from backend issues.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "id": 38,
+      "options": {
+        "legend": {
+          "calcs": [
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "max(vmauth_user_request_body_read_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
+          "hide": false,
+          "legendFormat": "user: {{username}} q: {{quantile}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "max(vmauth_unauthorized_user_request_body_read_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
+          "hide": false,
+          "legendFormat": "user: unauthorized q: {{quantile}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Request body read duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "Shows time spent writing response to clients. Rising duration may indicate slow clients (e.g., slow-client attacks, unstable networks). Compare with ingestion rates to distinguish client issues from backend issues.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 37
+      },
+      "id": 39,
+      "options": {
+        "legend": {
+          "calcs": [
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "max(vmauth_user_response_write_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
+          "hide": false,
+          "legendFormat": "user: {{username}} q: {{quantile}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "max(vmauth_unauthorized_user_response_write_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
+          "hide": false,
+          "legendFormat": "user: unauthorized q: {{quantile}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Response write duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "Shows the rate of client timeout errors. Request body read timeouts return HTTP 408. Response write timeouts close the connection. Non-zero values indicate slow-client issues.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 37
+      },
+      "id": 40,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmauth_request_body_read_timeouts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "request body read timeouts",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(vmauth_response_write_timeouts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "response write timeouts",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Client timeout errors rate",
+      "type": "timeseries"
+    },
+    {
       "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 46
       },
       "id": 22,
       "panels": [
@@ -1227,7 +1563,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 28
           },
           "id": 25,
           "options": {
@@ -1332,7 +1668,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 28
           },
           "id": 26,
           "options": {
@@ -1440,7 +1776,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 36
           },
           "id": 27,
           "options": {
@@ -1612,7 +1948,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 36
           },
           "id": 28,
           "options": {
@@ -1731,7 +2067,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 44
           },
           "id": 23,
           "options": {
@@ -1836,7 +2172,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 44
           },
           "id": 24,
           "options": {
@@ -1960,7 +2296,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 52
           },
           "id": 20,
           "options": {
@@ -2068,7 +2404,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 52
           },
           "id": 21,
           "options": {
@@ -2172,7 +2508,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 60
           },
           "id": 29,
           "options": {
@@ -2220,7 +2556,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 47
       },
       "id": 35,
       "panels": [
@@ -2288,7 +2624,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 48
           },
           "id": 34,
           "options": {
@@ -2414,7 +2750,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 48
           },
           "id": 8,
           "options": {
@@ -2518,7 +2854,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 56
           },
           "id": 37,
           "options": {
