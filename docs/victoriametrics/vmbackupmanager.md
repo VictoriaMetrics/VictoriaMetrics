@@ -206,7 +206,7 @@ in your object storage to remove objects under listed below prefixes:
 * `<s3-backup-path-prefix>/weekly/`
 * `<s3-backup-path-prefix>/monthly/`
 
-In case, when multiple storage nodes of multiple clusters are storing backups into the same bucket you can set `-backupTypeTagName=VMBackupType` flag {{% available_from "#" %}}.
+In case, when multiple storage nodes of multiple clusters are storing backups into the same bucket you can set `-backupTypeTagName=VMBackupType` flag {{% available_from "v1.131.0" %}}.
 With this flag set vmbackupmanager sets `VMBackupType` tag with value, that equals to backup type. It allows to set lifecycle policy per backup type
 
 ```
