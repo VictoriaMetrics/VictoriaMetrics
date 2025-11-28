@@ -843,6 +843,8 @@ See config example of using [IP filters](https://github.com/VictoriaMetrics/Vict
 
 ## Slow client protection
 
+{{% available_from "#" %}}
+
 `vmauth` can limit how long clients take to send requests or receive responses. This protects against slow-client attacks (e.g., [slowloris](https://en.wikipedia.org/wiki/Slowloris_(computer_security))) that exhaust server resources.
 
 The following command-line flags control timeouts:

@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add [slow client protection](https://docs.victoriametrics.com/victoriametrics/vmauth/#slow-client-protection) via `-requestBodyReadTimeout` and `-responseWriteTimeout` flags. This protects against slow-client attacks that exhaust server resources. Per-user timeouts can be configured via `request_body_read_timeout` and `response_write_timeout` options. See [#10084](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10084).
 
 ## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
 
