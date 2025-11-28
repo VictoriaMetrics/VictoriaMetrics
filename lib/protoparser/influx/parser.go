@@ -120,8 +120,10 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeCh
 	r.Fields = fieldsPool[fieldsStart:]
 	s = stripLeadingWhitespace(s[n+1:])
 
+	// The timestamp is optional in the InfluxDB line protocol.
+	// Whitespace before it may still be present even when the timestamp itself is omitted.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10049
 	if len(s) > 0 {
-		// Parse timestamp
 		timestamp, err := fastfloat.ParseInt64(s)
 		if err != nil {
 			if strings.HasPrefix(s, "HTTP/") {
