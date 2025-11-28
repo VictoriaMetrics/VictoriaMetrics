@@ -804,11 +804,12 @@ func (e *responseWriteTimeoutError) Error() string {
 	return "response write timeout exceeded"
 }
 
-// timeoutReadCloser wraps an io.ReadCloser with a deadline for reading.
+// timeoutReadCloser wraps an io.ReadCloser with a wall-clock deadline.
+// The deadline is set once at creation and not reset on successful reads.
+// This protects against slow-client attacks where data trickles in slowly.
 type timeoutReadCloser struct {
 	rc       io.ReadCloser
 	deadline time.Time
-	timedOut bool
 }
 
 func newTimeoutReadCloser(rc io.ReadCloser, timeout time.Duration) *timeoutReadCloser {
@@ -820,11 +821,9 @@ func newTimeoutReadCloser(rc io.ReadCloser, timeout time.Duration) *timeoutReadC
 
 func (t *timeoutReadCloser) Read(p []byte) (n int, err error) {
 	if time.Now().After(t.deadline) {
-		t.timedOut = true
 		requestBodyTimeouts.Inc()
 		return 0, &requestBodyTimeoutError{}
 	}
-
 	return t.rc.Read(p)
 }
 
@@ -832,12 +831,12 @@ func (t *timeoutReadCloser) Close() error {
 	return t.rc.Close()
 }
 
-// timeoutResponseWriter wraps http.ResponseWriter with a write deadline.
+// timeoutResponseWriter wraps http.ResponseWriter with a wall-clock deadline.
+// The deadline is set once at creation and not reset on successful writes.
+// This protects against slow-client attacks where data is consumed slowly.
 type timeoutResponseWriter struct {
 	http.ResponseWriter
-
 	deadline time.Time
-	timedOut bool
 }
 
 func newTimeoutResponseWriter(w http.ResponseWriter, timeout time.Duration) *timeoutResponseWriter {
@@ -849,11 +848,9 @@ func newTimeoutResponseWriter(w http.ResponseWriter, timeout time.Duration) *tim
 
 func (t *timeoutResponseWriter) Write(p []byte) (int, error) {
 	if time.Now().After(t.deadline) {
-		t.timedOut = true
 		responseWriteTimeouts.Inc()
 		return 0, &responseWriteTimeoutError{}
 	}
-
 	return t.ResponseWriter.Write(p)
 }
 
