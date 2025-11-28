@@ -1902,7 +1902,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	return &rss, isPartial, nil
 }
 
-// PrepareProcessRawBlocks prepares metric blocks prossesor.
+// PrepareProcessRawBlocks prepares metric blocks processor.
 //
 // Returns workers count and processBlocks function
 func PrepareProcessRawBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
