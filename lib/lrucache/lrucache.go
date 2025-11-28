@@ -17,6 +17,8 @@ import (
 //
 // Call NewCache() for creating new Cache.
 type Cache struct {
+	resets atomic.Uint64
+
 	shards []*cache
 
 	cleanerMustStopCh chan struct{}
@@ -58,6 +60,14 @@ func NewCache(getMaxSizeBytes func() uint64) *Cache {
 func (c *Cache) MustStop() {
 	close(c.cleanerMustStopCh)
 	<-c.cleanerStoppedCh
+}
+
+// Reset resets the cache.
+func (c *Cache) Reset() {
+	c.resets.Add(1)
+	for _, shard := range c.shards {
+		shard.Reset()
+	}
 }
 
 // GetEntry returns an Entry for the given key k from c.
@@ -109,7 +119,8 @@ func (c *Cache) SizeMaxBytes() uint64 {
 	return n
 }
 
-// Requests returns the number of requests served by c.
+// Requests returns the number of requests served by c since cache creation or
+// last reset.
 func (c *Cache) Requests() uint64 {
 	n := uint64(0)
 	for _, shard := range c.shards {
@@ -118,13 +129,19 @@ func (c *Cache) Requests() uint64 {
 	return n
 }
 
-// Misses returns the number of cache misses for c.
+// Misses returns the number of cache misses for c since cache creation or last
+// reset.
 func (c *Cache) Misses() uint64 {
 	n := uint64(0)
 	for _, shard := range c.shards {
 		n += shard.Misses()
 	}
 	return n
+}
+
+// Resets returns the number of cache resets since its creation.
+func (c *Cache) Resets() uint64 {
+	return c.resets.Load()
 }
 
 func (c *Cache) cleaner() {
@@ -198,6 +215,17 @@ func newCache(getMaxSizeBytes func() uint64) *cache {
 	c.getMaxSizeBytes = getMaxSizeBytes
 	c.m = make(map[string]*cacheEntry)
 	return &c
+}
+
+func (c *cache) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.m = make(map[string]*cacheEntry)
+	c.lah = nil
+	c.requests.Store(0)
+	c.misses.Store(0)
+	c.sizeBytes.Store(0)
 }
 
 func (c *cache) updateSizeBytes(n uint64) {

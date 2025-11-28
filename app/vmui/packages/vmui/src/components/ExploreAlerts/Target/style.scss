@@ -34,7 +34,7 @@
   position: relative;
   border-radius: $border-radius-small;
 
-  &:has(>details[open]) {
+  &:has(>.vm-accordion-header_open) {
     background-color: $color-background-item;
   }
 

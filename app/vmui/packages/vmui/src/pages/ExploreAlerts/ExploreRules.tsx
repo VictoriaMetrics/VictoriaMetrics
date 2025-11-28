@@ -1,5 +1,5 @@
 import { FC, useEffect, useMemo, useState, useCallback } from "preact/compat";
-import { useNavigate, useLocation, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { useRulesSetQueryParams as useSetQueryParams } from "./hooks/useSetQueryParams";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
@@ -33,16 +33,9 @@ const ExploreRules: FC = () => {
   const [modalOpen, setModalOpen] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const navigate = useNavigate();
-  const location = useLocation();
-
   useEffect(() => {
-    if (!location.hash && groupId) {
-      setModalOpen(true);
-    } else {
-      setModalOpen(false);
-    }
-  }, [location.hash, groupId]);
+    setModalOpen(!!groupId);
+  }, [groupId]);
 
   useSetQueryParams({
     types: types.join("&"),
@@ -62,29 +55,29 @@ const ExploreRules: FC = () => {
   }, [searchInput]);
 
   const getModal = () => {
-    if (ruleId !== "") {
+    if (ruleId) {
       return (
         <ExploreRule
           groupId={groupId}
           id={ruleId}
-          mode={ruleId !== "" ? "rule" : "alert"}
-          onClose={handleClose(`rule-${ruleId}`)}
+          mode={ruleId ? "rule" : "alert"}
+          onClose={handleClose}
         />
       );
-    } else if (alertId !== "") {
+    } else if (alertId) {
       return (
         <ExploreAlert
           groupId={groupId}
           id={alertId}
-          mode={ruleId !== "" ? "rule" : "alert"}
-          onClose={handleClose(`alert-${alertId}`)}
+          mode={ruleId ? "rule" : "alert"}
+          onClose={handleClose}
         />
       );
-    } else if (groupId !== "") {
+    } else if (groupId) {
       return (
         <ExploreGroup
           id={groupId}
-          onClose={handleClose(`group-${groupId}`)}
+          onClose={handleClose}
         />
       );
     }
@@ -92,18 +85,13 @@ const ExploreRules: FC = () => {
 
   const noRuleFound = "No rules found!";
 
-  const handleClose = (id: string) => {
-    return () => {
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete("group_id");
-      newParams.delete("rule_id");
-      newParams.delete("alert_id");
-      setSearchParams(newParams);
-      setModalOpen(false);
-      navigate({
-        hash: `#${id}`,
-      });
-    };
+  const handleClose = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("group_id");
+    newParams.delete("rule_id");
+    newParams.delete("alert_id");
+    setSearchParams(newParams);
+    setModalOpen(false);
   };
 
   const {
@@ -111,36 +99,6 @@ const ExploreRules: FC = () => {
     isLoading,
     error,
   } = useFetchGroups({ blockFetch: modalOpen });
-
-  const pageLoaded = !isLoading && !error && !!groups?.length;
-  const savedScrollTop = localStorage.getItem("scrollTop");
-
-  useEffect(() => {
-    if (!pageLoaded) return;
-    if (location.hash) {
-      const target = document.querySelector(location.hash);
-      if (target) {
-        let parent = target.closest("details");
-        while (parent) {
-          parent.open = true;
-          if (!parent?.parentElement) return;
-          parent = parent.parentElement.closest("details");
-        }
-        target.scrollIntoView();
-      }
-    } else {
-      if (savedScrollTop) {
-        window.scrollTo(0, parseInt(savedScrollTop));
-      }
-      const updateScrollPosition = () => {
-        localStorage.setItem("scrollTop", (window.scrollY || 0).toString());
-      };
-      window.addEventListener("scroll", updateScrollPosition);
-      return () => {
-        window.removeEventListener("scroll", updateScrollPosition);
-      };
-    }
-  }, [location, savedScrollTop, pageLoaded]);
 
   const { filteredGroups, allTypes, allStates } = useMemo(
     () => filterGroups(groups || [], types, states, searchInput),
