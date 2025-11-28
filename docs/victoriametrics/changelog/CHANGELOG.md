@@ -39,6 +39,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): remove the “step” control from the Raw Query page, since it didn't affect the chart rendering. See [#9667](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9667).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix display of multiple points at the same timestamp on the Raw Query page. See [#9666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9666).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix ability to select multiple metrics in `Explore Metrics` tab. See [#9995](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9995).
+* BUGFIX: Account for excess white spaces in influx write string. See [#10049](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10049).
 
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 
