@@ -7,8 +7,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
-// Cache for metric ids, avoids synchronization on the read path if possible to reduce contention.
-// Based on dateMetricIDCache ideas.
+// metricIDCache stores metricIDs that have been added to the index. It is used
+// during data ingestion do decide whether a new entry needs to be added to the
+// global index.
+//
+// The cache avoids synchronization on the read path if possible to reduce
+// contention. Based on dateMetricIDCache ideas.
 type metricIDCache struct {
 	// Contains vImmutable map
 	vImmutable atomic.Pointer[uint64set.Set]
