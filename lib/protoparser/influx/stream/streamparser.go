@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -284,7 +283,7 @@ func detectTimestamp(ts, currentTs int64) int64 {
 func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64) error {
 	// do not return error immediately because rs.Rows could contain
 	// successfully parsed rows that needs to be processed below
-	err := rs.Unmarshal(bytesutil.ToUnsafeString(reqBuf))
+	err := rs.Unmarshal(reqBuf)
 	rows := rs.Rows
 	rowsRead.Add(len(rows))
 

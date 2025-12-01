@@ -77,12 +77,12 @@ func insertRows(at *auth.Token, db string, rows []influx.Row, extraLabels []prom
 		hasDBKey := false
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			if tag.Key == *dbLabel {
+			if string(tag.Key) == *dbLabel {
 				hasDBKey = true
 			}
 			commonLabels = append(commonLabels, prompb.Label{
-				Name:  tag.Key,
-				Value: tag.Value,
+				Name:  bytesutil.ToUnsafeString(tag.Key),
+				Value: bytesutil.ToUnsafeString(tag.Value),
 			})
 		}
 		if len(db) > 0 && !hasDBKey {

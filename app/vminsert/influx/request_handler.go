@@ -78,10 +78,10 @@ func insertRows(db string, rows []influx.Row, extraLabels []prompb.Label) error 
 		hasDBKey := false
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			if tag.Key == *dbLabel {
+			if string(tag.Key) == *dbLabel {
 				hasDBKey = true
 			}
-			ic.AddLabel(tag.Key, tag.Value)
+			ic.AddLabel(bytesutil.ToUnsafeString(tag.Key), bytesutil.ToUnsafeString(tag.Value))
 		}
 		if !hasDBKey {
 			ic.AddLabel(*dbLabel, db)

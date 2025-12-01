@@ -8,7 +8,8 @@ import (
 func TestNextUnquotedChar(t *testing.T) {
 	f := func(s string, ch byte, noUnescape bool, nExpected int) {
 		t.Helper()
-		n := nextUnquotedChar(s, ch, noUnescape, true)
+		b := []byte(s)
+		n := nextUnquotedChar(b, ch, noUnescape, true)
 		if n != nExpected {
 			t.Fatalf("unexpected n for nextUnquotedChar(%q, '%c', %v); got %d; want %d", s, ch, noUnescape, n, nExpected)
 		}
@@ -25,7 +26,8 @@ func TestNextUnquotedChar(t *testing.T) {
 func TestNextUnescapedChar(t *testing.T) {
 	f := func(s string, ch byte, noUnescape bool, nExpected int) {
 		t.Helper()
-		n := nextUnescapedChar(s, ch, noUnescape)
+		b := []byte(s)
+		n := nextUnescapedChar(b, ch, noUnescape)
 		if n != nExpected {
 			t.Fatalf("unexpected n for nextUnescapedChar(%q, '%c', %v); got %d; want %d", s, ch, noUnescape, n, nExpected)
 		}
@@ -54,8 +56,9 @@ func TestNextUnescapedChar(t *testing.T) {
 func TestUnescapeTagValue(t *testing.T) {
 	f := func(s, sExpected string) {
 		t.Helper()
-		ss := unescapeTagValue(s, false)
-		if ss != sExpected {
+		b := []byte(s)
+		ss := unescapeTagValue(b, false)
+		if string(ss) != sExpected {
 			t.Fatalf("unexpected value for %q; got %q; want %q", s, ss, sExpected)
 		}
 	}
@@ -74,7 +77,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
-		err := rows.Unmarshal(s)
+		b := []byte(s)
+		err := rows.Unmarshal(b)
 		if err == nil {
 			t.Fatal("unexpected nil error")
 		}
@@ -83,7 +87,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 		}
 
 		// Try again
-		_ = rows.Unmarshal(s)
+		b = []byte(s)
+		_ = rows.Unmarshal(b)
 		if len(rows.Rows) != 0 {
 			t.Fatalf("expecting zero rows; got %d rows", len(rows.Rows))
 		}
@@ -129,7 +134,8 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
 		rows := Rows{IgnoreErrs: true}
-		err := rows.Unmarshal(s)
+		b := []byte(s)
+		err := rows.Unmarshal(b)
 		if err != nil {
 			t.Fatalf("unexpected err: %s", err)
 		}
@@ -138,7 +144,8 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}
 
 		// Try unmarshaling again
-		_ = rows.Unmarshal(s)
+		b = []byte(s)
+		_ = rows.Unmarshal(b)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -162,22 +169,22 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Missing measurement
 	f(" baz=123", &Rows{
 		Rows: []Row{{
-			Measurement: "",
+			Measurement: []byte(""),
 			Fields: []Field{{
-				Key:   "baz",
+				Key:   []byte("baz"),
 				Value: 123,
 			}},
 		}},
 	})
 	f(",foo=bar baz=123", &Rows{
 		Rows: []Row{{
-			Measurement: "",
+			Measurement: []byte(""),
 			Tags: []Tag{{
-				Key:   "foo",
-				Value: "bar",
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
 			}},
 			Fields: []Field{{
-				Key:   "baz",
+				Key:   []byte("baz"),
 				Value: 123,
 			}},
 		}},
@@ -186,9 +193,9 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Minimal line without tags and timestamp
 	f("foo bar=123", &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Fields: []Field{{
-				Key:   "bar",
+				Key:   []byte("bar"),
 				Value: 123,
 			}},
 		}},
@@ -196,27 +203,27 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Excess whitespace after final field. Issue #10049
 	f("foo bar=123   ", &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Fields: []Field{{
-				Key:   "bar",
+				Key:   []byte("bar"),
 				Value: 123,
 			}},
 		}},
 	})
 	f("# comment\nfoo bar=123\r\n#comment2 sdsf dsf", &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Fields: []Field{{
-				Key:   "bar",
+				Key:   []byte("bar"),
 				Value: 123,
 			}},
 		}},
 	})
 	f("foo bar=123\n", &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Fields: []Field{{
-				Key:   "bar",
+				Key:   []byte("bar"),
 				Value: 123,
 			}},
 		}},
@@ -225,9 +232,9 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Line without tags and with a timestamp.
 	f("foo bar=123.45 -345", &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Fields: []Field{{
-				Key:   "bar",
+				Key:   []byte("bar"),
 				Value: 123.45,
 			}},
 			Timestamp: -345,
@@ -237,13 +244,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Line with a single tag
 	f("foo,tag1=xyz bar=123", &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Tags: []Tag{{
-				Key:   "tag1",
-				Value: "xyz",
+				Key:   []byte("tag1"),
+				Value: []byte("xyz"),
 			}},
 			Fields: []Field{{
-				Key:   "bar",
+				Key:   []byte("bar"),
 				Value: 123,
 			}},
 		}},
@@ -252,19 +259,19 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Line with multiple tags
 	f("foo,tag1=xyz,tag2=43as bar=123", &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Tags: []Tag{
 				{
-					Key:   "tag1",
-					Value: "xyz",
+					Key:   []byte("tag1"),
+					Value: []byte("xyz"),
 				},
 				{
-					Key:   "tag2",
-					Value: "43as",
+					Key:   []byte("tag2"),
+					Value: []byte("43as"),
 				},
 			},
 			Fields: []Field{{
-				Key:   "bar",
+				Key:   []byte("bar"),
 				Value: 123,
 			}},
 		}},
@@ -273,19 +280,19 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Line with empty tag values
 	f("foo,tag1=xyz,tagN=,tag2=43as,=xxx bar=123", &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Tags: []Tag{
 				{
-					Key:   "tag1",
-					Value: "xyz",
+					Key:   []byte("tag1"),
+					Value: []byte("xyz"),
 				},
 				{
-					Key:   "tag2",
-					Value: "43as",
+					Key:   []byte("tag2"),
+					Value: []byte("43as"),
 				},
 			},
 			Fields: []Field{{
-				Key:   "bar",
+				Key:   []byte("bar"),
 				Value: 123,
 			}},
 		}},
@@ -294,22 +301,22 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Line with multiple tags, multiple fields and timestamp
 	f(`system,host=ip-172-16-10-144 uptime_format="3 days, 21:01",quoted_float="-1.23",quoted_int="123" 1557761040000000000`, &Rows{
 		Rows: []Row{{
-			Measurement: "system",
+			Measurement: []byte("system"),
 			Tags: []Tag{{
-				Key:   "host",
-				Value: "ip-172-16-10-144",
+				Key:   []byte("host"),
+				Value: []byte("ip-172-16-10-144"),
 			}},
 			Fields: []Field{
 				{
-					Key:   "uptime_format",
+					Key:   []byte("uptime_format"),
 					Value: 0,
 				},
 				{
-					Key:   "quoted_float",
+					Key:   []byte("quoted_float"),
 					Value: -1.23,
 				},
 				{
-					Key:   "quoted_int",
+					Key:   []byte("quoted_int"),
 					Value: 123,
 				},
 			},
@@ -318,40 +325,40 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 	f(`foo,tag1=xyz,tag2=43as bar=-123e4,x=True,y=-45i,z=f,aa="f,= \"a",bb=23u 48934`, &Rows{
 		Rows: []Row{{
-			Measurement: "foo",
+			Measurement: []byte("foo"),
 			Tags: []Tag{
 				{
-					Key:   "tag1",
-					Value: "xyz",
+					Key:   []byte("tag1"),
+					Value: []byte("xyz"),
 				},
 				{
-					Key:   "tag2",
-					Value: "43as",
+					Key:   []byte("tag2"),
+					Value: []byte("43as"),
 				},
 			},
 			Fields: []Field{
 				{
-					Key:   "bar",
+					Key:   []byte("bar"),
 					Value: -123e4,
 				},
 				{
-					Key:   "x",
+					Key:   []byte("x"),
 					Value: 1,
 				},
 				{
-					Key:   "y",
+					Key:   []byte("y"),
 					Value: -45,
 				},
 				{
-					Key:   "z",
+					Key:   []byte("z"),
 					Value: 0,
 				},
 				{
-					Key:   "aa",
+					Key:   []byte("aa"),
 					Value: 0,
 				},
 				{
-					Key:   "bb",
+					Key:   []byte("bb"),
 					Value: 23,
 				},
 			},
@@ -362,13 +369,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Escape chars
 	f(`fo\,bar\=b\ az,x\=\ b=\\a\,\=\q\  \\\a\ b\=\,=4.34`, &Rows{
 		Rows: []Row{{
-			Measurement: `fo,bar=b az`,
+			Measurement: []byte(`fo,bar=b az`),
 			Tags: []Tag{{
-				Key:   `x= b`,
-				Value: `\a,=\q `,
+				Key:   []byte(`x= b`),
+				Value: []byte(`\a,=\q `),
 			}},
 			Fields: []Field{{
-				Key:   `\\a b=,`,
+				Key:   []byte(`\\a b=,`),
 				Value: 4.34,
 			}},
 		}},
@@ -376,28 +383,28 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Test case from https://community.librenms.org/t/integration-with-victoriametrics/9689
 	f("ports,foo=a,bar=et\\ +\\ V,baz=ype INDISCARDS=245333676,OUTDISCARDS=1798680", &Rows{
 		Rows: []Row{{
-			Measurement: "ports",
+			Measurement: []byte("ports"),
 			Tags: []Tag{
 				{
-					Key:   "foo",
-					Value: "a",
+					Key:   []byte("foo"),
+					Value: []byte("a"),
 				},
 				{
-					Key:   "bar",
-					Value: "et + V",
+					Key:   []byte("bar"),
+					Value: []byte("et + V"),
 				},
 				{
-					Key:   "baz",
-					Value: "ype",
+					Key:   []byte("baz"),
+					Value: []byte("ype"),
 				},
 			},
 			Fields: []Field{
 				{
-					Key:   "INDISCARDS",
+					Key:   []byte("INDISCARDS"),
 					Value: 245333676,
 				},
 				{
-					Key:   "OUTDISCARDS",
+					Key:   []byte("OUTDISCARDS"),
 					Value: 1798680,
 				},
 			},
@@ -409,21 +416,21 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		"bar x=-1i\n\n", &Rows{
 		Rows: []Row{
 			{
-				Measurement: "foo",
+				Measurement: []byte("foo"),
 				Tags: []Tag{{
-					Key:   "tag",
-					Value: "xyz",
+					Key:   []byte("tag"),
+					Value: []byte("xyz"),
 				}},
 				Fields: []Field{{
-					Key:   "field",
+					Key:   []byte("field"),
 					Value: 1.23,
 				}},
 				Timestamp: 48934,
 			},
 			{
-				Measurement: "bar",
+				Measurement: []byte("bar"),
 				Fields: []Field{{
-					Key:   "x",
+					Key:   []byte("x"),
 					Value: -1,
 				}},
 			},
@@ -436,21 +443,21 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		"bar x=-1i\n\n", &Rows{
 		Rows: []Row{
 			{
-				Measurement: "foo",
+				Measurement: []byte("foo"),
 				Tags: []Tag{{
-					Key:   "tag",
-					Value: "xyz",
+					Key:   []byte("tag"),
+					Value: []byte("xyz"),
 				}},
 				Fields: []Field{{
-					Key:   "field",
+					Key:   []byte("field"),
 					Value: 1.23,
 				}},
 				Timestamp: 48934,
 			},
 			{
-				Measurement: "bar",
+				Measurement: []byte("bar"),
 				Fields: []Field{{
-					Key:   "x",
+					Key:   []byte("x"),
 					Value: -1,
 				}},
 			},
@@ -463,21 +470,21 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		"bar x=-1i", &Rows{
 		Rows: []Row{
 			{
-				Measurement: "foo",
+				Measurement: []byte("foo"),
 				Tags: []Tag{{
-					Key:   "tag",
-					Value: "xyz",
+					Key:   []byte("tag"),
+					Value: []byte("xyz"),
 				}},
 				Fields: []Field{{
-					Key:   "field",
+					Key:   []byte("field"),
 					Value: 1.23,
 				}},
 				Timestamp: 48934,
 			},
 			{
-				Measurement: "bar",
+				Measurement: []byte("bar"),
 				Fields: []Field{{
-					Key:   "x",
+					Key:   []byte("x"),
 					Value: -1,
 				}},
 			},
@@ -487,13 +494,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	// Superfluous whitespace between tags, fields and timestamps.
 	f(`cpu_utilization,host=mnsbook-pro.local value=119.8 1607222595591`, &Rows{
 		Rows: []Row{{
-			Measurement: "cpu_utilization",
+			Measurement: []byte("cpu_utilization"),
 			Tags: []Tag{{
-				Key:   "host",
-				Value: "mnsbook-pro.local",
+				Key:   []byte("host"),
+				Value: []byte("mnsbook-pro.local"),
 			}},
 			Fields: []Field{{
-				Key:   "value",
+				Key:   []byte("value"),
 				Value: 119.8,
 			}},
 			Timestamp: 1607222595591,
@@ -501,13 +508,13 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 	f(`cpu_utilization,host=mnsbook-pro.local   value=119.8   1607222595591`, &Rows{
 		Rows: []Row{{
-			Measurement: "cpu_utilization",
+			Measurement: []byte("cpu_utilization"),
 			Tags: []Tag{{
-				Key:   "host",
-				Value: "mnsbook-pro.local",
+				Key:   []byte("host"),
+				Value: []byte("mnsbook-pro.local"),
 			}},
 			Fields: []Field{{
-				Key:   "value",
+				Key:   []byte("value"),
 				Value: 119.8,
 			}},
 			Timestamp: 1607222595591,
@@ -516,19 +523,19 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 
 	f("x,y=z,g=p:\\ \\ 5432\\,\\ gp\\ mon\\ [lol]\\ con10\\ cmd5\\ SELECT f=1", &Rows{
 		Rows: []Row{{
-			Measurement: "x",
+			Measurement: []byte("x"),
 			Tags: []Tag{
 				{
-					Key:   "y",
-					Value: "z",
+					Key:   []byte("y"),
+					Value: []byte("z"),
 				},
 				{
-					Key:   "g",
-					Value: "p:  5432, gp mon [lol] con10 cmd5 SELECT",
+					Key:   []byte("g"),
+					Value: []byte("p:  5432, gp mon [lol] con10 cmd5 SELECT"),
 				},
 			},
 			Fields: []Field{{
-				Key:   "f",
+				Key:   []byte("f"),
 				Value: 1,
 			}},
 		}},
