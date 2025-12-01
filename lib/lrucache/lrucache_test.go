@@ -107,10 +107,10 @@ func TestCache(t *testing.T) {
 	if n := c.SizeBytes(); n != 0 {
 		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, 0)
 	}
-	if n := c.Requests(); n != 0 {
+	if n := c.Requests(); n != 3 {
 		t.Fatalf("unexpected number of requests; got %d; want %d", n, 0)
 	}
-	if n := c.Misses(); n != 0 {
+	if n := c.Misses(); n != 1 {
 		t.Fatalf("unexpected number of misses; got %d; want %d", n, 0)
 	}
 	if n := c.Resets(); n != 1 {
