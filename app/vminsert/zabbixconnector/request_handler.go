@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vmagent_rows_inserted_total{type="zabbixconnector"}`)
-	rowsPerInsert = metrics.NewHistogram(`vmagent_rows_per_insert{type="zabbixconnector"}`)
+	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="zabbixconnector"}`)
+	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="zabbixconnector"}`)
 )
 
 // InsertHandlerForHTTP processes remote write for ZabbixConnector POST /zabbixconnector/v1/history request.
