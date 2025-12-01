@@ -8,7 +8,7 @@
   flex-direction: column;
   position: relative;
 
-  &:has(>details[open]) {
+  &:has(>.vm-accordion-header_open) {
     background-color: $color-background-item;
   }
 

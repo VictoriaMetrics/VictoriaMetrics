@@ -1,4 +1,5 @@
 import { FC, useState, useEffect } from "preact/compat";
+import classNames from "classnames";
 import { JSX } from "preact";
 import { ArrowDownIcon } from "../Icons";
 import "./style.scss";
@@ -31,9 +32,12 @@ const Accordion: FC<AccordionProps> = ({
       event.preventDefault();
       return; // If the text is selected, cancel the execution of toggle.
     }
-    const details = event.currentTarget.parentElement as HTMLDetailsElement;
-    onChange && onChange(details.open);
-    setIsOpen(details.open);
+
+    setIsOpen((prev) => {
+      const newState = !prev;
+      onChange && onChange(newState);
+      return newState;
+    });
   };
 
   useEffect(() => {
@@ -42,23 +46,32 @@ const Accordion: FC<AccordionProps> = ({
 
   return (
     <>
-      <details
-        className="vm-accordion-section"
-        key="content"
-        open={isOpen}
+      <header
+        className={classNames({
+          "vm-accordion-header": true,
+          "vm-accordion-header_open": isOpen,
+        })}
+        onClick={toggleOpen}
         id={id}
       >
-        <summary
-          className="vm-accordion-header"
-          onClick={toggleOpen}
+        {title}
+        <div
+          className={classNames({
+            "vm-accordion-header__arrow": true,
+            "vm-accordion-header__arrow_open": isOpen,
+          })}
         >
-          {title}
-          <div className="vm-accordion-header__arrow">
-            <ArrowDownIcon />
-          </div>
-        </summary>
-        {children}
-      </details>
+          <ArrowDownIcon />
+        </div>
+      </header>
+      {isOpen && (
+        <section
+          className="vm-accordion-section"
+          key="content"
+        >
+          {children}
+        </section>
+      )}
     </>
   );
 };

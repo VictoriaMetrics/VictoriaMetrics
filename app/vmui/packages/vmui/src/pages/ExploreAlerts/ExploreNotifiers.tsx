@@ -1,5 +1,4 @@
-import { FC, useEffect, useState } from "preact/compat";
-import { useLocation } from "react-router";
+import { FC, useState } from "preact/compat";
 import { useNotifiersSetQueryParams as useSetQueryParams } from "./hooks/useSetQueryParams";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
@@ -32,37 +31,6 @@ const ExploreNotifiers: FC = () => {
     kinds: kinds.join("&"),
     search: searchInput,
   });
-
-  const location = useLocation();
-  const pageLoaded = !isLoading && !error && !!notifiers?.length;
-  const savedScrollTop = localStorage.getItem("scrollTop");
-
-  useEffect(() => {
-    if (!pageLoaded) return;
-    if (location.hash) {
-      const target = document.querySelector(location.hash);
-      if (target) {
-        let parent = target.closest("details");
-        while (parent) {
-          parent.open = true;
-          if (!parent?.parentElement) return;
-          parent = parent.parentElement.closest("details");
-        }
-        target.scrollIntoView();
-      }
-    } else {
-      if (savedScrollTop) {
-        window.scrollTo(0, parseInt(savedScrollTop));
-      }
-      const handleBeforeUnload = () => {
-        localStorage.setItem("scrollTop", (window.scrollY || 0).toString());
-      };
-      window.addEventListener("beforeunload", handleBeforeUnload);
-      return () => {
-        window.removeEventListener("beforeunload", handleBeforeUnload);
-      };
-    }
-  }, [location, savedScrollTop, pageLoaded]);
 
   const handleChangeSearch = (input: string) => {
     if (!input) {
