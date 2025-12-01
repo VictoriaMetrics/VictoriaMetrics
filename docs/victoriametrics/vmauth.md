@@ -849,6 +849,7 @@ See config example of using [IP filters](https://github.com/VictoriaMetrics/Vict
 
 The following command-line flags control timeouts:
 
+* `-readHeaderTimeout` - maximum time to read request headers (default: `1s`). Connections exceeding this are closed.
 * `-requestBodyReadTimeout` - maximum time to read the entire request body (default: `5s`). Clients exceeding this get HTTP 408. Set to `0` to disable.
 * `-responseWriteTimeout` - maximum time to write the response (default: `5s`). Connections exceeding this are closed. Set to `0` to disable.
 
@@ -876,6 +877,7 @@ Timeout events are logged with client IP and `X-Forwarded-For` header.
 
 The following [metrics](#monitoring) are exposed:
 
+* `vmauth_header_read_duration_seconds` - time spent reading request headers
 * `vmauth_request_body_read_duration_seconds` - time spent reading request bodies
 * `vmauth_response_write_duration_seconds` - time spent writing responses
 * `vmauth_request_body_read_timeouts_total` - number of request body read timeouts

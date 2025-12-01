@@ -45,6 +45,7 @@ var (
 	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
 		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
 	responseTimeout        = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
+	readHeaderTimeout      = flag.Duration("readHeaderTimeout", time.Second, "The maximum duration for reading request headers. This timeout protects against slow-client attacks.")
 	requestBodyReadTimeout = flag.Duration("requestBodyReadTimeout", 5*time.Second, "The maximum duration for reading the entire request body from the client. "+
 		"Requests exceeding this timeout receive HTTP 408 Request Timeout. This helps protect against slow-client attacks. Set to 0 to disable.")
 	responseWriteTimeout = flag.Duration("responseWriteTimeout", 5*time.Second, "The maximum duration for writing the response to the client. "+
@@ -111,6 +112,7 @@ func main() {
 		UseProxyProtocol: useProxyProtocol,
 		// built-in routes will be exposed at *httpInternalListenAddr
 		DisableBuiltinRoutes: disableInternalRoutes,
+		ReadHeaderTimeout:    *readHeaderTimeout,
 	})
 
 	if len(*httpInternalListenAddr) > 0 {
@@ -155,6 +157,10 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	// Track header read duration
+	if acceptTime := httpserver.GetConnAcceptTime(r.Context()); !acceptTime.IsZero() {
+		headerReadDuration.UpdateDuration(acceptTime)
+	}
 
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
@@ -560,6 +566,7 @@ var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	headerReadDuration       = metrics.NewSummary("vmauth_header_read_duration_seconds")
 	requestBodyTimeouts      = metrics.NewCounter("vmauth_request_body_read_timeouts_total")
 	responseWriteTimeouts    = metrics.NewCounter("vmauth_response_write_timeouts_total")
 	requestBodyReadDuration  = metrics.NewSummary("vmauth_request_body_read_duration_seconds")
