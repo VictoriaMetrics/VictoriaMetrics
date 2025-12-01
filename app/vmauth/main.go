@@ -45,9 +45,9 @@ var (
 	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
 		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
 	responseTimeout        = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
-	requestBodyReadTimeout = flag.Duration("requestBodyReadTimeout", 30*time.Second, "The maximum duration for reading the entire request body from the client. "+
+	requestBodyReadTimeout = flag.Duration("requestBodyReadTimeout", 5*time.Second, "The maximum duration for reading the entire request body from the client. "+
 		"Requests exceeding this timeout receive HTTP 408 Request Timeout. This helps protect against slow-client attacks. Set to 0 to disable.")
-	responseWriteTimeout = flag.Duration("responseWriteTimeout", 60*time.Second, "The maximum duration for writing the response to the client. "+
+	responseWriteTimeout = flag.Duration("responseWriteTimeout", 5*time.Second, "The maximum duration for writing the response to the client. "+
 		"Connections exceeding this timeout are closed. This helps protect against slow-client attacks. Set to 0 to disable.")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
 		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")

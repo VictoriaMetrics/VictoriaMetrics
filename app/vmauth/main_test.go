@@ -872,7 +872,7 @@ func TestRequestBodyReadTimeoutPerUser(t *testing.T) {
 	}
 
 	// User with short timeout - should timeout.
-	// This also verifies per-user timeout overrides global -requestBodyReadTimeout (30s default).
+	// This also verifies per-user timeout overrides global -requestBodyReadTimeout (5s default).
 	cfgStr := `
 users:
 - username: "fast-user"
