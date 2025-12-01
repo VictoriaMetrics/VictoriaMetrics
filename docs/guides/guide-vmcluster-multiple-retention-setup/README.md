@@ -13,7 +13,7 @@ Setup a VictoriaMetrics Cluster with support of multiple retention periods withi
 **Enterprise Solution**
 
 [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports multiple retention periods natively on both the [cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#retention-filters) and the [single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#multiple-retentions) versions.
-You can filter which metrics a retention filter applies to. Below you can see 3 retention filters. The first one matches any metrics with the `juniors` tag and will be kept for 3 days. The second filter says anything with `dev` or `staging` should be kept for 30 days. And finally, the last filter is the default filter of 1 year.
+You can filter which metrics a retention filter applies to. Below you can see 3 retention filters. The first one matches any metrics with the `juniors` label and will be kept for 3 days. The second filter says anything with `dev` or `staging` should be kept for 30 days. And finally, the last filter is the default filter of 1 year.
 ```bash
 -retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
 ```
