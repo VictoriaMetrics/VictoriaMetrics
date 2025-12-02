@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX `vmauth` in [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): queue requests when the concurrency limit is reached.
 
 ## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
 

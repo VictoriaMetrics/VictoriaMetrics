@@ -1326,8 +1326,12 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentPerUserRequests int
      The maximum number of concurrent requests vmauth can process per each configured user. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option in per-user config (default 300)
+  -maxPendingPerUserRequests int
+     The maximum number of pending (queued) requests per each configured user before processing. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxPendingRequests command-line option and max_pending_requests option in per-user config (default 3000).
   -maxConcurrentRequests int
      The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options (default 1000)
+  -maxPendingRequests int
+     The maximum number of pending (queued) requests before processing. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests command-line options (default 10000)
   -maxIdleConnsPerBackend int
      The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
   -maxRequestBodySizeToRetry size

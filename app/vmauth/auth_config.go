@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -75,6 +76,7 @@ type UserInfo struct {
 	DumpRequestOnErrors    bool        `yaml:"dump_request_on_errors,omitempty"`
 	HeadersConf            HeadersConf `yaml:",inline"`
 	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
+	MaxPendingRequests     int         `yaml:"max_pending_requests,omitempty"`
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
 	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
 	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
@@ -88,8 +90,8 @@ type UserInfo struct {
 
 	MetricLabels map[string]string `yaml:"metric_labels,omitempty"`
 
-	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
+	limiter                 *httpserver.Limiter
 
 	rt http.RoundTripper
 
@@ -106,17 +108,17 @@ type HeadersConf struct {
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
-	select {
-	case ui.concurrencyLimitCh <- struct{}{}:
-		return nil
-	default:
+	if err := ui.limiter.Acquire(); err != nil {
+		err = fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests, -maxPendingRequests=%d pending requests from user %s",
+			ui.getMaxConcurrentRequests(), ui.limiter.MaxPendingRequests(), ui.name())
 		ui.concurrencyLimitReached.Inc()
-		return fmt.Errorf("cannot handle more than %d concurrent requests from user %s", ui.getMaxConcurrentRequests(), ui.name())
+		return err
 	}
+	return nil
 }
 
 func (ui *UserInfo) endConcurrencyLimit() {
-	<-ui.concurrencyLimitCh
+	ui.limiter.Release()
 }
 
 func (ui *UserInfo) getMaxConcurrentRequests() int {
@@ -125,6 +127,14 @@ func (ui *UserInfo) getMaxConcurrentRequests() int {
 		mcr = *maxConcurrentPerUserRequests
 	}
 	return mcr
+}
+
+func (ui *UserInfo) getMaxPendingRequests() int {
+	mpr := ui.MaxPendingRequests
+	if mpr <= 0 {
+		mpr = *maxPendingPerUserRequests
+	}
+	return mpr
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
@@ -780,13 +790,19 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		ui.requests = ac.ms.NewCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
 		ui.backendErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
-		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
+		ui.limiter = httpserver.NewLimiter(ui.getMaxConcurrentRequests(), ui.getMaxPendingRequests())
 		ui.concurrencyLimitReached = ac.ms.NewCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
 		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
-			return float64(cap(ui.concurrencyLimitCh))
+			return float64(ui.limiter.MaxConcurrentRequests())
 		})
 		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_current`+metricLabels, func() float64 {
-			return float64(len(ui.concurrencyLimitCh))
+			return float64(ui.limiter.CurrentConcurrentRequests())
+		})
+		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_pending_requests_capacity`+metricLabels, func() float64 {
+			return float64(ui.limiter.MaxPendingRequests())
+		})
+		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_pending_requests_current`+metricLabels, func() float64 {
+			return float64(ui.limiter.CurrentPendingRequests())
 		})
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
@@ -829,13 +845,20 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		ui.backendErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
 		mcr := ui.getMaxConcurrentRequests()
-		ui.concurrencyLimitCh = make(chan struct{}, mcr)
+		mpr := ui.getMaxPendingRequests()
+		ui.limiter = httpserver.NewLimiter(mcr, mpr)
 		ui.concurrencyLimitReached = ac.ms.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
 		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
-			return float64(cap(ui.concurrencyLimitCh))
+			return float64(ui.limiter.MaxConcurrentRequests())
 		})
 		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
-			return float64(len(ui.concurrencyLimitCh))
+			return float64(ui.limiter.CurrentConcurrentRequests())
+		})
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_pending_requests_capacity`+metricLabels, func() float64 {
+			return float64(ui.limiter.MaxPendingRequests())
+		})
+		_ = ac.ms.GetOrCreateGauge(`vmauth_user_pending_requests_current`+metricLabels, func() float64 {
+			return float64(ui.limiter.CurrentPendingRequests())
 		})
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)

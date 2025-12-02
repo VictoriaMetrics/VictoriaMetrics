@@ -47,9 +47,13 @@ var (
 	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
 		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
+	maxPendingRequests = flag.Int("maxPendingRequests", 10000, "The maximum number of pending (queued) requests before processing. Other requests are rejected with '429 Too Many Requests' http status code. "+
+		"See also -maxConcurrentPerUserRequests command-line options (default 10000)")
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
 		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option "+
 		"in per-user config")
+	maxPendingPerUserRequests = flag.Int("maxPendingPerUserRequests", 3000, "The maximum number of pending (queued) requests per each configured user before processing. Other requests are rejected with '429 Too Many Requests' http status code. "+
+		"See also -maxPendingRequests command-line option and max_pending_requests option in per-user config (default 3000).")
 	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
@@ -210,22 +214,22 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 	// Limit the concurrency of requests to backends
 	concurrencyLimitOnce.Do(concurrencyLimitInit)
-	select {
-	case concurrencyLimitCh <- struct{}{}:
-		if err := ui.beginConcurrencyLimit(); err != nil {
-			handleConcurrencyLimitError(w, r, err)
-			<-concurrencyLimitCh
-			return
-		}
-	default:
+
+	if err := limiter.Acquire(); err != nil {
 		concurrentRequestsLimitReached.Inc()
-		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
+		err = fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests, -maxPendingRequests=%d pending requests",
+			limiter.MaxConcurrentRequests(), limiter.MaxPendingRequests())
 		handleConcurrencyLimitError(w, r, err)
 		return
 	}
+	defer limiter.Release()
+
+	if err := ui.beginConcurrencyLimit(); err != nil {
+		handleConcurrencyLimitError(w, r, err)
+		return
+	}
+	defer ui.endConcurrencyLimit()
 	processRequest(w, r, ui)
-	ui.endConcurrencyLimit()
-	<-concurrencyLimitCh
 }
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
@@ -565,18 +569,25 @@ func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, i
 }
 
 var (
-	concurrencyLimitCh   chan struct{}
+	limiter              *httpserver.Limiter
 	concurrencyLimitOnce sync.Once
 )
 
 func concurrencyLimitInit() {
-	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+	limiter = httpserver.NewLimiter(*maxConcurrentRequests, *maxPendingRequests)
 	_ = metrics.NewGauge("vmauth_concurrent_requests_capacity", func() float64 {
-		return float64(*maxConcurrentRequests)
+		return float64(limiter.MaxPendingRequests())
 	})
 	_ = metrics.NewGauge("vmauth_concurrent_requests_current", func() float64 {
-		return float64(len(concurrencyLimitCh))
+		return float64(limiter.CurrentConcurrentRequests())
 	})
+	_ = metrics.NewGauge(`vmauth_user_pending_requests_capacity`, func() float64 {
+		return float64(limiter.MaxPendingRequests())
+	})
+	_ = metrics.NewGauge(`vmauth_pending_requests_current`, func() float64 {
+		return float64(limiter.CurrentPendingRequests())
+	})
+
 }
 
 var concurrentRequestsLimitReached = metrics.NewCounter("vmauth_concurrent_requests_limit_reached_total")
