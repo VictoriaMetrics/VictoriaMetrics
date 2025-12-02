@@ -14,6 +14,13 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.28.1
+Released: 2025-12-01
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.2.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v120) to [v1.3.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v130), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v130) for details.
+
+- IMPROVEMENT: Add optional `compression` argument block to [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) for a time-based downsampling of input data during model **fitting**. This feature significantly reduces memory/disk consumption and **proportionally speeds up training for high-frequency data**, still allowing to make infer calls at initial frequency.
+
 ## v1.28.0
 Released: 2025-11-17
 

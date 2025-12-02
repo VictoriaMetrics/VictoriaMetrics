@@ -366,6 +366,16 @@ If the **results** look good and the **model configuration should be deployed in
 
 ## Changelog
 
+### v1.3.0
+Released: 2025-12-01
+
+vmanomaly version: [v1.28.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1281)
+
+- FEATURE: [Forecasting mode](https://docs.victoriametrics.com/anomaly-detection/faq/#forecasting) is now available in the UI for models that support it (e.g., `Prophet`), allowing users to visualize model predictions into the future (alongside with confidence intervals). Please use "forecast offsets" parameter in the wizard to set the desired forecast horizon(s).
+- IMPROVEMENT: Plot area in the Visualization Panel now supports vertical resizing by dragging its right bottom border, followed by respective recalculations of the tick grid of both y-axes.
+- IMPROVEMENT: Added explicit versioning information in the UI footer, showing the current service and UI versions for easier tracking and debugging.
+- IMPROVEMENT: Tooltips inside [model wizard menu](#model-panel) are now persistent upon (i) icon click and rendered as markdown. To close the tooltip, click outside of it or on the icon again.
+
 ### v1.2.0
 Released: 2025-11-17
 
