@@ -20,6 +20,17 @@ It is recommended to run the latest available release of VictoriaMetrics from [t
 
 There is no need to tune VictoriaMetrics because it uses reasonable defaults for command-line flags. These flags are automatically adjusted for the available CPU and RAM resources. There is no need in Operating System tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files.
 
+## Swap
+
+For machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage), [vmagent](https://docs.victoriametrics.com/vmagent/), or single-node VictoriaMetrics, disable swap to avoid performance issues. On systemd-based Linux distributions run:
+
+```sh
+sed -i '/\sswap\s/s/^/#/' /etc/fstab
+systemctl mask swap.target
+```
+
+Reboot the host after applying the commands.
+
 ## Filesystem
 
 The recommended filesystem for VictoriaMetrics is [ext4](https://en.wikipedia.org/wiki/Ext4). If you plan to store more than 1TB of data on ext4 partition or plan to extend it to more than 16TB, then the following options are recommended to pass to mkfs.ext4:
