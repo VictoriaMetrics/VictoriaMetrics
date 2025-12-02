@@ -44,7 +44,7 @@ func (rs *Rows) Reset() {
 //
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
-// s shouldn't be modified when rs is in use.
+// b shouldn't be modified when rs is in use.
 func (rs *Rows) Unmarshal(b []byte) error {
 	rs.reset()
 	return rs.unmarshal(b)
