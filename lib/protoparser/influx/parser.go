@@ -120,16 +120,20 @@ func (r *Row) unmarshal(s string, tagsPool []Tag, fieldsPool []Field, noEscapeCh
 	r.Fields = fieldsPool[fieldsStart:]
 	s = stripLeadingWhitespace(s[n+1:])
 
-	// Parse timestamp
-	timestamp, err := fastfloat.ParseInt64(s)
-	if err != nil {
-		if strings.HasPrefix(s, "HTTP/") {
-			return tagsPool, fieldsPool, fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
-				"do not set `-influxListenAddr` command-line flag, since it is needed for tcp protocol only")
+	// The timestamp is optional in the InfluxDB line protocol.
+	// Whitespace before it may still be present even when the timestamp itself is omitted.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10049
+	if len(s) > 0 {
+		timestamp, err := fastfloat.ParseInt64(s)
+		if err != nil {
+			if strings.HasPrefix(s, "HTTP/") {
+				return tagsPool, fieldsPool, fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
+					"do not set `-influxListenAddr` command-line flag, since it is needed for tcp protocol only")
+			}
+			return tagsPool, fieldsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
 		}
-		return tagsPool, fieldsPool, fmt.Errorf("cannot parse timestamp %q: %w", s, err)
+		r.Timestamp = timestamp
 	}
-	r.Timestamp = timestamp
 	return tagsPool, fieldsPool, nil
 }
 

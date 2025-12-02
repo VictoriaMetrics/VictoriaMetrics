@@ -223,8 +223,6 @@ func (c *cache) Reset() {
 
 	c.m = make(map[string]*cacheEntry)
 	c.lah = nil
-	c.requests.Store(0)
-	c.misses.Store(0)
 	c.sizeBytes.Store(0)
 }
 
