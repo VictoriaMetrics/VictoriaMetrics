@@ -784,7 +784,8 @@ The downside is that a single slow vmstorage node can throttle the entire cluste
 
 When `-disableRerouting=false` is enabled on `vminsert`, 
 the cluster will automatically re-route writes away from the slowest vmstorage node to preserve maximum ingestion throughput.
-Re-routing is triggered:
+
+Re-routing occurs only when all of the following conditions hold:
 - the saturated vmstorage node is the slowest.
 - the remaining vmstorage nodes have considerably lower saturation (enough capacity to absorb the extra load).
 - and the cluster has at least two other vmstorage nodes available.
