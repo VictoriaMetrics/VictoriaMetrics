@@ -22,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -90,6 +91,9 @@ var (
 		"In most cases, this value should not be changed. The maximum allowed value is 23h.")
 
 	logNewSeriesAuthKey = flagutil.NewPassword("logNewSeriesAuthKey", "authKey, which must be passed in query string to /internal/log_new_series. It overrides -httpAuth.*")
+
+	metadataStorageSize = flagutil.NewBytes("storage.maxMetadataStorageSize", 0, "Overrides max size for metrics metadata entries in-memory storage. "+
+		"If set to 0 or a negative value, defaults to 1% of allowed memory.")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -120,6 +124,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
 	storage.SetMetricNamesStatsCacheSize(cacheSizeMetricNamesStats.IntN())
 	storage.SetMetricNameCacheSize(cacheSizeStorageMetricName.IntN())
+	storage.SetMetadataStorageSize(metadataStorageSize.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
@@ -190,6 +195,19 @@ func AddRows(mrs []storage.MetricRow) error {
 	resetResponseCacheIfNeeded(mrs)
 	WG.Add(1)
 	Storage.AddRows(mrs, uint8(*precisionBits))
+	WG.Done()
+	return nil
+}
+
+// AddMetadataRows adds mrs to the storage.
+//
+// The caller should limit the number of concurrent calls to AddMetadataRows() in order to limit memory usage.
+func AddMetadataRows(mms []metricsmetadata.Row) error {
+	if Storage.IsReadOnly() {
+		return errReadOnly
+	}
+	WG.Add(1)
+	Storage.AddMetadataRows(mms)
 	WG.Done()
 	return nil
 }
@@ -610,13 +628,13 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 
 	metrics.WriteCounterUint64(w, `vm_missing_metric_names_for_metric_id_total`, idbm.MissingMetricNamesForMetricID)
 
-	metrics.WriteCounterUint64(w, `vm_date_metric_id_cache_syncs_total`, m.DateMetricIDCacheSyncsCount)
-	metrics.WriteCounterUint64(w, `vm_date_metric_id_cache_resets_total`, m.DateMetricIDCacheResetsCount)
+	metrics.WriteCounterUint64(w, `vm_date_metric_id_cache_syncs_total`, idbm.DateMetricIDCacheSyncsCount)
+	metrics.WriteCounterUint64(w, `vm_date_metric_id_cache_resets_total`, idbm.DateMetricIDCacheResetsCount)
 
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/tsid"}`, m.TSIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/metricIDs"}`, m.MetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/metricName"}`, m.MetricNameCacheSize)
-	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/date_metricID"}`, m.DateMetricIDCacheSize)
+	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/date_metricID"}`, idbm.DateMetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/hour_metric_ids"}`, m.HourMetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/next_day_metric_ids"}`, m.NextDayMetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSize)
@@ -634,12 +652,12 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheSizeBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/date_metricID"}`, m.DateMetricIDCacheSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/date_metricID"}`, idbm.DateMetricIDCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/hour_metric_ids"}`, m.HourMetricIDCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/next_day_metric_ids"}`, m.NextDayMetricIDCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheSizeBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/regexps"}`, uint64(storage.RegexpCacheSizeBytes()))
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/regexpPrefixes"}`, uint64(storage.RegexpPrefixesCacheSizeBytes()))
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/regexps"}`, storage.RegexpCacheSizeBytes())
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheSizeBytes())
 
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/tsid"}`, m.TSIDCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/metricIDs"}`, m.MetricIDCacheSizeMaxBytes)
@@ -649,8 +667,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheSizeMaxBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/regexps"}`, uint64(storage.RegexpCacheMaxSizeBytes()))
-	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/regexpPrefixes"}`, uint64(storage.RegexpPrefixesCacheMaxSizeBytes()))
+	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/regexps"}`, storage.RegexpCacheMaxSizeBytes())
+	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMaxSizeBytes())
 
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/tsid"}`, m.TSIDCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/metricIDs"}`, m.MetricIDCacheRequests)
@@ -673,15 +691,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexps"}`, storage.RegexpCacheMisses())
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMisses())
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", reason="cache_size"}`, m.TSIDCacheSizeEvictionBytes)
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", reason="miss_percentage"}`, m.TSIDCacheMissEvictionBytes)
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/tsid", reason="expiration"}`, m.TSIDCacheExpireEvictionBytes)
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="cache_size"}`, m.MetricNameCacheSizeEvictionBytes)
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="miss_percentage"}`, m.MetricNameCacheMissEvictionBytes)
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricName", reason="expiration"}`, m.MetricNameCacheExpireEvictionBytes)
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="cache_size"}`, m.MetricIDCacheSizeEvictionBytes)
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="miss_percentage"}`, m.MetricIDCacheMissEvictionBytes)
-	metrics.WriteCounterUint64(w, `vm_cache_eviction_bytes_total{type="storage/metricIDs", reason="expiration"}`, m.MetricIDCacheExpireEvictionBytes)
+
+	metrics.WriteCounterUint64(w, `vm_cache_resets_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheResets)
 
 	metrics.WriteCounterUint64(w, `vm_deleted_metrics_total{type="indexdb"}`, m.DeletedMetricsCount)
 
@@ -698,6 +709,11 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
+
+	metrics.WriteGaugeUint64(w, `vm_metrics_metadata_storage_items`, m.MetadataStorageItemsCurrent)
+	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_size_bytes`, m.MetadataStorageCurrentSizeBytes)
+	metrics.WriteCounterUint64(w, `vm_metrics_metadata_storage_max_size_bytes`, m.MetadataStorageMaxSizeBytes)
+
 }
 
 func jsonResponseError(w http.ResponseWriter, err error) {

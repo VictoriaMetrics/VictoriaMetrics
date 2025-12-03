@@ -1,11 +1,11 @@
 ---
-weight: 5
+weight: 6
 title: FAQ
 menu:
   docs:
     identifier: "vmanomaly-faq"
     parent: "anomaly-detection"
-    weight: 5
+    weight: 6
 aliases:
 - /anomaly-detection/FAQ.html
 ---
@@ -133,6 +133,10 @@ Please refer to the [state restoration section](https://docs.victoriametrics.com
 
 `vmanomaly` can be deployed in various environments, including Docker, Kubernetes, and VM Operator. For detailed deployment instructions, refer to the [QuickStart section](https://docs.victoriametrics.com/anomaly-detection/quickstart/#how-to-install-and-run-vmanomaly).
 
+## Migration
+
+For information on migrating between different versions of `vmanomaly`, please refer to the [Migration section](https://docs.victoriametrics.com/anomaly-detection/migration/) for compatibility considerations and steps for a smooth transition.
+
 ## Choosing the right model for vmanomaly
 Selecting the best model for `vmanomaly` depends on the data's nature and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) to detect. For instance, [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet).
 
@@ -239,7 +243,9 @@ schedulers:
     inference_only: True  # to treat from-to as inference period, with automated fit intervals construction
     # copy these from your PeriodicScheduler args
     fit_window: 'P14D'
-    fit_every: 'PT1H'
+    fit_every: 'PT1D'
+    exact: True  # to imitate exact fit/infer calls as in PeriodicScheduler for online models
+    infer_every: 'PT1H'  # used only for exact=True, to imitate PeriodicScheduler behavior
     # number of parallel jobs to run. Default is 1, each job is a separate OneOffScheduler fit/inference run.
     n_jobs: 1
 
@@ -273,7 +279,7 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 
 ## Forecasting
 
-Not intended for forecasting in its core, `vmanomaly` can still be used to produce forecasts using [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) {{% available_from "v1.25.3" anomaly %}}, which can be helpful in scenarios like capacity planning, resource allocation, or trend analysis, if the underlying data is complex and can't be handled by inline MetricsQL queries, including [predict_linear](https://docs.victoriametrics.com/victoriametrics/metricsql/#predict_linear).
+`vmanomaly` can generate future forecasts (e.g. using [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) {{% available_from "v1.25.3" anomaly %}}), which is helpful for capacity planning, resource allocation, or trend analysis when the underlying data is complex and exceeds what inline MetricsQL queries, including [predict_linear](https://docs.victoriametrics.com/victoriametrics/metricsql/#predict_linear), can handle.
 
 > However, please note that this mode should be used with care, as the model will produce `yhat_{h}` (and probably `yhat_lower_{h}`, and `yhat_upper_{h}`) time series **for each timeseries returned by input queries and for each forecasting horizon specified in `forecast_at` argument, which can lead to a significant increase in the number of active timeseries in VictoriaMetrics TSDB**.
 
@@ -340,6 +346,7 @@ models:
     forecast_at: ['3d', '7d']  # this will produce forecasts for 3 and 7 days ahead
     provide_series: ['yhat', 'yhat_upper']  # to write forecasts back to VictoriaMetrics, omitting `yhat_lower` as it is not needed in this example
     # other model params, yearly_seasonality may stay
+
     # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
       interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
@@ -397,30 +404,30 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.26.2
+    image: victoriametrics/vmanomaly:v1.28.1
     # ...
-    ports:
-      - "8490:8490"
     restart: always
     volumes:
-      - ./vmanomaly_config.yml:/config.yaml
-      - ./vmanomaly_license:/license
+      - ./config.yaml:/config.yaml
+      - ./license:/license
       # map the host directory to the container directory
-      - vmanomaly_model_dump_dir:/vmanomaly/tmp/models
-      - vmanomaly_data_dump_dir:/vmanomaly/tmp/data
+      - vmanomaly_data:/tmp/vmanomaly
     environment:
       # set the environment variable for the model dump directory
-      - VMANOMALY_MODEL_DUMPS_DIR=/vmanomaly/tmp/models/
-      - VMANOMALY_DATA_DUMPS_DIR=/vmanomaly/tmp/data/
-    platform: "linux/amd64"
+      - VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models
+      - VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data
+    ports:
+      - "8490:8490"
     command:
       - "/config.yaml"
       - "--licenseFile=/license"
+      - "--loggerLevel=INFO"
+      - "--watch"
 
 volumes:
   # ...
-  vmanomaly_model_dump_dir: {}
-  vmanomaly_data_dump_dir: {}
+  # Enable if settings.restore_state is True
+  vmanomaly_data: {} 
 ```
 
 For Helm chart users, refer to the `persistentVolume` [section](https://github.com/VictoriaMetrics/helm-charts/blob/7f5a2c00b14c2c088d7d8d8bcee7a440a5ff11c6/charts/victoria-metrics-anomaly/values.yaml#L183) in the [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/values.yaml) file. Ensure that the boolean flags `dumpModels` and `dumpData` are set as needed (both are *enabled* by default).
@@ -612,7 +619,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.26.2 && docker image tag victoriametrics/vmanomaly:v1.26.2 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.28.1 && docker image tag victoriametrics/vmanomaly:v1.28.1 vmanomaly
 ```
 
 ```sh

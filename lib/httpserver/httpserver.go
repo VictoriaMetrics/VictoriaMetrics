@@ -98,8 +98,6 @@ type ServeOptions struct {
 	//
 	// Mostly required by http proxy servers, which performs own authorization and requests routing
 	DisableBuiltinRoutes bool
-	// EnableHTTP2 enable HTTP/2 support for the given server.
-	EnableHTTP2 bool
 }
 
 // Serve starts an http server on the given addrs with the given optional rh.
@@ -149,30 +147,16 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
 	}
 
-	serveWithListener(addr, ln, rh, opts.DisableBuiltinRoutes, opts.EnableHTTP2)
+	serveWithListener(addr, ln, rh, opts.DisableBuiltinRoutes)
 }
 
-func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableBuiltinRoutes bool, enableHTTP2 bool) {
+func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableBuiltinRoutes bool) {
 	var s server
 
-	// Disable HTTP/2 by default, since it doesn't give any advantages for VictoriaMetrics services.
-	// But for external projects that import `httpserver` package,
-	// the `enableHTTP2` arg provides the flexibility to use HTTP/2.
-	var (
-		protocols    *http.Protocols
-		tlsNextProto map[string]func(*http.Server, *tls.Conn, http.Handler)
-	)
-	if enableHTTP2 {
-		protocols = &http.Protocols{}
-		protocols.SetHTTP2(true)
-		protocols.SetUnencryptedHTTP2(true)
-	} else {
-		tlsNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
-	}
-
 	s.s = &http.Server{
-		Protocols:    protocols,
-		TLSNextProto: tlsNextProto,
+
+		// Disable http/2, since it doesn't give any advantages for VictoriaMetrics services.
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       *idleConnTimeout,

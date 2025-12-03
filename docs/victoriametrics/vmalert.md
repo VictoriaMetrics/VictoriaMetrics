@@ -66,7 +66,7 @@ To start using `vmalert` you will need the following things:
 * datasource address - reachable endpoint with [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) support for running queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
-  [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
+  [config file](https://docs.victoriametrics.com/victoriametrics/vmalert/#notifier-configuration-file).
 * remote write address [optional] - [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
   compatible storage to persist rules and alerts state info. To persist results to multiple destinations use vmagent
   configured with multiple remote writes as a proxy;
@@ -107,8 +107,8 @@ See also [stream aggregation](https://docs.victoriametrics.com/victoriametrics/s
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
-If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
-to specify different `-external.label` command-line flags in order to define which `vmalert` generated rules or alerts.
+If you run multiple `vmalert` services on the same datastore or AlertManager and need to distinguish the results or alerts, 
+specify different `-external.label` command-line flags to indicate which `vmalert` generated them. 
 If rule result metrics have label that conflict with `-external.label`, `vmalert` will automatically rename
 it with prefix `exported_`.
 
@@ -286,6 +286,7 @@ expr: <string>
 # In case of conflicts, original labels are kept with prefix `exported_`.
 # Note: do not set dynamic label values like `$value`, because each time the $value changes - the new alert will be
 # generated. It will also break `for` condition.
+# Labels could contain arbitrary dynamically generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
 labels:
   [ <labelname>: <tmpl_string> ]
 
@@ -297,7 +298,7 @@ annotations:
 
 #### Templating
 
-It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations to format data, iterate over
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations and labels to format data, iterate over
 or execute expressions.
 The following variables are available in templating:
 
@@ -334,6 +335,8 @@ Additionally, `vmalert` provides some extra templating functions listed in [temp
 * `jsonEscape` - JSON-encodes the input string.
 * `label name` - returns the value of the label with the given `name` from the input query result.
 * `match regex` - matches the input string against the provided `regex`.
+* `now` - returns the Unix timestamp in seconds at the time of the template evaluation.
+  For example: `{{ (now | toTime).Sub $activeAt }}` will return the duration the alert has been active.
 * `parseDuration` - parses the input string into duration in seconds. For example, `1h` is parsed into `3600`.
 * `parseDurationTime` - parses the input string into [time.Duration](https://pkg.go.dev/time#Duration).
 * `pathEscape` - escapes the input string, so it can be safely put inside path part of URL.
@@ -739,7 +742,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vi
 `vmalert` runs a web-server (`-httpListenAddr`) for serving metrics and alerts endpoints:
 
 * `http://<vmalert-addr>` - UI;
-* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/2.53/querying/api/#rules);
+* `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules. Supports additional [filtering](https://prometheus.io/docs/prometheus/latest/querying/api/#rules);
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
 * `http://<vmalert-addr>/api/v1/notifiers` - list all available notifiers;
 * `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
@@ -911,29 +914,29 @@ Try the following tips to avoid common issues:
 1. Always set [group's interval](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups) to be **equal to or greater than**
    the [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
 1. Don't set labels with dynamic values to `labels` [param](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules).
-    * 👉 Example: setting `label: {{$value}}` to the rule will break its [alert state tracking](https://docs.victoriametrics.com/victoriametrics/vmalert/#alert-state)
+    * Example: setting `label: {{$value}}` to the rule will break its [alert state tracking](https://docs.victoriametrics.com/victoriametrics/vmalert/#alert-state)
       because every evaluation could change the `label` value. If you need to attach `$value` to the alert notification - add it to `annotations` instead.
 1. vmalert runs [instant queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) during rule evaluation
-   using the `&step` parameter, which defaults  to `-datasource.queryStep` (default is `5m`).
+   using the `step` parameter, which defaults  to `-datasource.queryStep` (default is `5m`).
    In VictoriaMetrics, `step` controls how far back the query can look for a recent datapoint.
    If [series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution)
    is `>=5m`, the query might return no data.
-   * 👉 To fix this, set `-datasource.queryStep` to value at least **2x larger** than the resolution.
+   * To fix this, set `-datasource.queryStep` to value at least **2x larger** than the resolution.
      You can also set `step` per group using the `params` setting.
 1. Be careful when chaining rules. If rule B uses results from rule A, make sure rule A is evaluated with an
    interval **less than 5 minutes** (or less than `-datasource.queryStep`). Otherwise, rule B might get empty results during evaluation.
    See how to [chain groups](https://docs.victoriametrics.com/victoriametrics/vmalert/#chaining-groups).
 1. Don't skip `[lookbehind-window]` in rollup functions.
-   * 👉 Example: `rate(errors_total) > 0`. MetricsQL [allows omitting lookbehind window](https://docs.victoriametrics.com/victoriametrics/metricsql/#metricsql-features)
+   * Example: `rate(errors_total) > 0`. MetricsQL [allows omitting lookbehind window](https://docs.victoriametrics.com/victoriametrics/metricsql/#metricsql-features)
    but that works well only with [/api/v1/query_range](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
    For [instant requests](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) setting window
    makes the query predictable.
 1. Make sure the `[lookbehind-window]` in your expression is at least **2× larger** than [time series resolution](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series-resolution).
-    * 👉 Example: in `rate(my_metric[2m]) > 0`, ensure that `my_metric` is scraped every 1 minute or better, every 30 seconds.
+    * Example: in `rate(my_metric[2m]) > 0`, ensure that `my_metric` is scraped every 1 minute or better, every 30 seconds.
 1. Increase `[lookbehind-window]` to help tolerate data delays.
-   * 👉 Example: `max_over_time(node_memory_MemAvailable_bytes[10m]) > 0` will still work even if no data was present in the last 9 minutes.
+   * Example: `max_over_time(node_memory_MemAvailable_bytes[10m]) > 0` will still work even if no data was present in the last 9 minutes.
 1. Don't skip step in [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries).
-   * 👉 Example: `sum(count_over_time((metric == 0)[1h:]))` is missing a step after `1h:`.
+   * Example: `sum(count_over_time((metric == 0)[1h:]))` is missing a step after `1h:`.
     In that case, the default step will be used (`-datasource.queryStep`) and may cause unexpected results compared to
     executing this query in vmui/Grafana, where step is adjusted differently.
 
@@ -952,8 +955,8 @@ The rows in this section show the rule's evaluations in order, along with their 
 
 Every state has the following attributes:
 
-1. `Updated at` - the actual time when vmalert ran this rule.
-1. `Executed at` - the `time` param that was sent to the datasource with evaluation request.
+1. `Updated at` - the actual time when vmalert executed this rule.
+1. `Execution timestamp` - the `time` param that was sent to the datasource with evaluation request.
 1. `Series returned` - the number of series returned in this evaluation:
     * A recording rule with 0 series means it produced no results;
     * An alerting rule with 0 series means the rule is in inactive state.
@@ -1365,16 +1368,28 @@ static_configs:
       [ bearer_token ]
       [ bearer_token_file ]
       [ headers ]
+      # Relabel configurations for static notifiers.
+      # If used with the external `alert_relabel_configs`, the external configs are applied first.
+      alert_relabel_configs:
+        [ - <relabel_config> ... ]
 
 # List of Consul service discovery configurations.
-# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 consul_sd_configs:
-  [ - <consul_sd_config> ... ]
+  # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
+  [ - <consul_sd_config> ]
+  # Relabel configurations for Consul SD notifiers.
+  # If used with the external `alert_relabel_configs`, the external configs are applied first.
+  alert_relabel_configs:
+    [ - <relabel_config> ... ]
 
 # List of DNS service discovery configurations.
-# See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
 dns_sd_configs:
-  [ - <dns_sd_config> ... ]
+  # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
+  [ - <dns_sd_config> ]
+  # Relabel configurations for DNS SD notifiers.
+  # If used with the external `alert_relabel_configs`, the external configs are applied first.
+  alert_relabel_configs:
+    [ - <relabel_config> ... ]
 
 # List of relabel configurations for entities discovered via service discovery.
 # Supports the same relabeling features as the rest of VictoriaMetrics components.

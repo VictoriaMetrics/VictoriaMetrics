@@ -7,7 +7,7 @@ ROOT_IMAGE ?= alpine:3.22.2
 ROOT_IMAGE_SCRATCH ?= scratch
 CERTS_IMAGE := alpine:3.22.2
 
-GO_BUILDER_IMAGE := golang:1.25.3
+GO_BUILDER_IMAGE := golang:1.25.4
 
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
@@ -175,6 +175,9 @@ app-via-docker-linux-ppc64le:
 
 app-via-docker-linux-386:
 	CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-via-docker-goos-goarch
+
+app-via-docker-linux-s390x:
+	CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-darwin-amd64:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch

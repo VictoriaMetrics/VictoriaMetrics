@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -145,11 +146,11 @@ func TestAlertManager_Send(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if err := am.Send(context.Background(), []Alert{{Labels: map[string]string{"a": "b"}}}, nil); err == nil {
+	if err := am.Send(context.Background(), []Alert{{Labels: map[string]string{"a": "b"}}}, [][]prompb.Label{{{Name: "a", Value: "b"}}}, nil); err == nil {
 		t.Fatalf("expected connection error got nil")
 	}
 
-	if err := am.Send(context.Background(), []Alert{{Labels: map[string]string{"a": "b"}}}, nil); err == nil {
+	if err := am.Send(context.Background(), []Alert{{Labels: map[string]string{"a": "b"}}}, [][]prompb.Label{{{Name: "a", Value: "b"}}}, nil); err == nil {
 		t.Fatalf("expected wrong http code error got nil")
 	}
 
@@ -160,7 +161,7 @@ func TestAlertManager_Send(t *testing.T) {
 		End:         time.Now().UTC(),
 		Labels:      map[string]string{"alertname": "alert0"},
 		Annotations: map[string]string{"a": "b", "c": "d"},
-	}}, map[string]string{headerKey: "bar"}); err != nil {
+	}}, [][]prompb.Label{{{Name: "alertname", Value: "alert0"}}}, map[string]string{headerKey: "bar"}); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
@@ -174,7 +175,7 @@ func TestAlertManager_Send(t *testing.T) {
 			Name:   "alert2",
 			Labels: map[string]string{"rule": "test", "tenant": "1"},
 		},
-	}, map[string]string{headerKey: "bar"}); err != nil {
+	}, [][]prompb.Label{{{Name: "rule", Value: "test"}, {Name: "tenant", Value: "0"}}, {{Name: "rule", Value: "test"}, {Name: "tenant", Value: "1"}}}, map[string]string{headerKey: "bar"}); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
@@ -187,7 +188,7 @@ func TestAlertManager_Send(t *testing.T) {
 			Name:   "alert2",
 			Labels: map[string]string{},
 		},
-	}, map[string]string{}); err != nil {
+	}, [][]prompb.Label{{{Name: "rule", Value: "test"}}, {{}}}, map[string]string{}); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 

@@ -9,13 +9,12 @@ import {
   getLegendItem,
   getSeriesItemContext,
   normalizeData,
-  getLimitsYAxis,
   getMinMaxBuffer,
   getTimeSeries,
 } from "../../../utils/uplot";
 import { TimeParams, SeriesItem, LegendItemType } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
-import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../../utils/math";
+import { getMathStats } from "../../../utils/math";
 import classNames from "classnames";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import HeatmapChart from "../../Chart/Heatmap/HeatmapChart/HeatmapChart";
@@ -27,6 +26,9 @@ import { ChartTooltipProps } from "../../Chart/ChartTooltip/ChartTooltip";
 import LegendAnomaly from "../../Chart/Line/LegendAnomaly/LegendAnomaly";
 import { groupByMultipleKeys } from "../../../utils/array";
 import { useGraphDispatch } from "../../../state/graph/GraphStateContext";
+import { sameTs } from "../../../utils/time";
+import { useLocation } from "react-router-dom";
+import router from "../../../router";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -45,6 +47,7 @@ export interface GraphViewProps {
   isAnomalyView?: boolean;
   isPredefinedPanel?: boolean;
   spanGaps?: boolean;
+  showAllPoints?: boolean;
 }
 
 const GraphView: FC<GraphViewProps> = ({
@@ -63,9 +66,15 @@ const GraphView: FC<GraphViewProps> = ({
   isHistogram,
   isAnomalyView,
   isPredefinedPanel,
-  spanGaps
+  spanGaps,
+  showAllPoints
 }) => {
+  const location = useLocation();
+  const isRawQuery = useMemo(() => location.pathname === router.rawQuery, [location.pathname]);
+
   const graphDispatch = useGraphDispatch();
+
+  const [containerRef, containerSize] = useElementSize();
 
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
@@ -80,12 +89,16 @@ const GraphView: FC<GraphViewProps> = ({
   const [legendValue, setLegendValue] = useState<ChartTooltipProps | null>(null);
 
   const getSeriesItem = useMemo(() => {
-    return getSeriesItemContext(data, hideSeries, alias, isAnomalyView);
-  }, [data, hideSeries, alias, isAnomalyView]);
+    return getSeriesItemContext(data, hideSeries, alias, showAllPoints, isAnomalyView, isRawQuery);
+  }, [data, hideSeries, alias, showAllPoints, isAnomalyView, isRawQuery]);
 
-  const setLimitsYaxis = (values: { [key: string]: number[] }) => {
-    const limits = getLimitsYAxis(values, !isHistogram);
-    setYaxisLimits(limits);
+  const setLimitsYaxis = (minVal: number, maxVal: number) => {
+    let min = Number.isFinite(minVal) ? minVal : 0;
+    let max = Number.isFinite(maxVal) ? maxVal : 1;
+
+    if (min > max) [min, max] = [max, min];
+
+    setYaxisLimits({ "1": isHistogram ? [min, max] : getMinMaxBuffer(min, max) });
   };
 
   const onChangeLegend = (legend: LegendItemType, metaKey: boolean) => {
@@ -129,77 +142,104 @@ const GraphView: FC<GraphViewProps> = ({
   };
 
   useEffect(() => {
-    const tempTimes: number[] = [];
-    const tempValues: { [key: string]: number[] } = {};
-    const tempLegend: LegendItemType[] = [];
-    const tempSeries: uPlotSeries[] = [{}];
+    const dLen = data.length;
 
-    data?.forEach((d, i) => {
+    const tsAnchor = data?.[0]?.values?.[0]?.[0];
+    const tsArray: number[] = [];
+    const tempLegend = new Array<LegendItemType>(dLen);
+    const tempSeries = new Array<uPlotSeries>(dLen + 1);
+    tempSeries[0] = {};
+
+    let minVal = Infinity;
+    let maxVal = -Infinity;
+
+    for (let i = 0; i < dLen; i++) {
+      const d = data[i];
       const seriesItem = getSeriesItem(d, i);
+      tempSeries[i + 1] = seriesItem;
+      tempLegend[i] = getLegendItem(seriesItem, d.group);
 
-      tempSeries.push(seriesItem);
-      tempLegend.push(getLegendItem(seriesItem, d.group));
-      const tmpValues = tempValues[d.group] || [];
-      for (const v of d.values) {
-        tempTimes.push(v[0]);
-        tmpValues.push(promValueToNumber(v[1]));
-      }
-      tempValues[d.group] = tmpValues;
-    });
-
-    const timeSeries = getTimeSeries(tempTimes, currentStep, period);
-    const timeDataSeries = data.map(d => {
-      const results = [];
-      const values = d.values;
-      const length = values.length;
-      let j = 0;
-      for (const t of timeSeries) {
-        while (j < length && values[j][0] < t) j++;
-        let v = null;
-        if (j < length && values[j][0] == t) {
-          v = promValueToNumber(values[j][1]);
-          if (!Number.isFinite(v)) {
-            // Treat special values as nulls in order to satisfy uPlot.
-            // Otherwise it may draw unexpected graphs.
-            v = null;
-          }
+      const vals = d.values;
+      for (let j = 0, vLen = vals.length; j < vLen; j++) {
+        const v = vals[j];
+        if (isRawQuery) tsArray.push(v[0]);
+        const num = promValueToNumber(v[1]);
+        if (Number.isFinite(num)) {
+          if (num < minVal) minVal = num;
+          if (num > maxVal) maxVal = num;
         }
-        results.push(v);
+      }
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const widthPx = containerSize.width || window.innerWidth || 4096;
+    const pixels = Math.max(1, Math.floor(widthPx * Math.max(1, dpr)));
+
+    const timeSeries = isRawQuery
+      ? tsArray.sort((a, b) => a - b)
+      : getTimeSeries(currentStep, period, pixels, tsAnchor);
+
+    const timeDataSeries: (number | null)[][] = data.map(d => {
+      const tsLen = timeSeries.length;
+      const results = new Array<number | null>(tsLen);
+      const values = d.values;
+      const vLen = values.length;
+
+      let j = 0;
+      for (let k = 0; k < tsLen; k++) {
+        const t = timeSeries[k];
+        while (j < vLen && values[j][0] < t) j++;
+        let v: number | null = null;
+        if (j < vLen && sameTs(values[j][0], t)) {
+          const num = promValueToNumber(values[j][1]);
+          // Treat special values as nulls in order to satisfy uPlot.
+          // Otherwise it may draw unexpected graphs.
+          v = Number.isFinite(num) ? num : null;
+          // Advance to next value
+          j++;
+        }
+        results[k] = v;
       }
 
-      // stabilize float numbers
-      const resultAsNumber = results.filter(s => s !== null) as number[];
-      const avg = Math.abs(getAvgFromArray(resultAsNumber));
-      const range = getMinMaxBuffer(getMinFromArray(resultAsNumber), getMaxFromArray(resultAsNumber));
+      // // stabilize float numbers
+      const { min, max, avg: avgRaw } = getMathStats(results, { min: true, max: true, avg: true });
+      const avg = Math.abs(Number(avgRaw));
+      const range = getMinMaxBuffer(min, max);
       const rangeStep = Math.abs(range[1] - range[0]);
+      const needStabilize = (avg > rangeStep * 1e10) && !isAnomalyView;
 
-      return (avg > rangeStep * 1e10) && !isAnomalyView ? results.map(() => avg) : results;
+      return needStabilize ? results.fill(avg) : results;
     });
+
     timeDataSeries.unshift(timeSeries);
-    setLimitsYaxis(tempValues);
+
     const result = isHistogram ? prepareHistogramData(timeDataSeries) : timeDataSeries;
+    const legend = prepareAnomalyLegend(tempLegend);
+
+    setLimitsYaxis(minVal, maxVal);
     setDataChart(result as uPlotData);
     setSeries(tempSeries);
-    const legend = prepareAnomalyLegend(tempLegend);
     setLegend(legend);
-    if (isAnomalyView) {
-      setHideSeries(legend.map(s => s.label || "").slice(1));
-    }
-  }, [data, timezone, isHistogram, currentStep]);
+    isAnomalyView && setHideSeries(legend.map(s => s.label || "").slice(1));
+  }, [data, timezone, isHistogram, currentStep, isRawQuery]);
 
   useEffect(() => {
-    const tempLegend: LegendItemType[] = [];
-    const tempSeries: uPlotSeries[] = [{}];
-    data?.forEach((d, i) => {
+    const dLen = data.length;
+
+    const tempLegend = new Array<LegendItemType>(dLen);
+    const tempSeries = new Array<uPlotSeries>(dLen + 1);
+    tempSeries[0] = {};
+
+    for (let i = 0; i < dLen; i++) {
+      const d = data[i];
       const seriesItem = getSeriesItem(d, i);
-      tempSeries.push(seriesItem);
-      tempLegend.push(getLegendItem(seriesItem, d.group));
-    });
+      tempSeries[i + 1] = seriesItem;
+      tempLegend[i] = getLegendItem(seriesItem, d.group);
+    }
+
     setSeries(tempSeries);
     setLegend(prepareAnomalyLegend(tempLegend));
   }, [hideSeries]);
-
-  const [containerRef, containerSize] = useElementSize();
 
   const hasTimeData = dataChart[0]?.length > 0;
 
@@ -243,6 +283,7 @@ const GraphView: FC<GraphViewProps> = ({
           height={height}
           isAnomalyView={isAnomalyView}
           spanGaps={spanGaps}
+          showAllPoints={isRawQuery ? true : showAllPoints}
         />
       )}
       {isHistogram && (

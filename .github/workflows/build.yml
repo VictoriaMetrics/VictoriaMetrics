@@ -47,6 +47,8 @@ jobs:
             arch: arm
           - os: linux
             arch: ppc64le
+          - os: linux
+            arch: s390x
           - os: darwin
             arch: amd64
           - os: darwin
@@ -59,7 +61,7 @@ jobs:
             arch: amd64
     steps:
       - name: Code checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Go
         id: go

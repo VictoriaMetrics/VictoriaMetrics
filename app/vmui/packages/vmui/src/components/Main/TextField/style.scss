@@ -1,6 +1,7 @@
 @use "src/styles/variables" as *;
 
 .vm-text-field {
+  position: relative;
   display: grid;
   margin: 6px 0;
   width: 100%;
@@ -156,10 +157,10 @@
   }
 
   &__icon-start {
-    left: $padding-small;
+    left: $padding-global;
   }
 
   &__icon-end {
-    right: $padding-small;
+    right: $padding-global;
   }
 }

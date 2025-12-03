@@ -183,24 +183,12 @@ func InitRollupResultCache(cachePath string) {
 
 // StopRollupResultCache closes the rollupResult cache.
 func StopRollupResultCache() {
-	if len(rollupResultCachePath) == 0 {
-		rollupResultCacheV.c.Stop()
-		rollupResultCacheV.c = nil
-		return
+	if rollupResultCachePath != "" {
+		rollupResultCacheV.c.MustSave(rollupResultCachePath)
+		mustSaveRollupResultCacheKeyPrefix(rollupResultCachePath)
 	}
-	logger.Infof("saving rollupResult cache to %q...", rollupResultCachePath)
-	startTime := time.Now()
-	if err := rollupResultCacheV.c.Save(rollupResultCachePath); err != nil {
-		logger.Errorf("cannot save rollupResult cache at %q: %s", rollupResultCachePath, err)
-		return
-	}
-	mustSaveRollupResultCacheKeyPrefix(rollupResultCachePath)
-	var fcs fastcache.Stats
-	rollupResultCacheV.c.UpdateStats(&fcs)
 	rollupResultCacheV.c.Stop()
 	rollupResultCacheV.c = nil
-	logger.Infof("saved rollupResult cache to %q in %.3f seconds; entriesCount: %d, sizeBytes: %d",
-		rollupResultCachePath, time.Since(startTime).Seconds(), fcs.EntriesCount, fcs.BytesSize)
 }
 
 type rollupResultCache struct {

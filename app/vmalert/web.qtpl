@@ -114,14 +114,17 @@
         {%= Controls(prefix, currentIcon, currentText, icons, filters, true) %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups %}
-                <div id="group-{%s g.ID %}" class="d-flex w-100 border-0 flex-column group-items{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
+                <div id="group-{%s g.ID %}" class="w-100 border-0 flex-column vm-group{% if g.Unhealthy > 0 %} alert-danger{% endif %}">
                     <span class="d-flex justify-content-between">
-                        <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
+                        <a
+                            class="vm-group-search"
+                            href="#group-{%s g.ID %}"
+                        >{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
                         <span
                             class="flex-grow-1 d-flex justify-content-end"
                             role="button"
                             data-bs-toggle="collapse"
-                            data-bs-target="#sub-{%s g.ID %}"
+                            data-bs-target="#item-{%s g.ID %}"
                         >
                             <span class="d-flex gap-2">
                                 {% if g.Unhealthy > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.Unhealthy %}</span> {% endif %}
@@ -134,9 +137,9 @@
                         class="d-flex flex-column row-gap-2 mb-2"
                         role="button"
                         data-bs-toggle="collapse"
-                        data-bs-target="#sub-{%s g.ID %}"
+                        data-bs-target="#item-{%s g.ID %}"
                     >
-                        <span class="fs-6 text-start w-100 fw-lighter">{%s g.File %}</span>
+                        <span class="fs-6 text-start vm-group-search w-100 fw-lighter">{%s g.File %}</span>
                         {% if len(g.Params) > 0 %}
                             <span class="fs-6 text-start w-100 d-flex justify-content-between fw-lighter">
                                 <span>Extra params</span>
@@ -158,7 +161,7 @@
                             </span>
                         {% endif %}
                     </span>
-                    <div class="collapse sub-items" id="sub-{%s g.ID %}">
+                    <div class="collapse" id="item-{%s g.ID %}">
                         <table class="table table-striped table-hover table-sm">
                             <thead>
                                 <tr>
@@ -169,7 +172,7 @@
                             </thead>
                             <tbody>
                                 {% for _, r := range g.Rules %}
-                                    <tr class="sub-item{% if r.LastError != "" %} alert-danger{% endif %}">
+                                    <tr class="vm-item{% if r.LastError != "" %} alert-danger{% endif %}">
                                         <td>
                                             <div class="row">
                                                 <div class="col-12 mb-2">
@@ -206,7 +209,12 @@
                                             </div>
                                         </td>
                                         <td class="text-center">{%d r.LastSamples %}</td>
-                                        <td class="text-center">{%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago</td>
+                                        <td class="text-center">{% if r.LastEvaluation.IsZero() %}
+                                             Never
+                                         {% else %}
+                                            {%f.3 time.Since(r.LastEvaluation).Seconds() %}s ago
+                                         {% endif %}
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -241,14 +249,14 @@
                  }
                  sort.Strings(keys)
              %}
-             <div class="d-flex w-100 flex-column group-items alert-danger">
+             <div class="w-100 flex-column vm-group alert-danger">
                  <span id="group-{%s g.ID %}" class="d-flex justify-content-between">
                      <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %}</a>
                      <span
                          class="flex-grow-1 d-flex justify-content-end"
                          role="button"
                          data-bs-toggle="collapse"
-                         data-bs-target="#sub-{%s g.ID %}"
+                         data-bs-target="#item-{%s g.ID %}"
                      >
                          <span class="badge bg-danger" title="Number of active alerts">{%d len(ga.Alerts) %}</span>
                      </span>
@@ -258,10 +266,10 @@
                          class="fs-6 text-start w-100 fw-lighter"
                          role="button" 
                          data-bs-toggle="collapse"
-                         data-bs-target="#sub-{%s g.ID %}"
+                         data-bs-target="#item-{%s g.ID %}"
                      >{%s g.File %}</span>
                  </span>
-                 <div class="collapse sub-items" id="sub-{%s g.ID %}">
+                 <div class="collapse" id="item-{%s g.ID %}">
                      {% for _, ruleID := range keys %}
                          {%code
                              defaultAR := alertsByRule[ruleID][0]
@@ -272,7 +280,7 @@
                              sort.Strings(labelKeys)
                          %}
                          <br>
-                         <div class="sub-item">
+                         <div class="vm-item">
                              <b>alert:</b> {%s defaultAR.Name %} ({%d len(alertsByRule[ruleID]) %})
                              | <span><a target="_blank" href="{%s defaultAR.SourceLink %}">Source</a></span>
                              <br>
@@ -337,20 +345,20 @@
                 typeK, ns := keys[i], targets[notifier.TargetType(keys[i])]
                 count := len(ns)
             %}
-            <div class="d-flex w-100 flex-column group-items">
+            <div class="w-100 flex-column vm-group">
                 <span class="d-flex justify-content-between" id="group-{%s typeK %}">
                     <a href="#group-{%s typeK %}">{%s typeK %} ({%d count %})</a>
                     <span
                         class="flex-grow-1"
                         role="button"
                         data-bs-toggle="collapse"
-                        data-bs-target="#sub-{%s typeK %}"
+                        data-bs-target="#item-{%s typeK %}"
                     ></span>
                 </span>
-                <div id="sub-{%s typeK %}" class="collapse show sub-items">
+                <div id="item-{%s typeK %}" class="collapse show">
                     <table class="table table-striped table-hover table-sm">
                         <thead>
-                            <tr class="sub-item">
+                            <tr class="vm-item">
                                 <th scope="col">Labels</th>
                                 <th scope="col">Address</th>
                             </tr>
@@ -594,11 +602,11 @@
         <table class="table table-striped table-hover table-sm">
             <thead>
                 <tr>
-                    <th scope="col" title="The time when event was created">Updated at</th>
+                    <th scope="col" title="The time when the rule was executed">Updated at</th>
                     <th scope="col" class="w-10 text-center" title="How many series expression returns. Each series will represent an alert.">Series returned</th>
                     {% if seriesFetchedEnabled %}<th scope="col" class="w-10 text-center" title="How many series were scanned by datasource during the evaluation">Series fetched</th>{% endif %}
                     <th scope="col" class="w-10 text-center" title="How many seconds request took">Duration</th>
-                    <th scope="col" class="text-center" title="Time used for rule execution">Executed at</th>
+                    <th scope="col" class="text-center" title="The time used in execution query request">Execution timestamp</th>
                     <th scope="col" class="text-center" title="cURL command with request example">cURL</th>
                 </tr>
             </thead>

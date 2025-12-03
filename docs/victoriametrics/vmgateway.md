@@ -298,19 +298,19 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -auth.jwksEndpoints array
      JWKS endpoints to fetch keys for JWT tokens signature verification
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -auth.oidcDiscoveryEndpoints array
      OpenID Connect discovery endpoints to fetch keys for JWT tokens signature verification
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -auth.publicKeyFiles array
      Path file with public key to verify JWT token signature
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -auth.publicKeys array
      Public keys to verify JWT token signature
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -clusterMode
      enable this for the cluster version
   -datasource.appendTypePrefix
@@ -382,6 +382,8 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -fs.maxConcurrency int
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 64)
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -412,7 +414,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -httpListenAddr array
      TCP address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
      Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
      Supports array of values separated by comma or specified via multiple flags.
@@ -466,7 +468,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -mtlsCAFile array
      Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
@@ -475,17 +477,17 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.header array
      Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -ratelimit.config string
      path for configuration file. Accepts url address
   -ratelimit.configCheckInterval duration
@@ -493,7 +495,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -ratelimit.extraLabels array
      additional labels, that will be applied to fetchdata from datasource
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -ratelimit.refreshInterval duration
       (default 5s)
   -read.tlsCAFile string
@@ -521,23 +523,23 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
   -tlsAutocertHosts array
      Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array
      Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsKeyFile array
      Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsMinVersion array
      Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
      Show VictoriaMetrics version
   -write.tlsCAFile string

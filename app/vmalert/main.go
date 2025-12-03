@@ -76,7 +76,7 @@ absolute path to all .tpl files in root.
 		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. `+
 		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
-		"In case of conflicts, original labels are kept with prefix `exported_`.")
+		"In case of conflicts, original labels are kept with prefix 'exported_'.")
 
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
@@ -90,7 +90,6 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
-	flagutil.ApplySecretFlags()
 	remoteread.InitSecretFlags()
 	remotewrite.InitSecretFlags()
 	datasource.InitSecretFlags()
@@ -227,14 +226,13 @@ func newManager(ctx context.Context) (*manager, error) {
 		labels[s[:n]] = s[n+1:]
 	}
 
-	nts, err := notifier.Init(labels, *externalURL)
+	err = notifier.Init(labels, *externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
 	manager := &manager{
 		groups:         make(map[uint64]*rule.Group),
 		querierBuilder: q,
-		notifiers:      nts,
 		labels:         labels,
 	}
 	rw, err := remotewrite.Init(ctx)

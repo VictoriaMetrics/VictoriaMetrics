@@ -1,6 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.25.3
+go 1.25.4
 
 require (
 	cloud.google.com/go/storage v1.57.0
@@ -9,7 +9,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.2
 	github.com/VictoriaMetrics/VictoriaLogs v1.36.2-0.20251008164716-21c0fb3de84d
 	github.com/VictoriaMetrics/easyproto v0.1.4
-	github.com/VictoriaMetrics/fastcache v1.13.0
+	github.com/VictoriaMetrics/fastcache v1.13.2
 	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/VictoriaMetrics/metricsql v0.84.8
 	github.com/aws/aws-sdk-go-v2 v1.39.2
@@ -30,12 +30,13 @@ require (
 	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.2
-	github.com/valyala/gozstd v1.23.2
+	github.com/valyala/gozstd v1.24.0
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.8.0
-	golang.org/x/net v0.46.0
+	go.yaml.in/yaml/v3 v3.0.4
+	golang.org/x/net v0.47.0
 	golang.org/x/oauth2 v0.32.0
-	golang.org/x/sys v0.37.0
+	golang.org/x/sys v0.38.0
 	google.golang.org/api v0.252.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -152,11 +153,10 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp v0.0.0-20251002181428-27f1f14c8bb9 // indirect
-	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20251007200510-49b9836ed3ff // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251007200510-49b9836ed3ff // indirect

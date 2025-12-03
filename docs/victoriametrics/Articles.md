@@ -15,6 +15,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 
 ## Third-party articles and slides about VictoriaMetrics
 
+* [Spotify: faster insights and improved accuracy after the upgrade from Heroic to VictoriaMetrics](https://www.youtube.com/watch?v=87koDlpKDR4)
 * [Datanami: Why Roblox Picked VictoriaMetrics for Observability Data Overhaul](https://www.datanami.com/2023/05/30/why-roblox-picked-victoriametrics-for-observability-data-overhaul/)
 * [Cloudflare: Introducing notifications for HTTP Traffic Anomalies](https://blog.cloudflare.com/introducing-http-traffic-anomalies-notifications/)
 * [Grammarly: Better, Faster, Cheaper: How Grammarly Improved Monitoring by Over 10x with VictoriaMetrics](https://www.grammarly.com/blog/engineering/monitoring-with-victoriametrics/)
@@ -24,6 +25,7 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [Forbes: The Agility In Cloud Observability](https://www.forbes.com/sites/adrianbridgwater/2023/07/05/the-agility-in-cloud-observability/)
 * [Bedrock: Monitoring at scale with Victoria Metrics](https://tech.bedrockstreaming.com/2022/09/06/monitoring-at-scale-with-victoriametrics.html)
 * [TiDB by PingCap: Scaling Observability: Why TiDB Moved from Prometheus to VictoriaMetrics](https://www.pingcap.com/blog/tidb-observability-migrating-prometheus-victoriametrics/)
+* [TigrisData: We do our billing with Prometheus](https://www.tigrisdata.com/blog/billing-prometheus/)
 * [Percona: Optimizing the Storage of Large Volumes of Metrics for a Long Time in VictoriaMetrics](https://percona.community/blog/2022/06/02/long-time-keeping-metrics-victoriametrics/)
 * [Percona: Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
 * [Percona: Observations on Better Resource Usage with Percona Monitoring and Management v2.12.0](https://www.percona.com/blog/2020/12/23/observations-on-better-resource-usage-with-percona-monitoring-and-management-v2-12-0/)
@@ -100,6 +102,9 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [How We Saved 80% on Our Observability Bill!](https://blog.devops.dev/how-we-saved-80-on-our-observability-bill-402421edfc1d)
 * [When metrics leak secrets: Kubernetes CTF lessons](https://programmerprodigy.code.blog/2025/09/01/when-metrics-leak-secrets-kubernetes-ctf-lessons/)
 * [K3S and monitoring with VictoriaMetrics, kube-state-metrics, node-exporter and Grafana](https://j.hommet.net/k3s-victoriametrics-kube-state-metrics-node-exporter-grafana/)
+* [How We Eliminated $10K+/Year in AWS Cross-Zone Data Transfer Costs with Zone-Aware Kubernetes Monitoring](https://medium.com/@vijayrauniyar1818/how-we-eliminated-10k-year-in-aws-cross-zone-data-transfer-costs-with-zone-aware-kubernetes-09fff0c2435b)
+* [Why I Switched to VictoriaMetrics: Scaling from Small Business to Enterprise](https://blackmetalz.github.io/why-i-switched-to-victoriametrics-scaling-from-small-business-to-enterprise.html)
+* [Backing up VictoriaMetrics Data: A Complete Guide](https://medium.com/@kanakaraju896/backing-up-victoriametrics-data-a-complete-guide-24473c74450f)
 
 ## Third-party articles and slides about VictoriaLogs
 

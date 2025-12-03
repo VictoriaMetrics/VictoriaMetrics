@@ -125,6 +125,15 @@ vmutils-linux-ppc64le: \
 	vmrestore-linux-ppc64le \
 	vmctl-linux-ppc64le
 
+vmutils-linux-s390x: \
+	vmagent-linux-s390x \
+	vmalert-linux-s390x \
+	vmalert-tool-linux-s390x \
+	vmauth-linux-s390x \
+	vmbackup-linux-s390x \
+	vmrestore-linux-s390x \
+	vmctl-linux-s390x
+
 vmutils-darwin-amd64: \
 	vmagent-darwin-amd64 \
 	vmalert-darwin-amd64 \
@@ -257,6 +266,7 @@ release-victoria-metrics: \
 	release-victoria-metrics-linux-amd64 \
 	release-victoria-metrics-linux-arm \
 	release-victoria-metrics-linux-arm64 \
+	release-victoria-metrics-linux-s390x \
 	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-darwin-arm64 \
 	release-victoria-metrics-freebsd-amd64 \
@@ -274,6 +284,9 @@ release-victoria-metrics-linux-arm:
 
 release-victoria-metrics-linux-arm64:
 	GOOS=linux GOARCH=arm64 $(MAKE) release-victoria-metrics-goos-goarch
+
+release-victoria-metrics-linux-s390x:
+	GOOS=linux GOARCH=s390x $(MAKE) release-victoria-metrics-goos-goarch
 
 release-victoria-metrics-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 $(MAKE) release-victoria-metrics-goos-goarch
@@ -314,6 +327,7 @@ release-vmutils: \
 	release-vmutils-linux-amd64 \
 	release-vmutils-linux-arm64 \
 	release-vmutils-linux-arm \
+	release-vmutils-linux-s390x \
 	release-vmutils-darwin-amd64 \
 	release-vmutils-darwin-arm64 \
 	release-vmutils-freebsd-amd64 \
@@ -331,6 +345,9 @@ release-vmutils-linux-arm64:
 
 release-vmutils-linux-arm:
 	GOOS=linux GOARCH=arm $(MAKE) release-vmutils-goos-goarch
+
+release-vmutils-linux-s390x:
+	GOOS=linux GOARCH=s390x $(MAKE) release-vmutils-goos-goarch
 
 release-vmutils-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch
@@ -483,7 +500,8 @@ app-local-windows-goarch:
 	CGO_ENABLED=0 GOOS=windows GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -tags "$(EXTRA_GO_BUILD_TAGS)" -o bin/$(APP_NAME)-windows-$(GOARCH)$(RACE).exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 quicktemplate-gen: install-qtc
-	qtc
+	qtc -dir=lib
+	qtc -dir=app
 
 install-qtc:
 	which qtc || go install github.com/valyala/quicktemplate/qtc@latest

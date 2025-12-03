@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-// metricNameSearch is used for for searching a metricName by a metricID in curr
+// metricNameSearch is used for searching a metricName by a metricID in curr
 // and prev indexDBs. If useSparseCache is false the name is first searched in
 // metricNameCache and also stored in that cache when found in one of the
 // indexDBs.
@@ -13,7 +13,7 @@ import (
 // request to /api/v1/series results in one invocation of
 // Storage.SearchMetricNames() method. However, searching is metricName by
 // metricID is done multiple times per API call. For example, data search
-// performs the the metricName search for each data block (see search.go).
+// performs the metricName search for each data block (see search.go).
 //
 // Additionally, each search method must get a snapshot of idbs so that they
 // don't get rotated in the middle of the search. This works for methods that
@@ -36,9 +36,10 @@ type metricNameSearch struct {
 // search searches the metricName of a metricID.
 func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	if !s.useSparseCache {
-		metricName := s.storage.getMetricNameFromCache(dst, metricID)
-		if len(metricName) > len(dst) {
-			return metricName, true
+		n := len(dst)
+		dst = s.storage.getMetricNameFromCache(dst, metricID)
+		if len(dst) > n {
+			return dst, true
 		}
 	}
 
@@ -62,7 +63,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	// Not deleting metricID if no corresponding metricName has been found
 	// because it is not known which indexDB metricID belongs to.
 	// For cases when this does happen see indexDB.SearchMetricNames() and
-	// indexDB.getTSIDsFromMetricIDs()).
+	// indexDB.SearchTSIDs().
 
 	return dst, false
 }

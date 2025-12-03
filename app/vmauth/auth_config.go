@@ -482,27 +482,34 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 		if bu.isBroken() {
 			continue
 		}
-		if bu.concurrentRequests.Load() == 0 {
-			// Fast path - return the backend with zero concurrently executed requests.
-			// Do not use CompareAndSwap() instead of Load(), since it is much slower on systems with many CPU cores.
-			bu.concurrentRequests.Add(1)
+
+		// The Load() in front of CompareAndSwap() avoids CAS overhead for items with values bigger than 0.
+		if bu.concurrentRequests.Load() == 0 && bu.concurrentRequests.CompareAndSwap(0, 1) {
+			atomicCounter.CompareAndSwap(n+1, idx+1)
+			// There is no need in the call bu.get(), because we already incremented bu.concrrentRequests above.
 			return bu
 		}
 	}
 
 	// Slow path - return the backend with the minimum number of concurrently executed requests.
-	buMin := bus[n%uint32(len(bus))]
-	minRequests := buMin.concurrentRequests.Load()
-	for _, bu := range bus {
+	buMinIdx := n % uint32(len(bus))
+	minRequests := bus[buMinIdx].concurrentRequests.Load()
+	for i := uint32(0); i < uint32(len(bus)); i++ {
+		idx := (n + i) % uint32(len(bus))
+		bu := bus[idx]
 		if bu.isBroken() {
 			continue
 		}
-		if n := bu.concurrentRequests.Load(); n < minRequests || buMin.isBroken() {
-			buMin = bu
-			minRequests = n
+
+		reqs := bu.concurrentRequests.Load()
+		if reqs < minRequests || bus[buMinIdx].isBroken() {
+			buMinIdx = idx
+			minRequests = reqs
 		}
 	}
+	buMin := bus[buMinIdx]
 	buMin.get()
+	atomicCounter.CompareAndSwap(n+1, buMinIdx+1)
 	return buMin
 }
 

@@ -146,7 +146,7 @@ A Kubernetes environment that produces 5k time series per second with 1-year of 
 `(1 byte-per-sample * 5000 time series * 2 replication factor * 34128000 seconds) * 1.2 ) / 2^30 = 381 GB`
 
 VictoriaMetrics requires additional disk space for the index. The lower Churn Rate, the lower is disk space usage for the index.
-Usually, index takes about **20%** of the disk space for storing data. High cardinality setups may use **>50%** of storage size for index.
+Usually, index takes about **20%** of the disk space for storing data. High cardinality setups may use **>50%** of storage size for index. If your indexdb looks unexpectedly large, see [FAQ: Why indexdb size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large) for typical ratios and troubleshooting tips.
 
 You can significantly reduce the amount of disk usage by using [Downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling)
 and [Retention Filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters). These settings are available in VictoriaMetrics Cloud and Enterprise.
@@ -156,12 +156,15 @@ See a blog post about [reducing expenses on monitoring](https://victoriametrics.
 
 It is [recommended](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-setup) to run many small vmstorage
 nodes over a few big vmstorage nodes. This reduces the workload increase on the remaining vmstorage nodes when some of
-vmstorage nodes become temporarily unavailable. Prefer giving at least 2 vCPU per each vmstorage node.
+vmstorage nodes become temporarily unavailable. Prefer allocating the whole number of vCPU cores per each vmstorage node
+for optimal performance.
 
 In general, the optimal number of vmstorage nodes is between 10 and 50. Please note, while adding more vmstorage nodes
 is a straightforward process, decreasing number of vmstorage nodes is a very complex process that should be avoided.
 
 vminsert and vmselect components are stateless, and can be easily scaled up or down. Scale them accordingly to your load.
+
+See also [Capacity planning docs for VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#capacity-planning).
 
 ## Align Terms with VictoriaMetrics setups
 

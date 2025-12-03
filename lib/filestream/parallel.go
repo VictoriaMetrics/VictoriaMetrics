@@ -4,6 +4,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -35,6 +36,7 @@ func (pfc *ParallelFileCreator) Add(dstPath string, wc *WriteCloser, nocache boo
 // Run runs all the registered tasks for creating files in parallel.
 func (pfc *ParallelFileCreator) Run() {
 	var wg sync.WaitGroup
+	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, task := range pfc.tasks {
 		concurrencyCh <- struct{}{}
 		wg.Add(1)
@@ -79,6 +81,7 @@ func (pfo *ParallelFileOpener) Add(path string, rc *ReadCloser, nocache bool) {
 // Run runs all the registered tasks for opening files in parallel.
 func (pfo *ParallelFileOpener) Run() {
 	var wg sync.WaitGroup
+	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, task := range pfo.tasks {
 		concurrencyCh <- struct{}{}
 		wg.Add(1)
@@ -121,6 +124,7 @@ func (psw *ParallelStreamWriter) Add(dstPath string, src io.WriterTo) {
 // Run executes all the tasks added via Add() call in parallel.
 func (psw *ParallelStreamWriter) Run() {
 	var wg sync.WaitGroup
+	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, task := range psw.tasks {
 		concurrencyCh <- struct{}{}
 		wg.Add(1)
@@ -143,6 +147,3 @@ func (psw *ParallelStreamWriter) Run() {
 	}
 	wg.Wait()
 }
-
-// concurrencyCh limits the concurrency of parallel operations performed by ParallelFileCreator, ParallelFileOpener and ParallelStreamWriter
-var concurrencyCh = make(chan struct{}, 256)

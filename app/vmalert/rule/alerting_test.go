@@ -827,12 +827,9 @@ func TestGroup_Restore(t *testing.T) {
 		fg := NewGroup(config.Group{Name: "TestRestore", Rules: rules}, fqr, time.Second, nil)
 		fg.Init()
 		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			nts := func() []notifier.Notifier { return []notifier.Notifier{&notifier.FakeNotifier{}} }
-			fg.Start(context.Background(), nts, nil, fqr)
-			wg.Done()
-		}()
+		wg.Go(func() {
+			fg.Start(context.Background(), nil, fqr)
+		})
 		fg.Close()
 		wg.Wait()
 
@@ -1373,8 +1370,10 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 
 	ar := &AlertingRule{
 		Labels: map[string]string{
-			"instance": "override", // this should override instance with new value
-			"group":    "vmalert",  // this shouldn't have effect since value in metric is equal
+			"instance":      "override", // this should override instance with new value
+			"group":         "vmalert",  // this shouldn't have effect since value in metric is equal
+			"invalid_label": "{{ .Values.mustRuntimeFail }}",
+			"empty_label":   "", // this should be dropped
 		},
 		Expr:      "sum(vmalert_alerting_rules_error) by(instance, group, alertname) > 0",
 		Name:      "AlertingRulesError",
@@ -1382,10 +1381,11 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 	}
 
 	expectedOriginLabels := map[string]string{
-		"instance":   "0.0.0.0:8800",
-		"group":      "vmalert",
-		"alertname":  "ConfigurationReloadFailure",
-		"alertgroup": "vmalert",
+		"instance":      "0.0.0.0:8800",
+		"group":         "vmalert",
+		"alertname":     "ConfigurationReloadFailure",
+		"alertgroup":    "vmalert",
+		"invalid_label": `error evaluating template: template: :1:268: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 
 	expectedProcessedLabels := map[string]string{
@@ -1395,11 +1395,12 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		"exported_alertname": "ConfigurationReloadFailure",
 		"group":              "vmalert",
 		"alertgroup":         "vmalert",
+		"invalid_label":      `error evaluating template: template: :1:268: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 
 	ls, err := ar.toLabels(metric, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+	if err == nil || !strings.Contains(err.Error(), "error evaluating template") {
+		t.Fatalf("unexpected error %q", err.Error())
 	}
 
 	if !reflect.DeepEqual(ls.origin, expectedOriginLabels) {

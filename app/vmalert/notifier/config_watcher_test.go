@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,7 +29,11 @@ static_configs:
       - localhost:9093
       - localhost:9094
 `)
-	cw, err := newWatcher(f.Name(), nil)
+	cfg, err := parseConfig(f.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}
@@ -83,32 +88,63 @@ consul_sd_configs:
   - server: %s
     services:
       - alertmanager
-`, consulSDServer.URL))
+  - server: %s
+    services:
+      - alertmanager
+    alert_relabel_configs:
+    - target_label: "foo"
+      replacement: "tar"
+`, consulSDServer.URL, consulSDServer.URL))
 
-	cw, err := newWatcher(consulSDFile.Name(), nil)
+	cfg, err := parseConfig(consulSDFile.Name())
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}
 	defer cw.mustStop()
 
-	if len(cw.notifiers()) != 2 {
-		t.Fatalf("expected to get 2 notifiers; got %d", len(cw.notifiers()))
+	if len(cw.notifiers()) != 3 {
+		t.Fatalf("expected to get 3 notifiers; got %d", len(cw.notifiers()))
 	}
 
 	expAddr1 := fmt.Sprintf("https://%s/proxy/api/v2/alerts", fakeConsulService1)
 	expAddr2 := fmt.Sprintf("https://%s/proxy/api/v2/alerts", fakeConsulService2)
+	expAddr3 := fmt.Sprintf("https://%s/proxy/api/v2/alerts", fakeConsulService3)
 
-	n1, n2 := cw.notifiers()[0], cw.notifiers()[1]
+	n1, n2, n3 := cw.notifiers()[0], cw.notifiers()[1], cw.notifiers()[2]
 	if n1.Addr() != expAddr1 {
 		t.Fatalf("exp address %q; got %q", expAddr1, n1.Addr())
 	}
 	if n2.Addr() != expAddr2 {
 		t.Fatalf("exp address %q; got %q", expAddr2, n2.Addr())
 	}
+	if n3.Addr() != expAddr3 {
+		t.Fatalf("exp address %q; got %q", expAddr3, n3.Addr())
+	}
+
+	if n1.(*AlertManager).relabelConfigs.String() != "" {
+		t.Fatalf("unexpected relabel configs: %q", n1.(*AlertManager).relabelConfigs.String())
+	}
+	if n2.(*AlertManager).relabelConfigs.String() != "" {
+		t.Fatalf("unexpected relabel configs: %q", n2.(*AlertManager).relabelConfigs.String())
+	}
+	if n3.(*AlertManager).relabelConfigs.String() != "- target_label: foo\n  replacement: tar\n" {
+		t.Fatalf("unexpected relabel configs: %q", n3.(*AlertManager).relabelConfigs.String())
+	}
 
 	f := func() bool { return len(cw.notifiers()) == 1 }
 	if !waitFor(f, time.Second) {
 		t.Fatalf("expected to get 1 notifiers; got %d", len(cw.notifiers()))
+	}
+	n3 = cw.notifiers()[0]
+	if n3.Addr() != expAddr3 {
+		t.Fatalf("exp address %q; got %q", expAddr3, n3.Addr())
+	}
+	if n3.(*AlertManager).relabelConfigs.String() != "- target_label: foo\n  replacement: tar\n" {
+		t.Fatalf("unexpected relabel configs: %q", n3.(*AlertManager).relabelConfigs.String())
 	}
 }
 
@@ -164,7 +200,11 @@ consul_sd_configs:
 		"unknownFields.bad.yaml",
 	}
 
-	cw, err := newWatcher(paths[0], nil)
+	cfg, err := parseConfig(paths[0])
+	if err != nil {
+		t.Fatalf("failed to parse config: %s", err)
+	}
+	cw, err := newWatcher(cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to start config watcher: %s", err)
 	}
@@ -202,10 +242,11 @@ func checkErr(t *testing.T, err error) {
 const (
 	fakeConsulService1 = "127.0.0.1:9093"
 	fakeConsulService2 = "127.0.0.1:9095"
+	fakeConsulService3 = "127.0.0.1:9097"
 )
 
 func newFakeConsulServer() *httptest.Server {
-	requestCount := 0
+	var requestCount atomic.Int32
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/agent/self", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.Write([]byte(`{"Config": {"Datacenter": "dc1"}}`))
@@ -220,7 +261,7 @@ func newFakeConsulServer() *httptest.Server {
 }`))
 	})
 	mux.HandleFunc("/v1/health/service/alertmanager", func(rw http.ResponseWriter, _ *http.Request) {
-		if requestCount == 0 {
+		if requestCount.Load() == 0 {
 			rw.Header().Set("X-Consul-Index", "1")
 			rw.Write([]byte(`
 [
@@ -360,7 +401,7 @@ func newFakeConsulServer() *httptest.Server {
     }
 ]`))
 		}
-		requestCount++
+		requestCount.Add(1)
 	})
 
 	return httptest.NewServer(mux)

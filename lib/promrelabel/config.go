@@ -155,17 +155,17 @@ func (pcs *ParsedConfigs) String() string {
 }
 
 // LoadRelabelConfigs loads relabel configs from the given path.
-func LoadRelabelConfigs(path string) (*ParsedConfigs, error) {
+func LoadRelabelConfigs(path string) (*ParsedConfigs, []byte, error) {
 	data, err := fscore.ReadFileOrHTTP(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
+		return nil, nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}
 	data = envtemplate.ReplaceBytes(data)
 	pcs, err := ParseRelabelConfigsData(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal `relabel_configs` from %q: %w", path, err)
+		return nil, nil, fmt.Errorf("cannot unmarshal `relabel_configs` from %q: %w", path, err)
 	}
-	return pcs, nil
+	return pcs, data, nil
 }
 
 // ParseRelabelConfigsData parses relabel configs from the given data.

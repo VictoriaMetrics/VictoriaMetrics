@@ -310,6 +310,21 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				Labels: promutil.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 			},
 		}
+		namespace := Namespace{
+			Metadata: ObjectMeta{
+				Name: "default",
+				Labels: promutil.NewLabelsFromMap(map[string]string{
+					"environment": "test",
+					"team":        "platform",
+				}),
+				Annotations: promutil.NewLabelsFromMap(map[string]string{
+					"owner": "test-team",
+				}),
+			},
+			Status: NamespaceStatus{
+				Phase: "Active",
+			},
+		}
 		for cn, ports := range args.initContainerPorts {
 			pod.Spec.InitContainers = append(pod.Spec.InitContainers, Container{
 				Name:          cn,
@@ -345,8 +360,15 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 					"/test-node": &node,
 				},
 			},
+			"namespace": {
+				role: "namespace",
+				objectsByKey: map[string]object{
+					"/default": &namespace,
+				},
+			},
 		}
 		gw.attachNodeMetadata = true
+		gw.attachNamespaceMetadata = true
 		var sortedLabelss []*promutil.Labels
 		gotLabels := eps.getTargetLabels(&gw)
 		for _, lbs := range gotLabels {
@@ -387,6 +409,12 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_port_name":                               "web",
 				"__meta_kubernetes_endpointslice_port_protocol":                           "foobar",
 				"__meta_kubernetes_namespace":                                             "default",
+				"__meta_kubernetes_namespace_annotation_owner":                            "test-team",
+				"__meta_kubernetes_namespace_annotationpresent_owner":                     "true",
+				"__meta_kubernetes_namespace_label_environment":                           "test",
+				"__meta_kubernetes_namespace_label_team":                                  "platform",
+				"__meta_kubernetes_namespace_labelpresent_environment":                    "true",
+				"__meta_kubernetes_namespace_labelpresent_team":                           "true",
 				"__meta_kubernetes_node_label_node_label":                                 "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
 				"__meta_kubernetes_node_name":                                             "test-node",
@@ -438,6 +466,12 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_port_name":                               "web",
 				"__meta_kubernetes_endpointslice_port_protocol":                           "https",
 				"__meta_kubernetes_namespace":                                             "default",
+				"__meta_kubernetes_namespace_annotation_owner":                            "test-team",
+				"__meta_kubernetes_namespace_annotationpresent_owner":                     "true",
+				"__meta_kubernetes_namespace_label_environment":                           "test",
+				"__meta_kubernetes_namespace_label_team":                                  "platform",
+				"__meta_kubernetes_namespace_labelpresent_environment":                    "true",
+				"__meta_kubernetes_namespace_labelpresent_team":                           "true",
 				"__meta_kubernetes_node_label_node_label":                                 "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
 				"__meta_kubernetes_node_name":                                             "test-node",
@@ -461,6 +495,12 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name": "true",
 				"__meta_kubernetes_endpointslice_name":                                    "test-eps",
 				"__meta_kubernetes_namespace":                                             "default",
+				"__meta_kubernetes_namespace_annotation_owner":                            "test-team",
+				"__meta_kubernetes_namespace_annotationpresent_owner":                     "true",
+				"__meta_kubernetes_namespace_label_environment":                           "test",
+				"__meta_kubernetes_namespace_label_team":                                  "platform",
+				"__meta_kubernetes_namespace_labelpresent_environment":                    "true",
+				"__meta_kubernetes_namespace_labelpresent_team":                           "true",
 				"__meta_kubernetes_node_label_node_label":                                 "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
 				"__meta_kubernetes_node_name":                                             "test-node",
@@ -484,7 +524,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		})
 	})
 
-	t.Run("1 port from endpoint", func(t *testing.T) {
+	t.Run("1 port from endpoint and 1 from container", func(t *testing.T) {
 		f(t, testArgs{
 			containerPorts: map[string][]ContainerPort{"metrics": {{
 				Name:          "web",
@@ -518,6 +558,12 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_port_name":                               "web",
 				"__meta_kubernetes_endpointslice_port_protocol":                           "xabc",
 				"__meta_kubernetes_namespace":                                             "default",
+				"__meta_kubernetes_namespace_annotation_owner":                            "test-team",
+				"__meta_kubernetes_namespace_annotationpresent_owner":                     "true",
+				"__meta_kubernetes_namespace_label_environment":                           "test",
+				"__meta_kubernetes_namespace_label_team":                                  "platform",
+				"__meta_kubernetes_namespace_labelpresent_environment":                    "true",
+				"__meta_kubernetes_namespace_labelpresent_team":                           "true",
 				"__meta_kubernetes_node_label_node_label":                                 "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
 				"__meta_kubernetes_node_name":                                             "test-node",
@@ -575,6 +621,12 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_endpointslice_port_name":                               "web",
 				"__meta_kubernetes_endpointslice_port_protocol":                           "xabc",
 				"__meta_kubernetes_namespace":                                             "default",
+				"__meta_kubernetes_namespace_annotation_owner":                            "test-team",
+				"__meta_kubernetes_namespace_annotationpresent_owner":                     "true",
+				"__meta_kubernetes_namespace_label_environment":                           "test",
+				"__meta_kubernetes_namespace_label_team":                                  "platform",
+				"__meta_kubernetes_namespace_labelpresent_environment":                    "true",
+				"__meta_kubernetes_namespace_labelpresent_team":                           "true",
 				"__meta_kubernetes_node_label_node_label":                                 "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
 				"__meta_kubernetes_node_name":                                             "test-node",

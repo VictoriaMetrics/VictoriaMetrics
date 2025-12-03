@@ -202,6 +202,12 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 	fs.MustMkdirFailIfExist(smallPartsPath)
 	fs.MustMkdirFailIfExist(bigPartsPath)
 
+	// Create parts.json file. Since we are creating a new partition, there
+	// will be no parts, i.e. the smallPartsPath and bigPartPath dirs will be
+	// empty. This is guaranteed by the code above: if eirher directory exists,
+	// there will be panic.
+	mustWritePartNames(nil, nil, smallPartsPath)
+
 	var tr TimeRange
 	tr.fromPartitionTimestamp(timestamp)
 
@@ -265,7 +271,7 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 
 	if !fs.IsPathExist(partsFile) {
 		// Create parts.json file if it doesn't exist yet.
-		// This should protect from possible carshloops just after the migration from versions below v1.90.0
+		// This should protect from possible crashloops just after the migration from versions below v1.90.0
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
@@ -872,7 +878,7 @@ func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.T
 
 // HasTimestamp returns true if the pt contains the given timestamp.
 func (pt *partition) HasTimestamp(timestamp int64) bool {
-	return timestamp >= pt.tr.MinTimestamp && timestamp <= pt.tr.MaxTimestamp
+	return pt.tr.contains(timestamp)
 }
 
 // GetParts appends parts snapshot to dst and returns it.
@@ -946,9 +952,15 @@ func (pt *partition) MustClose() {
 
 	for _, pw := range smallParts {
 		pw.decRef()
+		if refCount := pw.refCount.Load(); refCount != 0 {
+			logger.Panicf("BUG: unexpected non-zero refCount: %d", refCount)
+		}
 	}
 	for _, pw := range bigParts {
 		pw.decRef()
+		if refCount := pw.refCount.Load(); refCount != 0 {
+			logger.Panicf("BUG: unexpected non-zero refCount: %d", refCount)
+		}
 	}
 }
 

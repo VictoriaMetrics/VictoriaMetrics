@@ -752,10 +752,12 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 	})
 	up.loadBalancingPolicy = "least_loaded"
 
+	pbus := up.bus.Load()
+	bus := *pbus
+
 	fn := func(ns ...int) {
 		t.Helper()
-		pbus := up.bus.Load()
-		bus := *pbus
+
 		for i, b := range bus {
 			got := int(b.concurrentRequests.Load())
 			exp := ns[i]
@@ -767,45 +769,52 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 
 	up.getBackendURL()
 	fn(1, 0, 0)
+
 	up.getBackendURL()
 	fn(1, 1, 0)
+
 	up.getBackendURL()
 	fn(1, 1, 1)
 
-	up.getBackendURL()
-	up.getBackendURL()
-	fn(2, 2, 1)
-
-	bus := up.bus.Load()
-	pbus := *bus
-	pbus[0].concurrentRequests.Add(2)
-	pbus[2].concurrentRequests.Add(5)
-	fn(4, 2, 6)
+	bus[1].put()
+	bus[2].put()
+	fn(1, 0, 0)
 
 	up.getBackendURL()
-	fn(4, 3, 6)
+	fn(1, 1, 0)
 
+	bus[1].put()
 	up.getBackendURL()
-	fn(4, 4, 6)
-
-	up.getBackendURL()
-	fn(4, 5, 6)
-
-	up.getBackendURL()
-	fn(5, 5, 6)
-
-	up.getBackendURL()
-	fn(6, 5, 6)
-
-	up.getBackendURL()
-	fn(6, 6, 6)
-
-	up.getBackendURL()
-	fn(6, 6, 7)
+	fn(1, 0, 1)
 
 	up.getBackendURL()
 	up.getBackendURL()
-	fn(7, 7, 7)
+	fn(1, 1, 2)
+
+	bus[0].concurrentRequests.Add(2)
+	bus[2].concurrentRequests.Add(2)
+	fn(3, 1, 4)
+
+	up.getBackendURL()
+	fn(3, 2, 4)
+
+	up.getBackendURL()
+	fn(3, 3, 4)
+
+	up.getBackendURL()
+	fn(4, 3, 4)
+
+	up.getBackendURL()
+	fn(4, 4, 4)
+
+	bus[0].put()
+	bus[2].put()
+
+	up.getBackendURL()
+	fn(3, 4, 4)
+
+	up.getBackendURL()
+	fn(4, 4, 4)
 }
 
 func TestBrokenBackend(t *testing.T) {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
@@ -16,7 +17,6 @@ import (
 // manager controls group states
 type manager struct {
 	querierBuilder datasource.QuerierBuilder
-	notifiers      func() []notifier.Notifier
 
 	rw remotewrite.RWClient
 	// remote read builder.
@@ -46,13 +46,15 @@ func (m *manager) ruleAPI(gID, rID uint64) (rule.ApiRule, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
-	g, ok := m.groups[gID]
+	group, ok := m.groups[gID]
 	if !ok {
 		return rule.ApiRule{}, fmt.Errorf("can't find group with id %d", gID)
 	}
+	g := group.ToAPI()
+	ruleID := strconv.FormatUint(rID, 10)
 	for _, r := range g.Rules {
-		if r.ID() == rID {
-			return r.ToAPI(), nil
+		if r.ID == ruleID {
+			return r, nil
 		}
 	}
 	return rule.ApiRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
@@ -63,17 +65,20 @@ func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
 	m.groupsMu.RLock()
 	defer m.groupsMu.RUnlock()
 
-	g, ok := m.groups[gID]
+	group, ok := m.groups[gID]
 	if !ok {
 		return nil, fmt.Errorf("can't find group with id %d", gID)
 	}
+	g := group.ToAPI()
 	for _, r := range g.Rules {
-		ar, ok := r.(*rule.AlertingRule)
-		if !ok {
+		if r.Type != rule.TypeAlerting {
 			continue
 		}
-		if apiAlert := ar.AlertToAPI(aID); apiAlert != nil {
-			return apiAlert, nil
+		alertID := strconv.FormatUint(aID, 10)
+		for _, a := range r.Alerts {
+			if a.ID == alertID {
+				return a, nil
+			}
 		}
 	}
 	return nil, fmt.Errorf("can't find alert with id %d in group %q", aID, g.Name)
@@ -94,17 +99,16 @@ func (m *manager) close() {
 }
 
 func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
-	m.wg.Add(1)
 	id := g.GetID()
 	g.Init()
-	go func() {
-		defer m.wg.Done()
+	m.wg.Go(func() {
 		if restore {
-			g.Start(ctx, m.notifiers, m.rw, m.rr)
+			g.Start(ctx, m.rw, m.rr)
 		} else {
-			g.Start(ctx, m.notifiers, m.rw, nil)
+			g.Start(ctx, m.rw, nil)
 		}
-	}()
+	})
+
 	m.groups[id] = g
 	return nil
 }
@@ -131,7 +135,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	if rrPresent && m.rw == nil {
 		return fmt.Errorf("config contains recording rules but `-remoteWrite.url` isn't set")
 	}
-	if arPresent && m.notifiers == nil {
+	if arPresent && notifier.GetTargets() == nil {
 		return fmt.Errorf("config contains alerting rules but neither `-notifier.url` nor `-notifier.config` nor `-notifier.blackhole` aren't set")
 	}
 
@@ -168,15 +172,15 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	if len(toUpdate) > 0 {
 		var wg sync.WaitGroup
 		for _, item := range toUpdate {
-			wg.Add(1)
-			// cancel evaluation so the Update will be applied as fast as possible.
-			// it is important to call InterruptEval before the update, because cancel fn
-			// can be re-assigned during the update.
-			item.old.InterruptEval()
-			go func(oldGroup *rule.Group, newGroup *rule.Group) {
-				oldGroup.UpdateWith(newGroup)
-				wg.Done()
-			}(item.old, item.new)
+			oldG := item.old
+			newG := item.new
+			wg.Go(func() {
+				// cancel evaluation so the Update will be applied as fast as possible.
+				// it is important to call InterruptEval before the update, because cancel fn
+				// can be re-assigned during the update.
+				oldG.InterruptEval()
+				oldG.UpdateWith(newG)
+			})
 		}
 		wg.Wait()
 	}

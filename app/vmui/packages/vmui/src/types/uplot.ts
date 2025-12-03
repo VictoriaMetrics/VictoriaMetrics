@@ -14,7 +14,6 @@ export interface SeriesItemStatsFormatted {
     min: string,
     max: string,
     median: string,
-    last: string
 }
 
 export interface SeriesItem extends Series {

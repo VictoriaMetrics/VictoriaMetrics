@@ -353,10 +353,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -4681,6 +4677,7 @@
                 "cellOptions": {
                   "type": "auto"
                 },
+                "filterable": true,
                 "inspect": false
               },
               "mappings": [],
@@ -4753,7 +4750,9 @@
               ],
               "show": false
             },
-            "showHeader": true
+            "showHeader": true,
+            "showSearch": true,
+            "filterable": true
           },
           "pluginVersion": "11.5.0",
           "targets": [

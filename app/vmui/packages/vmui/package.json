@@ -12,6 +12,7 @@
     "build": "vite build",
     "build:anomaly": "vite build --mode vmanomaly",
     "lint": "eslint --output-file vmui-lint-report.json --format json 'src/**/*.{ts,tsx}'",
+    "lint:local": "eslint --ext .ts,.tsx -f stylish src",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true",
     "preview": "vite preview",
@@ -29,7 +30,7 @@
     "react-input-mask": "^2.0.4",
     "react-router-dom": "^7.6.3",
     "uplot": "^1.6.32",
-    "vite": "^7.1.5",
+    "vite": "^7.1.11",
     "web-vitals": "^5.0.3"
   },
   "devDependencies": {

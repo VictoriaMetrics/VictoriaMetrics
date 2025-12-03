@@ -50,7 +50,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -clusternative.tlsCipherSuites array
      Optional list of TLS cipher suites used for connections at -clusternativeListenAddr if -clusternative.tls flag is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -clusternative.tlsInsecureSkipVerify
      Whether to skip verification of TLS certificates provided by vmselect, which connects to -clusternativeListenAddr if -clusternative.tls flag is set. Note that disabled TLS certificate verification breaks security. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
   -clusternative.tlsKeyFile string
@@ -68,7 +68,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -downsampling.period array
      Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -85,6 +85,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -fs.maxConcurrency int
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default fsutil.getDefaultConcurrency())
   -globalReplicationFactor int
      How many copies of every ingested sample is available across vmstorage groups. vmselect continues returning full responses when up to globalReplicationFactor-1 vmstorage groups are temporarily unavailable. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#vmstorage-groups-at-vmselect . See also -replicationFactor (default 1)
   -graphite.sanitizeMetricName
@@ -120,7 +122,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -httpListenAddr array
      Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
      Whether to use proxy protocol for connections accepted at the given -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
      Supports array of values separated by comma or specified via multiple flags.
@@ -179,7 +181,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -mtlsCAFile array
      Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file.
@@ -191,17 +193,17 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.header array
      Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.interval duration
      Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -replicationFactor array
      How many copies of every ingested sample is available across -storageNode nodes. vmselect continues returning full responses when up to replicationFactor-1 vmstorage nodes are temporarily unavailable. See also -globalReplicationFactor and -search.skipSlowReplicas (default 1)
      Supports an array of `key:value` entries separated by comma or specified via multiple flags.
@@ -234,13 +236,13 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
   -search.logSlowQueryStats duration
-     Log query statistics if execution time exceeding this value - see https://docs.victoriametrics.com/victoriametrics/query-stats . Zero disables slow query statistics logging. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/
+     Log query statistics if execution time exceeding this value - see https://docs.victoriametrics.com/victoriametrics/query-stats . Zero disables slow query statistics logging. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 5s)
   -search.logSlowQueryStatsHeaders array
      HTTP request header keys to log for queries exceeding the threshold set by -search.logSlowQueryStats. Case-insensitive. By default, no headers are logged. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/query-stats/#log-fields for details and examples.
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -search.maxBinaryOpPushdownLabelValues instance
-     The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example instance, and storage resources are abundant. (default 100)
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -search.maxBinaryOpPushdownLabelValues int
+     The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label (e.g., 'instance') contains numerous values, and storage resources are abundant. (default 100)
   -search.maxConcurrentRequests int
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default vmselect.getDefaultMaxConcurrentRequests())
   -search.maxDeleteDuration duration
@@ -299,8 +301,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      The maximum step when /api/v1/query_range handler adjusts points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data (default 1m0s)
   -search.maxTSDBStatusSeries int
      The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
-  -search.maxTSDBStatusTopNSeries topN
-     The maximum value of topN argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats (default 1000)
+  -search.maxTSDBStatusTopNSeries int
+     The maximum value of 'topN' argument that can be passed to /api/v1/status/tsdb API. This option allows limiting memory usage. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats (default 1000)
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxUniqueTimeseries -search.maxUniqueTimeseries
@@ -334,15 +336,15 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -secret.flags array
      Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -selectNode array
      Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode array
      Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.discoveryInterval duration
      Interval for refreshing -storageNode list behind DNS SRV records. The minimum supported interval is 1s. See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/victoriametrics/enterprise/ (default 2s)
   -storageNode.filter string
@@ -358,23 +360,23 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
   -tlsAutocertHosts array
      Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCertFile array
      Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsKeyFile array
      Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsMinVersion array
      Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
      Supports an array of values separated by comma or specified via multiple flags.
-     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
      Show VictoriaMetrics version
   -vmalert.proxyURL string

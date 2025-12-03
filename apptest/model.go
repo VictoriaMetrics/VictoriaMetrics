@@ -25,6 +25,7 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Labels(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1LabelsResponse
 	PrometheusAPIV1LabelValues(t *testing.T, labelName, query string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse
 	PrometheusAPIV1ExportNative(t *testing.T, query string, opts QueryOpts) []byte
+	PrometheusAPIV1Metadata(t *testing.T, metric string, limit int, opts QueryOpts) *PrometheusAPIV1Metadata
 
 	APIV1AdminTSDBDeleteSeries(t *testing.T, matchQuery string, opts QueryOpts)
 
@@ -37,7 +38,7 @@ type PrometheusQuerier interface {
 // Writer contains methods for writing new data
 type Writer interface {
 	// Prometheus APIs
-	PrometheusAPIV1Write(t *testing.T, records []prompb.TimeSeries, opts QueryOpts)
+	PrometheusAPIV1Write(t *testing.T, wr prompb.WriteRequest, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
 	PrometheusAPIV1ImportCSV(t *testing.T, records []string, opts QueryOpts)
 	PrometheusAPIV1ImportNative(t *testing.T, data []byte, opts QueryOpts)
@@ -344,6 +345,33 @@ func NewPrometheusAPIV1LabelValuesResponse(t *testing.T, s string) *PrometheusAP
 	t.Helper()
 
 	res := &PrometheusAPIV1LabelValuesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", string(s), err)
+	}
+	return res
+}
+
+// PrometheusAPIV1Metadata is an inmemory representation of the
+// /prometheus/api/v1/metadata response.
+type PrometheusAPIV1Metadata struct {
+	Status    string
+	IsPartial bool
+	Data      map[string][]MetadataEntry
+	Trace     *Trace
+}
+
+type MetadataEntry struct {
+	Type string
+	Help string
+	Unit string
+}
+
+// NewPrometheusAPIV1Metadata is a test helper function that creates a new
+// instance of PrometheusAPIV1Metadata by unmarshalling a json string.
+func NewPrometheusAPIV1Metadata(t *testing.T, s string) *PrometheusAPIV1Metadata {
+	t.Helper()
+
+	res := &PrometheusAPIV1Metadata{}
 	if err := json.Unmarshal([]byte(s), res); err != nil {
 		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", string(s), err)
 	}

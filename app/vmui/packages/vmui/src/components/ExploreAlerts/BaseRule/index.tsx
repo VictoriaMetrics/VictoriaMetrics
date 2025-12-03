@@ -6,8 +6,7 @@ import { SearchIcon, DetailsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Alert from "../../Main/Alert/Alert";
 import Badges, { BadgeColor } from "../Badges";
-import dayjs from "dayjs";
-import { formatDuration } from "../helpers";
+import { formatDuration, formatEventTime } from "../helpers";
 import CodeExample from "../../Main/CodeExample/CodeExample";
 
 interface BaseRuleProps {
@@ -80,12 +79,10 @@ const BaseRule = ({ item }: BaseRuleProps) => {
               <td>{formatDuration(item.duration)}</td>
             </tr>
           )}
-          {!!item.lastEvaluation && (
-            <tr>
-              <td>Last evaluation</td>
-              <td>{dayjs(item.lastEvaluation).format("DD MMM YYYY HH:mm:ss")}</td>
-            </tr>
-          )}
+          <tr>
+            <td>Last evaluation</td>
+            <td>{formatEventTime(item.lastEvaluation)}</td>
+          </tr>
           {!!item.lastError && item.health !== "ok" && (
             <tr>
               <td>Last error</td>
@@ -108,7 +105,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       </table>
       {!!Object.keys(item?.annotations || {}).length && (
         <>
-          <span className="title">Annotations</span>
+          <span className="vm-alerts-title">Annotations</span>
           <table>
             <colgroup>
               <col className="vm-col-md"/>
@@ -127,7 +124,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       )}
       {!!item?.updates?.length && (
         <>
-          <span className="title">{`Last updates ${item.updates.length}/${item.max_updates_entries}`}</span>
+          <span className="vm-alerts-title">{`Last updates ${item.updates.length}/${item.max_updates_entries}`}</span>
           <table>
             <thead>
               <tr>
@@ -135,7 +132,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                 <th>Series returned</th>
                 <th>Series fetched</th>
                 <th>Duration</th>
-                <th>Executed at</th>
+                <th>Execution timestamp</th>
               </tr>
             </thead>
             <tbody>
@@ -143,11 +140,11 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                 <tr
                   key={update.at}
                 >
-                  <td>{dayjs(update.time).format("DD MMM YYYY HH:mm:ss")}</td>
+                  <td>{formatEventTime(update.time)}</td>
                   <td>{update.samples}</td>
                   <td>{update.series_fetched}</td>
                   <td>{formatDuration(update.duration / 1e9)}</td>
-                  <td>{dayjs(update.at).format("DD MMM YYYY HH:mm:ss")}</td>
+                  <td>{formatEventTime(update.at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -156,8 +153,8 @@ const BaseRule = ({ item }: BaseRuleProps) => {
       )}
       {!!item?.alerts?.length && (
         <>
-          <span className="title">Alerts</span>
-          <table>
+          <span className="vm-alerts-title">Alerts</span>
+          <table className="vm-alerts-table">
             <colgroup>
               <col className="vm-col-sm"/>
               <col className="vm-col-sm"/>
@@ -170,7 +167,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                 <th>Active since</th>
                 <th>State</th>
                 <th>Value</th>
-                <th className="title">Labels</th>
+                <th className="vm-alerts-title">Labels</th>
                 <th></th>
               </tr>
             </thead>
@@ -180,9 +177,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                   id={`alert-${alert.id}`}
                   key={alert.id}
                 >
-                  <td>
-                    {dayjs(alert.activeAt).format("DD MMM YYYY HH:mm:ss")}
-                  </td>
+                  <td>{formatEventTime(alert.activeAt)}</td>
                   <td>
                     <Badges
                       items={{ [alert.state]: { color: alert.state as BadgeColor } }}
@@ -195,7 +190,7 @@ const BaseRule = ({ item }: BaseRuleProps) => {
                   </td>
                   <td>
                     <Badges
-                      align="center"
+                      align="start"
                       items={Object.fromEntries(Object.entries(alert.labels || {}).map(([name, value]) => [name, {
                         color: "passive",
                         value: value,

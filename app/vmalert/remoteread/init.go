@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with MetricsQL. It can be single node VictoriaMetrics or vmselect."+
-		"Remote read is used to restore alerts state."+
-		"This configuration makes sense only if `vmalert` was configured with `remoteWrite.url` before and has been successfully persisted its state. "+
+	addr = flag.String("remoteRead.url", "", "Optional URL to datasource compatible with MetricsQL. It can be single node VictoriaMetrics or vmselect. "+
+		"Remote read is used to restore alerts state. "+
+		"This configuration makes sense only if vmalert was configured with '-remoteWrite.url' before and has been successfully persisted its state. "+
 		"Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. "+
 		"See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.")
 

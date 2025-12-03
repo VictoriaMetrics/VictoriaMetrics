@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"slices"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -20,49 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
 )
-
-func TestMarshalUnmarshalMetricIDs(t *testing.T) {
-	f := func(metricIDs []uint64) {
-		t.Helper()
-
-		// Try marshaling and unmarshaling to an empty dst
-		data := marshalMetricIDs(nil, metricIDs)
-		result := mustUnmarshalMetricIDs(nil, data)
-		if !reflect.DeepEqual(result, metricIDs) {
-			t.Fatalf("unexpected metricIDs after unmarshaling;\ngot\n%d\nwant\n%d", result, metricIDs)
-		}
-
-		// Try marshaling and unmarshaling to non-empty dst
-		dataPrefix := []byte("prefix")
-		data = marshalMetricIDs(dataPrefix, metricIDs)
-		if len(data) < len(dataPrefix) {
-			t.Fatalf("too short len(data)=%d; must be at least len(dataPrefix)=%d", len(data), len(dataPrefix))
-		}
-		if string(data[:len(dataPrefix)]) != string(dataPrefix) {
-			t.Fatalf("unexpected prefix; got %q; want %q", data[:len(dataPrefix)], dataPrefix)
-		}
-		data = data[len(dataPrefix):]
-
-		resultPrefix := []uint64{889432422, 89243, 9823}
-		result = mustUnmarshalMetricIDs(resultPrefix, data)
-		if len(result) < len(resultPrefix) {
-			t.Fatalf("too short result returned; len(result)=%d; must be at least len(resultPrefix)=%d", len(result), len(resultPrefix))
-		}
-		if !reflect.DeepEqual(result[:len(resultPrefix)], resultPrefix) {
-			t.Fatalf("unexpected result prefix; got %d; want %d", result[:len(resultPrefix)], resultPrefix)
-		}
-		result = result[len(resultPrefix):]
-		if (len(metricIDs) > 0 || len(result) > 0) && !reflect.DeepEqual(result, metricIDs) {
-			t.Fatalf("unexpected metricIDs after unmarshaling from prefix;\ngot\n%d\nwant\n%d", result, metricIDs)
-		}
-	}
-
-	f(nil)
-	f([]uint64{0})
-	f([]uint64{1})
-	f([]uint64{1234, 678932943, 843289893843})
-	f([]uint64{1, 2, 3, 4, 5, 6, 8989898, 823849234, 1<<64 - 1, 1<<32 - 1, 0})
-}
 
 func TestTagFiltersToMetricIDsCache(t *testing.T) {
 	f := func(want []uint64) {
@@ -78,11 +37,15 @@ func TestTagFiltersToMetricIDsCache(t *testing.T) {
 		defer s.putIndexDBs(idbPrev, idbCurr, idbNext)
 
 		key := []byte("key")
-		idbCurr.putMetricIDsToTagFiltersCache(nil, want, key)
-		got, ok := idbCurr.getMetricIDsFromTagFiltersCache(nil, key)
+		wantSet := &uint64set.Set{}
+		wantSet.AddMulti(want)
+		idbCurr.putMetricIDsToTagFiltersCache(nil, wantSet, key)
+		gotSet, ok := idbCurr.getMetricIDsFromTagFiltersCache(nil, key)
 		if !ok {
 			t.Fatalf("expected metricIDs to be found in cache but they weren't: %v", want)
 		}
+		got := gotSet.AppendTo(nil)
+		slices.Sort(want)
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("unexpected metricIDs in cache: got %v, want %v", got, want)
 		}
@@ -103,14 +66,13 @@ func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
 	defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
 	key := []byte("key")
-	emptyMetricIDs := []uint64(nil)
-	idbCurr.putMetricIDsToTagFiltersCache(nil, emptyMetricIDs, key)
+	idbCurr.putMetricIDsToTagFiltersCache(nil, nil, key)
 	got, ok := idbCurr.getMetricIDsFromTagFiltersCache(nil, key)
 	if !ok {
 		t.Fatalf("expected empty metricID list to be found in cache but it wasn't")
 	}
-	if len(got) > 0 {
-		t.Fatalf("unexpected found metricID list to be empty but got %v", got)
+	if got.Len() > 0 {
+		t.Fatalf("unexpected found metricID list to be empty but got %v", got.AppendTo(nil))
 	}
 
 }
@@ -2074,11 +2036,10 @@ func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
 
-		metricIDCache:     workingsetcache.New(1234),
-		metricNameCache:   workingsetcache.New(1234),
-		tsidCache:         workingsetcache.New(1234),
-		dateMetricIDCache: newDateMetricIDCache(),
-		retentionMsecs:    retentionMax.Milliseconds(),
+		metricIDCache:   workingsetcache.New(1234),
+		metricNameCache: workingsetcache.New(1234),
+		tsidCache:       workingsetcache.New(1234),
+		retentionMsecs:  retentionMax.Milliseconds(),
 	}
 	s.setDeletedMetricIDs(&uint64set.Set{})
 	return s
@@ -2227,4 +2188,39 @@ func sortedSlice(m map[string]struct{}) []string {
 	}
 	slices.Sort(s)
 	return s
+}
+
+func TestIndexSearchContainsTimeRange_Concurrent(t *testing.T) {
+	defer testRemoveAll(t)
+
+	// Create storage because indexDB depends on it.
+	s := MustOpenStorage(filepath.Join(t.Name(), "storage"), OpenOptions{})
+	defer s.MustClose()
+
+	idbName := nextIndexDBTableName()
+	idbPath := filepath.Join(t.Name(), indexdbDirname, idbName)
+	var readOnly atomic.Bool
+	readOnly.Store(true)
+	noRegisterNewSeries := true
+	idb := mustOpenIndexDB(idbPath, s, &readOnly, noRegisterNewSeries)
+	defer idb.MustClose()
+
+	minTimestamp := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	concurrency := int64(100)
+	var wg sync.WaitGroup
+	for i := range concurrency {
+		wg.Add(1)
+		go func(ts int64) {
+			is := idb.getIndexSearch(noDeadline)
+			_ = is.containsTimeRange(TimeRange{ts, ts})
+			idb.putIndexSearch(is)
+			wg.Done()
+		}(minTimestamp + msecPerDay*i)
+	}
+	wg.Wait()
+
+	key := marshalCommonPrefix(nil, nsPrefixDateToMetricID)
+	if got, want := idb.minMissingTimestampByKey[string(key)], minTimestamp; got != want {
+		t.Fatalf("unexpected min timestamp: got %v, want %v", time.UnixMilli(got).UTC(), time.UnixMilli(want).UTC())
+	}
 }

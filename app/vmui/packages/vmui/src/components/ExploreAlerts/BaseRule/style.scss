@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
 
-  .title {
+  .vm-alerts-title {
     font-weight: bold;
     text-align: center;
   }
@@ -44,21 +44,42 @@
     word-break: break-word;
     table-layout: fixed;
     width: 100%;
+
     td, th {
       line-height: 30px;
       padding: 4px $padding-small;
       vertical-align: middle;
-      white-space: nowrap;
       text-align: left;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    th {
+      white-space: nowrap;
+    }
+
     td.align-center {
       text-align: center
     }
+
     th {
       font-weight: bold;
       padding: 0 $padding-small;
+    }
+  }
+
+  .vm-alerts-table {
+    tr {
+      border-bottom: $border-divider;
+
+      &:hover {
+        background: $color-background-hover;
+      }
+    }
+
+    td {
+      vertical-align: top;
+      padding-block: $padding-small;
     }
   }
 }

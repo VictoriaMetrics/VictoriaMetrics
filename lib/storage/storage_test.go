@@ -42,124 +42,6 @@ func TestReplaceAlternateRegexpsWithGraphiteWildcards(t *testing.T) {
 	f("foo(.*)", "foo*")
 }
 
-func TestDateMetricIDCacheSerial(t *testing.T) {
-	c := newDateMetricIDCache()
-	if err := testDateMetricIDCache(c, false); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-}
-
-func TestDateMetricIDCacheConcurrent(t *testing.T) {
-	c := newDateMetricIDCache()
-	ch := make(chan error, 5)
-	for i := 0; i < 5; i++ {
-		go func() {
-			ch <- testDateMetricIDCache(c, true)
-		}()
-	}
-	for i := 0; i < 5; i++ {
-		select {
-		case err := <-ch:
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
-		case <-time.After(time.Second * 5):
-			t.Fatalf("timeout")
-		}
-	}
-}
-
-func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
-	type dmk struct {
-		generation uint64
-		date       uint64
-		metricID   uint64
-	}
-	m := make(map[dmk]bool)
-	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
-		date := uint64(i) % 2
-		metricID := uint64(i) % 1237
-		if !concurrent && c.Has(generation, date, metricID) {
-			if !m[dmk{generation, date, metricID}] {
-				return fmt.Errorf("c.Has(%d, %d, %d) must return false, but returned true", generation, date, metricID)
-			}
-			continue
-		}
-		c.Set(generation, date, metricID)
-		m[dmk{generation, date, metricID}] = true
-		if !concurrent && !c.Has(generation, date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d, %d) must return true, but returned false", generation, date, metricID)
-		}
-		if i%11234 == 0 {
-			c.mu.Lock()
-			c.syncLocked()
-			c.mu.Unlock()
-		}
-		if i%34323 == 0 {
-			c.mu.Lock()
-			c.resetLocked()
-			c.mu.Unlock()
-			m = make(map[dmk]bool)
-		}
-	}
-
-	// Verify fast path after sync.
-	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
-		date := uint64(i) % 2
-		metricID := uint64(i) % 123
-		c.Set(generation, date, metricID)
-	}
-	c.mu.Lock()
-	c.syncLocked()
-	c.mu.Unlock()
-	for i := 0; i < 1e5; i++ {
-		generation := uint64(i) % 2
-		date := uint64(i) % 2
-		metricID := uint64(i) % 123
-		if !concurrent && !c.Has(generation, date, metricID) {
-			return fmt.Errorf("c.Has(%d, %d, %d) must return true after sync", generation, date, metricID)
-		}
-	}
-
-	// Verify c.Reset
-	if n := c.EntriesCount(); !concurrent && n < 123 {
-		return fmt.Errorf("c.EntriesCount must return at least 123; returned %d", n)
-	}
-	c.mu.Lock()
-	c.resetLocked()
-	c.mu.Unlock()
-	if n := c.EntriesCount(); !concurrent && n > 0 {
-		return fmt.Errorf("c.EntriesCount must return 0 after reset; returned %d", n)
-	}
-	return nil
-}
-
-func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
-	const (
-		generation  = 1
-		date        = 1
-		concurrency = 2
-		numMetrics  = 100000
-	)
-	dmc := newDateMetricIDCache()
-	var wg sync.WaitGroup
-	for i := range concurrency {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for id := uint64(i * numMetrics); id < uint64((i+1)*numMetrics); id++ {
-				dmc.Set(generation, date, id)
-				if !dmc.Has(generation, date, id) {
-					panic(fmt.Errorf("dmc.Has(metricID=%d): unexpected cache miss after adding the entry to cache", id))
-				}
-			}
-		}()
-	}
-	wg.Wait()
-}
-
 func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -1135,7 +1017,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
 		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
 
-		tfssKey := marshalTagFiltersKey(nil, tfss, tr, true)
+		tfssKey := marshalTagFiltersKey(nil, tfss, tr)
 		_, got := idbCurr.getMetricIDsFromTagFiltersCache(nil, tfssKey)
 		if got != want {
 			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)
@@ -3949,22 +3831,21 @@ func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
 // The function is not a part of Storage because it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
-	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) ([]uint64, error) {
+	search := func(qt *querytracer.Tracer, idb *indexDB, tr TimeRange) (*uint64set.Set, error) {
 		return idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	}
-	merge := func(data [][]uint64) []uint64 {
-		s := &uint64set.Set{}
+	merge := func(data []*uint64set.Set) *uint64set.Set {
+		all := &uint64set.Set{}
 		for _, d := range data {
-			s.AddMulti(d)
+			all.Union(d)
 		}
-		all := s.AppendTo(nil)
 		return all
 	}
 	metricIDs, err := searchAndMerge(nil, s, tr, search, merge)
 	if err != nil {
 		panic(fmt.Sprintf("searching metricIDs failed unexpectedly: %s", err))
 	}
-	return metricIDs
+	return metricIDs.AppendTo(nil)
 }
 
 // testCountAllMetricIDs is a test helper function that counts the IDs of

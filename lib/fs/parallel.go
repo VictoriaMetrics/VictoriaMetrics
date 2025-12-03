@@ -2,6 +2,8 @@ package fs
 
 import (
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 )
 
 // ParallelReaderAtOpener opens ReaderAt files in parallel.
@@ -32,6 +34,7 @@ func (pro *ParallelReaderAtOpener) Add(path string, rc *MustReadAtCloser, fileSi
 // Run executes all the registered tasks in parallel.
 func (pro *ParallelReaderAtOpener) Run() {
 	var wg sync.WaitGroup
+	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, task := range pro.tasks {
 		concurrencyCh <- struct{}{}
 		wg.Add(1)
@@ -60,6 +63,7 @@ type MustCloser interface {
 // on high-latency storage systems such as NFS or Ceph.
 func MustCloseParallel(cs []MustCloser) {
 	var wg sync.WaitGroup
+	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, c := range cs {
 		concurrencyCh <- struct{}{}
 		wg.Add(1)
@@ -73,6 +77,3 @@ func MustCloseParallel(cs []MustCloser) {
 	}
 	wg.Wait()
 }
-
-// concurrencyCh limits the concurrency of parallel operations performed by ParallelReaderAtOpener and MustCloseParallel
-var concurrencyCh = make(chan struct{}, 256)

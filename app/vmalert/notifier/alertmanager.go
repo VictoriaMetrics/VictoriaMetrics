@@ -3,6 +3,7 @@ package notifier
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -77,12 +78,20 @@ func (am *AlertManager) LastError() string {
 }
 
 // Send an alert or resolve message
-func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
+func (am *AlertManager) Send(ctx context.Context, alerts []Alert, alertLabels [][]prompb.Label, headers map[string]string) error {
+	if len(alerts) != len(alertLabels) {
+		return fmt.Errorf("mismatched number of alerts and label sets after global alert relabeling")
+	}
 	am.metrics.alertsSent.Add(len(alerts))
 	startTime := time.Now()
-	err := am.send(ctx, alerts, headers)
+	err := am.send(ctx, alerts, alertLabels, headers)
 	am.metrics.alertsSendDuration.UpdateDuration(startTime)
 	if err != nil {
+		// the context can be cancelled on graceful shutdown
+		// or on group update. So no need to handle the error as usual.
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
 		am.metrics.alertsSendErrors.Add(len(alerts))
 		am.lastError = err.Error()
 	} else {
@@ -91,12 +100,15 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[st
 	return err
 }
 
-func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[string]string) error {
+func (am *AlertManager) send(ctx context.Context, alerts []Alert, alertLabels [][]prompb.Label, headers map[string]string) error {
 	b := &bytes.Buffer{}
 	alertsToSend := make([]Alert, 0, len(alerts))
 	lblss := make([][]prompb.Label, 0, len(alerts))
-	for _, a := range alerts {
-		lbls := a.applyRelabelingIfNeeded(am.relabelConfigs)
+	for i, a := range alerts {
+		lbls := alertLabels[i]
+		if am.relabelConfigs != nil {
+			lbls = am.relabelConfigs.Apply(lbls, 0)
+		}
 		if len(lbls) == 0 {
 			continue
 		}
