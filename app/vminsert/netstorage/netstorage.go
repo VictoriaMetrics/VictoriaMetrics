@@ -460,7 +460,12 @@ type storageNode struct {
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
 
+	// avgSendDuration is the moving average of time spent sending data to a vmstorage node.
+	// Updated in run(). Used alongside avgIdleDuration to compute saturation and control rerouting in allowRerouting.
 	avgSendDuration *variableEWMA
+
+	// avgIdleDuration is the moving average of time spent waiting for new data.
+	// Updated in run(). Used alongside avgSendDuration to compute saturation and control rerouting in allowRerouting.
 	avgIdleDuration *variableEWMA
 }
 
