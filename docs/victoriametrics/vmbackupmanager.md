@@ -673,10 +673,14 @@ command-line flags:
      Disable validation of source backup presence and completeness when creating a restore mark.
   -runOnStart
      Upload backups immediately after start of the service. Otherwise the backup starts on new hour
+  -s3ACL string
+     ACL to be set for uploaded objects to S3. Supported values are: private, public-read, public-read-write, authenticated-read, aws-exec-read, bucket-owner-read, bucket-owner-full-control
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
   -s3ObjectTags string
      S3 tags to be set for uploaded objects. Must be set in JSON format: {"param1":"value1",...,"paramN":"valueN"}.
+  -s3SSEKMSKeyId string
+     SSE KMS Key ID for use with S3-compatible storages.
   -s3StorageClass string
      The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html
