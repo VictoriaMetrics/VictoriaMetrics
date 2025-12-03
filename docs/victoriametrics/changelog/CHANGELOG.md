@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): add support for SSE KMS Key ID and ACL for use with S3-compatible storages.
+* FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/): add panels for flags and configuration parameters values. See [#1341-operator](https://github.com/VictoriaMetrics/operator/issues/1341).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add [slow client protection](https://docs.victoriametrics.com/victoriametrics/vmauth/#slow-client-protection) via `-requestBodyReadTimeout` and `-responseWriteTimeout` flags. This protects against slow-client attacks that exhaust server resources. Per-user timeouts can be configured via `request_body_read_timeout` and `response_write_timeout` options. See [#10084](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10084).
 
 ## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
