@@ -111,10 +111,6 @@ type Storage struct {
 	// is used by indexDBs for storing the search result of
 	// is.hasDateMetricID(). This check is used during data ingestion and
 	// caching the result of this check improves the ingestion rate.
-	//
-	// From the design point of view, it makes sense to have a separate cache
-	// for each indexDB, however having one instance shared between all indexDBs
-	// simplifies the cache implementation and operations. See #TODO.
 	dateMetricIDCache *dateMetricIDCache
 
 	// Fast cache for MetricID values occurred during the current hour.

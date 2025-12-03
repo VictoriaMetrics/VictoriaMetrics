@@ -14,7 +14,7 @@ import (
 // It should be faster than map[date]*uint64set.Set on multicore systems.
 //
 // One instance of this cache is supposed to be shared by all indexDB instances.
-// See #TODO
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10123
 type dateMetricIDCache struct {
 	syncsCount  atomic.Uint64
 	resetsCount atomic.Uint64
