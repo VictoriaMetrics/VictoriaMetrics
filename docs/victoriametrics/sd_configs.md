@@ -1351,7 +1351,7 @@ scrape_configs:
   - job_name: nacos
     nacos_sd_configs:
 
-      # server is an optional Consul server to connect to. By default, localhost:8848 is used
+      # server is an optional Nacos server to connect to. By default, localhost:8848 is used
       - server: localhost:8848
         # scheme: http
 
@@ -1397,7 +1397,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_nacos_service_group`: namespace of the service - see [group docs](https://nacos.io/en-us/docs/concepts.html)
 * `__meta_nacos_metadata_<key>`: each service metadata key value of the target
 
-The list of discovered Consul targets is refreshed at the interval, which can be configured via `-promscrape.nacosSDCheckInterval` command-line flag.
+The list of discovered Nacos targets is refreshed at the interval, which can be configured via `-promscrape.nacosSDCheckInterval` command-line flag.
 
 ## nomad_sd_configs
 

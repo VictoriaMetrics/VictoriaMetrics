@@ -769,7 +769,7 @@ func (cfg *Config) getNomadSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return cfg.getScrapeWorkGeneric(visitConfigs, "nomad_sd_config", prev)
 }
 
-// getNacosSDScrapeWork returns `consul_sd_configs` ScrapeWork from cfg.
+// getNacosSDScrapeWork returns `nacos_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getNacosSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
 		for i := range sc.NacosSDConfigs {
