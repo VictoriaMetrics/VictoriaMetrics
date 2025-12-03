@@ -1480,6 +1480,9 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	qt.Printf("deleted %d metricIDs from current indexDB", dmisCurr.Len())
 	deletedMetricIDs.UnionMayOwn(dmisCurr)
 
+	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
+	s.resetAndSaveTSIDCache()
+
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
 
