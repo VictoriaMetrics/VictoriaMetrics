@@ -784,8 +784,14 @@ The downside is that a single slow vmstorage node can throttle the entire cluste
 
 When `-disableRerouting=false` is enabled on `vminsert`, 
 the cluster will automatically re-route writes away from the slowest vmstorage node to preserve maximum ingestion throughput.
-Re-routing is triggered only from the slowest `vmstorage` node and the cluster have capacity to handle the re-routed load.
-Enable slowness-based re-routing when maximizing write throughput is more important than minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
+Re-routing is triggered:
+- the saturated vmstorage node is the slowest.
+- the remaining vmstorage nodes have considerably lower saturation (enough capacity to absorb the extra load).
+- and the cluster has at least two other vmstorage nodes available.
+
+Enable slowness-based re-routing when peak write throughput matters more 
+than minimizing the number [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
+or keeping metrics perfectly balanced across nodes.
 
 The rerouting and node saturation could be seen at  [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
 
