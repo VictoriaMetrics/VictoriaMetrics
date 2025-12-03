@@ -129,17 +129,13 @@ type indexDB struct {
 	// Cache for fast TagFilters -> MetricIDs lookup.
 	tagFiltersToMetricIDsCache *lrucache.Cache
 
-	// The parent storage.
+	// The parent storage. Provides access to configuration and resources (such
+	// as caches) shared by all indexDB instances.
 	s *Storage
 
 	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
 	loopsPerDateTagFilterCache *workingsetcache.Cache
-
-	// dateMetricIDCache is (date, metricID) cache that is used to speed up the
-	// data ingestion by storing the is.hasDateMetricID() search results in
-	// memory.
-	dateMetricIDCache *dateMetricIDCache
 
 	indexSearchPool sync.Pool
 }
@@ -184,7 +180,6 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegiste
 		tagFiltersToMetricIDsCache: tfssCache,
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(memory.Allowed() / 128),
-		dateMetricIDCache:          newDateMetricIDCache(),
 	}
 	db.noRegisterNewSeries.Store(noRegisterNewSeries)
 	db.incRef()
@@ -201,11 +196,6 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheRequests     uint64
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
-
-	DateMetricIDCacheSize        uint64
-	DateMetricIDCacheSizeBytes   uint64
-	DateMetricIDCacheSyncsCount  uint64
-	DateMetricIDCacheResetsCount uint64
 
 	IndexDBRefCount uint64
 
@@ -249,11 +239,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheRequests += db.tagFiltersToMetricIDsCache.Requests()
 	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
 	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
-
-	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
-	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
-	m.DateMetricIDCacheSyncsCount += db.dateMetricIDCache.syncsCount.Load()
-	m.DateMetricIDCacheResetsCount += db.dateMetricIDCache.resetsCount.Load()
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
@@ -2722,7 +2707,7 @@ func (db *indexDB) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) 
 	// indexDB.hasDateMetricID() to decide whether the index records given
 	// metricID need to be created and without this cache the next indexDB
 	// prefill will be significantly slower when per-day indexes are disabled.
-	db.dateMetricIDCache.Set(date, tsid.MetricID)
+	db.s.dateMetricIDCache.Set(db.generation, date, tsid.MetricID)
 
 	if db.s.disablePerDayIndex {
 		return
@@ -2863,7 +2848,7 @@ func reverseBytes(dst, src []byte) []byte {
 }
 
 func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
-	if is.db.dateMetricIDCache.Has(date, metricID) {
+	if is.db.s.dateMetricIDCache.Has(is.db.generation, date, metricID) {
 		return true
 	}
 
@@ -2875,7 +2860,7 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 	}
 
 	if ok {
-		is.db.dateMetricIDCache.Set(date, metricID)
+		is.db.s.dateMetricIDCache.Set(is.db.generation, date, metricID)
 	}
 	return ok
 }

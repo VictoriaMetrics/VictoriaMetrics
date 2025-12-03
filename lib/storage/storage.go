@@ -107,6 +107,16 @@ type Storage struct {
 	// metricNameCache is MetricID -> MetricName cache.
 	metricNameCache *workingsetcache.Cache
 
+	// dateMetricIDCache stores (idbID, date) -> metricIDs entries. The cache
+	// is used by indexDBs for storing the search result of
+	// is.hasDateMetricID(). This check is used during data ingestion and
+	// caching the result of this check improves the ingestion rate.
+	//
+	// From the design point of view, it makes sense to have a separate cache
+	// for each indexDB, however having one instance shared between all indexDBs
+	// simplifies the cache implementation and operations. See #TODO.
+	dateMetricIDCache *dateMetricIDCache
+
 	// Fast cache for MetricID values occurred during the current hour.
 	currHourMetricIDs atomic.Pointer[hourMetricIDs]
 
@@ -252,6 +262,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.tsidCache = s.mustLoadCache(tsidCacheFilename, getTSIDCacheSize())
 	s.metricIDCache = s.mustLoadCache(metricIDCacheFilename, mem/16)
 	s.metricNameCache = s.mustLoadCache(metricNameCacheFilename, getMetricNamesCacheSize())
+	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
 	hmCurr := s.mustLoadHourMetricIDs(hour, currHourMetricIDsFilename)
@@ -643,6 +654,11 @@ type Metrics struct {
 	MetricNameCacheMisses       uint64
 	MetricNameCacheCollisions   uint64
 
+	DateMetricIDCacheSize        uint64
+	DateMetricIDCacheSizeBytes   uint64
+	DateMetricIDCacheSyncsCount  uint64
+	DateMetricIDCacheResetsCount uint64
+
 	HourMetricIDCacheSize      uint64
 	HourMetricIDCacheSizeBytes uint64
 
@@ -728,6 +744,11 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetricNameCacheRequests += cs.GetCalls
 	m.MetricNameCacheMisses += cs.Misses
 	m.MetricNameCacheCollisions += cs.Collisions
+
+	m.DateMetricIDCacheSize += uint64(s.dateMetricIDCache.EntriesCount())
+	m.DateMetricIDCacheSizeBytes += uint64(s.dateMetricIDCache.SizeBytes())
+	m.DateMetricIDCacheSyncsCount += s.dateMetricIDCache.syncsCount.Load()
+	m.DateMetricIDCacheResetsCount += s.dateMetricIDCache.resetsCount.Load()
 
 	hmCurr := s.currHourMetricIDs.Load()
 	hmPrev := s.prevHourMetricIDs.Load()
@@ -2379,7 +2400,7 @@ func (s *Storage) updatePerDateData(idb *indexDB, rows []rawRow, mrs []*MetricRo
 		// TODO(@rtm0): indexDB.dateMetricIDCache should not be used directly
 		// since its purpose is to optimize is.hasDateMetricID(). See if this
 		// function could be changed so that it does not rely on this cache.
-		if idb.dateMetricIDCache.Has(date, metricID) {
+		if s.dateMetricIDCache.Has(idb.generation, date, metricID) {
 			continue
 		}
 		// Slow path: store the (date, metricID) entry in the indexDB.

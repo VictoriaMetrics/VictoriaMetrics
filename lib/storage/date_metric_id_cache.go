@@ -9,9 +9,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
-// dateMetricIDCache is fast cache for holding (date, metricID) entries.
+// dateMetricIDCache is fast cache for holding (idb, date) -> metricID entries.
 //
 // It should be faster than map[date]*uint64set.Set on multicore systems.
+//
+// One instance of this cache is supposed to be shared by all indexDB instances.
+// See #TODO
 type dateMetricIDCache struct {
 	syncsCount  atomic.Uint64
 	resetsCount atomic.Uint64
@@ -63,30 +66,30 @@ func (dmc *dateMetricIDCache) SizeBytes() uint64 {
 	return n
 }
 
-func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
-	if byDate := dmc.byDate.Load(); byDate.get(date).Has(metricID) {
+func (dmc *dateMetricIDCache) Has(idbID, date, metricID uint64) bool {
+	if byDate := dmc.byDate.Load(); byDate.get(idbID, date).Has(metricID) {
 		// Fast path. The majority of calls must go here.
 		return true
 	}
 	// Slow path. Acquire the lock and search the immutable map again and then
 	// also search the mutable map.
-	return dmc.hasSlow(date, metricID)
+	return dmc.hasSlow(idbID, date, metricID)
 }
 
-func (dmc *dateMetricIDCache) hasSlow(date, metricID uint64) bool {
+func (dmc *dateMetricIDCache) hasSlow(idbID, date, metricID uint64) bool {
 	dmc.mu.Lock()
 	defer dmc.mu.Unlock()
 
 	// First, check immutable map again because the entry may have been moved to
 	// the immutable map by the time the caller acquires the lock.
 	byDate := dmc.byDate.Load()
-	v := byDate.get(date)
+	v := byDate.get(idbID, date)
 	if v.Has(metricID) {
 		return true
 	}
 
 	// Then check mutable map.
-	vMutable := dmc.byDateMutable.get(date)
+	vMutable := dmc.byDateMutable.get(idbID, date)
 	ok := vMutable.Has(metricID)
 	if ok {
 		dmc.slowHits++
@@ -99,9 +102,9 @@ func (dmc *dateMetricIDCache) hasSlow(date, metricID uint64) bool {
 	return ok
 }
 
-func (dmc *dateMetricIDCache) Set(date, metricID uint64) {
+func (dmc *dateMetricIDCache) Set(idbID, date, metricID uint64) {
 	dmc.mu.Lock()
-	v := dmc.byDateMutable.getOrCreate(date)
+	v := dmc.byDateMutable.getOrCreate(idbID, date)
 	v.Add(metricID)
 	dmc.mu.Unlock()
 }
@@ -118,27 +121,27 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	byDateMutable.hotEntry.Store(nil)
 
 	keepDatesMap := make(map[uint64]struct{}, len(byDateMutable.m))
-	for date, metricIDsMutable := range byDateMutable.m {
-		keepDatesMap[date] = struct{}{}
-		metricIDs := byDate.get(date)
-		if metricIDs == nil {
+	for k, vMutable := range byDateMutable.m {
+		keepDatesMap[k.date] = struct{}{}
+		v := byDate.get(k.idbID, k.date)
+		if v == nil {
 			// Nothing to merge
 			continue
 		}
-		metricIDs = metricIDs.Clone()
-		metricIDs.Union(metricIDsMutable)
-		byDateMutable.m[date] = metricIDs
+		v = v.Clone()
+		v.Union(vMutable)
+		byDateMutable.m[k] = v
 	}
 
 	// Copy entries from byDate, which are missing in byDateMutable
 	allDatesMap := make(map[uint64]struct{}, len(byDate.m))
-	for date, metricIDs := range byDate.m {
-		allDatesMap[date] = struct{}{}
-		v := byDateMutable.get(date)
-		if v != nil {
+	for k, v := range byDate.m {
+		allDatesMap[k.date] = struct{}{}
+		vMutable := byDateMutable.get(k.idbID, k.date)
+		if vMutable != nil {
 			continue
 		}
-		byDateMutable.m[date] = metricIDs
+		byDateMutable.m[k] = v
 	}
 
 	if len(byDateMutable.m) > 2 {
@@ -156,9 +159,9 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		for _, date := range dates {
 			keepDatesMap[date] = struct{}{}
 		}
-		for date := range byDateMutable.m {
-			if _, ok := keepDatesMap[date]; !ok {
-				delete(byDateMutable.m, date)
+		for k := range byDateMutable.m {
+			if _, ok := keepDatesMap[k.date]; !ok {
+				delete(byDateMutable.m, k)
 			}
 		}
 	}
@@ -174,50 +177,61 @@ func (dmc *dateMetricIDCache) syncLocked() {
 	}
 }
 
-// dateMetricIDs holds the date and corresponding metricIDs together and is used
+// idbDate is used as the key in byDateMetricIDMap.
+type idbDate struct {
+	idbID uint64
+	date  uint64
+}
+
+// idbDateMetricIDs holds the date and corresponding metricIDs together and is used
 // for implementing hot entry fast path in byDateMetricIDMap.
-type dateMetricIDs struct {
-	date      uint64
-	metricIDs *uint64set.Set
+type idbDateMetricIDs struct {
+	k idbDate
+	v *uint64set.Set
 }
 
 type byDateMetricIDMap struct {
-	hotEntry atomic.Pointer[dateMetricIDs]
-	m        map[uint64]*uint64set.Set
+	hotEntry atomic.Pointer[idbDateMetricIDs]
+	m        map[idbDate]*uint64set.Set
 }
 
 func newByDateMetricIDMap() *byDateMetricIDMap {
 	dmm := &byDateMetricIDMap{
-		m: make(map[uint64]*uint64set.Set),
+		m: make(map[idbDate]*uint64set.Set),
 	}
 	return dmm
 }
 
-func (dmm *byDateMetricIDMap) get(date uint64) *uint64set.Set {
+func (dmm *byDateMetricIDMap) get(idbID, date uint64) *uint64set.Set {
 	hotEntry := dmm.hotEntry.Load()
-	if hotEntry != nil && hotEntry.date == date {
+	if hotEntry != nil && hotEntry.k.idbID == idbID && hotEntry.k.date == date {
 		// Fast path
-		return hotEntry.metricIDs
+		return hotEntry.v
 	}
 	// Slow path
-	metricIDs := dmm.m[date]
-	if metricIDs == nil {
+	k := idbDate{
+		idbID: idbID,
+		date:  date,
+	}
+	v := dmm.m[k]
+	if v == nil {
 		return nil
 	}
-	e := &dateMetricIDs{
-		date:      date,
-		metricIDs: metricIDs,
-	}
+	e := &idbDateMetricIDs{k, v}
 	dmm.hotEntry.Store(e)
-	return metricIDs
+	return v
 }
 
-func (dmm *byDateMetricIDMap) getOrCreate(date uint64) *uint64set.Set {
-	metricIDs := dmm.get(date)
-	if metricIDs != nil {
-		return metricIDs
+func (dmm *byDateMetricIDMap) getOrCreate(idbID, date uint64) *uint64set.Set {
+	v := dmm.get(idbID, date)
+	if v != nil {
+		return v
 	}
-	metricIDs = &uint64set.Set{}
-	dmm.m[date] = metricIDs
-	return metricIDs
+	k := idbDate{
+		idbID: idbID,
+		date:  date,
+	}
+	v = &uint64set.Set{}
+	dmm.m[k] = v
+	return v
 }
