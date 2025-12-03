@@ -174,7 +174,6 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 				// Make sure the br bufs are flushed last time before returning
 				// in order to send the remaining bits of data.
 			case <-ticker.C:
-				sn.avgIdleDuration.Set(d.Seconds())
 			}
 		}
 
@@ -204,7 +203,6 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 				logger.Errorf("dropping %d rows on graceful shutdown, since all the vmstorage nodes are unavailable", br.rows)
 				return
 			case <-t.C:
-				sn.avgIdleDuration.Set(d.Seconds())
 				timerpool.Put(t)
 				sn.checkHealth()
 			}
@@ -318,7 +316,12 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	}
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
-	sn.avgSendDuration.Add(duration.Seconds())
+
+	now := time.Now()
+	saturation := duration.Seconds() / float64(now.Sub(sn.lastSendTime))
+	sn.avgSaturation.Add(saturation)
+	sn.lastSendTime = now
+
 	if err == nil {
 		if deadline := sn.rpcIsNotSupportedDeadline.Load(); deadline > 0 {
 			sn.rpcIsNotSupportedDeadline.Store(0)
@@ -460,13 +463,10 @@ type storageNode struct {
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
 
-	// avgSendDuration is the moving average of time spent sending data to a vmstorage node.
-	// Updated in run(). Used alongside avgIdleDuration to compute saturation and control rerouting in allowRerouting.
-	avgSendDuration *variableEWMA
-
-	// avgIdleDuration is the moving average of time spent waiting for new data.
-	// Updated in run(). Used alongside avgSendDuration to compute saturation and control rerouting in allowRerouting.
-	avgIdleDuration *variableEWMA
+	// avgSaturation tracks the moving average of (send duration / (now - lastSendTime)).
+	// Updated in run(). Used by allowRerouting to decide when to trigger slowness-based rerouting.
+	avgSaturation *variableEWMA
+	lastSendTime  time.Time
 }
 
 type storageNodesBucket struct {
@@ -570,8 +570,8 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
 			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
 
-			avgSendDuration: newMovingAverage(movingAvgAge),
-			avgIdleDuration: newMovingAverage(movingAvgAge),
+			avgSaturation: newMovingAverage(180),
+			lastSendTime:  time.Now(),
 		}
 		sn.brCond = sync.NewCond(&sn.brLock)
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
@@ -717,11 +717,6 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 
 var reroutingLogger = logger.WithThrottler("allowRerouting", 5*time.Second)
 
-// The movingAvgAge should match promql query in allowRerouting for the worst-case.
-// In optimal case (5 pushes/sec) it would represent 180/5=~36s time range only;
-// In saturated case (1 push/sec) it would represent 180/1=~3m time range.
-var movingAvgAge = float64(180)
-
 // allowRerouting determines whether data should be rerouted from snSource to other storage nodes (sns)
 // based on performance metrics.
 //
@@ -742,7 +737,7 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 	}
 
 	// Do not allow rerouting if saturation is not yet warmed up.
-	snSourceSaturation := snSource.saturation()
+	snSourceSaturation := snSource.avgSaturation.Value()
 	if snSourceSaturation == 0 {
 		return false
 	}
@@ -758,8 +753,8 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 			continue
 		}
 
-		// Do not allow rerouting if avgSendDuration is not yet warmed up.
-		if sn.saturation() == 0 {
+		// Do not allow rerouting if avgSaturation is not yet warmed up.
+		if sn.avgSaturation.Value() == 0 {
 			return false
 		}
 		if !sn.isReady() {
@@ -767,7 +762,7 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 		}
 
 		// Do not allow rerouting if there is a slower storage node
-		snSaturation := sn.saturation()
+		snSaturation := sn.avgSaturation.Value()
 		if snSourceSaturation < snSaturation {
 			return false
 		}
@@ -789,19 +784,6 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 
 	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.3f, where cluster avg saturation is %.3f", snSource.dialer.Addr(), snSourceSaturation, avgSaturation)
 	return true
-}
-
-// saturation reports the storage saturation on a scale from 0-1.
-// The higher the value, the more saturated the storage is.
-func (sn *storageNode) saturation() float64 {
-	avgIdleDur := sn.avgIdleDuration.Value()
-	avgSendDur := sn.avgSendDuration.Value()
-
-	if avgIdleDur == 0 || avgSendDur == 0 {
-		return 0
-	}
-
-	return avgSendDur / (avgSendDur + avgIdleDur)
 }
 
 // rerouteRowsToFreeStorageNodes re-routes src from snSource to other storage nodes.
