@@ -776,6 +776,19 @@ The following approaches can be used for reducing resource usage at `vmstorage` 
 
 See also [minimum downtime strategy](#minimum-downtime-strategy).
 
+## Slowness-based re-routing
+
+By default, `vminsert` nodes limit the cluster's overall ingestion rate to the throughput of the slowest `vmstorage` node. 
+This ensures that incoming metrics are evenly distributed across all `vmstorage` nodes. 
+The downside is that a single slow vmstorage node can throttle the entire cluster.
+
+When `-disableRerouting=false` is enabled on `vminsert`, 
+the cluster will automatically re-route writes away from the slowest vmstorage node to preserve maximum ingestion throughput.
+Re-routing is triggered only from the slowest `vmstorage` node and the cluster have capacity to handle the re-routed load.
+Enable slowness-based re-routing when maximizing write throughput is more important than minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
+
+The rerouting and node saturation could be seen at  [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
+
 ## Capacity planning
 
 VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/victoriametrics/casestudies/).
