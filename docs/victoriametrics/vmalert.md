@@ -284,9 +284,11 @@ expr: <string>
 # Labels to add or overwrite for each alert.
 # Labels are merged with labels received from `expr` evaluation and uniquely identify each generated alert.
 # In case of conflicts, original labels are kept with prefix `exported_`.
-# Note: do not set dynamic label values like `$value`, because each time the $value changes - the new alert will be
-# generated. It will also break `for` condition.
-# Labels could contain arbitrary dynamically generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
+#
+# Labels only support limited templating variables in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating,
+# including `$labels`, `$value` and `expr`, to avoid breaking alert states or causing cardinality issue with results.
+# Note: be careful set dynamic label values like `$value`, because each time the $value changes - the new alert will be
+# generated which also break `for` condition.
 labels:
   [ <labelname>: <tmpl_string> ]
 
@@ -298,7 +300,7 @@ annotations:
 
 #### Templating
 
-It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations and labels to format data, iterate over
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations and labels(with limited support) to format data, iterate over
 or execute expressions.
 The following variables are available in templating:
 
