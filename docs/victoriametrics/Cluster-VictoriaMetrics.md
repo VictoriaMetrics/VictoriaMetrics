@@ -791,7 +791,7 @@ Re-routing occurs only when all of the following conditions hold:
 - and the cluster has at least two other vmstorage nodes available.
 
 Enable slowness-based re-routing when peak write throughput matters more 
-than minimizing the number [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
+than minimizing the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series)
 or keeping metrics perfectly balanced across nodes.
 
 The rerouting and node saturation could be seen at  [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard.
