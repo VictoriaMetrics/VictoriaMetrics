@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consistenthash"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
