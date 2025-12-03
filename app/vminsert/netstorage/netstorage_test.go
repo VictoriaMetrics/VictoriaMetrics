@@ -43,15 +43,13 @@ func TestAllowRerouting(t *testing.T) {
 	// Enable rerouting for the test
 	*disableRerouting = false
 
-	newStorage := func(avgSendDuration float64, ready bool) *storageNode {
+	newStorage := func(avgSaturation float64, ready bool) *storageNode {
 		sn := &storageNode{
-			avgSendDuration: newMovingAverage(movingAvgAge),
-			avgIdleDuration: newMovingAverage(movingAvgAge),
-			dialer:          netutil.NewTCPDialer(metrics.NewSet(), "aName", "anAddr", time.Second, time.Second),
+			avgSaturation: newMovingAverage(180),
+			dialer:        netutil.NewTCPDialer(metrics.NewSet(), "aName", "anAddr", time.Second, time.Second),
 		}
 		sn.isBroken.Store(!ready)
-		sn.avgSendDuration.Set(avgSendDuration)
-		sn.avgIdleDuration.Set(1 - avgSendDuration)
+		sn.avgSaturation.Set(avgSaturation)
 
 		return sn
 	}
