@@ -787,7 +787,7 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 		return false
 	}
 
-	reroutingLogger.Warnf("Reroute metrics from the slowest storage %q with saturation %.3f, where cluster avg saturation is %.3f", snSource.dialer.Addr(), snSourceSaturation, avgSaturation)
+	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.3f, where cluster avg saturation is %.3f", snSource.dialer.Addr(), snSourceSaturation, avgSaturation)
 	return true
 }
 
