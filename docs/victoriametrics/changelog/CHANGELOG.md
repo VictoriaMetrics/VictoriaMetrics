@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): add support for SSE KMS Key ID and ACL for use with S3-compatible storages.
 * FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/): add panels for flags and configuration parameters values. See [#1341-operator](https://github.com/VictoriaMetrics/operator/issues/1341).
+* FEATURE: [dashboards/victoriametrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victoriametrics.json), [dashboards/victoriametrics-cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/victoriametrics-cluster.json): add major page faults panels. See [#9974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9974).
+
 
 ## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
 
