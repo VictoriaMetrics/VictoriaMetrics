@@ -79,7 +79,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 			return fmt.Errorf("failed to get tenants: %w", err)
 		}
 		question := fmt.Sprintf("The following tenants were discovered: %s.\n Continue?", tenants)
-		if !prompt(question) {
+		if !prompt(ctx, question) {
 			return nil
 		}
 	}
@@ -233,7 +233,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		// do not prompt for intercluster because there could be many tenants,
 		// and we don't want to interrupt the process when moving to the next tenant.
 		question := foundSeriesMsg + ". Continue?"
-		if !prompt(question) {
+		if !prompt(ctx, question) {
 			return nil
 		}
 	} else {
