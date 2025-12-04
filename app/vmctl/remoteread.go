@@ -47,7 +47,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 
 	question := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. Continue?",
 		rrp.filter.timeStart.String(), rrp.filter.timeEnd.String(), len(ranges), rrp.filter.chunk)
-	if !prompt(question) {
+	if !prompt(ctx, question) {
 		return nil
 	}
 
