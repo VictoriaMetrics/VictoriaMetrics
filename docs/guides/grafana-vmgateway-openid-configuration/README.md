@@ -6,6 +6,8 @@ build:
 sitemap:
   disable: true
 ---
+> consider using [vmauth for OIDC](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/) instead. vmgateway will become deprecated soon.
+
 Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) access to your metrics.
 vmgateway provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used
