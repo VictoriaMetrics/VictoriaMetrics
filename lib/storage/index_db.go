@@ -243,17 +243,25 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
 	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
 
-	m.TagFiltersToMetricIDsCacheSize += uint64(db.tagFiltersToMetricIDsCache.Len())
-	m.TagFiltersToMetricIDsCacheSizeBytes += uint64(db.tagFiltersToMetricIDsCache.SizeBytes())
-	m.TagFiltersToMetricIDsCacheSizeMaxBytes += uint64(db.tagFiltersToMetricIDsCache.SizeMaxBytes())
-	m.TagFiltersToMetricIDsCacheRequests += db.tagFiltersToMetricIDsCache.Requests()
-	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
-	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
+	// Report only once and for an indexDB instance whose tagFiltersCache is
+	// utilized the most.
+	if db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
+		m.TagFiltersToMetricIDsCacheSize = uint64(db.tagFiltersToMetricIDsCache.Len())
+		m.TagFiltersToMetricIDsCacheSizeBytes = db.tagFiltersToMetricIDsCache.SizeBytes()
+		m.TagFiltersToMetricIDsCacheSizeMaxBytes = db.tagFiltersToMetricIDsCache.SizeMaxBytes()
+		m.TagFiltersToMetricIDsCacheRequests = db.tagFiltersToMetricIDsCache.Requests()
+		m.TagFiltersToMetricIDsCacheMisses = db.tagFiltersToMetricIDsCache.Misses()
+		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
+	}
 
-	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
-	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
-	m.DateMetricIDCacheSyncsCount += db.dateMetricIDCache.syncsCount.Load()
-	m.DateMetricIDCacheResetsCount += db.dateMetricIDCache.resetsCount.Load()
+	// Report only once and for an indexDB instance whose dateMetricIDCache is
+	// utilized the most.
+	if db.dateMetricIDCache.SizeBytes() > m.DateMetricIDCacheSizeBytes {
+		m.DateMetricIDCacheSize = uint64(db.dateMetricIDCache.EntriesCount())
+		m.DateMetricIDCacheSizeBytes = db.dateMetricIDCache.SizeBytes()
+		m.DateMetricIDCacheSyncsCount = db.dateMetricIDCache.syncsCount.Load()
+		m.DateMetricIDCacheResetsCount = db.dateMetricIDCache.resetsCount.Load()
+	}
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
