@@ -1,10 +1,7 @@
 ---
-weight: 5
+weight: 16
 title: Setup vmgateway - Multi-Tenant Access with Grafana & OIDC
-menu:
-  docs:
-    parent: guides
-    weight: 5
+menu: false
 tags:
   - metrics
   - guide

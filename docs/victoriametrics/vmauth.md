@@ -51,6 +51,7 @@ Feel free to [contact us](mailto:info@victoriametrics.com) if you need customize
 * [Per-tenant authorization](#per-tenant-authorization)
 * [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
+* [OIDC authorization](#oidc-authorization)
 
 ### Simple HTTP proxy
 
@@ -353,11 +354,12 @@ unauthorized_user:
 
 `vmauth` supports the following authorization mechanisms:
 
-* [No authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#simple-http-proxy)
-* [Basic Auth](https://docs.victoriametrics.com/victoriametrics/vmauth/#basic-auth-proxy)
-* [Bearer token](https://docs.victoriametrics.com/victoriametrics/vmauth/#bearer-token-auth-proxy)
-* [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing)
-* [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#reading-auth-tokens-from-other-http-headers)
+- [No authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#simple-http-proxy)
+- [Basic Auth](https://docs.victoriametrics.com/victoriametrics/vmauth/#basic-auth-proxy)
+- [Bearer token](https://docs.victoriametrics.com/victoriametrics/vmauth/#bearer-token-auth-proxy)
+- [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing)
+- [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#reading-auth-tokens-from-other-http-headers)
+- [OIDC authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-authorization)
 
 See also [security docs](#security), [routing docs](#routing) and [load balancing docs](#load-balancing).
 
@@ -776,6 +778,247 @@ By default, `vmauth` uses system settings when performing requests to HTTPS back
 The `-backend.tlsCAFile`, `-backend.tlsCertFile`, `-backend.tlsKeyFile`, `tls_ca_file`, `tls_cert_file` and `tls_key_file` may point either to local file or to `http` / `https` url.
 The file is checked for modifications every second and is automatically re-read when it is updated.
 
+## OIDC authorization
+
+[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmauth` can be configured for OIDC authorization.
+To start using OIDC realms and clients a required to be set. Realm defines a set of keys, which are either automatically discovered (`issuer_url` is set and `skip_discovery: false`)
+or specified manually (`public_key_files`, `public_keys` or `jwks_url` are set and `skip_discovery: true`) to validate signature of incoming JWT token against.
+
+```yaml
+oidc:
+  realms:
+    - name: org-1
+      issuer_url: http://example.com/admin/org-1
+    - name: org-2
+      skip_discovery: true
+      issuer_url: http://example.com/admin/org-2
+      jwks_url: http://custom.jwks.url/admin/jwks/endpoint
+    - name: org-3
+      skip_discovery: true
+      issuer_url: http://example.com/admin/org-3
+      public_keys:
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 1 pem>
+           -----END PUBLIC KEY-----
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 2 pem>
+           -----END PUBLIC KEY-----
+      public_key_files:
+        - /etc/public-key-1
+        - /etc/public-key-2
+```
+
+Client defines a `client_id` (`aud` claim which is required to be present in JWT token body) and `realm` (name of realm at `oidc.realms[*]`
+which `issuer_url` should match JWT `iss` claim) of user, who is allowed to access vmauth backend.
+
+```yaml
+oidc:
+  realms:
+    - name: realm-1
+      issuer_url: http://example.com/admin/org-1
+users:
+  - client:
+      client_id: client-1
+      realm: realm-1
+```
+
+If there's a need to override default claims for client ID and issuer, it's possible to do using `oidc.claims.client_id` and `oidc.claims.issuer` parameters:
+
+```yaml
+oidc:
+  claims:
+    client_id: client_id
+    issuer: custom_issuer_claim
+```
+ 
+If client's realm is not present at `oidc.realms` then it uses default realm if it's defined at `oidc.default_realm`:
+
+```yaml
+oidc:
+  realms:
+    - name: realm-1
+      issuer_url: http://example.com/admin/org-1
+  default_realm: {}
+users:
+  - client:
+      client_id: client-1
+      realm: no-realm
+```
+
+Both `oidc.realms` and `oidc.default_realm` allow to disable signature verification using `skip_discovery: true` and with `public_keys`, `public_keys` and `jwks_url` not set.
+
+```yaml
+oidc:
+  realms:
+    - name: realm-1
+      issuer_url: http://example.com/admin/org-1
+      skip_discovery: true
+  default_realm: {}
+users:
+  - client:
+      client_id: client-1
+      realm: realm-1
+```
+
+JWT token must be in one of the following formats:
+
+with `vm_access` claim as JSON object
+```json
+{
+  "aud": "test-client",
+  "iss": "http://example.com/admin/org-1",
+  "exp": 1617304574,
+  "vm_access": {
+      "tenant_id": {
+        "account_id": 1,
+        "project_id": 5
+      },
+      "query_args": {
+        "vm_extra_label": [
+           "team=dev",
+           "project=mobile"
+        ],
+        "vm_extra_filters": [
+          "{env=~\"prod|dev\",team!=\"test\"}"
+        ],
+      },
+  }
+}
+```
+
+or with `vm_access` claim as string
+
+```json
+{
+  "aud": "test-client",
+  "iss": "http://example.com/admin/org-1",
+  "exp": 1617304574,
+  "vm_access": "{\"tenant_id\":{\"account_id\":1,\"project_id\":5},\"query_args\": {\"vm_extra_label\":[\"team=dev\",\"project=mobile\"],\"vm_extra_filters\": [\"{env=~\\\"prod|dev\\\",team!=\\\"test\\\"}\"]}"
+}
+```
+
+Where:
+
+* `aud` - required, OIDC client ID, that is used for proper backend routing. `aud` claim name can be overridden using `oidc.claims.client_id` configuration property
+* `iss` - optional, OIDC issuer URL, which is used for matching incoming request agains `oidc.realms[*].issuer_url`, `oidc.default_realm` is used if this claim is omitted. Claim name can be overridden using `oidc.claims.issuer` configuration property
+* `exp` - required, expire time in unix_timestamp. If the token expires then `vmauth` rejects the request.
+* `vm_access` - required, dict with claim info, minimum form: `{"vm_access": {"tenant_id": {}}`
+* `tenant_id` - optional, routes requests to the corresponding tenant.
+* `query_args` - optional, key-value pairs, where key is a query argument name and value - slice of values for additional arguments that can be referenced in `url_prefix` and `default_url` query arg params.
+
+### Claim values templating
+
+VMAuth allows data retrieved from `query_args` and `tenant_id` to be used for templates in vmauth backend url configurations using expression `{{ variable }}`.
+Keys from `vm_access.query_args` are only available for `backend_url` and `default_url` query arguments templating and `accountID`, `projectID` and `tenantID`
+are only available for `backend_url` and `default_url` path templating:
+
+vmauth request to `/api/v1/write` JWT token with a given claim:
+
+```json
+{
+  "aud": "test-client",
+  "iss": "http://example.com/admin/org-1",
+  "exp": 1617304574,
+  "vm_access": {
+      "tenant_id": {
+        "account_id": 1,
+        "project_id": 5
+      },
+      "query_args": {
+        "vm_extra_label": [
+           "team=dev",
+           "project=mobile"
+        ],
+        "vm_extra_filters": [
+          "{env=~\"prod|dev\",team!=\"test\"}"
+        ],
+      },
+  }
+}
+```
+and given below vmauth config
+
+```yaml
+oidc:
+  realms:
+    - name: realm-1
+      issuer_url: http://example.com/admin/org-1
+      skip_discovery: true
+  default_realm: {}
+users:
+  - client:
+      client_id: test-client
+      realm: realm-1
+    url_map:
+      - src_paths:
+          - "/api/v1/write"
+        url_prefix: "http://backend:8480/insert/{{tenantID}}/prometheus/?extra_label={{vm_extra_label}}"
+      - src_paths:
+          - "/api/v1/query"
+          - "/api/v1/query_range"
+          - "/api/v1/series"
+          - "/api/v1/labels"
+          - "/api/v1/label/.+/values"
+        url_prefix: "http://vmselect-backend:8481/select/{{tenantID}}/prometheus/?extra_label={{vm_extra_label}}"
+```
+
+is proxied to `http://backend:8480/insert/1:5/prometheus/api/v1/write?extra_label=team=dev&extra_label=project=mobile`
+
+### Migration from vmgateway
+
+For users, who are still using vmgateway for OIDC authorization it's possible to migrate to vmauth, which provides a list of benefits:
+- [operator](https://docs.victoriametrics.com/operator/resources/vmauth/) support
+- ability to configure multiple independent realms
+- clientID-based routing
+- multiple backends support
+
+vmgateway uses command-line arguments which can be easily mapped to vmauth `oidc` configuration section:
+- `--auth.oidcDiscoveryEndpoints` -> `oidc.realms[*].issuer_url` or `oidc.default_realm.issuer_url`
+- `--auth.publicKeyFiles` -> `oidc.realms[*].public_key_files` or `oidc.default_realm.public_key_files`
+- `--auth.publicKeys` -> `oidc.realms[*].public_keys` or `oidc.default_realm.public_keys`
+- `--auth.jwksEndpoints` -> `oidc.realms[*].jwks_url` or `oidc.default_realm.jwks_url`
+- `--auth.httpHeaderAllowWithoutPrefix` -> `oidc.optional_auth_prefix`
+
+> only issuer URL part of `--auth.oidcDiscoveryEndpoints` value should be moved into `issuer_url` realm parameter (without `/.well-known/openid-configuration` suffix).
+
+given vmgateway command with arguments
+
+```sh
+./bin/vmgateway \
+    -licenseFile=./vm-license.key
+    -enable.auth=true \
+    -clusterMode=true \
+    -write.url=http://localhost:8480 \
+    -read.url=http://localhost:8481
+    -auth.oidcDiscoveryEndpoints=http://localhost:3001/realms/master/.well-known/openid-configuration
+```
+
+can be converted into vmauth configuration below
+
+```yaml
+oidc:
+  realms:
+    - name: master
+      issuer_url: http://localhost:3001/realms/master
+users:
+  - client:
+      client_id: grafana
+      realm: master
+    url_map:
+      - src_paths:
+          - "/insert/.*"
+        drop_src_path_prefix_parts: 1
+        url_prefix: "http://localhost:8480/insert/{{tenantID}}/prometheus/?extra_labels={{extra_labels}}
+      - src_paths:
+          - "/select/.*"
+        drop_src_path_prefix_parts: 1
+        url_prefix: "http://localhost:8481/select/{{tenantID}}/prometheus/?extra_labels={{extra_labels}}&extra_filters={{extra_filters}}
+```
+
+Also in configuration above ingestion and query URLs have additional `/insert` and `/select` path prefixes respectively.
+
 ## IP filters
 
 [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
@@ -898,6 +1141,14 @@ users:
   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
+
+  # Requests with the 'Authorization: Bearer XXXX.XXXX.XXX' header where 'XXXX.XXXX.XXX' is a JWT claim, that contains
+  # 'aud' claim equal to 'client-1', 'iss' claim that is equal to 'oidc.realms[*].issuer_url' of 'oidc.realms' item with name 'org-1'.
+  # request is authorized against 'oidc.default_realm' if it's defined and if 'client.realm' is omitted.
+- client:
+    client_id: client-1
+    realm: org-1
+  url_prefix: "http://localhost:9428"
 
   # Requests with the 'Authorization: Foo XXXX' header are proxied to http://localhosT:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
@@ -1028,6 +1279,54 @@ ip_filters:
   allow_list: ["1.2.3.0/24", "127.0.0.1"]
   deny_list:
   - 10.1.0.1
+
+# Enterprise version of vmauth allows to configure OIDC authorization. `oidc` section is required to setup realms which are allowed to authorize against.
+oidc:
+  # realm represents a list of public keys set to validate client request signatures against.
+  realms:
+      # realm name is required for non-default realm, it's used for OIDC clients backend routing
+    - name: org-1
+      # realm issuer URL defines a value, which is compared against incoming request JWT issuer claim to identify realm, to which authorized user belongs
+      issuer_url: http://example.com/admin/org-1
+      # skip discovery disables JWKS endpoints discovery and uses keys defined either at `public_keys` or `public_key_files`
+      skip_discovery: true
+      # defines a list of plain text public keys which a used to validate a signature of request with matching issuer or any issuer in case of default realm
+      public_keys:
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 1 pem>
+           -----END PUBLIC KEY-----
+      # same as public_keys but defines a list of file to retrieve public keys from
+      public_key_files:
+        - /test/key
+      # JWKS endpoint to use for public keys downloading
+      jwks_url: http://custom.jwks.url/admin/jwks/endpoint
+    - name: org-2
+      skip_discovery: true
+      issuer_url: http://example.com/admin/org-2
+      jwks_url: http://custom.jwks.url/admin/jwks/endpoint
+    - name: org-3
+      skip_discovery: true
+      issuer_url: http://example.com/admin/org-3
+      public_keys:
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 1 pem>
+           -----END PUBLIC KEY-----
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 2 pem>
+           -----END PUBLIC KEY-----
+      public_key_files:
+        - /etc/public-key-1
+        - /etc/public-key-2
+  # by default issuer is retrieved from `iss` and client ID from `aud` claims, but these values can be patched using `oidc.claims` section
+  claims:
+    client_id: azp
+    issuer: custom_issuer_claim
+  default_realm:
+    issuer_url: http://example.com/admin/org-2
+    jwks_url: http://custom.jwks.url/admin/jwks/endpoint
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
