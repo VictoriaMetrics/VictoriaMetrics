@@ -8,6 +8,8 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vmctlutil"
 )
 
 // Config contains a list of params needed
@@ -60,13 +62,13 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
 	}
 	c := &Client{DBReadOnly: db}
-	minTime, maxTime, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
+	timeMin, timeMax, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse time in filter: %s", err)
 	}
 	c.filter = filter{
-		min:        minTime,
-		max:        maxTime,
+		min:        timeMin,
+		max:        timeMax,
 		label:      cfg.Filter.Label,
 		labelValue: cfg.Filter.LabelValue,
 	}
@@ -83,7 +85,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch blocks: %s", err)
 	}
-	s := &Stats{
+	s := &vmctlutil.Stats{
 		Filtered: c.filter.min != 0 || c.filter.max != 0 || c.filter.label != "",
 		Blocks:   len(blocks),
 	}
@@ -110,7 +112,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 
 // Read reads the given BlockReader according to configured
 // time and label filters.
-func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
+func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.SeriesSet, error) {
 	minTime, maxTime := block.Meta().MinTime, block.Meta().MaxTime
 	if c.filter.min != 0 {
 		minTime = c.filter.min
@@ -122,7 +124,7 @@ func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	ss := q.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
+	ss := q.Select(ctx, false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
 	return ss, nil
 }
 

@@ -3,6 +3,7 @@ package fsremote
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -228,6 +229,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	path := filepath.Join(fs.Dir, filePath)
 	fi, err := os.Stat(path)
 	if err != nil {
+		log.Printf("debug: os.Stat(%q) error: %s", path, err)
 		if os.IsNotExist(err) {
 			return false, nil
 		}

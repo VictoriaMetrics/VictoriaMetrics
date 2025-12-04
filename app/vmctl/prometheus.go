@@ -1,22 +1,30 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
 
+	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
+// Runner is an interface for fetching and reading
+// snapshot blocks
+type Runner interface {
+	Explore() ([]tsdb.BlockReader, error)
+	Read(context.Context, tsdb.BlockReader) (storage.SeriesSet, error)
+}
+
 type prometheusProcessor struct {
-	// prometheus client fetches and reads
+	// Runner fetches and reads
 	// snapshot blocks
-	cl *prometheus.Client
+	cl Runner
 	// importer performs import requests
 	// for timeseries data returned from
 	// snapshot blocks
@@ -30,7 +38,7 @@ type prometheusProcessor struct {
 	isVerbose bool
 }
 
-func (pp *prometheusProcessor) run() error {
+func (pp *prometheusProcessor) run(ctx context.Context) error {
 	blocks, err := pp.cl.Explore()
 	if err != nil {
 		return fmt.Errorf("explore failed: %s", err)
@@ -43,7 +51,7 @@ func (pp *prometheusProcessor) run() error {
 		return nil
 	}
 
-	if err := pp.processBlocks(blocks); err != nil {
+	if err := pp.processBlocks(ctx, blocks); err != nil {
 		return fmt.Errorf("migration failed: %s", err)
 	}
 
@@ -52,8 +60,8 @@ func (pp *prometheusProcessor) run() error {
 	return nil
 }
 
-func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
-	ss, err := pp.cl.Read(b)
+func (pp *prometheusProcessor) do(ctx context.Context, b tsdb.BlockReader) error {
+	ss, err := pp.cl.Read(ctx, b)
 	if err != nil {
 		return fmt.Errorf("failed to read block: %s", err)
 	}
@@ -109,7 +117,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 	return ss.Err()
 }
 
-func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
+func (pp *prometheusProcessor) processBlocks(ctx context.Context, blocks []tsdb.BlockReader) error {
 	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
 	if err := barpool.Start(); err != nil {
 		return err
@@ -126,7 +134,7 @@ func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
 		go func() {
 			defer wg.Done()
 			for br := range blockReadersCh {
-				if err := pp.do(br); err != nil {
+				if err := pp.do(ctx, br); err != nil {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
