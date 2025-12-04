@@ -454,7 +454,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 
 	defer func() {
 		ar.state.add(curState)
-		if curState.Err != nil && !errors.Is(err, context.Canceled) {
+		if curState.Err != nil && !errors.Is(curState.Err, context.Canceled) {
 			ar.metrics.errors.Inc()
 		}
 	}()
