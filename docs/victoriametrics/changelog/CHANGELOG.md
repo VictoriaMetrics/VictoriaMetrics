@@ -37,6 +37,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/): properly recover from proxy requests errors. Previously, vmgateway may return empty response.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always add `/prometheus` suffix while generating backend URL. See [#10097](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10097).
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): disable rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. Previously, utilizing the cache might yield incorrect results when time series samples are not continuous. See [#10098](https://github.com/VictoriaMetrics/victoriaMetrics/issues/10098) for more details.
+
 ## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
 
 Released at 2025-11-28
