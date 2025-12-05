@@ -30,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): add support for SSE KMS Key ID and ACL for use with S3-compatible storages.
 * FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/): add panels for flags and configuration parameters values. See [#1341-operator](https://github.com/VictoriaMetrics/operator/issues/1341).
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add `Major page faults rate` panels to `Troubleshooting` and `Drilldown` sections. See [#9974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9974)
 
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly handle process termination during prompt confirmation. Previously, termination signal was ignored and process was still waiting for user input. See[#10104](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10104).
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/): properly recover from proxy requests errors. Previously, vmgateway may return empty response.
