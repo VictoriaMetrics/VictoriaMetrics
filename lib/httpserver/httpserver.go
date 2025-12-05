@@ -98,6 +98,8 @@ type ServeOptions struct {
 	//
 	// Mostly required by http proxy servers, which performs own authorization and requests routing
 	DisableBuiltinRoutes bool
+
+	ReadHeaderTimeout time.Duration
 }
 
 // Serve starts an http server on the given addrs with the given optional rh.
@@ -147,10 +149,10 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
 	}
 
-	serveWithListener(addr, ln, rh, opts.DisableBuiltinRoutes)
+	serveWithListener(addr, ln, rh, opts)
 }
 
-func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableBuiltinRoutes bool) {
+func serveWithListener(addr string, ln net.Listener, rh RequestHandler, opts ServeOptions) {
 	var s server
 
 	s.s = &http.Server{
@@ -158,7 +160,7 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 		// Disable http/2, since it doesn't give any advantages for VictoriaMetrics services.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 
-		ReadHeaderTimeout: 5 * time.Second,
+		ReadHeaderTimeout: getReadHeaderTimeout(opts.ReadHeaderTimeout),
 		IdleTimeout:       *idleConnTimeout,
 
 		// Do not set ReadTimeout and WriteTimeout here,
@@ -167,19 +169,23 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 		ErrorLog: logger.StdErrorLogger(),
 	}
 	s.s.SetKeepAlivesEnabled(!*disableKeepAlive)
-	if *connTimeout > 0 {
-		s.s.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
+
+	s.s.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
+		ctx = context.WithValue(ctx, connAcceptTimeKey, time.Now())
+		if *connTimeout > 0 {
 			timeoutSec := connTimeout.Seconds()
 			// Add a jitter for connection timeout in order to prevent Thundering herd problem
 			// when all the connections are established at the same time.
 			// See https://en.wikipedia.org/wiki/Thundering_herd_problem
 			jitterSec := fastrand.Uint32n(uint32(timeoutSec / 10))
 			deadline := fasttime.UnixTimestamp() + uint64(timeoutSec) + uint64(jitterSec)
-			return context.WithValue(ctx, connDeadlineTimeKey, &deadline)
+			ctx = context.WithValue(ctx, connDeadlineTimeKey, &deadline)
 		}
+		return ctx
 	}
+
 	rhw := rh
-	if !disableBuiltinRoutes {
+	if !opts.DisableBuiltinRoutes {
 		rhw = func(w http.ResponseWriter, r *http.Request) bool {
 			return builtinRoutesHandler(&s, r, w, rh)
 		}
@@ -196,12 +202,19 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 	servers[addr] = &s
 	serversLock.Unlock()
 	if err := s.s.Serve(ln); err != nil {
-		if err == http.ErrServerClosed {
+		if errors.Is(err, http.ErrServerClosed) {
 			// The server gracefully closed.
 			return
 		}
 		logger.Panicf("FATAL: cannot serve http at %s: %s", addr, err)
 	}
+}
+
+func getReadHeaderTimeout(d time.Duration) time.Duration {
+	if d > 0 {
+		return d
+	}
+	return 5 * time.Second
 }
 
 func whetherToCloseConn(r *http.Request) bool {
@@ -214,7 +227,19 @@ func whetherToCloseConn(r *http.Request) bool {
 	return ok && fasttime.UnixTimestamp() > *deadline
 }
 
-var connDeadlineTimeKey = any("connDeadlineSecs")
+var (
+	connDeadlineTimeKey = any("connDeadlineSecs")
+	connAcceptTimeKey   = any("connAcceptTime")
+)
+
+// GetConnAcceptTime returns the time when the connection was accepted.
+// Returns zero time if not available.
+func GetConnAcceptTime(ctx context.Context) time.Time {
+	if t, ok := ctx.Value(connAcceptTimeKey).(time.Time); ok {
+		return t
+	}
+	return time.Time{}
+}
 
 // Stop stops the http server on the given addrs, which has been started via Serve func.
 func Stop(addrs []string) error {

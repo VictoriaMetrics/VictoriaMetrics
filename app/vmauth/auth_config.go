@@ -88,6 +88,9 @@ type UserInfo struct {
 
 	MetricLabels map[string]string `yaml:"metric_labels,omitempty"`
 
+	RequestBodyReadTimeout *time.Duration `yaml:"request_body_read_timeout,omitempty"`
+	ResponseWriteTimeout   *time.Duration `yaml:"response_write_timeout,omitempty"`
+
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
@@ -96,6 +99,9 @@ type UserInfo struct {
 	requests         *metrics.Counter
 	backendErrors    *metrics.Counter
 	requestsDuration *metrics.Summary
+
+	requestBodyReadDuration *metrics.Summary
+	responseWriteDuration   *metrics.Summary
 }
 
 // HeadersConf represents config for request and response headers.
@@ -788,6 +794,8 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
+		ui.requestBodyReadDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_body_read_duration_seconds` + metricLabels)
+		ui.responseWriteDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_response_write_duration_seconds` + metricLabels)
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
@@ -837,6 +845,8 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
+		ui.requestBodyReadDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_body_read_duration_seconds` + metricLabels)
+		ui.responseWriteDuration = ac.ms.GetOrCreateSummary(`vmauth_user_response_write_duration_seconds` + metricLabels)
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
