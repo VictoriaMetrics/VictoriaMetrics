@@ -33,6 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly handle process termination during prompt confirmation. Previously, termination signal was ignored and process was still waiting for user input. See[#10104](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10104).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always add `/prometheus` suffix while generating backend URL. See [#10097](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10097).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): report stats only for most utilized instances of `indexdb/tagFiltersToMetricIDs` and `indexdb/date_metricID` caches. This makes it clear when a cache is full and an action needs to be taken (such as adding more memory or adjusting cache limits). See PR [#10131](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10131) for details.
 
 ## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
 
