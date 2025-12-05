@@ -11,8 +11,7 @@ import (
 
 // Rows contains parsed influx rows.
 type Rows struct {
-	Rows       []Row
-	IgnoreErrs bool
+	Rows []Row
 
 	tagsPool   []Tag
 	fieldsPool []Field
@@ -44,9 +43,12 @@ func (rs *Rows) Reset() {
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
 // s shouldn't be modified when rs is in use.
-func (rs *Rows) Unmarshal(s string) error {
+//
+// if skipInvalidLines=true, then all the invalid lines at s are ignored, the remaining lines are parsed and nil error is always returned.
+// if skipInvalidLines=false, then the first parse error is returned.
+func (rs *Rows) Unmarshal(s string, skipInvalidLines bool) error {
 	rs.reset()
-	return rs.unmarshal(s)
+	return rs.unmarshal(s, skipInvalidLines)
 }
 
 func (rs *Rows) reset() {
@@ -188,7 +190,7 @@ func (f *Field) unmarshal(s string, noEscapeChars, hasQuotedFields bool) error {
 	return nil
 }
 
-func (rs *Rows) unmarshal(s string) error {
+func (rs *Rows) unmarshal(s string, skipInvalidLines bool) error {
 	noEscapeChars := strings.IndexByte(s, '\\') < 0
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
@@ -196,9 +198,8 @@ func (rs *Rows) unmarshal(s string) error {
 			// The last line.
 			n = len(s)
 		}
-		err := rs.unmarshalRow(s[:n], noEscapeChars)
-		if err != nil {
-			if !rs.IgnoreErrs {
+		if err := rs.unmarshalRow(s[:n], noEscapeChars); err != nil {
+			if !skipInvalidLines {
 				return fmt.Errorf("incorrect influx line %q: %w", s, err)
 			}
 			logger.Errorf("skipping InfluxDB line %q because of error: %s", s, err)

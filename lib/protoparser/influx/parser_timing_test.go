@@ -16,7 +16,9 @@ bbb usage_user=1.23,usage_system=4.34,usage_iowait=0.1112 123455676344
 	b.RunParallel(func(pb *testing.PB) {
 		var rows Rows
 		for pb.Next() {
-			_ = rows.Unmarshal(s)
+			if err := rows.Unmarshal(s, false); err != nil {
+				panic(fmt.Errorf("unexpected error: %w", err))
+			}
 			if len(rows.Rows) != 4 {
 				panic(fmt.Errorf("unexpected number of rows parsed; got %d; want 4", len(rows.Rows)))
 			}
