@@ -136,7 +136,7 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapp
 ## explicit; go 1.25.2
 github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage
 github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter
-# github.com/VictoriaMetrics/easyproto v0.1.4
+# github.com/VictoriaMetrics/easyproto v1.0.0
 ## explicit; go 1.18
 github.com/VictoriaMetrics/easyproto
 # github.com/VictoriaMetrics/fastcache v1.13.2

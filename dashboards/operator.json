@@ -1049,7 +1049,7 @@
           "refId": "B"
         }
       ],
-      "title": "reconcile errors by controller",
+      "title": "Reconcile errors by controller",
       "type": "timeseries"
     },
     {
@@ -1152,7 +1152,7 @@
           "refId": "A"
         }
       ],
-      "title": "throttled reconciliation config events",
+      "title": "Throttled reconciliation config events",
       "type": "timeseries"
     },
     {
@@ -1463,7 +1463,7 @@
           "refId": "A"
         }
       ],
-      "title": "Rest client requests",
+      "title": "REST client requests",
       "type": "timeseries"
     },
     {
@@ -1801,7 +1801,7 @@
           "refId": "A"
         }
       ],
-      "title": "rest client latency",
+      "title": "REST client latency",
       "type": "timeseries"
     },
     {
@@ -2238,7 +2238,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "resources",
+      "title": "Resources",
       "type": "row"
     }
   ],

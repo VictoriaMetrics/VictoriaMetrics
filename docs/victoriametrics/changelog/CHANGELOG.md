@@ -26,9 +26,14 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.25.4 to Go1.25.5. See [the list of issues addressed in Go1.25.5](https://github.com/golang/go/issues?q=milestone%3AGo1.25.5%20label%3ACherryPickApproved).
+
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/victoriametrics/vmbackup/), [vmrestore](https://docs.victoriametrics.com/victoriametrics/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): add support for SSE KMS Key ID and ACL for use with S3-compatible storages.
 * FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/): add panels for flags and configuration parameters values. See [#1341-operator](https://github.com/VictoriaMetrics/operator/issues/1341).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add [slow client protection](https://docs.victoriametrics.com/victoriametrics/vmauth/#slow-client-protection) via `-requestBodyReadTimeout` and `-responseWriteTimeout` flags. This protects against slow-client attacks that exhaust server resources. Per-user timeouts can be configured via `request_body_read_timeout` and `response_write_timeout` options. See [#10084](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10084).
+
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): properly handle process termination during prompt confirmation. Previously, termination signal was ignored and process was still waiting for user input. See[#10104](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10104).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always add `/prometheus` suffix while generating backend URL. See [#10097](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10097).
 
 ## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
 
@@ -43,7 +48,6 @@ Released at 2025-11-28
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Prevent `accept()` from blocking when a client connects to `-opentsdbListenAddr` but sends no data or sends it too slowly. Previously, such connections could stall acceptance of new clients. See [#9987](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9987) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): don't increase `vmalert_alerts_send_errors_total` for request context cancellation, which may occur during graceful shutdown or group configuration update. See [#10027](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10027).
 * BUGFIX [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Account for excess white spaces in influx write string. See [#10049](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10049).
-
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly use list of discovered storage nodes when using [vmstorage discovery](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#automatic-vmstorage-discovery). Discovery was using an original list of nodes when attempting to establish connection starting from [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): remove the “step” control from the Raw Query page, since it didn't affect the chart rendering. See [#9667](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9667).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix display of multiple points at the same timestamp on the Raw Query page. See [#9666](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9666).
