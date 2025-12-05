@@ -39,12 +39,19 @@ func initOnce() {
 		percent := *allowedPercent / 100
 		allowedMemory = int(float64(memoryLimit) * percent)
 		remainingMemory = memoryLimit - allowedMemory
-		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%g", allowedMemory, remainingMemory, *allowedPercent)
+		if remainingMemory <= 0 {
+			logger.Fatalf("BUG: remaining memory %d bytes cannot be less than or equal to zero, detected system memory limit %d bytes, -memory.allowedPercent=%g", remainingMemory, memoryLimit, *allowedPercent)
+		}
+		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedPercent=%g, system memory limit %d bytes", allowedMemory, remainingMemory, *allowedPercent, memoryLimit)
 	} else {
 		allowedMemory = allowedBytes.IntN()
 		remainingMemory = memoryLimit - allowedMemory
-		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s", allowedMemory, remainingMemory, allowedBytes.String())
+		if remainingMemory <= 0 {
+			logger.Fatalf("FATAL: remaining memory %d bytes cannot be less than or equal to zero, detected system memory limit %d bytes, -memory.allowedBytes=%s", remainingMemory, memoryLimit, allowedBytes.String())
+		}
+		logger.Infof("limiting caches to %d bytes, leaving %d bytes to the OS according to -memory.allowedBytes=%s, system memory limit %d bytes", allowedMemory, remainingMemory, allowedBytes.String(), memoryLimit)
 	}
+
 }
 
 // Allowed returns the amount of system memory allowed to use by the app.
