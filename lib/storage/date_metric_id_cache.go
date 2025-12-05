@@ -60,18 +60,31 @@ func (dmc *dateMetricIDCache) resetLocked() {
 }
 
 func (dmc *dateMetricIDCache) EntriesCount() int {
-	byDate := dmc.byDate.Load()
+	dmc.mu.Lock()
+	defer dmc.mu.Unlock()
+
 	n := 0
-	for _, metricIDs := range byDate.m {
+	for _, metricIDs := range dmc.byDate.Load().m {
+		n += metricIDs.Len()
+	}
+	for _, metricIDs := range dmc.byDateMutable.m {
 		n += metricIDs.Len()
 	}
 	return n
 }
 
 func (dmc *dateMetricIDCache) SizeBytes() uint64 {
-	byDate := dmc.byDate.Load()
+	dmc.mu.Lock()
+	defer dmc.mu.Unlock()
+	return dmc.sizeBytesLocked()
+}
+
+func (dmc *dateMetricIDCache) sizeBytesLocked() uint64 {
 	n := uint64(0)
-	for _, metricIDs := range byDate.m {
+	for _, metricIDs := range dmc.byDate.Load().m {
+		n += metricIDs.SizeBytes()
+	}
+	for _, metricIDs := range dmc.byDateMutable.m {
 		n += metricIDs.SizeBytes()
 	}
 	return n
@@ -187,7 +200,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 
 	dmc.syncsCount.Add(1)
 
-	if dmc.SizeBytes() > getDateMetricIDCacheSize() {
+	if dmc.sizeBytesLocked() > getDateMetricIDCacheSize() {
 		dmc.resetLocked()
 	}
 }
