@@ -1,5 +1,5 @@
 ---
-title: ZabbixConnector
+title: Zabbix Connector
 weight: 10
 menu:
   docs:
