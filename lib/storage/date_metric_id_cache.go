@@ -9,6 +9,20 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
+var maxDateMetricIDCacheSize uint64
+
+// SetDateMetricIDCacheSize overrides the default size of dateMetricIDCache
+func SetDateMetricIDCacheSize(size int) {
+	maxDateMetricIDCacheSize = uint64(size)
+}
+
+func getDateMetricIDCacheSize() uint64 {
+	if maxDateMetricIDCacheSize <= 0 {
+		return uint64(float64(uint64(memory.Allowed()) / 256))
+	}
+	return maxDateMetricIDCacheSize
+}
+
 // dateMetricIDCache is fast cache for holding (date, metricID) entries.
 //
 // It should be faster than map[date]*uint64set.Set on multicore systems.
@@ -61,6 +75,10 @@ func (dmc *dateMetricIDCache) SizeBytes() uint64 {
 		n += metricIDs.SizeBytes()
 	}
 	return n
+}
+
+func (dmc *dateMetricIDCache) SizeMaxBytes() uint64 {
+	return getDateMetricIDCacheSize()
 }
 
 func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
@@ -169,7 +187,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 
 	dmc.syncsCount.Add(1)
 
-	if dmc.SizeBytes() > uint64(memory.Allowed())/256 {
+	if dmc.SizeBytes() > getDateMetricIDCacheSize() {
 		dmc.resetLocked()
 	}
 }
