@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -197,7 +198,7 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 
 	defer func() {
 		rr.state.add(curState)
-		if curState.Err != nil {
+		if curState.Err != nil && !errors.Is(curState.Err, context.Canceled) {
 			rr.metrics.errors.Inc()
 		}
 	}()
