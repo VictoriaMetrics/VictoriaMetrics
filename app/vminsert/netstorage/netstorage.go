@@ -126,10 +126,11 @@ again:
 		return nil
 	}
 	// Slow path: the buf contents doesn't fit sn.buf, so try re-routing it to other vmstorage nodes.
-	if *disableRerouting || len(sns) == 1 {
+	if !allowRerouting(sn, sns) {
 		sn.brCond.Wait()
 		goto again
 	}
+
 	sn.brLock.Unlock()
 	rowsProcessed, err := rerouteRowsToFreeStorageNodes(snb, sn, buf, getRowHasher)
 	rows -= rowsProcessed
@@ -315,6 +316,12 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 	}
 	duration := time.Since(startTime)
 	sn.sendDurationSeconds.Add(duration.Seconds())
+
+	now := time.Now()
+	saturation := float64(now.Sub(startTime)) / float64(now.Sub(sn.lastSendTime))
+	sn.avgSaturation.Add(saturation)
+	sn.lastSendTime = now
+
 	if err == nil {
 		if deadline := sn.rpcIsNotSupportedDeadline.Load(); deadline > 0 {
 			sn.rpcIsNotSupportedDeadline.Store(0)
@@ -455,6 +462,11 @@ type storageNode struct {
 	// The total duration spent for sending data to vmstorage node.
 	// This metric is useful for determining the saturation of vminsert->vmstorage link.
 	sendDurationSeconds *metrics.FloatCounter
+
+	// avgSaturation tracks the moving average of (send duration / (now - lastSendTime)).
+	// Updated in run(). Used by allowRerouting to decide when to trigger slowness-based rerouting.
+	avgSaturation *variableEWMA
+	lastSendTime  time.Time
 }
 
 type storageNodesBucket struct {
@@ -557,6 +569,9 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
 			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
 			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name)),
+
+			avgSaturation: newMovingAverage(180),
+			lastSendTime:  time.Now(),
 		}
 		sn.brCond = sync.NewCond(&sn.brLock)
 		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q, rpc_call=%q}`, addr, rpcCall.Name), func() float64 {
@@ -700,7 +715,78 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 	return rowsProcessed, nil
 }
 
-// reouteRowsToFreeStorageNodes re-routes src from snSource to other storage nodes.
+var reroutingLogger = logger.WithThrottler("allowRerouting", 5*time.Second)
+
+// allowRerouting determines whether data should be rerouted from snSource to other storage nodes (sns)
+// based on performance metrics.
+//
+// It returns true only when snSource is the slowest node in the cluster
+// and significantly slower than the cluster on average, ensuring that rerouting happens only from the bottleneck.
+// See the comments below for detailed conditions.
+//
+// The PromQL query below can be used to estimate when rerouting would be triggered.
+// Replace "the-slowest-storage" with the actual address of the slowest node.
+// A flat line at 0.01 on the resulting graph indicates that rerouting would be allowed.
+//
+//	(avg(rate(vm_rpc_send_duration_seconds_total{addr!="the-slowest-storage"}[3m])) < 0.5
+//	and
+//	max(rate(vm_rpc_send_duration_seconds_total{addr="the-slowest-storage"}[3m])) > 0.8) * 0.01
+func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
+	if *disableRerouting {
+		return false
+	}
+
+	// Do not allow rerouting if saturation is not yet warmed up.
+	snSourceSaturation := snSource.avgSaturation.Value()
+	if snSourceSaturation == 0 {
+		return false
+	}
+	// Do not allow rerouting if snSource is not saturated enough.
+	if snSourceSaturation < 0.8 {
+		return false
+	}
+
+	sumSaturation := 0.0
+	readySns := 0
+	for _, sn := range sns {
+		if sn == snSource {
+			continue
+		}
+
+		// Do not allow rerouting if avgSaturation is not yet warmed up.
+		if sn.avgSaturation.Value() == 0 {
+			return false
+		}
+		if !sn.isReady() {
+			continue
+		}
+
+		// Do not allow rerouting if there is a slower storage node
+		snSaturation := sn.avgSaturation.Value()
+		if snSourceSaturation < snSaturation {
+			return false
+		}
+
+		sumSaturation += snSaturation
+		readySns++
+	}
+	// Do not allow rerouting if there are less than 2 ready storage nodes.
+	if readySns < 2 {
+		return false
+	}
+
+	avgSaturation := sumSaturation / float64(readySns)
+
+	// Do not allow rerouting if snSource is not significantly slower than cluster on average.
+	if avgSaturation > 0.5 {
+		return false
+	}
+
+	reroutingLogger.Warnf("reroute metrics from the slowest storage %q with saturation %.3f, where cluster avg saturation is %.3f", snSource.dialer.Addr(), snSourceSaturation, avgSaturation)
+	return true
+}
+
+// rerouteRowsToFreeStorageNodes re-routes src from snSource to other storage nodes.
 //
 // It is expected that snSource has no enough buffer for sending src.
 // It is expected than *disableRerouting isn't set when calling this function.
