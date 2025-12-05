@@ -73,17 +73,19 @@ func TestUnescapeTagValue(t *testing.T) {
 func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
+
 		var rows Rows
-		err := rows.Unmarshal(s)
-		if err == nil {
-			t.Fatal("unexpected nil error")
+		if err := rows.Unmarshal(s, false); err == nil {
+			t.Fatal("expecting non-nil error")
 		}
 		if len(rows.Rows) != 0 {
 			t.Fatalf("expecting zero rows; got %d rows", len(rows.Rows))
 		}
 
 		// Try again
-		_ = rows.Unmarshal(s)
+		if err := rows.Unmarshal(s, false); err == nil {
+			t.Fatalf("expecting non-nil error on the second attempt")
+		}
 		if len(rows.Rows) != 0 {
 			t.Fatalf("expecting zero rows; got %d rows", len(rows.Rows))
 		}
@@ -128,17 +130,19 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
-		rows := Rows{IgnoreErrs: true}
-		err := rows.Unmarshal(s)
-		if err != nil {
-			t.Fatalf("unexpected err: %s", err)
+
+		var rows Rows
+		if err := rows.Unmarshal(s, true); err != nil {
+			t.Fatalf("unexpected error: %s", err)
 		}
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
-		_ = rows.Unmarshal(s)
+		if err := rows.Unmarshal(s, true); err != nil {
+			t.Fatalf("unexpected error on the second unmarshal attempt: %s", err)
+		}
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}

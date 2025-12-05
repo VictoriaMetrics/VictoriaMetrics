@@ -125,7 +125,7 @@ You can do this in two ways:
 
 In stream mode:
 * Data is processed one line at a time (see `-influx.maxLineSize`).
-* Invalid lines are skipped and logged, not rejected.
+* Invalid lines are skipped and logged.
 * Valid lines are ingested immediately, even if the client disconnects partway through.
 
 You can also enable InfluxDB line protocol over TCP or UDP with `-influxListenAddr`.
