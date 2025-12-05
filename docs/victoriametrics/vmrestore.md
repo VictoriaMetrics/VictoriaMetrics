@@ -189,6 +189,8 @@ Run `vmrestore -help` in order to see all the available options:
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
+  -s3SSEKMSKeyId string
+     SSE KMS Key ID for use with S3-compatible storages.
   -s3StorageClass string
      The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
      See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html

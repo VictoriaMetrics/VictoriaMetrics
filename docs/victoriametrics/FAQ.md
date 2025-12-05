@@ -581,3 +581,5 @@ Note that the [deduplication](https://docs.victoriametrics.com/victoriametrics/s
 and [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling)
 may reduce the number of [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
 per each stored time series, but they **do not reduce the number of stored time series**, so they cannot reduce `indexdb` size.
+
+See also [how to calculate the needed disk space at VictoriaMetrics for the given workload](https://docs.victoriametrics.com/guides/understand-your-setup-size/#retention-perioddisk-space).

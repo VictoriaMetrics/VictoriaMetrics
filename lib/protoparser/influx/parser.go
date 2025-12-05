@@ -1,8 +1,8 @@
 package influx
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -12,176 +12,172 @@ import (
 
 // Rows contains parsed influx rows.
 type Rows struct {
-	Rows       []Row
-	IgnoreErrs bool
+	Rows []Row
 
+	uc unmarshalContext
+}
+
+type unmarshalContext struct {
 	tagsPool   []Tag
 	fieldsPool []Field
+
+	buf []byte
+
+	hasEscapeChars bool
+
+	hasQuotedFields bool
 }
 
 // Reset resets rs.
 func (rs *Rows) Reset() {
-	// Reset rows, tags and fields in order to remove references to old data,
-	// so GC could collect it.
-
-	for i := range rs.Rows {
-		rs.Rows[i].reset()
-	}
 	rs.Rows = rs.Rows[:0]
-
-	for i := range rs.tagsPool {
-		rs.tagsPool[i].reset()
-	}
-	rs.tagsPool = rs.tagsPool[:0]
-
-	for i := range rs.fieldsPool {
-		rs.fieldsPool[i].reset()
-	}
-	rs.fieldsPool = rs.fieldsPool[:0]
+	rs.uc.reset()
 }
 
-// Unmarshal unmarshals influx line protocol rows from b.
+func (uc *unmarshalContext) reset() {
+	uc.tagsPool = uc.tagsPool[:0]
+	uc.fieldsPool = uc.fieldsPool[:0]
+	uc.buf = uc.buf[:0]
+
+	uc.hasEscapeChars = false
+	uc.hasQuotedFields = false
+}
+
+// Unmarshal unmarshals influx line protocol rows from s.
 //
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
-// b shouldn't be modified when rs is in use.
-func (rs *Rows) Unmarshal(b []byte) error {
-	rs.reset()
-	return rs.unmarshal(b)
-}
-
-func (rs *Rows) reset() {
-	rs.Rows = rs.Rows[:0]
-	rs.tagsPool = rs.tagsPool[:0]
-	rs.fieldsPool = rs.fieldsPool[:0]
+// s shouldn't be modified when rs is in use.
+//
+// if skipInvalidLines=true, then all the invalid lines at s are ignored, the remaining lines are parsed and nil error is always returned.
+// if skipInvalidLines=false, then the first parse error is returned.
+func (rs *Rows) Unmarshal(s string, skipInvalidLines bool) error {
+	rs.Reset()
+	return rs.unmarshal(s, skipInvalidLines)
 }
 
 // Row is a single influx row.
 type Row struct {
-	Measurement []byte
+	Measurement string
 	Tags        []Tag
 	Fields      []Field
 	Timestamp   int64
 }
 
 func (r *Row) reset() {
-	r.Measurement = nil
+	r.Measurement = ""
 	r.Tags = nil
 	r.Fields = nil
 	r.Timestamp = 0
 }
 
-func (r *Row) unmarshal(b []byte, tagsPool []Tag, fieldsPool []Field, noEscapeChars bool) ([]Tag, []Field, error) {
+func (r *Row) unmarshal(s string, uc *unmarshalContext) error {
 	r.reset()
-	n := nextUnescapedChar(b, ' ', noEscapeChars)
+	n := nextUnescapedChar(s, ' ', uc)
 	if n < 0 {
-		return tagsPool, fieldsPool, fmt.Errorf("cannot find Whitespace I in %q", b)
+		return fmt.Errorf("cannot find Whitespace I in %q", s)
 	}
-	measurementTags := b[:n]
-	b = stripLeadingWhitespace(b[n+1:])
+	measurementTags := s[:n]
+	s = stripLeadingWhitespace(s[n+1:])
 
 	// Parse measurement and tags
-	var err error
-	n = nextUnescapedChar(measurementTags, ',', noEscapeChars)
+	n = nextUnescapedChar(measurementTags, ',', uc)
 	if n >= 0 {
-		tagsStart := len(tagsPool)
-		tagsPool, err = unmarshalTags(tagsPool, measurementTags[n+1:], noEscapeChars)
-		if err != nil {
-			return tagsPool, fieldsPool, err
+		tagsStart := len(uc.tagsPool)
+		if err := unmarshalTags(measurementTags[n+1:], uc); err != nil {
+			return err
 		}
-		tags := tagsPool[tagsStart:]
+		tags := uc.tagsPool[tagsStart:]
 		r.Tags = tags[:len(tags):len(tags)]
 		measurementTags = measurementTags[:n]
 	}
-	r.Measurement = unescapeTagValue(measurementTags, noEscapeChars)
+	r.Measurement = unescapeTagValue(measurementTags, uc)
 	// Allow empty r.Measurement. In this case metric name is constructed directly from field keys.
 
 	// Parse fields
-	fieldsStart := len(fieldsPool)
-	hasQuotedFields := nextUnescapedChar(b, '"', noEscapeChars) >= 0
-	n = nextUnquotedChar(b, ' ', noEscapeChars, hasQuotedFields)
+	fieldsStart := len(uc.fieldsPool)
+	uc.hasQuotedFields = nextUnescapedChar(s, '"', uc) >= 0
+	n = nextUnquotedChar(s, ' ', uc)
 	if n < 0 {
 		// No timestamp.
-		fieldsPool, err = unmarshalInfluxFields(fieldsPool, b, noEscapeChars, hasQuotedFields)
-		if err != nil {
-			return tagsPool, fieldsPool, err
+		if err := unmarshalInfluxFields(s, uc); err != nil {
+			return err
 		}
-		fields := fieldsPool[fieldsStart:]
+		fields := uc.fieldsPool[fieldsStart:]
 		r.Fields = fields[:len(fields):len(fields)]
-		return tagsPool, fieldsPool, nil
+		return nil
 	}
-	fieldsPool, err = unmarshalInfluxFields(fieldsPool, b[:n], noEscapeChars, hasQuotedFields)
-	if err != nil {
-		if bytes.HasPrefix(b[n+1:], []byte("HTTP/")) {
-			return tagsPool, fieldsPool, fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
+	if err := unmarshalInfluxFields(s[:n], uc); err != nil {
+		if strings.HasPrefix(s[n+1:], "HTTP/") {
+			return fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
 				"do not set `-influxListenAddr` command-line flag, since it is needed for tcp protocol only")
 		}
-		return tagsPool, fieldsPool, err
+		return err
 	}
-	r.Fields = fieldsPool[fieldsStart:]
-	b = stripLeadingWhitespace(b[n+1:])
+	r.Fields = uc.fieldsPool[fieldsStart:]
+	s = stripLeadingWhitespace(s[n+1:])
 
 	// The timestamp is optional in the InfluxDB line protocol.
 	// Whitespace before it may still be present even when the timestamp itself is omitted.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10049
-	if len(b) > 0 {
-		timestamp, err := fastfloat.ParseInt64(bytesutil.ToUnsafeString(b))
+	if len(s) > 0 {
+		timestamp, err := fastfloat.ParseInt64(s)
 		if err != nil {
-			if bytes.HasPrefix(b, []byte("HTTP/")) {
-				return tagsPool, fieldsPool, fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
+			if strings.HasPrefix(s, "HTTP/") {
+				return fmt.Errorf("please switch from tcp to http protocol for data ingestion; " +
 					"do not set `-influxListenAddr` command-line flag, since it is needed for tcp protocol only")
 			}
-			return tagsPool, fieldsPool, fmt.Errorf("cannot parse timestamp %q: %w", b, err)
+			return fmt.Errorf("cannot parse timestamp %q: %w", s, err)
 		}
 		r.Timestamp = timestamp
 	}
-	return tagsPool, fieldsPool, nil
+	return nil
 }
 
 // Tag represents influx tag.
 type Tag struct {
-	Key   []byte
-	Value []byte
+	Key   string
+	Value string
 }
 
 func (tag *Tag) reset() {
-	tag.Key = nil
-	tag.Value = nil
+	tag.Key = ""
+	tag.Value = ""
 }
 
-func (tag *Tag) unmarshal(b []byte, noEscapeChars bool) error {
+func (tag *Tag) unmarshal(s string, uc *unmarshalContext) error {
 	tag.reset()
-	n := nextUnescapedChar(b, '=', noEscapeChars)
+	n := nextUnescapedChar(s, '=', uc)
 	if n < 0 {
-		return fmt.Errorf("missing tag value for %q", b)
+		return fmt.Errorf("missing tag value for %q", s)
 	}
-	tag.Key = unescapeTagValue(b[:n], noEscapeChars)
-	tag.Value = unescapeTagValue(b[n+1:], noEscapeChars)
+	tag.Key = unescapeTagValue(s[:n], uc)
+	tag.Value = unescapeTagValue(s[n+1:], uc)
 	return nil
 }
 
 // Field represents influx field.
 type Field struct {
-	Key   []byte
+	Key   string
 	Value float64
 }
 
 func (f *Field) reset() {
-	f.Key = nil
+	f.Key = ""
 	f.Value = 0
 }
 
-func (f *Field) unmarshal(b []byte, noEscapeChars, hasQuotedFields bool) error {
+func (f *Field) unmarshal(s string, uc *unmarshalContext) error {
 	f.reset()
-	n := nextUnescapedChar(b, '=', noEscapeChars)
+	n := nextUnescapedChar(s, '=', uc)
 	if n < 0 {
-		return fmt.Errorf("missing field value for %q", b)
+		return fmt.Errorf("missing field value for %q", s)
 	}
-	f.Key = unescapeTagValue(b[:n], noEscapeChars)
+	f.Key = unescapeTagValue(s[:n], uc)
 	if len(f.Key) == 0 {
 		return fmt.Errorf("field key cannot be empty")
 	}
-	v, err := parseFieldValue(b[n+1:], hasQuotedFields)
+	v, err := parseFieldValue(s[n+1:], uc)
 	if err != nil {
 		return fmt.Errorf("cannot parse field value for %q: %w", f.Key, err)
 	}
@@ -189,39 +185,38 @@ func (f *Field) unmarshal(b []byte, noEscapeChars, hasQuotedFields bool) error {
 	return nil
 }
 
-func (rs *Rows) unmarshal(b []byte) error {
-	noEscapeChars := bytes.IndexByte(b, '\\') < 0
-	for len(b) > 0 {
-		n := bytes.IndexByte(b, '\n')
+func (rs *Rows) unmarshal(s string, skipInvalidLines bool) error {
+	rs.uc.hasEscapeChars = strings.IndexByte(s, '\\') >= 0
+	for len(s) > 0 {
+		n := strings.IndexByte(s, '\n')
 		if n < 0 {
 			// The last line.
-			n = len(b)
+			n = len(s)
 		}
-		err := rs.unmarshalRow(b[:n], noEscapeChars)
-		if err != nil {
-			if !rs.IgnoreErrs {
-				return fmt.Errorf("incorrect influx line %q: %w", b, err)
+		if err := rs.unmarshalRow(s[:n]); err != nil {
+			if !skipInvalidLines {
+				return fmt.Errorf("incorrect influx line %q: %w", s, err)
 			}
-			logger.Errorf("skipping InfluxDB line %q because of error: %s", b, err)
+			logger.Errorf("skipping InfluxDB line %q because of error: %s", s, err)
 			invalidLines.Inc()
 		}
-		if len(b) == n {
+		if len(s) == n {
 			return nil
 		}
-		b = b[n+1:]
+		s = s[n+1:]
 	}
 	return nil
 }
 
-func (rs *Rows) unmarshalRow(b []byte, noEscapeChars bool) error {
-	if len(b) > 0 && b[len(b)-1] == '\r' {
-		b = b[:len(b)-1]
+func (rs *Rows) unmarshalRow(s string) error {
+	if len(s) > 0 && s[len(s)-1] == '\r' {
+		s = s[:len(s)-1]
 	}
-	if len(b) == 0 {
+	if len(s) == 0 {
 		// Skip empty line
 		return nil
 	}
-	if b[0] == '#' {
+	if s[0] == '#' {
 		// Skip comment
 		return nil
 	}
@@ -232,105 +227,108 @@ func (rs *Rows) unmarshalRow(b []byte, noEscapeChars bool) error {
 		rs.Rows = append(rs.Rows, Row{})
 	}
 	r := &rs.Rows[len(rs.Rows)-1]
-	var err error
-	rs.tagsPool, rs.fieldsPool, err = r.unmarshal(b, rs.tagsPool, rs.fieldsPool, noEscapeChars)
-	if err != nil {
+	if err := r.unmarshal(s, &rs.uc); err != nil {
 		rs.Rows = rs.Rows[:len(rs.Rows)-1]
+		return err
 	}
-	return err
+
+	return nil
 }
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="influx"}`)
 
-func unmarshalTags(dst []Tag, b []byte, noEscapeChars bool) ([]Tag, error) {
+func unmarshalTags(s string, uc *unmarshalContext) error {
 	for {
-		if cap(dst) > len(dst) {
-			dst = dst[:len(dst)+1]
+		if cap(uc.tagsPool) > len(uc.tagsPool) {
+			uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)+1]
 		} else {
-			dst = append(dst, Tag{})
+			uc.tagsPool = append(uc.tagsPool, Tag{})
 		}
-		tag := &dst[len(dst)-1]
-		n := nextUnescapedChar(b, ',', noEscapeChars)
+		tag := &uc.tagsPool[len(uc.tagsPool)-1]
+		n := nextUnescapedChar(s, ',', uc)
 		if n < 0 {
-			if err := tag.unmarshal(b, noEscapeChars); err != nil {
-				return dst[:len(dst)-1], err
+			if err := tag.unmarshal(s, uc); err != nil {
+				uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
+				return err
 			}
 			if len(tag.Key) == 0 || len(tag.Value) == 0 {
 				// Skip empty tag
-				dst = dst[:len(dst)-1]
+				uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
 			}
-			return dst, nil
+			return nil
 		}
-		if err := tag.unmarshal(b[:n], noEscapeChars); err != nil {
-			return dst[:len(dst)-1], err
+		if err := tag.unmarshal(s[:n], uc); err != nil {
+			uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
+			return err
 		}
-		b = b[n+1:]
+		s = s[n+1:]
 		if len(tag.Key) == 0 || len(tag.Value) == 0 {
 			// Skip empty tag
-			dst = dst[:len(dst)-1]
+			uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
 		}
 	}
 }
 
-func unmarshalInfluxFields(dst []Field, b []byte, noEscapeChars, hasQuotedFields bool) ([]Field, error) {
+func unmarshalInfluxFields(s string, uc *unmarshalContext) error {
 	for {
-		if cap(dst) > len(dst) {
-			dst = dst[:len(dst)+1]
+		if cap(uc.fieldsPool) > len(uc.fieldsPool) {
+			uc.fieldsPool = uc.fieldsPool[:len(uc.fieldsPool)+1]
 		} else {
-			dst = append(dst, Field{})
+			uc.fieldsPool = append(uc.fieldsPool, Field{})
 		}
-		f := &dst[len(dst)-1]
-		n := nextUnquotedChar(b, ',', noEscapeChars, hasQuotedFields)
+		f := &uc.fieldsPool[len(uc.fieldsPool)-1]
+		n := nextUnquotedChar(s, ',', uc)
 		if n < 0 {
-			if err := f.unmarshal(b, noEscapeChars, hasQuotedFields); err != nil {
-				return dst, err
+			if err := f.unmarshal(s, uc); err != nil {
+				return err
 			}
-			return dst, nil
+			return nil
 		}
-		if err := f.unmarshal(b[:n], noEscapeChars, hasQuotedFields); err != nil {
-			return dst, err
+		if err := f.unmarshal(s[:n], uc); err != nil {
+			return err
 		}
-		b = b[n+1:]
+		s = s[n+1:]
 	}
 }
 
-func unescapeTagValue(s []byte, noEscapeChars bool) []byte {
-	if noEscapeChars {
+func unescapeTagValue(s string, uc *unmarshalContext) string {
+	if !uc.hasEscapeChars {
 		// Fast path - no escape chars.
 		return s
 	}
-	n := bytes.IndexByte(s, '\\')
+	n := strings.IndexByte(s, '\\')
 	if n < 0 {
 		return s
 	}
 
 	// Slow path. Remove escape chars.
-	dst := s[:0]
+	bufLen := len(uc.buf)
 	for {
-		dst = append(dst, s[:n]...)
+		uc.buf = append(uc.buf, s[:n]...)
 		s = s[n+1:]
 		if len(s) == 0 {
-			return append(dst, '\\')
+			uc.buf = append(uc.buf, '\\')
+			return bytesutil.ToUnsafeString(uc.buf[bufLen:])
 		}
 		ch := s[0]
 		if ch != ' ' && ch != ',' && ch != '=' && ch != '\\' {
-			dst = append(dst, '\\')
+			uc.buf = append(uc.buf, '\\')
 		}
-		dst = append(dst, ch)
+		uc.buf = append(uc.buf, ch)
 		s = s[1:]
-		n = bytes.IndexByte(s, '\\')
+		n = strings.IndexByte(s, '\\')
 		if n < 0 {
-			return append(dst, s...)
+			uc.buf = append(uc.buf, s...)
+			return bytesutil.ToUnsafeString(uc.buf[bufLen:])
 		}
 	}
 }
 
-func parseFieldValue(b []byte, hasQuotedFields bool) (float64, error) {
-	if len(b) == 0 {
+func parseFieldValue(s string, uc *unmarshalContext) (float64, error) {
+	if len(s) == 0 {
 		return 0, fmt.Errorf("field value cannot be empty")
 	}
-	s := bytesutil.ToUnsafeString(b)
-	if hasQuotedFields && s[0] == '"' {
+	if uc.hasQuotedFields && s[0] == '"' {
 		if len(s) < 2 || s[len(s)-1] != '"' {
 			return 0, fmt.Errorf("missing closing quote for quoted field value %s", s)
 		}
@@ -367,74 +365,74 @@ func parseFieldValue(b []byte, hasQuotedFields bool) (float64, error) {
 	return fastfloat.ParseBestEffort(s), nil
 }
 
-func nextUnescapedChar(b []byte, ch byte, noEscapeChars bool) int {
-	if noEscapeChars {
+func nextUnescapedChar(s string, ch byte, uc *unmarshalContext) int {
+	if !uc.hasEscapeChars {
 		// Fast path: just search for ch in s, since s has no escape chars.
-		return bytes.IndexByte(b, ch)
+		return strings.IndexByte(s, ch)
 	}
 
-	sOrig := b
+	sOrig := s
 again:
-	n := bytes.IndexByte(b, ch)
+	n := strings.IndexByte(s, ch)
 	if n < 0 {
 		return -1
 	}
 	if n == 0 {
-		return len(sOrig) - len(b) + n
+		return len(sOrig) - len(s) + n
 	}
-	if b[n-1] != '\\' {
-		return len(sOrig) - len(b) + n
+	if s[n-1] != '\\' {
+		return len(sOrig) - len(s) + n
 	}
 	nOrig := n
 	slashes := 0
-	for n > 0 && b[n-1] == '\\' {
+	for n > 0 && s[n-1] == '\\' {
 		slashes++
 		n--
 	}
 	if slashes&1 == 0 {
-		return len(sOrig) - len(b) + nOrig
+		return len(sOrig) - len(s) + nOrig
 	}
-	b = b[nOrig+1:]
+	s = s[nOrig+1:]
 	goto again
 }
 
-func nextUnquotedChar(b []byte, ch byte, noEscapeChars, hasQuotedFields bool) int {
-	if !hasQuotedFields {
-		return nextUnescapedChar(b, ch, noEscapeChars)
+func nextUnquotedChar(s string, ch byte, uc *unmarshalContext) int {
+	if !uc.hasQuotedFields {
+		return nextUnescapedChar(s, ch, uc)
 	}
-	sOrig := b
+	sOrig := s
 	for {
-		n := nextUnescapedChar(b, ch, noEscapeChars)
+		n := nextUnescapedChar(s, ch, uc)
 		if n < 0 {
 			return -1
 		}
-		if !isInQuote(b[:n], noEscapeChars) {
-			return n + len(sOrig) - len(b)
+		if !isInQuote(s[:n], uc) {
+			return n + len(sOrig) - len(s)
 		}
-		b = b[n+1:]
-		n = nextUnescapedChar(b, '"', noEscapeChars)
+		s = s[n+1:]
+		n = nextUnescapedChar(s, '"', uc)
 		if n < 0 {
 			return -1
 		}
-		b = b[n+1:]
+		s = s[n+1:]
 	}
 }
 
-func isInQuote(b []byte, noEscapeChars bool) bool {
+func isInQuote(s string, uc *unmarshalContext) bool {
 	isQuote := false
 	for {
-		n := nextUnescapedChar(b, '"', noEscapeChars)
+		n := nextUnescapedChar(s, '"', uc)
 		if n < 0 {
 			return isQuote
 		}
 		isQuote = !isQuote
-		b = b[n+1:]
+		s = s[n+1:]
 	}
 }
 
-func stripLeadingWhitespace(b []byte) []byte {
-	for len(b) > 0 && b[0] == ' ' {
-		b = b[1:]
+func stripLeadingWhitespace(s string) string {
+	for len(s) > 0 && s[0] == ' ' {
+		s = s[1:]
 	}
-	return b
+	return s
 }

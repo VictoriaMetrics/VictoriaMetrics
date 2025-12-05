@@ -73,7 +73,7 @@ func TestParseStream(t *testing.T) {
 		}
 
 		sort.Slice(rows, func(i, j int) bool {
-			return string(rows[i].Measurement) < string(rows[j].Measurement)
+			return rows[i].Measurement < rows[j].Measurement
 		})
 		if !reflect.DeepEqual(rows, rowsExpected) {
 			t.Fatalf("unexpected rows;\ngot\n%+v\nwant\n%+v", rows, rowsExpected)
@@ -84,19 +84,19 @@ foo2,location=us-midwest2 temperature=82 1727879909390000000
 foo3,location=us-midwest3 temperature=83 1727879909390000000`
 	goodDataParsed := []influx.Row{
 		{
-			Measurement: []byte("foo1"),
-			Tags:        []influx.Tag{{Key: []byte("location"), Value: []byte("us-midwest1")}},
-			Fields:      []influx.Field{{Key: []byte("temperature"), Value: 81}},
+			Measurement: "foo1",
+			Tags:        []influx.Tag{{Key: "location", Value: "us-midwest1"}},
+			Fields:      []influx.Field{{Key: "temperature", Value: 81}},
 			Timestamp:   1727879909390,
 		}, {
-			Measurement: []byte("foo2"),
-			Tags:        []influx.Tag{{Key: []byte("location"), Value: []byte("us-midwest2")}},
-			Fields:      []influx.Field{{Key: []byte("temperature"), Value: 82}},
+			Measurement: "foo2",
+			Tags:        []influx.Tag{{Key: "location", Value: "us-midwest2"}},
+			Fields:      []influx.Field{{Key: "temperature", Value: 82}},
 			Timestamp:   1727879909390,
 		}, {
-			Measurement: []byte("foo3"),
-			Tags:        []influx.Tag{{Key: []byte("location"), Value: []byte("us-midwest3")}},
-			Fields:      []influx.Field{{Key: []byte("temperature"), Value: 83}},
+			Measurement: "foo3",
+			Tags:        []influx.Tag{{Key: "location", Value: "us-midwest3"}},
+			Fields:      []influx.Field{{Key: "temperature", Value: 83}},
 			Timestamp:   1727879909390,
 		}}
 
@@ -109,14 +109,14 @@ foo3,location=us-midwest3 temperature=83 1727879909390000000`
 foo2, ,location=us-midwest2 temperature=82 1727879909390000000
 foo3,location=us-midwest3 temperature=83 1727879909390000000`
 	badDataParsed := []influx.Row{{
-		Measurement: []byte("foo1"),
-		Tags:        []influx.Tag{{Key: []byte("location"), Value: []byte("us-midwest1")}},
-		Fields:      []influx.Field{{Key: []byte("temperature"), Value: 81}},
+		Measurement: "foo1",
+		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest1"}},
+		Fields:      []influx.Field{{Key: "temperature", Value: 81}},
 		Timestamp:   1727879909390,
 	}, {
-		Measurement: []byte("foo3"),
-		Tags:        []influx.Tag{{Key: []byte("location"), Value: []byte("us-midwest3")}},
-		Fields:      []influx.Field{{Key: []byte("temperature"), Value: 83}},
+		Measurement: "foo3",
+		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest3"}},
+		Fields:      []influx.Field{{Key: "temperature", Value: 83}},
 		Timestamp:   1727879909390,
 	}}
 
