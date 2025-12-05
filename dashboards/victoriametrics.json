@@ -50,7 +50,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 2,
+  "id": 1,
   "links": [
     {
       "icon": "doc",
@@ -1515,7 +1515,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 160
+            "y": 767
           },
           "id": 112,
           "options": {
@@ -1624,7 +1624,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 160
+            "y": 767
           },
           "id": 114,
           "options": {
@@ -1736,7 +1736,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 168
+            "y": 775
           },
           "id": 123,
           "options": {
@@ -1862,7 +1862,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 168
+            "y": 775
           },
           "id": 57,
           "options": {
@@ -1989,7 +1989,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 176
+            "y": 783
           },
           "id": 44,
           "options": {
@@ -2156,7 +2156,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 176
+            "y": 783
           },
           "id": 134,
           "options": {
@@ -2279,7 +2279,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 184
+            "y": 791
           },
           "id": 135,
           "options": {
@@ -2417,7 +2417,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 184
+            "y": 791
           },
           "id": 76,
           "options": {
@@ -2544,7 +2544,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 192
+            "y": 799
           },
           "id": 47,
           "options": {
@@ -2666,7 +2666,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 192
+            "y": 799
           },
           "id": 124,
           "options": {
@@ -2793,7 +2793,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 200
+            "y": 807
           },
           "id": 48,
           "options": {
@@ -2900,7 +2900,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 200
+            "y": 807
           },
           "id": 136,
           "options": {
@@ -3026,7 +3026,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 208
+            "y": 815
           },
           "id": 49,
           "options": {
@@ -3137,7 +3137,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 208
+            "y": 815
           },
           "id": 37,
           "options": {
@@ -3265,7 +3265,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 216
+            "y": 823
           },
           "id": 75,
           "options": {
@@ -3378,7 +3378,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 216
+            "y": 823
           },
           "id": 125,
           "options": {
@@ -3499,7 +3499,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 224
+            "y": 831
           },
           "id": 127,
           "options": {
@@ -3621,7 +3621,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 224
+            "y": 831
           },
           "id": 133,
           "options": {
@@ -3731,7 +3731,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 232
+            "y": 839
           },
           "id": 128,
           "options": {
@@ -3854,7 +3854,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 161
+            "y": 257
           },
           "id": 66,
           "options": {
@@ -3976,7 +3976,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 161
+            "y": 257
           },
           "id": 68,
           "options": {
@@ -4088,7 +4088,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 169
+            "y": 265
           },
           "id": 116,
           "options": {
@@ -4198,7 +4198,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 169
+            "y": 265
           },
           "id": 60,
           "options": {
@@ -4307,7 +4307,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 177
+            "y": 273
           },
           "id": 90,
           "options": {
@@ -4418,7 +4418,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 177
+            "y": 273
           },
           "id": 118,
           "options": {
@@ -4529,7 +4529,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 186
+            "y": 282
           },
           "id": 131,
           "options": {
@@ -4653,7 +4653,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 186
+            "y": 282
           },
           "id": 132,
           "links": [
@@ -4781,7 +4781,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 194
+            "y": 290
           },
           "id": 126,
           "options": {
@@ -4880,7 +4880,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 194
+            "y": 290
           },
           "id": 129,
           "options": {
@@ -4963,7 +4963,13 @@
                   "mode": "off"
                 }
               },
-              "links": [],
+              "links": [
+                {
+                  "targetBlank": true,
+                  "title": "Drilldown",
+                  "url": "/d/wNf0q_kZk?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                }
+              ],
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
@@ -4985,7 +4991,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 202
+            "y": 298
           },
           "id": 137,
           "options": {
@@ -5013,7 +5019,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job)",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -5041,7 +5047,230 @@
             "type": "prometheus",
             "uid": "$ds"
           },
+          "description": "How many datapoints are inserted into storage per second",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 356
+          },
+          "id": 10,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, type) > 0",
+              "format": "time_series",
+              "hide": false,
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Datapoints ingestion rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
           "description": "Shows the approx time needed to reach 100% of allowed disk capacity based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 356
+          },
+          "id": 73,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "min"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) \n/ \nignoring(path) (\n    (rate(vm_rows_added_to_storage_total{job=~\"$job\", instance=~\"$instance\"}[1d]) - \n        sum(rate(vm_deduplicated_samples_total{job=~\"$job\", instance=~\"$instance\"}[1d])) without(type)) * \n    (\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) without(type) /\n        sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[1d]) * \n    (\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=\"indexdb/file\"}) without(type) /\n        sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type=\"indexdb/file\"}) without(type)\n    )\n) > 0",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Storage full ETA",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows amount of on-disk space occupied by data points and the remaining disk space at `-storageDataPath`. Calculation accounts for -storage.minFreeDiskSpaceBytes",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5095,117 +5324,7 @@
                   }
                 ]
               },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 830
-          },
-          "id": 73,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "min"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) \n/ \nignoring(path) (\n    (rate(vm_rows_added_to_storage_total{job=~\"$job\", instance=~\"$instance\"}[1d]) - \n        sum(rate(vm_deduplicated_samples_total{job=~\"$job\", instance=~\"$instance\"}[1d])) without(type)) * \n    (\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) without(type) /\n        sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[1d]) * \n    (\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=\"indexdb/file\"}) without(type) /\n        sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type=\"indexdb/file\"}) without(type)\n    )\n) > 0",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Storage full ETA",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "How many datapoints are inserted into storage per second",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
+              "unit": "bytes"
             },
             "overrides": []
           },
@@ -5213,9 +5332,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 852
+            "y": 364
           },
-          "id": 10,
+          "id": 53,
           "options": {
             "legend": {
               "calcs": [
@@ -5243,16 +5362,44 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, type) > 0",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) by (instance)",
               "format": "time_series",
-              "hide": false,
+              "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "{{instance}} - {{type}}",
+              "legendFormat": "{{instance}} - Used (datapoints)",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "expr": "vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"} - vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} - Free",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"}) by (instance)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} - Used (index)",
+              "range": true,
+              "refId": "C"
             }
           ],
-          "title": "Datapoints ingestion rate",
+          "title": "Disk space usage - datapoints",
           "type": "timeseries"
         },
         {
@@ -5339,7 +5486,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 852
+            "y": 364
           },
           "id": 34,
           "options": {
@@ -5391,264 +5538,6 @@
             }
           ],
           "title": "Pending datapoints",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "Shows amount of on-disk space occupied by data points and the remaining disk space at `-storageDataPath`. Calculation accounts for -storage.minFreeDiskSpaceBytes",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "bytes"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 860
-          },
-          "id": 53,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) by (instance)",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}} - Used (datapoints)",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "expr": "vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"} - vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}} - Free",
-              "range": true,
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"}) by (instance)",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}} - Used (index)",
-              "range": true,
-              "refId": "C"
-            }
-          ],
-          "title": "Disk space usage - datapoints",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "uid": "$ds"
-          },
-          "description": "The max number of data parts of LSM tree across all storage nodes in the last [partition](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage).\nIncrease in number of parts (the hard limit is 512) is an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage (hot data)\n* `storage/big` -  small parts gradually merged into bigger parts (cold data)",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 860
-          },
-          "id": 36,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(vm_parts{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"}) by (instance, type)",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}} - {{type}}",
-              "range": true,
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "max(vm_last_partition_parts{job=~\"$job\", instance=~\"$instance\"}) by(instance, type)",
-              "format": "time_series",
-              "hide": false,
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}} - {{type}}",
-              "range": true,
-              "refId": "B"
-            }
-          ],
-          "title": "LSM parts max by type",
           "type": "timeseries"
         },
         {
@@ -5735,7 +5624,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 868
+            "y": 372
           },
           "id": 30,
           "options": {
@@ -5789,6 +5678,236 @@
             }
           ],
           "title": "Datapoints",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "uid": "$ds"
+          },
+          "description": "The max number of data parts of LSM tree across all storage nodes in the last [partition](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage).\nIncrease in number of parts (the hard limit is 512) is an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage (hot data)\n* `storage/big` -  small parts gradually merged into bigger parts (cold data)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 372
+          },
+          "id": 36,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(vm_parts{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"}) by (instance, type)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(vm_last_partition_parts{job=~\"$job\", instance=~\"$instance\"}) by(instance, type)",
+              "format": "time_series",
+              "hide": false,
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} - {{type}}",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "LSM parts max by type",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps and how many series were ignored on insertion or during scrape due to too long label names, values and excessive labels count.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 380
+          },
+          "id": 58,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (instance, reason)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}} - {{reason}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Rows ignored for last 1h",
           "type": "timeseries"
         },
         {
@@ -5859,7 +5978,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 868
+            "y": 380
           },
           "id": 62,
           "options": {
@@ -5894,222 +6013,6 @@
             }
           ],
           "title": "Active merges",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps and how many series were ignored on insertion or during scrape due to too long label names, values and excessive labels count.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 876
-          },
-          "id": 58,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (instance, reason)",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}} - {{reason}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Rows ignored for last 1h",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "The number of rows merged per second by storage nodes.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 0,
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 876
-          },
-          "id": 64,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.5.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, type)",
-              "legendFormat": "{{instance}} - {{type}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Merge speed",
           "type": "timeseries"
         },
         {
@@ -6196,7 +6099,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 884
+            "y": 388
           },
           "id": 59,
           "options": {
@@ -6253,7 +6156,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per queried series.",
+          "description": "The number of rows merged per second by storage nodes.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6292,7 +6195,7 @@
                   "mode": "off"
                 }
               },
-              "decimals": 2,
+              "decimals": 0,
               "links": [],
               "mappings": [],
               "min": 0,
@@ -6316,9 +6219,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 884
+            "y": 388
           },
-          "id": 103,
+          "id": 64,
           "options": {
             "legend": {
               "calcs": [
@@ -6335,7 +6238,7 @@
             "tooltip": {
               "hideZeros": false,
               "mode": "multi",
-              "sort": "desc"
+              "sort": "none"
             }
           },
           "pluginVersion": "11.5.0",
@@ -6346,16 +6249,13 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(vm_rows_read_per_series_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange))",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}}",
+              "expr": "sum(rate(vm_rows_merged_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, type)",
+              "legendFormat": "{{instance}} - {{type}}",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Datapoints read per series",
+          "title": "Merge speed",
           "type": "timeseries"
         },
         {
@@ -6426,7 +6326,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 892
+            "y": 396
           },
           "id": 99,
           "options": {
@@ -6473,7 +6373,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of RowsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) read per queried series.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6536,9 +6436,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 892
+            "y": 396
           },
-          "id": 105,
+          "id": 103,
           "options": {
             "legend": {
               "calcs": [
@@ -6566,7 +6466,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum(rate(vm_rows_scanned_per_query_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange))",
+              "expr": "histogram_quantile(0.99, sum(rate(vm_rows_read_per_series_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -6575,7 +6475,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints scanned per query",
+          "title": "Datapoints read per series",
           "type": "timeseries"
         },
         {
@@ -6646,7 +6546,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 900
+            "y": 404
           },
           "id": 122,
           "options": {
@@ -6686,6 +6586,116 @@
             }
           ],
           "title": "Datapoints read per query",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of RowsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 2,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 404
+          },
+          "id": 105,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "11.5.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum(rate(vm_rows_scanned_per_query_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance, vmrange))",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Datapoints scanned per query",
           "type": "timeseries"
         },
         {
@@ -6753,7 +6763,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 900
+            "y": 412
           },
           "id": 130,
           "options": {
@@ -6790,6 +6800,156 @@
         }
       ],
       "title": "Storage",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 138,
+      "panels": [
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 2,
+            "w": 17,
+            "x": 0,
+            "y": 259
+          },
+          "id": 139,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance.",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.2.0",
+          "title": "",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${ds}"
+          },
+          "description": "Major page faults occur when required data is not in physical memory and must be loaded from disk (storage or swap). It usually happens with:\n- insufficient physical memory\n- active use of swap space\n- file mapping access\n\nIt may cause significant performance slowdown if sustained high.\n\nPossible workaround:\n- Extend RAM to scale up\n- Reduce swap usage by adjusting vm.swappiness",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [
+                {
+                  "targetBlank": true,
+                  "title": "Drilldown",
+                  "url": "/d/wNf0q_kZk?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                }
+              ],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 261
+          },
+          "id": 140,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
+              "legendFormat": "{{instance}} ({{job}})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Major page faults rate",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Drilldown",
       "type": "row"
     }
   ],
