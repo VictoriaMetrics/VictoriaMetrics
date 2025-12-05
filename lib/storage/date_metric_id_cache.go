@@ -18,7 +18,7 @@ func SetDateMetricIDCacheSize(size int) {
 
 func getDateMetricIDCacheSize() uint64 {
 	if maxDateMetricIDCacheSize <= 0 {
-		return uint64(float64(uint64(memory.Allowed()) / 256))
+		return uint64(float64(memory.Allowed()) / 256)
 	}
 	return maxDateMetricIDCacheSize
 }
