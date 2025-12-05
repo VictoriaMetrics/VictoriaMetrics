@@ -21,14 +21,14 @@ For example, `/zabbixconnector/api/v1/history?extra_label=foo=bar` would add `{f
 ## Zabbix Connector data mapping
 
 VictoriaMetrics maps [Zabbix Connector streaming protocol](https://www.zabbix.com/documentation/current/en/manual/config/export/streaming#protocol)
-to [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) in the following way:
+to [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) in the following way:
 
 * Discards all item values ​​that do not match the types "numeric (unsigned)" and "numeric (float)".
 * JSON path `$.host.host` converts to label value `host`.
 * JSON path `$.host.name` converts to label value `hostname`.
 * JSON path `$.name` converts to label value `__name__`.
 * JSON path `$.value` is used as the metric value.
-* JSON path `$.clock` and `$.ns` is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples).\
+* JSON path `$.clock` and `$.ns` is used as timestamp for the ingested [raw sample](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).\
 timestamp is calculated using the formula: `$.clock`*1e3 + `$.ns`/1e6 (See [Zabbix item structure](https://www.zabbix.com/documentation/current/en/manual/appendix/protocols/real_time_export#item-values) for details)
 * If the command line flag `-zabbixconnector.addGroups=<value>` is specified, the elements of the `$.grops` group array will be converted to the label name prefixed with `group_` with the value `<value>`.
 * The tag object array `$.item_tags` will be configured as follows:
