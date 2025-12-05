@@ -6,55 +6,68 @@ import (
 )
 
 func TestNextUnquotedChar(t *testing.T) {
-	f := func(s string, ch byte, noUnescape bool, nExpected int) {
+	f := func(s string, ch byte, hasEscapeChars bool, nExpected int) {
 		t.Helper()
-		n := nextUnquotedChar(s, ch, noUnescape, true)
+
+		uc := &unmarshalContext{
+			hasEscapeChars:  hasEscapeChars,
+			hasQuotedFields: true,
+		}
+		n := nextUnquotedChar(s, ch, uc)
 		if n != nExpected {
-			t.Fatalf("unexpected n for nextUnquotedChar(%q, '%c', %v); got %d; want %d", s, ch, noUnescape, n, nExpected)
+			t.Fatalf("unexpected n for nextUnquotedChar(%q, '%c', %v); got %d; want %d", s, ch, hasEscapeChars, n, nExpected)
 		}
 	}
 
-	f(``, ' ', false, -1)
 	f(``, ' ', true, -1)
-	f(`""`, ' ', false, -1)
+	f(``, ' ', false, -1)
 	f(`""`, ' ', true, -1)
-	f(`"foo bar\" " baz`, ' ', false, 12)
-	f(`"foo bar\" " baz`, ' ', true, 10)
+	f(`""`, ' ', false, -1)
+	f(`"foo bar\" " baz`, ' ', true, 12)
+	f(`"foo bar\" " baz`, ' ', false, 10)
 }
 
 func TestNextUnescapedChar(t *testing.T) {
-	f := func(s string, ch byte, noUnescape bool, nExpected int) {
+	f := func(s string, ch byte, hasEscapeChars bool, nExpected int) {
 		t.Helper()
-		n := nextUnescapedChar(s, ch, noUnescape)
+
+		uc := &unmarshalContext{
+			hasEscapeChars: hasEscapeChars,
+		}
+		n := nextUnescapedChar(s, ch, uc)
 		if n != nExpected {
-			t.Fatalf("unexpected n for nextUnescapedChar(%q, '%c', %v); got %d; want %d", s, ch, noUnescape, n, nExpected)
+			t.Fatalf("unexpected n for nextUnescapedChar(%q, '%c', %v); got %d; want %d", s, ch, hasEscapeChars, n, nExpected)
 		}
 	}
 
-	f("", ' ', true, -1)
 	f("", ' ', false, -1)
-	f(" ", ' ', true, 0)
+	f("", ' ', true, -1)
 	f(" ", ' ', false, 0)
-	f("x y", ' ', true, 1)
+	f(" ", ' ', true, 0)
 	f("x y", ' ', false, 1)
-	f(`x\  y`, ' ', true, 2)
-	f(`x\  y`, ' ', false, 3)
-	f(`\\,`, ',', true, 2)
+	f("x y", ' ', true, 1)
+	f(`x\  y`, ' ', false, 2)
+	f(`x\  y`, ' ', true, 3)
 	f(`\\,`, ',', false, 2)
-	f(`\\\=`, '=', true, 3)
-	f(`\\\=`, '=', false, -1)
-	f(`\\\=aa`, '=', true, 3)
-	f(`\\\=aa`, '=', false, -1)
-	f(`\\\=a=a`, '=', true, 3)
-	f(`\\\=a=a`, '=', false, 5)
-	f(`a\`, ' ', true, -1)
+	f(`\\,`, ',', true, 2)
+	f(`\\\=`, '=', false, 3)
+	f(`\\\=`, '=', true, -1)
+	f(`\\\=aa`, '=', false, 3)
+	f(`\\\=aa`, '=', true, -1)
+	f(`\\\=a=a`, '=', false, 3)
+	f(`\\\=a=a`, '=', true, 5)
 	f(`a\`, ' ', false, -1)
+	f(`a\`, ' ', true, -1)
 }
 
 func TestUnescapeTagValue(t *testing.T) {
 	f := func(s, sExpected string) {
 		t.Helper()
-		ss := unescapeTagValue(s, false)
+
+		uc := &unmarshalContext{
+			hasEscapeChars: true,
+		}
+		ss := unescapeTagValue(s, uc)
 		if ss != sExpected {
 			t.Fatalf("unexpected value for %q; got %q; want %q", s, ss, sExpected)
 		}
