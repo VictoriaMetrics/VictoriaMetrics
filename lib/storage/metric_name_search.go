@@ -4,14 +4,14 @@ import (
 	"sync"
 )
 
-// metricNameSearch is used for searching a metricName by a metricID in curr
-// and prev indexDBs. If useSparseCache is false the name is first searched in
-// metricNameCache and also stored in that cache when found in one of the
-// indexDBs.
+// metricNameSearch is used for searching a metricName by a metricID in
+// partition and legacy indexDBs. If useSparseCache is false the name is first
+// searched in metricNameCache and also stored in that cache when found in one
+// of the indexDBs.
 //
 // Most index search methods invoked only once per API call. For example, one
 // request to /api/v1/series results in one invocation of
-// Storage.SearchMetricNames() method. However, searching is metricName by
+// Storage.SearchMetricNames() method. However, searching a metricName by
 // metricID is done multiple times per API call. For example, data search
 // performs the metricName search for each data block (see search.go).
 //
@@ -28,8 +28,9 @@ import (
 // search method is invoked (due do mutex locks).
 type metricNameSearch struct {
 	storage        *Storage
-	idbPrev        *indexDB
-	idbCurr        *indexDB
+	ptws           []*partitionWrapper
+	idbs           []*indexDB
+	legacyIDBs     *legacyIndexDBs
 	useSparseCache bool
 }
 
@@ -43,21 +44,40 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 		}
 	}
 
-	dst, found := s.idbCurr.searchMetricName(dst, metricID, s.useSparseCache)
-	if found {
-		if !s.useSparseCache {
-			s.storage.putMetricNameToCache(metricID, dst)
+	var found bool
+
+	// This will be just one idb most of the time since a typical time range
+	// fits within a single month.
+	for _, idb := range s.idbs {
+		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
+		if found {
+			if !s.useSparseCache {
+				s.storage.putMetricNameToCache(metricID, dst)
+			}
+			return dst, true
 		}
-		return dst, true
 	}
 
-	// Fallback to previous indexDB.
-	dst, found = s.idbPrev.searchMetricName(dst, metricID, s.useSparseCache)
-	if found {
-		if !s.useSparseCache {
-			s.storage.putMetricNameToCache(metricID, dst)
+	// Fallback to current legacy indexDB.
+	if idb := s.legacyIDBs.getIDBCurr(); idb != nil {
+		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
+		if found {
+			if !s.useSparseCache {
+				s.storage.putMetricNameToCache(metricID, dst)
+			}
+			return dst, true
 		}
-		return dst, true
+	}
+
+	// Fallback to previous legacy indexDB.
+	if idb := s.legacyIDBs.getIDBPrev(); idb != nil {
+		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
+		if found {
+			if !s.useSparseCache {
+				s.storage.putMetricNameToCache(metricID, dst)
+			}
+			return dst, true
+		}
 	}
 
 	// Not deleting metricID if no corresponding metricName has been found
@@ -74,19 +94,25 @@ var mnsPool = &sync.Pool{
 	},
 }
 
-func getMetricNameSearch(storage *Storage, useSparseCache bool) *metricNameSearch {
+func getMetricNameSearch(storage *Storage, tr TimeRange, useSparseCache bool) *metricNameSearch {
 	s := mnsPool.Get().(*metricNameSearch)
 	s.storage = storage
-	s.idbPrev, s.idbCurr = storage.getPrevAndCurrIndexDBs()
+	s.ptws = storage.tb.GetPartitions(tr)
+	for _, ptw := range s.ptws {
+		s.idbs = append(s.idbs, ptw.pt.idb)
+	}
+	s.legacyIDBs = storage.getLegacyIndexDBs()
 	s.useSparseCache = useSparseCache
 	return s
 }
 
 func putMetricNameSearch(s *metricNameSearch) {
-	s.storage.putPrevAndCurrIndexDBs(s.idbPrev, s.idbCurr)
+	s.storage.tb.PutPartitions(s.ptws)
+	s.storage.putLegacyIndexDBs(s.legacyIDBs)
 	s.storage = nil
-	s.idbPrev = nil
-	s.idbCurr = nil
+	s.ptws = nil
+	s.idbs = nil
+	s.legacyIDBs = nil
 	s.useSparseCache = false
 	mnsPool.Put(s)
 }
