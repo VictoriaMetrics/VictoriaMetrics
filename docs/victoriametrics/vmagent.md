@@ -928,6 +928,9 @@ The limit can be enforced by setting the following command-line flags:
 * `-remoteWrite.maxDailySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last day.
   Useful for limiting daily churn rate.
 
+It is possible to use `-1` as a value for these flags in order to enable series tracking but set limit to maximum possible value.
+This is useful in order to estimate the number of unique series which is written to remote storage systems without enforcing limits.
+
 Both limits can be set simultaneously. If any of these limits is reached, then samples for new time series are dropped instead of sending
 them to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
 
