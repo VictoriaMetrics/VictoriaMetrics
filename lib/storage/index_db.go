@@ -202,10 +202,11 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
 
-	DateMetricIDCacheSize        uint64
-	DateMetricIDCacheSizeBytes   uint64
-	DateMetricIDCacheSyncsCount  uint64
-	DateMetricIDCacheResetsCount uint64
+	DateMetricIDCacheSize         uint64
+	DateMetricIDCacheSizeBytes    uint64
+	DateMetricIDCacheSizeMaxBytes uint64
+	DateMetricIDCacheSyncsCount   uint64
+	DateMetricIDCacheResetsCount  uint64
 
 	IndexDBRefCount uint64
 
@@ -250,10 +251,12 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
 	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
 
-	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
-	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
-	m.DateMetricIDCacheSyncsCount += db.dateMetricIDCache.syncsCount.Load()
-	m.DateMetricIDCacheResetsCount += db.dateMetricIDCache.resetsCount.Load()
+	dmcs := db.dateMetricIDCache.Stats()
+	m.DateMetricIDCacheSize += dmcs.Size
+	m.DateMetricIDCacheSizeBytes += dmcs.SizeBytes
+	m.DateMetricIDCacheSizeMaxBytes += dmcs.SizeMaxBytes
+	m.DateMetricIDCacheSyncsCount += dmcs.SyncsCount
+	m.DateMetricIDCacheResetsCount += dmcs.ResetsCount
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
