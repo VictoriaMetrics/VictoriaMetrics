@@ -22,7 +22,7 @@ There is no need to tune VictoriaMetrics because it uses reasonable defaults for
 
 ## Swap
 
-For machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage), [vmagent](https://docs.victoriametrics.com/vmagent/), or single-node VictoriaMetrics, disable swap to avoid performance issues. On systemd-based Linux distributions run:
+For machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage), [vmagent](https://docs.victoriametrics.com/vmagent/), or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), disable swap to avoid performance issues. On systemd-based Linux distributions run:
 
 ```sh
 sed -i '/\sswap\s/s/^/#/' /etc/fstab
