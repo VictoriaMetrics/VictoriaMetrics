@@ -35,12 +35,48 @@ func (rs *Rows) Reset() {
 }
 
 func (uc *unmarshalContext) reset() {
+	clear(uc.tagsPool)
 	uc.tagsPool = uc.tagsPool[:0]
+
+	clear(uc.fieldsPool)
 	uc.fieldsPool = uc.fieldsPool[:0]
+
 	uc.buf = uc.buf[:0]
 
 	uc.hasEscapeChars = false
 	uc.hasQuotedFields = false
+}
+
+func (uc *unmarshalContext) addTag() *Tag {
+	if cap(uc.tagsPool) > len(uc.tagsPool) {
+		uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)+1]
+	} else {
+		uc.tagsPool = append(uc.tagsPool, Tag{})
+	}
+	return &uc.tagsPool[len(uc.tagsPool)-1]
+}
+
+func (uc *unmarshalContext) removeLastTag() {
+	tag := &uc.tagsPool[len(uc.tagsPool)-1]
+	tag.reset()
+
+	uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
+}
+
+func (uc *unmarshalContext) addField() *Field {
+	if cap(uc.fieldsPool) > len(uc.fieldsPool) {
+		uc.fieldsPool = uc.fieldsPool[:len(uc.fieldsPool)+1]
+	} else {
+		uc.fieldsPool = append(uc.fieldsPool, Field{})
+	}
+	return &uc.fieldsPool[len(uc.fieldsPool)-1]
+}
+
+func (uc *unmarshalContext) removeLastField() {
+	f := &uc.fieldsPool[len(uc.fieldsPool)-1]
+	f.reset()
+
+	uc.fieldsPool = uc.fieldsPool[:len(uc.fieldsPool)-1]
 }
 
 // Unmarshal unmarshals influx line protocol rows from s.
@@ -239,52 +275,44 @@ var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="influx"}`)
 
 func unmarshalTags(s string, uc *unmarshalContext) error {
 	for {
-		if cap(uc.tagsPool) > len(uc.tagsPool) {
-			uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)+1]
-		} else {
-			uc.tagsPool = append(uc.tagsPool, Tag{})
-		}
-		tag := &uc.tagsPool[len(uc.tagsPool)-1]
+		tag := uc.addTag()
 		n := nextUnescapedChar(s, ',', uc)
 		if n < 0 {
 			if err := tag.unmarshal(s, uc); err != nil {
-				uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
+				uc.removeLastTag()
 				return err
 			}
 			if len(tag.Key) == 0 || len(tag.Value) == 0 {
 				// Skip empty tag
-				uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
+				uc.removeLastTag()
 			}
 			return nil
 		}
 		if err := tag.unmarshal(s[:n], uc); err != nil {
-			uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
+			uc.removeLastTag()
 			return err
 		}
 		s = s[n+1:]
 		if len(tag.Key) == 0 || len(tag.Value) == 0 {
 			// Skip empty tag
-			uc.tagsPool = uc.tagsPool[:len(uc.tagsPool)-1]
+			uc.removeLastTag()
 		}
 	}
 }
 
 func unmarshalInfluxFields(s string, uc *unmarshalContext) error {
 	for {
-		if cap(uc.fieldsPool) > len(uc.fieldsPool) {
-			uc.fieldsPool = uc.fieldsPool[:len(uc.fieldsPool)+1]
-		} else {
-			uc.fieldsPool = append(uc.fieldsPool, Field{})
-		}
-		f := &uc.fieldsPool[len(uc.fieldsPool)-1]
+		f := uc.addField()
 		n := nextUnquotedChar(s, ',', uc)
 		if n < 0 {
 			if err := f.unmarshal(s, uc); err != nil {
+				uc.removeLastField()
 				return err
 			}
 			return nil
 		}
 		if err := f.unmarshal(s[:n], uc); err != nil {
+			uc.removeLastField()
 			return err
 		}
 		s = s[n+1:]
