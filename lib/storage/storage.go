@@ -2321,6 +2321,7 @@ func (s *Storage) updatePerDateData(idb *indexDB, rows []rawRow, mrs []*MetricRo
 	)
 
 	hmPrevDate := hmPrev.hour / 24
+	hmCurrDate := hmCurr.hour / 24
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().metricIDs
 	ts := fasttime.UnixTimestamp()
 	// Start pre-populating the next per-day inverted index during the last hour of the current day.
@@ -2347,9 +2348,12 @@ func (s *Storage) updatePerDateData(idb *indexDB, rows []rawRow, mrs []*MetricRo
 		}
 		prevDate = date
 		prevMetricID = metricID
-		if hour == hmCurr.hour {
+
+		switch hour {
+		case hmCurr.hour, hmCurr.hour + 1:
 			// The row belongs to the current hour. Check for the current hour cache.
-			if hmCurr.m.Has(metricID) {
+			// Also handle the next hour because cache rotation may lag behind the actual hour change.
+			if date == hmCurrDate && hmCurr.m.Has(metricID) {
 				// Fast path: the metricID is in the current hour cache.
 				// This means the metricID has been already added to per-day inverted index.
 
@@ -2372,6 +2376,13 @@ func (s *Storage) updatePerDateData(idb *indexDB, rows []rawRow, mrs []*MetricRo
 			}
 			if date == hmPrevDate && hmPrev.m.Has(metricID) {
 				// The metricID is already registered for the current day on the previous hour.
+				continue
+			}
+
+		case hmPrev.hour:
+			// Handle rows with timestamps from the previous hour.
+			// That is essential for rows arriving just at the actual hour change.
+			if hmPrev.m.Has(metricID) {
 				continue
 			}
 		}
