@@ -4957,3 +4957,82 @@ func assertIndexDBIsNotNil(t *testing.T, idb *indexDB) {
 		t.Fatalf("unexpected idb: got nil, want non-nil")
 	}
 }
+
+// TestStorageMetrics_IndexDBBlockCaches checks that indexDB block cache metrics
+// are collected only once even though there can be more than one indexDB. The
+// reason for this is that block caches are shared between all indexDB instances
+// and their metrics must be collected only once regardless how many indexDBs
+// the storage has.
+func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
+	defer testRemoveAll(t)
+
+	assertMetric := func(name string, got, want uint64) {
+		t.Helper()
+		if got != want {
+			t.Fatalf("unexpected %s value: got %d, want %d", name, got, want)
+		}
+	}
+
+	assertMetrics := func(s *Storage) {
+		t.Helper()
+
+		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
+		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		var storageMetrics Metrics
+		s.UpdateMetrics(&storageMetrics)
+		got := storageMetrics.IndexDBMetrics
+		// Block cache metrics are the same for every indexDB, thus use block
+		// cache metrics from idbCurr.
+		var want IndexDBMetrics
+		idbCurr.UpdateMetrics(&want)
+
+		assertMetric("DataBlocksCacheSize", got.DataBlocksCacheSize, want.DataBlocksCacheSize)
+		assertMetric("DataBlocksCacheSizeBytes", got.DataBlocksCacheSizeBytes, want.DataBlocksCacheSizeBytes)
+		assertMetric("DataBlocksCacheSizeMaxBytes", got.DataBlocksCacheSizeMaxBytes, want.DataBlocksCacheSizeMaxBytes)
+		assertMetric("DataBlocksCacheRequests", got.DataBlocksCacheRequests, want.DataBlocksCacheRequests)
+		assertMetric("DataBlocksCacheMisses", got.DataBlocksCacheMisses, want.DataBlocksCacheMisses)
+		assertMetric("DataBlocksSparseCacheSize", got.DataBlocksSparseCacheSize, want.DataBlocksSparseCacheSize)
+		assertMetric("DataBlocksSparseCacheSizeBytes", got.DataBlocksSparseCacheSizeBytes, want.DataBlocksSparseCacheSizeBytes)
+		assertMetric("DataBlocksSparseCacheSizeMaxBytes", got.DataBlocksSparseCacheSizeMaxBytes, want.DataBlocksSparseCacheSizeMaxBytes)
+		assertMetric("DataBlocksSparseCacheRequests", got.DataBlocksSparseCacheRequests, want.DataBlocksSparseCacheRequests)
+		assertMetric("DataBlocksSparseCacheMisses", got.DataBlocksSparseCacheMisses, want.DataBlocksSparseCacheMisses)
+		assertMetric("IndexBlocksCacheSize", got.IndexBlocksCacheSize, want.IndexBlocksCacheSize)
+		assertMetric("IndexBlocksCacheSizeBytes", got.IndexBlocksCacheSizeBytes, want.IndexBlocksCacheSizeBytes)
+		assertMetric("IndexBlocksCacheSizeMaxBytes", got.IndexBlocksCacheSizeMaxBytes, want.IndexBlocksCacheSizeMaxBytes)
+		assertMetric("IndexBlocksCacheRequests", got.IndexBlocksCacheRequests, want.IndexBlocksCacheRequests)
+		assertMetric("IndexBlocksCacheMisses", got.IndexBlocksCacheMisses, want.IndexBlocksCacheMisses)
+	}
+
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Now().UnixMilli() - msecPerDay,
+		MaxTimestamp: time.Now().UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 100, "metric", tr)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+
+	// Check metrics right after the storage was opened.
+	assertMetrics(s)
+
+	// Check metrics right after the data was ingested.
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	assertMetrics(s)
+
+	// Check metrics right after the data was read
+	tfs := NewTagFilters(accountID, projectID)
+	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	_, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+	}
+	assertMetrics(s)
+}
