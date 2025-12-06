@@ -27,9 +27,6 @@ func getDateMetricIDCacheSize() uint64 {
 //
 // It should be faster than map[date]*uint64set.Set on multicore systems.
 type dateMetricIDCache struct {
-	syncsCount  atomic.Uint64
-	resetsCount atomic.Uint64
-
 	// Contains immutable map
 	byDate atomic.Pointer[byDateMetricIDMap]
 
@@ -40,6 +37,12 @@ type dateMetricIDCache struct {
 	// Is used for deciding when to merge byDateMutable to byDate.
 	// Protected by mu.
 	slowHits int
+
+	// Protected by mu.
+	syncsCount uint64
+
+	// Protected by mu.
+	resetsCount uint64
 
 	mu sync.Mutex
 }
@@ -56,42 +59,38 @@ func (dmc *dateMetricIDCache) resetLocked() {
 	dmc.byDateMutable = newByDateMetricIDMap()
 	dmc.slowHits = 0
 
-	dmc.resetsCount.Add(1)
+	dmc.resetsCount++
 }
 
-func (dmc *dateMetricIDCache) EntriesCount() int {
+type dateMetricIDCacheStats struct {
+	Size         uint64
+	SizeBytes    uint64
+	SizeMaxBytes uint64
+	ResetsCount  uint64
+	SyncsCount   uint64
+}
+
+func (dmc *dateMetricIDCache) Stats() dateMetricIDCacheStats {
+	s := dateMetricIDCacheStats{
+		SizeMaxBytes: getDateMetricIDCacheSize(),
+	}
+
 	dmc.mu.Lock()
 	defer dmc.mu.Unlock()
 
-	n := 0
 	for _, metricIDs := range dmc.byDate.Load().m {
-		n += metricIDs.Len()
+		s.Size += uint64(metricIDs.Len())
+		s.SizeBytes += metricIDs.SizeBytes()
 	}
 	for _, metricIDs := range dmc.byDateMutable.m {
-		n += metricIDs.Len()
+		s.Size += uint64(metricIDs.Len())
+		s.SizeBytes += metricIDs.SizeBytes()
 	}
-	return n
-}
 
-func (dmc *dateMetricIDCache) SizeBytes() uint64 {
-	dmc.mu.Lock()
-	defer dmc.mu.Unlock()
-	return dmc.sizeBytesLocked()
-}
+	s.ResetsCount = dmc.resetsCount
+	s.SyncsCount = dmc.syncsCount
 
-func (dmc *dateMetricIDCache) sizeBytesLocked() uint64 {
-	n := uint64(0)
-	for _, metricIDs := range dmc.byDate.Load().m {
-		n += metricIDs.SizeBytes()
-	}
-	for _, metricIDs := range dmc.byDateMutable.m {
-		n += metricIDs.SizeBytes()
-	}
-	return n
-}
-
-func (dmc *dateMetricIDCache) SizeMaxBytes() uint64 {
-	return getDateMetricIDCacheSize()
+	return s
 }
 
 func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
@@ -194,13 +193,18 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		}
 	}
 
+	var sizeBytes uint64
+	for _, v := range dmc.byDateMutable.m {
+		sizeBytes += v.SizeBytes()
+	}
+
 	// Atomically replace byDate with byDateMutable
 	dmc.byDate.Store(dmc.byDateMutable)
 	dmc.byDateMutable = newByDateMetricIDMap()
 
-	dmc.syncsCount.Add(1)
+	dmc.syncsCount++
 
-	if dmc.sizeBytesLocked() > getDateMetricIDCacheSize() {
+	if sizeBytes > getDateMetricIDCacheSize() {
 		dmc.resetLocked()
 	}
 }

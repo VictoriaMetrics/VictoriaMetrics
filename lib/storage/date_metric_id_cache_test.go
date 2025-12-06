@@ -88,13 +88,13 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	}
 
 	// Verify c.Reset
-	if n := c.EntriesCount(); !concurrent && n < 123 {
+	if n := c.Stats().Size; !concurrent && n < 123 {
 		return fmt.Errorf("c.EntriesCount must return at least 123; returned %d", n)
 	}
 	c.mu.Lock()
 	c.resetLocked()
 	c.mu.Unlock()
-	if n := c.EntriesCount(); !concurrent && n > 0 {
+	if n := c.Stats().Size; !concurrent && n > 0 {
 		return fmt.Errorf("c.EntriesCount must return 0 after reset; returned %d", n)
 	}
 	return nil
@@ -129,7 +129,7 @@ func TestDateMetricIDCache_SizeMaxBytes(t *testing.T) {
 
 	assertSizeMaxBytes := func(dmc *dateMetricIDCache, want uint64) {
 		t.Helper()
-		if got := dmc.SizeMaxBytes(); got != want {
+		if got := dmc.Stats().SizeMaxBytes; got != want {
 			t.Fatalf("unexpected sizeMaxBytes: got %d, want %d", got, want)
 		}
 	}
@@ -155,14 +155,14 @@ func TestDateMetricIDCache_SizeMaxBytes(t *testing.T) {
 	assertSizeMaxBytes(dmc, defaultSizeMaxBytes)
 }
 
-func TestDateMetricIDCache_EntriesCount(t *testing.T) {
+func TestDateMetricIDCache_Size(t *testing.T) {
 	dmc := newDateMetricIDCache()
 	for i := range 100_000 {
 		date := 12345 + uint64(i%30)
 		metricID := uint64(i)
 		dmc.Set(date, metricID)
 
-		if got, want := dmc.EntriesCount(), i+1; got != want {
+		if got, want := dmc.Stats().Size, uint64(i+1); got != want {
 			t.Fatalf("unexpected size: got %d, want %d", got, want)
 		}
 	}
@@ -175,7 +175,7 @@ func TestDateMetricIDCache_EntriesCount(t *testing.T) {
 			t.Fatalf("entry not in cache: (date=%d, metricID=%d)", date, metricID)
 		}
 	}
-	if got, want := dmc.EntriesCount(), 100_000; got != want {
+	if got, want := dmc.Stats().Size, uint64(100_000); got != want {
 		t.Fatalf("unexpected size: got %d, want %d", got, want)
 	}
 }
@@ -189,7 +189,7 @@ func TestDateMetricIDCache_SizeBytes(t *testing.T) {
 		metricIDs.Add(metricID)
 		dmc.Set(date, metricID)
 	}
-	if got, want := dmc.SizeBytes(), metricIDs.SizeBytes(); got != want {
+	if got, want := dmc.Stats().SizeBytes, metricIDs.SizeBytes(); got != want {
 		t.Fatalf("unexpected sizeBytes: got %d, want %d", got, want)
 	}
 
@@ -201,7 +201,7 @@ func TestDateMetricIDCache_SizeBytes(t *testing.T) {
 			t.Fatalf("entry not in cache: (date=%d, metricID=%d)", date, metricID)
 		}
 	}
-	if got, want := dmc.SizeBytes(), metricIDs.SizeBytes(); got != want {
+	if got, want := dmc.Stats().SizeBytes, metricIDs.SizeBytes(); got != want {
 		t.Fatalf("unexpected sizeBytes: got %d, want %d", got, want)
 	}
 }

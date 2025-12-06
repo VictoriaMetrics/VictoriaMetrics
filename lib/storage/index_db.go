@@ -251,11 +251,12 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
 	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
 
-	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
-	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
-	m.DateMetricIDCacheSizeMaxBytes += uint64(db.dateMetricIDCache.SizeMaxBytes())
-	m.DateMetricIDCacheSyncsCount += db.dateMetricIDCache.syncsCount.Load()
-	m.DateMetricIDCacheResetsCount += db.dateMetricIDCache.resetsCount.Load()
+	dmcs := db.dateMetricIDCache.Stats()
+	m.DateMetricIDCacheSize += dmcs.Size
+	m.DateMetricIDCacheSizeBytes += dmcs.SizeBytes
+	m.DateMetricIDCacheSizeMaxBytes += dmcs.SizeMaxBytes
+	m.DateMetricIDCacheSyncsCount += dmcs.SyncsCount
+	m.DateMetricIDCacheResetsCount += dmcs.ResetsCount
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
