@@ -59,7 +59,7 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs
+			return metricIDs.AppendTo(nil)
 		}
 		searchTSIDs := func() []TSID {
 			tsids, err := s.SearchTSIDs(nil, tfssAll, tr, 1e9, noDeadline)
@@ -160,7 +160,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
-			return metricIDs
+			return metricIDs.AppendTo(nil)
 		}
 		searchMetricNames := func() []string {
 			metricNames, err := s.SearchMetricNames(nil, tfssAll, tr, 1e9, noDeadline)
@@ -598,16 +598,16 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 	defer testRemoveAll(t)
 
-	assertNextDayMetricIDs := func(t *testing.T, gotNextDayMetricIDs *byDateMetricIDEntry, wantGen, wantDate uint64, wantLen int) {
+	assertNextDayMetricIDs := func(t *testing.T, gotNextDayMetricIDs *nextDayMetricIDs, wantGen, wantDate uint64, wantLen int) {
 		t.Helper()
 
-		if got, want := gotNextDayMetricIDs.k.generation, wantGen; got != want {
+		if got, want := gotNextDayMetricIDs.generation, wantGen; got != want {
 			t.Fatalf("unexpected nextDayMetricIDs idb generation: got %d, want %d", got, want)
 		}
-		if got, want := gotNextDayMetricIDs.k.date, wantDate; got != want {
+		if got, want := gotNextDayMetricIDs.date, wantDate; got != want {
 			t.Fatalf("unexpected nextDayMetricIDs date: got %d, want %d", got, want)
 		}
-		if got, want := gotNextDayMetricIDs.v.Len(), wantLen; got != want {
+		if got, want := gotNextDayMetricIDs.metricIDs.Len(), wantLen; got != want {
 			t.Fatalf("unexpected nextDayMetricIDs count: got %d, want %d", got, want)
 		}
 	}

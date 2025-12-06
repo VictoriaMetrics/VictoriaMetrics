@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -37,7 +38,7 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, verbos
 	}
 }
 
-func (op *otsdbProcessor) run() error {
+func (op *otsdbProcessor) run(ctx context.Context) error {
 	log.Println("Loading all metrics from OpenTSDB for filters: ", op.oc.Filters)
 	var metrics []string
 	for _, filter := range op.oc.Filters {
@@ -53,7 +54,7 @@ func (op *otsdbProcessor) run() error {
 	}
 
 	question := fmt.Sprintf("Found %d metrics to import. Continue?", len(metrics))
-	if !prompt(question) {
+	if !prompt(ctx, question) {
 		return nil
 	}
 	op.im.ResetStats()

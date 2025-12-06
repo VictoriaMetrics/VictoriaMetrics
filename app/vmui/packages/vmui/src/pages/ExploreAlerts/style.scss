@@ -1,11 +1,8 @@
 @use "src/styles/variables" as *;
 
 .vm-explore-alert-group {
+  content-visibility: auto;
   width: 100%;
-  &:has(.vm-accordion-header_open) {
-    border: $border-divider;
-    border-radius: $border-radius-small;
-  }
 }
 
 .vm-explore-alerts.vm-modal {

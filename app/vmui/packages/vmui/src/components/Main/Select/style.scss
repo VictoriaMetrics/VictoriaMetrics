@@ -1,6 +1,8 @@
 @use "src/styles/variables" as *;
 
 .vm-select {
+  position: relative;
+  display: grid;
   &-input {
     position: relative;
     display: flex;

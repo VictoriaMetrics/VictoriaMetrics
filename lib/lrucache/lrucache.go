@@ -17,6 +17,8 @@ import (
 //
 // Call NewCache() for creating new Cache.
 type Cache struct {
+	resets atomic.Uint64
+
 	shards []*cache
 
 	cleanerMustStopCh chan struct{}
@@ -27,7 +29,7 @@ type Cache struct {
 //
 // Cache size in bytes is limited by the value returned by getMaxSizeBytes() callback.
 // Call MustStop() in order to free up resources occupied by Cache.
-func NewCache(getMaxSizeBytes func() int) *Cache {
+func NewCache(getMaxSizeBytes func() uint64) *Cache {
 	cpusCount := cgroup.AvailableCPUs()
 	shardsCount := cgroup.AvailableCPUs()
 	// Increase the number of shards with the increased number of available CPU cores.
@@ -38,9 +40,9 @@ func NewCache(getMaxSizeBytes func() int) *Cache {
 	}
 	shardsCount *= multiplier
 	shards := make([]*cache, shardsCount)
-	getMaxShardBytes := func() int {
+	getMaxShardBytes := func() uint64 {
 		n := getMaxSizeBytes()
-		return n / shardsCount
+		return n / uint64(shardsCount)
 	}
 	for i := range shards {
 		shards[i] = newCache(getMaxShardBytes)
@@ -58,6 +60,14 @@ func NewCache(getMaxSizeBytes func() int) *Cache {
 func (c *Cache) MustStop() {
 	close(c.cleanerMustStopCh)
 	<-c.cleanerStoppedCh
+}
+
+// Reset resets the cache.
+func (c *Cache) Reset() {
+	c.resets.Add(1)
+	for _, shard := range c.shards {
+		shard.Reset()
+	}
 }
 
 // GetEntry returns an Entry for the given key k from c.
@@ -92,8 +102,8 @@ func (c *Cache) Len() int {
 }
 
 // SizeBytes returns an approximate size in bytes of all the blocks stored in the cache c.
-func (c *Cache) SizeBytes() int {
-	n := 0
+func (c *Cache) SizeBytes() uint64 {
+	n := uint64(0)
 	for _, shard := range c.shards {
 		n += shard.SizeBytes()
 	}
@@ -101,15 +111,16 @@ func (c *Cache) SizeBytes() int {
 }
 
 // SizeMaxBytes returns the max allowed size in bytes for c.
-func (c *Cache) SizeMaxBytes() int {
-	n := 0
+func (c *Cache) SizeMaxBytes() uint64 {
+	n := uint64(0)
 	for _, shard := range c.shards {
 		n += shard.SizeMaxBytes()
 	}
 	return n
 }
 
-// Requests returns the number of requests served by c.
+// Requests returns the number of requests served by c since cache creation or
+// last reset.
 func (c *Cache) Requests() uint64 {
 	n := uint64(0)
 	for _, shard := range c.shards {
@@ -118,13 +129,19 @@ func (c *Cache) Requests() uint64 {
 	return n
 }
 
-// Misses returns the number of cache misses for c.
+// Misses returns the number of cache misses for c since cache creation or last
+// reset.
 func (c *Cache) Misses() uint64 {
 	n := uint64(0)
 	for _, shard := range c.shards {
 		n += shard.Misses()
 	}
 	return n
+}
+
+// Resets returns the number of cache resets since its creation.
+func (c *Cache) Resets() uint64 {
+	return c.resets.Load()
 }
 
 func (c *Cache) cleaner() {
@@ -153,10 +170,10 @@ type cache struct {
 	misses   atomic.Uint64
 
 	// sizeBytes contains an approximate size for all the blocks stored in the cache.
-	sizeBytes atomic.Int64
+	sizeBytes atomic.Uint64
 
 	// getMaxSizeBytes() is a callback, which returns the maximum allowed cache size in bytes.
-	getMaxSizeBytes func() int
+	getMaxSizeBytes func() uint64
 
 	// mu protects all the fields below.
 	mu sync.Mutex
@@ -176,7 +193,7 @@ func hashUint64(s string) uint64 {
 // Entry is an item, which may be cached in the Cache.
 type Entry interface {
 	// SizeBytes must return the approximate size of the given entry in bytes
-	SizeBytes() int
+	SizeBytes() uint64
 }
 
 type cacheEntry struct {
@@ -193,15 +210,24 @@ type cacheEntry struct {
 	e Entry
 }
 
-func newCache(getMaxSizeBytes func() int) *cache {
+func newCache(getMaxSizeBytes func() uint64) *cache {
 	var c cache
 	c.getMaxSizeBytes = getMaxSizeBytes
 	c.m = make(map[string]*cacheEntry)
 	return &c
 }
 
-func (c *cache) updateSizeBytes(n int) {
-	c.sizeBytes.Add(int64(n))
+func (c *cache) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.m = make(map[string]*cacheEntry)
+	c.lah = nil
+	c.sizeBytes.Store(0)
+}
+
+func (c *cache) updateSizeBytes(n uint64) {
+	c.sizeBytes.Add(n)
 }
 
 func (c *cache) cleanByTimeout() {
@@ -273,11 +299,11 @@ func (c *cache) Len() int {
 	return len(c.m)
 }
 
-func (c *cache) SizeBytes() int {
-	return int(c.sizeBytes.Load())
+func (c *cache) SizeBytes() uint64 {
+	return c.sizeBytes.Load()
 }
 
-func (c *cache) SizeMaxBytes() int {
+func (c *cache) SizeMaxBytes() uint64 {
 	return c.getMaxSizeBytes()
 }
 

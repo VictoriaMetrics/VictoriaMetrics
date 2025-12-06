@@ -146,7 +146,7 @@ A Kubernetes environment that produces 5k time series per second with 1-year of 
 `(1 byte-per-sample * 5000 time series * 2 replication factor * 34128000 seconds) * 1.2 ) / 2^30 = 381 GB`
 
 VictoriaMetrics requires additional disk space for the index. The lower Churn Rate, the lower is disk space usage for the index.
-Usually, index takes about **20%** of the disk space for storing data. High cardinality setups may use **>50%** of storage size for index.
+Usually, index takes about **20%** of the disk space for storing data. High cardinality setups may use **>50%** of storage size for index. If your indexdb looks unexpectedly large, see [FAQ: Why indexdb size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large) for typical ratios and troubleshooting tips.
 
 You can significantly reduce the amount of disk usage by using [Downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling)
 and [Retention Filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention-filters). These settings are available in VictoriaMetrics Cloud and Enterprise.

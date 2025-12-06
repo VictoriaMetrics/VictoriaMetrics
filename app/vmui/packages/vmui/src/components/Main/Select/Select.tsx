@@ -137,6 +137,7 @@ const Select: FC<SelectProps> = ({
         "vm-select_disabled": disabled
       })}
     >
+      {label && <span className="vm-text-field__label">{label}</span>}
       <div
         className="vm-select-input"
         onClick={handleToggleList}
@@ -150,7 +151,7 @@ const Select: FC<SelectProps> = ({
               onRemoveItem={handleSelected}
             />
           )}
-          {!hideInput && !selectedValues?.length && (
+          {!hideInput && (
             <input
               value={textFieldValue}
               type="text"
@@ -164,7 +165,6 @@ const Select: FC<SelectProps> = ({
             />
           )}
         </div>
-        {label && <span className="vm-text-field__label">{label}</span>}
         {clearable && value && (
           <div
             className="vm-select-input__icon"

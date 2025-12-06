@@ -20,7 +20,7 @@ describe("test server urls", () => {
 
     it("https://play.vm.com/#/rules?q=test", () => {
       const result = getDefaultURL("https://play.vm.com/#/rules?q=test");
-      expect(result).toBe("https://play.vm.com");
+      expect(result).toBe("https://play.vm.com/prometheus");
     });
   });
 });

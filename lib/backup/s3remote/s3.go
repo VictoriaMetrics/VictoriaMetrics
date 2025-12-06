@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -26,34 +27,54 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
-var (
-	supportedStorageClasses = []s3types.StorageClass{s3types.StorageClassGlacier, s3types.StorageClassDeepArchive, s3types.StorageClassGlacierIr, s3types.StorageClassIntelligentTiering, s3types.StorageClassOnezoneIa, s3types.StorageClassOutposts, s3types.StorageClassReducedRedundancy, s3types.StorageClassStandard, s3types.StorageClassStandardIa}
-)
-
-func validateStorageClass(storageClass s3types.StorageClass) error {
+func validateStorageClass(v s3types.StorageClass) error {
 	// if no storageClass set, no need to validate against supported values
 	// backwards compatibility
-	if len(storageClass) == 0 {
+	if len(v) == 0 || slices.Contains(v.Values(), v) {
 		return nil
 	}
+	return fmt.Errorf("unsupported S3 storage class %q. Supported values: %v", v, v.Values())
+}
 
-	for _, supported := range supportedStorageClasses {
-		if supported == storageClass {
-			return nil
-		}
+func validateObjectACL(v s3types.ObjectCannedACL) error {
+	if len(v) == 0 || slices.Contains(v.Values(), v) {
+		return nil
 	}
+	return fmt.Errorf("unsupported S3 object ACL %q. Supported values: %v", v, v.Values())
+}
 
-	return fmt.Errorf("unsupported S3 storage class: %s. Supported values: %v", storageClass, supportedStorageClasses)
+func validateChecksumAlgorithm(v s3types.ChecksumAlgorithm) error {
+	if len(v) == 0 || slices.Contains(v.Values(), v) {
+		return nil
+	}
+	return fmt.Errorf("unsupported S3 checksum algorithm %q. Supported values: %v", v, v.Values())
+}
+
+func validateSSEAlgorithm(v s3types.ServerSideEncryption) error {
+	if len(v) == 0 || slices.Contains(v.Values(), v) {
+		return nil
+	}
+	return fmt.Errorf("unsupported S3 server-side algorithm %q. Supported values: %v", v, v.Values())
 }
 
 // StringToStorageClass converts string types to AWS S3 StorageClass type for value comparison
-func StringToStorageClass(sc string) s3types.StorageClass {
-	return s3types.StorageClass(sc)
+func StringToStorageClass(s string) s3types.StorageClass {
+	return s3types.StorageClass(s)
 }
 
 // StringToChecksumAlgorithm converts string types to AWS S3 ChecksumAlgorithm type for value comparison
-func StringToChecksumAlgorithm(alg string) s3types.ChecksumAlgorithm {
-	return s3types.ChecksumAlgorithm(alg)
+func StringToChecksumAlgorithm(s string) s3types.ChecksumAlgorithm {
+	return s3types.ChecksumAlgorithm(s)
+}
+
+// StringToObjectACL converts string types to AWS S3 ACL type for value comparison
+func StringToObjectACL(s string) s3types.ObjectCannedACL {
+	return s3types.ObjectCannedACL(s)
+}
+
+// StringToEncryptionAlgorithm converts string types to AWS S3 server-side encryption type for value comparison
+func StringToEncryptionAlgorithm(s string) s3types.ServerSideEncryption {
+	return s3types.ServerSideEncryption(s)
 }
 
 // FS represents filesystem for backups in S3.
@@ -89,6 +110,11 @@ type FS struct {
 
 	// Whether to use HTTP client with tls.InsecureSkipVerify setting
 	TLSInsecureSkipVerify bool
+
+	// SSEKMSKeyId
+	SSEKMSKeyId  string
+	SSEAlgorithm s3types.ServerSideEncryption
+	ACL          s3types.ObjectCannedACL
 
 	s3       *s3.Client
 	uploader *manager.Uploader
@@ -167,6 +193,15 @@ func (fs *FS) Init(ctx context.Context) error {
 	}
 
 	if err = validateStorageClass(fs.StorageClass); err != nil {
+		return err
+	}
+	if err = validateChecksumAlgorithm(fs.ChecksumAlgorithm); err != nil {
+		return err
+	}
+	if err = validateObjectACL(fs.ACL); err != nil {
+		return err
+	}
+	if err = validateSSEAlgorithm(fs.SSEAlgorithm); err != nil {
 		return err
 	}
 
@@ -322,6 +357,11 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		Metadata:          fs.Metadata,
 		MetadataDirective: s3types.MetadataDirectiveReplace,
 		Tagging:           fs.tags,
+		ACL:               fs.ACL,
+	}
+	if len(fs.SSEKMSKeyId) > 0 {
+		input.SSEKMSKeyId = aws.String(fs.SSEKMSKeyId)
+		input.ServerSideEncryption = fs.SSEAlgorithm
 	}
 
 	_, err := fs.s3.CopyObject(fs.ctx, input)
@@ -370,6 +410,11 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		Metadata:          fs.Metadata,
 		ChecksumAlgorithm: fs.ChecksumAlgorithm,
 		Tagging:           fs.tags,
+		ACL:               fs.ACL,
+	}
+	if len(fs.SSEKMSKeyId) > 0 {
+		input.SSEKMSKeyId = aws.String(fs.SSEKMSKeyId)
+		input.ServerSideEncryption = fs.SSEAlgorithm
 	}
 
 	_, err := fs.uploader.Upload(fs.ctx, input)
@@ -463,7 +508,13 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 		Metadata:          fs.Metadata,
 		ChecksumAlgorithm: fs.ChecksumAlgorithm,
 		Tagging:           fs.tags,
+		ACL:               fs.ACL,
 	}
+	if len(fs.SSEKMSKeyId) > 0 {
+		input.SSEKMSKeyId = aws.String(fs.SSEKMSKeyId)
+		input.ServerSideEncryption = fs.SSEAlgorithm
+	}
+
 	_, err := fs.uploader.Upload(fs.ctx, input)
 	if err != nil {
 		return fmt.Errorf("cannot upload data to %q at %s (remote path %q): %w", filePath, fs, path, err)
