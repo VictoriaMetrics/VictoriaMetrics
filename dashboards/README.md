@@ -8,3 +8,12 @@ The listed dashboards can be found on [Grafana website](https://grafana.com/orgs
 
 When making changes to the dashboards in `dashboards` folder, don't forget to call `make dashboards-sync`
 and sync changes to [Grafana website](https://grafana.com/orgs/victoriametrics/dashboards).
+
+## Status Page Dashboard
+
+`status-page-generated.json` is auto-generated from alert rules (`deployment/docker/rules/*.yml`).
+Shows health percentage per alert across all components.
+
+**Generator** in `dashgen/`: parser -> queries -> jsonnet template
+
+**Testing:** `make dashgen-test`
