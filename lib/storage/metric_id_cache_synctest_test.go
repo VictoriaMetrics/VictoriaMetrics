@@ -4,6 +4,9 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
@@ -50,5 +53,62 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 				t.Fatalf("entry not in cache")
 			}
 		}
+	})
+}
+
+func TestMetricIDCache_Stats(t *testing.T) {
+	assertStats := func(t *testing.T, c *metricIDCache, want metricIDCacheStats) {
+		if diff := cmp.Diff(want, c.Stats()); diff != "" {
+			t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
+		}
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		c := newMetricIDCache()
+		defer c.Stop()
+
+		// Check stats right after the creation.
+		assertStats(t, c, metricIDCacheStats{})
+
+		// Add metricIDs and check stats.
+		// At this point, all metricIDs are in next.
+		metricIDs := uint64set.Set{}
+		for metricID := range uint64(100_000) {
+			c.Set(metricID)
+			metricIDs.Add(metricID)
+		}
+		assertStats(t, c, metricIDCacheStats{
+			Size:      100_000,
+			SizeBytes: metricIDs.SizeBytes(),
+		})
+
+		// Get all metricIDs and check stats.
+		// All metricIDs will be moved from next to curr.
+		for metricID := range uint64(100_000) {
+			if !c.Has(metricID) {
+				t.Fatalf("metricID not in cache: %d", metricID)
+			}
+		}
+		assertStats(t, c, metricIDCacheStats{
+			Size:       100_000,
+			SizeBytes:  metricIDs.SizeBytes(),
+			SyncsCount: 1,
+		})
+
+		// Wait until next rotation.
+		// All metricIDs will be moved to prev.
+		time.Sleep(time.Hour + 15*time.Minute)
+		assertStats(t, c, metricIDCacheStats{
+			Size:       100_000,
+			SizeBytes:  metricIDs.SizeBytes(),
+			SyncsCount: 2,
+		})
+
+		// Wait until another rotation.
+		// The cache now should be empty.
+		time.Sleep(time.Hour + 15*time.Minute)
+		assertStats(t, c, metricIDCacheStats{
+			SyncsCount: 3,
+		})
 	})
 }

@@ -32,6 +32,9 @@ type metricIDCache struct {
 	// to merge next to curr. Protected by mu.
 	slowHits int
 
+	// Contains the number times the cache was rotated. Protected by mu.
+	syncsCount uint64
+
 	mu sync.Mutex
 
 	stopCh           chan struct{}
@@ -53,6 +56,34 @@ func newMetricIDCache() *metricIDCache {
 func (c *metricIDCache) Stop() {
 	close(c.stopCh)
 	<-c.cleanerStoppedCh
+}
+
+type metricIDCacheStats struct {
+	Size       uint64
+	SizeBytes  uint64
+	SyncsCount uint64
+}
+
+func (c *metricIDCache) Stats() metricIDCacheStats {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var s metricIDCacheStats
+	curr := c.curr.Load()
+	s.Size = uint64(curr.Len() + c.prev.Len() + c.next.Len())
+	if curr.Len() > 0 {
+		// empty uint64set.Set still occupies a few bytes. Ignore them.
+		s.SizeBytes = curr.SizeBytes()
+	}
+	if c.prev.Len() > 0 {
+		s.SizeBytes += c.prev.SizeBytes()
+	}
+	if c.next.Len() > 0 {
+		s.SizeBytes += c.next.SizeBytes()
+	}
+	s.SyncsCount = c.syncsCount
+
+	return s
 }
 
 func (c *metricIDCache) Has(metricID uint64) bool {
@@ -118,6 +149,8 @@ func (c *metricIDCache) syncLocked() {
 	c.curr.Store(c.next)
 	c.prev = curr
 	c.next = &uint64set.Set{}
+
+	c.syncsCount++
 }
 
 func (c *metricIDCache) startCleaner() {
