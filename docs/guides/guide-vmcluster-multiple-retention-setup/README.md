@@ -60,7 +60,7 @@ You can set up [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/
 
 **Downsides Of This Approach**
 
-This approach requires running multipule VictoriaMetrics instances, each storing their own separate, with Enterprise, you only run one VictoriaMetrics instance, so your only storing the index once, reducing storage space.
+This approach requires running multiple VictoriaMetrics instances, each storing their own separate index. With Enterprise, you only run one VictoriaMetrics instance, so you're only storing the index once, reducing storage space.
 The index can be quite large on systems where they have time series that change frequently. In some cases, the index size can be larger than the space you're saving with separate retention periods. See [What is high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)
 
 Configuration complexity is also a concern; each retention period would have its own storage nodes and unique configurations. Adding a new retention policy requires:
