@@ -10,23 +10,26 @@ import (
 )
 
 // metricIDCache stores metricIDs that have been added to the index. It is used
-// during data ingestion do decide whether a new entry needs to be added to the
+// during data ingestion to decide whether a new entry needs to be added to the
 // global index.
 //
 // The cache avoids synchronization on the read path if possible to reduce
 // contention. Based on dateMetricIDCache ideas.
 type metricIDCache struct {
-	// Contains vImmutable map
-	vCurrImmutable atomic.Pointer[uint64set.Set]
+	// Contains immutable set of metricIDs.
+	curr atomic.Pointer[uint64set.Set]
 
-	vPrevImmutable *uint64set.Set
+	// Contains immutable set of metricIDs that used to be current before cache
+	// rotation. It is used to implement periodic cache clean-up. Protected by
+	// mu.
+	prev *uint64set.Set
 
-	// Contains vMutable map protected by mu
-	vMutable *uint64set.Set
+	// Contains the mutable set of metricIDs that either have been added to the
+	// cache recently or migrated from prev. Protected by mu.
+	next *uint64set.Set
 
-	// Contains the number of slow accesses to vMutable.
-	// Is used for deciding when to merge vMutable to vImmutable.
-	// Protected by mu.
+	// Contains the number of slow accesses to next. Is used for deciding when
+	// to merge next to curr. Protected by mu.
 	slowHits int
 
 	mu sync.Mutex
@@ -36,102 +39,100 @@ type metricIDCache struct {
 }
 
 func newMetricIDCache() *metricIDCache {
-	mc := metricIDCache{
-		vPrevImmutable:   &uint64set.Set{},
-		vMutable:         &uint64set.Set{},
+	c := metricIDCache{
+		prev:             &uint64set.Set{},
+		next:             &uint64set.Set{},
 		stopCh:           make(chan struct{}),
 		cleanerStoppedCh: make(chan struct{}),
 	}
-	mc.vCurrImmutable.Store(&uint64set.Set{})
-	go mc.startCleaner()
-	return &mc
+	c.curr.Store(&uint64set.Set{})
+	go c.startCleaner()
+	return &c
 }
 
-func (mc *metricIDCache) Stop() {
-	close(mc.stopCh)
-	<-mc.cleanerStoppedCh
+func (c *metricIDCache) Stop() {
+	close(c.stopCh)
+	<-c.cleanerStoppedCh
 }
 
-func (mc *metricIDCache) Has(metricID uint64) bool {
-	if mc.vCurrImmutable.Load().Has(metricID) {
+func (c *metricIDCache) Has(metricID uint64) bool {
+	if c.curr.Load().Has(metricID) {
 		// Fast path. The majority of calls must go here.
 		return true
 	}
-	// Slow path. Acquire the lock and search the vImmutable map again and then
-	// also search the vMutable map.
-	return mc.hasSlow(metricID)
+	// Slow path. Acquire the lock and search the curr again and then also
+	// search prev and next.
+	return c.hasSlow(metricID)
 }
 
-func (mc *metricIDCache) hasSlow(metricID uint64) bool {
-	mc.mu.Lock()
-	defer mc.mu.Unlock()
+func (c *metricIDCache) hasSlow(metricID uint64) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	// First, check vImmutable map again because the entry may have been moved to
-	// the vImmutable map by the time the caller acquires the lock.
-	vCurrImmutable := mc.vCurrImmutable.Load()
-	if vCurrImmutable.Has(metricID) {
+	// First, check curr again because the entry may have been moved to curr by
+	// the time the caller acquires the lock.
+	curr := c.curr.Load()
+	if curr.Has(metricID) {
 		return true
 	}
 
-	// Then check vPrevImmutable and vMutable maps.
+	// Then check prev and next sets.
 	var ok bool
-	vMutable := mc.vMutable
-	if mc.vPrevImmutable.Has(metricID) {
-		vMutable.Add(metricID)
+	next := c.next
+	if c.prev.Has(metricID) {
+		// the metricID is in prev but is still in use. Thus, migrate it to
+		// next.
+		next.Add(metricID)
 		ok = true
 	} else {
-		ok = vMutable.Has(metricID)
+		ok = next.Has(metricID)
 	}
 
 	if ok {
-		mc.slowHits++
-		if mc.slowHits > (vCurrImmutable.Len()+vMutable.Len())/2 {
-			// It is cheaper to merge vMutable part into vImmutable than to pay inter-cpu sync costs when accessing vMutable.
-			mc.syncLocked()
-			mc.slowHits = 0
+		c.slowHits++
+		if c.slowHits > (curr.Len()+next.Len())/2 {
+			// It is cheaper to merge next into curr than to pay inter-cpu sync
+			// costs when accessing next.
+			c.syncLocked()
+			c.slowHits = 0
 		}
 	}
 	return ok
 }
 
-func (mc *metricIDCache) Set(metricID uint64) {
-	mc.mu.Lock()
-	v := mc.vMutable
+func (c *metricIDCache) Set(metricID uint64) {
+	c.mu.Lock()
+	v := c.next
 	v.Add(metricID)
-	mc.mu.Unlock()
+	c.mu.Unlock()
 }
 
-func (mc *metricIDCache) syncLocked() {
-	// Merge data from vCurrImmutable into vMutable.
-	vCurrImmutable := mc.vCurrImmutable.Load()
-	if mc.vMutable.Len() > 0 {
-		mc.vMutable.Union(vCurrImmutable)
+func (c *metricIDCache) syncLocked() {
+	// Merge data from curr into next.
+	curr := c.curr.Load()
+	if c.next.Len() > 0 {
+		c.next.Union(curr)
 	}
 
-	// Atomically replace vCurrImmutable with vMutable and
-	// vPrevImmutable with vCurrMutable.
-	mc.vCurrImmutable.Store(mc.vMutable)
-	mc.vPrevImmutable = vCurrImmutable
-	mc.vMutable = &uint64set.Set{}
+	// Atomically replace curr with next and prev with curr.
+	c.curr.Store(c.next)
+	c.prev = curr
+	c.next = &uint64set.Set{}
 }
 
-func (mc *metricIDCache) startCleaner() {
+func (c *metricIDCache) startCleaner() {
 	d := timeutil.AddJitterToDuration(time.Hour)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-mc.stopCh:
-			close(mc.cleanerStoppedCh)
+		case <-c.stopCh:
+			close(c.cleanerStoppedCh)
 			return
 		case <-ticker.C:
-			mc.clean()
+			c.mu.Lock()
+			c.syncLocked()
+			c.mu.Unlock()
 		}
 	}
-}
-
-func (mc *metricIDCache) clean() {
-	mc.mu.Lock()
-	defer mc.mu.Unlock()
-	mc.syncLocked()
 }
