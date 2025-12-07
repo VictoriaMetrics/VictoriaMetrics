@@ -1,6 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.25.4
+go 1.25.5
 
 require (
 	cloud.google.com/go/storage v1.57.0
@@ -8,7 +8,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.2
 	github.com/VictoriaMetrics/VictoriaLogs v1.36.2-0.20251008164716-21c0fb3de84d
-	github.com/VictoriaMetrics/easyproto v0.1.4
+	github.com/VictoriaMetrics/easyproto v1.0.0
 	github.com/VictoriaMetrics/fastcache v1.13.2
 	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/VictoriaMetrics/metricsql v0.84.8

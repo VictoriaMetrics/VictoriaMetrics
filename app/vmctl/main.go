@@ -103,7 +103,7 @@ func main() {
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Bool(globalVerbose))
-					return otsdbProcessor.run()
+					return otsdbProcessor.run(ctx)
 				},
 			},
 			{
@@ -164,7 +164,7 @@ func main() {
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode),
 						c.Bool(globalVerbose))
-					return processor.run()
+					return processor.run(ctx)
 				},
 			},
 			{
@@ -279,7 +279,7 @@ func main() {
 						cc:        c.Int(promConcurrency),
 						isVerbose: c.Bool(globalVerbose),
 					}
-					return pp.run()
+					return pp.run(ctx)
 				},
 			},
 			{

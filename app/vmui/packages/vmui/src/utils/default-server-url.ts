@@ -4,7 +4,7 @@ import { APP_TYPE, AppType } from "../constants/appType";
 import { getFromStorage } from "./storage";
 
 export const getDefaultURL = (u: string) => {
-  return u.replace(/(\/(?:prometheus\/)?(?:graph|vmui)\/.*|\/#\/.*)/, "").replace(/(\/select\/[^/]+)$/, "$1/prometheus");
+  return u.replace(/(\/(?:prometheus\/)?(?:graph|vmui)\/.*|\/#\/.*)/, "/prometheus");
 };
 
 export const getDefaultServer = (tenantId?: string): string => {

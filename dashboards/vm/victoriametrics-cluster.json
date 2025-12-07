@@ -63,7 +63,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 7,
+  "id": 5,
   "links": [
     {
       "icon": "doc",
@@ -1613,6 +1613,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1635,7 +1636,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1651,7 +1653,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4694
+            "y": 97
           },
           "id": 66,
           "options": {
@@ -1673,7 +1675,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1726,6 +1728,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1748,7 +1751,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1764,7 +1768,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4694
+            "y": 97
           },
           "id": 64,
           "options": {
@@ -1786,7 +1790,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1842,6 +1846,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1864,7 +1869,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -1880,7 +1886,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4702
+            "y": 164
           },
           "id": 138,
           "options": {
@@ -1902,7 +1908,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -1956,6 +1962,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -1973,7 +1980,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -1985,7 +1993,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4702
+            "y": 164
           },
           "id": 219,
           "options": {
@@ -2007,7 +2015,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2047,7 +2055,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\nLower is better.\n\n- waiting: Time fraction where at least one thread was blocked on memory.\n- stalled: Time fraction where every thread was blocked on memory (severe pressure).\n\nIf queries slow down and both series spike, the host is likely limited by RAM or I/O throughput.",
+          "description": "Shows memory pressure based on [Pressure Stall Information](https://docs.kernel.org/accounting/psi.html).\nLower is better.\n\n- waiting: Time fraction where at least one thread was blocked on memory.\n- stalled: Time fraction where every thread was blocked on memory (severe pressure).\n\nIf queries slow down and both series spike, the host is likely limited by RAM or I/O throughput.\n\nSee also major page faults rate panel in Troubleshooting section if this metric continued to be high.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2077,6 +2085,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2094,7 +2103,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -2106,7 +2116,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4710
+            "y": 172
           },
           "id": 220,
           "options": {
@@ -2128,7 +2138,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2198,6 +2208,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2213,7 +2224,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2242,7 +2254,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4710
+            "y": 172
           },
           "id": 122,
           "options": {
@@ -2264,7 +2276,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2336,6 +2348,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2353,7 +2366,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2385,7 +2399,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4718
+            "y": 180
           },
           "id": 117,
           "options": {
@@ -2407,7 +2421,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2463,6 +2477,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2478,7 +2493,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2507,7 +2523,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4718
+            "y": 180
           },
           "id": 204,
           "options": {
@@ -2529,7 +2545,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2600,6 +2616,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2617,7 +2634,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2633,7 +2651,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4726
+            "y": 188
           },
           "id": 68,
           "options": {
@@ -2655,7 +2673,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2711,6 +2729,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2728,7 +2747,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -2740,7 +2760,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4726
+            "y": 188
           },
           "id": 221,
           "options": {
@@ -2762,7 +2782,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2831,6 +2851,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2848,7 +2869,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2864,7 +2886,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4734
+            "y": 196
           },
           "id": 70,
           "options": {
@@ -2886,7 +2908,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -2941,6 +2963,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2955,7 +2978,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2971,7 +2995,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4734
+            "y": 196
           },
           "id": 119,
           "options": {
@@ -2993,7 +3017,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3047,6 +3071,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3064,7 +3089,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3080,7 +3106,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4742
+            "y": 204
           },
           "id": 210,
           "options": {
@@ -3100,7 +3126,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3154,6 +3180,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3168,7 +3195,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3184,7 +3212,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4742
+            "y": 204
           },
           "id": 120,
           "options": {
@@ -3206,7 +3234,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3260,6 +3288,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3277,7 +3306,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -3289,7 +3319,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4750
+            "y": 212
           },
           "id": 218,
           "options": {
@@ -3309,7 +3339,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3364,6 +3394,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3381,7 +3412,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3397,7 +3429,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4750
+            "y": 212
           },
           "id": 213,
           "options": {
@@ -3417,7 +3449,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3461,7 +3493,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 3920
+            "y": 98
           },
           "id": 211,
           "options": {
@@ -3473,7 +3505,7 @@
             "content": "See [Troubleshooting](https://docs.victoriametrics.com/victoriametrics/troubleshooting/) docs.",
             "mode": "markdown"
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "title": "",
           "transparent": true,
           "type": "text"
@@ -3513,6 +3545,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3529,7 +3562,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3562,7 +3596,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3922
+            "y": 100
           },
           "id": 102,
           "options": {
@@ -3584,7 +3618,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3648,6 +3682,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3664,7 +3699,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent"
+                    "color": "transparent",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3680,7 +3716,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3922
+            "y": 100
           },
           "id": 108,
           "options": {
@@ -3700,7 +3736,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3753,6 +3789,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3769,7 +3806,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3785,7 +3823,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3930
+            "y": 108
           },
           "id": 170,
           "options": {
@@ -3805,7 +3843,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3862,6 +3900,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3878,7 +3917,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3894,7 +3934,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3930
+            "y": 108
           },
           "id": 107,
           "options": {
@@ -3914,7 +3954,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -3967,6 +4007,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -3981,7 +4022,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -3997,7 +4039,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 3938
+            "y": 116
           },
           "id": 144,
           "options": {
@@ -4017,7 +4059,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4071,6 +4113,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4088,7 +4131,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4104,7 +4148,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 3938
+            "y": 116
           },
           "id": 58,
           "options": {
@@ -4126,7 +4170,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4183,6 +4227,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4199,7 +4244,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4215,7 +4261,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3947
+            "y": 125
           },
           "id": 142,
           "links": [
@@ -4242,7 +4288,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4298,6 +4344,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4314,7 +4361,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4330,7 +4378,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3947
+            "y": 125
           },
           "id": 215,
           "options": {
@@ -4350,7 +4398,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4406,6 +4454,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4420,7 +4469,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4436,7 +4486,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3955
+            "y": 133
           },
           "id": 135,
           "options": {
@@ -4458,7 +4508,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4527,6 +4577,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4543,7 +4594,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4559,7 +4611,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3955
+            "y": 133
           },
           "id": 217,
           "options": {
@@ -4579,7 +4631,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4613,6 +4665,9 @@
                   "type": "auto"
                 },
                 "filterable": true,
+                "footer": {
+                  "reducers": []
+                },
                 "inspect": false
               },
               "mappings": [],
@@ -4620,7 +4675,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4637,7 +4693,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.hidden",
+                    "id": "custom.hideFrom.viz",
                     "value": true
                   }
                 ]
@@ -4649,7 +4705,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.hidden",
+                    "id": "custom.hideFrom.viz",
                     "value": true
                   }
                 ]
@@ -4660,20 +4716,12 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3963
+            "y": 141
           },
           "id": 183,
           "options": {
             "cellHeight": "sm",
             "filterable": true,
-            "footer": {
-              "countRows": false,
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
             "showHeader": true,
             "showSearch": true,
             "sortBy": [
@@ -4683,7 +4731,7 @@
               }
             ]
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4766,6 +4814,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4782,7 +4831,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4798,7 +4848,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3963
+            "y": 141
           },
           "id": 214,
           "options": {
@@ -4818,7 +4868,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4872,6 +4922,7 @@
                   "type": "linear"
                 },
                 "showPoints": "auto",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -4886,7 +4937,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -4902,7 +4954,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3971
+            "y": 149
           },
           "id": 222,
           "options": {
@@ -4918,7 +4970,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -4946,6 +4998,116 @@
             }
           ],
           "title": "Partitions scheduled for re-processing",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "description": "Major page faults occur when required data is not in physical memory and must be loaded from disk (storage or swap). It usually happens with:\n- insufficient physical memory\n- active use of swap space\n- file mapping access\n\nIt may cause significant performance slowdown if sustained high.\n\nPossible workaround:\n- Extend RAM to scale up\n- Reduce swap usage by adjusting vm.swappiness",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [
+                {
+                  "targetBlank": true,
+                  "title": "Drilldown",
+                  "url": "/d/oS7Bi_0Wz_vm?viewPanel=224&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                }
+              ],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 149
+          },
+          "id": 223,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job)",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Major page faults rate  ($instance)",
           "type": "timeseries"
         }
       ],
@@ -5026,7 +5188,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 7342
+            "y": 8055
           },
           "id": 76,
           "options": {
@@ -5141,7 +5303,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 7342
+            "y": 8055
           },
           "id": 86,
           "options": {
@@ -5265,7 +5427,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7351
+            "y": 8064
           },
           "id": 80,
           "options": {
@@ -5369,7 +5531,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7351
+            "y": 8064
           },
           "id": 78,
           "options": {
@@ -5484,7 +5646,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7359
+            "y": 8072
           },
           "id": 82,
           "options": {
@@ -5591,7 +5753,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7359
+            "y": 8072
           },
           "id": 74,
           "options": {
@@ -5710,7 +5872,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 721
           },
           "id": 100,
           "options": {
@@ -5826,7 +5988,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 721
           },
           "id": 113,
           "options": {
@@ -5943,7 +6105,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 729
           },
           "id": 151,
           "options": {
@@ -6093,7 +6255,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 729
           },
           "id": 167,
           "options": {
@@ -6251,7 +6413,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 57
+            "y": 737
           },
           "id": 212,
           "links": [
@@ -6396,7 +6558,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 57
+            "y": 737
           },
           "id": 133,
           "options": {
@@ -6521,7 +6683,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 65
+            "y": 778
           },
           "id": 54,
           "options": {
@@ -6630,7 +6792,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 65
+            "y": 778
           },
           "id": 55,
           "options": {
@@ -6744,7 +6906,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 73
+            "y": 786
           },
           "id": 20,
           "options": {
@@ -6882,7 +7044,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 73
+            "y": 786
           },
           "id": 22,
           "options": {
@@ -7010,7 +7172,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 81
+            "y": 794
           },
           "id": 202,
           "options": {
@@ -7151,7 +7313,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 81
+            "y": 794
           },
           "id": 14,
           "options": {
@@ -7288,7 +7450,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 89
+            "y": 802
           },
           "id": 206,
           "options": {
@@ -7409,7 +7571,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 89
+            "y": 802
           },
           "id": 141,
           "links": [
@@ -7518,7 +7680,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 97
+            "y": 810
           },
           "id": 216,
           "options": {
@@ -7631,7 +7793,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7355
+            "y": 8068
           },
           "id": 92,
           "options": {
@@ -7756,7 +7918,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7355
+            "y": 8068
           },
           "id": 95,
           "options": {
@@ -7877,7 +8039,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7363
+            "y": 8076
           },
           "id": 163,
           "options": {
@@ -8021,7 +8183,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7363
+            "y": 8076
           },
           "id": 165,
           "options": {
@@ -8160,7 +8322,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7371
+            "y": 8084
           },
           "id": 178,
           "options": {
@@ -8266,7 +8428,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7371
+            "y": 8084
           },
           "id": 180,
           "options": {
@@ -8372,7 +8534,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7379
+            "y": 8092
           },
           "id": 179,
           "options": {
@@ -8478,7 +8640,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7379
+            "y": 8092
           },
           "id": 181,
           "options": {
@@ -8595,7 +8757,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7387
+            "y": 8100
           },
           "id": 93,
           "options": {
@@ -8724,7 +8886,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7387
+            "y": 8100
           },
           "id": 207,
           "options": {
@@ -8855,7 +9017,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7356
+            "y": 8069
           },
           "id": 97,
           "options": {
@@ -8980,7 +9142,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7356
+            "y": 8069
           },
           "id": 99,
           "options": {
@@ -9103,7 +9265,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7364
+            "y": 8077
           },
           "id": 185,
           "options": {
@@ -9247,7 +9409,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7364
+            "y": 8077
           },
           "id": 187,
           "options": {
@@ -9386,7 +9548,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7372
+            "y": 8085
           },
           "id": 139,
           "options": {
@@ -9492,7 +9654,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7372
+            "y": 8085
           },
           "id": 114,
           "options": {
@@ -9606,7 +9768,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7380
+            "y": 8093
           },
           "id": 208,
           "options": {
@@ -9735,7 +9897,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7380
+            "y": 8093
           },
           "id": 209,
           "options": {
@@ -9853,7 +10015,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7388
+            "y": 8101
           },
           "id": 88,
           "options": {
@@ -9917,7 +10079,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 7405
+            "y": 162
           },
           "id": 198,
           "options": {
@@ -9929,7 +10091,7 @@
             "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance.",
             "mode": "markdown"
           },
-          "pluginVersion": "9.2.7",
+          "pluginVersion": "12.2.0",
           "title": "",
           "transparent": true,
           "type": "text"
@@ -9946,11 +10108,13 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -9959,6 +10123,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -9966,6 +10131,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -9982,7 +10148,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -9994,7 +10161,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7407
+            "y": 164
           },
           "id": 189,
           "options": {
@@ -10011,11 +10178,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -10046,11 +10214,13 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -10059,6 +10229,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -10066,6 +10237,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -10082,7 +10254,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -10094,7 +10267,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7407
+            "y": 164
           },
           "id": 190,
           "options": {
@@ -10111,11 +10284,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -10146,11 +10320,13 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -10159,6 +10335,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -10166,6 +10343,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -10182,7 +10360,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -10194,7 +10373,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7415
+            "y": 172
           },
           "id": 192,
           "options": {
@@ -10211,11 +10390,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -10248,11 +10428,13 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -10261,6 +10443,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -10268,6 +10451,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -10284,7 +10468,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -10300,7 +10485,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7415
+            "y": 172
           },
           "id": 196,
           "options": {
@@ -10317,11 +10502,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "none"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -10376,6 +10562,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -10392,7 +10579,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -10404,7 +10592,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7422
+            "y": 180
           },
           "id": 200,
           "options": {
@@ -10426,7 +10614,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.1",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -10457,11 +10645,13 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -10470,6 +10660,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -10477,6 +10668,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -10493,7 +10685,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   }
                 ]
               },
@@ -10505,7 +10698,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7422
+            "y": 180
           },
           "id": 201,
           "options": {
@@ -10522,11 +10715,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -10571,11 +10765,13 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "bars",
                 "fillOpacity": 100,
                 "gradientMode": "none",
@@ -10584,6 +10780,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -10591,6 +10788,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -10607,7 +10805,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -10623,7 +10822,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7430
+            "y": 188
           },
           "id": 203,
           "options": {
@@ -10640,11 +10839,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "12.2.0",
           "targets": [
             {
               "datasource": {
@@ -10664,6 +10864,109 @@
             }
           ],
           "title": "Logging rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "description": "Major page faults occur when required data is not in physical memory and must be loaded from disk (storage or swap). It usually happens with:\n- insufficient physical memory\n- active use of swap space\n- file mapping access\n\nIt may cause significant performance slowdown if sustained high.\n\nPossible workaround:\n- Extend RAM to scale up\n- Reduce swap usage by adjusting vm.swappiness",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 188
+          },
+          "id": 224,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
+              "legendFormat": "{{instance}} ({{job}})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Major page faults rate  ($instance)",
           "type": "timeseries"
         }
       ],

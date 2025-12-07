@@ -1169,60 +1169,6 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			},
 		}
 		return evalExpr(qt, ec, be)
-	case "rate":
-		if iafc != nil {
-			if !strings.EqualFold(iafc.ae.Name, "sum") {
-				qt.Printf("do not apply instant rollup optimization for incremental aggregate %s()", iafc.ae.Name)
-				return evalAt(qt, timestamp, window)
-			}
-			qt.Printf("optimized calculation for sum(rate(m[d])) as (sum(increase(m[d])) / d)")
-			afe := expr.(*metricsql.AggrFuncExpr)
-			fe := afe.Args[0].(*metricsql.FuncExpr)
-			feIncrease := *fe
-			feIncrease.Name = "increase"
-			// copy RollupExpr to drop possible offset,
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
-			newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
-			newArg.Offset = nil
-			feIncrease.Args = []metricsql.Expr{newArg}
-			d := newArg.Window.Duration(ec.Step)
-			if d == 0 {
-				d = ec.Step
-			}
-			afeIncrease := *afe
-			afeIncrease.Args = []metricsql.Expr{&feIncrease}
-			be := &metricsql.BinaryOpExpr{
-				Op:              "/",
-				KeepMetricNames: true,
-				Left:            &afeIncrease,
-				Right: &metricsql.NumberExpr{
-					N: float64(d) / 1000,
-				},
-			}
-			return evalExpr(qt, ec, be)
-		}
-		qt.Printf("optimized calculation for instant rollup rate(m[d]) as (increase(m[d]) / d)")
-		fe := expr.(*metricsql.FuncExpr)
-		feIncrease := *fe
-		feIncrease.Name = "increase"
-		// copy RollupExpr to drop possible offset,
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
-		newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
-		newArg.Offset = nil
-		feIncrease.Args = []metricsql.Expr{newArg}
-		d := newArg.Window.Duration(ec.Step)
-		if d == 0 {
-			d = ec.Step
-		}
-		be := &metricsql.BinaryOpExpr{
-			Op:              "/",
-			KeepMetricNames: fe.KeepMetricNames,
-			Left:            &feIncrease,
-			Right: &metricsql.NumberExpr{
-				N: float64(d) / 1000,
-			},
-		}
-		return evalExpr(qt, ec, be)
 	case "max_over_time":
 		if iafc != nil {
 			if !strings.EqualFold(iafc.ae.Name, "max") {
