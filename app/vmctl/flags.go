@@ -385,6 +385,7 @@ const (
 	promFilterLabel      = "prom-filter-label"
 	promFilterLabelValue = "prom-filter-label-value"
 	promTemporaryDirPath = "prom-tmp-dir-path"
+	promAggrTypes        = "prom-aggr-types"
 )
 
 var (
@@ -420,6 +421,13 @@ var (
 			Name:  promTemporaryDirPath,
 			Usage: "Path to directory to be used for temporary files.",
 			Value: os.TempDir(),
+		},
+		&cli.StringSliceFlag{
+			Name: promAggrTypes,
+			Usage: "Aggregate types to import from Thanos downsampled blocks. Supported values: count, sum, min, max, counter. " +
+				"Each aggregate will be imported as a separate metric with the aggregate type as suffix (e.g., metric_name:5m_count). " +
+				"If not specified, downsampled blocks with AggrChunk encoding (0xff) will be skipped.",
+			Value: nil,
 		},
 	}
 )

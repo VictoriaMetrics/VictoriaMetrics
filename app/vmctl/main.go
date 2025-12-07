@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/thanos"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -273,11 +274,25 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
+
+					// Parse aggregate types for Thanos downsampled blocks
+					var aggrTypes []thanos.AggrType
+					if aggrTypesStr := c.StringSlice(promAggrTypes); len(aggrTypesStr) > 0 {
+						for _, typeStr := range aggrTypesStr {
+							aggrType, err := thanos.ParseAggrType(typeStr)
+							if err != nil {
+								return fmt.Errorf("failed to parse aggregate type %q: %s", typeStr, err)
+							}
+							aggrTypes = append(aggrTypes, aggrType)
+						}
+					}
+
 					pp := prometheusProcessor{
 						cl:        cl,
 						im:        importer,
 						cc:        c.Int(promConcurrency),
 						isVerbose: c.Bool(globalVerbose),
+						aggrTypes: aggrTypes,
 					}
 					return pp.run(ctx)
 				},
