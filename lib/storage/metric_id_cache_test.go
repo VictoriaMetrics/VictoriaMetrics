@@ -9,6 +9,7 @@ import (
 
 func TestMetricIDCache_SetHas(t *testing.T) {
 	c := newMetricIDCache()
+	defer c.Stop()
 
 	metricIDMin := uint64(time.Now().UnixNano())
 
@@ -26,6 +27,7 @@ func TestMetricIDCache_SetHas(t *testing.T) {
 
 func TestMetricIDCache_SetHas_Concurrent(t *testing.T) {
 	c := newMetricIDCache()
+	defer c.Stop()
 
 	const (
 		numMetricIDs = 1_000_000

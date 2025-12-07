@@ -3,7 +3,9 @@ package storage
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
@@ -15,7 +17,9 @@ import (
 // contention. Based on dateMetricIDCache ideas.
 type metricIDCache struct {
 	// Contains vImmutable map
-	vImmutable atomic.Pointer[uint64set.Set]
+	vCurrImmutable atomic.Pointer[uint64set.Set]
+
+	vPrevImmutable *uint64set.Set
 
 	// Contains vMutable map protected by mu
 	vMutable *uint64set.Set
@@ -26,17 +30,30 @@ type metricIDCache struct {
 	slowHits int
 
 	mu sync.Mutex
+
+	stopCh           chan struct{}
+	cleanerStoppedCh chan struct{}
 }
 
 func newMetricIDCache() *metricIDCache {
-	var mc metricIDCache
-	mc.vImmutable.Store(&uint64set.Set{})
-	mc.vMutable = &uint64set.Set{}
+	mc := metricIDCache{
+		vPrevImmutable:   &uint64set.Set{},
+		vMutable:         &uint64set.Set{},
+		stopCh:           make(chan struct{}),
+		cleanerStoppedCh: make(chan struct{}),
+	}
+	mc.vCurrImmutable.Store(&uint64set.Set{})
+	go mc.startCleaner()
 	return &mc
 }
 
+func (mc *metricIDCache) Stop() {
+	close(mc.stopCh)
+	<-mc.cleanerStoppedCh
+}
+
 func (mc *metricIDCache) Has(metricID uint64) bool {
-	if mc.vImmutable.Load().Has(metricID) {
+	if mc.vCurrImmutable.Load().Has(metricID) {
 		// Fast path. The majority of calls must go here.
 		return true
 	}
@@ -51,17 +68,24 @@ func (mc *metricIDCache) hasSlow(metricID uint64) bool {
 
 	// First, check vImmutable map again because the entry may have been moved to
 	// the vImmutable map by the time the caller acquires the lock.
-	vImmutable := mc.vImmutable.Load()
-	if vImmutable.Has(metricID) {
+	vCurrImmutable := mc.vCurrImmutable.Load()
+	if vCurrImmutable.Has(metricID) {
 		return true
 	}
 
-	// Then check vMutable map.
+	// Then check vPrevImmutable and vMutable maps.
+	var ok bool
 	vMutable := mc.vMutable
-	ok := vMutable.Has(metricID)
+	if mc.vPrevImmutable.Has(metricID) {
+		vMutable.Add(metricID)
+		ok = true
+	} else {
+		ok = vMutable.Has(metricID)
+	}
+
 	if ok {
 		mc.slowHits++
-		if mc.slowHits > (vImmutable.Len()+vMutable.Len())/2 {
+		if mc.slowHits > (vCurrImmutable.Len()+vMutable.Len())/2 {
 			// It is cheaper to merge vMutable part into vImmutable than to pay inter-cpu sync costs when accessing vMutable.
 			mc.syncLocked()
 			mc.slowHits = 0
@@ -78,17 +102,36 @@ func (mc *metricIDCache) Set(metricID uint64) {
 }
 
 func (mc *metricIDCache) syncLocked() {
-	if mc.vMutable.Len() == 0 {
-		// Nothing to sync.
-		return
+	// Merge data from vCurrImmutable into vMutable.
+	vCurrImmutable := mc.vCurrImmutable.Load()
+	if mc.vMutable.Len() > 0 {
+		mc.vMutable.Union(vCurrImmutable)
 	}
 
-	// Merge data from vImmutable into vMutable and then atomically replace vImmutable with the merged data.
-	vImmutable := mc.vImmutable.Load()
-	vMutable := mc.vMutable
-	vMutable.Union(vImmutable)
-
-	// Atomically replace vImmutable with vMutable
-	mc.vImmutable.Store(mc.vMutable)
+	// Atomically replace vCurrImmutable with vMutable and
+	// vPrevImmutable with vCurrMutable.
+	mc.vCurrImmutable.Store(mc.vMutable)
+	mc.vPrevImmutable = vCurrImmutable
 	mc.vMutable = &uint64set.Set{}
+}
+
+func (mc *metricIDCache) startCleaner() {
+	d := timeutil.AddJitterToDuration(time.Hour)
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-mc.stopCh:
+			close(mc.cleanerStoppedCh)
+			return
+		case <-ticker.C:
+			mc.clean()
+		}
+	}
+}
+
+func (mc *metricIDCache) clean() {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+	mc.syncLocked()
 }

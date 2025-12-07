@@ -267,14 +267,16 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 func (db *indexDB) MustClose() {
 	db.tb.MustClose()
 	db.tb = nil
+	db.s = nil
 
 	// Free space occupied by caches owned by db.
 	db.tagFiltersToMetricIDsCache.MustStop()
 	db.loopsPerDateTagFilterCache.Stop()
+	db.metricIDCache.Stop()
 
 	db.tagFiltersToMetricIDsCache = nil
-	db.s = nil
 	db.loopsPerDateTagFilterCache = nil
+	db.metricIDCache = nil
 }
 
 // getMetricIDsFromTagFiltersCache retrieves the set of metricIDs that

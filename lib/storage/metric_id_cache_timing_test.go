@@ -11,6 +11,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 	f := func(b *testing.B, numMetricIDs, distance int64, hitsOnly, warmUp bool) {
 		b.Helper()
 		c := newMetricIDCache()
+		defer c.Stop()
 		metricIDMin := time.Now().UnixNano()
 		metricIDMax := metricIDMin + numMetricIDs*distance
 		for metricID := metricIDMin; metricID <= metricIDMax; metricID += distance {
