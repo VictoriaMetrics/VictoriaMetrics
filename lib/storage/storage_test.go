@@ -4642,15 +4642,17 @@ func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
 	assertMetrics := func(s *Storage) {
 		t.Helper()
 
-		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+		defer s.tb.PutPartition(ptw)
+		idb := ptw.pt.idb
+
 		var storageMetrics Metrics
 		s.UpdateMetrics(&storageMetrics)
-		got := storageMetrics.IndexDBMetrics
+		got := storageMetrics.TableMetrics.IndexDBMetrics
 		// Block cache metrics are the same for every indexDB, thus use block
-		// cache metrics from idbCurr.
+		// cache metrics from idb for the current month.
 		var want IndexDBMetrics
-		idbCurr.UpdateMetrics(&want)
+		idb.UpdateMetrics(&want)
 
 		assertMetric("DataBlocksCacheSize", got.DataBlocksCacheSize, want.DataBlocksCacheSize)
 		assertMetric("DataBlocksCacheSizeBytes", got.DataBlocksCacheSizeBytes, want.DataBlocksCacheSizeBytes)
@@ -4671,10 +4673,10 @@ func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
 
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
-		MinTimestamp: time.Now().UnixMilli() - msecPerDay,
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Now().UnixMilli(),
 	}
-	mrs := testGenerateMetricRowsWithPrefix(rng, 100, "metric", tr)
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
