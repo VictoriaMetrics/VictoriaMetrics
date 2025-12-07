@@ -17,22 +17,8 @@ type BlockInfo struct {
 }
 
 // OpenBlocksWithInfo opens all blocks and returns them with their metadata.
-// snapshotDir can be either:
-// - A snapshot directory containing multiple block directories
-// - A single block directory
+// snapshotDir must be a snapshot directory containing block directories.
 func OpenBlocksWithInfo(snapshotDir string, aggrType AggrType) ([]BlockInfo, error) {
-	// Check if snapshotDir itself is a block directory (has meta.json directly)
-	directMetaPath := filepath.Join(snapshotDir, "meta.json")
-	if _, err := os.Stat(directMetaPath); err == nil {
-		// This is a single block directory, not a snapshot directory
-		blockInfo, err := openSingleBlock(snapshotDir, aggrType)
-		if err != nil {
-			return nil, err
-		}
-		return []BlockInfo{blockInfo}, nil
-	}
-
-	// Otherwise, treat as snapshot directory containing multiple blocks
 	entries, err := os.ReadDir(snapshotDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read snapshot directory: %w", err)

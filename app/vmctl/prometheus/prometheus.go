@@ -189,6 +189,8 @@ type BlockWithInfo struct {
 // ExploreWithAggrSupport fetches all available blocks from a snapshot
 // with support for Thanos AggrChunk (downsampled blocks).
 // It opens blocks with custom pool that can decode AggrChunk encoding (0xff).
+// Note: samples/series counts from meta.json are for ALL aggregates combined,
+// actual counts per aggregate type will be shown during processing.
 func (c *Client) ExploreWithAggrSupport(aggrType thanos.AggrType) ([]BlockWithInfo, error) {
 	blockInfos, err := thanos.OpenBlocksWithInfo(c.snapshotPath, aggrType)
 	if err != nil {
@@ -218,7 +220,7 @@ func (c *Client) ExploreWithAggrSupport(aggrType thanos.AggrType) ([]BlockWithIn
 			continue
 		}
 
-		// Count samples and series only for blocks that will be imported
+		// Note: These are total counts for all aggregates, not per-aggregate
 		s.Samples += meta.Stats.NumSamples
 		s.Series += meta.Stats.NumSeries
 		blocksToImport = append(blocksToImport, BlockWithInfo{

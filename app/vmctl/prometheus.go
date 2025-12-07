@@ -64,19 +64,15 @@ func (pp *prometheusProcessor) run(ctx context.Context) error {
 }
 
 // runWithAggrSupport runs migration with Thanos AggrChunk support.
-// Opens blocks once and processes all requested aggregate types.
+// Processes both raw blocks (resolution=0) and downsampled blocks with specified aggregates.
 func (pp *prometheusProcessor) runWithAggrSupport(ctx context.Context) error {
 	// Reset stats before processing
 	pp.im.ResetStats()
 
-	// Open blocks once - we'll use them for all aggregate types
-	// We need to open blocks for each aggregate type separately because each uses different chunk pool
-	// But we can ask for confirmation once for all types
-	log.Printf("Processing aggregate types: %v", pp.aggrTypes)
+	log.Printf("Processing blocks with aggregate types: %v", pp.aggrTypes)
 
 	// Use the first aggregate type to explore blocks (they're the same for all types)
-	// Show stats on first call only
-	blocks, err := pp.cl.ExploreWithAggrSupport(pp.aggrTypes[0], true)
+	blocks, err := pp.cl.ExploreWithAggrSupport(pp.aggrTypes[0])
 	if err != nil {
 		return fmt.Errorf("explore failed: %s", err)
 	}
@@ -84,31 +80,59 @@ func (pp *prometheusProcessor) runWithAggrSupport(ctx context.Context) error {
 		return fmt.Errorf("found no blocks to import")
 	}
 
-	question := fmt.Sprintf("Found %d blocks to import with %d aggregate types. Continue?", len(blocks), len(pp.aggrTypes))
+	// Separate blocks into raw (resolution=0) and downsampled (resolution>0)
+	var rawBlocks, downsampledBlocks []prometheus.BlockWithInfo
+	for _, block := range blocks {
+		if block.Resolution == thanos.ResolutionRaw {
+			rawBlocks = append(rawBlocks, block)
+		} else {
+			downsampledBlocks = append(downsampledBlocks, block)
+		}
+	}
+
+	log.Printf("Found %d raw blocks and %d downsampled blocks", len(rawBlocks), len(downsampledBlocks))
+
+	question := fmt.Sprintf("Found %d blocks to import (%d raw + %d downsampled with %d aggregate types). Continue?",
+		len(blocks), len(rawBlocks), len(downsampledBlocks), len(pp.aggrTypes))
 	if !prompt(ctx, question) {
 		return nil
 	}
 
-	// Don't use barpool for Thanos imports to avoid hanging issues
-	// Progress will be logged instead
-
-	// Process each aggregate type
-	for _, aggrType := range pp.aggrTypes {
-		log.Printf("Processing aggregate type: %s", aggrType)
-
-		// Reopen blocks with the appropriate chunk pool for this aggregate type
-		// Don't show stats again - actual counts will be shown during processing
-		blocks, err := pp.cl.ExploreWithAggrSupport(aggrType, false)
-		if err != nil {
-			return fmt.Errorf("explore failed for aggr type %s: %s", aggrType, err)
+	// Process raw blocks first (these don't have aggregate suffixes)
+	if len(rawBlocks) > 0 {
+		log.Println("Processing raw blocks (resolution=0)...")
+		if err := pp.processBlocksWithInfo(rawBlocks, thanos.AggrType(255)); err != nil { // Use special marker for raw
+			return fmt.Errorf("migration failed for raw blocks: %s", err)
 		}
-		if len(blocks) < 1 {
-			log.Printf("No blocks found for aggregate type %s, skipping", aggrType)
-			continue
-		}
+	}
 
-		if err := pp.processBlocksWithInfo(blocks, aggrType); err != nil {
-			return fmt.Errorf("migration failed for aggr type %s: %s", aggrType, err)
+	// Process downsampled blocks for each aggregate type
+	if len(downsampledBlocks) > 0 {
+		for _, aggrType := range pp.aggrTypes {
+			log.Printf("Processing downsampled blocks with aggregate type: %s", aggrType)
+
+			// Reopen blocks with the appropriate chunk pool for this aggregate type
+			blocks, err := pp.cl.ExploreWithAggrSupport(aggrType)
+			if err != nil {
+				return fmt.Errorf("explore failed for aggr type %s: %s", aggrType, err)
+			}
+
+			// Filter only downsampled blocks
+			var downsampledOnly []prometheus.BlockWithInfo
+			for _, block := range blocks {
+				if block.Resolution != thanos.ResolutionRaw {
+					downsampledOnly = append(downsampledOnly, block)
+				}
+			}
+
+			if len(downsampledOnly) < 1 {
+				log.Printf("No downsampled blocks found for aggregate type %s, skipping", aggrType)
+				continue
+			}
+
+			if err := pp.processBlocksWithInfo(downsampledOnly, aggrType); err != nil {
+				return fmt.Errorf("migration failed for aggr type %s: %s", aggrType, err)
+			}
 		}
 	}
 
@@ -260,8 +284,9 @@ func (pp *prometheusProcessor) doWithAggrType(bi prometheus.BlockWithInfo, aggrT
 
 // getMetricNameWithSuffix adds resolution and aggregate type suffix to metric name.
 // For example: metric_name -> metric_name:5m:sum
+// Special case: aggrType=255 means raw blocks (no suffix)
 func (pp *prometheusProcessor) getMetricNameWithSuffix(name string, resolution thanos.ResolutionLevel, aggrType thanos.AggrType) string {
-	if resolution == thanos.ResolutionRaw {
+	if resolution == thanos.ResolutionRaw || aggrType == 255 {
 		// No suffix for raw data
 		return name
 	}
