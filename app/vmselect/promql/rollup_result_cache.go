@@ -132,7 +132,7 @@ func InitRollupResultCache(cachePath string) {
 		c = workingsetcache.New(cacheSize)
 		rollupResultCacheKeyPrefix.Store(newRollupResultCacheKeyPrefix())
 	}
-	if *disableCache {
+	if *disableCache && len(rollupResultCachePath) > 0 && !*resetRollupResultCacheOnStartup {
 		c.Reset()
 	}
 

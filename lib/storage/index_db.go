@@ -202,10 +202,11 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
 
-	DateMetricIDCacheSize        uint64
-	DateMetricIDCacheSizeBytes   uint64
-	DateMetricIDCacheSyncsCount  uint64
-	DateMetricIDCacheResetsCount uint64
+	DateMetricIDCacheSize         uint64
+	DateMetricIDCacheSizeBytes    uint64
+	DateMetricIDCacheSizeMaxBytes uint64
+	DateMetricIDCacheSyncsCount   uint64
+	DateMetricIDCacheResetsCount  uint64
 
 	IndexDBRefCount uint64
 
@@ -257,12 +258,13 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	// Report only once and for an indexDB instance whose dateMetricIDCache is
 	// utilized the most.
 	if db.dateMetricIDCache.SizeBytes() > m.DateMetricIDCacheSizeBytes {
-		m.DateMetricIDCacheSize = uint64(db.dateMetricIDCache.EntriesCount())
-		m.DateMetricIDCacheSizeBytes = db.dateMetricIDCache.SizeBytes()
-		m.DateMetricIDCacheSyncsCount = db.dateMetricIDCache.syncsCount.Load()
-		m.DateMetricIDCacheResetsCount = db.dateMetricIDCache.resetsCount.Load()
+    dmcs := db.dateMetricIDCache.Stats()
+  	m.DateMetricIDCacheSize = dmcs.Size
+	  m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
+	  m.DateMetricIDCacheSizeMaxBytes = dmcs.SizeMaxBytes
+	  m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
+	  m.DateMetricIDCacheResetsCount = dmcs.ResetsCount
 	}
-
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
@@ -1559,9 +1561,6 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	db.tagFiltersToMetricIDsCache.Reset()
 
-	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
-	db.s.resetAndSaveTSIDCache()
-
 	// Store the metricIDs as deleted.
 	// Make this after updating the deletedMetricIDs and resetting caches
 	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
@@ -1679,7 +1678,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	metricIDs.ForEach(func(metricIDs []uint64) bool {
 		for _, metricID := range metricIDs {
 			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+				if err = checkSearchDeadlineAndPace(deadline); err != nil {
 					return false
 				}
 			}
