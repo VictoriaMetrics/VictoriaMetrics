@@ -206,10 +206,11 @@ type IndexDBMetrics struct {
 	MetricIDCacheSizeBytes  uint64
 	MetricIDCacheSyncsCount uint64
 
-	DateMetricIDCacheSize        uint64
-	DateMetricIDCacheSizeBytes   uint64
-	DateMetricIDCacheSyncsCount  uint64
-	DateMetricIDCacheResetsCount uint64
+	DateMetricIDCacheSize         uint64
+	DateMetricIDCacheSizeBytes    uint64
+	DateMetricIDCacheSizeMaxBytes uint64
+	DateMetricIDCacheSyncsCount   uint64
+	DateMetricIDCacheResetsCount  uint64
 
 	// Used by legacy indexDBs only.
 	// See UpdateMetrics() in index_db_legacy.go
@@ -257,10 +258,12 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.MetricIDCacheSizeBytes += metricIDCacheStats.SizeBytes
 	m.MetricIDCacheSyncsCount += metricIDCacheStats.SyncsCount
 
-	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
-	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
-	m.DateMetricIDCacheSyncsCount += db.dateMetricIDCache.syncsCount.Load()
-	m.DateMetricIDCacheResetsCount += db.dateMetricIDCache.resetsCount.Load()
+	dmcs := db.dateMetricIDCache.Stats()
+	m.DateMetricIDCacheSize += dmcs.Size
+	m.DateMetricIDCacheSizeBytes += dmcs.SizeBytes
+	m.DateMetricIDCacheSizeMaxBytes += dmcs.SizeMaxBytes
+	m.DateMetricIDCacheSyncsCount += dmcs.SyncsCount
+	m.DateMetricIDCacheResetsCount += dmcs.ResetsCount
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
 	m.DateRangeSearchHits += db.dateRangeSearchHits.Load()
