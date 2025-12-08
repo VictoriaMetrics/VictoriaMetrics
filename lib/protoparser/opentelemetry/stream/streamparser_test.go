@@ -147,37 +147,37 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my-gauge",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricMetadataGAUGE,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-gauge-unknown",
 				Help:             "I'm not a gauge",
-				Type:             uint32(prompb.MetricMetadataUNKNOWN),
+				Type:             prompb.MetricMetadataUNKNOWN,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-histogram",
 				Help:             "I'm a Histogram",
-				Type:             uint32(prompb.MetricMetadataHISTOGRAM),
+				Type:             prompb.MetricMetadataHISTOGRAM,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-sumless-histogram",
 				Help:             "I'm a Histogram",
-				Type:             uint32(prompb.MetricMetadataHISTOGRAM),
+				Type:             prompb.MetricMetadataHISTOGRAM,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-sum",
 				Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricMetadataGAUGE,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-summary",
 				Help:             "I'm a Summary",
-				Type:             uint32(prompb.MetricMetadataSUMMARY),
+				Type:             prompb.MetricMetadataSUMMARY,
 				Unit:             "",
 			},
 		},
@@ -196,7 +196,7 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my-gauge",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricMetadataGAUGE,
 				Unit:             "",
 			},
 		},
@@ -215,7 +215,7 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my_gauge_milliseconds",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricMetadataGAUGE,
 				Unit:             "ms",
 			},
 		},
@@ -234,7 +234,7 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my_gauge_milliseconds",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricMetadataGAUGE,
 				Unit:             "ms",
 			},
 		},
@@ -253,7 +253,7 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my_gauge_milliseconds_ratio",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricMetadataGAUGE,
 				Unit:             "1",
 			},
 		},
@@ -272,7 +272,7 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my_sum_milliseconds_total",
 				Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-				Type:             uint32(prompb.MetricMetadataCOUNTER),
+				Type:             prompb.MetricMetadataCOUNTER,
 				Unit:             "ms",
 			},
 		},
@@ -291,7 +291,7 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my_sum_milliseconds_total",
 				Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-				Type:             uint32(prompb.MetricMetadataCOUNTER),
+				Type:             prompb.MetricMetadataCOUNTER,
 				Unit:             "ms",
 			},
 		},
@@ -310,7 +310,7 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my_sum_meters_per_second_total",
 				Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-				Type:             uint32(prompb.MetricMetadataCOUNTER),
+				Type:             prompb.MetricMetadataCOUNTER,
 				Unit:             "m/s",
 			},
 		},
@@ -332,7 +332,7 @@ func TestParseStream(t *testing.T) {
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "test_histogram_meters_per_second",
-				Type:             uint32(prompb.MetricMetadataHISTOGRAM),
+				Type:             prompb.MetricMetadataHISTOGRAM,
 				Unit:             "m/s",
 			},
 		},
@@ -440,7 +440,7 @@ func TestParseStream(t *testing.T) {
 			{
 				MetricFamilyName: "my-gauge",
 				Help:             "it's a test",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricMetadataGAUGE,
 			},
 		},
 		false,
@@ -464,7 +464,7 @@ func TestParseStream(t *testing.T) {
 				{
 					MetricFamilyName: "my_sum_meters_per_second_total",
 					Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-					Type:             uint32(prompb.MetricMetadataCOUNTER),
+					Type:             prompb.MetricMetadataCOUNTER,
 					Unit:             "m/s",
 				},
 			},
@@ -482,7 +482,7 @@ func TestParseStream(t *testing.T) {
 				{
 					MetricFamilyName: "my_gauge_milliseconds_ratio",
 					Help:             "I'm a gauge",
-					Type:             uint32(prompb.MetricMetadataGAUGE),
+					Type:             prompb.MetricMetadataGAUGE,
 					Unit:             "1",
 				},
 			},
