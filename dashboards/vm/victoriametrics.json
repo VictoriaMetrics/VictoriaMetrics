@@ -51,7 +51,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 1,
+  "id": 0,
   "links": [
     {
       "icon": "doc",
@@ -86,12 +86,154 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 2
       },
       "id": 6,
       "panels": [],
       "title": "Stats",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Average disk usage per datapoint.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 5,
+        "x": 14,
+        "y": 0
+      },
+      "id": 82,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "max(sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) / sum(vm_rows{job=~\"$job\", instance=~\"$instance\"}))",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Bytes per point",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Total size of available memory for VM process",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 5,
+        "x": 19,
+        "y": 0
+      },
+      "id": 78,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "$ds"
+          },
+          "exemplar": false,
+          "expr": "sum(vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Available memory",
+      "type": "stat"
     },
     {
       "description": "",
@@ -103,7 +245,7 @@
         "h": 2,
         "w": 4,
         "x": 0,
-        "y": 1
+        "y": 3
       },
       "id": 85,
       "options": {
@@ -115,7 +257,7 @@
         "content": "<div style=\"text-align: center;\">$version</div>",
         "mode": "markdown"
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "title": "Version",
       "type": "text"
     },
@@ -148,7 +290,7 @@
         "h": 2,
         "w": 5,
         "x": 4,
-        "y": 1
+        "y": 3
       },
       "id": 26,
       "maxDataPoints": 100,
@@ -170,7 +312,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -220,7 +362,7 @@
         "h": 2,
         "w": 5,
         "x": 9,
-        "y": 1
+        "y": 3
       },
       "id": 107,
       "maxDataPoints": 100,
@@ -242,7 +384,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -292,7 +434,7 @@
         "h": 2,
         "w": 5,
         "x": 14,
-        "y": 1
+        "y": 3
       },
       "id": 108,
       "maxDataPoints": 100,
@@ -314,7 +456,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -364,7 +506,7 @@
         "h": 2,
         "w": 5,
         "x": 19,
-        "y": 1
+        "y": 3
       },
       "id": 77,
       "maxDataPoints": 100,
@@ -386,7 +528,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -438,7 +580,7 @@
         "h": 2,
         "w": 4,
         "x": 0,
-        "y": 3
+        "y": 5
       },
       "id": 87,
       "options": {
@@ -459,7 +601,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -507,7 +649,7 @@
         "h": 2,
         "w": 5,
         "x": 4,
-        "y": 3
+        "y": 5
       },
       "id": 38,
       "maxDataPoints": 100,
@@ -529,7 +671,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -579,7 +721,7 @@
         "h": 2,
         "w": 5,
         "x": 9,
-        "y": 3
+        "y": 5
       },
       "id": 81,
       "maxDataPoints": 100,
@@ -601,7 +743,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -623,154 +765,12 @@
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "Average disk usage per datapoint.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 5,
-        "x": 14,
-        "y": 3
-      },
-      "id": 82,
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "max(sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) / sum(vm_rows{job=~\"$job\", instance=~\"$instance\"}))",
-          "format": "time_series",
-          "instant": true,
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Bytes per point",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "Total size of available memory for VM process",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 5,
-        "x": 19,
-        "y": 3
-      },
-      "id": 78,
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "$ds"
-          },
-          "exemplar": false,
-          "expr": "sum(vm_available_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
-          "format": "time_series",
-          "instant": true,
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Available memory",
-      "type": "stat"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 7
       },
       "id": 24,
       "panels": [],
@@ -846,7 +846,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 8
       },
       "id": 106,
       "options": {
@@ -867,7 +867,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -955,7 +955,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 6
+        "y": 8
       },
       "id": 12,
       "options": {
@@ -977,7 +977,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1066,7 +1066,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 16
       },
       "id": 51,
       "links": [
@@ -1093,7 +1093,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1181,7 +1181,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 16
       },
       "id": 22,
       "options": {
@@ -1203,7 +1203,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1291,7 +1291,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 24
       },
       "id": 35,
       "options": {
@@ -1310,7 +1310,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1397,7 +1397,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 24
       },
       "id": 110,
       "options": {
@@ -1419,7 +1419,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1443,7 +1443,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 32
       },
       "id": 46,
       "panels": [
@@ -1516,7 +1516,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 767
+            "y": 777
           },
           "id": 112,
           "options": {
@@ -1625,7 +1625,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 767
+            "y": 777
           },
           "id": 114,
           "options": {
@@ -1737,7 +1737,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 775
+            "y": 785
           },
           "id": 123,
           "options": {
@@ -1863,7 +1863,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 775
+            "y": 785
           },
           "id": 57,
           "options": {
@@ -1990,7 +1990,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 783
+            "y": 793
           },
           "id": 44,
           "options": {
@@ -2157,7 +2157,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 783
+            "y": 793
           },
           "id": 134,
           "options": {
@@ -2280,7 +2280,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 791
+            "y": 801
           },
           "id": 135,
           "options": {
@@ -2418,7 +2418,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 791
+            "y": 801
           },
           "id": 76,
           "options": {
@@ -2545,7 +2545,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 799
+            "y": 809
           },
           "id": 47,
           "options": {
@@ -2667,7 +2667,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 799
+            "y": 809
           },
           "id": 124,
           "options": {
@@ -2794,7 +2794,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 807
+            "y": 817
           },
           "id": 48,
           "options": {
@@ -2901,7 +2901,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 807
+            "y": 817
           },
           "id": 136,
           "options": {
@@ -3027,7 +3027,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 815
+            "y": 825
           },
           "id": 49,
           "options": {
@@ -3138,7 +3138,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 815
+            "y": 825
           },
           "id": 37,
           "options": {
@@ -3266,7 +3266,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 823
+            "y": 833
           },
           "id": 75,
           "options": {
@@ -3379,7 +3379,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 823
+            "y": 833
           },
           "id": 125,
           "options": {
@@ -3500,7 +3500,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 831
+            "y": 841
           },
           "id": 127,
           "options": {
@@ -3622,7 +3622,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 831
+            "y": 841
           },
           "id": 133,
           "options": {
@@ -3732,7 +3732,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 839
+            "y": 849
           },
           "id": 128,
           "options": {
@@ -3782,7 +3782,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 33
       },
       "id": 71,
       "panels": [
@@ -3855,7 +3855,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 257
+            "y": 267
           },
           "id": 66,
           "options": {
@@ -3977,7 +3977,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 257
+            "y": 267
           },
           "id": 68,
           "options": {
@@ -4089,7 +4089,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 265
+            "y": 275
           },
           "id": 116,
           "options": {
@@ -4199,7 +4199,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 265
+            "y": 275
           },
           "id": 60,
           "options": {
@@ -4308,7 +4308,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 273
+            "y": 283
           },
           "id": 90,
           "options": {
@@ -4419,7 +4419,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 273
+            "y": 283
           },
           "id": 118,
           "options": {
@@ -4530,7 +4530,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 282
+            "y": 292
           },
           "id": 131,
           "options": {
@@ -4654,7 +4654,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 282
+            "y": 292
           },
           "id": 132,
           "links": [
@@ -4782,7 +4782,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 290
+            "y": 300
           },
           "id": 126,
           "options": {
@@ -4881,7 +4881,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 290
+            "y": 300
           },
           "id": 129,
           "options": {
@@ -4992,7 +4992,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 298
+            "y": 308
           },
           "id": 137,
           "options": {
@@ -5039,7 +5039,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 34
       },
       "id": 14,
       "panels": [
@@ -5112,7 +5112,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 356
+            "y": 366
           },
           "id": 10,
           "options": {
@@ -5223,7 +5223,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 356
+            "y": 366
           },
           "id": 73,
           "options": {
@@ -5333,7 +5333,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 364
+            "y": 374
           },
           "id": 53,
           "options": {
@@ -5487,7 +5487,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 364
+            "y": 374
           },
           "id": 34,
           "options": {
@@ -5625,7 +5625,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 372
+            "y": 382
           },
           "id": 30,
           "options": {
@@ -5747,7 +5747,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 372
+            "y": 382
           },
           "id": 36,
           "options": {
@@ -5869,7 +5869,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 380
+            "y": 390
           },
           "id": 58,
           "options": {
@@ -5979,7 +5979,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 380
+            "y": 390
           },
           "id": 62,
           "options": {
@@ -6100,7 +6100,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 388
+            "y": 398
           },
           "id": 59,
           "options": {
@@ -6220,7 +6220,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 388
+            "y": 398
           },
           "id": 64,
           "options": {
@@ -6327,7 +6327,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 396
+            "y": 406
           },
           "id": 99,
           "options": {
@@ -6437,7 +6437,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 396
+            "y": 406
           },
           "id": 103,
           "options": {
@@ -6547,7 +6547,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 404
+            "y": 414
           },
           "id": 122,
           "options": {
@@ -6657,7 +6657,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 404
+            "y": 414
           },
           "id": 105,
           "options": {
@@ -6764,7 +6764,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 412
+            "y": 422
           },
           "id": 130,
           "options": {
@@ -6804,154 +6804,298 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 33
+        "y": 35
       },
       "id": 138,
-      "panels": [
-        {
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
+      "panels": [],
+      "title": "Drilldown",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${ds}"
+      },
+      "description": "Major page faults occur when required data is not in physical memory and must be loaded from disk (storage or swap). It usually happens with:\n- insufficient physical memory\n- active use of swap space\n- file mapping access\n\nIt may cause significant performance slowdown if sustained high.\n\nPossible workaround:\n- Extend RAM to scale up\n- Reduce swap usage by adjusting vm.swappiness",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
           },
-          "gridPos": {
-            "h": 2,
-            "w": 17,
-            "x": 0,
-            "y": 259
-          },
-          "id": 139,
-          "options": {
-            "code": {
-              "language": "plaintext",
-              "showLineNumbers": false,
-              "showMiniMap": false
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance.",
-            "mode": "markdown"
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
-          "pluginVersion": "12.2.0",
-          "title": "",
-          "transparent": true,
-          "type": "text"
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Drilldown",
+              "url": "/d/wNf0q_kZk_vm?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
         },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "id": 140,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.0",
+      "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${ds}"
           },
-          "description": "Major page faults occur when required data is not in physical memory and must be loaded from disk (storage or swap). It usually happens with:\n- insufficient physical memory\n- active use of swap space\n- file mapping access\n\nIt may cause significant performance slowdown if sustained high.\n\nPossible workaround:\n- Extend RAM to scale up\n- Reduce swap usage by adjusting vm.swappiness",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [
-                {
-                  "targetBlank": true,
-                  "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
-                }
-              ],
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 261
-          },
-          "id": 140,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.2.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-metrics-datasource",
-                "uid": "${ds}"
-              },
-              "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
-              "legendFormat": "{{instance}} ({{job}})",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Major page faults rate",
-          "type": "timeseries"
+          "editorMode": "code",
+          "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
+          "legendFormat": "{{instance}} ({{job}})",
+          "range": true,
+          "refId": "A"
         }
       ],
-      "title": "Drilldown",
-      "type": "row"
+      "title": "Major page faults rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "This panel shows memory usage by category.\n\nHow to use:\n- Start from the high-level RSS panel.\n- Identify an instance with unexpected or abnormal memory growth.\n- Filter to that instance to inspect the detailed breakdown here.\n\nInterpretation\n- A steadily rising Go Heap usually indicates a memory leak. Collect pprof memory profile.\n- A growing Go Stack commonly points to a goroutine leak.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "id": 141,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "# go other\nmax(\n    go_memstats_gc_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_mspan_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_other_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_mcache_sys_bytes{job=~\"$job\", instance=~\"$instance\"}\n)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Go: Other",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "# go stack\nmax(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Go: Stack",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "#go heap inuse\nmax(\n    go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}\n    +\n    (\n        go_memstats_heap_idle_bytes{job=~\"$job\", instance=~\"$instance\"}\n        -\n        go_memstats_heap_released_bytes{job=~\"$job\", instance=~\"$instance\"}\n    )\n)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Go: Heap",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "# go heap reserved\nmax(go_memstats_heap_released_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Go: Heap Reserved",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "# vm cache\nmax(sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Mmap: VM Cache",
+          "range": true,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "# file pages\nmax(process_resident_memory_file_bytes{job=~\"$job\", instance=~\"$instance\"})",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Rss: File Pages",
+          "range": true,
+          "refId": "E"
+        }
+      ],
+      "title": "Memory usage breakdown",
+      "type": "timeseries"
     }
   ],
   "preload": false,
@@ -6964,8 +7108,8 @@
     "list": [
       {
         "current": {
-          "text": "VictoriaMetrics",
-          "value": "P4169E866C3094E38"
+          "text": "sandbox-monitoring",
+          "value": "PB894574A363DF0AF"
         },
         "includeAll": false,
         "name": "ds",
@@ -6976,7 +7120,10 @@
         "type": "datasource"
       },
       {
-        "current": {},
+        "current": {
+          "text": "",
+          "value": ""
+        },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
@@ -6994,7 +7141,10 @@
         "type": "query"
       },
       {
-        "current": {},
+        "current": {
+          "text": "",
+          "value": ""
+        },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
@@ -7015,7 +7165,10 @@
       },
       {
         "allValue": ".*",
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
@@ -7063,7 +7216,7 @@
     ]
   },
   "timezone": "",
-  "title": "VictoriaMetrics - single-node (VM)",
-  "uid": "wNf0q_kZk_vm",
-  "version": 1
+  "title": "Testing 10079 VictoriaMetrics - single-node",
+  "uid": "wNf0q_kZk_vm_10079",
+  "version": 4
 }
