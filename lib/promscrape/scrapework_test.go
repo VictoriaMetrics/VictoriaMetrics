@@ -253,7 +253,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_timeout_seconds 42 123
 	`, []prompb.MetricMetadata{
 		{
-			Type:             uint32(prompb.MetricMetadataGAUGE),
+			Type:             prompb.MetricMetadataGAUGE,
 			MetricFamilyName: "foo",
 			Help:             "This is test metric.",
 		},
@@ -374,12 +374,12 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_timeout_seconds{job="override"} 42 123
 	`, []prompb.MetricMetadata{
 		{
-			Type:             uint32(prompb.MetricMetadataCOUNTER),
+			Type:             prompb.MetricMetadataCOUNTER,
 			MetricFamilyName: "foo",
 			Help:             "This is test metric.",
 		},
 		{
-			Type:             uint32(prompb.MetricMetadataGAUGE),
+			Type:             prompb.MetricMetadataGAUGE,
 			MetricFamilyName: "bar",
 			Help:             "This is another test metric.",
 		},

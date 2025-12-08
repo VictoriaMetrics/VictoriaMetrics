@@ -273,7 +273,7 @@ func (s *Sample) unmarshalProtobuf(src []byte) (err error) {
 // MetricMetadataType represents the Prometheus type of a metric.
 // https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.pb.go#L28C1-L39C2
 // https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#metric-types
-type MetricMetadataType int32
+type MetricMetadataType uint32
 
 const (
 	// MetricMetadataUNKNOWN represents a Prometheus Unknown-typed metric
@@ -299,7 +299,7 @@ const (
 type MetricMetadata struct {
 	// Represents the metric type, these match the set from Prometheus.
 	// Refer to https://github.com/prometheus/common/blob/95acce133ca2c07a966a71d475fb936fc282db18/model/metadata.go for details.
-	Type             uint32
+	Type             MetricMetadataType
 	MetricFamilyName string
 	Help             string
 	Unit             string
@@ -342,7 +342,7 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read metric type")
 			}
-			mm.Type = value
+			mm.Type = MetricMetadataType(value)
 		case 2:
 			value, ok := fc.String()
 			if !ok {
@@ -378,8 +378,8 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
-// MetricMetadataTypeToString maps given uint32 value to the human read-able string
-func MetricMetadataTypeToString(mt uint32) string {
+// String returns human-readable string for mt.
+func (mt MetricMetadataType) String() string {
 	//   enum MetricType {
 	//     UNKNOWN = 0;
 	//     COUNTER = 1;
