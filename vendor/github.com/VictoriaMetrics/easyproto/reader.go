@@ -688,6 +688,33 @@ func (fc *FieldContext) UnpackFloats(dst []float32) ([]float32, bool) {
 	return dst, true
 }
 
+// GetMessageData returns the first message data from the protobuf-encoded src for the given fieldNum.
+//
+// ok=false is returned if message data for the given fieldNum is missing.
+//
+// This function is useful when only a single message with the given fieldNum
+// must be obtained from protobuf-encoded src.
+func GetMessageData(src []byte, fieldNum uint32) (data []byte, ok bool, err error) {
+	var fc FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return nil, false, fmt.Errorf("cannot read the next field: %w", err)
+		}
+
+		if fc.FieldNum != fieldNum {
+			continue
+		}
+
+		data, ok = fc.MessageData()
+		if !ok {
+			return nil, false, fmt.Errorf("cannot read data for fieldNum=%d", fieldNum)
+		}
+		return data, true, nil
+	}
+	return nil, false, nil
+}
+
 func decodeZigZagInt64(u64 uint64) int64 {
 	return int64(u64>>1) ^ (int64(u64<<63) >> 63)
 }

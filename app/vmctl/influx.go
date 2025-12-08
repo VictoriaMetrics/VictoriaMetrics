@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -37,7 +38,7 @@ func newInfluxProcessor(ic *influx.Client, im *vm.Importer, cc int, separator st
 	}
 }
 
-func (ip *influxProcessor) run() error {
+func (ip *influxProcessor) run(ctx context.Context) error {
 	series, err := ip.ic.Explore()
 	if err != nil {
 		return fmt.Errorf("explore query failed: %s", err)
@@ -47,7 +48,7 @@ func (ip *influxProcessor) run() error {
 	}
 
 	question := fmt.Sprintf("Found %d timeseries to import. Continue?", len(series))
-	if !prompt(question) {
+	if !prompt(ctx, question) {
 		return nil
 	}
 

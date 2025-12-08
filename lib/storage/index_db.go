@@ -1551,9 +1551,6 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	db.tagFiltersToMetricIDsCache.Reset()
 
-	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
-	db.s.resetAndSaveTSIDCache()
-
 	// Store the metricIDs as deleted.
 	// Make this after updating the deletedMetricIDs and resetting caches
 	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
@@ -1671,7 +1668,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	metricIDs.ForEach(func(metricIDs []uint64) bool {
 		for _, metricID := range metricIDs {
 			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+				if err = checkSearchDeadlineAndPace(deadline); err != nil {
 					return false
 				}
 			}
