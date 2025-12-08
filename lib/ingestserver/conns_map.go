@@ -55,7 +55,8 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	// it's needed to properly close multiple opened connections
 	// from the same instance at once
 	for c := range cm.m {
-		remoteIP, _, _ := net.SplitHostPort(c.RemoteAddr().String())
+		remoteIP, port, _ := net.SplitHostPort(c.RemoteAddr().String())
+		remoteIP += port
 		idx, ok := connsByIP[remoteIP]
 		if !ok {
 			connsByIP[remoteIP] = len(conns)
@@ -94,9 +95,10 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	shutdownInterval := shutdownDuration / time.Duration(len(conns)-1)
 	startTime := time.Now()
 	logger.Infof("closing %d %s connections with %dms interval between them", len(conns), cm.clientName, shutdownInterval.Milliseconds())
-	for _, c := range conns {
-		c.closeAll()
+	_ = conns[0].closeAll
+	for _, c := range conns[1:] {
 		time.Sleep(shutdownInterval)
+		c.closeAll()
 	}
 	logger.Infof("closed %d %s connections in %s", len(conns), cm.clientName, time.Since(startTime))
 }
