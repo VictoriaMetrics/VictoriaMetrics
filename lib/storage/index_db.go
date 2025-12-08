@@ -257,13 +257,13 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	// Report only once and for an indexDB instance whose dateMetricIDCache is
 	// utilized the most.
-	if db.dateMetricIDCache.SizeBytes() > m.DateMetricIDCacheSizeBytes {
-    dmcs := db.dateMetricIDCache.Stats()
-  	m.DateMetricIDCacheSize = dmcs.Size
-	  m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
-	  m.DateMetricIDCacheSizeMaxBytes = dmcs.SizeMaxBytes
-	  m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
-	  m.DateMetricIDCacheResetsCount = dmcs.ResetsCount
+	dmcs := db.dateMetricIDCache.Stats()
+	if dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
+		m.DateMetricIDCacheSize = dmcs.Size
+		m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
+		m.DateMetricIDCacheSizeMaxBytes = dmcs.SizeMaxBytes
+		m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
+		m.DateMetricIDCacheResetsCount = dmcs.ResetsCount
 	}
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
