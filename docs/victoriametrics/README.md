@@ -2210,8 +2210,8 @@ The following metrics for each type of cache are exported at [`/metrics` page](#
 * `vm_cache_misses_total` - the number of cache misses
 * `vm_cache_entries` - the number of entries in the cache
 
-Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229)
-and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176)
+Both Grafana [VictoriaMetrics - single-node](https://grafana.com/grafana/dashboards/10229)
+and [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboards
 contain `Troubleshooting` section where the cache metrics are visualized. The `Cache usage %`
 panel shows the percentage of used cache size from the allowed size by type. If the percentage
 is below 100%, then no further tuning needed. The `Cache miss ratio` panel shows the percentage
