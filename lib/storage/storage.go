@@ -1337,8 +1337,8 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 
 // DeleteSeries marks as deleted all series matching the given tfss and
-// updates or resets all caches where the corresponding TSIDs and MetricIDs may
-// be stored.
+// resets caches where the corresponding TSIDs and MetricIDs may be stored if
+// needed.
 //
 // If the number of the series exceeds maxMetrics, no series will be deleted and
 // an error will be returned. Otherwise, the function returns the number of
@@ -1381,11 +1381,11 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		qt.Printf("deleted %d metricIDs from %s partition indexDB", n, idb.name)
 	}
 
-	// Do not reset MetricName -> TSID cache, since a given TSID can be deleted
-	// in one indexDB but still be used in another indexDB.
+	// Do not reset tsidCache (MetricName -> TSID), since a given TSID can be
+	// deleted in one indexDB but still be used in another indexDB.
 
-	// Do not reset MetricID->MetricName cache, since it must be used only
-	// after filtering out deleted metricIDs.
+	// Do not reset metricNameCache (MetricID -> MetricName), since it must be
+	// used only after filtering out deleted metricIDs.
 
 	n := all.Len()
 	qt.Donef("deleted %d unique metricIDs", n)
@@ -1977,6 +1977,9 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			continue
 		}
 
+		// tsidCache may contain TSIDs that were deleted from some indexDBs but
+		// are still in use in other indexDBs. Thus, also check if a given TSID
+		// was not deleted deom the current indexDB.
 		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
 

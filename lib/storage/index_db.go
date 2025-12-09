@@ -124,6 +124,7 @@ type indexDB struct {
 
 	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
+	// TODO(rtm0): Also replace with lrucache?
 	loopsPerDateTagFilterCache *workingsetcache.Cache
 
 	// A cache that stores metricIDs that have been added to the index.
@@ -1539,8 +1540,15 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// atomically add deleted metricIDs to an inmemory map.
 	db.updateDeletedMetricIDs(metricIDs)
 
-	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
+	// Reset TagFilters -> metricIDs cache, since it may contain deleted
+	// metricIDs.
 	db.tagFiltersToMetricIDsCache.Reset()
+
+	// TODO(@rtm0): Reset detricIDs cache, since it may contain deleted
+	// metricIDs.
+
+	// TODO(@rtm0): Reset date -> metricIDs cache, since it may contain deleted
+	// metricIDs.
 
 	// Store the metricIDs as deleted.
 	// Make this after updating the deletedMetricIDs and resetting caches
