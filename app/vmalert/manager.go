@@ -53,7 +53,7 @@ func (m *manager) groupAPI(gID uint64) (*rule.ApiGroup, error) {
 	if err != nil {
 		return nil, err
 	}
-	return g.ToAPI(true), nil
+	return g.ToAPI(), nil
 }
 
 // ruleAPI generates apiRule object from alert by its ID(hash)
@@ -62,7 +62,7 @@ func (m *manager) ruleAPI(gID, rID uint64) (rule.ApiRule, error) {
 	if err != nil {
 		return rule.ApiRule{}, err
 	}
-	group := g.ToAPI(true)
+	group := g.ToAPI()
 	ruleID := strconv.FormatUint(rID, 10)
 	for _, r := range group.Rules {
 		if r.ID == ruleID {
@@ -78,7 +78,7 @@ func (m *manager) alertAPI(gID, aID uint64) (*rule.ApiAlert, error) {
 	if err != nil {
 		return nil, err
 	}
-	group := g.ToAPI(true)
+	group := g.ToAPI()
 	for _, r := range group.Rules {
 		if r.Type != rule.TypeAlerting {
 			continue

@@ -199,7 +199,7 @@ func TestHandler(t *testing.T) {
 		id := groupsIds[0]
 		gid := m.groupsIds[id]
 		g := m.groups[gid]
-		expGroup := g.ToAPI(false)
+		expGroup := g.ToAPI()
 		gotGroup := rule.ApiGroup{}
 		getResp(t, ts.URL+"/"+expGroup.APILink(), &gotGroup, 200)
 		if expGroup.ID != gotGroup.ID {
@@ -262,8 +262,7 @@ func TestHandler(t *testing.T) {
 		check("/api/v1/rules?group_limit=1&type=alert", 200, 1, 1)
 		check("/api/v1/rules?group_limit=1&type=record", 200, 1, 1)
 		check("/api/v1/rules?group_limit=2", 200, 2, 4)
-		check(fmt.Sprintf("/api/v1/rules?group_limit=1&group_next_token=%d", groupsIds[1]), 200, 1, 2)
-		check("/api/v1/rules?group_limit=1&group_next_token=9999999999", 400, 0, 0)
+		check(fmt.Sprintf("/api/v1/rules?group_limit=1&page_num=%d", 1), 200, 1, 2)
 	})
 	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
 		// check if response returns active alerts by default

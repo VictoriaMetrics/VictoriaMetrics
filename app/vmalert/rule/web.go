@@ -235,7 +235,7 @@ func NewAlertAPI(ar *AlertingRule, a *notifier.Alert) *ApiAlert {
 	return aa
 }
 
-func (r *ApiRule) extendState() {
+func (r *ApiRule) ExtendState() {
 	if len(r.Alerts) > 0 {
 		return
 	}
@@ -250,7 +250,7 @@ func (r *ApiRule) extendState() {
 }
 
 // ToAPI returns ApiGroup representation of g
-func (g *Group) ToAPI(useExtendedStates bool) *ApiGroup {
+func (g *Group) ToAPI() *ApiGroup {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	ag := ApiGroup{
@@ -274,13 +274,9 @@ func (g *Group) ToAPI(useExtendedStates bool) *ApiGroup {
 	if g.EvalDelay != nil {
 		ag.EvalDelay = g.EvalDelay.Seconds()
 	}
-	ag.Rules = make([]ApiRule, 0)
+	ag.Rules = make([]ApiRule, 0, len(g.Rules))
 	for _, r := range g.Rules {
 		ar := r.ToAPI()
-		if useExtendedStates {
-			ar.extendState()
-		}
-		ag.States[ar.State]++
 		ag.Rules = append(ag.Rules, ar)
 	}
 	return &ag

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -104,12 +105,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		data, _, _ := rh.groups(rf)
+		lr := rh.groups(rf)
 		state := ""
 		if len(rf.states) == 1 {
 			state = rf.states[0]
 		}
-		WriteListGroups(w, r, data, state)
+		WriteListGroups(w, r, lr.Data.Groups, state)
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
@@ -261,10 +262,13 @@ func (rh *requestHandler) getAlert(r *http.Request) (*rule.ApiAlert, *httpserver
 }
 
 type listGroupsResponse struct {
-	Status string `json:"status"`
-	Data   struct {
-		Groups         []*rule.ApiGroup `json:"groups"`
-		GroupNextToken string           `json:"groupNextToken,omitempty"`
+	Status      string `json:"status"`
+	Page        int    `json:"page,omitempty"`
+	TotalPages  int    `json:"total_pages,omitempty"`
+	TotalGroups int    `json:"total_groups,omitempty"`
+	TotalRules  int    `json:"total_rules,omitempty"`
+	Data        struct {
+		Groups []*rule.ApiGroup `json:"groups"`
 	} `json:"data"`
 }
 
@@ -277,9 +281,8 @@ type rulesFilter struct {
 	excludeAlerts  bool
 	states         []string
 	dsType         config.Type
-	maxGroups      *int
-	nextGid        *uint64
-	beforeGid      *uint64
+	maxGroups      int
+	pageNum        int
 	search         string
 	extendedStates bool
 }
@@ -337,46 +340,27 @@ func newRulesFilter(r *http.Request, allStates []string) (f *rulesFilter, err *h
 	rf.files = append([]string{}, r.Form["file[]"]...)
 	rf.search = strings.ToLower(query.Get("search"))
 
-	nextToken := query.Get("group_next_token")
-	beforeToken := query.Get("group_before_token")
+	pageNum := query.Get("page_num")
 	maxGroups := query.Get("group_limit")
-	if nextToken != "" && beforeToken != "" {
-		e = fmt.Errorf(`both "group_next_token" and "group_before_token" are set, only one is allowed`)
-		return
-	}
-	if nextToken != "" || beforeToken != "" {
+	if pageNum != "" {
 		if maxGroups == "" {
 			e = fmt.Errorf(`"group_limit" needs to be present in order to paginate over the groups`)
 			return
 		}
-	}
-	if nextToken != "" {
-		v, verr := strconv.ParseUint(nextToken, 10, 64)
-		if verr != nil {
-			e = fmt.Errorf(`failed to parse group id from "group_next_token"=%q argument`, nextToken)
+		v, verr := strconv.Atoi(pageNum)
+		if verr != nil || v <= 0 {
+			e = fmt.Errorf(`"page_num" is expected to be a positive number, found %q`, pageNum)
 			return
 		}
-		rf.nextGid = &v
-	}
-	if beforeToken != "" {
-		v, verr := strconv.ParseUint(beforeToken, 10, 64)
-		if verr != nil {
-			e = fmt.Errorf(`failed to parse group id from "group_before_token"=%q argument`, beforeToken)
-			return
-		}
-		rf.beforeGid = &v
+		rf.pageNum = v
 	}
 	if maxGroups != "" {
 		v, verr := strconv.Atoi(maxGroups)
-		if verr != nil {
-			e = fmt.Errorf(`"group_limit" needs to be a valid number: %w`, verr)
+		if verr != nil || v <= 0 {
+			e = fmt.Errorf(`"group_limit" is expected to be a positive number, found %q`, maxGroups)
 			return
 		}
-		if v <= 0 {
-			e = fmt.Errorf(`"group_limit" needs to be greater than 0`)
-			return
-		}
-		rf.maxGroups = &v
+		rf.maxGroups = v
 	}
 	f = rf
 	return
@@ -408,50 +392,31 @@ func (rf *rulesFilter) matchesRule(r *rule.ApiRule) bool {
 	return slices.Contains(rf.states, r.State)
 }
 
-func (rh *requestHandler) groups(rf *rulesFilter) ([]*rule.ApiGroup, bool, string) {
+func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	var maxGroups int
-	internalGroups := rh.m.groups
-	var reverse bool
-	var found bool
-	if rf.maxGroups != nil {
-		maxGroups = *rf.maxGroups
-		var offset int
-		if rf.nextGid != nil {
-			nextGid := *rf.nextGid
-			if offset, found = rh.m.groupsIds[nextGid]; found {
-				internalGroups = internalGroups[offset:]
-			} else {
-				internalGroups = internalGroups[:0]
-			}
-		} else if rf.beforeGid != nil {
-			reverse = true
-			beforeGid := *rf.beforeGid
-			if offset, found = rh.m.groupsIds[beforeGid]; found {
-				internalGroups = internalGroups[:offset]
-			} else {
-				internalGroups = internalGroups[:0]
-			}
-		}
+	skipGroups := (rf.pageNum - 1) * rf.maxGroups
+	lr := &listGroupsResponse{
+		Status: "success",
 	}
-	groups := make([]*rule.ApiGroup, 0)
-	for i := range len(internalGroups) {
-		if reverse {
-			i = len(internalGroups) - 1 - i
-		}
-		group := internalGroups[i]
+	if skipGroups == 0 || skipGroups < len(rh.m.groups) {
+		lr.Data.Groups = make([]*rule.ApiGroup, 0)
+	}
+	if skipGroups >= len(rh.m.groups) {
+		return lr
+	}
+	for _, group := range rh.m.groups {
 		if !rf.matchesGroup(group) {
 			continue
 		}
-		groupFound := len(rf.search) > 0 && (strings.Contains(group.Name, rf.search) || strings.Contains(group.File, rf.search))
-		g := group.ToAPI(rf.extendedStates)
+		groupFound := len(rf.search) == 0 || strings.Contains(group.Name, rf.search) || strings.Contains(group.File, rf.search)
+		g := group.ToAPI()
 		// the returned list should always be non-nil
 		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221
 		filteredRules := make([]rule.ApiRule, 0)
 		for _, rule := range g.Rules {
-			if !groupFound && len(rf.search) > 0 && !strings.Contains(strings.ToLower(rule.Name), rf.search) {
+			if !groupFound && !strings.Contains(strings.ToLower(rule.Name), rf.search) {
 				continue
 			}
 			if !rf.matchesRule(&rule) {
@@ -460,33 +425,42 @@ func (rh *requestHandler) groups(rf *rulesFilter) ([]*rule.ApiGroup, bool, strin
 			if rf.excludeAlerts {
 				rule.Alerts = nil
 			}
+			if rf.extendedStates {
+				rule.ExtendState()
+			}
+			g.States[rule.State]++
 			filteredRules = append(filteredRules, rule)
 		}
 		if len(g.Rules) == 0 || len(filteredRules) > 0 {
-			if maxGroups > 0 && len(groups) == maxGroups {
-				return groups, found, strconv.FormatUint(group.GetID(), 10)
+			if rf.maxGroups > 0 {
+				lr.TotalGroups++
+				lr.TotalRules += len(filteredRules)
+			}
+			if skipGroups > 0 {
+				skipGroups--
+				continue
+			}
+			if rf.maxGroups > 0 && len(lr.Data.Groups) == rf.maxGroups {
+				continue
 			}
 			g.Rules = filteredRules
-			if reverse {
-				groups = append([]*rule.ApiGroup{g}, groups...)
-			} else {
-				groups = append(groups, g)
-			}
+			lr.Data.Groups = append(lr.Data.Groups, g)
 		}
 	}
-	return groups, found, ""
+	if rf.maxGroups > 0 {
+		lr.Page = rf.pageNum
+		lr.TotalPages = max(int(math.Ceil(float64(lr.TotalGroups)/float64(rf.maxGroups))), 1)
+	}
+	return lr
 }
 
 func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, *httpserver.ErrorWithStatusCode) {
-	lr := listGroupsResponse{Status: "success"}
-	var found bool
-	lr.Data.Groups, found, lr.Data.GroupNextToken = rh.groups(rf)
-	if !found {
-		if rf.nextGid != nil {
-			return nil, errResponse(fmt.Errorf(`invalid "group_next_token"="%d". were rule groups changed?`, *rf.nextGid), http.StatusBadRequest)
-		} else if rf.beforeGid != nil {
-			return nil, errResponse(fmt.Errorf(`invalid "group_before_token"="%d". were rule groups changed?`, *rf.beforeGid), http.StatusBadRequest)
-		}
+	lr := rh.groups(rf)
+	if lr.Data.Groups == nil {
+		return nil, errResponse(fmt.Errorf(`page_num exceeds total amount of pages`), http.StatusBadRequest)
+	}
+	if lr.Page > lr.TotalPages {
+		return nil, errResponse(fmt.Errorf(`page_num=%d exceeds total amount of pages in result=%d`, lr.Page, lr.TotalPages), http.StatusBadRequest)
 	}
 	b, err := json.Marshal(lr)
 	if err != nil {
@@ -509,7 +483,7 @@ func (rh *requestHandler) groupAlerts() []rule.GroupAlerts {
 	var gAlerts []rule.GroupAlerts
 	for _, group := range rh.m.groups {
 		var alerts []*rule.ApiAlert
-		g := group.ToAPI(true)
+		g := group.ToAPI()
 		for _, r := range g.Rules {
 			if r.Type != rule.TypeAlerting {
 				continue
@@ -539,7 +513,7 @@ func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, *httpserver.Error
 		if !rf.matchesGroup(group) {
 			continue
 		}
-		g := group.ToAPI(rf.extendedStates)
+		g := group.ToAPI()
 		for _, r := range g.Rules {
 			if r.Type != rule.TypeAlerting {
 				continue
