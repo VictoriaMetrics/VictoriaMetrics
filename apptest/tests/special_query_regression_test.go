@@ -76,10 +76,12 @@ func testCaseSensitiveRegex(tc *apptest.TestCase, sut apptest.PrometheusWriteQue
 	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/export response",
 		Got: func() any {
-			return sut.PrometheusAPIV1Export(t, `{label=~'(?i)sensitiveregex'}`, apptest.QueryOpts{
+			resp := sut.PrometheusAPIV1Export(t, `{label=~'(?i)sensitiveregex'}`, apptest.QueryOpts{
 				Start: "2024-02-05T08:50:00.700Z",
 				End:   "2024-02-05T09:00:00.700Z",
 			})
+			resp.Sort()
+			return resp
 		},
 		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
