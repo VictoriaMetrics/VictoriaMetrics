@@ -131,6 +131,6 @@ func TestAllowRerouting(t *testing.T) {
 		newStorage(0.81, true),
 		newStorage(0.01, true),
 		newStorage(0.01, true),
-		newStorage(0.01, false),
+		newStorage(0, false),
 	}, 0, true)
 }

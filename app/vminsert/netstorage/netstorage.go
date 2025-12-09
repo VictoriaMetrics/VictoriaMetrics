@@ -736,13 +736,13 @@ func allowRerouting(snSource *storageNode, sns []*storageNode) bool {
 
 	saturations := make([]float64, 0, len(sns))
 	for _, sn := range sns {
-		// Do not allow rerouting if avgSaturation is not yet warmed up.
-		if sn.avgSaturation.Value() == 0 {
-			return false
-		}
 		// Skip not ready storage nodes.
 		if !sn.isReady() {
 			continue
+		}
+		// Do not allow rerouting if avgSaturation is not yet warmed up.
+		if sn.avgSaturation.Value() == 0 {
+			return false
 		}
 
 		// Do not allow rerouting if there is a slower storage node
