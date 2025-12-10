@@ -14,6 +14,6 @@ and sync changes to [Grafana website](https://grafana.com/orgs/victoriametrics/d
 `status-page-generated.json` is auto-generated from alert rules (`deployment/docker/rules/*.yml`).
 Shows health percentage per alert across all components.
 
-**Generator** in `dashgen/`: parser -> queries -> jsonnet template
+**Generator** in `dashgen/`: parser -> queries -> quicktemplate renderer
 
 **Testing:** `make dashgen-test`
