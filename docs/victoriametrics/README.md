@@ -1045,9 +1045,6 @@ VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics]
 VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`.
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/v1/metrics`.
 
-VictoriaMetrics supports only [cumulative temporality](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#temporality)
-for received measurements. The number of dropped unsupported samples is exposed via `vm_protoparser_rows_dropped_total{type="opentelemetry"` metric.
-
 VictoriaMetrics stores the ingested OpenTelemetry [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) as is without any transformations.
 Pass `-opentelemetry.usePrometheusNaming` command-line flag to VictoriaMetrics for automatic conversion of metric names and labels into Prometheus-compatible format.
 Pass `-opentelemetry.convertMetricNamesToPrometheus` command-line flag to VictoriaMetrics for applying Prometheus-compatible format conversion only for metrics names.
@@ -2210,13 +2207,14 @@ The following metrics for each type of cache are exported at [`/metrics` page](#
 * `vm_cache_misses_total` - the number of cache misses
 * `vm_cache_entries` - the number of entries in the cache
 
-Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229)
-and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176)
-contain `Caches` section with cache metrics visualized. The panels show the current
-memory usage by each type of cache, and also a cache hit rate. If hit rate is close to 100%
-then cache efficiency is already very high and does not need any tuning.
-The panel `Cache usage %` in `Troubleshooting` section shows the percentage of used cache size
-from the allowed size by type. If the percentage is below 100%, then no further tuning needed.
+Both Grafana [VictoriaMetrics - single-node](https://grafana.com/grafana/dashboards/10229)
+and [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboards
+contain `Troubleshooting` section where the cache metrics are visualized. The `Cache usage %`
+panel shows the percentage of used cache size from the allowed size by type. If the percentage
+is below 100%, then no further tuning needed. The `Cache miss ratio` panel shows the percentage
+of reads for which no value was found in the cache. If the cache utilization is 100% and there are
+cache misses, then the cache is either not accepting new entries or evicting existing ones. Its
+size may need to be increased.
 
 Please note, default cache sizes were carefully adjusted accordingly to the most
 practical scenarios and workloads. Change the defaults only if you understand the implications

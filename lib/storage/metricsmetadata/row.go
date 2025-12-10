@@ -20,7 +20,7 @@ type Row struct {
 	AccountID uint32
 	ProjectID uint32
 
-	Type prompb.MetricMetadataType
+	Type prompb.MetricType
 }
 
 // MarshalTo serializes Row into provided buffer and returns result
@@ -57,7 +57,7 @@ func (mr *Row) Unmarshal(data []byte) ([]byte, error) {
 	mr.ProjectID = projectID
 
 	typ := encoding.UnmarshalUint32(data)
-	mr.Type = prompb.MetricMetadataType(typ)
+	mr.Type = prompb.MetricType(typ)
 	data = data[4:]
 
 	nextString := func() ([]byte, error) {

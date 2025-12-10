@@ -663,15 +663,6 @@ func SanitizeLabelName(name string) string {
 	return labelNameSanitizer.Transform(name)
 }
 
-// SplitMetricNameToTokens returns tokens generated from metric name divided by unsupported Prometheus characters
-//
-// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
-func SplitMetricNameToTokens(name string) []string {
-	return nonAlphaNumChars.Split(name, -1)
-}
-
-var nonAlphaNumChars = regexp.MustCompile(`[^a-zA-Z0-9]`)
-
 var labelNameSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
 	return unsupportedLabelNameChars.ReplaceAllLiteralString(s, "_")
 })

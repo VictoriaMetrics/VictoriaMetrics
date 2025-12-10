@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
@@ -166,8 +167,9 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 	scrapesOK.Inc()
 
 	// Read the data from resp.Body
-	r := io.LimitReader(resp.Body, c.maxScrapeSize)
-	_, err = dst.ReadFrom(r)
+	lr := ioutil.GetLimitedReader(resp.Body, c.maxScrapeSize)
+	_, err = dst.ReadFrom(lr)
+	ioutil.PutLimitedReader(lr)
 	if err != nil {
 		if ue, ok := err.(*url.Error); ok && ue.Timeout() {
 			scrapesTimedout.Inc()
