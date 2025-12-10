@@ -1,4 +1,5 @@
 
+
 {
    "annotations": {
       "list": [
@@ -11,12 +12,12 @@
             "enable": true,
             "hide": true,
             "iconColor": "rgba(0, 211, 255, 1)",
-            "name": "Annotations & Alerts",
+            "name": "Annotations \u0026 Alerts",
             "type": "dashboard"
          }
       ]
    },
-   "description": "**VictoriaMetrics Status Page** - Health matrix for VictoriaMetrics components.\n\n**Reading the Table:**\n- **Instance Count** (Blue): Number of detected instances per component\n- **100%** (Green): All instances are healthy for this alert\n- **<100%** (Red): Some instances are experiencing issues (percentage shows healthy instances)\n- **-** (Gray): Alert not applicable to this component\n\n**Component Prefixes:**\n- **ALL:** Applies to all VictoriaMetrics components\n- **cluster:** Applies to vminsert, vmselect, vmstorage\n- **single:** Applies to victoria-metrics (single-node)\n- **vmagent/vmalert/vmauth/vmanomaly:** Component-specific alerts\n\n**Alert Rules Sources:**\n- [VictoriaMetrics Alerts Overview](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)\n- [vmalert Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/vmalert.yml)\n- [vmagent Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/vmagent.yml)\n- [VM Cluster Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/cluster.yml)\n- [VM Single Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/single.yml)\n- [VM Operator Rules](https://github.com/VictoriaMetrics/operator/blob/master/config/alerting/vmoperator-rules.yaml)\n- [VMAnomaly Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/vmanomaly.yml)\n",
+   "description": "**VictoriaMetrics Status Page** - Health matrix for VictoriaMetrics components.\n\n**Reading the Table:**\n- **Instance Count** (Blue): Number of detected instances per component\n- **100%** (Green): All instances are healthy for this alert\n- **\u003c100%** (Red): Some instances are experiencing issues (percentage shows healthy instances)\n- **-** (Gray): Alert not applicable to this component\n\n**Component Prefixes:**\n- **ALL:** Applies to all VictoriaMetrics components\n- **cluster:** Applies to vminsert, vmselect, vmstorage\n- **single:** Applies to victoria-metrics (single-node)\n- **vmagent/vmalert/vmauth/vmanomaly:** Component-specific alerts\n\n**Alert Rules Sources:**\n- [VictoriaMetrics Alerts Overview](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts)\n- [vmalert Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/vmalert.yml)\n- [vmagent Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/vmagent.yml)\n- [VM Cluster Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/cluster.yml)\n- [VM Single Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/single.yml)\n- [VM Operator Rules](https://github.com/VictoriaMetrics/operator/blob/master/config/alerting/vmoperator-rules.yaml)\n- [VMAnomaly Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/vmanomaly.yml)\n",
    "editable": true,
    "fiscalYearStartMonth": 0,
    "graphTooltip": 0,
@@ -27,7 +28,7 @@
          "icon": "external link",
          "includeVars": false,
          "keepTime": false,
-         "tags": [ ],
+         "tags": [],
          "targetBlank": true,
          "title": "Alert Rules Source",
          "tooltip": "View official VictoriaMetrics alert rules on GitHub",
@@ -45,8 +46,8 @@
          "fieldConfig": {
             "defaults": {
                "color": {
-                  "fixedColor": "#1F60C4",
-                  "mode": "fixed"
+                  "mode": "fixed",
+                  "fixedColor": "#1F60C4"
                },
                "custom": {
                   "align": "center",
@@ -58,7 +59,7 @@
                   "inspect": false,
                   "minWidth": 80
                },
-               "mappings": [ ],
+               "mappings": [],
                "noValue": "-",
                "thresholds": {
                   "mode": "absolute",
@@ -95,9 +96,6 @@
          "id": 8000,
          "options": {
             "cellHeight": "md",
-            "footer": {
-               "show": false
-            },
             "showHeader": true
          },
          "targets": [
@@ -120,7 +118,7 @@
          "transformations": [
             {
                "id": "merge",
-               "options": { }
+               "options": {}
             },
             {
                "id": "organize",
@@ -128,8 +126,8 @@
                   "excludeByName": {
                      "Time": true
                   },
-                  "includeByName": { },
-                  "indexByName": { }
+                  "includeByName": {},
+                  "indexByName": {}
                }
             },
             {
@@ -145,8 +143,8 @@
                   "excludeByName": {
                      "Metric": true
                   },
-                  "includeByName": { },
-                  "indexByName": { }
+                  "includeByName": {},
+                  "indexByName": {}
                }
             }
          ],
@@ -157,7 +155,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "${datasource}"
          },
-         "description": "Shows **worst health state** over the selected time range.\n\n**Values:** 100% = all healthy, <100% = issues detected, - = not applicable\n\n**Prefixes:** ALL = all components, cluster = vminsert/vmselect/vmstorage, single = victoria-metrics, or component-specific (vmagent, vmalert, vmauth, vmanomaly)\n\n**Sources:** [Alerts Overview](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts) | [cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/cluster.yml) | [single.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/single.yml) | [vmagent.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/vmagent.yml) | [vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/vmalert.yml)\n",
+         "description": "Shows **worst health state** over the selected time range.\n\n**Values:** 100% = all healthy, \u003c100% = issues detected, - = not applicable for this component\n\n**Prefixes:** ALL = all components, cluster = vminsert/vmselect/vmstorage, single = victoria-metrics, or component-specific (vmagent, vmalert, vmauth, vmanomaly)\n\n**Sources:** [Alerts Overview](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#alerts) | [Alert Rules](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/rules)\n",
          "fieldConfig": {
             "defaults": {
                "color": {
@@ -170,6 +168,11 @@
                      "type": "color-background"
                   },
                   "filterable": true,
+                  "footer": {
+                     "reducers": [
+                        "min"
+                     ]
+                  },
                   "inspect": false,
                   "minWidth": 80,
                   "wrapHeaderText": true,
@@ -179,35 +182,35 @@
                   {
                      "options": {
                         "from": 100,
+                        "to": 100,
                         "result": {
                            "color": "green",
                            "index": 0,
                            "text": "100%"
-                        },
-                        "to": 100
+                        }
                      },
                      "type": "range"
                   },
                   {
                      "options": {
                         "from": 0,
+                        "to": 99.99,
                         "result": {
                            "color": "red",
                            "index": 1
-                        },
-                        "to": 99.989999999999995
+                        }
                      },
                      "type": "range"
                   },
                   {
                      "options": {
                         "from": -999999,
+                        "to": -0.01,
                         "result": {
                            "color": "red",
                            "index": 2,
                            "text": "ERR"
-                        },
-                        "to": -0.01
+                        }
                      },
                      "type": "range"
                   },
@@ -278,12 +281,6 @@
          "options": {
             "cellHeight": "sm",
             "enablePagination": false,
-            "footer": {
-               "countRows": false,
-               "enablePagination": false,
-               "reducer": [ ],
-               "show": false
-            },
             "showHeader": true
          },
          "targets": [
@@ -293,7 +290,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmalert_alerting_rules_errors_total[5m])) without(id) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmalert_alerting_rules_errors_total[5m])) without(id) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmalert_alerting_rules_errors_total[5m])) without(id) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmalert_alerting_rules_errors_total[5m])) without(id) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -307,7 +304,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vmalert_alerts_send_errors_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vmalert_alerts_send_errors_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vmalert_alerts_send_errors_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vmalert_alerts_send_errors_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -321,7 +318,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((avg_over_time(vm_concurrent_insert_current[1m]) \u003e= vm_concurrent_insert_capacity) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((avg_over_time(vm_concurrent_insert_current[1m]) \u003e= vm_concurrent_insert_capacity) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -335,7 +332,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmauth-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmauth_concurrent_requests_limit_reached_total[1m])) by (instance) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmauth_concurrent_requests_limit_reached_total[1m])) by (instance) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmauth-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmauth_concurrent_requests_limit_reached_total[1m])) by (instance) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmauth_concurrent_requests_limit_reached_total[1m])) by (instance) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -349,7 +346,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((vmalert_config_last_reload_successful != 1) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((vmalert_config_last_reload_successful != 1) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((vmalert_config_last_reload_successful != 1) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((vmalert_config_last_reload_successful != 1) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -363,7 +360,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((vm_promscrape_config_last_reload_successful != 1\nor\nvmagent_relabel_config_last_reload_successful != 1) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -377,7 +374,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_data_size_bytes) by(job, instance) /\n(\n sum(vm_free_disk_space_bytes) by(job, instance) +\n sum(vm_data_size_bytes) by(job, instance)\n) > 0.8) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_data_size_bytes) by(job, instance) /\n(\n sum(vm_free_disk_space_bytes) by(job, instance) +\n sum(vm_data_size_bytes) by(job, instance)\n) > 0.8) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_data_size_bytes) by(job, instance) /\n(\n sum(vm_free_disk_space_bytes) by(job, instance) +\n sum(vm_data_size_bytes) by(job, instance)\n) \u003e 0.8) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_data_size_bytes) by(job, instance) /\n(\n sum(vm_free_disk_space_bytes) by(job, instance) +\n sum(vm_data_size_bytes) by(job, instance)\n) \u003e 0.8) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -391,7 +388,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_data_size_bytes) by(job, instance) /\n(\n sum(vm_free_disk_space_bytes) by(job, instance) +\n sum(vm_data_size_bytes) by(job, instance)\n) > 0.8) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_data_size_bytes) by(job, instance) /\n(\n sum(vm_free_disk_space_bytes) by(job, instance) +\n sum(vm_data_size_bytes) by(job, instance)\n) > 0.8) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_data_size_bytes) by(job, instance) /\n(\n sum(vm_free_disk_space_bytes) by(job, instance) +\n sum(vm_data_size_bytes) by(job, instance)\n) \u003e 0.8) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_data_size_bytes) by(job, instance) /\n(\n sum(vm_free_disk_space_bytes) by(job, instance) +\n sum(vm_data_size_bytes) by(job, instance)\n) \u003e 0.8) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -405,7 +402,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes) without(path) /\n(\n  (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n    sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n    sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n  )\n  +\n  rate(vm_new_timeseries_created_total[1d]) * (\n    sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type)/\n    sum(vm_rows{type=\"indexdb/file\"}) without(type)\n  )\n) < 3 * 24 * 3600 > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes) without(path) /\n(\n  (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n    sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n    sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n  )\n  +\n  rate(vm_new_timeseries_created_total[1d]) * (\n    sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type)/\n    sum(vm_rows{type=\"indexdb/file\"}) without(type)\n  )\n) < 3 * 24 * 3600 > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes) without(path) /\n(\n  (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n    sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n    sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n  )\n  +\n  rate(vm_new_timeseries_created_total[1d]) * (\n    sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type)/\n    sum(vm_rows{type=\"indexdb/file\"}) without(type)\n  )\n) \u003c 3 * 24 * 3600 \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes) without(path) /\n(\n  (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n    sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n    sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n  )\n  +\n  rate(vm_new_timeseries_created_total[1d]) * (\n    sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type)/\n    sum(vm_rows{type=\"indexdb/file\"}) without(type)\n  )\n) \u003c 3 * 24 * 3600 \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -419,7 +416,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes) without(path) /\n(\n  (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n    sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n    sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n  )\n  +\n  rate(vm_new_timeseries_created_total[1d]) * (\n    sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n    sum(vm_rows{type=\"indexdb/file\"}) without(type)\n  )\n) < 3 * 24 * 3600 > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes) without(path) /\n(\n  (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n    sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n    sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n  )\n  +\n  rate(vm_new_timeseries_created_total[1d]) * (\n    sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n    sum(vm_rows{type=\"indexdb/file\"}) without(type)\n  )\n) < 3 * 24 * 3600 > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes) without(path) /\n(\n  (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n    sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n    sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n  )\n  +\n  rate(vm_new_timeseries_created_total[1d]) * (\n    sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n    sum(vm_rows{type=\"indexdb/file\"}) without(type)\n  )\n) \u003c 3 * 24 * 3600 \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes) without(path) /\n(\n  (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n    sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n    sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n  )\n  +\n  rate(vm_new_timeseries_created_total[1d]) * (\n    sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n    sum(vm_rows{type=\"indexdb/file\"}) without(type)\n  )\n) \u003c 3 * 24 * 3600 \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -433,7 +430,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n  sum(increase(vmanomaly_reader_responses_total{job=~\".*vmanomaly.*\", code=~\"2..\"}[5m])) by (job, instance, url) /\n  sum(increase(vmanomaly_reader_responses_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, url)\n) < 0.95) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n  sum(increase(vmanomaly_reader_responses_total{job=~\".*vmanomaly.*\", code=~\"2..\"}[5m])) by (job, instance, url) /\n  sum(increase(vmanomaly_reader_responses_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, url)\n) < 0.95) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n  sum(increase(vmanomaly_reader_responses_total{job=~\".*vmanomaly.*\", code=~\"2..\"}[5m])) by (job, instance, url) /\n  sum(increase(vmanomaly_reader_responses_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, url)\n) \u003c 0.95) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n  sum(increase(vmanomaly_reader_responses_total{job=~\".*vmanomaly.*\", code=~\"2..\"}[5m])) by (job, instance, url) /\n  sum(increase(vmanomaly_reader_responses_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, url)\n) \u003c 0.95) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -447,7 +444,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n  sum(increase(vmanomaly_writer_responses_total{job=~\".*vmanomaly.*\", code=~\"2..\"}[5m])) by (job, instance, url) /\n  sum(increase(vmanomaly_writer_responses_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, url)\n) < 0.95) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n  sum(increase(vmanomaly_writer_responses_total{job=~\".*vmanomaly.*\", code=~\"2..\"}[5m])) by (job, instance, url) /\n  sum(increase(vmanomaly_writer_responses_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, url)\n) < 0.95) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n  sum(increase(vmanomaly_writer_responses_total{job=~\".*vmanomaly.*\", code=~\"2..\"}[5m])) by (job, instance, url) /\n  sum(increase(vmanomaly_writer_responses_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, url)\n) \u003c 0.95) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n  sum(increase(vmanomaly_writer_responses_total{job=~\".*vmanomaly.*\", code=~\"2..\"}[5m])) by (job, instance, url) /\n  sum(increase(vmanomaly_writer_responses_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, url)\n) \u003c 0.95) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -461,7 +458,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_indexdb_items_dropped_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_indexdb_items_dropped_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_indexdb_items_dropped_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_indexdb_items_dropped_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -475,7 +472,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((vmanomaly_config_last_reload_successful == 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((vmanomaly_config_last_reload_successful == 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((vmanomaly_config_last_reload_successful == 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((vmanomaly_config_last_reload_successful == 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -489,7 +486,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((lag(vmanomaly_start_time_seconds{job=\"vmanomaly\"}[24h]) > 900) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((lag(vmanomaly_start_time_seconds{job=\"vmanomaly\"}[24h]) > 900) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((lag(vmanomaly_start_time_seconds{job=\"vmanomaly\"}[24h]) \u003e 900) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((lag(vmanomaly_start_time_seconds{job=\"vmanomaly\"}[24h]) \u003e 900) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -503,7 +500,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /\n(\n    (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n      sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n      sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total[1d]) * (\n      sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n      sum(vm_rows{type=\"indexdb/file\"}) without(type)\n    )\n) < 3 * 24 * 3600 > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /\n(\n    (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n      sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n      sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total[1d]) * (\n      sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n      sum(vm_rows{type=\"indexdb/file\"}) without(type)\n    )\n) < 3 * 24 * 3600 > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /\n(\n    (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n      sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n      sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total[1d]) * (\n      sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n      sum(vm_rows{type=\"indexdb/file\"}) without(type)\n    )\n) \u003c 3 * 24 * 3600 \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /\n(\n    (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n      sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n      sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total[1d]) * (\n      sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n      sum(vm_rows{type=\"indexdb/file\"}) without(type)\n    )\n) \u003c 3 * 24 * 3600 \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -517,7 +514,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /\n(\n    (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n      sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n      sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total[1d]) * (\n      sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n      sum(vm_rows{type=\"indexdb/file\"}) without(type)\n    )\n) < 3 * 24 * 3600 > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /\n(\n    (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n      sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n      sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total[1d]) * (\n      sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n      sum(vm_rows{type=\"indexdb/file\"}) without(type)\n    )\n) < 3 * 24 * 3600 > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /\n(\n    (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n      sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n      sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total[1d]) * (\n      sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n      sum(vm_rows{type=\"indexdb/file\"}) without(type)\n    )\n) \u003c 3 * 24 * 3600 \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /\n(\n    (rate(vm_rows_added_to_storage_total[1d]) - sum(rate(vm_deduplicated_samples_total[1d])) without(type)) * (\n      sum(vm_data_size_bytes{type!~\"indexdb.*\"}) without(type) /\n      sum(vm_rows{type!~\"indexdb.*\"}) without(type)\n    )\n    +\n    rate(vm_new_timeseries_created_total[1d]) * (\n      sum(vm_data_size_bytes{type=\"indexdb/file\"}) without(type) /\n      sum(vm_rows{type=\"indexdb/file\"}) without(type)\n    )\n) \u003c 3 * 24 * 3600 \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -531,7 +528,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vm_persistentqueue_read_duration_seconds_total[5m]) > 0.9) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vm_persistentqueue_read_duration_seconds_total[5m]) > 0.9) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vm_persistentqueue_read_duration_seconds_total[5m]) \u003e 0.9) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vm_persistentqueue_read_duration_seconds_total[5m]) \u003e 0.9) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -545,7 +542,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vm_persistentqueue_write_duration_seconds_total[5m]) > 0.9) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vm_persistentqueue_write_duration_seconds_total[5m]) > 0.9) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vm_persistentqueue_write_duration_seconds_total[5m]) \u003e 0.9) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vm_persistentqueue_write_duration_seconds_total[5m]) \u003e 0.9) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -559,7 +556,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) without (path) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) without (path) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) without (path) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vm_persistentqueue_bytes_dropped_total[5m])) without (path) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -573,7 +570,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((process_max_fds - process_open_fds) < 100) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((process_max_fds - process_open_fds) < 100) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((process_max_fds - process_open_fds) \u003c 100) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((process_max_fds - process_open_fds) \u003c 100) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -587,7 +584,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((process_max_fds{job=~\".*vmanomaly.*\"} - process_open_fds{job=~\".*vmanomaly.*\"}) < 100) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((process_max_fds{job=~\".*vmanomaly.*\"} - process_open_fds{job=~\".*vmanomaly.*\"}) < 100) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((process_max_fds{job=~\".*vmanomaly.*\"} - process_open_fds{job=~\".*vmanomaly.*\"}) \u003c 100) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((process_max_fds{job=~\".*vmanomaly.*\"} - process_open_fds{job=~\".*vmanomaly.*\"}) \u003c 100) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -601,7 +598,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n sum(increase(vm_rpc_connection_errors_total[5m])) by(job, instance)\n +\n sum(increase(vm_rpc_dial_errors_total[5m])) by(job, instance)\n +\n sum(increase(vm_rpc_handshake_errors_total[5m])) by(job, instance)\n) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n sum(increase(vm_rpc_connection_errors_total[5m])) by(job, instance)\n +\n sum(increase(vm_rpc_dial_errors_total[5m])) by(job, instance)\n +\n sum(increase(vm_rpc_handshake_errors_total[5m])) by(job, instance)\n) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n sum(increase(vm_rpc_connection_errors_total[5m])) by(job, instance)\n +\n sum(increase(vm_rpc_dial_errors_total[5m])) by(job, instance)\n +\n sum(increase(vm_rpc_handshake_errors_total[5m])) by(job, instance)\n) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n sum(increase(vm_rpc_connection_errors_total[5m])) by(job, instance)\n +\n sum(increase(vm_rpc_dial_errors_total[5m])) by(job, instance)\n +\n sum(increase(vm_rpc_handshake_errors_total[5m])) by(job, instance)\n) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -615,7 +612,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmalert_recording_rules_errors_total[5m])) without(id) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmalert_recording_rules_errors_total[5m])) without(id) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmalert_recording_rules_errors_total[5m])) without(id) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmalert_recording_rules_errors_total[5m])) without(id) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -629,7 +626,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vmalert_recording_rules_last_evaluation_samples) without(id) < 1) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vmalert_recording_rules_last_evaluation_samples) without(id) < 1) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vmalert_recording_rules_last_evaluation_samples) without(id) \u003c 1) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vmalert_recording_rules_last_evaluation_samples) without(id) \u003c 1) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -643,7 +640,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmagent_remotewrite_packets_dropped_total[5m])) without (url) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmagent_remotewrite_packets_dropped_total[5m])) without (url) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmagent_remotewrite_packets_dropped_total[5m])) without (url) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmagent_remotewrite_packets_dropped_total[5m])) without (url) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -657,7 +654,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n rate(vmagent_remotewrite_send_duration_seconds_total[5m])\n / \n vmagent_remotewrite_queues\n) > 0.9) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n rate(vmagent_remotewrite_send_duration_seconds_total[5m])\n / \n vmagent_remotewrite_queues\n) > 0.9) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n rate(vmagent_remotewrite_send_duration_seconds_total[5m])\n / \n vmagent_remotewrite_queues\n) \u003e 0.9) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n rate(vmagent_remotewrite_send_duration_seconds_total[5m])\n / \n vmagent_remotewrite_queues\n) \u003e 0.9) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -671,7 +668,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vmalert_remotewrite_dropped_rows_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vmalert_remotewrite_dropped_rows_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vmalert_remotewrite_dropped_rows_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vmalert_remotewrite_dropped_rows_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -685,7 +682,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vmalert_remotewrite_errors_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vmalert_remotewrite_errors_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vmalert_remotewrite_errors_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vmalert_remotewrite_errors_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -699,7 +696,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_http_request_errors_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_http_request_errors_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_http_request_errors_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_http_request_errors_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -713,7 +710,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_http_request_errors_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_http_request_errors_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_http_request_errors_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_http_request_errors_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -727,7 +724,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vm_rows_ignored_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vm_rows_ignored_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vm_rows_ignored_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vm_rows_ignored_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -741,7 +738,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_promscrape_scrape_pool_targets) without (status, instance, pod) == 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_promscrape_scrape_pool_targets) without (status, instance, pod) == 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(vm_promscrape_scrape_pool_targets) without (status, instance, pod) == 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(vm_promscrape_scrape_pool_targets) without (status, instance, pod) == 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -755,7 +752,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((vmagent_daily_series_limit_current_series / vmagent_daily_series_limit_max_series) > 0.9) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((vmagent_daily_series_limit_current_series / vmagent_daily_series_limit_max_series) > 0.9) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((vmagent_daily_series_limit_current_series / vmagent_daily_series_limit_max_series) \u003e 0.9) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((vmagent_daily_series_limit_current_series / vmagent_daily_series_limit_max_series) \u003e 0.9) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -769,7 +766,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((vmagent_hourly_series_limit_current_series / vmagent_hourly_series_limit_max_series) > 0.9) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((vmagent_hourly_series_limit_current_series / vmagent_hourly_series_limit_max_series) > 0.9) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((vmagent_hourly_series_limit_current_series / vmagent_hourly_series_limit_max_series) \u003e 0.9) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((vmagent_hourly_series_limit_current_series / vmagent_hourly_series_limit_max_series) \u003e 0.9) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -783,7 +780,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((up{job=~\".*vmanomaly.*\"} == 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((up{job=~\".*vmanomaly.*\"} == 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((up{job=~\".*vmanomaly.*\"} == 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((up{job=~\".*vmanomaly.*\"} == 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -797,7 +794,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((up{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"} == 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((up{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"} == 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((up{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"} == 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((up{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"} == 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -811,7 +808,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmanomaly_model_run_errors_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, stage) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmanomaly_model_run_errors_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, stage) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmanomaly_model_run_errors_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, stage) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmanomaly_model_run_errors_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, stage) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -825,7 +822,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmanomaly_model_runs_skipped_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, stage) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmanomaly_model_runs_skipped_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, stage) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmanomaly_model_runs_skipped_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, stage) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmanomaly_model_runs_skipped_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance, stage) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -839,7 +836,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_streamaggr_dedup_flush_timeouts_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_streamaggr_dedup_flush_timeouts_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_streamaggr_dedup_flush_timeouts_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_streamaggr_dedup_flush_timeouts_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -853,7 +850,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_streamaggr_flush_timeouts_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_streamaggr_flush_timeouts_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_streamaggr_flush_timeouts_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_streamaggr_flush_timeouts_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -867,7 +864,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(process_cpu_seconds_total[5m]) / process_cpu_cores_available > 0.9) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(process_cpu_seconds_total[5m]) / process_cpu_cores_available > 0.9) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(process_cpu_seconds_total[5m]) / process_cpu_cores_available \u003e 0.9) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(process_cpu_seconds_total[5m]) / process_cpu_cores_available \u003e 0.9) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -881,7 +878,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(rate(process_cpu_seconds_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance) / sum(vmanomaly_cpu_cores_available{job=~\".*vmanomaly.*\"}[5m]) by (job, instance) > 0.9) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(rate(process_cpu_seconds_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance) / sum(vmanomaly_cpu_cores_available{job=~\".*vmanomaly.*\"}[5m]) by (job, instance) > 0.9) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(rate(process_cpu_seconds_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance) / sum(vmanomaly_cpu_cores_available{job=~\".*vmanomaly.*\"}[5m]) by (job, instance) \u003e 0.9) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(rate(process_cpu_seconds_total{job=~\".*vmanomaly.*\"}[5m])) by (job, instance) / sum(vmanomaly_cpu_cores_available{job=~\".*vmanomaly.*\"}[5m]) by (job, instance) \u003e 0.9) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -895,7 +892,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n   sum(rate(vm_new_timeseries_created_total[5m])) by(instance)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(instance)\n ) > 0.1) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n   sum(rate(vm_new_timeseries_created_total[5m])) by(instance)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(instance)\n ) > 0.1) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n   sum(rate(vm_new_timeseries_created_total[5m])) by(instance)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(instance)\n ) \u003e 0.1) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n   sum(rate(vm_new_timeseries_created_total[5m])) by(instance)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(instance)\n ) \u003e 0.1) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -909,7 +906,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n   sum(rate(vm_new_timeseries_created_total[5m])) by(job)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(job)\n ) > 0.1) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n   sum(rate(vm_new_timeseries_created_total[5m])) by(job)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(job)\n ) > 0.1) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n   sum(rate(vm_new_timeseries_created_total[5m])) by(job)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(job)\n ) \u003e 0.1) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n   sum(rate(vm_new_timeseries_created_total[5m])) by(job)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(job)\n ) \u003e 0.1) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -923,7 +920,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vm_new_timeseries_created_total[24h])) by(job)\n>\n(sum(vm_cache_entries{type=\"storage/hour_metric_ids\"}) by(job) * 3)) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vm_new_timeseries_created_total[24h])) by(job)\n>\n(sum(vm_cache_entries{type=\"storage/hour_metric_ids\"}) by(job) * 3)) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vm_new_timeseries_created_total[24h])) by(job)\n\u003e\n(sum(vm_cache_entries{type=\"storage/hour_metric_ids\"}) by(job) * 3)) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vm_new_timeseries_created_total[24h])) by(job)\n\u003e\n(sum(vm_cache_entries{type=\"storage/hour_metric_ids\"}) by(job) * 3)) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -937,7 +934,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vm_new_timeseries_created_total[24h])) by(instance)\n>\n(sum(vm_cache_entries{type=\"storage/hour_metric_ids\"}) by(instance) * 3)) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vm_new_timeseries_created_total[24h])) by(instance)\n>\n(sum(vm_cache_entries{type=\"storage/hour_metric_ids\"}) by(instance) * 3)) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vm_new_timeseries_created_total[24h])) by(instance)\n\u003e\n(sum(vm_cache_entries{type=\"storage/hour_metric_ids\"}) by(instance) * 3)) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vm_new_timeseries_created_total[24h])) by(instance)\n\u003e\n(sum(vm_cache_entries{type=\"storage/hour_metric_ids\"}) by(instance) * 3)) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -951,7 +948,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"}[5m])) by (le, job, instance)) > 0.1) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"}[5m])) by (le, job, instance)) > 0.1) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"}[5m])) by (le, job, instance)) \u003e 0.1) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"}[5m])) by (le, job, instance)) \u003e 0.1) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -965,7 +962,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((min_over_time(process_resident_memory_anon_bytes[10m]) / vm_available_memory_bytes) > 0.8) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((min_over_time(process_resident_memory_anon_bytes[10m]) / vm_available_memory_bytes) > 0.8) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((min_over_time(process_resident_memory_anon_bytes[10m]) / vm_available_memory_bytes) \u003e 0.8) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((min_over_time(process_resident_memory_anon_bytes[10m]) / vm_available_memory_bytes) \u003e 0.8) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -979,7 +976,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((min_over_time(process_resident_memory_bytes[10m]) / vmanomaly_available_memory_bytes) > 0.85) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((min_over_time(process_resident_memory_bytes[10m]) / vmanomaly_available_memory_bytes) > 0.85) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((min_over_time(process_resident_memory_bytes[10m]) / vmanomaly_available_memory_bytes) \u003e 0.85) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((min_over_time(process_resident_memory_bytes[10m]) / vmanomaly_available_memory_bytes) \u003e 0.85) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -993,7 +990,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_concurrent_select_limit_timeout_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_concurrent_select_limit_timeout_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_concurrent_select_limit_timeout_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_concurrent_select_limit_timeout_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1007,7 +1004,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n   sum(rate(vm_slow_row_inserts_total[5m])) by(job)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(job)\n ) > 0.05) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n   sum(rate(vm_slow_row_inserts_total[5m])) by(job)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(job)\n ) > 0.05) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n   sum(rate(vm_slow_row_inserts_total[5m])) by(job)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(job)\n ) \u003e 0.05) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n   sum(rate(vm_slow_row_inserts_total[5m])) by(job)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(job)\n ) \u003e 0.05) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1021,7 +1018,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n   sum(rate(vm_slow_row_inserts_total[5m])) by(instance)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(instance)\n ) > 0.05) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n   sum(rate(vm_slow_row_inserts_total[5m])) by(instance)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(instance)\n ) > 0.05) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"victoria-metrics-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((\n   sum(rate(vm_slow_row_inserts_total[5m])) by(instance)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(instance)\n ) \u003e 0.05) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((\n   sum(rate(vm_slow_row_inserts_total[5m])) by(instance)\n   /\n   sum(rate(vm_rows_inserted_total[5m])) by(instance)\n ) \u003e 0.05) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1035,7 +1032,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vm_log_messages_total{level=\"error\"}[5m])) without (app_version, location) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vm_log_messages_total{level=\"error\"}[5m])) without (app_version, location) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vm_log_messages_total{level=\"error\"}[5m])) without (app_version, location) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vm_log_messages_total{level=\"error\"}[5m])) without (app_version, location) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1049,7 +1046,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vmalert_iteration_missed_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vmalert_iteration_missed_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmalert-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vmalert_iteration_missed_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vmalert_iteration_missed_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1063,7 +1060,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vmagent_remotewrite_retries_count_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vmagent_remotewrite_retries_count_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vmagent_remotewrite_retries_count_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vmagent_remotewrite_retries_count_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1077,7 +1074,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((changes(process_start_time_seconds{job=~\".*vmanomaly.*\"}[15m]) > 2) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((changes(process_start_time_seconds{job=~\".*vmanomaly.*\"}[15m]) > 2) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmanomaly-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((changes(process_start_time_seconds{job=~\".*vmanomaly.*\"}[15m]) \u003e 2) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((changes(process_start_time_seconds{job=~\".*vmanomaly.*\"}[15m]) \u003e 2) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1091,7 +1088,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((changes(process_start_time_seconds{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"}[15m]) > 2) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((changes(process_start_time_seconds{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"}[15m]) > 2) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((changes(process_start_time_seconds{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"}[15m]) \u003e 2) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((changes(process_start_time_seconds{job=~\".*(victoriametrics|vmselect|vminsert|vmstorage|vmagent|vmalert|vmsingle|vmalertmanager|vmauth).*\"}[15m]) \u003e 2) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1105,7 +1102,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_promscrape_scrapes_failed_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_promscrape_scrapes_failed_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_promscrape_scrapes_failed_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_promscrape_scrapes_failed_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1119,7 +1116,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_missing_tsids_for_metric_id_total[5m]) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_missing_tsids_for_metric_id_total[5m]) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\".*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((increase(vm_missing_tsids_for_metric_id_total[5m]) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((increase(vm_missing_tsids_for_metric_id_total[5m]) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1133,7 +1130,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((sum(increase(vm_ingestserver_request_errors_total[5m])) without (name,net,type)\n+\nsum(increase(vmagent_http_request_errors_total[5m])) without (path,protocol)) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((sum(increase(vm_ingestserver_request_errors_total[5m])) without (name,net,type)\n+\nsum(increase(vmagent_http_request_errors_total[5m])) without (path,protocol)) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmagent-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        (((sum(increase(vm_ingestserver_request_errors_total[5m])) without (name,net,type)\n+\nsum(increase(vmagent_http_request_errors_total[5m])) without (path,protocol)) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        (((sum(increase(vm_ingestserver_request_errors_total[5m])) without (name,net,type)\n+\nsum(increase(vmagent_http_request_errors_total[5m])) without (path,protocol)) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1147,7 +1144,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmauth-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmauth_user_concurrent_requests_limit_reached_total[1m])) by (username) > 0) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmauth_user_concurrent_requests_limit_reached_total[1m])) by (username) > 0) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"vmauth-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((sum(increase(vmauth_user_concurrent_requests_limit_reached_total[1m])) by (username) \u003e 0) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((sum(increase(vmauth_user_concurrent_requests_limit_reached_total[1m])) by (username) \u003e 0) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1161,7 +1158,7 @@
                   "uid": "${datasource}"
                },
                "editorMode": "code",
-               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vm_rpc_send_duration_seconds_total[5m]) > 0.9) > 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vm_rpc_send_duration_seconds_total[5m]) > 0.9) > 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
+               "expr": "min_over_time(\n  (\n    WITH (\n      vm_svc = label_replace(\n        vm_app_version{version=~\"(vminsert|vmselect|vmstorage)-.*\", version!~\"(victoria-(logs|traces)|vl|vt).*\", job=~\"$job\", instance=~\"$instance\"},\n        \"svc_name\",\n        \"$1\",\n        \"version\",\n        \"^(.+)-\\\\d{8}-.*\"\n      ),\n      total = count by (svc_name) (vm_svc),\n      firing_pod = count by (svc_name) (\n        ((rate(vm_rpc_send_duration_seconds_total[5m]) \u003e 0.9) \u003e 0) * on(pod, instance, job) group_left(svc_name) vm_svc\n      ),\n      firing_inst = count by (svc_name) (\n        ((rate(vm_rpc_send_duration_seconds_total[5m]) \u003e 0.9) \u003e 0) * on(instance, job) group_left(svc_name) vm_svc\n      ),\n      firing = (firing_pod or firing_inst or total * 0)\n    )\n    clamp_min(100 * (total - firing) / total, 0)\n  )[$__range:]\n)",
                "format": "table",
                "hide": false,
                "instant": true,
@@ -1174,7 +1171,7 @@
          "transformations": [
             {
                "id": "merge",
-               "options": { }
+               "options": {}
             },
             {
                "id": "organize",
@@ -1182,8 +1179,8 @@
                   "excludeByName": {
                      "Time": true
                   },
-                  "includeByName": { },
-                  "indexByName": { },
+                  "includeByName": {},
+                  "indexByName": {},
                   "renameByName": {
                      "Value #ALLConcurrentInsertsHitTheLimit": "ALL: ConcurrentInsertsHitTheLimit",
                      "Value #ALLIndexDBRecordsDrop": "ALL: IndexDBRecordsDrop",
@@ -1262,7 +1259,6 @@
             {
                "id": "sortBy",
                "options": {
-                  "fields": { },
                   "sort": [
                      {
                         "field": "Alert"
@@ -1293,14 +1289,12 @@
             "includeAll": false,
             "label": "Datasource",
             "name": "datasource",
-            "options": [ ],
             "query": "victoriametrics-metrics-datasource",
             "refresh": 1,
             "regex": "",
             "type": "datasource"
          },
          {
-            "allValue": ".*",
             "current": {
                "text": [
                   "All"
@@ -1309,27 +1303,26 @@
                   "$__all"
                ]
             },
-            "datasource": {
-               "type": "victoriametrics-metrics-datasource",
-               "uid": "${datasource}"
-            },
-            "definition": "label_values(vm_app_version, job)",
             "includeAll": true,
             "label": "Job",
-            "multi": true,
             "name": "job",
-            "options": [ ],
             "query": {
                "query": "label_values(vm_app_version, job)",
                "refId": "StandardVariableQuery"
             },
             "refresh": 1,
             "regex": "",
-            "sort": 1,
-            "type": "query"
+            "type": "query",
+            "allValue": ".*",
+            "datasource": {
+               "type": "victoriametrics-metrics-datasource",
+               "uid": "${datasource}"
+            },
+            "definition": "label_values(vm_app_version, job)",
+            "multi": true,
+            "sort": 1
          },
          {
-            "allValue": ".*",
             "current": {
                "text": [
                   "All"
@@ -1338,24 +1331,24 @@
                   "$__all"
                ]
             },
-            "datasource": {
-               "type": "victoriametrics-metrics-datasource",
-               "uid": "${datasource}"
-            },
-            "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
             "includeAll": true,
             "label": "Instance",
-            "multi": true,
             "name": "instance",
-            "options": [ ],
             "query": {
                "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
                "refId": "StandardVariableQuery"
             },
             "refresh": 1,
             "regex": "",
-            "sort": 1,
-            "type": "query"
+            "type": "query",
+            "allValue": ".*",
+            "datasource": {
+               "type": "victoriametrics-metrics-datasource",
+               "uid": "${datasource}"
+            },
+            "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
+            "multi": true,
+            "sort": 1
          }
       ]
    },
