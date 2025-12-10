@@ -2977,7 +2977,7 @@ func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *t
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	e := is.db.loopsPerDateTagFilterCache.GetEntry(string(is.kb.B))
+	e := is.db.loopsPerDateTagFilterCache.GetEntry(bytesutil.ToUnsafeString(is.kb.B))
 	if e == nil {
 		return 0, 0, 0
 	}
@@ -3002,7 +3002,7 @@ func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, 
 		timestamp:        fasttime.UnixTimestamp(),
 	}
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
-	is.db.loopsPerDateTagFilterCache.PutEntry(bytesutil.ToUnsafeString(is.kb.B), &v)
+	is.db.loopsPerDateTagFilterCache.PutEntry(string(is.kb.B), &v)
 }
 
 func appendDateTagFilterCacheKey(dst []byte, indexDBName string, date uint64, tf *tagFilter) []byte {
