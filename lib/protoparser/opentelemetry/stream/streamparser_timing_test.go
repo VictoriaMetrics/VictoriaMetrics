@@ -9,15 +9,36 @@ import (
 )
 
 func BenchmarkParseStream(b *testing.B) {
+	b.Run("default-metrics-labels-formatting", func(b *testing.B) {
+		benchmarkParseStream(b, false, false)
+	})
+	b.Run("prometheus-metrics-labels-formatting", func(b *testing.B) {
+		benchmarkParseStream(b, true, false)
+	})
+	b.Run("prometheus-metrics-formatting", func(b *testing.B) {
+		benchmarkParseStream(b, false, true)
+	})
+}
+
+func benchmarkParseStream(b *testing.B, promMetricsLabelsFormatting, promMetricsFormatting bool) {
+	prevUsePrometheusNaming := *usePrometheusNaming
+	prevConvertMetricNamesToPrometheus := *convertMetricNamesToPrometheus
+	*usePrometheusNaming = promMetricsLabelsFormatting
+	*convertMetricNamesToPrometheus = promMetricsFormatting
+	defer func() {
+		*usePrometheusNaming = prevUsePrometheusNaming
+		*convertMetricNamesToPrometheus = prevConvertMetricNamesToPrometheus
+	}()
+
 	samples := []*pb.Metric{
-		generateGauge("my-gauge", "", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateGauge("my-gauge", "s", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 		generateGaugeUnknown("my-gauge-unknown", "", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
-		generateSum("my-sum-1", "", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-sum-1", "m", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 		generateSum("my-sum-2", "", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 		generateSum("my-sum-3", "", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
-		generateSum("my-counter-1", "", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-counter-1", "m", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 		generateSum("my-counter-2", "", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
-		generateSum("my-counter-3", "", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-counter-3", "m/s", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 		generateSummary("my-summary", "", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 		generateHistogram("my-histogram-no-sum", "", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 		generateHistogram("my-histogram-with-sum", "", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
