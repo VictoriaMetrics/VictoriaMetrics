@@ -137,7 +137,7 @@ func (ui *UserInfo) stopHealthChecks() {
 
 	pbus := ui.URLPrefix.bus.Load()
 	for _, bu := range *pbus {
-		close(bu.stopHealthCheckCh)
+		bu.stopHealthCheck()
 	}
 }
 
@@ -301,8 +301,9 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 }
 
 type backendURL struct {
-	broken            atomic.Bool
-	stopHealthCheckCh chan struct{}
+	broken              atomic.Bool
+	stopHealthCheckCh   chan struct{}
+	stopHealthCheckOnce sync.Once
 
 	concurrentRequests atomic.Int32
 
@@ -356,6 +357,12 @@ func (bu *backendURL) startHealthCheck() {
 			}
 		}
 	}()
+}
+
+func (bu *backendURL) stopHealthCheck() {
+	bu.stopHealthCheckOnce.Do(func() {
+		close(bu.stopHealthCheckCh)
+	})
 }
 
 func (bu *backendURL) get() {
@@ -484,7 +491,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	up.bus.Store(&busNew)
 
 	for _, bu := range *pbus {
-		close(bu.stopHealthCheckCh)
+		bu.stopHealthCheck()
 	}
 }
 
