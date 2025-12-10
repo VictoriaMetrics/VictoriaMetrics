@@ -45,8 +45,10 @@ func benchmarkParseStream(b *testing.B, promMetricsLabelsFormatting, promMetrics
 		generateExpHistogram("my-exp-histogram", "", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 	}
 
-	pbRequest := pb.ExportMetricsServiceRequest{
-		ResourceMetrics: []*pb.ResourceMetrics{generateOTLPSamples(samples)},
+	pbRequest := pb.MetricsData{
+		ResourceMetrics: []*pb.ResourceMetrics{
+			generateOTLPSamples(samples),
+		},
 	}
 	data := pbRequest.MarshalProtobuf(nil)
 
