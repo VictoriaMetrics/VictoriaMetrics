@@ -136,7 +136,7 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapp
 ## explicit; go 1.25.2
 github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage
 github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter
-# github.com/VictoriaMetrics/easyproto v1.0.0
+# github.com/VictoriaMetrics/easyproto v1.1.3
 ## explicit; go 1.18
 github.com/VictoriaMetrics/easyproto
 # github.com/VictoriaMetrics/fastcache v1.13.2
@@ -670,7 +670,7 @@ github.com/urfave/cli/v2
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fastjson v1.6.4
+# github.com/valyala/fastjson v1.6.5
 ## explicit; go 1.12
 github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
