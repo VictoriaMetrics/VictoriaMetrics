@@ -1,7 +1,7 @@
 package stream
 
 import (
-	"bytes"
+	"io"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -23,13 +23,33 @@ func BenchmarkParseStream(b *testing.B) {
 		}
 		data := pbRequest.MarshalProtobuf(nil)
 
+		callback := func(_ []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
+			return nil
+		}
+
+		br := benchReader{
+			buf: data,
+		}
+
 		for p.Next() {
-			err := ParseStream(bytes.NewBuffer(data), "", nil, func(_ []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
-				return nil
-			})
-			if err != nil {
+			br.offset = 0
+			if err := ParseStream(&br, "", nil, callback); err != nil {
 				b.Fatalf("cannot parse stream: %s", err)
 			}
 		}
 	})
+}
+
+type benchReader struct {
+	offset int
+	buf    []byte
+}
+
+func (br *benchReader) Read(p []byte) (int, error) {
+	n := copy(p, br.buf[br.offset:])
+	br.offset += n
+	if n == 0 {
+		return 0, io.EOF
+	}
+	return n, nil
 }
