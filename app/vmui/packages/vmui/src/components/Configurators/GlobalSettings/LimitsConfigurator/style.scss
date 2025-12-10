@@ -18,6 +18,7 @@
     align-items: center;
     justify-content: space-between;
     gap: $padding-global;
+    margin-bottom: $padding-global;
 
     &_mobile {
       gap: $padding-small;
