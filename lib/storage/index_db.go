@@ -279,6 +279,10 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 // MustClose closes db.
 func (db *indexDB) MustClose() {
+	rc := db.refCount.Load()
+	if rc != 1 {
+		logger.Fatalf("BUG: %q unexpected indexDB refCount: %d", db.name, rc)
+	}
 	db.decRef()
 }
 
