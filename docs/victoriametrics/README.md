@@ -88,6 +88,7 @@ VictoriaMetrics has the following prominent features:
   * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
   * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
   * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
+  * [Zabbix Connector streaming format](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/#send-data-from-zabbix-connector).
 * It supports powerful [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) and

@@ -22,6 +22,7 @@ VictoriaMetrics integrates with many popular monitoring solutions as remote stor
 * [Google PubSub](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/) (read, write)
 * [Kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/) (read, write)
 * [OpenShift](https://docs.victoriametrics.com/victoriametrics/integrations/openshift/) (read)
+* [Zabbix Connector](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/)
 
 If you think that community will benefit from new integrations, open a [feature request on GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
