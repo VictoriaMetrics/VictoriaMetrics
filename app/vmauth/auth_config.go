@@ -127,6 +127,20 @@ func (ui *UserInfo) getMaxConcurrentRequests() int {
 	return mcr
 }
 
+func (ui *UserInfo) stopHealthChecks() {
+	if ui == nil {
+		return
+	}
+	if ui.URLPrefix == nil {
+		return
+	}
+
+	pbus := ui.URLPrefix.bus.Load()
+	for _, bu := range *pbus {
+		close(bu.stopHealthCheckCh)
+	}
+}
+
 // Header is `Name: Value` http header, which must be added to the proxied request.
 type Header struct {
 	Name  string
@@ -778,6 +792,11 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 
 	acPrev := authConfig.Load()
 	if acPrev != nil {
+		acPrev.UnauthorizedUser.stopHealthChecks()
+		for i := range acPrev.Users {
+			acPrev.Users[i].stopHealthChecks()
+		}
+
 		metrics.UnregisterSet(acPrev.ms, true)
 	}
 	metrics.RegisterSet(ac.ms)
