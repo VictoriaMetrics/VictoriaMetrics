@@ -1,14 +1,11 @@
 module github.com/VictoriaMetrics/VictoriaMetrics/dashboards/dashgen
 
-go 1.23.7
+go 1.25.5
 
 require (
-	github.com/google/go-jsonnet v0.21.0
+	github.com/google/go-cmp v0.5.9
+	github.com/valyala/quicktemplate v1.7.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require (
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
-)
+require github.com/valyala/bytebufferpool v1.0.0 // indirect
