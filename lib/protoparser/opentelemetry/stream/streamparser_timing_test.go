@@ -10,23 +10,32 @@ import (
 
 func BenchmarkParseStream(b *testing.B) {
 	samples := []*pb.Metric{
-		generateGauge("my-gauge", ""),
-		generateHistogram("my-histogram", "", true),
-		generateSum("my-sum", "", false),
-		generateSummary("my-summary", ""),
+		generateGauge("my-gauge", "", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateGaugeUnknown("my-gauge-unknown", "", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-sum-1", "", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-sum-2", "", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-sum-3", "", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-counter-1", "", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-counter-2", "", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSum("my-counter-3", "", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateSummary("my-summary", "", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateHistogram("my-histogram-no-sum", "", false, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateHistogram("my-histogram-with-sum", "", true, stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
+		generateExpHistogram("my-exp-histogram", "", stringAttributeFromKV("job", "foo"), stringAttributeFromKV("instance", "host-123:456")),
 	}
-	b.SetBytes(1)
+
+	pbRequest := pb.ExportMetricsServiceRequest{
+		ResourceMetrics: []*pb.ResourceMetrics{generateOTLPSamples(samples)},
+	}
+	data := pbRequest.MarshalProtobuf(nil)
+
+	callback := func(_ []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
+		return nil
+	}
+
+	b.SetBytes(int64(len(data)))
 	b.ReportAllocs()
 	b.RunParallel(func(p *testing.PB) {
-		pbRequest := pb.ExportMetricsServiceRequest{
-			ResourceMetrics: []*pb.ResourceMetrics{generateOTLPSamples(samples)},
-		}
-		data := pbRequest.MarshalProtobuf(nil)
-
-		callback := func(_ []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
-			return nil
-		}
-
 		br := benchReader{
 			buf: data,
 		}

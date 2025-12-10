@@ -528,12 +528,7 @@ func checkParseStream(data []byte, checkSeries func(tss []prompb.TimeSeries, mms
 
 func attributesFromKV(k, v string) []*pb.KeyValue {
 	return []*pb.KeyValue{
-		{
-			Key: k,
-			Value: &pb.AnyValue{
-				StringValue: &v,
-			},
-		},
+		stringAttributeFromKV(k, v),
 	}
 }
 
