@@ -21,7 +21,10 @@ It is recommended to run the latest available release of VictoriaMetrics from [t
 There is no need to tune VictoriaMetrics because it uses reasonable defaults for command-line flags. These flags are automatically adjusted for the available CPU and RAM resources. There is no need in Operating System tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files.
 
 ## Swap
-For machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage) or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), it is recommended to disable swap. These components rely on available RAM for high performance operations. If swap is enabled, the operating system may move active data from fast RAM to the much slower disk as memory usage approaches system limits or configured thresholds. This leads to performance degradation and latency spikes. On systemd-based Linux distributions run:
+For machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage) or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), it is recommended to disable swap. 
+These components rely on available RAM for high performance operations. 
+If swap is enabled, the operating system may move active data from fast RAM to the much slower disk as memory usage approaches system limits or configured thresholds. 
+This leads to performance degradation and latency spikes. On systemd-based Linux distributions run:
 
 ```sh
 sed -i '/\sswap\s/s/^/#/' /etc/fstab
@@ -29,6 +32,9 @@ systemctl mask swap.target
 ```
 
 Reboot the host after applying the commands.
+
+If you're unsure whether swap-related issues are occurring, check the `Troubleshooting – Major page faults` 
+and `Resource usage – Memory pressure` panels in official Grafana dashboards.
 
 ## Filesystem
 
