@@ -86,9 +86,9 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 				wr.appendSampleFromNumericPoint(metricName, p)
 			}
 			if getTypeKeyFromMetadata(m) == "unknown" {
-				metadata.Type = prompb.MetricMetadataUNKNOWN
+				metadata.Type = prompb.MetricTypeUnknown
 			} else {
-				metadata.Type = prompb.MetricMetadataGAUGE
+				metadata.Type = prompb.MetricTypeGauge
 			}
 		case m.Sum != nil:
 			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
@@ -100,15 +100,15 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 				wr.appendSampleFromNumericPoint(metricName, p)
 			}
 			if m.Sum.IsMonotonic {
-				metadata.Type = prompb.MetricMetadataCOUNTER
+				metadata.Type = prompb.MetricTypeCounter
 			} else {
 				switch getTypeKeyFromMetadata(m) {
 				case "info":
-					metadata.Type = prompb.MetricMetadataINFO
+					metadata.Type = prompb.MetricTypeInfo
 				case "stateset":
-					metadata.Type = prompb.MetricMetadataSTATESET
+					metadata.Type = prompb.MetricTypeStateset
 				default:
-					metadata.Type = prompb.MetricMetadataGAUGE
+					metadata.Type = prompb.MetricTypeGauge
 				}
 			}
 
@@ -116,7 +116,7 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 			for _, p := range m.Summary.DataPoints {
 				wr.appendSamplesFromSummary(metricName, p)
 			}
-			metadata.Type = prompb.MetricMetadataSUMMARY
+			metadata.Type = prompb.MetricTypeSummary
 		case m.Histogram != nil:
 			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedHistogram.Inc()
@@ -126,7 +126,7 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 			for _, p := range m.Histogram.DataPoints {
 				wr.appendSamplesFromHistogram(metricName, p)
 			}
-			metadata.Type = prompb.MetricMetadataHISTOGRAM
+			metadata.Type = prompb.MetricTypeHistogram
 		case m.ExponentialHistogram != nil:
 			if m.ExponentialHistogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedExponentialHistogram.Inc()
@@ -136,7 +136,7 @@ func (wr *writeContext) appendFromScopeMetrics(sc *pb.ScopeMetrics, metadataList
 			for _, p := range m.ExponentialHistogram.DataPoints {
 				wr.appendSamplesFromExponentialHistogram(metricName, p)
 			}
-			metadata.Type = prompb.MetricMetadataHISTOGRAM
+			metadata.Type = prompb.MetricTypeHistogram
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
 			unsupportedMetricTypeLogger.Warnf("unsupported type for metric %q", metricName)
