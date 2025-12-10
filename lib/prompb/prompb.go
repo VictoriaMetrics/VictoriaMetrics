@@ -270,28 +270,28 @@ func (s *Sample) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
-// MetricMetadataType represents the Prometheus type of a metric.
+// MetricType represents the Prometheus type of a metric.
 // https://github.com/prometheus/prometheus/blob/c5282933765ec322a0664d0a0268f8276e83b156/prompb/types.pb.go#L28C1-L39C2
 // https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#metric-types
-type MetricMetadataType uint32
+type MetricType uint32
 
 const (
-	// MetricMetadataUNKNOWN represents a Prometheus Unknown-typed metric
-	MetricMetadataUNKNOWN MetricMetadataType = 0
-	// MetricMetadataCOUNTER represents a Prometheus Counter
-	MetricMetadataCOUNTER MetricMetadataType = 1
-	// MetricMetadataGAUGE represents a Prometheus Gauge
-	MetricMetadataGAUGE MetricMetadataType = 2
-	// MetricMetadataHISTOGRAM represents a Prometheus Histogram
-	MetricMetadataHISTOGRAM MetricMetadataType = 3
-	// MetricMetadataGAUGEHISTOGRAM represents a Prometheus GaugeHistogram
-	MetricMetadataGAUGEHISTOGRAM MetricMetadataType = 4
-	// MetricMetadataSUMMARY represents a Prometheus Summary
-	MetricMetadataSUMMARY MetricMetadataType = 5
-	// MetricMetadataINFO represents a Prometheus Info metric
-	MetricMetadataINFO MetricMetadataType = 6
-	// MetricMetadataSTATESET represents a Prometheus StateSet metric
-	MetricMetadataSTATESET MetricMetadataType = 7
+	// MetricTypeUnknown represents a Prometheus Unknown-typed metric
+	MetricTypeUnknown MetricType = 0
+	// MetricTypeCounter represents a Prometheus Counter
+	MetricTypeCounter MetricType = 1
+	// MetricTypeGauge represents a Prometheus Gauge
+	MetricTypeGauge MetricType = 2
+	// MetricTypeHistogram represents a Prometheus Histogram
+	MetricTypeHistogram MetricType = 3
+	// MetricTypeGaugeHistogram represents a Prometheus GaugeHistogram
+	MetricTypeGaugeHistogram MetricType = 4
+	// MetricTypeSummary represents a Prometheus Summary
+	MetricTypeSummary MetricType = 5
+	// MetricTypeInfo represents a Prometheus Info metric
+	MetricTypeInfo MetricType = 6
+	// MetricTypeStateset represents a Prometheus StateSet metric
+	MetricTypeStateset MetricType = 7
 )
 
 // MetricMetadata represents additional meta information for specific MetricFamilyName
@@ -299,7 +299,7 @@ const (
 type MetricMetadata struct {
 	// Represents the metric type, these match the set from Prometheus.
 	// Refer to https://github.com/prometheus/common/blob/95acce133ca2c07a966a71d475fb936fc282db18/model/metadata.go for details.
-	Type             MetricMetadataType
+	Type             MetricType
 	MetricFamilyName string
 	Help             string
 	Unit             string
@@ -342,7 +342,7 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read metric type")
 			}
-			mm.Type = MetricMetadataType(value)
+			mm.Type = MetricType(value)
 		case 2:
 			value, ok := fc.String()
 			if !ok {
@@ -379,7 +379,7 @@ func (mm *MetricMetadata) unmarshalProtobuf(src []byte) (err error) {
 }
 
 // String returns human-readable string for mt.
-func (mt MetricMetadataType) String() string {
+func (mt MetricType) String() string {
 	//   enum MetricType {
 	//     UNKNOWN = 0;
 	//     COUNTER = 1;
