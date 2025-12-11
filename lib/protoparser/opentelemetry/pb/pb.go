@@ -1680,7 +1680,7 @@ func (dctx *decoderContext) reset() {
 	// Explicitly clear all the ls.Labels up to its' capacity in order to remove possible references
 	// to the original byte slices, so they could be cleared by Go GC.
 	clear(dctx.ls.Labels[:cap(dctx.ls.Labels)])
-	dctx.ls.Labels = lctx.ls.Labels[:0]
+	dctx.ls.Labels = dctx.ls.Labels[:0]
 
 	dctx.ls.Reset()
 	dctx.fb.reset()
