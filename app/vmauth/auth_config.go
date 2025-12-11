@@ -136,8 +136,10 @@ func (ui *UserInfo) stopHealthChecks() {
 	}
 
 	pbus := ui.URLPrefix.bus.Load()
-	for _, bu := range *pbus {
-		bu.stopHealthCheck()
+	if *pbus != nil {
+		for _, bu := range *pbus {
+			bu.stopHealthCheck()
+		}
 	}
 }
 
@@ -491,8 +493,10 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	// Store new backend urls
 	up.bus.Store(&busNew)
 
-	for _, bu := range *pbus {
-		bu.stopHealthCheck()
+	if *pbus != nil {
+		for _, bu := range *pbus {
+			bu.stopHealthCheck()
+		}
 	}
 }
 
