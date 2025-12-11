@@ -322,8 +322,14 @@ func (bu *backendURL) setBroken() {
 
 func (bu *backendURL) startHealthCheck() {
 	go func() {
+		port := bu.url.Port()
+		if port == "" {
+			port = "80"
+		}
+		addr := net.JoinHostPort(bu.url.Hostname(), port)
+
+		t := time.NewTimer(*failTimeout)
 		for {
-			t := time.NewTimer(*failTimeout)
 			select {
 			case <-t.C:
 				// Do not perform tcp probe for https urls as
@@ -334,18 +340,13 @@ func (bu *backendURL) startHealthCheck() {
 					return
 				}
 
-				port := bu.url.Port()
-				if port == "" {
-					port = "80"
-				}
-
 				// Verify network connectivity via TCP dial before marking backend healthy.
 				// Previously, backends were auto-restored after failTimeout without validation,
 				// causing requests to repeatedly hang on unreachable backends.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9890
-				addr := net.JoinHostPort(bu.url.Hostname(), port)
 				c, err := net.DialTimeout(`tcp`, addr, time.Second)
 				if err != nil {
+					t.Reset(*failTimeout)
 					continue
 				}
 				_ = c.Close()
