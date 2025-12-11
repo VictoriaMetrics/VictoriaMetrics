@@ -1568,11 +1568,11 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 // violate the aforementioned order of actions. And implementing the correct
 // order of actions in Storage.DeleteSeries() would result in much more complex
 // logic. So in this particular case we choose code clarity over correctness,
-// because nothing bad will happen if this cache is reset multiple times.
+// because nothing bad will happen if these caches are reset multiple times.
 //
 // For caches that are not saved to disk (such as dateMetricIDCache) there is no
 // strict requirement when to reset them. Still resetting them the same way as
-// persistent cache to have all reset logic in one place.
+// persistent caches to have all reset logic in one place.
 func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	if metricIDs.Len() == 0 {
 		// Nothing to delete
