@@ -1677,6 +1677,10 @@ type decoderContext struct {
 }
 
 func (dctx *decoderContext) reset() {
+	// Explicitly clear all the ls.Labels up to its' capacity in order to remove possible references
+	// to the original byte slices, so they could be cleared by Go GC.
+	clear(dctx.ls.Labels[:cap(dctx.ls.Labels)])
+
 	dctx.ls.Reset()
 	dctx.fb.reset()
 
@@ -1693,9 +1697,7 @@ func (dctx *decoderContext) getSnapshot() decoderContextSnapshot {
 }
 
 func (dctx *decoderContext) restoreFromSnapshot(snapshot decoderContextSnapshot) {
-	clear(dctx.ls.Labels[snapshot.labelsLen:])
 	dctx.ls.Labels = dctx.ls.Labels[:snapshot.labelsLen]
-
 	dctx.fb.buf = dctx.fb.buf[:snapshot.fbLen]
 }
 
