@@ -1599,9 +1599,7 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// Additionally, currHourMetricIDs and nextDayMetricIDs have accompanying
 	// smaller in-memory caches, pendingHourEntries and pendingNextDayMetricIDs.
 	// Should currHourMetricIDs and/or nextDayMetricIDs need to be reset,
-	// pendingHourEntries and/or pendingNextDayMetricIDs need to be reset first
-	// and also here (not in Storage.DeleteSeries()) even though they are not
-	// persistent.
+	// pendingHourEntries and/or pendingNextDayMetricIDs need to be reset first.
 
 	// Not resetting Storage.metricsTracker and Storage.metadataStorage because
 	// they use metric names instead of metricIDs. And one metric name can
