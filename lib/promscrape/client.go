@@ -167,7 +167,7 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 	scrapesOK.Inc()
 
 	// Read the data from resp.Body
-	lr := ioutil.GetLimitedReader(resp.Body, c.maxScrapeSize)
+	lr := ioutil.GetLimitedReader(resp.Body, c.maxScrapeSize+1)
 	_, err = dst.ReadFrom(lr)
 	ioutil.PutLimitedReader(lr)
 	if err != nil {
@@ -176,7 +176,7 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 		}
 		return false, fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
 	}
-	if int64(dst.Len()) >= c.maxScrapeSize {
+	if int64(dst.Len()) > c.maxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
 		return false, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
 			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
