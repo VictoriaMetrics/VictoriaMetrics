@@ -1480,8 +1480,47 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	qt.Printf("deleted %d metricIDs from current indexDB", dmisCurr.Len())
 	deletedMetricIDs.UnionMayOwn(dmisCurr)
 
-	// Do not reset MetricID->MetricName cache, since it must be used only
-	// after filtering out deleted metricIDs.
+	// TODO(@rtm0): Reset metricIDCache (MetricID -> TSID)?
+	// This cache is persistent, so if it is should be reset then it should be
+	// done before delete-entries are written to index.
+	// If not - document why.
+
+	// Do not reset metricNameCache (MetricID -> MetricName), since it must be
+	// used only after filtering out deleted metricIDs.
+
+	// TODO(@rtm0): Reset currHourMetricIDs cache? It is used for creating
+	// per-day index entries.
+	// This cache is persistent, so if it is should be reset then it should be
+	// done before delete-entries are written to index.
+	// If not - document why.
+
+	// TODO(@rtm0): Reset prevHourMetricIDs cache? It is used for creating
+	// per-day index entries.
+	// This cache is persistent, so if it is should be reset then it should be
+	// done before delete-entries are written to index.
+	// If not - document why.
+
+	// TODO(@rtm0): Reset nextDayMetricIDs cache? It is used for creating
+	// per-day index entries.
+	// This cache is persistent, so if it is should be reset then it should be
+	// done before delete-entries are written to index.
+	// If not - document why.
+
+	// TODO(@rtm0): Reset pendingHourEntries cache? Current hour metrics are
+	// temporarily stored in this cache until they are copied to the
+	// currHourMetricIDs.
+	// This cache is not persistent, so if it is ok to reset it after the
+	// delete-entries are written to index.
+	// If not - document why.
+
+	// TODO(@rtm0): Reset missingMetricIDs? It may contain deleted metricIDs.
+	// This cache is not persistent, so if it is ok to reset it after the
+	// delete-entries are written to index.
+	// If not - document why.
+
+	// Not resetting metricsTracker and metadataStorage because they user metric
+	// names instead of metricIDs. And one metric name can correspond to one or
+	// more metricIDs.
 
 	n := deletedMetricIDs.Len()
 	qt.Donef("deleted %d unique metricIDs", n)

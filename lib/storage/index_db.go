@@ -1564,7 +1564,18 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	db.tagFiltersToMetricIDsCache.Reset()
 
+	// TODO(@rtm0): Reset metricIDCache? If not, document why.
+	// TODO(@rtm0): Reset dateMetricIDCache? If not, document why.
+
+	// Do not reset loopsPerDateTagFilterCache. The cache counts loops when
+	// searching metricIDs for the given date and tfss. The metricID deletion
+	// does not change these loop counts because the search always retrieves ALL
+	// metricIDs matching the criteria (and this is when this cache is used) and
+	// only when this search is completed the deleted metricIDs are removed from
+	// the final result.
+
 	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
+	// TODO: Why not doing it more than once...
 	db.s.resetAndSaveTSIDCache()
 
 	// Store the metricIDs as deleted.
