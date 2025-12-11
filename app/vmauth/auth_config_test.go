@@ -950,7 +950,8 @@ func mustParseURLs(us []string) *URLPrefix {
 			panic(fmt.Errorf("BUG: cannot parse %q: %w", u, err))
 		}
 		bus[i] = &backendURL{
-			url: pu,
+			url:               pu,
+			stopHealthCheckCh: make(chan struct{}),
 		}
 		urls[i] = pu
 	}

@@ -51,30 +51,53 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 1,
+  "id": 0,
   "links": [
     {
       "icon": "doc",
       "tags": [],
       "targetBlank": true,
-      "title": "Single server Wiki",
+      "title": "Docs",
       "type": "link",
-      "url": "https://docs.victoriametrics.com/"
+      "url": "https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/"
     },
     {
-      "icon": "external link",
+      "asDropdown": false,
+      "icon": "question",
+      "includeVars": false,
+      "keepTime": false,
       "tags": [],
       "targetBlank": true,
-      "title": "Found a bug?",
-      "type": "link",
-      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues"
-    },
-    {
-      "icon": "external link",
-      "tags": [],
-      "targetBlank": true,
-      "title": "New releases",
+      "title": "Troubleshooting",
       "tooltip": "",
+      "type": "link",
+      "url": "https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#troubleshooting"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Community support",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/community-support/"
+    },
+    {
+      "asDropdown": false,
+      "icon": "bolt",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Enterprise support",
+      "tooltip": "",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/enterprise-support/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Releases",
       "type": "link",
       "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }
@@ -115,7 +138,7 @@
         "content": "<div style=\"text-align: center;\">$version</div>",
         "mode": "markdown"
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "title": "Version",
       "type": "text"
     },
@@ -170,7 +193,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -242,7 +265,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -314,7 +337,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -386,7 +409,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -459,7 +482,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -529,7 +552,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -601,7 +624,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -673,7 +696,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -745,7 +768,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -867,7 +890,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -977,7 +1000,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1093,7 +1116,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1203,7 +1226,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1310,7 +1333,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1419,7 +1442,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1516,7 +1539,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 767
+            "y": 121
           },
           "id": 112,
           "options": {
@@ -1538,7 +1561,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -1625,7 +1648,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 767
+            "y": 121
           },
           "id": 114,
           "options": {
@@ -1647,7 +1670,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -1737,7 +1760,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 775
+            "y": 129
           },
           "id": 123,
           "options": {
@@ -1759,7 +1782,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -1863,7 +1886,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 775
+            "y": 129
           },
           "id": 57,
           "options": {
@@ -1885,7 +1908,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -1990,7 +2013,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 783
+            "y": 137
           },
           "id": 44,
           "options": {
@@ -2012,7 +2035,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2157,7 +2180,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 783
+            "y": 137
           },
           "id": 134,
           "options": {
@@ -2179,7 +2202,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2280,7 +2303,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 791
+            "y": 145
           },
           "id": 135,
           "options": {
@@ -2418,7 +2441,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 791
+            "y": 145
           },
           "id": 76,
           "options": {
@@ -2545,7 +2568,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 799
+            "y": 153
           },
           "id": 47,
           "options": {
@@ -2667,7 +2690,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 799
+            "y": 153
           },
           "id": 124,
           "options": {
@@ -2794,7 +2817,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 807
+            "y": 161
           },
           "id": 48,
           "options": {
@@ -2901,7 +2924,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 807
+            "y": 161
           },
           "id": 136,
           "options": {
@@ -3027,7 +3050,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 815
+            "y": 169
           },
           "id": 49,
           "options": {
@@ -3138,7 +3161,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 815
+            "y": 169
           },
           "id": 37,
           "options": {
@@ -3266,7 +3289,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 823
+            "y": 177
           },
           "id": 75,
           "options": {
@@ -3379,7 +3402,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 823
+            "y": 177
           },
           "id": 125,
           "options": {
@@ -3500,7 +3523,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 831
+            "y": 185
           },
           "id": 127,
           "options": {
@@ -3622,7 +3645,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 831
+            "y": 185
           },
           "id": 133,
           "options": {
@@ -3732,7 +3755,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 839
+            "y": 193
           },
           "id": 128,
           "options": {
@@ -3855,7 +3878,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 257
+            "y": 295
           },
           "id": 66,
           "options": {
@@ -3977,7 +4000,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 257
+            "y": 295
           },
           "id": 68,
           "options": {
@@ -4089,7 +4112,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 265
+            "y": 303
           },
           "id": 116,
           "options": {
@@ -4199,7 +4222,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 265
+            "y": 303
           },
           "id": 60,
           "options": {
@@ -4308,7 +4331,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 273
+            "y": 311
           },
           "id": 90,
           "options": {
@@ -4419,7 +4442,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 273
+            "y": 311
           },
           "id": 118,
           "options": {
@@ -4530,7 +4553,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 282
+            "y": 320
           },
           "id": 131,
           "options": {
@@ -4654,7 +4677,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 282
+            "y": 320
           },
           "id": 132,
           "links": [
@@ -4782,7 +4805,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 290
+            "y": 328
           },
           "id": 126,
           "options": {
@@ -4881,7 +4904,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 290
+            "y": 328
           },
           "id": 129,
           "options": {
@@ -4992,7 +5015,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 298
+            "y": 336
           },
           "id": 137,
           "options": {
@@ -5020,7 +5043,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -5112,7 +5135,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 356
+            "y": 702
           },
           "id": 10,
           "options": {
@@ -5223,7 +5246,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 356
+            "y": 702
           },
           "id": 73,
           "options": {
@@ -5333,7 +5356,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 364
+            "y": 710
           },
           "id": 53,
           "options": {
@@ -5487,7 +5510,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 364
+            "y": 710
           },
           "id": 34,
           "options": {
@@ -5625,7 +5648,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 372
+            "y": 718
           },
           "id": 30,
           "options": {
@@ -5747,7 +5770,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 372
+            "y": 718
           },
           "id": 36,
           "options": {
@@ -5869,7 +5892,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 380
+            "y": 726
           },
           "id": 58,
           "options": {
@@ -5979,7 +6002,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 380
+            "y": 726
           },
           "id": 62,
           "options": {
@@ -6100,7 +6123,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 388
+            "y": 734
           },
           "id": 59,
           "options": {
@@ -6220,7 +6243,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 388
+            "y": 734
           },
           "id": 64,
           "options": {
@@ -6327,7 +6350,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 396
+            "y": 742
           },
           "id": 99,
           "options": {
@@ -6437,7 +6460,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 396
+            "y": 742
           },
           "id": 103,
           "options": {
@@ -6547,7 +6570,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 404
+            "y": 750
           },
           "id": 122,
           "options": {
@@ -6657,7 +6680,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 404
+            "y": 750
           },
           "id": 105,
           "options": {
@@ -6764,7 +6787,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 412
+            "y": 758
           },
           "id": 130,
           "options": {
@@ -6822,7 +6845,7 @@
             "h": 2,
             "w": 17,
             "x": 0,
-            "y": 259
+            "y": 34
           },
           "id": 139,
           "options": {
@@ -6831,10 +6854,10 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance.",
+            "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance, or a single instance in cases like memory breakdown.",
             "mode": "markdown"
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "title": "",
           "transparent": true,
           "type": "text"
@@ -6884,13 +6907,7 @@
                   "mode": "off"
                 }
               },
-              "links": [
-                {
-                  "targetBlank": true,
-                  "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
-                }
-              ],
+              "links": [],
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
@@ -6912,7 +6929,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 261
+            "y": 36
           },
           "id": 140,
           "options": {
@@ -6932,7 +6949,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -6940,13 +6957,183 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"})) by (job,instance)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance)",
               "legendFormat": "{{instance}} ({{job}})",
               "range": true,
               "refId": "A"
             }
           ],
           "title": "Major page faults rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "description": "This panel breaks down memory usage by type. It’s intended for inspecting a single instance.\n\nHow to use:\n- Start from the high-level RSS panel.\n- Identify an instance with unexpected or abnormal memory growth.\n- Filter to that instance to inspect the detailed breakdown.\n\nInterpretation\n- A steadily rising Go Heap usually indicates a memory leak. Collect pprof memory profile.\n- A growing Go Stack commonly points to a goroutine leak.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 36
+          },
+          "id": 141,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "# go other\nmax(\n    go_memstats_gc_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_mspan_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_other_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_mcache_sys_bytes{job=~\"$job\", instance=~\"$instance\"}\n)",
+              "legendFormat": "Go: Other",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "# go stack\nmax(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Go: Stack",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "#go heap inuse\nmax(\n    go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}\n    +\n    (\n        go_memstats_heap_idle_bytes{job=~\"$job\", instance=~\"$instance\"}\n        -\n        go_memstats_heap_released_bytes{job=~\"$job\", instance=~\"$instance\"}\n    )\n)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Go: Heap",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "# go heap reserved\nmax(go_memstats_heap_released_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Go: Heap Reserved",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "# vm cache\nmax(sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (job, instance))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Mmap: VM Cache",
+              "range": true,
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "${ds}"
+              },
+              "editorMode": "code",
+              "expr": "# file pages\nmax(process_resident_memory_file_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "File cache",
+              "range": true,
+              "refId": "F"
+            }
+          ],
+          "title": "Memory usage breakdown",
           "type": "timeseries"
         }
       ],
@@ -6976,7 +7163,10 @@
         "type": "datasource"
       },
       {
-        "current": {},
+        "current": {
+          "text": "",
+          "value": ""
+        },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
@@ -6994,7 +7184,10 @@
         "type": "query"
       },
       {
-        "current": {},
+        "current": {
+          "text": "",
+          "value": ""
+        },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
@@ -7015,7 +7208,10 @@
       },
       {
         "allValue": ".*",
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"

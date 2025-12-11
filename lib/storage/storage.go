@@ -2256,6 +2256,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	var idb *indexDB
 
 	hmPrevDate := hmPrev.hour / 24
+	hmCurrDate := hmCurr.hour / 24
 	nextDayMetricIDsCache := s.nextDayMetricIDs.Load()
 	nextDayIDBID := nextDayMetricIDsCache.idbID
 	nextDayMetricIDs := &nextDayMetricIDsCache.metricIDs
@@ -2263,6 +2264,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 	// Start pre-populating the next per-day inverted index during the last hour of the current day.
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
 	pMin := (float64(ts%(3600*24)) / 3600) - 23
+	currentHour := ts / 3600
 	type pendingDateMetricID struct {
 		date uint64
 		tsid *TSID
@@ -2284,40 +2286,41 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 		}
 		prevDate = date
 		prevMetricID = metricID
-		if hour == hmCurr.hour {
-			// The row belongs to the current hour. Check for the current hour cache.
-			if hmCurr.m.Has(metricID) {
-				// Fast path: the metricID is in the current hour cache.
-				// This means the metricID has been already added to per-day inverted index.
 
-				// Gradually pre-populate per-day inverted index for the next day during the last hour of the current day.
-				// This should reduce CPU usage spike and slowdown at the beginning of the next day
-				// when entries for all the active time series must be added to the index.
-				// This should address https://github.com/VictoriaMetrics/VictoriaMetrics/issues/430.
-				//
-				// Do this only if the next day is in the same partition indexDB.
-				// If next day is in another partition indexDB, the prefill is
-				// handled separately in prefillNextIndexDB.
-				// TODO(@rtm0): See if prefillNextIndexDB() logic can be moved here.
-				if hmCurr.idbID == nextDayIDBID && pMin > 0 {
-					p := float64(uint32(fastHashUint64(metricID))) / (1 << 32)
-					if p < pMin && !nextDayMetricIDs.Has(metricID) {
-						pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-							date: date + 1,
-							tsid: &r.TSID,
-							mr:   mrs[i],
-						})
-						pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
-					}
-				}
-				continue
-			}
-			if hmPrev.idbID == hmCurr.idbID && date == hmPrevDate && hmPrev.m.Has(metricID) {
-				// The metricID is already registered for the current day on the previous hour.
-				continue
+		if hmCurr.idbID == nextDayIDBID && pMin > 0 && hour == currentHour {
+			// Gradually pre-populate per-day inverted index for the next day during the last hour of the current day.
+			// This should reduce CPU usage spike and slowdown at the beginning of the next day
+			// when entries for all the active time series must be added to the index.
+			// This should address https://github.com/VictoriaMetrics/VictoriaMetrics/issues/430 .
+			//
+			// Do this only if the next day is in the same partition indexDB.
+			// If next day is in another partition indexDB, the prefill is
+			// handled separately in prefillNextIndexDB.
+			// TODO(@rtm0): See if prefillNextIndexDB() logic can be moved here.
+			p := float64(uint32(fastHashUint64(metricID))) / (1 << 32)
+			if p < pMin && !nextDayMetricIDs.Has(metricID) {
+				pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
+					date: date + 1,
+					tsid: &r.TSID,
+					mr:   mrs[i],
+				})
+				pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
 			}
 		}
 
+		if date == hmCurrDate && hmCurr.m.Has(metricID) {
+			// Fast path: the metricID is in the current hour cache.
+			// This means the metricID has been already added to per-day inverted index.
+			continue
+		}
+
+		if date == hmPrevDate && hmPrev.m.Has(metricID) {
+			// Fast path: the metricID is already registered for its day on the previous hour.
+			continue
+		}
+
+		// Slower path: check the dateMetricIDCache if the (date, metricID) pair
+		// is already present in indexDB.
 		if ptw == nil || !ptw.pt.HasTimestamp(r.Timestamp) {
 			if ptw != nil {
 				s.tb.PutPartition(ptw)
@@ -2325,16 +2328,13 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmC
 			ptw = s.tb.MustGetPartition(r.Timestamp)
 			idb = ptw.pt.idb
 		}
-
-		// Slower path: check the dateMetricIDCache if the (date, metricID) pair
-		// is already present in indexDB.
-		//
 		// TODO(@rtm0): indexDB.dateMetricIDCache should not be used directly
 		// since its purpose is to optimize is.hasDateMetricID(). See if this
 		// function could be changed so that it does not rely on this cache.
 		if idb.dateMetricIDCache.Has(date, metricID) {
 			continue
 		}
+
 		// Slow path: store the (date, metricID) entry in the indexDB.
 		pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
 			date: date,

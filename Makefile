@@ -435,7 +435,7 @@ release-vmutils-windows-goarch: \
 		vmctl-windows-$(GOARCH)-prod.exe
 
 pprof-cpu:
-	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
+	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics $(PPROF_FILE)
 
 fmt:
 	gofmt -l -w -s ./lib

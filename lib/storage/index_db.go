@@ -28,7 +28,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 const (
@@ -124,8 +123,7 @@ type indexDB struct {
 
 	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
-	// TODO(rtm0): Also replace with lrucache?
-	loopsPerDateTagFilterCache *workingsetcache.Cache
+	loopsPerDateTagFilterCache *lrucache.Cache
 
 	// A cache that stores metricIDs that have been added to the index.
 	// The cache is not populated on startup nor does it store a complete set of
@@ -167,6 +165,10 @@ func getTagFiltersCacheSize() uint64 {
 	return maxTagFiltersCacheSize
 }
 
+func getTagFiltersLoopsCacheSize() uint64 {
+	return uint64(float64(memory.Allowed()) / 128)
+}
+
 func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isReadOnly *atomic.Bool, noRegisterNewSeries bool) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must not be nil")
@@ -183,7 +185,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		legacyMinMissingTimestampByKey: make(map[string]int64),
 		tagFiltersToMetricIDsCache:     tfssCache,
 		s:                              s,
-		loopsPerDateTagFilterCache:     workingsetcache.New(memory.Allowed() / 128),
+		loopsPerDateTagFilterCache:     lrucache.NewCache(getTagFiltersLoopsCacheSize),
 		metricIDCache:                  newMetricIDCache(),
 		dateMetricIDCache:              newDateMetricIDCache(),
 	}
@@ -247,24 +249,32 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
 	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
 
-	m.TagFiltersToMetricIDsCacheSize += uint64(db.tagFiltersToMetricIDsCache.Len())
-	m.TagFiltersToMetricIDsCacheSizeBytes += uint64(db.tagFiltersToMetricIDsCache.SizeBytes())
-	m.TagFiltersToMetricIDsCacheSizeMaxBytes += uint64(db.tagFiltersToMetricIDsCache.SizeMaxBytes())
-	m.TagFiltersToMetricIDsCacheRequests += db.tagFiltersToMetricIDsCache.Requests()
-	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
-	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
+	// Report only once and for an indexDB instance whose tagFiltersCache is
+	// utilized the most.
+	if db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
+		m.TagFiltersToMetricIDsCacheSize = uint64(db.tagFiltersToMetricIDsCache.Len())
+		m.TagFiltersToMetricIDsCacheSizeBytes = db.tagFiltersToMetricIDsCache.SizeBytes()
+		m.TagFiltersToMetricIDsCacheSizeMaxBytes = db.tagFiltersToMetricIDsCache.SizeMaxBytes()
+		m.TagFiltersToMetricIDsCacheRequests = db.tagFiltersToMetricIDsCache.Requests()
+		m.TagFiltersToMetricIDsCacheMisses = db.tagFiltersToMetricIDsCache.Misses()
+		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
+	}
 
 	metricIDCacheStats := db.metricIDCache.Stats()
 	m.MetricIDCacheSize += metricIDCacheStats.Size
 	m.MetricIDCacheSizeBytes += metricIDCacheStats.SizeBytes
 	m.MetricIDCacheSyncsCount += metricIDCacheStats.SyncsCount
 
+	// Report only once and for an indexDB instance whose dateMetricIDCache is
+	// utilized the most.
 	dmcs := db.dateMetricIDCache.Stats()
-	m.DateMetricIDCacheSize += dmcs.Size
-	m.DateMetricIDCacheSizeBytes += dmcs.SizeBytes
-	m.DateMetricIDCacheSizeMaxBytes += dmcs.SizeMaxBytes
-	m.DateMetricIDCacheSyncsCount += dmcs.SyncsCount
-	m.DateMetricIDCacheResetsCount += dmcs.ResetsCount
+	if dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
+		m.DateMetricIDCacheSize = dmcs.Size
+		m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
+		m.DateMetricIDCacheSizeMaxBytes = dmcs.SizeMaxBytes
+		m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
+		m.DateMetricIDCacheResetsCount = dmcs.ResetsCount
+	}
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
 	m.DateRangeSearchHits += db.dateRangeSearchHits.Load()
@@ -284,7 +294,7 @@ func (db *indexDB) MustClose() {
 
 	// Free space occupied by caches owned by db.
 	db.tagFiltersToMetricIDsCache.MustStop()
-	db.loopsPerDateTagFilterCache.Stop()
+	db.loopsPerDateTagFilterCache.MustStop()
 	db.metricIDCache.Stop()
 
 	db.tagFiltersToMetricIDsCache = nil
@@ -2988,25 +2998,32 @@ func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *t
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = is.db.loopsPerDateTagFilterCache.Get(kb.B[:0], is.kb.B)
-	if len(kb.B) != 3*8 {
+	e := is.db.loopsPerDateTagFilterCache.GetEntry(bytesutil.ToUnsafeString(is.kb.B))
+	if e == nil {
 		return 0, 0, 0
 	}
-	loopsCount := encoding.UnmarshalInt64(kb.B)
-	filterLoopsCount := encoding.UnmarshalInt64(kb.B[8:])
-	timestamp := encoding.UnmarshalUint64(kb.B[16:])
-	return loopsCount, filterLoopsCount, timestamp
+	v := e.(*tagFiltersLoops)
+	return v.loopsCount, v.filterLoopsCount, v.timestamp
+}
+
+type tagFiltersLoops struct {
+	loopsCount       int64
+	filterLoopsCount int64
+	timestamp        uint64
+}
+
+func (v *tagFiltersLoops) SizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*v))
 }
 
 func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, loopsCount, filterLoopsCount int64) {
-	currentTimestamp := fasttime.UnixTimestamp()
+	v := tagFiltersLoops{
+		loopsCount:       loopsCount,
+		filterLoopsCount: filterLoopsCount,
+		timestamp:        fasttime.UnixTimestamp(),
+	}
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
-	kb := kbPool.Get()
-	kb.B = encoding.MarshalInt64(kb.B[:0], loopsCount)
-	kb.B = encoding.MarshalInt64(kb.B, filterLoopsCount)
-	kb.B = encoding.MarshalUint64(kb.B, currentTimestamp)
-	is.db.loopsPerDateTagFilterCache.Set(is.kb.B, kb.B)
-	kbPool.Put(kb)
+	is.db.loopsPerDateTagFilterCache.PutEntry(string(is.kb.B), &v)
 }
 
 func appendDateTagFilterCacheKey(dst []byte, indexDBName string, date uint64, tf *tagFilter) []byte {

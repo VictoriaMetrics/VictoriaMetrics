@@ -788,7 +788,7 @@ var numericChars = [256]bool{
 // # TYPE alertmanager_alerts gauge
 type Metadata struct {
 	Metric string
-	Type   uint32
+	Type   prompb.MetricType
 	Help   string
 }
 
@@ -875,15 +875,15 @@ func unmarshalMetadata(dst []Metadata, s string, errLogger func(s string)) []Met
 	if isType {
 		switch commentData {
 		case "counter":
-			md.Type = uint32(prompb.MetricMetadataCOUNTER)
+			md.Type = prompb.MetricTypeCounter
 		case "gauge":
-			md.Type = uint32(prompb.MetricMetadataGAUGE)
+			md.Type = prompb.MetricTypeGauge
 		case "histogram":
-			md.Type = uint32(prompb.MetricMetadataHISTOGRAM)
+			md.Type = prompb.MetricTypeHistogram
 		case "summary":
-			md.Type = uint32(prompb.MetricMetadataSUMMARY)
+			md.Type = prompb.MetricTypeSummary
 		case "untyped":
-			md.Type = uint32(prompb.MetricMetadataUNKNOWN)
+			md.Type = prompb.MetricTypeUnknown
 		default:
 			if errLogger != nil {
 				errLogger(fmt.Sprintf("cannot unmarshal metadata line %q: TYPE is invalid", fullLine))

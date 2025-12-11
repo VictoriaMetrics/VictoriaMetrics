@@ -57,30 +57,13 @@
       "icon": "doc",
       "tags": [],
       "targetBlank": true,
-      "title": "vmagent wiki",
-      "tooltip": "",
+      "title": "Docs",
       "type": "link",
       "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/"
     },
     {
-      "icon": "external link",
-      "tags": [],
-      "targetBlank": true,
-      "title": "Found a bug?",
-      "type": "link",
-      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues"
-    },
-    {
-      "icon": "external link",
-      "tags": [],
-      "targetBlank": true,
-      "title": "New releases",
-      "type": "link",
-      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
-    },
-    {
       "asDropdown": false,
-      "icon": "external link",
+      "icon": "question",
       "includeVars": false,
       "keepTime": false,
       "tags": [],
@@ -89,6 +72,34 @@
       "tooltip": "",
       "type": "link",
       "url": "https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Community support",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/community-support/"
+    },
+    {
+      "asDropdown": false,
+      "icon": "bolt",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Enterprise support",
+      "tooltip": "",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/enterprise-support/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Releases",
+      "type": "link",
+      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }
   ],
   "panels": [

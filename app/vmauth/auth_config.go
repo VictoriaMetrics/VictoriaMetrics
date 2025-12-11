@@ -127,6 +127,22 @@ func (ui *UserInfo) getMaxConcurrentRequests() int {
 	return mcr
 }
 
+func (ui *UserInfo) stopHealthChecks() {
+	if ui == nil {
+		return
+	}
+	if ui.URLPrefix == nil {
+		return
+	}
+
+	pbus := ui.URLPrefix.bus.Load()
+	if *pbus != nil {
+		for _, bu := range *pbus {
+			bu.stopHealthCheck()
+		}
+	}
+}
+
 // Header is `Name: Value` http header, which must be added to the proxied request.
 type Header struct {
 	Name  string
@@ -287,20 +303,69 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 }
 
 type backendURL struct {
-	brokenDeadline     atomic.Uint64
+	broken              atomic.Bool
+	stopHealthCheckCh   chan struct{}
+	stopHealthCheckOnce sync.Once
+
 	concurrentRequests atomic.Int32
 
 	url *url.URL
 }
 
 func (bu *backendURL) isBroken() bool {
-	ct := fasttime.UnixTimestamp()
-	return ct < bu.brokenDeadline.Load()
+	return bu.broken.Load()
 }
 
 func (bu *backendURL) setBroken() {
-	deadline := fasttime.UnixTimestamp() + uint64((*failTimeout).Seconds())
-	bu.brokenDeadline.Store(deadline)
+	if !bu.broken.Load() && bu.broken.CompareAndSwap(false, true) {
+		bu.startHealthCheck()
+	}
+}
+
+func (bu *backendURL) startHealthCheck() {
+	go func() {
+		port := bu.url.Port()
+		if port == "" {
+			port = "80"
+		}
+		addr := net.JoinHostPort(bu.url.Hostname(), port)
+
+		t := time.NewTimer(*failTimeout)
+		for {
+			select {
+			case <-t.C:
+				// Do not perform tcp probe for https urls as
+				// - the network unavailability is less probable for https urls
+				// - it will pollute logs on server side with SSL handshake errors.
+				if bu.url.Scheme == "https" {
+					bu.broken.Store(false)
+					return
+				}
+
+				// Verify network connectivity via TCP dial before marking backend healthy.
+				// Previously, backends were auto-restored after failTimeout without validation,
+				// causing requests to repeatedly hang on unreachable backends.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9890
+				c, err := net.DialTimeout(`tcp`, addr, time.Second)
+				if err != nil {
+					t.Reset(*failTimeout)
+					continue
+				}
+				_ = c.Close()
+				bu.broken.Store(false)
+				return
+			case <-bu.stopHealthCheckCh:
+				t.Stop()
+				return
+			}
+		}
+	}()
+}
+
+func (bu *backendURL) stopHealthCheck() {
+	bu.stopHealthCheckOnce.Do(func() {
+		close(bu.stopHealthCheckCh)
+	})
 }
 
 func (bu *backendURL) get() {
@@ -414,7 +479,8 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			buCopy := *bu
 			buCopy.Host = addr
 			busNew = append(busNew, &backendURL{
-				url: &buCopy,
+				url:               &buCopy,
+				stopHealthCheckCh: make(chan struct{}),
 			})
 		}
 	}
@@ -426,6 +492,12 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 
 	// Store new backend urls
 	up.bus.Store(&busNew)
+
+	if *pbus != nil {
+		for _, bu := range *pbus {
+			bu.stopHealthCheck()
+		}
+	}
 }
 
 func areEqualBackendURLs(a, b []*backendURL) bool {
@@ -732,6 +804,11 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 
 	acPrev := authConfig.Load()
 	if acPrev != nil {
+		acPrev.UnauthorizedUser.stopHealthChecks()
+		for i := range acPrev.Users {
+			acPrev.Users[i].stopHealthChecks()
+		}
+
 		metrics.UnregisterSet(acPrev.ms, true)
 	}
 	metrics.RegisterSet(ac.ms)
@@ -1063,7 +1140,8 @@ func (up *URLPrefix) sanitizeAndInitialize() error {
 	bus := make([]*backendURL, len(up.busOriginal))
 	for i, bu := range up.busOriginal {
 		bus[i] = &backendURL{
-			url: bu,
+			url:               bu,
+			stopHealthCheckCh: make(chan struct{}),
 		}
 	}
 	up.bus.Store(&bus)

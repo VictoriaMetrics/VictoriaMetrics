@@ -106,5 +106,8 @@ func (v *Value) SetArrayItem(idx int, value *Value) {
 	for idx >= len(v.a) {
 		v.a = append(v.a, valueNull)
 	}
+	if value == nil {
+		value = valueNull
+	}
 	v.a[idx] = value
 }

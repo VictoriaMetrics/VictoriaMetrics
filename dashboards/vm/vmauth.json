@@ -63,38 +63,38 @@
   "id": null,
   "links": [
     {
-      "asDropdown": false,
       "icon": "doc",
-      "includeVars": false,
-      "keepTime": false,
       "tags": [],
       "targetBlank": true,
-      "title": "vmauth docs",
-      "tooltip": "vmauth docs",
+      "title": "Docs",
       "type": "link",
       "url": "https://docs.victoriametrics.com/victoriametrics/vmauth/"
     },
     {
-      "asDropdown": false,
-      "icon": "question",
-      "includeVars": false,
-      "keepTime": false,
+      "icon": "info",
       "tags": [],
       "targetBlank": true,
-      "title": "Found a bug?",
-      "tooltip": "Found a bug?",
+      "title": "Community support",
       "type": "link",
-      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/issues"
+      "url": "https://victoriametrics.com/support/community-support/"
     },
     {
       "asDropdown": false,
-      "icon": "info",
+      "icon": "bolt",
       "includeVars": false,
       "keepTime": false,
       "tags": [],
       "targetBlank": true,
-      "title": "New releases",
-      "tooltip": "New releases",
+      "title": "Enterprise support",
+      "tooltip": "",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/enterprise-support/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Releases",
       "type": "link",
       "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }

@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
@@ -166,15 +167,16 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 	scrapesOK.Inc()
 
 	// Read the data from resp.Body
-	r := io.LimitReader(resp.Body, c.maxScrapeSize)
-	_, err = dst.ReadFrom(r)
+	lr := ioutil.GetLimitedReader(resp.Body, c.maxScrapeSize+1)
+	_, err = dst.ReadFrom(lr)
+	ioutil.PutLimitedReader(lr)
 	if err != nil {
 		if ue, ok := err.(*url.Error); ok && ue.Timeout() {
 			scrapesTimedout.Inc()
 		}
 		return false, fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
 	}
-	if int64(dst.Len()) >= c.maxScrapeSize {
+	if int64(dst.Len()) > c.maxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
 		return false, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
 			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+

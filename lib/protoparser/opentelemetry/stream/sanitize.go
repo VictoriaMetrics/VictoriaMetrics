@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
@@ -64,69 +66,128 @@ var perUnitMap = map[string]string{
 	"y":  "year",
 }
 
+type sanitizerContext struct {
+	metricNameTokens []string
+	metricNameBuf    []byte
+	labelBuf         []byte
+}
+
+func (sctx *sanitizerContext) reset() {
+	clear(sctx.metricNameTokens)
+	sctx.metricNameTokens = sctx.metricNameTokens[:0]
+
+	sctx.metricNameBuf = sctx.metricNameBuf[:0]
+	sctx.labelBuf = sctx.labelBuf[:0]
+}
+
 // See https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_label.go#L26
-func sanitizeLabelName(labelName string) string {
+//
+// The returned string is valid until the next call to sanitizeLabelName.
+func (sctx *sanitizerContext) sanitizeLabelName(labelName string) string {
 	if !*usePrometheusNaming {
 		return labelName
 	}
-	return sanitizePrometheusLabelName(labelName)
+	return sctx.sanitizePrometheusLabelName(labelName)
 }
 
-func sanitizePrometheusLabelName(labelName string) string {
+func (sctx *sanitizerContext) sanitizePrometheusLabelName(labelName string) string {
 	if len(labelName) == 0 {
 		return ""
 	}
 	labelName = promrelabel.SanitizeLabelName(labelName)
 	if labelName[0] >= '0' && labelName[0] <= '9' {
-		return "key_" + labelName
+		return sctx.concatLabel("key_", labelName)
 	} else if strings.HasPrefix(labelName, "_") && !strings.HasPrefix(labelName, "__") {
-		return "key" + labelName
+		return sctx.concatLabel("key", labelName)
 	}
 	return labelName
 }
 
-// See https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L83
-func sanitizeMetricName(m *pb.Metric) string {
-	if !*usePrometheusNaming && !*convertMetricNamesToPrometheus {
-		return m.Name
-	}
-	return sanitizePrometheusMetricName(m)
+func (sctx *sanitizerContext) concatLabel(a, b string) string {
+	sctx.labelBuf = append(sctx.labelBuf[:0], a...)
+	sctx.labelBuf = append(sctx.labelBuf, b...)
+	return bytesutil.ToUnsafeString(sctx.labelBuf)
 }
 
-func sanitizePrometheusMetricName(m *pb.Metric) string {
-	nameTokens := promrelabel.SplitMetricNameToTokens(m.Name)
+// See https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L83
+//
+// The returned string is valid until the next call to sanitizeMetricName.
+func (sctx *sanitizerContext) sanitizeMetricName(mm *pb.MetricMetadata) string {
+	if !*usePrometheusNaming && !*convertMetricNamesToPrometheus {
+		return mm.Name
+	}
+	return sctx.sanitizePrometheusMetricName(mm)
+}
 
-	unitTokens := strings.SplitN(m.Unit, "/", 2)
-	if len(unitTokens) > 0 {
-		mainUnit := strings.TrimSpace(unitTokens[0])
-		if mainUnit != "" && !strings.ContainsAny(mainUnit, "{}") {
-			if u, ok := unitMap[mainUnit]; ok {
-				mainUnit = u
-			}
-			if mainUnit != "" && !slices.Contains(nameTokens, mainUnit) {
-				nameTokens = append(nameTokens, mainUnit)
-			}
+func (sctx *sanitizerContext) sanitizePrometheusMetricName(mm *pb.MetricMetadata) string {
+	sctx.splitMetricNameToTokens(mm.Name)
+
+	n := strings.IndexByte(mm.Unit, '/')
+
+	mainUnit := mm.Unit
+	perUnit := ""
+	if n >= 0 {
+		mainUnit = mm.Unit[:n]
+		perUnit = mm.Unit[n+1:]
+	}
+	mainUnit = strings.TrimSpace(mainUnit)
+	perUnit = strings.TrimSpace(perUnit)
+
+	if mainUnit != "" && !strings.Contains(mainUnit, "{") {
+		if u, ok := unitMap[mainUnit]; ok {
+			mainUnit = u
 		}
-
-		if len(unitTokens) > 1 {
-			perUnit := strings.TrimSpace(unitTokens[1])
-			if perUnit != "" && !strings.ContainsAny(perUnit, "{}") {
-				if u, ok := perUnitMap[perUnit]; ok {
-					perUnit = u
-				}
-				if perUnit != "" && !slices.Contains(nameTokens, perUnit) {
-					nameTokens = append(nameTokens, "per", perUnit)
-				}
-			}
+		if mainUnit != "" && !slices.Contains(sctx.metricNameTokens, mainUnit) {
+			sctx.metricNameTokens = append(sctx.metricNameTokens, mainUnit)
 		}
 	}
 
-	if m.Sum != nil && m.Sum.IsMonotonic {
-		nameTokens = moveOrAppend(nameTokens, "total")
-	} else if m.Unit == "1" && m.Gauge != nil {
-		nameTokens = moveOrAppend(nameTokens, "ratio")
+	if perUnit != "" && !strings.Contains(perUnit, "{") {
+		if u, ok := perUnitMap[perUnit]; ok {
+			perUnit = u
+		}
+		if perUnit != "" && !slices.Contains(sctx.metricNameTokens, perUnit) {
+			sctx.metricNameTokens = append(sctx.metricNameTokens, "per", perUnit)
+		}
 	}
-	return strings.Join(nameTokens, "_")
+
+	if mm.Type == prompb.MetricTypeCounter {
+		sctx.metricNameTokens = moveOrAppend(sctx.metricNameTokens, "total")
+	} else if mm.Unit == "1" && mm.Type == prompb.MetricTypeGauge {
+		sctx.metricNameTokens = moveOrAppend(sctx.metricNameTokens, "ratio")
+	}
+
+	sctx.metricNameBuf = joinMetricNameTokens(sctx.metricNameBuf[:0], sctx.metricNameTokens)
+	return bytesutil.ToUnsafeString(sctx.metricNameBuf)
+}
+
+func (sctx *sanitizerContext) splitMetricNameToTokens(metricName string) {
+	clear(sctx.metricNameTokens)
+	sctx.metricNameTokens = sctx.metricNameTokens[:0]
+
+	s := metricName
+	for len(s) > 0 {
+		n := strings.IndexAny(s, "/_.-: ")
+		if n < 0 {
+			sctx.metricNameTokens = append(sctx.metricNameTokens, s)
+			return
+		}
+		if n > 0 {
+			sctx.metricNameTokens = append(sctx.metricNameTokens, s[:n])
+		}
+		s = s[n+1:]
+	}
+}
+
+func joinMetricNameTokens(dst []byte, metricNameTokens []string) []byte {
+	if len(metricNameTokens) == 0 {
+		return dst
+	}
+	for _, token := range metricNameTokens {
+		dst = append(dst, token...)
+		dst = append(dst, '_')
+	}
+	return dst[:len(dst)-1]
 }
 
 func moveOrAppend(tokens []string, value string) []string {

@@ -6,104 +6,103 @@ package prometheus
 
 //line app/vmselect/prometheus/metadata_response.qtpl:1
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 )
 
 // MetadataResponse generates response for /api/v1/metadataSee https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata
 
-//line app/vmselect/prometheus/metadata_response.qtpl:10
+//line app/vmselect/prometheus/metadata_response.qtpl:9
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line app/vmselect/prometheus/metadata_response.qtpl:10
+//line app/vmselect/prometheus/metadata_response.qtpl:9
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line app/vmselect/prometheus/metadata_response.qtpl:10
+//line app/vmselect/prometheus/metadata_response.qtpl:9
 func StreamMetadataResponse(qw422016 *qt422016.Writer, result []*metricsmetadata.Row, qt *querytracer.Tracer) {
-//line app/vmselect/prometheus/metadata_response.qtpl:10
+//line app/vmselect/prometheus/metadata_response.qtpl:9
 	qw422016.N().S(`{"status":"success","data": {`)
-//line app/vmselect/prometheus/metadata_response.qtpl:15
+//line app/vmselect/prometheus/metadata_response.qtpl:14
 	mapItems := len(result)
 	currentItem := 0
 
-//line app/vmselect/prometheus/metadata_response.qtpl:18
+//line app/vmselect/prometheus/metadata_response.qtpl:17
 	for _, row := range result {
-//line app/vmselect/prometheus/metadata_response.qtpl:18
+//line app/vmselect/prometheus/metadata_response.qtpl:17
 		qw422016.N().S(`"`)
-//line app/vmselect/prometheus/metadata_response.qtpl:19
+//line app/vmselect/prometheus/metadata_response.qtpl:18
 		qw422016.E().S(string(row.MetricFamilyName))
-//line app/vmselect/prometheus/metadata_response.qtpl:19
+//line app/vmselect/prometheus/metadata_response.qtpl:18
 		qw422016.N().S(`": [{"type":`)
-//line app/vmselect/prometheus/metadata_response.qtpl:21
-		qw422016.N().Q(prompb.MetricMetadataTypeToString(row.Type))
-//line app/vmselect/prometheus/metadata_response.qtpl:21
+//line app/vmselect/prometheus/metadata_response.qtpl:20
+		qw422016.N().Q(row.Type.String())
+//line app/vmselect/prometheus/metadata_response.qtpl:20
 		qw422016.N().S(`,`)
-//line app/vmselect/prometheus/metadata_response.qtpl:22
+//line app/vmselect/prometheus/metadata_response.qtpl:21
 		if len(row.Unit) > 0 {
-//line app/vmselect/prometheus/metadata_response.qtpl:22
+//line app/vmselect/prometheus/metadata_response.qtpl:21
 			qw422016.N().S(`"unit":`)
-//line app/vmselect/prometheus/metadata_response.qtpl:23
+//line app/vmselect/prometheus/metadata_response.qtpl:22
 			qw422016.N().Q(string(row.Unit))
+//line app/vmselect/prometheus/metadata_response.qtpl:22
+			qw422016.N().S(`,`)
 //line app/vmselect/prometheus/metadata_response.qtpl:23
-			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/metadata_response.qtpl:24
 		}
-//line app/vmselect/prometheus/metadata_response.qtpl:24
+//line app/vmselect/prometheus/metadata_response.qtpl:23
 		qw422016.N().S(`"help":`)
-//line app/vmselect/prometheus/metadata_response.qtpl:25
+//line app/vmselect/prometheus/metadata_response.qtpl:24
 		qw422016.N().Q(string(row.Help))
-//line app/vmselect/prometheus/metadata_response.qtpl:25
+//line app/vmselect/prometheus/metadata_response.qtpl:24
 		qw422016.N().S(`}]`)
-//line app/vmselect/prometheus/metadata_response.qtpl:28
+//line app/vmselect/prometheus/metadata_response.qtpl:27
 		if currentItem != mapItems-1 {
-//line app/vmselect/prometheus/metadata_response.qtpl:28
+//line app/vmselect/prometheus/metadata_response.qtpl:27
 			qw422016.N().S(`,`)
-//line app/vmselect/prometheus/metadata_response.qtpl:28
+//line app/vmselect/prometheus/metadata_response.qtpl:27
 		}
-//line app/vmselect/prometheus/metadata_response.qtpl:29
+//line app/vmselect/prometheus/metadata_response.qtpl:28
 		currentItem++
 
-//line app/vmselect/prometheus/metadata_response.qtpl:30
+//line app/vmselect/prometheus/metadata_response.qtpl:29
 	}
-//line app/vmselect/prometheus/metadata_response.qtpl:30
+//line app/vmselect/prometheus/metadata_response.qtpl:29
 	qw422016.N().S(`}`)
-//line app/vmselect/prometheus/metadata_response.qtpl:32
+//line app/vmselect/prometheus/metadata_response.qtpl:31
 	streamdumpQueryTrace(qw422016, qt)
-//line app/vmselect/prometheus/metadata_response.qtpl:32
+//line app/vmselect/prometheus/metadata_response.qtpl:31
 	qw422016.N().S(`}`)
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 }
 
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 func WriteMetadataResponse(qq422016 qtio422016.Writer, result []*metricsmetadata.Row, qt *querytracer.Tracer) {
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 	StreamMetadataResponse(qw422016, result, qt)
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 }
 
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 func MetadataResponse(result []*metricsmetadata.Row, qt *querytracer.Tracer) string {
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 	WriteMetadataResponse(qb422016, result, qt)
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 	return qs422016
-//line app/vmselect/prometheus/metadata_response.qtpl:34
+//line app/vmselect/prometheus/metadata_response.qtpl:33
 }
