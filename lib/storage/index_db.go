@@ -1593,7 +1593,7 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// nextDayMetricIDs caches. These caches are used during data ingestion
 	// to decide whether a metricID needs to be added to the per-day index and
 	// index records must not be created for deleted metricIDs. But presence of
-	// deleted metricID in these cache will not lead to an index record
+	// deleted metricID in these caches will not lead to an index record
 	// creation. Also see dateMetricIDCache below.
 	//
 	// Additionally, currHourMetricIDs and nextDayMetricIDs have accompanying
