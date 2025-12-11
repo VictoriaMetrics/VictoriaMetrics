@@ -107,21 +107,17 @@ func (c *metricIDCache) hasSlow(metricID uint64) bool {
 		return true
 	}
 
-	// Then check prev and next sets.
-	var ok bool
-	next := c.next
-	if c.prev.Has(metricID) {
-		// the metricID is in prev but is still in use. Thus, migrate it to
-		// next.
-		next.Add(metricID)
+	// Then check next and prev sets.
+	ok := c.next.Has(metricID)
+	if !ok && c.prev.Has(metricID) {
+		// The metricID is in prev but is still in use. Migrate it to next.
+		c.next.Add(metricID)
 		ok = true
-	} else {
-		ok = next.Has(metricID)
 	}
 
 	if ok {
 		c.slowHits++
-		if c.slowHits > (curr.Len()+next.Len())/2 {
+		if c.slowHits > (curr.Len()+c.next.Len())/2 {
 			// It is cheaper to merge next into curr than to pay inter-cpu sync
 			// costs when accessing next.
 			c.syncLocked()
@@ -133,8 +129,7 @@ func (c *metricIDCache) hasSlow(metricID uint64) bool {
 
 func (c *metricIDCache) Set(metricID uint64) {
 	c.mu.Lock()
-	v := c.next
-	v.Add(metricID)
+	c.next.Add(metricID)
 	c.mu.Unlock()
 }
 
@@ -154,7 +149,7 @@ func (c *metricIDCache) syncLocked() {
 }
 
 func (c *metricIDCache) startCleaner() {
-	d := timeutil.AddJitterToDuration(time.Hour)
+	d := timeutil.AddJitterToDuration(10 * time.Minute)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {

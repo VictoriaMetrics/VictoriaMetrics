@@ -16,9 +16,9 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.Stop()
 		c.Set(123)
-		time.Sleep(time.Hour + 15*time.Minute)
-		time.Sleep(time.Hour + 15*time.Minute)
-		time.Sleep(time.Hour + 15*time.Minute)
+		time.Sleep(15 * time.Minute)
+		time.Sleep(15 * time.Minute)
+		time.Sleep(15 * time.Minute)
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -30,12 +30,12 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.Stop()
 		c.Set(123)
-		time.Sleep(15 * time.Minute)
+		time.Sleep(5 * time.Minute)
 		if !c.Has(123) {
 			t.Fatalf("entry not in cache")
 		}
-		time.Sleep(time.Hour + 15*time.Minute)
-		time.Sleep(time.Hour + 15*time.Minute)
+		time.Sleep(15 * time.Minute)
+		time.Sleep(15 * time.Minute)
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -48,7 +48,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		defer c.Stop()
 		c.Set(123)
 		for range 10_000 {
-			time.Sleep(15 * time.Minute)
+			time.Sleep(5 * time.Minute)
 			if !c.Has(123) {
 				t.Fatalf("entry not in cache")
 			}
@@ -97,7 +97,7 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Wait until next rotation.
 		// All metricIDs will be moved to prev.
-		time.Sleep(time.Hour + 15*time.Minute)
+		time.Sleep(15 * time.Minute)
 		assertStats(t, c, metricIDCacheStats{
 			Size:       100_000,
 			SizeBytes:  metricIDs.SizeBytes(),
@@ -106,7 +106,7 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Wait until another rotation.
 		// The cache now should be empty.
-		time.Sleep(time.Hour + 15*time.Minute)
+		time.Sleep(15 * time.Minute)
 		assertStats(t, c, metricIDCacheStats{
 			SyncsCount: 3,
 		})
