@@ -63,7 +63,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 5,
+  "id": 0,
   "links": [
     {
       "icon": "doc",
@@ -155,7 +155,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -226,7 +226,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -299,7 +299,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -371,7 +371,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -443,7 +443,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -515,7 +515,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -587,7 +587,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -658,7 +658,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -759,7 +759,7 @@
           }
         ]
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -867,7 +867,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -992,7 +992,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1102,7 +1102,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1212,7 +1212,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1320,7 +1320,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1430,7 +1430,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1546,7 +1546,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -1626,8 +1626,13 @@
               "links": [
                 {
                   "targetBlank": true,
-                  "title": "Drilldown",
+                  "title": "Drilldown - RSS memory usage",
                   "url": "/d/oS7Bi_0Wz_vm?viewPanel=189&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                },
+                {
+                  "targetBlank": true,
+                  "title": "Drilldown - Memory usage breakdown",
+                  "url": "/d/oS7Bi_0Wz_vm?viewPanel=225&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1653,7 +1658,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 214
+            "y": 38
           },
           "id": 66,
           "options": {
@@ -1675,7 +1680,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -1768,7 +1773,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 214
+            "y": 38
           },
           "id": 64,
           "options": {
@@ -1790,7 +1795,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -1886,7 +1891,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 281
+            "y": 88
           },
           "id": 138,
           "options": {
@@ -1908,7 +1913,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -1993,7 +1998,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 281
+            "y": 88
           },
           "id": 219,
           "options": {
@@ -2015,7 +2020,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2116,7 +2121,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 289
+            "y": 96
           },
           "id": 220,
           "options": {
@@ -2138,7 +2143,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2254,7 +2259,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 289
+            "y": 96
           },
           "id": 122,
           "options": {
@@ -2276,7 +2281,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2399,7 +2404,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 297
+            "y": 104
           },
           "id": 117,
           "options": {
@@ -2421,7 +2426,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2523,7 +2528,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 297
+            "y": 104
           },
           "id": 204,
           "options": {
@@ -2545,7 +2550,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2651,7 +2656,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 305
+            "y": 112
           },
           "id": 68,
           "options": {
@@ -2673,7 +2678,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2760,7 +2765,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 305
+            "y": 112
           },
           "id": 221,
           "options": {
@@ -2782,7 +2787,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2886,7 +2891,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 313
+            "y": 120
           },
           "id": 70,
           "options": {
@@ -2908,7 +2913,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2995,7 +3000,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 313
+            "y": 120
           },
           "id": 119,
           "options": {
@@ -3017,7 +3022,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -3106,7 +3111,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 321
+            "y": 128
           },
           "id": 210,
           "options": {
@@ -3126,7 +3131,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -3212,7 +3217,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 321
+            "y": 128
           },
           "id": 120,
           "options": {
@@ -3234,7 +3239,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -3319,7 +3324,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 329
+            "y": 136
           },
           "id": 218,
           "options": {
@@ -3339,7 +3344,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -3429,7 +3434,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 329
+            "y": 136
           },
           "id": 213,
           "options": {
@@ -3449,7 +3454,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -3493,7 +3498,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 204
           },
           "id": 211,
           "options": {
@@ -3596,7 +3601,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 206
           },
           "id": 102,
           "options": {
@@ -3716,7 +3721,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 206
           },
           "id": 108,
           "options": {
@@ -3823,7 +3828,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 248
           },
           "id": 170,
           "options": {
@@ -3934,7 +3939,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 248
           },
           "id": 107,
           "options": {
@@ -4039,7 +4044,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 57
+            "y": 256
           },
           "id": 144,
           "options": {
@@ -4148,7 +4153,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 57
+            "y": 256
           },
           "id": 58,
           "options": {
@@ -4261,7 +4266,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 66
+            "y": 265
           },
           "id": 142,
           "links": [
@@ -4378,7 +4383,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 66
+            "y": 265
           },
           "id": 215,
           "options": {
@@ -4486,7 +4491,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 74
+            "y": 273
           },
           "id": 135,
           "options": {
@@ -4611,7 +4616,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 74
+            "y": 273
           },
           "id": 217,
           "options": {
@@ -4716,7 +4721,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 82
+            "y": 281
           },
           "id": 183,
           "options": {
@@ -4848,7 +4853,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 82
+            "y": 281
           },
           "id": 214,
           "options": {
@@ -4954,7 +4959,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 90
+            "y": 289
           },
           "id": 222,
           "options": {
@@ -5073,7 +5078,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 90
+            "y": 289
           },
           "id": 223,
           "options": {
@@ -5188,7 +5193,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 8172
+            "y": 8371
           },
           "id": 76,
           "options": {
@@ -5303,7 +5308,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 8172
+            "y": 8371
           },
           "id": 86,
           "options": {
@@ -5427,7 +5432,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8181
+            "y": 8380
           },
           "id": 80,
           "options": {
@@ -5531,7 +5536,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8181
+            "y": 8380
           },
           "id": 78,
           "options": {
@@ -5646,7 +5651,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8189
+            "y": 8388
           },
           "id": 82,
           "options": {
@@ -5753,7 +5758,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8189
+            "y": 8388
           },
           "id": 74,
           "options": {
@@ -5872,7 +5877,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 838
+            "y": 1037
           },
           "id": 100,
           "options": {
@@ -5988,7 +5993,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 838
+            "y": 1037
           },
           "id": 113,
           "options": {
@@ -6105,7 +6110,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 846
+            "y": 1045
           },
           "id": 151,
           "options": {
@@ -6255,7 +6260,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 846
+            "y": 1045
           },
           "id": 167,
           "options": {
@@ -6413,7 +6418,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 854
+            "y": 1053
           },
           "id": 212,
           "links": [
@@ -6558,7 +6563,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 854
+            "y": 1053
           },
           "id": 133,
           "options": {
@@ -6683,7 +6688,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 895
+            "y": 1094
           },
           "id": 54,
           "options": {
@@ -6792,7 +6797,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 895
+            "y": 1094
           },
           "id": 55,
           "options": {
@@ -6906,7 +6911,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 903
+            "y": 1102
           },
           "id": 20,
           "options": {
@@ -7044,7 +7049,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 903
+            "y": 1102
           },
           "id": 22,
           "options": {
@@ -7172,7 +7177,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 911
+            "y": 1110
           },
           "id": 202,
           "options": {
@@ -7313,7 +7318,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 911
+            "y": 1110
           },
           "id": 14,
           "options": {
@@ -7450,7 +7455,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 919
+            "y": 1118
           },
           "id": 206,
           "options": {
@@ -7571,7 +7576,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 919
+            "y": 1118
           },
           "id": 141,
           "links": [
@@ -7680,7 +7685,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 927
+            "y": 1126
           },
           "id": 216,
           "options": {
@@ -7793,7 +7798,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8185
+            "y": 8384
           },
           "id": 92,
           "options": {
@@ -7918,7 +7923,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8185
+            "y": 8384
           },
           "id": 95,
           "options": {
@@ -8039,7 +8044,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8193
+            "y": 8392
           },
           "id": 163,
           "options": {
@@ -8183,7 +8188,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8193
+            "y": 8392
           },
           "id": 165,
           "options": {
@@ -8322,7 +8327,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8201
+            "y": 8400
           },
           "id": 178,
           "options": {
@@ -8428,7 +8433,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8201
+            "y": 8400
           },
           "id": 180,
           "options": {
@@ -8534,7 +8539,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8209
+            "y": 8408
           },
           "id": 179,
           "options": {
@@ -8640,7 +8645,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8209
+            "y": 8408
           },
           "id": 181,
           "options": {
@@ -8757,7 +8762,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8217
+            "y": 8416
           },
           "id": 93,
           "options": {
@@ -8886,7 +8891,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8217
+            "y": 8416
           },
           "id": 207,
           "options": {
@@ -9017,7 +9022,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8186
+            "y": 8385
           },
           "id": 97,
           "options": {
@@ -9142,7 +9147,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8186
+            "y": 8385
           },
           "id": 99,
           "options": {
@@ -9265,7 +9270,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8194
+            "y": 8393
           },
           "id": 185,
           "options": {
@@ -9409,7 +9414,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8194
+            "y": 8393
           },
           "id": 187,
           "options": {
@@ -9548,7 +9553,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8202
+            "y": 8401
           },
           "id": 139,
           "options": {
@@ -9654,7 +9659,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8202
+            "y": 8401
           },
           "id": 114,
           "options": {
@@ -9768,7 +9773,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8210
+            "y": 8409
           },
           "id": 208,
           "options": {
@@ -9897,7 +9902,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8210
+            "y": 8409
           },
           "id": 209,
           "options": {
@@ -10015,7 +10020,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8218
+            "y": 8417
           },
           "id": 88,
           "options": {
@@ -10088,10 +10093,10 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance.",
+            "content": "Drilldown row is used by other panels on the dashboard to show more detailed metrics per-instance, or a single instance in cases like memory breakdown.",
             "mode": "markdown"
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "title": "",
           "transparent": true,
           "type": "text"
@@ -10183,7 +10188,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -10289,7 +10294,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -10313,7 +10318,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "",
+          "description": "This panel breaks down memory usage by type. It’s intended for inspecting a single instance.\n\nHow to use:\n- Start from the high-level RSS panel.\n- Identify an instance with unexpected or abnormal memory growth.\n- Filter to that instance to inspect the detailed breakdown.\n\nInterpretation\n- A steadily rising Go Heap usually indicates a memory leak. Collect pprof memory profile.\n- A growing Go Stack commonly points to a goroutine leak.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -10328,7 +10333,7 @@
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
                 "drawStyle": "line",
-                "fillOpacity": 0,
+                "fillOpacity": 10,
                 "gradientMode": "none",
                 "hideFrom": {
                   "legend": false,
@@ -10347,7 +10352,7 @@
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
-                  "mode": "none"
+                  "mode": "normal"
                 },
                 "thresholdsStyle": {
                   "mode": "off"
@@ -10365,7 +10370,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -10375,7 +10380,7 @@
             "x": 0,
             "y": 54
           },
-          "id": 192,
+          "id": 225,
           "options": {
             "legend": {
               "calcs": [
@@ -10395,7 +10400,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -10403,17 +10408,80 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "exemplar": false,
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)",
-              "format": "time_series",
+              "exemplar": true,
+              "expr": "# go other\nmax(\n    go_memstats_gc_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_mspan_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_other_sys_bytes{job=~\"$job\", instance=~\"$instance\"} +\n    go_memstats_mcache_sys_bytes{job=~\"$job\", instance=~\"$instance\"}\n)",
               "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "{{instance}} ({{job}})",
+              "legendFormat": "Go: Other",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "# go stack\nmax(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Go: Stack",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "#go heap inuse\nmax(\n    go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}\n    +\n    (\n        go_memstats_heap_idle_bytes{job=~\"$job\", instance=~\"$instance\"}\n        -\n        go_memstats_heap_released_bytes{job=~\"$job\", instance=~\"$instance\"}\n    )\n)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Go: Heap",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "# go heap reserved\nmax(go_memstats_heap_released_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Go: Heap Reserved",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "# vm cache\nmax(sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by (job, instance))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Mmap: VM Cache",
+              "range": true,
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "# file pages\nmax(process_resident_memory_file_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "File cache",
+              "range": true,
+              "refId": "F"
             }
           ],
-          "title": "CPU usage ($instance)",
+          "title": "Memory usage breakdown",
           "type": "timeseries"
         },
         {
@@ -10507,7 +10575,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -10532,7 +10600,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the percentage of used disk space. It is recommended to have at least 20% of free disk space for the best performance.",
+          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -10569,7 +10637,7 @@
                   "mode": "none"
                 },
                 "thresholdsStyle": {
-                  "mode": "line"
+                  "mode": "off"
                 }
               },
               "links": [],
@@ -10584,7 +10652,7 @@
                   }
                 ]
               },
-              "unit": "decbytes"
+              "unit": "short"
             },
             "overrides": []
           },
@@ -10594,7 +10662,7 @@
             "x": 0,
             "y": 62
           },
-          "id": 200,
+          "id": 192,
           "options": {
             "legend": {
               "calcs": [
@@ -10614,7 +10682,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -10622,15 +10690,17 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
+              "exemplar": false,
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, instance)",
               "format": "time_series",
+              "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "",
+              "legendFormat": "{{instance}} ({{job}})",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Disk space usage ($instance)",
+          "title": "CPU usage ($instance)",
           "type": "timeseries"
         },
         {
@@ -10720,7 +10790,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -10758,7 +10828,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+          "description": "Shows the percentage of used disk space. It is recommended to have at least 20% of free disk space for the best performance.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -10772,8 +10842,8 @@
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
-                "drawStyle": "bars",
-                "fillOpacity": 100,
+                "drawStyle": "line",
+                "fillOpacity": 0,
                 "gradientMode": "none",
                 "hideFrom": {
                   "legend": false,
@@ -10795,7 +10865,7 @@
                   "mode": "none"
                 },
                 "thresholdsStyle": {
-                  "mode": "off"
+                  "mode": "line"
                 }
               },
               "links": [],
@@ -10807,14 +10877,10 @@
                   {
                     "color": "green",
                     "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "decbytes"
             },
             "overrides": []
           },
@@ -10824,7 +10890,7 @@
             "x": 0,
             "y": 70
           },
-          "id": 203,
+          "id": 200,
           "options": {
             "legend": {
               "calcs": [
@@ -10844,7 +10910,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -10852,18 +10918,15 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "exemplar": true,
-              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, location) > 0",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)",
               "format": "time_series",
-              "hide": false,
-              "interval": "5m",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Logging rate",
+          "title": "Disk space usage ($instance)",
           "type": "timeseries"
         },
         {
@@ -10952,7 +11015,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.2.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -10967,6 +11030,119 @@
             }
           ],
           "title": "Major page faults rate  ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 78
+          },
+          "id": 203,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, location) > 0",
+              "format": "time_series",
+              "hide": false,
+              "interval": "5m",
+              "intervalFactor": 1,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Logging rate",
           "type": "timeseries"
         }
       ],
