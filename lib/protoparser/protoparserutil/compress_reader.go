@@ -57,7 +57,14 @@ func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.By
 	lr := ioutil.GetLimitedReader(reader, maxDataSize.N+1)
 
 	dbb := decompressedBufPool.Get()
-	defer decompressedBufPool.Put(dbb)
+	defer func() {
+		if len(dbb.B) > 1024*1024 && cap(dbb.B) > 4*len(dbb.B) {
+			// Do not store too big ddb to the pool if only a small part of the buffer is used last time.
+			// This should reduce memory waste.
+			return
+		}
+		decompressedBufPool.Put(dbb)
+	}()
 
 	_, err = dbb.ReadFrom(lr)
 	ioutil.PutLimitedReader(lr)
