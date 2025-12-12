@@ -170,8 +170,18 @@ func TestIfExpressionMatch(t *testing.T) {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
 		labels := promutil.MustNewLabelsFromString(metricWithLabels)
+		bf := BloomFilter{}
+		tokens := getTokenSlice(len(labels.Labels) * 2)
+		for _, label := range labels.Labels {
+			tokens = append(tokens, label.Name, label.Value)
+		}
+		bf.AddTokens(tokens)
+
 		if !ie.Match(labels.GetLabels()) {
 			t.Fatalf("unexpected mismatch of ifExpr=%s for %s", ifExpr, metricWithLabels)
+		}
+		if !ie.MatchWithFilters(labels.GetLabels(), &bf) {
+			t.Fatalf("unexpected mismatch with bloom filters of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}
 	}
 
@@ -208,8 +218,18 @@ func TestIfExpressionMismatch(t *testing.T) {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
 		labels := promutil.MustNewLabelsFromString(metricWithLabels)
+		bf := BloomFilter{}
+		tokens := getTokenSlice(len(labels.Labels) * 2)
+		for _, label := range labels.Labels {
+			tokens = append(tokens, label.Name, label.Value)
+		}
+		bf.AddTokens(tokens)
+
 		if ie.Match(labels.GetLabels()) {
 			t.Fatalf("unexpected match of ifExpr=%s for %s", ifExpr, metricWithLabels)
+		}
+		if ie.MatchWithFilters(labels.GetLabels(), &bf) {
+			t.Fatalf("unexpected match with bloom filters of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}
 	}
 
