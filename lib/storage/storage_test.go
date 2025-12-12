@@ -3183,7 +3183,7 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 	// Time range is smaller than 40 days. When the -disablePerDayIndex flag is
 	// unset, the time range will not be adjusted. When the flag is set, the
 	// adjusted time range will be globalIndexTimeRange.
-	tr = TimeRange{10 * msecPerDay, 50 * msecPerDay}
+	tr = TimeRange{10 * msecPerDay, 50*msecPerDay - 1}
 	f(false, tr, tr)
 	f(true, tr, globalIndexTimeRange)
 
@@ -3202,7 +3202,7 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 	// When the -disablePerDayIndex flag is unset, the time range will not be
 	// adjusted. When the flag is set, the adjusted time range will be
 	// globalIndexTimeRange.
-	tr = TimeRange{10 * msecPerDay, 51 * msecPerDay}
+	tr = TimeRange{10 * msecPerDay, 50 * msecPerDay}
 	f(false, tr, tr)
 	f(true, tr, globalIndexTimeRange)
 

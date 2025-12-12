@@ -43,10 +43,9 @@ var (
 // DateRange returns the date range for the given time range.
 func (tr *TimeRange) DateRange() (uint64, uint64) {
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	// Max timestamp may point to the first millisecond of the next day. As the
-	// result, the returned date range will cover one more day than needed.
-	// Decrementing by 1 removes this extra day.
-	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	// Sample at Max timestamp should be included because `End` is inclusive.
+	// According to https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
+	maxDate := uint64(tr.MaxTimestamp) / msecPerDay
 
 	// However, if both timestamps are the same and point to the beginning of
 	// the day, then maxDate will be smaller that the minDate. In this case
