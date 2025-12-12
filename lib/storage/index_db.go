@@ -1552,7 +1552,7 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 // creating a separate `nsPrefixDeletedMetricID` entry for each metricID.
 //
 // More specifically, the method does these three things:
-// 1. Add deleted metric ids to deletedMetricIDs cache
+// 1. Add deleted metric ids to deletedMetricIDs
 // 2. Reset all caches that must be reset
 // 3. Finally add `nsPrefixDeletedMetricID` entries to the index.
 //
