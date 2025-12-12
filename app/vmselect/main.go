@@ -520,6 +520,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
 			return true
 		}
+		r.URL.Path = path
 		proxyVMAlertRequests(w, r)
 		return true
 	}

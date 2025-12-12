@@ -29,7 +29,9 @@ func TestMain(m *testing.M) {
 // successful cases of
 // starting with empty rules folder
 func TestManagerEmptyRulesDir(t *testing.T) {
-	m := &manager{groups: make(map[uint64]*rule.Group)}
+	m := &manager{
+		groupsIds: make(map[uint64]int),
+	}
 	cfg := loadCfg(t, []string{"foo/bar"}, true, true)
 	if err := m.update(context.Background(), cfg, false); err != nil {
 		t.Fatalf("expected to load successfully with empty rules dir; got err instead: %v", err)
@@ -43,7 +45,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 	_, cleanup := notifier.InitFakeNotifier()
 	defer cleanup()
 	m := &manager{
-		groups:         make(map[uint64]*rule.Group),
+		groupsIds:      make(map[uint64]int),
 		querierBuilder: &datasource.FakeQuerier{},
 	}
 	paths := []string{
@@ -126,7 +128,7 @@ func TestManagerUpdate_Success(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.TODO())
 		m := &manager{
-			groups:         make(map[uint64]*rule.Group),
+			groupsIds:      make(map[uint64]int),
 			querierBuilder: &datasource.FakeQuerier{},
 		}
 		_, cleanup := notifier.InitFakeNotifier()
@@ -146,10 +148,11 @@ func TestManagerUpdate_Success(t *testing.T) {
 		}
 
 		for _, wantG := range groupsExpected {
-			gotG, ok := m.groups[wantG.CreateID()]
+			gotGid, ok := m.groupsIds[wantG.CreateID()]
 			if !ok {
 				t.Fatalf("expected to have group %q", wantG.Name)
 			}
+			gotG := m.groups[gotGid]
 			compareGroups(t, wantG, gotG)
 		}
 
@@ -274,7 +277,7 @@ func TestManagerUpdate_Failure(t *testing.T) {
 		t.Helper()
 
 		m := &manager{
-			groups:         make(map[uint64]*rule.Group),
+			groupsIds:      make(map[uint64]int),
 			querierBuilder: &datasource.FakeQuerier{},
 			rw:             rw,
 		}
