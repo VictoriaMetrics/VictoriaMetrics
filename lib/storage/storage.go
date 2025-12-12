@@ -1381,12 +1381,6 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		qt.Printf("deleted %d metricIDs from %s partition indexDB", n, idb.name)
 	}
 
-	// Do not reset tsidCache (MetricName -> TSID), since a given TSID can be
-	// deleted in one indexDB but still be used in another indexDB.
-
-	// Do not reset metricNameCache (MetricID -> MetricName), since it must be
-	// used only after filtering out deleted metricIDs.
-
 	n := all.Len()
 	qt.Donef("deleted %d unique metricIDs", n)
 	return n, nil
@@ -1710,10 +1704,10 @@ func (s *Storage) adjustTimeRange(searchTR, idbTR TimeRange) TimeRange {
 	}
 
 	tr := idbTR
-	if searchTR.MinTimestamp > idbTR.MinTimestamp {
+	if idbTR.contains(searchTR.MinTimestamp) {
 		tr.MinTimestamp = searchTR.MinTimestamp
 	}
-	if searchTR.MaxTimestamp < idbTR.MaxTimestamp {
+	if idbTR.contains(searchTR.MaxTimestamp) {
 		tr.MaxTimestamp = searchTR.MaxTimestamp
 	}
 

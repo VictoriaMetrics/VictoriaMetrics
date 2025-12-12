@@ -111,15 +111,16 @@ type indexDB struct {
 	name string
 	tb   *mergeset.Table
 
+	// The parent storage. Provides state and configuration shared between all
+	// indexDB instances.
+	s *Storage
+
 	// noRegisterNewSeries indicates whether the indexDB receives new entries or
 	// not.
 	noRegisterNewSeries atomic.Bool
 
 	// Cache for fast TagFilters -> MetricIDs lookup.
 	tagFiltersToMetricIDsCache *lrucache.Cache
-
-	// The parent storage.
-	s *Storage
 
 	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
@@ -1539,8 +1540,28 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 // saveDeletedMetricIDs persists the deleted metricIDs to the global index by
 // creating a separate `nsPrefixDeletedMetricID` entry for each metricID.
 //
-// In addition, the deleted metricIDs are added to the deletedMetricIDs cache
-// and all the caches that may contain some or all of deleted metricIDs are reset.
+// More specifically, the method does these three things:
+// 1. Add deleted metric ids to deletedMetricIDs
+// 2. Reset all caches that must be reset
+// 3. Finally add `nsPrefixDeletedMetricID` entries to the index.
+//
+// The order is important to exclude the possibility of the inconsistent state
+// when the deleted metricIDs remain available in the persistent caches (such as
+// tsidCache) after unclean shutdown.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347.
+//
+// There are caches (such as tsidCache) that have only one instance and shared
+// by all indexDB instances. Resetting such caches by an indexDB causes them to
+// be reset as many times as the number of indexDBs. Ideally, we want these
+// caches to be reset only once, in Storage.DeleteSeries(). But that would
+// violate the aforementioned order of actions. And implementing the correct
+// order of actions in Storage.DeleteSeries() would result in much more complex
+// logic. So in this particular case we choose code clarity over correctness,
+// because nothing bad will happen if these caches are reset multiple times.
+//
+// For caches that are not saved to disk (such as dateMetricIDCache) there is no
+// strict requirement when to reset them. Still resetting them the same way as
+// persistent caches to have all reset logic in one place.
 func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	if metricIDs.Len() == 0 {
 		// Nothing to delete
@@ -1550,21 +1571,46 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// atomically add deleted metricIDs to an inmemory map.
 	db.updateDeletedMetricIDs(metricIDs)
 
-	// Reset TagFilters -> metricIDs cache, since it may contain deleted
-	// metricIDs.
+	// Do not reset tsidCache (MetricName -> TSID), since a given TSID can be
+	// deleted in one indexDB but still be used in another indexDB.
+
+	// Do not reset Storage's metricIDCache (MetricID -> TSID) and
+	// metricNameCache (MetricID -> MetricName) since they must be used only
+	// after filtering out deleted metricIDs.
+
+	// Do not reset Storage's currHourMetricIDs, prevHourMetricIDs, and
+	// nextDayMetricIDs caches. These caches are used during data ingestion
+	// to decide whether a metricID needs to be added to the per-day index and
+	// index records must not be created for deleted metricIDs. But presence of
+	// deleted metricID in these caches will not lead to an index record
+	// creation. Also see dateMetricIDCache below.
+	//
+	// Additionally, currHourMetricIDs and nextDayMetricIDs have accompanying
+	// smaller in-memory caches, pendingHourEntries and pendingNextDayMetricIDs.
+	// Should currHourMetricIDs and/or nextDayMetricIDs need to be reset,
+	// pendingHourEntries and/or pendingNextDayMetricIDs need to be reset first.
+
+	// Not resetting Storage.metricsTracker and Storage.metadataStorage because
+	// they use metric names instead of metricIDs. And one metric name can
+	// correspond to one or more metricIDs.
+
+	// Do not reset Storage.missingMetricIDs because the delete operation will
+	// not necessarily delete all the metricIDs from this cache.
+
+	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
 	db.tagFiltersToMetricIDsCache.Reset()
 
-	// TODO(@rtm0): Reset detricIDs cache, since it may contain deleted
-	// metricIDs.
+	// Do not reset loopsPerDateTagFilterCache. It stores loop counts
+	// required to search metricIDs, but it is used at the stage when it does
+	// not matter whether a metricID is deleted or not.
 
-	// TODO(@rtm0): Reset date -> metricIDs cache, since it may contain deleted
-	// metricIDs.
+	// Do not reset metricIDCache and dateMetricIDCache. These caches are used
+	// during data ingestion to decide whether a metricID needs to be added to
+	// the per-day index and index records must not be created for deleted
+	// metricIDs. But presence of deleted metricID in these caches will not lead
+	// to an index record creation.
 
 	// Store the metricIDs as deleted.
-	// Make this after updating the deletedMetricIDs and resetting caches
-	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
-	// remain available in the tsidCache after unclean shutdown.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	items := getIndexItems()
 	metricIDs.ForEach(func(part []uint64) bool {
 		for _, metricID := range part {
