@@ -55,7 +55,7 @@ var supportedOutputs = []string{
 
 var (
 	// lc contains information about all compressed labels for streaming aggregation
-	lc promutil.LabelsCompressor
+	lc = promutil.NewLabelsCompressor()
 
 	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
 		return float64(lc.SizeBytes())
