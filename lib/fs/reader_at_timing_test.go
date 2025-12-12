@@ -26,7 +26,7 @@ func benchmarkReaderAtMustReadAt(b *testing.B, isMmap bool) {
 	data := make([]byte, fileSize)
 	MustWriteSync(path, data)
 	defer MustRemovePath(path)
-	r := MustOpenReaderAt(path)
+	r := OpenReaderAt(path)
 	defer r.MustClose()
 
 	b.ResetTimer()

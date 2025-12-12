@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -160,17 +161,17 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	// Open part files in parallel in order to speed up this process
 	// on high-latency storage systems such as NFS or Ceph.
 
-	var pfo filestream.ParallelFileOpener
+	var pe fsutil.ParallelExecutor
 
 	indexPath := filepath.Join(path, indexFilename)
 	itemsPath := filepath.Join(path, itemsFilename)
 	lensPath := filepath.Join(path, lensFilename)
 
-	pfo.Add(indexPath, &bsr.indexReader, true)
-	pfo.Add(itemsPath, &bsr.itemsReader, true)
-	pfo.Add(lensPath, &bsr.lensReader, true)
+	pe.Add(filestream.NewFileOpenerTask(indexPath, &bsr.indexReader, true))
+	pe.Add(filestream.NewFileOpenerTask(itemsPath, &bsr.itemsReader, true))
+	pe.Add(filestream.NewFileOpenerTask(lensPath, &bsr.lensReader, true))
 
-	pfo.Run()
+	pe.Run()
 }
 
 // MustClose closes the bsr.
@@ -180,12 +181,11 @@ func (bsr *blockStreamReader) MustClose() {
 	if !bsr.isInmemoryBlock {
 		// Close files in parallel in order to speed up this process on storage systems with high latency
 		// such as NFS or Ceph.
-		cs := []fs.MustCloser{
-			bsr.indexReader,
-			bsr.itemsReader,
-			bsr.lensReader,
-		}
-		fs.MustCloseParallel(cs)
+		var pe fsutil.ParallelExecutor
+		pe.Add(fs.NewCloserTask(bsr.indexReader))
+		pe.Add(fs.NewCloserTask(bsr.itemsReader))
+		pe.Add(fs.NewCloserTask(bsr.lensReader))
+		pe.Run()
 	}
 	bsr.reset()
 }

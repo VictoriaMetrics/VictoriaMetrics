@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/blockcache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
@@ -59,7 +60,7 @@ func mustOpenFilePart(path string) *part {
 	// Open part files in parallel in order to speed up this process
 	// on high-latency storage systems such as NFS and Ceph.
 
-	var pro fs.ParallelReaderAtOpener
+	var pe fsutil.ParallelExecutor
 
 	timestampsPath := filepath.Join(path, timestampsFilename)
 	valuesPath := filepath.Join(path, valuesFilename)
@@ -67,17 +68,17 @@ func mustOpenFilePart(path string) *part {
 
 	var timestampsFile fs.MustReadAtCloser
 	var timestampsSize uint64
-	pro.Add(timestampsPath, &timestampsFile, &timestampsSize)
+	pe.Add(fs.NewReaderAtOpenerTask(timestampsPath, &timestampsFile, &timestampsSize))
 
 	var valuesFile fs.MustReadAtCloser
 	var valuesSize uint64
-	pro.Add(valuesPath, &valuesFile, &valuesSize)
+	pe.Add(fs.NewReaderAtOpenerTask(valuesPath, &valuesFile, &valuesSize))
 
 	var indexFile fs.MustReadAtCloser
 	var indexSize uint64
-	pro.Add(indexPath, &indexFile, &indexSize)
+	pe.Add(fs.NewReaderAtOpenerTask(indexPath, &indexFile, &indexSize))
 
-	pro.Run()
+	pe.Run()
 
 	size := timestampsSize + valuesSize + indexSize + metaindexSize
 	return newPart(&ph, path, size, metaindexFile, timestampsFile, valuesFile, indexFile)
@@ -118,12 +119,11 @@ func (p *part) String() string {
 func (p *part) MustClose() {
 	// Close files in parallel in order to speed up this process on storage systems with high latency
 	// such as NFS or Ceph.
-	cs := []fs.MustCloser{
-		p.timestampsFile,
-		p.valuesFile,
-		p.indexFile,
-	}
-	fs.MustCloseParallel(cs)
+	var pe fsutil.ParallelExecutor
+	pe.Add(fs.NewCloserTask(p.timestampsFile))
+	pe.Add(fs.NewCloserTask(p.valuesFile))
+	pe.Add(fs.NewCloserTask(p.indexFile))
+	pe.Run()
 
 	ibCache.RemoveBlocksForPart(p)
 }
