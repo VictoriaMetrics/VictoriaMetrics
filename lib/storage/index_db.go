@@ -144,7 +144,6 @@ type indexDB struct {
 	//
 	// The cache is used solely for creating new index entries during the data
 	// ingestion (see Storage.RegisterMetricNames() and Storage.add())
-	//
 	metricIDCache *metricIDCache
 
 	// dateMetricIDCache is (date, metricID) cache that is used to speed up the
