@@ -133,18 +133,13 @@ func (c *metricIDCache) Set(metricID uint64) {
 	c.mu.Unlock()
 }
 
+// syncLocked merges data from curr into next and atomically replaces curr with
+// next.
 func (c *metricIDCache) syncLocked() {
-	// Merge data from curr into next.
 	curr := c.curr.Load()
-	if c.next.Len() > 0 {
-		c.next.Union(curr)
-	}
-
-	// Atomically replace curr with next and prev with curr.
+	c.next.Union(curr)
 	c.curr.Store(c.next)
-	c.prev = curr
 	c.next = &uint64set.Set{}
-
 	c.syncsCount++
 }
 
@@ -158,9 +153,17 @@ func (c *metricIDCache) startCleaner() {
 			close(c.cleanerStoppedCh)
 			return
 		case <-ticker.C:
-			c.mu.Lock()
-			c.syncLocked()
-			c.mu.Unlock()
+			c.clean()
 		}
 	}
+}
+
+func (c *metricIDCache) clean() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	curr := c.curr.Load()
+	c.prev = curr
+	c.curr.Store(c.next)
+	c.next = &uint64set.Set{}
+	c.syncsCount++
 }
