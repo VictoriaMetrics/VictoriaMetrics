@@ -275,10 +275,14 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
 	}
 
-	metricIDCacheStats := db.metricIDCache.Stats()
-	m.MetricIDCacheSize += metricIDCacheStats.Size
-	m.MetricIDCacheSizeBytes += metricIDCacheStats.SizeBytes
-	m.MetricIDCacheSyncsCount += metricIDCacheStats.SyncsCount
+	// Report only once and for an indexDB instance whose metricIDCache is
+	// utilized the most.
+	mcs := db.metricIDCache.Stats()
+	if mcs.SizeBytes > m.MetricIDCacheSizeBytes {
+		m.MetricIDCacheSize = mcs.Size
+		m.MetricIDCacheSizeBytes = mcs.SizeBytes
+		m.MetricIDCacheSyncsCount = mcs.SyncsCount
+	}
 
 	// Report only once and for an indexDB instance whose dateMetricIDCache is
 	// utilized the most.
@@ -290,6 +294,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
 		m.DateMetricIDCacheResetsCount = dmcs.ResetsCount
 	}
+
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
