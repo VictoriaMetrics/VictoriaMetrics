@@ -704,6 +704,8 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_cache_syncs_total{type="indexdb/metricID"}`, idbm.MetricIDCacheSyncsCount)
 	metrics.WriteCounterUint64(w, `vm_cache_syncs_total{type="indexdb/date_metricID"}`, idbm.DateMetricIDCacheSyncsCount)
 
+	metrics.WriteCounterUint64(w, `vm_cache_rotations_total{type="indexdb/metricID"}`, idbm.MetricIDCacheRotationsCount)
+
 	metrics.WriteCounterUint64(w, `vm_deleted_metrics_total{type="indexdb"}`, m.DeletedMetricsCount)
 
 	metrics.WriteGaugeUint64(w, `vm_next_retention_seconds`, m.NextRetentionSeconds)

@@ -134,7 +134,6 @@ type indexDB struct {
 	//
 	// The cache is used solely for creating new index entries during the data
 	// ingestion (see Storage.RegisterMetricNames() and Storage.add())
-	//
 	metricIDCache *metricIDCache
 
 	// dateMetricIDCache is (date, metricID) cache that is used to speed up the
@@ -143,9 +142,6 @@ type indexDB struct {
 	dateMetricIDCache *dateMetricIDCache
 
 	// An inmemory set of deleted metricIDs.
-	//
-	// It is safe to keep the set in memory even for big number of deleted
-	// metricIDs, since it usually requires 1 bit per deleted metricID.
 	deletedMetricIDs           atomic.Pointer[uint64set.Set]
 	deletedMetricIDsUpdateLock sync.Mutex
 
@@ -178,20 +174,19 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
 	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
-		id:   id,
-		tr:   tr,
-		tb:   tb,
-		name: name,
-
 		legacyMinMissingTimestampByKey: make(map[string]int64),
-		tagFiltersToMetricIDsCache:     tfssCache,
+		id:                             id,
+		tr:                             tr,
+		name:                           name,
+		tb:                             tb,
 		s:                              s,
+		tagFiltersToMetricIDsCache:     tfssCache,
 		loopsPerDateTagFilterCache:     lrucache.NewCache(getTagFiltersLoopsCacheSize),
 		metricIDCache:                  newMetricIDCache(),
 		dateMetricIDCache:              newDateMetricIDCache(),
 	}
 	db.noRegisterNewSeries.Store(noRegisterNewSeries)
-	db.loadDeletedMetricIDs()
+	db.mustLoadDeletedMetricIDs()
 	return db
 }
 
@@ -206,9 +201,10 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
 
-	MetricIDCacheSize       uint64
-	MetricIDCacheSizeBytes  uint64
-	MetricIDCacheSyncsCount uint64
+	MetricIDCacheSize           uint64
+	MetricIDCacheSizeBytes      uint64
+	MetricIDCacheSyncsCount     uint64
+	MetricIDCacheRotationsCount uint64
 
 	DateMetricIDCacheSize         uint64
 	DateMetricIDCacheSizeBytes    uint64
@@ -261,10 +257,15 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
 	}
 
-	metricIDCacheStats := db.metricIDCache.Stats()
-	m.MetricIDCacheSize += metricIDCacheStats.Size
-	m.MetricIDCacheSizeBytes += metricIDCacheStats.SizeBytes
-	m.MetricIDCacheSyncsCount += metricIDCacheStats.SyncsCount
+	// Report only once and for an indexDB instance whose metricIDCache is
+	// utilized the most.
+	mcs := db.metricIDCache.Stats()
+	if mcs.SizeBytes > m.MetricIDCacheSizeBytes {
+		m.MetricIDCacheSize = mcs.Size
+		m.MetricIDCacheSizeBytes = mcs.SizeBytes
+		m.MetricIDCacheSyncsCount = mcs.SyncsCount
+		m.MetricIDCacheRotationsCount = mcs.RotationsCount
+	}
 
 	// Report only once and for an indexDB instance whose dateMetricIDCache is
 	// utilized the most.
@@ -296,7 +297,7 @@ func (db *indexDB) MustClose() {
 	// Free space occupied by caches owned by db.
 	db.tagFiltersToMetricIDsCache.MustStop()
 	db.loopsPerDateTagFilterCache.MustStop()
-	db.metricIDCache.Stop()
+	db.metricIDCache.MustStop()
 
 	db.tagFiltersToMetricIDsCache = nil
 	db.loopsPerDateTagFilterCache = nil
@@ -1642,7 +1643,7 @@ func (db *indexDB) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 	db.deletedMetricIDsUpdateLock.Unlock()
 }
 
-func (db *indexDB) loadDeletedMetricIDs() {
+func (db *indexDB) mustLoadDeletedMetricIDs() {
 	is := db.getIndexSearch(noDeadline)
 	dmis, err := is.loadDeletedMetricIDs()
 	db.putIndexSearch(is)
@@ -2973,11 +2974,18 @@ func (is *indexSearch) hasDateMetricIDSlow(date, metricID uint64) bool {
 }
 
 func (is *indexSearch) hasMetricID(metricID uint64) bool {
-	ok := is.db.metricIDCache.Has(metricID)
-	if ok {
+	if is.db.metricIDCache.Has(metricID) {
 		return true
 	}
 
+	ok := is.hasMetricIDSlow(metricID)
+	if ok {
+		is.db.metricIDCache.Set(metricID)
+	}
+	return ok
+}
+
+func (is *indexSearch) hasMetricIDSlow(metricID uint64) bool {
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
@@ -2988,9 +2996,6 @@ func (is *indexSearch) hasMetricID(metricID uint64) bool {
 		}
 		logger.Panicf("FATAL: error when searching for metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
 	}
-
-	is.db.metricIDCache.Set(metricID)
-
 	return true
 }
 

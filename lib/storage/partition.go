@@ -978,16 +978,12 @@ func (pt *partition) MustClose() {
 	pt.partsLock.Unlock()
 
 	for _, pw := range smallParts {
-		//TODO(@rtm0): Add check that refCount == 1? Similar to how it is done
-		// for partitions in table.MustClose().
 		pw.decRef()
 		if refCount := pw.refCount.Load(); refCount != 0 {
 			logger.Panicf("BUG: unexpected non-zero refCount: %d", refCount)
 		}
 	}
 	for _, pw := range bigParts {
-		//TODO(@rtm0): Add check that refCount == 1? Similar to how it is done
-		// for partitions in table.MustClose().
 		pw.decRef()
 		if refCount := pw.refCount.Load(); refCount != 0 {
 			logger.Panicf("BUG: unexpected non-zero refCount: %d", refCount)
