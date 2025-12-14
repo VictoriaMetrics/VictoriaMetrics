@@ -2994,11 +2994,18 @@ func (is *indexSearch) hasDateMetricIDSlow(date, metricID uint64) bool {
 }
 
 func (is *indexSearch) hasMetricID(metricID uint64) bool {
-	ok := is.db.metricIDCache.Has(metricID)
-	if ok {
+	if is.db.metricIDCache.Has(metricID) {
 		return true
 	}
 
+	ok := is.hasMetricIDSlow(metricID)
+	if ok {
+		is.db.metricIDCache.Set(metricID)
+	}
+	return ok
+}
+
+func (is *indexSearch) hasMetricIDSlow(metricID uint64) bool {
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
@@ -3009,9 +3016,6 @@ func (is *indexSearch) hasMetricID(metricID uint64) bool {
 		}
 		logger.Panicf("FATAL: error when searching for metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
 	}
-
-	is.db.metricIDCache.Set(metricID)
-
 	return true
 }
 
