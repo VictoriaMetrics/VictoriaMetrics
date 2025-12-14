@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add support for global `sampleLimit` setting. This allows users to efficiently limit the number of samples accepted per scrape target, offering a high-performance alternative to the memory-intensive Bloom filters used by `-promscrape.seriesLimitPerTarget`. This also ensures target-level `sample_limit` can correctly override the global setting. See [#10145](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10145).
+
 ## [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0)
 
 Released at 2025-12-12
