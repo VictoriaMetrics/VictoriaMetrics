@@ -32,36 +32,40 @@ type metricIDCache struct {
 	// to merge next to curr. Protected by mu.
 	slowHits int
 
-	// Contains the number times the cache was rotated. Protected by mu.
+	// Contains the number times the next was merged into curr. Protected by mu.
 	syncsCount uint64
+
+	// Contains the number times the cache has been rotated. Protected by mu.
+	rotationsCount uint64
 
 	mu sync.Mutex
 
-	stopCh           chan struct{}
-	cleanerStoppedCh chan struct{}
+	stopCh            chan struct{}
+	rotationStoppedCh chan struct{}
 }
 
 func newMetricIDCache() *metricIDCache {
 	c := metricIDCache{
-		prev:             &uint64set.Set{},
-		next:             &uint64set.Set{},
-		stopCh:           make(chan struct{}),
-		cleanerStoppedCh: make(chan struct{}),
+		prev:              &uint64set.Set{},
+		next:              &uint64set.Set{},
+		stopCh:            make(chan struct{}),
+		rotationStoppedCh: make(chan struct{}),
 	}
 	c.curr.Store(&uint64set.Set{})
-	go c.startCleaner()
+	go c.startRotation()
 	return &c
 }
 
 func (c *metricIDCache) MustStop() {
 	close(c.stopCh)
-	<-c.cleanerStoppedCh
+	<-c.rotationStoppedCh
 }
 
 type metricIDCacheStats struct {
-	Size       uint64
-	SizeBytes  uint64
-	SyncsCount uint64
+	Size           uint64
+	SizeBytes      uint64
+	SyncsCount     uint64
+	RotationsCount uint64
 }
 
 func (c *metricIDCache) Stats() metricIDCacheStats {
@@ -82,6 +86,7 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 		s.SizeBytes += c.next.SizeBytes()
 	}
 	s.SyncsCount = c.syncsCount
+	s.RotationsCount = c.rotationsCount
 
 	return s
 }
@@ -143,27 +148,28 @@ func (c *metricIDCache) syncLocked() {
 	c.syncsCount++
 }
 
-func (c *metricIDCache) startCleaner() {
+func (c *metricIDCache) startRotation() {
 	d := timeutil.AddJitterToDuration(10 * time.Minute)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-c.stopCh:
-			close(c.cleanerStoppedCh)
+			close(c.rotationStoppedCh)
 			return
 		case <-ticker.C:
-			c.clean()
+			c.rotate()
 		}
 	}
 }
 
-func (c *metricIDCache) clean() {
+// rotate atomically rotates next, curr, and prev cache parts.
+func (c *metricIDCache) rotate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	curr := c.curr.Load()
 	c.prev = curr
 	c.curr.Store(c.next)
 	c.next = &uint64set.Set{}
-	c.syncsCount++
+	c.rotationsCount++
 }

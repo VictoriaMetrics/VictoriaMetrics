@@ -217,9 +217,10 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
 
-	MetricIDCacheSize       uint64
-	MetricIDCacheSizeBytes  uint64
-	MetricIDCacheSyncsCount uint64
+	MetricIDCacheSize           uint64
+	MetricIDCacheSizeBytes      uint64
+	MetricIDCacheSyncsCount     uint64
+	MetricIDCacheRotationsCount uint64
 
 	DateMetricIDCacheSize         uint64
 	DateMetricIDCacheSizeBytes    uint64
@@ -281,6 +282,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.MetricIDCacheSize = mcs.Size
 		m.MetricIDCacheSizeBytes = mcs.SizeBytes
 		m.MetricIDCacheSyncsCount = mcs.SyncsCount
+		m.MetricIDCacheRotationsCount = mcs.RotationsCount
 	}
 
 	// Report only once and for an indexDB instance whose dateMetricIDCache is
