@@ -191,13 +191,12 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegiste
 	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
 	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
-		generation: gen,
-		tb:         tb,
-		name:       name,
-
 		minMissingTimestampByKey:   make(map[string]int64),
-		tagFiltersToMetricIDsCache: tfssCache,
+		generation:                 gen,
+		name:                       name,
+		tb:                         tb,
 		s:                          s,
+		tagFiltersToMetricIDsCache: tfssCache,
 		loopsPerDateTagFilterCache: lrucache.NewCache(getTagFiltersLoopsCacheSize),
 		metricIDCache:              newMetricIDCache(),
 		dateMetricIDCache:          newDateMetricIDCache(),
