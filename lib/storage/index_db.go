@@ -136,6 +136,17 @@ type indexDB struct {
 	// the amount of work when matching a set of filters.
 	loopsPerDateTagFilterCache *lrucache.Cache
 
+	// A cache that stores metricIDs that have been added to the index.
+	// The cache is not populated on startup nor does it store a complete set of
+	// metricIDs. A metricID is added to the cache either when a new entry is
+	// added to the global index or when the global index is searched for
+	// existing metricID (see is.createGlobalIndexes() and is.hasMetricID()).
+	//
+	// The cache is used solely for creating new index entries during the data
+	// ingestion (see Storage.RegisterMetricNames() and Storage.add())
+	//
+	metricIDCache *metricIDCache
+
 	// dateMetricIDCache is (date, metricID) cache that is used to speed up the
 	// data ingestion by storing the is.hasDateMetricID() search results in
 	// memory.
@@ -188,6 +199,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegiste
 		tagFiltersToMetricIDsCache: tfssCache,
 		s:                          s,
 		loopsPerDateTagFilterCache: lrucache.NewCache(getTagFiltersLoopsCacheSize),
+		metricIDCache:              newMetricIDCache(),
 		dateMetricIDCache:          newDateMetricIDCache(),
 	}
 	db.noRegisterNewSeries.Store(noRegisterNewSeries)
@@ -205,6 +217,10 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheRequests     uint64
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
+
+	MetricIDCacheSize       uint64
+	MetricIDCacheSizeBytes  uint64
+	MetricIDCacheSyncsCount uint64
 
 	DateMetricIDCacheSize         uint64
 	DateMetricIDCacheSizeBytes    uint64
@@ -259,6 +275,11 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
 	}
 
+	metricIDCacheStats := db.metricIDCache.Stats()
+	m.MetricIDCacheSize += metricIDCacheStats.Size
+	m.MetricIDCacheSizeBytes += metricIDCacheStats.SizeBytes
+	m.MetricIDCacheSyncsCount += metricIDCacheStats.SyncsCount
+
 	// Report only once and for an indexDB instance whose dateMetricIDCache is
 	// utilized the most.
 	dmcs := db.dateMetricIDCache.Stats()
@@ -307,9 +328,11 @@ func (db *indexDB) decRef() {
 	// Free space occupied by caches owned by db.
 	db.tagFiltersToMetricIDsCache.MustStop()
 	db.loopsPerDateTagFilterCache.MustStop()
+	db.metricIDCache.MustStop()
 
 	db.tagFiltersToMetricIDsCache = nil
 	db.loopsPerDateTagFilterCache = nil
+	db.metricIDCache = nil
 
 	if !db.mustDrop.Load() {
 		return
@@ -442,6 +465,9 @@ func generateTSID(dst *TSID, mn *MetricName) {
 }
 
 func (db *indexDB) createGlobalIndexes(tsid *TSID, mn *MetricName) {
+	// Add new metricID to cache.
+	db.metricIDCache.Set(tsid.MetricID)
+
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
@@ -1615,10 +1641,11 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// required to search metricIDs, but it is used at the stage when it does
 	// not matter whether a metricID is deleted or not.
 
-	// Do not reset dateMetricIDCache. The cache is used during data ingestion
-	// to decide whether a metricID needs to be added to the per-day index and
-	// index records must not be created for deleted metricIDs. But presence of
-	// deleted metricID in this cache will not lead to an index record creation.
+	// Do not reset metricIDCache and dateMetricIDCache. These caches are used
+	// during data ingestion to decide whether a metricID needs to be added to
+	// the per-day index and index records must not be created for deleted
+	// metricIDs. But presence of deleted metricID in these caches will not lead
+	// to an index record creation.
 
 	// Store the metricIDs as deleted.
 	items := getIndexItems()
@@ -2963,6 +2990,11 @@ func (is *indexSearch) hasDateMetricIDSlow(date, metricID uint64) bool {
 }
 
 func (is *indexSearch) hasMetricID(metricID uint64) bool {
+	ok := is.db.metricIDCache.Has(metricID)
+	if ok {
+		return true
+	}
+
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
@@ -2971,8 +3003,11 @@ func (is *indexSearch) hasMetricID(metricID uint64) bool {
 		if err == io.EOF {
 			return false
 		}
-		logger.Panicf("FATAL: error when for metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
+		logger.Panicf("FATAL: error when searching for metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
 	}
+
+	is.db.metricIDCache.Set(metricID)
+
 	return true
 }
 
