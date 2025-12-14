@@ -221,11 +221,10 @@ type IndexDBMetrics struct {
 	MetricIDCacheSyncsCount     uint64
 	MetricIDCacheRotationsCount uint64
 
-	DateMetricIDCacheSize         uint64
-	DateMetricIDCacheSizeBytes    uint64
-	DateMetricIDCacheSizeMaxBytes uint64
-	DateMetricIDCacheSyncsCount   uint64
-	DateMetricIDCacheResetsCount  uint64
+	DateMetricIDCacheSize           uint64
+	DateMetricIDCacheSizeBytes      uint64
+	DateMetricIDCacheSyncsCount     uint64
+	DateMetricIDCacheRotationsCount uint64
 
 	IndexDBRefCount uint64
 
@@ -290,9 +289,8 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	if dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
 		m.DateMetricIDCacheSize = dmcs.Size
 		m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
-		m.DateMetricIDCacheSizeMaxBytes = dmcs.SizeMaxBytes
 		m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
-		m.DateMetricIDCacheResetsCount = dmcs.ResetsCount
+		m.DateMetricIDCacheRotationsCount = dmcs.RotationsCount
 	}
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
@@ -334,10 +332,12 @@ func (db *indexDB) decRef() {
 	db.tagFiltersToMetricIDsCache.MustStop()
 	db.loopsPerDateTagFilterCache.MustStop()
 	db.metricIDCache.MustStop()
+	db.dateMetricIDCache.MustStop()
 
 	db.tagFiltersToMetricIDsCache = nil
 	db.loopsPerDateTagFilterCache = nil
 	db.metricIDCache = nil
+	db.dateMetricIDCache = nil
 
 	if !db.mustDrop.Load() {
 		return
