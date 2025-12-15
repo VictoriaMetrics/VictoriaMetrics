@@ -67,7 +67,36 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "icon": "doc",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Docs",
+      "type": "link",
+      "url": "https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Community support",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/community-support/"
+    },
+    {
+      "asDropdown": false,
+      "icon": "bolt",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Enterprise support",
+      "tooltip": "",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/enterprise-support/"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {

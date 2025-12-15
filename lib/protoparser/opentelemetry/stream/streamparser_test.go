@@ -6,6 +6,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,73 +15,77 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 func TestParseStream(t *testing.T) {
-	f := func(samples []*pb.Metric, tssExpected []prompb.TimeSeries, mmsExpected []prompb.MetricMetadata, usePromNaming bool) {
+	f := func(samples []*pb.Metric, tssExpected []prompb.TimeSeries, mmsExpected []prompb.MetricMetadata) {
 		t.Helper()
 
-		prevPromNaming := *usePrometheusNaming
-		*usePrometheusNaming = usePromNaming
-		defer func() {
-			*usePrometheusNaming = prevPromNaming
-		}()
-
 		checkSeries := func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
-			if len(tss) != len(tssExpected) {
-				return fmt.Errorf("not expected time series count, got: %d, want: %d", len(tss), len(tssExpected))
-			}
 			sortByMetricName(tss)
 			sortByMetricName(tssExpected)
+
+			if len(tss) != len(tssExpected) {
+				return fmt.Errorf("unexpected time series count; got: %d; want: %d\ntimeseries got:\n%s\ntimeseries want\n%s",
+					len(tss), len(tssExpected), prettifyTimeSeries(tss), prettifyTimeSeries(tssExpected))
+			}
 			for i := 0; i < len(tss); i++ {
 				ts := tss[i]
 				tsExpected := tssExpected[i]
 				if len(ts.Labels) != len(tsExpected.Labels) {
-					return fmt.Errorf("idx: %d, not expected labels count, got: %d, want: %d", i, len(ts.Labels), len(tsExpected.Labels))
+					return fmt.Errorf("idx: %d; unexpected labels count; got: %d, want: %d\nlabels got:\n%s\nlabels want:\n%s",
+						i, len(ts.Labels), len(tsExpected.Labels), prettifyLabels(ts.Labels), prettifyLabels(tsExpected.Labels))
 				}
 				sortLabels(ts.Labels)
 				sortLabels(tsExpected.Labels)
 				for j, label := range ts.Labels {
 					labelExpected := tsExpected.Labels[j]
 					if !reflect.DeepEqual(label, labelExpected) {
-						return fmt.Errorf("idx: %d, label idx: %d, not equal label pairs, \ngot: \n%s, \nwant: \n%s",
-							i, j, prettifyLabel(label), prettifyLabel(labelExpected))
+						return fmt.Errorf("idx: %d, label idx: %d; unexpected label; got: %s, want: %s\nlabels got:\n%s\nlabels want:\n%s",
+							i, j, prettifyLabel(label), prettifyLabel(labelExpected), prettifyLabels(ts.Labels), prettifyLabels(tsExpected.Labels))
 					}
 				}
 				if len(ts.Samples) != len(tsExpected.Samples) {
-					return fmt.Errorf("idx: %d, not expected samples count, got: %d, want: %d", i, len(ts.Samples), len(tsExpected.Samples))
+					return fmt.Errorf("idx: %d: unexpected samples count; got: %d, want: %d\nsamples got\n%s\nsamples want\n%s",
+						i, len(ts.Samples), len(tsExpected.Samples), prettifySamples(ts.Samples), prettifySamples(tsExpected.Samples))
 				}
 				for j, sample := range ts.Samples {
 					sampleExpected := tsExpected.Samples[j]
 					if !reflect.DeepEqual(sample, sampleExpected) {
-						return fmt.Errorf("idx: %d, label idx: %d, not equal sample pairs, \ngot: \n%s,\nwant: \n%s",
-							i, j, prettifySample(sample), prettifySample(sampleExpected))
+						return fmt.Errorf("idx: %d, label idx: %d; unexpected sample; got: %s, want: %s\nsamples got\n%s\nsamples want\n%s",
+							i, j, prettifySample(sample), prettifySample(sampleExpected), prettifySamples(ts.Samples), prettifySamples(tsExpected.Samples))
 					}
 				}
 			}
 
 			if len(mms) != len(mmsExpected) {
-				return fmt.Errorf("not expected metadata count, got: %d, want: %d", len(mms), len(mmsExpected))
+				return fmt.Errorf("unexpected metadata count; got: %d, want: %d\nmetadata got:\n%s\nmetadata want:\n%s",
+					len(mms), len(mmsExpected), prettifyMetadata(mms), prettifyMetadata(mmsExpected))
 			}
 			for i := range mms {
 				if mms[i].Type != mmsExpected[i].Type {
-					return fmt.Errorf("idx: %d, not expected metadata type, got: %q, want: %q", i, mms[i].Type, mmsExpected[i].Type)
+					return fmt.Errorf("idx: %d; unexpected metadata type; got: %q, want: %q\nmetadata got:\n%s\nmetadata want:\n%s",
+						i, mms[i].Type, mmsExpected[i].Type, prettifyMetadata(mms), prettifyMetadata(mmsExpected))
 				}
 				if mms[i].MetricFamilyName != mmsExpected[i].MetricFamilyName {
-					return fmt.Errorf("idx: %d, not expected metadata metric family name, got: %q, want: %q", i, mms[i].MetricFamilyName, mmsExpected[i].MetricFamilyName)
+					return fmt.Errorf("idx: %d; unexpected metadata metric family name; got: %q, want: %q\nmetadata got:\n%s\nmetadata want:\n%s",
+						i, mms[i].MetricFamilyName, mmsExpected[i].MetricFamilyName, prettifyMetadata(mms), prettifyMetadata(mmsExpected))
 				}
 				if mms[i].Help != mmsExpected[i].Help {
-					return fmt.Errorf("idx: %d, not expected metadata help, got: %q, want: %q", i, mms[i].Help, mmsExpected[i].Help)
+					return fmt.Errorf("idx: %d; unexpected metadata help; got: %q, want: %q\nmetadata got:\n%s\nmetadata want:\n%s",
+						i, mms[i].Help, mmsExpected[i].Help, prettifyMetadata(mms), prettifyMetadata(mmsExpected))
 				}
 				if mms[i].Unit != mmsExpected[i].Unit {
-					return fmt.Errorf("idx: %d, not expected metadata unit, got: %q, want: %q", i, mms[i].Unit, mmsExpected[i].Unit)
+					return fmt.Errorf("idx: %d; unexpected metadata unit; got: %q, want: %q\nmetadata got:\n%s\nmetadata want:\n%s",
+						i, mms[i].Unit, mmsExpected[i].Unit, prettifyMetadata(mms), prettifyMetadata(mmsExpected))
 				}
 			}
 			return nil
 		}
 
-		req := &pb.ExportMetricsServiceRequest{
+		req := &pb.MetricsData{
 			ResourceMetrics: []*pb.ResourceMetrics{
 				generateOTLPSamples(samples),
 			},
@@ -121,67 +126,66 @@ func TestParseStream(t *testing.T) {
 			generateSummary("my-summary", ""),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my-gauge", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
-			newPromPBTs("my-gauge-unknown", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
-			newPromPBTs("my-histogram_count", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2")),
-			newPromPBTs("my-histogram_sum", 30000, 30.0, jobLabelValue, kvLabel("label2", "value2")),
-			newPromPBTs("my-histogram_bucket", 30000, 0.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.1")),
-			newPromPBTs("my-histogram_bucket", 30000, 5.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.5")),
-			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("1")),
-			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("5")),
-			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("+Inf")),
-			newPromPBTs("my-sumless-histogram_count", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2")),
-			newPromPBTs("my-sumless-histogram_bucket", 30000, 0.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.1")),
-			newPromPBTs("my-sumless-histogram_bucket", 30000, 5.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.5")),
-			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("1")),
-			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("5")),
-			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("+Inf")),
-			newPromPBTs("my-sum", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
-			newPromPBTs("my-summary_sum", 35000, 32.5, jobLabelValue, kvLabel("label6", "value6")),
-			newPromPBTs("my-summary_count", 35000, 5.0, jobLabelValue, kvLabel("label6", "value6")),
-			newPromPBTs("my-summary", 35000, 7.5, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "0.1")),
-			newPromPBTs("my-summary", 35000, 10.0, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "0.5")),
-			newPromPBTs("my-summary", 35000, 15.0, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "1")),
+			newTimeSeries("my-gauge", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my-gauge-unknown", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my-histogram_count", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2")),
+			newTimeSeries("my-histogram_sum", 30000, 30.0, jobLabelValue, kvLabel("label2", "value2")),
+			newTimeSeries("my-histogram_bucket", 30000, 0.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.1")),
+			newTimeSeries("my-histogram_bucket", 30000, 5.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.5")),
+			newTimeSeries("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("1")),
+			newTimeSeries("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("5")),
+			newTimeSeries("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("+Inf")),
+			newTimeSeries("my-sumless-histogram_count", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2")),
+			newTimeSeries("my-sumless-histogram_bucket", 30000, 0.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.1")),
+			newTimeSeries("my-sumless-histogram_bucket", 30000, 5.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.5")),
+			newTimeSeries("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("1")),
+			newTimeSeries("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("5")),
+			newTimeSeries("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("+Inf")),
+			newTimeSeries("my-sum", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
+			newTimeSeries("my-summary_sum", 35000, 32.5, jobLabelValue, kvLabel("label6", "value6")),
+			newTimeSeries("my-summary_count", 35000, 5.0, jobLabelValue, kvLabel("label6", "value6")),
+			newTimeSeries("my-summary", 35000, 7.5, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "0.1")),
+			newTimeSeries("my-summary", 35000, 10.0, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "0.5")),
+			newTimeSeries("my-summary", 35000, 15.0, jobLabelValue, kvLabel("label6", "value6"), kvLabel("quantile", "1")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my-gauge",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricTypeGauge,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-gauge-unknown",
 				Help:             "I'm not a gauge",
-				Type:             uint32(prompb.MetricMetadataUNKNOWN),
+				Type:             prompb.MetricTypeUnknown,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-histogram",
 				Help:             "I'm a Histogram",
-				Type:             uint32(prompb.MetricMetadataHISTOGRAM),
+				Type:             prompb.MetricTypeHistogram,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-sumless-histogram",
 				Help:             "I'm a Histogram",
-				Type:             uint32(prompb.MetricMetadataHISTOGRAM),
+				Type:             prompb.MetricTypeHistogram,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-sum",
 				Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricTypeGauge,
 				Unit:             "",
 			},
 			{
 				MetricFamilyName: "my-summary",
 				Help:             "I'm a Summary",
-				Type:             uint32(prompb.MetricMetadataSUMMARY),
+				Type:             prompb.MetricTypeSummary,
 				Unit:             "",
 			},
 		},
-		false,
 	)
 
 	// Test gauge
@@ -190,154 +194,167 @@ func TestParseStream(t *testing.T) {
 			generateGauge("my-gauge", ""),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my-gauge", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my-gauge", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my-gauge",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricTypeGauge,
 				Unit:             "",
 			},
 		},
-		false,
 	)
 
 	// Test gauge with unit and prometheus naming
+	prevPromNaming := *usePrometheusNaming
+	*usePrometheusNaming = true
 	f(
 		[]*pb.Metric{
 			generateGauge("my-gauge", "ms"),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my_gauge_milliseconds", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my_gauge_milliseconds", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my_gauge_milliseconds",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricTypeGauge,
 				Unit:             "ms",
 			},
 		},
-		true,
 	)
+	*usePrometheusNaming = prevPromNaming
 
 	// Test gauge with unit inside metric
+	prevPromNaming = *usePrometheusNaming
+	*usePrometheusNaming = true
 	f(
 		[]*pb.Metric{
 			generateGauge("my-gauge-milliseconds", "ms"),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my_gauge_milliseconds", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my_gauge_milliseconds", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my_gauge_milliseconds",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricTypeGauge,
 				Unit:             "ms",
 			},
 		},
-		true,
 	)
+	*usePrometheusNaming = prevPromNaming
 
 	// Test gauge with ratio suffix
+	prevPromNaming = *usePrometheusNaming
+	*usePrometheusNaming = true
 	f(
 		[]*pb.Metric{
 			generateGauge("my-gauge-milliseconds", "1"),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my_gauge_milliseconds_ratio", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my_gauge_milliseconds_ratio", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my_gauge_milliseconds_ratio",
 				Help:             "I'm a gauge",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricTypeGauge,
 				Unit:             "1",
 			},
 		},
-		true,
 	)
+	*usePrometheusNaming = prevPromNaming
 
 	// Test sum with total suffix
+	prevPromNaming = *usePrometheusNaming
+	*usePrometheusNaming = true
 	f(
 		[]*pb.Metric{
 			generateSum("my-sum", "ms", true),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my_sum_milliseconds_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
+			newTimeSeries("my_sum_milliseconds_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my_sum_milliseconds_total",
 				Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-				Type:             uint32(prompb.MetricMetadataCOUNTER),
+				Type:             prompb.MetricTypeCounter,
 				Unit:             "ms",
 			},
 		},
-		true,
 	)
+	*usePrometheusNaming = prevPromNaming
 
 	// Test sum with total suffix, which exists in a metric name
+	prevPromNaming = *usePrometheusNaming
+	*usePrometheusNaming = true
 	f(
 		[]*pb.Metric{
 			generateSum("my-total-sum", "ms", true),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my_sum_milliseconds_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
+			newTimeSeries("my_sum_milliseconds_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my_sum_milliseconds_total",
 				Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-				Type:             uint32(prompb.MetricMetadataCOUNTER),
+				Type:             prompb.MetricTypeCounter,
 				Unit:             "ms",
 			},
 		},
-		true,
 	)
+	*usePrometheusNaming = prevPromNaming
 
 	// Test sum with total and complex suffix
+	prevPromNaming = *usePrometheusNaming
+	*usePrometheusNaming = true
 	f(
 		[]*pb.Metric{
 			generateSum("my-total-sum", "m/s", true),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my_sum_meters_per_second_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
+			newTimeSeries("my_sum_meters_per_second_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my_sum_meters_per_second_total",
 				Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-				Type:             uint32(prompb.MetricMetadataCOUNTER),
+				Type:             prompb.MetricTypeCounter,
 				Unit:             "m/s",
 			},
 		},
-		true,
 	)
+	*usePrometheusNaming = prevPromNaming
 
 	// Test exponential histograms
+	prevPromNaming = *usePrometheusNaming
+	*usePrometheusNaming = true
 	f(
 		[]*pb.Metric{
 			generateExpHistogram("test-histogram", "m/s"),
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.061e+00...1.067e+00")),
-			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 10.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.067e+00...1.073e+00")),
-			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.085e+00...1.091e+00")),
-			newPromPBTs("test_histogram_meters_per_second_count", 15000, 20.0, jobLabelValue, kvLabel("label1", "value1")),
-			newPromPBTs("test_histogram_meters_per_second_sum", 15000, 4578.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.061e+00...1.067e+00")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 10.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.067e+00...1.073e+00")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.085e+00...1.091e+00")),
+			newTimeSeries("test_histogram_meters_per_second_count", 15000, 20.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("test_histogram_meters_per_second_sum", 15000, 4578.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "test_histogram_meters_per_second",
-				Type:             uint32(prompb.MetricMetadataHISTOGRAM),
+				Type:             prompb.MetricTypeHistogram,
 				Unit:             "m/s",
 			},
 		},
-		true,
 	)
+	*usePrometheusNaming = prevPromNaming
 
 	// Test gauge with deeply nested attributes
 	f(
@@ -402,7 +419,7 @@ func TestParseStream(t *testing.T) {
 																	Value: &pb.AnyValue{IntValue: ptrTo(int64(15))},
 																},
 																{
-																	Key:   "doable",
+																	Key:   "double",
 																	Value: &pb.AnyValue{DoubleValue: ptrTo(5.1)},
 																},
 																{
@@ -426,24 +443,25 @@ func TestParseStream(t *testing.T) {
 			},
 		},
 		[]prompb.TimeSeries{
-			newPromPBTs("my-gauge",
+			newTimeSeries("my-gauge",
 				15000,
 				15.0,
 				jobLabelValue,
 				kvLabel("label1", "value1"),
-				kvLabel("emptylabelvalue", ""),
-				kvLabel("emptylabel", ""),
 				kvLabel("label_array", `["value5",{}]`),
-				kvLabel("nested_label", `{"empty_value":null,"value_top_2":"valuetop","nested_kv_list":{"integer":15,"doable":5.1,"string":"value2"}}`)),
+				kvLabel("nested_label.value_top_2", "valuetop"),
+				kvLabel("nested_label.nested_kv_list.integer", "15"),
+				kvLabel("nested_label.nested_kv_list.double", "5.1"),
+				kvLabel("nested_label.nested_kv_list.string", "value2"),
+			),
 		},
 		[]prompb.MetricMetadata{
 			{
 				MetricFamilyName: "my-gauge",
 				Help:             "it's a test",
-				Type:             uint32(prompb.MetricMetadataGAUGE),
+				Type:             prompb.MetricTypeGauge,
 			},
 		},
-		false,
 	)
 
 	// check translation only for metric name only
@@ -458,17 +476,16 @@ func TestParseStream(t *testing.T) {
 				generateSum("my-total-sum", "m/s", true, stringAttributeFromKV("service.name", "dev")),
 			},
 			[]prompb.TimeSeries{
-				newPromPBTs("my_sum_meters_per_second_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5"), kvLabel("service.name", "dev")),
+				newTimeSeries("my_sum_meters_per_second_total", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5"), kvLabel("service.name", "dev")),
 			},
 			[]prompb.MetricMetadata{
 				{
 					MetricFamilyName: "my_sum_meters_per_second_total",
 					Help:             "I might be a counter or gauge, depending on the IsMonotonic",
-					Type:             uint32(prompb.MetricMetadataCOUNTER),
+					Type:             prompb.MetricTypeCounter,
 					Unit:             "m/s",
 				},
 			},
-			false,
 		)
 		// Test gauge with ratio suffix
 		f(
@@ -476,17 +493,16 @@ func TestParseStream(t *testing.T) {
 				generateGauge("my-gauge-milliseconds", "1", stringAttributeFromKV("service.name", "dev")),
 			},
 			[]prompb.TimeSeries{
-				newPromPBTs("my_gauge_milliseconds_ratio", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("service.name", "dev")),
+				newTimeSeries("my_gauge_milliseconds_ratio", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("service.name", "dev")),
 			},
 			[]prompb.MetricMetadata{
 				{
 					MetricFamilyName: "my_gauge_milliseconds_ratio",
 					Help:             "I'm a gauge",
-					Type:             uint32(prompb.MetricMetadataGAUGE),
+					Type:             prompb.MetricTypeGauge,
 					Unit:             "1",
 				},
 			},
-			false,
 		)
 	}
 
@@ -528,12 +544,7 @@ func checkParseStream(data []byte, checkSeries func(tss []prompb.TimeSeries, mms
 
 func attributesFromKV(k, v string) []*pb.KeyValue {
 	return []*pb.KeyValue{
-		{
-			Key: k,
-			Value: &pb.AnyValue{
-				StringValue: &v,
-			},
-		},
+		stringAttributeFromKV(k, v),
 	}
 }
 
@@ -552,7 +563,6 @@ func generateExpHistogram(name, unit string, extraAttributes ...*pb.KeyValue) *p
 		Name: name,
 		Unit: unit,
 		ExponentialHistogram: &pb.ExponentialHistogram{
-			AggregationTemporality: pb.AggregationTemporalityCumulative,
 			DataPoints: []*pb.ExponentialHistogramDataPoint{
 				{
 					Attributes:   attributesFromKV("label1", "value1"),
@@ -622,8 +632,7 @@ func generateHistogram(name, unit string, hasSum bool, extraAttributes ...*pb.Ke
 		Unit:        unit,
 		Description: "I'm a Histogram",
 		Histogram: &pb.Histogram{
-			AggregationTemporality: pb.AggregationTemporalityCumulative,
-			DataPoints:             []*pb.HistogramDataPoint{point},
+			DataPoints: []*pb.HistogramDataPoint{point},
 		},
 	}
 }
@@ -643,9 +652,8 @@ func generateSum(name, unit string, isMonotonic bool, extraAttributes ...*pb.Key
 		Unit:        unit,
 		Description: "I might be a counter or gauge, depending on the IsMonotonic",
 		Sum: &pb.Sum{
-			AggregationTemporality: pb.AggregationTemporalityCumulative,
-			DataPoints:             points,
-			IsMonotonic:            isMonotonic,
+			DataPoints:  points,
+			IsMonotonic: isMonotonic,
 		},
 	}
 }
@@ -690,15 +698,28 @@ func generateOTLPSamples(srcs []*pb.Metric) *pb.ResourceMetrics {
 			Attributes: attributesFromKV("job", "vm"),
 		},
 	}
+	scope := &pb.InstrumentationScope{
+		Name:    ptrTo("foo"),
+		Version: ptrTo("bar"),
+		Attributes: []*pb.KeyValue{
+			{
+				Key: "abc",
+				Value: &pb.AnyValue{
+					StringValue: ptrTo("qwe"),
+				},
+			},
+		},
+	}
 	otlpMetrics.ScopeMetrics = []*pb.ScopeMetrics{
 		{
+			Scope:   scope,
 			Metrics: append([]*pb.Metric{}, srcs...),
 		},
 	}
 	return otlpMetrics
 }
 
-func newPromPBTs(metricName string, t int64, v float64, extraLabels ...prompb.Label) prompb.TimeSeries {
+func newTimeSeries(metricName string, t int64, v float64, extraLabels ...prompb.Label) prompb.TimeSeries {
 	if t <= 0 {
 		// Set the current timestamp if t isn't set.
 		t = int64(fasttime.UnixTimestamp()) * 1000
@@ -717,16 +738,62 @@ func newPromPBTs(metricName string, t int64, v float64, extraLabels ...prompb.La
 			},
 		},
 	}
+
+	// Add scope labels - see generateOTLPSamples
+	var sctx sanitizerContext
+	ts.Labels = append(ts.Labels, prompb.Label{
+		Name:  strings.Clone(sctx.sanitizeLabelName("scope.name")),
+		Value: "foo",
+	}, prompb.Label{
+		Name:  strings.Clone(sctx.sanitizeLabelName("scope.version")),
+		Value: "bar",
+	}, prompb.Label{
+		Name:  strings.Clone(sctx.sanitizeLabelName("scope.attributes.abc")),
+		Value: "qwe",
+	})
+
+	// Add extraLabels
 	ts.Labels = append(ts.Labels, extraLabels...)
 	return ts
 }
 
+func prettifyMetadata(mms []prompb.MetricMetadata) string {
+	a := make([]string, len(mms))
+	for i, mm := range mms {
+		a[i] = fmt.Sprintf("{MetricFamilyName=%q, Help=%q, Unit=%q, Type=%q}", mm.MetricFamilyName, mm.Help, mm.Unit, mm.Type)
+	}
+	return "[" + strings.Join(a, ", ") + "]"
+}
+
+func prettifyTimeSeries(tss []prompb.TimeSeries) string {
+	a := make([]string, len(tss))
+	for i, ts := range tss {
+		a[i] = fmt.Sprintf("(%s %s)", prettifyLabels(ts.Labels), prettifySamples(ts.Samples))
+	}
+	return "[" + strings.Join(a, ", ") + "]"
+}
+
 func prettifyLabel(label prompb.Label) string {
-	return fmt.Sprintf("name=%q value=%q", label.Name, label.Value)
+	return prettifyLabels([]prompb.Label{label})
+}
+
+func prettifyLabels(labels []prompb.Label) string {
+	ls := promutil.Labels{
+		Labels: labels,
+	}
+	return ls.String()
 }
 
 func prettifySample(sample prompb.Sample) string {
-	return fmt.Sprintf("sample=%f timestamp: %d", sample.Value, sample.Timestamp)
+	return prettifySamples([]prompb.Sample{sample})
+}
+
+func prettifySamples(samples []prompb.Sample) string {
+	a := make([]string, len(samples))
+	for i, sample := range samples {
+		a[i] = fmt.Sprintf("(t=%d, v=%v)", sample.Timestamp, sample.Value)
+	}
+	return "[" + strings.Join(a, ", ") + "]"
 }
 
 func sortByMetricName(tss []prompb.TimeSeries) {

@@ -31,7 +31,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 const (
@@ -118,6 +117,10 @@ type indexDB struct {
 	name string
 	tb   *mergeset.Table
 
+	// The parent storage. Provides state and configuration shared between all
+	// indexDB instances.
+	s *Storage
+
 	// noRegisterNewSeries indicates whether the indexDB receives new entries or
 	// not.
 	//
@@ -129,12 +132,9 @@ type indexDB struct {
 	// Cache for fast TagFilters -> MetricIDs lookup.
 	tagFiltersToMetricIDsCache *lrucache.Cache
 
-	// The parent storage.
-	s *Storage
-
 	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
-	loopsPerDateTagFilterCache *workingsetcache.Cache
+	loopsPerDateTagFilterCache *lrucache.Cache
 
 	// dateMetricIDCache is (date, metricID) cache that is used to speed up the
 	// data ingestion by storing the is.hasDateMetricID() search results in
@@ -156,6 +156,10 @@ func getTagFiltersCacheSize() uint64 {
 		return uint64(float64(memory.Allowed()) / 32)
 	}
 	return maxTagFiltersCacheSize
+}
+
+func getTagFiltersLoopsCacheSize() uint64 {
+	return uint64(float64(memory.Allowed()) / 128)
 }
 
 // mustOpenIndexDB opens index db from the given path.
@@ -183,7 +187,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool, noRegiste
 		minMissingTimestampByKey:   make(map[string]int64),
 		tagFiltersToMetricIDsCache: tfssCache,
 		s:                          s,
-		loopsPerDateTagFilterCache: workingsetcache.New(memory.Allowed() / 128),
+		loopsPerDateTagFilterCache: lrucache.NewCache(getTagFiltersLoopsCacheSize),
 		dateMetricIDCache:          newDateMetricIDCache(),
 	}
 	db.noRegisterNewSeries.Store(noRegisterNewSeries)
@@ -202,10 +206,11 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
 
-	DateMetricIDCacheSize        uint64
-	DateMetricIDCacheSizeBytes   uint64
-	DateMetricIDCacheSyncsCount  uint64
-	DateMetricIDCacheResetsCount uint64
+	DateMetricIDCacheSize         uint64
+	DateMetricIDCacheSizeBytes    uint64
+	DateMetricIDCacheSizeMaxBytes uint64
+	DateMetricIDCacheSyncsCount   uint64
+	DateMetricIDCacheResetsCount  uint64
 
 	IndexDBRefCount uint64
 
@@ -243,18 +248,27 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
 	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
 
-	m.TagFiltersToMetricIDsCacheSize += uint64(db.tagFiltersToMetricIDsCache.Len())
-	m.TagFiltersToMetricIDsCacheSizeBytes += uint64(db.tagFiltersToMetricIDsCache.SizeBytes())
-	m.TagFiltersToMetricIDsCacheSizeMaxBytes += uint64(db.tagFiltersToMetricIDsCache.SizeMaxBytes())
-	m.TagFiltersToMetricIDsCacheRequests += db.tagFiltersToMetricIDsCache.Requests()
-	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
-	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
+	// Report only once and for an indexDB instance whose tagFiltersCache is
+	// utilized the most.
+	if db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
+		m.TagFiltersToMetricIDsCacheSize = uint64(db.tagFiltersToMetricIDsCache.Len())
+		m.TagFiltersToMetricIDsCacheSizeBytes = db.tagFiltersToMetricIDsCache.SizeBytes()
+		m.TagFiltersToMetricIDsCacheSizeMaxBytes = db.tagFiltersToMetricIDsCache.SizeMaxBytes()
+		m.TagFiltersToMetricIDsCacheRequests = db.tagFiltersToMetricIDsCache.Requests()
+		m.TagFiltersToMetricIDsCacheMisses = db.tagFiltersToMetricIDsCache.Misses()
+		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
+	}
 
-	m.DateMetricIDCacheSize += uint64(db.dateMetricIDCache.EntriesCount())
-	m.DateMetricIDCacheSizeBytes += uint64(db.dateMetricIDCache.SizeBytes())
-	m.DateMetricIDCacheSyncsCount += db.dateMetricIDCache.syncsCount.Load()
-	m.DateMetricIDCacheResetsCount += db.dateMetricIDCache.resetsCount.Load()
-
+	// Report only once and for an indexDB instance whose dateMetricIDCache is
+	// utilized the most.
+	dmcs := db.dateMetricIDCache.Stats()
+	if dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
+		m.DateMetricIDCacheSize = dmcs.Size
+		m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
+		m.DateMetricIDCacheSizeMaxBytes = dmcs.SizeMaxBytes
+		m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
+		m.DateMetricIDCacheResetsCount = dmcs.ResetsCount
+	}
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
@@ -288,13 +302,13 @@ func (db *indexDB) decRef() {
 	tbPath := db.tb.Path()
 	db.tb.MustClose()
 	db.tb = nil
+	db.s = nil
 
 	// Free space occupied by caches owned by db.
 	db.tagFiltersToMetricIDsCache.MustStop()
-	db.loopsPerDateTagFilterCache.Stop()
+	db.loopsPerDateTagFilterCache.MustStop()
 
 	db.tagFiltersToMetricIDsCache = nil
-	db.s = nil
 	db.loopsPerDateTagFilterCache = nil
 
 	if !db.mustDrop.Load() {
@@ -1537,8 +1551,28 @@ func (db *indexDB) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxM
 // saveDeletedMetricIDs persists the deleted metricIDs to the global index by
 // creating a separate `nsPrefixDeletedMetricID` entry for each metricID.
 //
-// In addition, the deleted metricIDs are added to the deletedMetricIDs cache
-// and all the caches that may contain some or all of deleted metricIDs are reset.
+// More specifically, the method does these three things:
+// 1. Add deleted metric ids to deletedMetricIDs
+// 2. Reset all caches that must be reset
+// 3. Finally add `nsPrefixDeletedMetricID` entries to the index.
+//
+// The order is important to exclude the possibility of the inconsistent state
+// when the deleted metricIDs remain available in the persistent caches (such as
+// tsidCache) after unclean shutdown.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347.
+//
+// There are caches (such as tsidCache) that have only one instance and shared
+// by all indexDB instances. Resetting such caches by an indexDB causes them to
+// be reset as many times as the number of indexDBs. Ideally, we want these
+// caches to be reset only once, in Storage.DeleteSeries(). But that would
+// violate the aforementioned order of actions. And implementing the correct
+// order of actions in Storage.DeleteSeries() would result in much more complex
+// logic. So in this particular case we choose code clarity over correctness,
+// because nothing bad will happen if these caches are reset multiple times.
+//
+// For caches that are not saved to disk (such as dateMetricIDCache) there is no
+// strict requirement when to reset them. Still resetting them the same way as
+// persistent caches to have all reset logic in one place.
 func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	if metricIDs.Len() == 0 {
 		// Nothing to delete
@@ -1548,17 +1582,45 @@ func (db *indexDB) saveDeletedMetricIDs(metricIDs *uint64set.Set) {
 	// atomically add deleted metricIDs to an inmemory map.
 	db.s.updateDeletedMetricIDs(metricIDs)
 
-	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
-	db.tagFiltersToMetricIDsCache.Reset()
-
 	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
 	db.s.resetAndSaveTSIDCache()
 
+	// Do not reset Storage's metricIDCache (MetricID -> TSID) and
+	// metricNameCache (MetricID -> MetricName) since they must be used only
+	// after filtering out deleted metricIDs.
+
+	// Do not reset Storage's currHourMetricIDs, prevHourMetricIDs, and
+	// nextDayMetricIDs caches. These caches are used during data ingestion
+	// to decide whether a metricID needs to be added to the per-day index and
+	// index records must not be created for deleted metricIDs. But presence of
+	// deleted metricID in these caches will not lead to an index record
+	// creation. Also see dateMetricIDCache below.
+	//
+	// Additionally, currHourMetricIDs and nextDayMetricIDs have accompanying
+	// smaller in-memory caches, pendingHourEntries and pendingNextDayMetricIDs.
+	// Should currHourMetricIDs and/or nextDayMetricIDs need to be reset,
+	// pendingHourEntries and/or pendingNextDayMetricIDs need to be reset first.
+
+	// Not resetting Storage.metricsTracker and Storage.metadataStorage because
+	// they use metric names instead of metricIDs. And one metric name can
+	// correspond to one or more metricIDs.
+
+	// Do not reset Storage.missingMetricIDs because the delete operation will
+	// not necessarily delete all the metricIDs from this cache.
+
+	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
+	db.tagFiltersToMetricIDsCache.Reset()
+
+	// Do not reset loopsPerDateTagFilterCache. It stores loop counts
+	// required to search metricIDs, but it is used at the stage when it does
+	// not matter whether a metricID is deleted or not.
+
+	// Do not reset dateMetricIDCache. The cache is used during data ingestion
+	// to decide whether a metricID needs to be added to the per-day index and
+	// index records must not be created for deleted metricIDs. But presence of
+	// deleted metricID in this cache will not lead to an index record creation.
+
 	// Store the metricIDs as deleted.
-	// Make this after updating the deletedMetricIDs and resetting caches
-	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
-	// remain available in the tsidCache after unclean shutdown.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	items := getIndexItems()
 	metricIDs.ForEach(func(part []uint64) bool {
 		for _, metricID := range part {
@@ -1671,7 +1733,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 	metricIDs.ForEach(func(metricIDs []uint64) bool {
 		for _, metricID := range metricIDs {
 			if paceLimiter&paceLimiterSlowIterationsMask == 0 {
-				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+				if err = checkSearchDeadlineAndPace(deadline); err != nil {
 					return false
 				}
 			}
@@ -2964,25 +3026,32 @@ func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *t
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	kb.B = is.db.loopsPerDateTagFilterCache.Get(kb.B[:0], is.kb.B)
-	if len(kb.B) != 3*8 {
+	e := is.db.loopsPerDateTagFilterCache.GetEntry(bytesutil.ToUnsafeString(is.kb.B))
+	if e == nil {
 		return 0, 0, 0
 	}
-	loopsCount := encoding.UnmarshalInt64(kb.B)
-	filterLoopsCount := encoding.UnmarshalInt64(kb.B[8:])
-	timestamp := encoding.UnmarshalUint64(kb.B[16:])
-	return loopsCount, filterLoopsCount, timestamp
+	v := e.(*tagFiltersLoops)
+	return v.loopsCount, v.filterLoopsCount, v.timestamp
+}
+
+type tagFiltersLoops struct {
+	loopsCount       int64
+	filterLoopsCount int64
+	timestamp        uint64
+}
+
+func (v *tagFiltersLoops) SizeBytes() uint64 {
+	return uint64(unsafe.Sizeof(*v))
 }
 
 func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, loopsCount, filterLoopsCount int64) {
-	currentTimestamp := fasttime.UnixTimestamp()
+	v := tagFiltersLoops{
+		loopsCount:       loopsCount,
+		filterLoopsCount: filterLoopsCount,
+		timestamp:        fasttime.UnixTimestamp(),
+	}
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
-	kb := kbPool.Get()
-	kb.B = encoding.MarshalInt64(kb.B[:0], loopsCount)
-	kb.B = encoding.MarshalInt64(kb.B, filterLoopsCount)
-	kb.B = encoding.MarshalUint64(kb.B, currentTimestamp)
-	is.db.loopsPerDateTagFilterCache.Set(is.kb.B, kb.B)
-	kbPool.Put(kb)
+	is.db.loopsPerDateTagFilterCache.PutEntry(string(is.kb.B), &v)
 }
 
 func appendDateTagFilterCacheKey(dst []byte, indexDBName string, date uint64, tf *tagFilter) []byte {

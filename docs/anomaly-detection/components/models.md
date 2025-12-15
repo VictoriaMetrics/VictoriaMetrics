@@ -671,6 +671,11 @@ models:
 
 > `forecast_at` parameter can lead to **significant increase in active timeseries** if you have a lot of time series returned by your queries, as it will produce additional series for each of the future timestamps specified in `forecast_at` (optionally multiplied by 1-3 if interval forecasts are included). For example, if you have 1000 time series returned by your query and set `forecast_at` to `[1h, 1d, 1w]`, and `provide_series` includes `yhat_lower` and `yhat_upper`, it will produce 1000 (series) * 3 (intervals) * 3 (predictions, point + interval) = 9000 additional timeseries. Consider using it only on small subset of metrics (e.g. grouped by `host` or `region`) to avoid this issue, as it also **proportionally (to the number of `forecast_at` elements) increases the timings of inference calls**.
 
+- `compression` {{% available_from "v1.28.1" anomaly %}} (dict, optional): Configuration for downsampling input data before fitting the model. Useful for high-frequency data to reduce CPU and RAM/disk load and improve model performance. The `compression` block supports the following parameters:
+  - `window` (str, required): Time window for downsampling (e.g., "5m", "1h").
+  - `agg_method` (str, optional, default="mean"): Aggregation function to apply within each window. Supported values: "mean", "median".
+  - `adjust_boundaries` (bool, optional, default=true): Whether to adjust confidence interval boundaries after downsampling. If true, `yhat_lower` and `yhat_upper` will be adjusted based on the aggregated vs original data variability.
+
 > Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
 
 **Additional output metrics produced by FB Prophet**
@@ -708,6 +713,10 @@ models:
         period: 0.04166666666
         fourier_order: 30
         prior_scale: 20
+    compression:  # downsample input data to reduce CPU/RAM load
+      window: '30m'  # downsample to 30-minute intervals
+      agg_method: 'mean'  # use mean aggregation within each window
+      adjust_boundaries: true  # adjust yhat_lower/yhat_upper after downsampling
     # inner model args (key-value pairs) accepted by
     # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
@@ -741,6 +750,10 @@ models:
         prior_scale: 10
       - name: 'dow'  # intra-week seasonality, time of the week
         fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
+    compression:  # downsample input data to reduce CPU/RAM load
+      window: '30m'  # downsample to 30-minute intervals
+      agg_method: 'mean'  # use mean aggregation within each window
+      adjust_boundaries: true  # adjust yhat_lower/yhat_upper after downsampling
     # inner model args (key-value pairs) accepted by
     # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
@@ -1318,7 +1331,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.0
+docker pull victoriametrics/vmanomaly:v1.28.2
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1332,7 +1345,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.28.0 /config.yaml \
+victoriametrics/vmanomaly:v1.28.2 /config.yaml \
 --licenseFile=/license
 --watch
 ```

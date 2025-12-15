@@ -8,7 +8,8 @@ import { useHideDuplicateFields } from "./hooks/useHideDuplicateFields";
 import Accordion from "../../../Main/Accordion/Accordion";
 import { useLegendGroup } from "./hooks/useLegendGroup";
 import useCopyToClipboard from "../../../../hooks/useCopyToClipboard";
-import { DEFAULT_MAX_SERIES } from "../../../../constants/graph";
+import { LEGEND_COLLAPSE_SERIES_LIMIT } from "../../../../constants/graph";
+import { getFromStorage } from "../../../../utils/storage";
 
 export type LegendProps = {
   labels: LegendItemType[];
@@ -38,17 +39,26 @@ const LegendGroup: FC<LegendGroupProps> = ({ labels, group, isAnomalyView, onCha
 
   const Content = isTableView ? LegendTable : LegendLines;
 
+  const disableAutoCollapse = getFromStorage("LEGEND_AUTO_COLLAPSE") === "false"
+  const defaultExpanded = disableAutoCollapse ? true : sortedLabels.length <= LEGEND_COLLAPSE_SERIES_LIMIT
+
+  const expandedWarning = (
+    <span className="vm-legend-group-header__warning">
+      Legend collapsed by default ({sortedLabels.length} series) — click to expand.
+    </span>
+  )
+
   return (
     <div
       className="vm-legend-group"
       key={group}
     >
       <Accordion
-        defaultExpanded={sortedLabels.length < DEFAULT_MAX_SERIES.chart}
+        defaultExpanded={defaultExpanded}
         title={(
           <div className="vm-legend-group-header">
             <div className="vm-legend-group-header-title">
-              Group by{groupByLabel ? "" : " query"}: <b>{group}</b>
+              Group by{groupByLabel ? "" : " query"}: <b>{group}</b> {!defaultExpanded && expandedWarning}
             </div>
             {!!duplicateFields.length && (
               <div className="vm-legend-group-header-labels">

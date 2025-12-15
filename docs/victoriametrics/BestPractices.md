@@ -20,9 +20,26 @@ It is recommended to run the latest available release of VictoriaMetrics from [t
 
 There is no need to tune VictoriaMetrics because it uses reasonable defaults for command-line flags. These flags are automatically adjusted for the available CPU and RAM resources. There is no need in Operating System tuning because VictoriaMetrics is optimized for default OS settings. The only option is to increase the limit on the [number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a), so VictoriaMetrics could accept more incoming connections and could keep open more data files.
 
+## Swap
+For machines running [vmstorage](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#storage) or [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), it is recommended to disable swap. 
+These components rely on available RAM for high performance operations. 
+If swap is enabled, the operating system may move active data from fast RAM to the much slower disk as memory usage approaches system limits or configured thresholds. 
+This leads to performance degradation and latency spikes. On systemd-based Linux distributions run:
+
+```sh
+sed -i '/\sswap\s/s/^/#/' /etc/fstab
+systemctl mask swap.target
+```
+
+Reboot the host after applying the commands.
+
+If you're unsure whether swap-related issues are occurring, check the `Troubleshooting – Major page faults` 
+and `Resource usage – Memory pressure` panels in official Grafana dashboards.
+
 ## Filesystem
 
-The recommended filesystem for VictoriaMetrics is [ext4](https://en.wikipedia.org/wiki/Ext4). If you plan to store more than 1TB of data on ext4 partition or plan to extend it to more than 16TB, then the following options are recommended to pass to mkfs.ext4:
+The recommended filesystem for VictoriaMetrics is [ext4](https://en.wikipedia.org/wiki/Ext4). If you plan to store more than 1TB of data on ext4 partition,
+then the following options are recommended to pass to `mkfs.ext4`:
 
 ```sh
 mkfs.ext4 ... -O 64bit,huge_file,extent -T huge

@@ -48,9 +48,9 @@ func TestSingleMetricsMetadata(t *testing.T) {
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_6"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 		},
 		Metadata: []prompb.MetricMetadata{
-			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: uint32(prompb.MetricMetadataSUMMARY)},
-			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: uint32(prompb.MetricMetadataSUMMARY)},
-			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: uint32(prompb.MetricMetadataSTATESET)},
+			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary},
+			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
+			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 
@@ -160,9 +160,9 @@ func TestClusterMetricsMetadata(t *testing.T) {
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_6"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 		},
 		Metadata: []prompb.MetricMetadata{
-			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: uint32(prompb.MetricMetadataSUMMARY)},
-			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: uint32(prompb.MetricMetadataSUMMARY)},
-			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: uint32(prompb.MetricMetadataSTATESET)},
+			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary},
+			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
+			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 

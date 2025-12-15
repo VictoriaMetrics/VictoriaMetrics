@@ -279,7 +279,7 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 
 ## Forecasting
 
-Not intended for forecasting in its core, `vmanomaly` can still be used to produce forecasts using [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) {{% available_from "v1.25.3" anomaly %}}, which can be helpful in scenarios like capacity planning, resource allocation, or trend analysis, if the underlying data is complex and can't be handled by inline MetricsQL queries, including [predict_linear](https://docs.victoriametrics.com/victoriametrics/metricsql/#predict_linear).
+`vmanomaly` can generate future forecasts (e.g. using [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) {{% available_from "v1.25.3" anomaly %}}), which is helpful for capacity planning, resource allocation, or trend analysis when the underlying data is complex and exceeds what inline MetricsQL queries, including [predict_linear](https://docs.victoriametrics.com/victoriametrics/metricsql/#predict_linear), can handle.
 
 > However, please note that this mode should be used with care, as the model will produce `yhat_{h}` (and probably `yhat_lower_{h}`, and `yhat_upper_{h}`) time series **for each timeseries returned by input queries and for each forecasting horizon specified in `forecast_at` argument, which can lead to a significant increase in the number of active timeseries in VictoriaMetrics TSDB**.
 
@@ -346,6 +346,7 @@ models:
     forecast_at: ['3d', '7d']  # this will produce forecasts for 3 and 7 days ahead
     provide_series: ['yhat', 'yhat_upper']  # to write forecasts back to VictoriaMetrics, omitting `yhat_lower` as it is not needed in this example
     # other model params, yearly_seasonality may stay
+
     # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
       interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
@@ -403,7 +404,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.28.0
+    image: victoriametrics/vmanomaly:v1.28.2
     # ...
     restart: always
     volumes:
@@ -618,7 +619,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.0 && docker image tag victoriametrics/vmanomaly:v1.28.0 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.28.2 && docker image tag victoriametrics/vmanomaly:v1.28.2 vmanomaly
 ```
 
 ```sh

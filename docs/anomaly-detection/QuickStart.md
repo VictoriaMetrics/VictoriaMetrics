@@ -121,7 +121,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.0
+docker pull victoriametrics/vmanomaly:v1.28.2
 ```
 
 2. Create the license file with your license key.
@@ -141,7 +141,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.28.0 \
+    victoriametrics/vmanomaly:v1.28.2 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -158,7 +158,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.28.0 \
+    victoriametrics/vmanomaly:v1.28.2 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -171,7 +171,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.28.0
+    image: victoriametrics/vmanomaly:v1.28.2
     # ...
     restart: always
     volumes:
@@ -252,12 +252,12 @@ settings:
     model.prophet: WARNING
 
 schedulers:
-  1d_1m:
+  1d_5m:
     # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
     class: 'periodic'
     infer_every: '5m'
     fit_every: '1d'
-    fit_window: '2w'
+    fit_window: '4w'
 
 models:
   # https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet
@@ -272,6 +272,10 @@ models:
         prior_scale: 10
       - name: 'dow'  # intra-week seasonality, time of the week
         fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
+    compression:  # available since v1.28.1
+      window: "30m"               # downsample 5m data into 30m intervals before fitting
+      agg_method: "mean"          # use mean aggregation within each window
+      adjust_boundaries: true     # adjust confidence intervals after downsampling
     # inner model args (key-value pairs) accepted by
     # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
