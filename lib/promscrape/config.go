@@ -956,9 +956,9 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	sampleLimit := globalCfg.SampleLimit
-	if sc.SampleLimit > 0 {
-		sampleLimit = sc.SampleLimit
+	sampleLimit := sc.SampleLimit
+	if sampleLimit <= 0 {
+		sampleLimit = globalCfg.SampleLimit
 	}
 	externalLabels := globalCfg.ExternalLabels
 	noStaleTracking := *noStaleMarkers
