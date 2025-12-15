@@ -151,7 +151,6 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
 		// Process requests for unauthorized users
@@ -295,6 +294,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 }
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
+	ui.backendRequests.Inc()
 	req := sanitizeRequestHeaders(r)
 
 	req.URL = targetURL
@@ -652,6 +652,7 @@ type zeroReader struct{}
 func (r *zeroReader) Read(_ []byte) (int, error) {
 	return 0, io.EOF
 }
+
 func (r *zeroReader) Close() error {
 	return nil
 }
