@@ -17,4 +17,4 @@ export const formatDuration = (raw: number) => {
 export const formatEventTime = (raw: string) => {
   const t = dayjs(raw);
   return t.year() <= 1 ? "Never" : t.format("DD MMM YYYY HH:mm:ss");
-}
+};

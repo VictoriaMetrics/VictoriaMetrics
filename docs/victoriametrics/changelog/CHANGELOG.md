@@ -26,6 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add `localStorage` availability checks with error reporting. See [#10085](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10085).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): add `VMUI:`-prefixed `localStorage` keys and legacy key migration.
+
 ## [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0)
 
 Released at 2025-12-12

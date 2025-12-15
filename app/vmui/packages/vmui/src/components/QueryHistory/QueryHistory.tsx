@@ -12,12 +12,12 @@ import { clearQueryHistoryStorage, getQueriesFromStorage, setFavoriteQueriesToSt
 import QueryHistoryItem from "./QueryHistoryItem";
 import classNames from "classnames";
 import "./style.scss";
-import { StorageKeys } from "../../utils/storage";
+import { ActiveStorageKeys } from "../../utils/storage";
 import { arrayEquals } from "../../utils/array";
 
 interface Props {
   handleSelectQuery: (query: string, index: number) => void
-  historyKey: Extract<StorageKeys, "METRICS_QUERY_HISTORY">;
+  historyKey: Extract<ActiveStorageKeys, "METRICS_QUERY_HISTORY">;
 }
 
 export const HistoryTabTypes = {
