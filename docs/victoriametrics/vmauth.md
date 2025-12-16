@@ -1139,12 +1139,12 @@ users:
 
 `vmauth` exports the following metrics if `unauthorized_user` section is defined in [`-auth.config`](#auth-config):
 
-* `vmauth_unauthorized_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of unauthorized requests served
-* `vmauth_unauthorized_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of unauthorized backend request errors
-* `vmauth_unauthorized_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - the duration of unauthorized requests
-* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of failed unauthorized requests because of exceeded [concurrency limits](#concurrency-limiting)
-* `vmauth_unauthorized_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the maximum number of [concurrent unauthorized requests](#concurrency-limiting)
-* `vmauth_unauthorized_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the current number of [concurrent unauthorized requests](#concurrency-limiting)
+* `vmauth_unauthorized_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of requests served for unauthorized user
+* `vmauth_unauthorized_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of backend request errors for unauthorized user
+* `vmauth_unauthorized_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - the duration of requests for unauthorized user
+* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of failed requests because of exceeded [concurrency limits](#concurrency-limiting) for unauthorized user
+* `vmauth_unauthorized_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the maximum number of [concurrent requests](#concurrency-limiting) for unauthorized user
+* `vmauth_unauthorized_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the current number of [concurrent requests](#concurrency-limiting) for unauthorized user
 
 ## How to build from sources
 
