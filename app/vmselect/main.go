@@ -520,7 +520,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
 			return true
 		}
-		proxyVMAlertRequests(w, r)
+		proxyVMAlertRequests(path, w, r)
 		return true
 	}
 
@@ -558,7 +558,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r)
+			proxyVMAlertRequests(path, w, r)
 			return true
 		}
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
@@ -568,7 +568,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "/api/v1/alerts", "/alerts":
 		alertsRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r)
+			proxyVMAlertRequests(path, w, r)
 			return true
 		}
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
@@ -578,7 +578,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "/api/v1/notifiers", "/notifiers":
 		notifiersRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r)
+			proxyVMAlertRequests(path, w, r)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -725,7 +725,7 @@ var (
 	metricNamesStatsResetErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/admin/status/metric_names_stats/reset"}`)
 )
 
-func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
+func proxyVMAlertRequests(path string, w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		err := recover()
 		if err == nil || err == http.ErrAbortHandler {
@@ -737,6 +737,7 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}()
 	r.Host = vmalertProxyHost
+	r.URL.Path = path
 	vmalertProxy.ServeHTTP(w, r)
 }
 
