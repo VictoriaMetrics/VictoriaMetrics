@@ -15,7 +15,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -554,9 +553,9 @@ func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.D
 // For more details, see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9417
 func repackBlockFromZstdToSnappy(zstdBlock []byte) ([]byte, error) {
 	plainBlock := make([]byte, 0, len(zstdBlock)*2)
-	plainBlock, err := zstd.Decompress(plainBlock, zstdBlock)
+	plainBlock, err := encoding.DecompressZSTD(plainBlock, zstdBlock)
 	if err != nil {
-		return nil, fmt.Errorf("zstd: decompress: %s", err)
+		return nil, err
 	}
 
 	return snappy.Encode(nil, plainBlock), nil

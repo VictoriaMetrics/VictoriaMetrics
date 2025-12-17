@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
-// MetricPusher must implement the ability to push the parsed samples and metric metadata to the underlying storage.
+// MetricPusher must push the parsed samples and metric metadata to the underlying storage.
 type MetricPusher interface {
 	// PushSample must store a sample with the given args.
 	//
@@ -23,7 +23,7 @@ type MetricPusher interface {
 
 	// PushMetricMetadata must store mm.
 	//
-	// The PushMetricMetadata must copy mm contents, wince it becomes invalid after returning from the func.
+	// The PushMetricMetadata must copy mm contents, since it becomes invalid after returning from the func.
 	PushMetricMetadata(mm *MetricMetadata)
 }
 
