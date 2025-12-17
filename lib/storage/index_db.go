@@ -206,11 +206,10 @@ type IndexDBMetrics struct {
 	MetricIDCacheSyncsCount     uint64
 	MetricIDCacheRotationsCount uint64
 
-	DateMetricIDCacheSize         uint64
-	DateMetricIDCacheSizeBytes    uint64
-	DateMetricIDCacheSizeMaxBytes uint64
-	DateMetricIDCacheSyncsCount   uint64
-	DateMetricIDCacheResetsCount  uint64
+	DateMetricIDCacheSize           uint64
+	DateMetricIDCacheSizeBytes      uint64
+	DateMetricIDCacheSyncsCount     uint64
+	DateMetricIDCacheRotationsCount uint64
 
 	// Used by legacy indexDBs only.
 	// See UpdateMetrics() in index_db_legacy.go
@@ -273,9 +272,8 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	if dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
 		m.DateMetricIDCacheSize = dmcs.Size
 		m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
-		m.DateMetricIDCacheSizeMaxBytes = dmcs.SizeMaxBytes
 		m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
-		m.DateMetricIDCacheResetsCount = dmcs.ResetsCount
+		m.DateMetricIDCacheRotationsCount = dmcs.RotationsCount
 	}
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
@@ -298,10 +296,12 @@ func (db *indexDB) MustClose() {
 	db.tagFiltersToMetricIDsCache.MustStop()
 	db.loopsPerDateTagFilterCache.MustStop()
 	db.metricIDCache.MustStop()
+	db.dateMetricIDCache.MustStop()
 
 	db.tagFiltersToMetricIDsCache = nil
 	db.loopsPerDateTagFilterCache = nil
 	db.metricIDCache = nil
+	db.dateMetricIDCache = nil
 }
 
 // getMetricIDsFromTagFiltersCache retrieves the set of metricIDs that
