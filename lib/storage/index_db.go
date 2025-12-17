@@ -2789,17 +2789,11 @@ func (db *indexDB) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) 
 		logger.Panicf("BUG: registration of new series is disabled for indexDB %q", db.name)
 	}
 
-	// Note that even if per-day indexes are disabled (i.e.
-	// db.s.disablePerDayIndex == true), we still need to add the entry to this
-	// cache because Storage.prefillNextIndexDB() relies on
-	// indexDB.hasDateMetricID() to decide whether the index records given
-	// metricID need to be created and without this cache the next indexDB
-	// prefill will be significantly slower when per-day indexes are disabled.
-	db.dateMetricIDCache.Set(date, tsid.MetricID)
-
 	if db.s.disablePerDayIndex {
 		return
 	}
+
+	db.dateMetricIDCache.Set(date, tsid.MetricID)
 
 	ii := getIndexItems()
 	defer putIndexItems(ii)
@@ -2940,13 +2934,7 @@ func (is *indexSearch) hasDateMetricID(date, metricID uint64) bool {
 		return true
 	}
 
-	var ok bool
-	if date == globalIndexDate {
-		ok = is.hasMetricID(metricID)
-	} else {
-		ok = is.hasDateMetricIDSlow(date, metricID)
-	}
-
+	ok := is.hasDateMetricIDSlow(date, metricID)
 	if ok {
 		is.db.dateMetricIDCache.Set(date, metricID)
 	}

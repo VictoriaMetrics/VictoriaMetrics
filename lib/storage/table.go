@@ -176,7 +176,13 @@ func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	fs.MustRemoveDir(indexDBDir)
 }
 
-func (tb *table) addPartitionLocked(pt *partition) *partitionWrapper {
+func (tb *table) addPartitionLocked(pt *partition) {
+	_ = tb.addPartitionWrapperLocked(pt)
+	// It is expected that the caller of this method will eventually decrement
+	// the pt refCount.
+}
+
+func (tb *table) addPartitionWrapperLocked(pt *partition) *partitionWrapper {
 	ptw := &partitionWrapper{
 		pt: pt,
 	}
@@ -560,7 +566,7 @@ func (tb *table) MustGetPartition(timestamp int64) *partitionWrapper {
 	}
 
 	pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
-	ptw = tb.addPartitionLocked(pt)
+	ptw = tb.addPartitionWrapperLocked(pt)
 	ptw.incRef()
 	return ptw
 }
