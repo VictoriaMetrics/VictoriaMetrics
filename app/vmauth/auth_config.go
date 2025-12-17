@@ -529,11 +529,11 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 	for i := 1; i < len(bus); i++ {
 		if !bus[i].isBroken() {
 			bu = bus[i]
-			break
+			bu.get()
+			return bu
 		}
 	}
-	bu.get()
-	return bu
+	return nil
 }
 
 // getLeastLoadedBackendURL returns the backendURL with the minimum number of concurrent requests.

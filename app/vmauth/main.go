@@ -284,13 +284,13 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			return
 		}
 		bu.setBroken()
+		ui.backendErrors.Inc()
 	}
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable", up.getBackendsCount(), ui.name()),
 		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)
-	ui.backendErrors.Inc()
 }
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
@@ -325,7 +325,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			if errors.Is(err, context.DeadlineExceeded) {
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
 				logger.Warnf("remoteAddr: %s; requestURI: %s; timeout while proxying the response from %s: %s", remoteAddr, requestURI, targetURL, err)
-				ui.backendErrors.Inc()
 			}
 			return false, false
 		}
@@ -344,11 +343,11 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			return false, true
 		}
 
-		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
+		// Request body wasn't read yet, this usually means that the backend isn't reachable; retry the request at another backend
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
 		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
+		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed: %s, retrying the request at another backend", remoteAddr, req.URL, targetURL, err)
 		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
@@ -357,7 +356,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			// If we get an error from the retry_status_codes list, but cannot execute retry,
 			// we consider such a request an error as well.
 			err := &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("got response status code=%d from %s, but cannot retry the request on another backend, because the request has been already consumed",
+				Err: fmt.Errorf("got response status code=%d from %s, but cannot retry the request at another backend, because the request has been already consumed",
 					res.StatusCode, targetURL),
 				StatusCode: http.StatusServiceUnavailable,
 			}
@@ -370,7 +369,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
 		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
+		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed, retrying the request at another backend because response status code=%d belongs to retry_status_codes=%d",
 			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
 		return false, false
 	}
