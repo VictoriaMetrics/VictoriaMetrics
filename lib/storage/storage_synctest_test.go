@@ -568,7 +568,7 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		// synctest starts at 2000-01-01T00:00:00Z.
 		// Advance time to 23:30 to enable next day prefill.
 		time.Sleep(23*time.Hour + 30*time.Minute) // 2000-01-01T23:30:00Z
-		nextDay := uint64(time.Now().UnixMilli()/msecPerDay) + 1
+		date := uint64(time.Now().UnixMilli()) / msecPerDay
 
 		const numSeries = 1000
 		s := MustOpenStorage(t.Name(), OpenOptions{})
@@ -591,7 +591,7 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		numNextDayMetricIDs := s.pendingNextDayMetricIDs.Len()
 		// But not in the nextDayMetricIDs cache. The pending metrics will be
 		// moved to it by a bg process a few seconds later.
-		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, 0)
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, 0)
 
 		// Wait for nextDayMetricIDs cache to populate.
 		time.Sleep(15 * time.Second)
@@ -604,7 +604,7 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		}
 		// While the actual cache, must contain the exact number of metricIDs
 		// that once were pending.
-		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, numNextDayMetricIDs)
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, numNextDayMetricIDs)
 
 		// Close the storage to persist nextDayMetricIDs cache to a file.
 		s.MustClose()
@@ -614,19 +614,19 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
 			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
 		}
-		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, numNextDayMetricIDs)
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, numNextDayMetricIDs)
 		s.MustClose()
 
 		// Advance the time by one day and open the storage.
 		// Since the current date and the date in the cache file do not match,
 		// nothing will be loaded into cache.
 		time.Sleep(24 * time.Hour)
-		nextDay = uint64(time.Now().UnixMilli()/msecPerDay) + 1
+		date = uint64(time.Now().UnixMilli()) / msecPerDay
 		s = MustOpenStorage(t.Name(), OpenOptions{})
 		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
 			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
 		}
-		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, nextDay, 0)
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, 0)
 		s.MustClose()
 	})
 }

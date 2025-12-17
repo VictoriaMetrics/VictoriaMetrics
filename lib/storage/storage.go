@@ -295,8 +295,6 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	}
 	tb.PutPartitions(ptws)
 
-	// Load nextDayMetricIDs cache after the data table is opened since it
-	// requires the table to operate properly.
 	// Load prevHourMetricIDs, currHourMetricIDs, and nextDayMetricIDs caches
 	// after the data table is opened since they require the partition index to
 	// operate properly.
@@ -306,7 +304,10 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
 	s.pendingHourEntries = &uint64set.Set{}
-	nextDayMetricIDs := s.mustLoadNextDayMetricIDs()
+	// Load nextDayMetricIDs cache after the data table is opened since it
+	// requires the partition index to operate properly.
+	date := fasttime.UnixDate()
+	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(date)
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
@@ -841,10 +842,12 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stopCh:
-			s.updateNextDayMetricIDs()
+			date := fasttime.UnixDate()
+			s.updateNextDayMetricIDs(date)
 			return
 		case <-ticker.C:
-			s.updateNextDayMetricIDs()
+			date := fasttime.UnixDate()
+			s.updateNextDayMetricIDs(date)
 		}
 	}
 }
@@ -905,9 +908,8 @@ func (s *Storage) MustClose() {
 	}
 }
 
-func (s *Storage) mustLoadNextDayMetricIDs() *nextDayMetricIDs {
-	nextDay := fasttime.UnixDate() + 1
-	ptw := s.tb.MustGetPartition(int64(nextDay) * msecPerDay)
+func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *nextDayMetricIDs {
+	ptw := s.tb.MustGetPartition(int64(date+1) * msecPerDay)
 	nextDayIDBID := ptw.pt.idb.id
 	s.tb.PutPartition(ptw)
 	e := &nextDayMetricIDs{
@@ -915,7 +917,7 @@ func (s *Storage) mustLoadNextDayMetricIDs() *nextDayMetricIDs {
 		// avoid getting it every time a new batch of metric rows is
 		// ingested. See updatePerDateData().
 		idbID: nextDayIDBID,
-		date:  nextDay,
+		date:  date,
 	}
 	path := filepath.Join(s.cachePath, nextDayMetricIDsFilename)
 	if !fs.IsPathExist(path) {
@@ -933,8 +935,8 @@ func (s *Storage) mustLoadNextDayMetricIDs() *nextDayMetricIDs {
 	// Unmarshal header
 	dateLoaded := encoding.UnmarshalUint64(src)
 	src = src[8:]
-	if dateLoaded != nextDay {
-		logger.Infof("discarding %s, since it contains data for stale date; got %d; want %d", path, dateLoaded, nextDay)
+	if dateLoaded != date {
+		logger.Infof("discarding %s, since it contains data for stale date; got %d; want %d", path, dateLoaded, date)
 		return e
 	}
 
@@ -2423,9 +2425,8 @@ type nextDayMetricIDs struct {
 	metricIDs uint64set.Set
 }
 
-func (s *Storage) updateNextDayMetricIDs() {
-	nextDay := fasttime.UnixDate() + 1
-	ptw := s.tb.MustGetPartition(int64(nextDay) * msecPerDay)
+func (s *Storage) updateNextDayMetricIDs(date uint64) {
+	ptw := s.tb.MustGetPartition(int64(date+1) * msecPerDay)
 	nextDayIDBID := ptw.pt.idb.id
 	s.tb.PutPartition(ptw)
 	e := s.nextDayMetricIDs.Load()
@@ -2434,7 +2435,7 @@ func (s *Storage) updateNextDayMetricIDs() {
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 	s.pendingNextDayMetricIDsLock.Unlock()
 	// Not comparing indexDB IDs because different idb ids imply different date.
-	if pendingMetricIDs.Len() == 0 && e.date == nextDay {
+	if pendingMetricIDs.Len() == 0 && e.date == date {
 		// Fast path: nothing to update.
 		return
 	}
@@ -2449,7 +2450,7 @@ func (s *Storage) updateNextDayMetricIDs() {
 	// happens to be in a different indexDB the cache needs to be reset. But
 	// since different indexDBs imply different dates, it is enough to compare
 	// just dates.
-	if e.date == nextDay {
+	if e.date == date {
 		pendingMetricIDs.Union(&e.metricIDs)
 	} else {
 		// Do not add pendingMetricIDs from the previous day to the current day,
@@ -2462,7 +2463,7 @@ func (s *Storage) updateNextDayMetricIDs() {
 		// getting it every time a new batch of metric rows is ingested (see
 		// updatePerDateData()).
 		idbID:     nextDayIDBID,
-		date:      nextDay,
+		date:      date,
 		metricIDs: *pendingMetricIDs,
 	}
 	s.nextDayMetricIDs.Store(eNew)
