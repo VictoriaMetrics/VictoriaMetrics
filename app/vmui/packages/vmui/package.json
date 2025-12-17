@@ -18,7 +18,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:dev": "vitest"
+    "test:dev": "vitest",
+    "precommit": "npm run lint:local && npm run typecheck && npm run test"
   },
   "dependencies": {
     "classnames": "^2.5.1",
