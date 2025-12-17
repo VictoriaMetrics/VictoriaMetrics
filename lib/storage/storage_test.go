@@ -3407,52 +3407,6 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 	}
 }
 
-func TestStorageDate(t *testing.T) {
-	defer testRemoveAll(t)
-
-	f := func(disablePerDayIndex bool, millis int64, want uint64) {
-		t.Helper()
-		s := MustOpenStorage(t.Name(), OpenOptions{
-			DisablePerDayIndex: disablePerDayIndex,
-		})
-		defer s.MustClose()
-		if got := s.date(millis); got != want {
-			t.Errorf("unexpected date: got %d, want %d", got, want)
-		}
-	}
-
-	// Zero millis are converted to zero date regardless whether
-	// -disablePerDayIndex flag is set or not.
-	f(false, 0, 0)
-	f(true, 0, 0)
-
-	// When per-day index is enabled, positive millis are converted to the
-	// corresponding date.
-	f(false, 10*msecPerDay, 10)
-
-	// When per-day index is disabled, positive millis are converted to
-	// globalIndexDate.
-	f(true, 10*msecPerDay, globalIndexDate)
-}
-
-func TestStorageDate_negativeMillis(t *testing.T) {
-	defer testRemoveAll(t)
-
-	// Negative millis won't be converted to a negative date because the date is
-	// always positive. As a result, dates earlier than 1970-01-01 are not
-	// supported. However, when the -disablePerDayIndex flag is set, negative
-	// millis must be converted to globalIndexDate.
-	s := MustOpenStorage(t.Name(), OpenOptions{
-		DisablePerDayIndex: true,
-	})
-	millis := int64(-10 * msecPerDay)
-	want := globalIndexDate
-	if got := s.date(millis); got != want {
-		t.Errorf("unexpected date: got %d, want %d", got, want)
-	}
-	s.MustClose()
-}
-
 func TestStorageAdjustTimeRange(t *testing.T) {
 	defer testRemoveAll(t)
 

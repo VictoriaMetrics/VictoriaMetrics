@@ -1951,13 +1951,6 @@ var metricRowsInsertCtxPool sync.Pool
 
 const maxMetricRowsPerBlock = 8000
 
-func (s *Storage) date(millis int64) uint64 {
-	if s.disablePerDayIndex {
-		return globalIndexDate
-	}
-	return uint64(millis) / msecPerDay
-}
-
 // It has been found empirically, that once the time range is bigger than 40
 // days searching using per-day index becomes slower than using global index.
 //
@@ -2009,7 +2002,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			// Skip row, since it exceeds cardinality limit
 			continue
 		}
-		date := s.date(mr.Timestamp)
+		date := uint64(mr.Timestamp) / msecPerDay
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			// Fast path - mr.MetricNameRaw has been already registered in the current idb.
 			if genTSID.generation < generation {
@@ -2175,7 +2168,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		r.Timestamp = mr.Timestamp
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
-		date := s.date(r.Timestamp)
+		date := uint64(r.Timestamp) / msecPerDay
 		hour := uint64(r.Timestamp) / msecPerHour
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
@@ -2400,10 +2393,9 @@ func (s *Storage) prefillNextIndexDB(idbNext *indexDB, rows []rawRow, mrs []*Met
 			continue
 		}
 
-		// Check whether the given (date, metricID) is already present in idbNext.
-		date := s.date(r.Timestamp)
+		// Check whether the given metricID is already present in idbNext.
 		metricID := r.TSID.MetricID
-		if isNext.hasDateMetricID(date, metricID, r.TSID.AccountID, r.TSID.ProjectID) {
+		if isNext.hasMetricID(metricID, r.TSID.AccountID, r.TSID.ProjectID) {
 			continue
 		}
 
@@ -2418,6 +2410,7 @@ func (s *Storage) prefillNextIndexDB(idbNext *indexDB, rows []rawRow, mrs []*Met
 		}
 		mn.sortTags()
 
+		date := uint64(r.Timestamp) / msecPerDay
 		createAllIndexesForMetricName(idbNext, mn, &r.TSID, date)
 		genTSID.TSID = r.TSID
 		genTSID.generation = generation
