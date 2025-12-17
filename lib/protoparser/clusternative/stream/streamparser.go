@@ -10,7 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/consts"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -269,7 +268,7 @@ func (uw *unmarshalWork) Unmarshal() {
 		zb := zbPool.Get()
 		defer zbPool.Put(zb)
 		var err error
-		zb.B, err = zstd.Decompress(zb.B[:0], reqBuf)
+		zb.B, err = encoding.DecompressZSTDLimited(zb.B[:0], reqBuf, consts.MaxInsertPacketSizeForVMStorage)
 		if err != nil {
 			parseErrors.Inc()
 			logger.Errorf("cannot decompress clusternative block with size %d : %s", len(reqBuf), err)
@@ -332,7 +331,7 @@ func (uw *unmarshalMetadataWork) Unmarshal() {
 	zb := zbPool.Get()
 	defer zbPool.Put(zb)
 	var err error
-	zb.B, err = zstd.Decompress(zb.B[:0], reqBuf)
+	zb.B, err = encoding.DecompressZSTDLimited(zb.B[:0], reqBuf, consts.MaxInsertPacketSizeForVMStorage)
 	if err != nil {
 		parseMetadataErrors.Inc()
 		logger.Errorf("cannot decompress clusternative metricsmetadata block with size %d : %s", len(reqBuf), err)
