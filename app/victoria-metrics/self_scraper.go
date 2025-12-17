@@ -10,9 +10,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
@@ -48,6 +50,7 @@ func selfScraper(scrapeInterval time.Duration) {
 
 	var bb bytesutil.ByteBuffer
 	var rows prometheus.Rows
+	var metadataRows prometheus.MetadataRows
 	var mrs []storage.MetricRow
 	var labels []prompb.Label
 	t := time.NewTicker(scrapeInterval)
@@ -58,7 +61,11 @@ func selfScraper(scrapeInterval time.Duration) {
 		s := bytesutil.ToUnsafeString(bb.B)
 		rows.Reset()
 		// VictoriaMetrics components don't expose metadata yet, only need to parse samples
-		rows.UnmarshalWithErrLogger(s, nil)
+		if prommetadata.IsEnabled() {
+			rows, metadataRows = prometheus.UnmarshalWithMetadata(rows, metadataRows, s, nil)
+		} else {
+			rows.UnmarshalWithErrLogger(s, nil)
+		}
 		mrs = mrs[:0]
 		for i := range rows.Rows {
 			r := &rows.Rows[i]
@@ -90,6 +97,19 @@ func selfScraper(scrapeInterval time.Duration) {
 		}
 		if err := vmstorage.AddRows(mrs); err != nil {
 			logger.Errorf("cannot store self-scraped metrics: %s", err)
+		}
+		if len(metadataRows.Rows) > 0 {
+			mms := make([]metricsmetadata.Row, 0, len(metadataRows.Rows))
+			for _, mm := range metadataRows.Rows {
+				mms = append(mms, metricsmetadata.Row{
+					MetricFamilyName: bytesutil.ToUnsafeBytes(mm.Metric),
+					Help:             bytesutil.ToUnsafeBytes(mm.Help),
+					Type:             mm.Type,
+				})
+			}
+			if err := vmstorage.AddMetadataRows(mms); err != nil {
+				logger.Errorf("cannot store self-scraped metrics metadata: %s", err)
+			}
 		}
 	}
 	for {
