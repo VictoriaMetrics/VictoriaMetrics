@@ -1135,6 +1135,67 @@ scrape_configs:
 		},
 	})
 
+	// Test different precedence levels for sample_limit:
+	// - Job 'a' uses the global limit (100).
+	// - Job 'b' overrides the global limit with its own job-level limit (200).
+	// - Job 'c' uses relabeling to set the final limit via the __sample_limit__ label (500), overriding the job-level limit.
+	f(`
+global:
+  sample_limit: 100
+scrape_configs:
+- job_name: a
+  static_configs:
+  - targets: ["foo.a:1234"]
+- job_name: b
+  sample_limit: 200
+  static_configs:
+  - targets: ["foo.b:1234"]
+- job_name: c
+  sample_limit: 100
+  static_configs:
+  - targets: ["foo.c:1234"]
+  relabel_configs:
+    - target_label: __sample_limit__
+      replacement: 500
+`, []*ScrapeWork{
+		{
+			ScrapeURL:      "http://foo.a:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  maxScrapeSize.N,
+			SampleLimit:    100,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo.a:1234",
+				"job":      "a",
+			}),
+			jobNameOriginal: "a",
+		},
+		{
+			ScrapeURL:      "http://foo.b:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  maxScrapeSize.N,
+			SampleLimit:    200,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo.b:1234",
+				"job":      "b",
+			}),
+			jobNameOriginal: "b",
+		},
+		{
+			ScrapeURL:      "http://foo.c:1234/metrics",
+			ScrapeInterval: defaultScrapeInterval,
+			ScrapeTimeout:  defaultScrapeTimeout,
+			MaxScrapeSize:  maxScrapeSize.N,
+			SampleLimit:    500,
+			Labels: promutil.NewLabelsFromMap(map[string]string{
+				"instance": "foo.c:1234",
+				"job":      "c",
+			}),
+			jobNameOriginal: "c",
+		},
+	})
+
 	f(`
 scrape_configs:
   - job_name: 'snmp'
