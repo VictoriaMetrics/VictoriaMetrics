@@ -112,7 +112,7 @@ func (pcs *ParsedConfigs) ApplyDebug(labels []prompb.Label) ([]prompb.Label, []D
 func (pcs *ParsedConfigs) Apply(labels []prompb.Label, labelsOffset int) []prompb.Label {
 	if pcs != nil {
 		var bf *BloomFilter
-		if pcs.GetIfFilterSize() > 200 || len(labels[labelsOffset:]) > 50 {
+		if pcs.GetIfFilterSize() > 50 || len(labels[labelsOffset:]) > 20 {
 			bf = getBloomFilter()
 			defer putBloomFilter(bf)
 
