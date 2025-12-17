@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly proxy all supported VMAlert paths if `-vmalert.proxyUrl` is set. See [#10178](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10178).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly proxy requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) when `-vmalert.proxyURL` flag is set. See [#10178](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10178).
 
 ## [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0)
 
