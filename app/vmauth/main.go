@@ -294,6 +294,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 }
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
+	ui.backendRequests.Inc()
 	req := sanitizeRequestHeaders(r)
 
 	req.URL = targetURL
