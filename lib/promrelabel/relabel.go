@@ -1,7 +1,6 @@
 package promrelabel
 
 import (
-	"flag"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -14,12 +13,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"github.com/cespare/xxhash/v2"
-)
-
-var (
-	useBloomFilterMatching = flag.Bool("relabel.useBloomFilterMatching", true, "Whether to use bloom filter optimization for matching labels during relabeling. "+
-		"Uses an optimized bloom filter to speed up matching of labels against multiple relabeling rules with `if` conditions."+
-		" Highly effective when there are a large number of filters that only match a small portion of the data")
 )
 
 // parsedRelabelConfig contains parsed `relabel_config`.
@@ -119,7 +112,7 @@ func (pcs *ParsedConfigs) ApplyDebug(labels []prompb.Label) ([]prompb.Label, []D
 func (pcs *ParsedConfigs) Apply(labels []prompb.Label, labelsOffset int) []prompb.Label {
 	if pcs != nil {
 		var bf *BloomFilter
-		if *useBloomFilterMatching && (pcs.GetIfFilterSize() > 200 || len(labels[labelsOffset:]) > 50) {
+		if pcs.GetIfFilterSize() > 200 || len(labels[labelsOffset:]) > 50 {
 			bf = getBloomFilter()
 			defer putBloomFilter(bf)
 
