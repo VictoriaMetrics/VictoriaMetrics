@@ -230,6 +230,7 @@ export interface Rule {
   debug: boolean;
   updates: RuleUpdate[];
   max_updates_entries: number;
+  states: Record<string, number>;
 }
 
 interface RuleUpdate {

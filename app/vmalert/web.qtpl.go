@@ -444,7 +444,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
 			qw422016.N().S(`
                                 <span class="badge bg-success" title="Number of rules with status Ok">`)
 //line app/vmalert/web.qtpl:135
-			qw422016.N().D(g.States["healthy"])
+			qw422016.N().D(g.States["ok"])
 //line app/vmalert/web.qtpl:135
 			qw422016.N().S(`</span>
                             </span>
@@ -2020,7 +2020,7 @@ func streamseriesFetchedWarn(qw422016 *qt422016.Writer, prefix string, r *rule.A
 	qw422016.N().S(`
 `)
 //line app/vmalert/web.qtpl:665
-	if r.State == "nomatch" {
+	if r.IsNoMatch() {
 //line app/vmalert/web.qtpl:665
 		qw422016.N().S(`
 <svg

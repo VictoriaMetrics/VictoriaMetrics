@@ -132,7 +132,7 @@
                             <span class="d-flex gap-2">
                                 {% if g.States["unhealthy"] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d g.States["unhealthy"] %}</span> {% endif %}
                                 {% if g.States["nomatch"] > 0 %}<span class="badge bg-warning" title="Number of rules with status NoMatch">{%d g.States["nomatch"] %}</span> {% endif %}
-                                <span class="badge bg-success" title="Number of rules with status Ok">{%d g.States["healthy"] %}</span>
+                                <span class="badge bg-success" title="Number of rules with status Ok">{%d g.States["ok"] %}</span>
                             </span>
                         </span>
                     </span>
@@ -662,7 +662,7 @@
 {% endfunc %}
 
 {% func seriesFetchedWarn(prefix string, r *rule.ApiRule) %}
-{% if r.State == "nomatch" %}
+{% if r.IsNoMatch() %}
 <svg
     data-bs-toggle="tooltip"
     title="No match! This rule's last evaluation hasn't selected any time series from the datasource.
