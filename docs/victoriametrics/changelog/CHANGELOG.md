@@ -26,6 +26,9 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): add support for global `sampleLimit` setting. This allows users to efficiently limit the number of samples accepted per scrape target. This also ensures target-level `sample_limit` can correctly override the global setting. See [#10145](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10145). Thanks to the @kobylyanskiy.
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): expose `vmauth_user_request_backend_requests_total` and `vmauth_unauthorized_user_request_backend_requests_total` [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring), which track the number of requests sent to backends. These counts may exceed `vmauth_user_requests_total` and `vmauth_unauthorized_user_requests_total` when requests are retried across multiple backends.
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): refine vmsingle dashboard and align it to vmcluster dashboard. See [#10132](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10132)
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): refine vmsingle dashboard and align it to vmcluster dashboard. See [#9974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9974)
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix configuration reloading for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` when vmagent is launched with empty files. Previously, if vmagent started with an empty config, subsequent config reloads were ignored. See [#10211](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10211).
