@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func TestDateMetricIDCacheSerial(t *testing.T) {
 	c := newDateMetricIDCache()
+	defer c.MustStop()
 	if err := testDateMetricIDCache(c, false); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -19,6 +19,7 @@ func TestDateMetricIDCacheSerial(t *testing.T) {
 
 func TestDateMetricIDCacheConcurrent(t *testing.T) {
 	c := newDateMetricIDCache()
+	defer c.MustStop()
 	ch := make(chan error, 5)
 	for i := 0; i < 5; i++ {
 		go func() {
@@ -63,9 +64,9 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 			c.mu.Unlock()
 		}
 		if i%34323 == 0 {
-			c.mu.Lock()
-			c.resetLocked()
-			c.mu.Unlock()
+			// Two rotations are needed to clear the cache.
+			c.rotate()
+			c.rotate()
 			m = make(map[dmk]bool)
 		}
 	}
@@ -87,13 +88,15 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 		}
 	}
 
-	// Verify c.Reset
+	// Verify that cache becomes empty after two rotations.
 	if n := c.Stats().Size; !concurrent && n < 123 {
 		return fmt.Errorf("c.EntriesCount must return at least 123; returned %d", n)
 	}
-	c.mu.Lock()
-	c.resetLocked()
-	c.mu.Unlock()
+	c.rotate()
+	if n := c.Stats().Size; !concurrent && n < 123 {
+		return fmt.Errorf("c.EntriesCount must return at least 123; returned %d", n)
+	}
+	c.rotate()
 	if n := c.Stats().Size; !concurrent && n > 0 {
 		return fmt.Errorf("c.EntriesCount must return 0 after reset; returned %d", n)
 	}
@@ -108,6 +111,7 @@ func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 		numMetrics  = 100000
 	)
 	dmc := newDateMetricIDCache()
+	defer dmc.MustStop()
 	var wg sync.WaitGroup
 	for i := range concurrency {
 		wg.Add(1)
@@ -124,39 +128,9 @@ func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 	wg.Wait()
 }
 
-func TestDateMetricIDCache_SizeMaxBytes(t *testing.T) {
-	defer SetDateMetricIDCacheSize(0)
-
-	assertSizeMaxBytes := func(dmc *dateMetricIDCache, want uint64) {
-		t.Helper()
-		if got := dmc.Stats().SizeMaxBytes; got != want {
-			t.Fatalf("unexpected sizeMaxBytes: got %d, want %d", got, want)
-		}
-	}
-
-	defaultSizeMaxBytes := uint64(float64(memory.Allowed()) / 256)
-	var dmc *dateMetricIDCache
-
-	// Default.
-	dmc = newDateMetricIDCache()
-	assertSizeMaxBytes(dmc, defaultSizeMaxBytes)
-
-	// Overriden.
-	SetDateMetricIDCacheSize(1024)
-	dmc = newDateMetricIDCache()
-	assertSizeMaxBytes(dmc, 1024)
-
-	// Overriden at runtime.
-	SetDateMetricIDCacheSize(2048)
-	assertSizeMaxBytes(dmc, 2048)
-
-	// Reset to default at runtime.
-	SetDateMetricIDCacheSize(0)
-	assertSizeMaxBytes(dmc, defaultSizeMaxBytes)
-}
-
 func TestDateMetricIDCache_Size(t *testing.T) {
 	dmc := newDateMetricIDCache()
+	defer dmc.MustStop()
 	for i := range 100_000 {
 		date := 12345 + uint64(i%30)
 		metricID := uint64(i)
@@ -182,6 +156,7 @@ func TestDateMetricIDCache_Size(t *testing.T) {
 
 func TestDateMetricIDCache_SizeBytes(t *testing.T) {
 	dmc := newDateMetricIDCache()
+	defer dmc.MustStop()
 	metricIDs := &uint64set.Set{}
 	for i := range 100_000 {
 		date := uint64(123)

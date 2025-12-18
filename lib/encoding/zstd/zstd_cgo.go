@@ -9,11 +9,14 @@ import (
 // Decompress appends decompressed src to dst and returns the result.
 //
 // This function must be called only for the trusted src.
+// Otherwise use DecompressLimited function.
 func Decompress(dst, src []byte) ([]byte, error) {
 	return gozstd.Decompress(dst, src)
 }
 
 // Decompress appends decompressed src to dst and returns the result.
+//
+// If the decompressed result exceeds maxDataSizeBytes, then error is returned.
 func DecompressLimited(dst, src []byte, maxDataSizeBytes int) ([]byte, error) {
 	return gozstd.DecompressLimited(dst, src, maxDataSizeBytes)
 }

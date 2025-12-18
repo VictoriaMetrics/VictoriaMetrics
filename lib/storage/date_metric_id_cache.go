@@ -4,97 +4,104 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
-var maxDateMetricIDCacheSize uint64
-
-// SetDateMetricIDCacheSize overrides the default size of dateMetricIDCache
-func SetDateMetricIDCacheSize(size int) {
-	maxDateMetricIDCacheSize = uint64(size)
-}
-
-func getDateMetricIDCacheSize() uint64 {
-	if maxDateMetricIDCacheSize <= 0 {
-		return uint64(float64(memory.Allowed()) / 256)
-	}
-	return maxDateMetricIDCacheSize
-}
-
-// dateMetricIDCache is fast cache for holding (date, metricID) entries.
+// dateMetricIDCache stores (date, metricIDs) entries that have been added to
+// the index. It is used during data ingestion to decide whether a new entry
+// needs to be added to the per-day index.
 //
 // It should be faster than map[date]*uint64set.Set on multicore systems.
 type dateMetricIDCache struct {
-	// Contains immutable map
-	byDate atomic.Pointer[byDateMetricIDMap]
+	// Contains immutable (date, metricIDs) entries.
+	curr atomic.Pointer[byDateMetricIDMap]
 
-	// Contains mutable map protected by mu
-	byDateMutable *byDateMetricIDMap
-
-	// Contains the number of slow accesses to byDateMutable.
-	// Is used for deciding when to merge byDateMutable to byDate.
+	// Contains immutable (date, metricIDs) entries that used to be current
+	// before cache rotation. It is used to implement periodic cache clean-up.
 	// Protected by mu.
+	prev *byDateMetricIDMap
+
+	// Contains mutable (date metricIDs) entries that either have been added to
+	// the cache recently or migrated from prev. Protected by mu.
+	next *byDateMetricIDMap
+
+	// Contains the number of slow accesses to next. Is used for deciding when
+	// to merge next to curr. Protected by mu.
 	slowHits int
 
-	// Protected by mu.
+	// Contains the number times the next was merged into curr. Protected by mu.
 	syncsCount uint64
 
-	// Protected by mu.
-	resetsCount uint64
+	// Contains the number times the cache has been rotated. Protected by mu.
+	rotationsCount uint64
 
 	mu sync.Mutex
+
+	stopCh            chan struct{}
+	rotationStoppedCh chan struct{}
 }
 
 func newDateMetricIDCache() *dateMetricIDCache {
-	var dmc dateMetricIDCache
-	dmc.resetLocked()
+	dmc := dateMetricIDCache{
+		prev:              newByDateMetricIDMap(),
+		next:              newByDateMetricIDMap(),
+		stopCh:            make(chan struct{}),
+		rotationStoppedCh: make(chan struct{}),
+	}
+	dmc.curr.Store(newByDateMetricIDMap())
+	go dmc.startRotation()
 	return &dmc
 }
 
-func (dmc *dateMetricIDCache) resetLocked() {
-	// Do not reset syncsCount and resetsCount
-	dmc.byDate.Store(newByDateMetricIDMap())
-	dmc.byDateMutable = newByDateMetricIDMap()
-	dmc.slowHits = 0
-
-	dmc.resetsCount++
+func (dmc *dateMetricIDCache) MustStop() {
+	close(dmc.stopCh)
+	<-dmc.rotationStoppedCh
 }
 
 type dateMetricIDCacheStats struct {
-	Size         uint64
-	SizeBytes    uint64
-	SizeMaxBytes uint64
-	ResetsCount  uint64
-	SyncsCount   uint64
+	Size           uint64
+	SizeBytes      uint64
+	SyncsCount     uint64
+	RotationsCount uint64
 }
 
 func (dmc *dateMetricIDCache) Stats() dateMetricIDCacheStats {
-	s := dateMetricIDCacheStats{
-		SizeMaxBytes: getDateMetricIDCacheSize(),
-	}
-
 	dmc.mu.Lock()
 	defer dmc.mu.Unlock()
 
-	for _, metricIDs := range dmc.byDate.Load().m {
-		s.Size += uint64(metricIDs.Len())
-		s.SizeBytes += metricIDs.SizeBytes()
+	var s dateMetricIDCacheStats
+	for _, metricIDs := range dmc.curr.Load().m {
+		if metricIDs.Len() > 0 {
+			// empty uint64set.Set still occupies a few bytes. Ignore them.
+			s.Size += uint64(metricIDs.Len())
+			s.SizeBytes += metricIDs.SizeBytes()
+		}
 	}
-	for _, metricIDs := range dmc.byDateMutable.m {
-		s.Size += uint64(metricIDs.Len())
-		s.SizeBytes += metricIDs.SizeBytes()
+	for _, metricIDs := range dmc.prev.m {
+		if metricIDs.Len() > 0 {
+			s.Size += uint64(metricIDs.Len())
+			s.SizeBytes += metricIDs.SizeBytes()
+		}
 	}
-
-	s.ResetsCount = dmc.resetsCount
+	for _, metricIDs := range dmc.next.m {
+		if metricIDs.Len() > 0 {
+			s.Size += uint64(metricIDs.Len())
+			s.SizeBytes += metricIDs.SizeBytes()
+		}
+	}
 	s.SyncsCount = dmc.syncsCount
+	s.RotationsCount = dmc.rotationsCount
 
 	return s
 }
 
 func (dmc *dateMetricIDCache) Has(date, metricID uint64) bool {
-	if byDate := dmc.byDate.Load(); byDate.get(date).Has(metricID) {
+	curr := dmc.curr.Load()
+	vCurr := curr.get(date)
+	if vCurr.Has(metricID) {
 		// Fast path. The majority of calls must go here.
 		return true
 	}
@@ -109,19 +116,29 @@ func (dmc *dateMetricIDCache) hasSlow(date, metricID uint64) bool {
 
 	// First, check immutable map again because the entry may have been moved to
 	// the immutable map by the time the caller acquires the lock.
-	byDate := dmc.byDate.Load()
-	v := byDate.get(date)
-	if v.Has(metricID) {
+	curr := dmc.curr.Load()
+	vCurr := curr.get(date)
+	if vCurr.Has(metricID) {
 		return true
 	}
 
-	// Then check mutable map.
-	vMutable := dmc.byDateMutable.get(date)
-	ok := vMutable.Has(metricID)
+	// Then check next and prev.
+	vNext := dmc.next.getOrCreate(date)
+	ok := vNext.Has(metricID)
+	if !ok {
+		vPrev := dmc.prev.get(date)
+		ok = vPrev.Has(metricID)
+		if ok {
+			// The metricID is in prev but is still in use. Migrate it to next.
+			vNext.Add(metricID)
+		}
+	}
+
 	if ok {
 		dmc.slowHits++
-		if dmc.slowHits > (v.Len()+vMutable.Len())/2 {
-			// It is cheaper to merge byDateMutable into byDate than to pay inter-cpu sync costs when accessing vMutable.
+		if dmc.slowHits > (vCurr.Len()+vNext.Len())/2 {
+			// It is cheaper to merge next into curr than to pay inter-cpu sync
+			// costs when accessing next.
 			dmc.syncLocked()
 			dmc.slowHits = 0
 		}
@@ -131,48 +148,50 @@ func (dmc *dateMetricIDCache) hasSlow(date, metricID uint64) bool {
 
 func (dmc *dateMetricIDCache) Set(date, metricID uint64) {
 	dmc.mu.Lock()
-	v := dmc.byDateMutable.getOrCreate(date)
+	v := dmc.next.getOrCreate(date)
 	v.Add(metricID)
 	dmc.mu.Unlock()
 }
 
 func (dmc *dateMetricIDCache) syncLocked() {
-	if len(dmc.byDateMutable.m) == 0 {
+	if len(dmc.next.m) == 0 {
 		// Nothing to sync.
 		return
 	}
 
-	// Merge data from byDate into byDateMutable and then atomically replace byDate with the merged data.
-	byDate := dmc.byDate.Load()
-	byDateMutable := dmc.byDateMutable
-	byDateMutable.hotEntry.Store(nil)
+	// Merge data from curr into next and then atomically replace curr with the
+	// merged data.
+	curr := dmc.curr.Load()
+	next := dmc.next
+	next.hotEntry.Store(nil)
 
-	keepDatesMap := make(map[uint64]struct{}, len(byDateMutable.m))
-	for date, metricIDsMutable := range byDateMutable.m {
+	keepDatesMap := make(map[uint64]struct{}, len(next.m))
+	for date, vNext := range next.m {
 		keepDatesMap[date] = struct{}{}
-		metricIDs := byDate.get(date)
-		if metricIDs == nil {
+		vCurr := curr.get(date)
+		if vCurr == nil {
 			// Nothing to merge
 			continue
 		}
-		metricIDs = metricIDs.Clone()
-		metricIDs.Union(metricIDsMutable)
-		byDateMutable.m[date] = metricIDs
+		vCurr = vCurr.Clone()
+		vCurr.Union(vNext)
+		next.m[date] = vCurr
 	}
 
-	// Copy entries from byDate, which are missing in byDateMutable
-	allDatesMap := make(map[uint64]struct{}, len(byDate.m))
-	for date, metricIDs := range byDate.m {
+	// Copy entries from curr, which are missing in next
+	allDatesMap := make(map[uint64]struct{}, len(curr.m))
+	for date, vCurr := range curr.m {
 		allDatesMap[date] = struct{}{}
-		v := byDateMutable.get(date)
-		if v != nil {
+		vNext := next.get(date)
+		if vNext != nil {
 			continue
 		}
-		byDateMutable.m[date] = metricIDs
+		next.m[date] = vCurr
 	}
 
-	if len(byDateMutable.m) > 2 {
-		// Keep only entries for the last two dates from allDatesMap plus all the entries for byDateMutable.
+	if len(next.m) > 2 {
+		// Keep only entries for the last two dates from allDatesMap plus all
+		// the entries for next.
 		dates := make([]uint64, 0, len(allDatesMap))
 		for date := range allDatesMap {
 			dates = append(dates, date)
@@ -186,27 +205,44 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		for _, date := range dates {
 			keepDatesMap[date] = struct{}{}
 		}
-		for date := range byDateMutable.m {
+		for date := range next.m {
 			if _, ok := keepDatesMap[date]; !ok {
-				delete(byDateMutable.m, date)
+				delete(next.m, date)
 			}
 		}
 	}
 
-	var sizeBytes uint64
-	for _, v := range dmc.byDateMutable.m {
-		sizeBytes += v.SizeBytes()
-	}
-
-	// Atomically replace byDate with byDateMutable
-	dmc.byDate.Store(dmc.byDateMutable)
-	dmc.byDateMutable = newByDateMetricIDMap()
+	// Atomically replace curr with next.
+	dmc.curr.Store(dmc.next)
+	dmc.next = newByDateMetricIDMap()
 
 	dmc.syncsCount++
+}
 
-	if sizeBytes > getDateMetricIDCacheSize() {
-		dmc.resetLocked()
+func (dmc *dateMetricIDCache) startRotation() {
+	d := timeutil.AddJitterToDuration(10 * time.Minute)
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-dmc.stopCh:
+			close(dmc.rotationStoppedCh)
+			return
+		case <-ticker.C:
+			dmc.rotate()
+		}
 	}
+}
+
+// rotate atomically rotates next, curr, and prev cache parts.
+func (dmc *dateMetricIDCache) rotate() {
+	dmc.mu.Lock()
+	defer dmc.mu.Unlock()
+	curr := dmc.curr.Load()
+	dmc.prev = curr
+	dmc.curr.Store(dmc.next)
+	dmc.next = newByDateMetricIDMap()
+	dmc.rotationsCount++
 }
 
 // dateMetricIDs holds the date and corresponding metricIDs together and is used
