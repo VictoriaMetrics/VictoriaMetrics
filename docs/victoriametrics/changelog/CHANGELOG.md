@@ -36,9 +36,14 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 Released at 2025-12-12
 
+**Known issue: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): may leak memory when ingesting data via the [OpenTelemetry protocol](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry). 
+The problem introduced in [293d809](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/293d80910ce14c247e943c63cd19467df5767c3c), and is already fixed in commits [fastjson#18c81211](https://github.com/valyala/fastjson/commit/18c812114b638d460f0fc6d8e2b86b719e171389) and [19009836](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/19009836c704a75a295c11b5d55a171c206646bd). 
+If you rely on OpenTelemetry ingestion, skip this version or [build from master](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-build-from-sources) to avoid the leak. 
+Read [VictoriaLogs#869](https://github.com/VictoriaMetrics/VictoriaLogs/issues/869) for more details.**
+
 * SECURITY: upgrade Go builder from Go1.25.4 to Go1.25.5. See [the list of issues addressed in Go1.25.5](https://github.com/golang/go/issues?q=milestone%3AGo1.25.5%20label%3ACherryPickApproved).
 
-* FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/): add panels for flags and configuration parameters values. See [#1341-operator](https://github.com/VictoriaMetrics/operator/issues/1341).
+* FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869-victoriametrics-operator/): add panels for flags and configuration parameters values. See [operator#1341](https://github.com/VictoriaMetrics/operator/issues/1341).
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add `Memory usage breakdown` panels to `Drilldown` section. These panels help analyze overall memory distribution and diagnose anomalies or leaks. See [#10139](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10139).
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add `Major page faults rate` panels to `Troubleshooting` and `Drilldown` sections. See [#9974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9974)
 * FEATURE: [Influx line protocol data ingestion](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/): reduce CPU and memory usage when parsing Influx lines with escaped chars - `,`, `\\`, `=` and ` `. See [#10053](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10053).
