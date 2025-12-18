@@ -4,6 +4,8 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -50,6 +52,8 @@ var (
 		"alert":  rule.TypeAlerting,
 		"record": rule.TypeRecording,
 	}
+	apiRuleStates = []string{"ok", "nomatch", "inactive", "firing", "pending", "unhealthy"}
+	uiRuleStates  = []string{"unhealthy", "nomatch"}
 )
 
 type requestHandler struct {
@@ -94,40 +98,29 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		WriteRuleDetails(w, r, rule)
+		WriteRule(w, r, rule)
 		return true
-	case "/vmalert/groups":
-		rf, err := newRulesFilter(r)
+	case "/vmalert/groups", "/rules":
+		rf, err := newRulesFilter(r, uiRuleStates)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		data := rh.groups(rf)
-		WriteListGroups(w, r, data, rf.filter)
+		lr := rh.groups(rf)
+		state := ""
+		if len(rf.states) == 1 {
+			state = rf.states[0]
+		}
+		WriteListGroups(w, r, lr.Data.Groups, state)
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
 		return true
 
-	// special cases for Grafana requests,
-	// served without `vmalert` prefix:
-	case "/rules":
-		// Grafana makes an extra request to `/rules`
-		// handler in addition to `/api/v1/rules` calls in alerts UI
-		var data []*rule.ApiGroup
-		rf, err := newRulesFilter(r)
-		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		data = rh.groups(rf)
-		WriteListGroups(w, r, data, rf.filter)
-		return true
-
 	case "/vmalert/api/v1/notifiers", "/api/v1/notifiers":
 		data, err := rh.listNotifiers()
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			errJson(w, r, err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -136,14 +129,14 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/vmalert/api/v1/rules", "/api/v1/rules":
 		// path used by Grafana for ng alerting
 		var data []byte
-		rf, err := newRulesFilter(r)
+		rf, err := newRulesFilter(r, apiRuleStates)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			errJson(w, r, err)
 			return true
 		}
 		data, err = rh.listGroups(rf)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			errJson(w, r, err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -152,14 +145,14 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 
 	case "/vmalert/api/v1/alerts", "/api/v1/alerts":
 		// path used by Grafana for ng alerting
-		rf, err := newRulesFilter(r)
+		rf, err := newRulesFilter(r, apiRuleStates)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			errJson(w, r, err)
 			return true
 		}
 		data, err := rh.listAlerts(rf)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			errJson(w, r, err)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -168,12 +161,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/vmalert/api/v1/alert", "/api/v1/alert":
 		alert, err := rh.getAlert(r)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			errJson(w, r, err)
 			return true
 		}
-		data, err := json.Marshal(alert)
-		if err != nil {
-			httpserver.Errorf(w, r, "failed to marshal alert: %s", err)
+		data, e := json.Marshal(alert)
+		if e != nil {
+			errJson(w, r, errResponse(fmt.Errorf("failed to marshal alert: %s", e), http.StatusInternalServerError))
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -182,16 +175,16 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/vmalert/api/v1/rule", "/api/v1/rule":
 		apiRule, err := rh.getRule(r)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			errJson(w, r, err)
 			return true
 		}
 		rwu := rule.ApiRuleWithUpdates{
 			ApiRule:      apiRule,
 			StateUpdates: apiRule.Updates,
 		}
-		data, err := json.Marshal(rwu)
+		data, e := json.Marshal(rwu)
 		if err != nil {
-			httpserver.Errorf(w, r, "failed to marshal rule: %s", err)
+			errJson(w, r, errResponse(fmt.Errorf("failed to marshal rule: %s", e), http.StatusInternalServerError))
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -200,12 +193,12 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/vmalert/api/v1/group", "/api/v1/group":
 		group, err := rh.getGroup(r)
 		if err != nil {
-			httpserver.Errorf(w, r, "%s", err)
+			errJson(w, r, err)
 			return true
 		}
-		data, err := json.Marshal(group)
-		if err != nil {
-			httpserver.Errorf(w, r, "failed to marshal group: %s", err)
+		data, e := json.Marshal(group)
+		if e != nil {
+			errJson(w, r, errResponse(fmt.Errorf("failed to marshal group: %s", e), http.StatusInternalServerError))
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -225,10 +218,10 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
-func (rh *requestHandler) getGroup(r *http.Request) (*rule.ApiGroup, error) {
+func (rh *requestHandler) getGroup(r *http.Request) (*rule.ApiGroup, *httpserver.ErrorWithStatusCode) {
 	groupID, err := strconv.ParseUint(r.FormValue(rule.ParamGroupID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err)
+		return nil, errResponse(fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err), http.StatusBadRequest)
 	}
 	obj, err := rh.m.groupAPI(groupID)
 	if err != nil {
@@ -237,14 +230,14 @@ func (rh *requestHandler) getGroup(r *http.Request) (*rule.ApiGroup, error) {
 	return obj, nil
 }
 
-func (rh *requestHandler) getRule(r *http.Request) (rule.ApiRule, error) {
+func (rh *requestHandler) getRule(r *http.Request) (rule.ApiRule, *httpserver.ErrorWithStatusCode) {
 	groupID, err := strconv.ParseUint(r.FormValue(rule.ParamGroupID), 10, 64)
 	if err != nil {
-		return rule.ApiRule{}, fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err)
+		return rule.ApiRule{}, errResponse(fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err), http.StatusBadRequest)
 	}
 	ruleID, err := strconv.ParseUint(r.FormValue(rule.ParamRuleID), 10, 64)
 	if err != nil {
-		return rule.ApiRule{}, fmt.Errorf("failed to read %q param: %w", rule.ParamRuleID, err)
+		return rule.ApiRule{}, errResponse(fmt.Errorf("failed to read %q param: %w", rule.ParamRuleID, err), http.StatusBadRequest)
 	}
 	obj, err := rh.m.ruleAPI(groupID, ruleID)
 	if err != nil {
@@ -253,14 +246,14 @@ func (rh *requestHandler) getRule(r *http.Request) (rule.ApiRule, error) {
 	return obj, nil
 }
 
-func (rh *requestHandler) getAlert(r *http.Request) (*rule.ApiAlert, error) {
+func (rh *requestHandler) getAlert(r *http.Request) (*rule.ApiAlert, *httpserver.ErrorWithStatusCode) {
 	groupID, err := strconv.ParseUint(r.FormValue(rule.ParamGroupID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err)
+		return nil, errResponse(fmt.Errorf("failed to read %q param: %w", rule.ParamGroupID, err), http.StatusBadRequest)
 	}
 	alertID, err := strconv.ParseUint(r.FormValue(rule.ParamAlertID), 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %q param: %w", rule.ParamAlertID, err)
+		return nil, errResponse(fmt.Errorf("failed to read %q param: %w", rule.ParamAlertID, err), http.StatusBadRequest)
 	}
 	a, err := rh.m.alertAPI(groupID, alertID)
 	if err != nil {
@@ -270,24 +263,38 @@ func (rh *requestHandler) getAlert(r *http.Request) (*rule.ApiAlert, error) {
 }
 
 type listGroupsResponse struct {
-	Status string `json:"status"`
-	Data   struct {
+	Status      string `json:"status"`
+	Page        int    `json:"page,omitempty"`
+	TotalPages  int    `json:"total_pages,omitempty"`
+	TotalGroups int    `json:"total_groups,omitempty"`
+	TotalRules  int    `json:"total_rules,omitempty"`
+	Data        struct {
 		Groups []*rule.ApiGroup `json:"groups"`
 	} `json:"data"`
 }
 
 // see https://prometheus.io/docs/prometheus/latest/querying/api/#rules
 type rulesFilter struct {
-	files         []string
-	groupNames    []string
-	ruleNames     []string
-	ruleType      string
-	excludeAlerts bool
-	filter        string
-	dsType        config.Type
+	files          []string
+	groupNames     []string
+	ruleNames      []string
+	ruleType       string
+	excludeAlerts  bool
+	states         []string
+	dsType         config.Type
+	maxGroups      int
+	pageNum        int
+	search         string
+	extendedStates bool
 }
 
-func newRulesFilter(r *http.Request) (*rulesFilter, error) {
+func newRulesFilter(r *http.Request, allStates []string) (f *rulesFilter, err *httpserver.ErrorWithStatusCode) {
+	var e error
+	defer func() {
+		if e != nil {
+			err = errResponse(e, http.StatusBadRequest)
+		}
+	}()
 	rf := &rulesFilter{}
 	query := r.URL.Query()
 
@@ -296,7 +303,8 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 		if ruleType, ok := ruleTypeMap[ruleTypeParam]; ok {
 			rf.ruleType = ruleType
 		} else {
-			return nil, errResponse(fmt.Errorf(`invalid parameter "type": not supported value %q`, ruleTypeParam), http.StatusBadRequest)
+			e = fmt.Errorf(`invalid parameter "type": not supported value %q`, ruleTypeParam)
+			return
 		}
 	}
 
@@ -305,24 +313,58 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 		if config.SupportedType(dsType) {
 			rf.dsType = config.NewRawType(dsType)
 		} else {
-			return nil, errResponse(fmt.Errorf(`invalid parameter "datasource_type": not supported value %q`, dsType), http.StatusBadRequest)
+			e = fmt.Errorf(`invalid parameter "datasource_type": not supported value %q`, dsType)
+			return
 		}
 	}
 
-	filter := strings.ToLower(query.Get("filter"))
-	if len(filter) > 0 {
-		if filter == "nomatch" || filter == "unhealthy" {
-			rf.filter = filter
-		} else {
-			return nil, errResponse(fmt.Errorf(`invalid parameter "filter": not supported value %q`, filter), http.StatusBadRequest)
+	var states []string
+	state := query.Get("state")
+	if len(state) == 0 {
+		state = query.Get("filter")
+	}
+	if len(state) > 0 {
+		states = strings.Split(strings.ToLower(state), ",")
+		for _, s := range states {
+			if !slices.Contains(allStates, s) {
+				e = fmt.Errorf(`invalid parameter "state": contains not supported value %q`, s)
+				return
+			}
 		}
+		rf.states = states
 	}
 
 	rf.excludeAlerts = httputil.GetBool(r, "exclude_alerts")
+	rf.extendedStates = httputil.GetBool(r, "extended_states")
 	rf.ruleNames = append([]string{}, r.Form["rule_name[]"]...)
 	rf.groupNames = append([]string{}, r.Form["rule_group[]"]...)
 	rf.files = append([]string{}, r.Form["file[]"]...)
-	return rf, nil
+	rf.search = strings.ToLower(query.Get("search"))
+
+	pageNum := query.Get("page_num")
+	maxGroups := query.Get("group_limit")
+	if pageNum != "" {
+		if maxGroups == "" {
+			e = fmt.Errorf(`"group_limit" needs to be present in order to paginate over the groups`)
+			return
+		}
+		v, verr := strconv.Atoi(pageNum)
+		if verr != nil || v <= 0 {
+			e = fmt.Errorf(`"page_num" is expected to be a positive number, found %q`, pageNum)
+			return
+		}
+		rf.pageNum = v
+	}
+	if maxGroups != "" {
+		v, verr := strconv.Atoi(maxGroups)
+		if verr != nil || v <= 0 {
+			e = fmt.Errorf(`"group_limit" is expected to be a positive number, found %q`, maxGroups)
+			return
+		}
+		rf.maxGroups = v
+	}
+	f = rf
+	return
 }
 
 func (rf *rulesFilter) matchesGroup(group *rule.Group) bool {
@@ -338,64 +380,99 @@ func (rf *rulesFilter) matchesGroup(group *rule.Group) bool {
 	return true
 }
 
-func (rh *requestHandler) groups(rf *rulesFilter) []*rule.ApiGroup {
+func (rf *rulesFilter) matchesRule(r *rule.ApiRule) bool {
+	if rf.ruleType != "" && rf.ruleType != r.Type {
+		return false
+	}
+	if len(rf.ruleNames) > 0 && !slices.Contains(rf.ruleNames, r.Name) {
+		return false
+	}
+	if len(rf.states) == 0 {
+		return true
+	}
+	return slices.Contains(rf.states, r.State)
+}
+
+func (rh *requestHandler) groups(rf *rulesFilter) *listGroupsResponse {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	groups := make([]*rule.ApiGroup, 0)
-	for _, group := range rh.m.groups {
-		if !rf.matchesGroup(group) {
-			continue
-		}
-		g := group.ToAPI()
-		// the returned list should always be non-nil
-		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221
-		filteredRules := make([]rule.ApiRule, 0)
-		for _, rule := range g.Rules {
-			if rf.ruleType != "" && rf.ruleType != rule.Type {
-				continue
-			}
-			if len(rf.ruleNames) > 0 && !slices.Contains(rf.ruleNames, rule.Name) {
-				continue
-			}
-			if (rule.LastError == "" && rf.filter == "unhealthy") || (!isNoMatch(rule) && rf.filter == "nomatch") {
-				continue
-			}
-			if rf.excludeAlerts {
-				rule.Alerts = nil
-			}
-			if rule.LastError != "" {
-				g.Unhealthy++
-			} else {
-				g.Healthy++
-			}
-			if isNoMatch(rule) {
-				g.NoMatch++
-			}
-			filteredRules = append(filteredRules, rule)
-		}
-		g.Rules = filteredRules
-		groups = append(groups, g)
+	skipGroups := (rf.pageNum - 1) * rf.maxGroups
+	lr := &listGroupsResponse{
+		Status: "success",
+	}
+	if skipGroups == 0 || skipGroups < len(rh.m.groups) {
+		lr.Data.Groups = make([]*rule.ApiGroup, 0)
+	}
+	if skipGroups >= len(rh.m.groups) {
+		return lr
 	}
 	// sort list of groups for deterministic output
-	slices.SortFunc(groups, func(a, b *rule.ApiGroup) int {
+	groups := slices.SortedFunc(maps.Values(rh.m.groups), func(a, b *rule.Group) int {
 		if a.Name != b.Name {
 			return strings.Compare(a.Name, b.Name)
 		}
 		return strings.Compare(a.File, b.File)
 	})
-	return groups
+	for _, group := range groups {
+		if !rf.matchesGroup(group) {
+			continue
+		}
+		groupFound := len(rf.search) == 0 || strings.Contains(group.Name, rf.search) || strings.Contains(group.File, rf.search)
+		g := group.ToAPI()
+		// the returned list should always be non-nil
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221
+		filteredRules := make([]rule.ApiRule, 0)
+		for _, rule := range g.Rules {
+			if !groupFound && !strings.Contains(strings.ToLower(rule.Name), rf.search) {
+				continue
+			}
+			if !rf.matchesRule(&rule) {
+				continue
+			}
+			if rf.excludeAlerts {
+				rule.Alerts = nil
+			}
+			if rf.extendedStates {
+				rule.ExtendState()
+			}
+			g.States[rule.State]++
+			filteredRules = append(filteredRules, rule)
+		}
+		if len(g.Rules) == 0 || len(filteredRules) > 0 {
+			if rf.maxGroups > 0 {
+				lr.TotalGroups++
+				lr.TotalRules += len(filteredRules)
+			}
+			if skipGroups > 0 {
+				skipGroups--
+				continue
+			}
+			if rf.maxGroups > 0 && len(lr.Data.Groups) == rf.maxGroups {
+				continue
+			}
+			g.Rules = filteredRules
+			lr.Data.Groups = append(lr.Data.Groups, g)
+		}
+	}
+	if rf.maxGroups > 0 {
+		lr.Page = rf.pageNum
+		lr.TotalPages = max(int(math.Ceil(float64(lr.TotalGroups)/float64(rf.maxGroups))), 1)
+	}
+	return lr
 }
 
-func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, error) {
-	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups(rf)
+func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, *httpserver.ErrorWithStatusCode) {
+	lr := rh.groups(rf)
+	if lr.Data.Groups == nil {
+		return nil, errResponse(fmt.Errorf(`page_num exceeds total amount of pages`), http.StatusBadRequest)
+	}
+	if lr.Page > lr.TotalPages {
+		return nil, errResponse(fmt.Errorf(`page_num=%d exceeds total amount of pages in result=%d`, lr.Page, lr.TotalPages), http.StatusBadRequest)
+	}
 	b, err := json.Marshal(lr)
 	if err != nil {
-		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`error encoding list of active alerts: %w`, err),
-			StatusCode: http.StatusInternalServerError,
-		}
+		return nil, errResponse(fmt.Errorf(`error encoding list of groups: %w`, err), http.StatusInternalServerError)
 	}
 	return b, nil
 }
@@ -434,7 +511,7 @@ func (rh *requestHandler) groupAlerts() []rule.GroupAlerts {
 	return gAlerts
 }
 
-func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
+func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, *httpserver.ErrorWithStatusCode) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
@@ -460,10 +537,7 @@ func (rh *requestHandler) listAlerts(rf *rulesFilter) ([]byte, error) {
 
 	b, err := json.Marshal(lr)
 	if err != nil {
-		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`error encoding list of active alerts: %w`, err),
-			StatusCode: http.StatusInternalServerError,
-		}
+		return nil, errResponse(fmt.Errorf(`error encoding list of active alerts: %w`, err), http.StatusInternalServerError)
 	}
 	return b, nil
 }
@@ -475,7 +549,7 @@ type listNotifiersResponse struct {
 	} `json:"data"`
 }
 
-func (rh *requestHandler) listNotifiers() ([]byte, error) {
+func (rh *requestHandler) listNotifiers() ([]byte, *httpserver.ErrorWithStatusCode) {
 	targets := notifier.GetTargets()
 
 	lr := listNotifiersResponse{Status: "success"}
@@ -497,10 +571,7 @@ func (rh *requestHandler) listNotifiers() ([]byte, error) {
 
 	b, err := json.Marshal(lr)
 	if err != nil {
-		return nil, &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf(`error encoding list of notifiers: %w`, err),
-			StatusCode: http.StatusInternalServerError,
-		}
+		return nil, errResponse(fmt.Errorf(`error encoding list of notifiers: %w`, err), http.StatusInternalServerError)
 	}
 	return b, nil
 }
@@ -510,4 +581,9 @@ func errResponse(err error, sc int) *httpserver.ErrorWithStatusCode {
 		Err:        err,
 		StatusCode: sc,
 	}
+}
+
+func errJson(w http.ResponseWriter, r *http.Request, err *httpserver.ErrorWithStatusCode) {
+	httpserver.Errorf(w, r, `{"error":%q,"errorType":%d}`, err, err.StatusCode)
+	w.Header().Set("Content-Type", "application/json")
 }

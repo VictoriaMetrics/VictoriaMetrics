@@ -8,9 +8,9 @@ function actionAll(isCollapse) {
     });
 }
 
-function groupFilter(key) {
+function groupForState(key) {
     if (key) {
-        location.href = `?filter=${key}`;
+        location.href = `?state=${key}`;
     } else {
         window.location = window.location.pathname;
     }
