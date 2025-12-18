@@ -1,7 +1,7 @@
 import "./style.scss";
 import { ReactNode } from "react";
 
-export type BadgeColor = "firing" | "inactive" | "pending" | "no-match" | "unhealthy" | "ok" | "passive";
+export type BadgeColor = "firing" | "inactive" | "pending" | "nomatch" | "unhealthy" | "ok" | "passive";
 
 interface BadgeItem {
   value?: number | string;
