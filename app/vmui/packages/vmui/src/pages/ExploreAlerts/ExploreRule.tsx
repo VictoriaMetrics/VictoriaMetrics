@@ -6,7 +6,7 @@ import { Rule as APIRule } from "../../types";
 import ItemHeader from "../../components/ExploreAlerts/ItemHeader";
 import BaseRule from "../../components/ExploreAlerts/BaseRule";
 import Modal from "../../components/Main/Modal/Modal";
-import { getStates } from "./helpers";
+import { getStates } from "../../components/ExploreAlerts/helpers";
 
 interface ExploreRuleProps {
   groupId: string;

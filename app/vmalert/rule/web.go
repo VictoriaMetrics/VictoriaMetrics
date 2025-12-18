@@ -130,7 +130,8 @@ type ApiRule struct {
 	Updates []StateEntry `json:"-"`
 }
 
-func (r *ApiRule) isNoMatch() bool {
+// IsNoMatch returns true if rule is in nomatch state
+func (r *ApiRule) IsNoMatch() bool {
 	return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
 }
 
@@ -244,7 +245,7 @@ func (r *ApiRule) ExtendState() {
 	}
 	if r.Health != "ok" {
 		r.State = "unhealthy"
-	} else if r.isNoMatch() {
+	} else if r.IsNoMatch() {
 		r.State = "nomatch"
 	}
 }

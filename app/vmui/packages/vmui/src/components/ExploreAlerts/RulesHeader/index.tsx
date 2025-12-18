@@ -1,4 +1,4 @@
-import { FC, useMemo } from "preact/compat";
+import { useMemo } from "preact/compat";
 import Select from "../../Main/Select/Select";
 import { SearchIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
@@ -8,25 +8,25 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface RulesHeaderProps {
   types: string[];
-  allTypes: string[];
+  allRuleTypes: string[];
   allStates: string[];
   states: string[];
   search: string;
-  onChangeTypes: (input: string) => void;
+  onChangeRuleType: (input: string) => void;
   onChangeStates: (input: string) => void;
   onChangeSearch: (input: string) => void;
 }
 
-const RulesHeader: FC<RulesHeaderProps> = ({
+const RulesHeader = ({
   types,
-  allTypes,
+  allRuleTypes,
   allStates,
   states,
   search,
-  onChangeTypes,
+  onChangeRuleType,
   onChangeStates,
   onChangeSearch,
-}) => {
+}: RulesHeaderProps) => {
   const noStateText = useMemo(
     () => (types.length ? "" : "No states. Please select rule states"),
     [types],
@@ -46,10 +46,10 @@ const RulesHeader: FC<RulesHeaderProps> = ({
         <div className="vm-explore-alerts-header__rule_type">
           <Select
             value={types}
-            list={allTypes}
-            label="Rules type"
+            list={allRuleTypes}
+            label="Rule type"
             placeholder="Please select rule type"
-            onChange={onChangeTypes}
+            onChange={onChangeRuleType}
             autofocus={!!types.length && !isMobile}
             includeAll
             searchable
