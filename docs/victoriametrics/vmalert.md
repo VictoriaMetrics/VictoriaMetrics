@@ -414,6 +414,8 @@ expr: <string>
 
 # Labels to add or overwrite before storing the result.
 # In case of conflicts, original labels are kept with prefix `exported_`.
+#
+# Labels do not support templating in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating.
 labels:
   [ <labelname>: <labelvalue> ]
 
