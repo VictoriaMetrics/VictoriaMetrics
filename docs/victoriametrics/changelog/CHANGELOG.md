@@ -31,7 +31,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix `vmauth_user_request_backend_errors_total` and `vmauth_unauthorized_user_request_backend_errors_total` to only reflect backend request errors. Previously, these counters could be overcounted with user request error.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): rotate `dateMetricIDCache` instead of resetting it. This should make the eviction less agressive. Since the cache does not have fixed max size anymore the `-storage.cacheSizeIndexDBDateMetricID` flag has been removed. See [#10064](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10053) and PR [#10169](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10169).
-[vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly add metrics metadata scrapped with `promscrape.config` and `selfScrapeInterval`. See this issue [#10175](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10175) for details.
+[vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly add metrics metadata scraped with `promscrape.config` and `selfScrapeInterval`. See this issue [#10175](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10175) for details.
 
 ## [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0)
 
