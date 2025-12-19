@@ -7,30 +7,36 @@ import Accordion from "../../components/Main/Accordion/Accordion";
 import { useFetchGroups } from "./hooks/useFetchGroups";
 import "./style.scss";
 import RulesHeader from "../../components/ExploreAlerts/RulesHeader";
+import Pagination from "../../components/ExploreAlerts/Pagination";
 import GroupHeader from "../../components/ExploreAlerts/GroupHeader";
 import Rule from "../../components/ExploreAlerts/Rule";
 import ExploreRule from "../../pages/ExploreAlerts/ExploreRule";
 import ExploreAlert from "../../pages/ExploreAlerts/ExploreAlert";
 import ExploreGroup from "../../pages/ExploreAlerts/ExploreGroup";
 import { getQueryStringValue } from "../../utils/query-string";
-import { getStates, getChanges, filterGroups } from "./helpers";
+import { getChanges } from "./helpers";
 import debounce from "lodash.debounce";
+import { getStates } from "../../components/ExploreAlerts/helpers";
 
-const defaultTypesStr = getQueryStringValue("types", "") as string;
-const defaultTypes = defaultTypesStr.split("&").filter((rt) => rt) as string[];
+const defaultRuleType = getQueryStringValue("type", "") as string;
 const defaultStatesStr = getQueryStringValue("states", "") as string;
 const defaultStates = defaultStatesStr.split("&").filter((s) => s) as string[];
 const defaultSearchInput = getQueryStringValue("search", "") as string;
+const TYPE_STATES: Record<string, string[]> = {
+  alert:  ["inactive", "firing", "nomatch", "pending", "unhealthy"],
+  record: ["unhealthy", "nomatch", "ok"],
+};
 
 const ExploreRules: FC = () => {
+  const pageNum = getQueryStringValue("page_num", "1") as string;
   const groupId = getQueryStringValue("group_id", "") as string;
   const ruleId = getQueryStringValue("rule_id", "") as string;
   const alertId = getQueryStringValue("alert_id", "") as string;
 
   const [searchInput, setSearchInput] = useState(defaultSearchInput);
-  const [types, setTypes] = useState(defaultTypes);
+  const [ruleType, setRuleType] = useState(defaultRuleType);
   const [states, setStates] = useState(defaultStates);
-  const [modalOpen, setModalOpen] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -38,7 +44,7 @@ const ExploreRules: FC = () => {
   }, [groupId]);
 
   useSetQueryParams({
-    types: types.join("&"),
+    rule_type: ruleType,
     states: states.join("&"),
     search: searchInput,
     group_id: groupId,
@@ -47,11 +53,10 @@ const ExploreRules: FC = () => {
   });
 
   const handleChangeSearch = useCallback((input: string) => {
-    if (!input) {
-      setSearchInput("");
-    } else {
-      setSearchInput(input);
-    }
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("page_num", "1");
+    setSearchParams(newParams);
+    setSearchInput(input || "");
   }, [searchInput]);
 
   const getModal = () => {
@@ -94,55 +99,79 @@ const ExploreRules: FC = () => {
     setModalOpen(false);
   };
 
+  const onPageChange = (num: number) => {
+    return () => {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("page_num", num.toString());
+      setSearchParams(newParams);
+    };
+  };
+
+  const pageNumInt: number = +pageNum;
   const {
     groups,
     isLoading,
     error,
-  } = useFetchGroups({ blockFetch: modalOpen });
+    pageInfo,
+  } = useFetchGroups({ blockFetch: modalOpen, search: searchInput, ruleType, states, pageNum: pageNumInt, onPageChange });
 
-  const { filteredGroups, allTypes, allStates } = useMemo(
-    () => filterGroups(groups || [], types, states, searchInput),
-    [groups, types, states, searchInput]
+  const allRuleTypes = Object.keys(TYPE_STATES);
+  const allStates = useMemo(
+    () => Array.from(ruleType === "" ? new Set(Object.values(TYPE_STATES).flat()) : TYPE_STATES[ruleType]),
+    [ruleType]
   );
-
-  if (!types.every(v => allTypes.has(v))) {
-    setTypes([]);
-  }
-  const selectedTypes = allTypes.size === types.length ? [] : types;
-
-  if (!states.every(v => allStates.has(v))) {
-    setStates([]);
-  }
-  const selectedStates = allStates.size === states.length ? [] : states;
+  const selectedRuleTypes = [ruleType].filter(Boolean);
+  useEffect(() => {
+    if (!states.every(v => allStates.includes(v))) {
+      setStates([]);
+    }
+  }, [states, allStates]);
+  const selectedStates = allStates.length === states.length ? [] : states;
 
   const handleChangeStates = useCallback((title: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("page_num", "1");
+    setSearchParams(newParams);
     setStates(getChanges(title, selectedStates));
   }, [states]);
 
-  const handleChangeTypes = useCallback((title: string) => {
-    setTypes(getChanges(title, selectedTypes));
-  }, [types]);
+  const handleChangeRuleType = useCallback((title: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("page_num", "1");
+    setSearchParams(newParams);
+    const changes = getChanges(title, selectedRuleTypes);
+    setRuleType(changes.length && changes.length !== allRuleTypes.length ? changes[0] : "");
+  }, [ruleType]);
 
   return (
     <>
       {modalOpen && getModal()}
-      {(!modalOpen || !!allStates?.size) && (
+      {(!modalOpen || !!allStates?.length) && (
         <div className="vm-explore-alerts">
           <RulesHeader
-            types={selectedTypes}
-            allTypes={Array.from(allTypes)}
+            types={selectedRuleTypes}
+            allRuleTypes={allRuleTypes}
             states={selectedStates}
-            allStates={Array.from(allStates)}
+            allStates={allStates}
             search={searchInput}
-            onChangeTypes={handleChangeTypes}
+            onChangeRuleType={handleChangeRuleType}
             onChangeStates={handleChangeStates}
             onChangeSearch={debounce(handleChangeSearch, 500)}
           />
+          <Pagination
+            page={pageInfo.page}
+            totalPages={pageInfo.total_pages}
+            pageRules={groups.reduce((total, g) => total + g?.rules.length, 0)}
+            pageGroups={groups.length}
+            totalRules={pageInfo.total_rules}
+            totalGroups={pageInfo.total_groups}
+            onPageChange={onPageChange}
+          />
           {(isLoading && <Spinner />) || (error && <Alert variant="error">{error}</Alert>) || (
-            !filteredGroups.length && <Alert variant="info">{noRuleFound}</Alert>
+            !groups.length && <Alert variant="info">{noRuleFound}</Alert>
           ) || (
             <div className="vm-explore-alerts-body">
-              {filteredGroups.map((group) => (
+              {groups.map((group) => (
                 <div
                   key={group.id}
                   className="vm-explore-alert-group vm-block vm-block_empty-padding"
