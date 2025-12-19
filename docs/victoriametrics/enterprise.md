@@ -308,7 +308,7 @@ Or create secret via `kubectl`:
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
-Note that the license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
+Note that the license key provided by using a secret is mounted as a file. This allows updates to the license without the need to restart the pod.
 See the full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api/).
 
 ### Updating the license key
