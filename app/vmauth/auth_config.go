@@ -798,7 +798,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
-	m, err := parseAuthConfigUsers(ac)
+	m, err := parseAuthUsers(ac)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse users from auth config: %w", err)
 	}
@@ -847,37 +847,14 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.Name != "" {
 			return nil, fmt.Errorf("field name can't be specified for unauthorized_user section")
 		}
-		if err := ui.initURLs(); err != nil {
+		if err := ui.init(ac.ms, true); err != nil {
 			return nil, err
 		}
-
-		metricLabels, err := ui.getMetricLabels()
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse metric_labels for unauthorized_user: %w", err)
-		}
-		ui.requests = ac.ms.NewCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
-		ui.backendRequests = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_requests_total` + metricLabels)
-		ui.backendErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
-		ui.requestsDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
-		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
-		ui.concurrencyLimitReached = ac.ms.NewCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total` + metricLabels)
-		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`+metricLabels, func() float64 {
-			return float64(cap(ui.concurrencyLimitCh))
-		})
-		_ = ac.ms.NewGauge(`vmauth_unauthorized_user_concurrent_requests_current`+metricLabels, func() float64 {
-			return float64(len(ui.concurrencyLimitCh))
-		})
-
-		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
-		if err != nil {
-			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
-		}
-		ui.rt = rt
 	}
 	return ac, nil
 }
 
-func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
+func parseAuthUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	uis := ac.Users
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	if len(uis) == 0 && ac.UnauthorizedUser == nil {
@@ -896,33 +873,9 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 					at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
 			}
 		}
-		if err := ui.initURLs(); err != nil {
+		if err := ui.init(ac.ms, false); err != nil {
 			return nil, err
 		}
-
-		metricLabels, err := ui.getMetricLabels()
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
-		}
-		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
-		ui.backendRequests = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_requests_total` + metricLabels)
-		ui.backendErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
-		ui.requestsDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
-		mcr := ui.getMaxConcurrentRequests()
-		ui.concurrencyLimitCh = make(chan struct{}, mcr)
-		ui.concurrencyLimitReached = ac.ms.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
-		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
-			return float64(cap(ui.concurrencyLimitCh))
-		})
-		_ = ac.ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
-			return float64(len(ui.concurrencyLimitCh))
-		})
-
-		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
-		if err != nil {
-			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
-		}
-		ui.rt = rt
 
 		for _, at := range ats {
 			byAuthToken[at] = ui
@@ -933,15 +886,13 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 
 var labelNameRegexp = regexp.MustCompile("^[a-zA-Z_:.][a-zA-Z0-9_:.]*$")
 
-func (ui *UserInfo) getMetricLabels() (string, error) {
+func (ui *UserInfo) getMetricLabels(sUnauthorized bool) (string, error) {
 	name := ui.name()
-	if len(name) == 0 && len(ui.MetricLabels) == 0 {
-		// fast path
-		return "", nil
-	}
 	labels := make([]string, 0, len(ui.MetricLabels)+1)
 	if len(name) > 0 {
 		labels = append(labels, fmt.Sprintf(`username=%q`, name))
+	} else {
+		labels = append(labels, `unauthorized="true"`)
 	}
 	for k, v := range ui.MetricLabels {
 		if !labelNameRegexp.MatchString(k) {
@@ -952,6 +903,35 @@ func (ui *UserInfo) getMetricLabels() (string, error) {
 	sort.Strings(labels)
 	labelsStr := "{" + strings.Join(labels, ",") + "}"
 	return labelsStr, nil
+}
+
+func (ui *UserInfo) init(ms *metrics.Set, isUnauthorized bool) error {
+	if err := ui.initURLs(); err != nil {
+		return err
+	}
+	metricLabels, err := ui.getMetricLabels(isUnauthorized)
+	if err != nil {
+		return fmt.Errorf("cannot parse metric_labels: %w", err)
+	}
+	ui.requests = ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
+	ui.backendRequests = ms.GetOrCreateCounter(`vmauth_user_request_backend_requests_total` + metricLabels)
+	ui.backendErrors = ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
+	ui.requestsDuration = ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
+	ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
+	ui.concurrencyLimitReached = ms.GetOrCreateCounter(`vmauth_user_concurrent_requests_limit_reached_total` + metricLabels)
+	_ = ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_capacity`+metricLabels, func() float64 {
+		return float64(cap(ui.concurrencyLimitCh))
+	})
+	_ = ms.GetOrCreateGauge(`vmauth_user_concurrent_requests_current`+metricLabels, func() float64 {
+		return float64(len(ui.concurrencyLimitCh))
+	})
+
+	rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
+	if err != nil {
+		return fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
+	}
+	ui.rt = rt
+	return nil
 }
 
 func (ui *UserInfo) initURLs() error {

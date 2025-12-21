@@ -20,7 +20,7 @@ func TestParseAuthConfigFailure(t *testing.T) {
 		if err != nil {
 			return
 		}
-		users, err := parseAuthConfigUsers(ac)
+		users, err := parseAuthUsers(ac)
 		if err == nil {
 			t.Fatalf("expecting non-nil error; got %v", users)
 		}
@@ -286,7 +286,7 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		m, err := parseAuthConfigUsers(ac)
+		m, err := parseAuthUsers(ac)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -642,7 +642,7 @@ unauthorized_user:
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	m, err := parseAuthConfigUsers(ac)
+	m, err := parseAuthUsers(ac)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -658,82 +658,81 @@ unauthorized_user:
 }
 
 func TestUserInfoGetMetricLabels(t *testing.T) {
-	t.Run("empty-labels", func(t *testing.T) {
-		ui := &UserInfo{
-			Username: "user1",
-		}
-		labels, err := ui.getMetricLabels()
-		if err != nil {
+	type opts struct {
+		ui             *UserInfo
+		expected       string
+		isUnauthorized bool
+		wantErr        bool
+	}
+
+	f := func(o opts) {
+		t.Helper()
+		labels, err := o.ui.getMetricLabels(o.isUnauthorized)
+		if err != nil == !o.wantErr {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		labelsExpected := `{username="user1"}`
-		if labels != labelsExpected {
-			t.Fatalf("unexpected labels; got %s; want %s", labels, labelsExpected)
+		if o.wantErr {
+			return
 		}
+		if labels != o.expected {
+			t.Fatalf("unexpected labels; got %s; want %s", labels, o.expected)
+		}
+	}
+
+	// empty labels
+	f(opts{
+		ui: &UserInfo{
+			Username: "user1",
+		},
+		expected: `{username="user1"}`,
 	})
-	t.Run("non-empty-username", func(t *testing.T) {
-		ui := &UserInfo{
+
+	// non empty username
+	f(opts{
+		ui: &UserInfo{
 			Username: "user1",
 			MetricLabels: map[string]string{
 				"env":        "prod",
 				"datacenter": "dc1",
 			},
-		}
-		labels, err := ui.getMetricLabels()
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		labelsExpected := `{datacenter="dc1",env="prod",username="user1"}`
-		if labels != labelsExpected {
-			t.Fatalf("unexpected labels; got %s; want %s", labels, labelsExpected)
-		}
+		},
+		expected: `{datacenter="dc1",env="prod",username="user1"}`,
 	})
-	t.Run("non-empty-name", func(t *testing.T) {
-		ui := &UserInfo{
+
+	// non empty name
+	f(opts{
+		ui: &UserInfo{
 			Name:        "user1",
 			BearerToken: "abc",
 			MetricLabels: map[string]string{
 				"env":        "prod",
 				"datacenter": "dc1",
 			},
-		}
-		labels, err := ui.getMetricLabels()
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		labelsExpected := `{datacenter="dc1",env="prod",username="user1"}`
-		if labels != labelsExpected {
-			t.Fatalf("unexpected labels; got %s; want %s", labels, labelsExpected)
-		}
+		},
+		expected: `{datacenter="dc1",env="prod",username="user1"}`,
 	})
-	t.Run("non-empty-bearer-token", func(t *testing.T) {
-		ui := &UserInfo{
+
+	// non empty bearer token
+	f(opts{
+		ui: &UserInfo{
 			BearerToken: "abc",
 			MetricLabels: map[string]string{
 				"env":        "prod",
 				"datacenter": "dc1",
 			},
-		}
-		labels, err := ui.getMetricLabels()
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		labelsExpected := `{datacenter="dc1",env="prod",username="bearer_token:hash:44BC2CF5AD770999"}`
-		if labels != labelsExpected {
-			t.Fatalf("unexpected labels; got %s; want %s", labels, labelsExpected)
-		}
+		},
+		expected: `{datacenter="dc1",env="prod",username="bearer_token:hash:44BC2CF5AD770999"}`,
 	})
-	t.Run("invalid-label", func(t *testing.T) {
-		ui := &UserInfo{
+
+	// invalid label
+	f(opts{
+		ui: &UserInfo{
 			Username: "foo",
 			MetricLabels: map[string]string{
 				",{": "aaaa",
 			},
-		}
-		_, err := ui.getMetricLabels()
-		if err == nil {
-			t.Fatalf("expecting non-nil error")
-		}
+		},
+		wantErr: true,
 	})
 }
 
