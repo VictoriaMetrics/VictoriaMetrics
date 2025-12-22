@@ -291,6 +291,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)
+	ui.requestErrors.Inc()
 }
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
@@ -336,6 +337,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			}
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
+			ui.requestErrors.Inc()
 			return true, false
 		}
 		if netutil.IsTrivialNetworkError(err) {
@@ -362,6 +364,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			}
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
+			ui.requestErrors.Inc()
 			return true, false
 		}
 		// Retry requests at other backends if it matches retryStatusCodes.
@@ -385,6 +388,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		requestURI := httpserver.GetRequestURI(r)
 
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
+		ui.requestErrors.Inc()
 		return true, false
 	}
 	return true, false
