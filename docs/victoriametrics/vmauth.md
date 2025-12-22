@@ -704,7 +704,8 @@ unauthorized_user:
 * `-maxConcurrentRequests` limits the global number of concurrent requests `vmauth` can serve across all the configured users.
 * `-maxConcurrentPerUserRequests` limits the number of concurrent requests `vmauth` can serve per each configured user.
 
-It is also possible to set individual limits on the number of concurrent requests per each user with the `max_concurrent_requests` option. For example, the following [`-auth.config`](#auth-config) limits the number of concurrent requests from the user `foo` to 10:
+It is also possible to set individual limits on the number of concurrent requests per each user with the `max_concurrent_requests` option.
+For example, the following [`-auth.config`](#auth-config) limits the number of concurrent requests from the user `foo` to 10:
 
 ```yaml
 users:
@@ -714,7 +715,8 @@ users:
   max_concurrent_requests: 10
 ```
 
-`vmauth` responds with `429 Too Many Requests` HTTP error when the number of concurrent requests exceeds the configured limits.
+`vmauth` responds with `429 Too Many Requests` HTTP error when the number of concurrent requests exceeds the configured limits for the duration
+exceeding the `-maxQueueDuration` command-line flag value.
 
 The following [metrics](#monitoring) related to concurrency limits are exposed by `vmauth`:
 
@@ -725,10 +727,12 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
   because of the global concurrency limit has been reached.
 * `vmauth_user_concurrent_requests_capacity{username="..."}` - the limit on the number of concurrent requests for the given `username`.
 * `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
-* `vmauth_user_concurrent_requests_limit_reached_total{username="..."}` - the number of requests rejected with `429 Too Many Requests` error because of the concurrency limit has been reached for the given `username`.
+* `vmauth_user_concurrent_requests_limit_reached_total{username="..."}` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for the given `username`.
 * `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
 * `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
-* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
+* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
 ## Backend TLS setup
 
@@ -1244,7 +1248,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
   -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
-     Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+     Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file.
+     Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -fs.maxConcurrency int
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 256)
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -1269,7 +1276,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password value
      Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
-     Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
+     Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file.
+     Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
   -httpAuth.username string
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpAuthHeader array
@@ -1329,11 +1337,13 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentPerUserRequests int
-     The maximum number of concurrent requests vmauth can process per each configured user. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option in per-user config (default 300)
+     The maximum number of concurrent requests vmauth can process per each configured user. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxQueueDuration and -maxConcurrentRequests command-line options and max_concurrent_requests option in per-user config (default 300)
   -maxConcurrentRequests int
-     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options (default 1000)
+     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxQueueDuration, -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options (default 1000)
   -maxIdleConnsPerBackend int
      The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
+  -maxQueueDuration duration
+     The maximum duration the request waits for execution when the number of concurrently executed requests reach -maxConcurrentRequests or -maxConcurrentPerUserRequests before returning '429 Too Many Requests' error. This allows graceful handling of short spikes in the number of concurrent requests (default 10s)
   -maxRequestBodySizeToRetry size
      The maximum request body size, which can be cached and re-tried at other backends. Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
@@ -1350,7 +1360,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
   -metricsAuthKey value
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
-     Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+     Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file.
+     Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -mtls array
      Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
      Supports array of values separated by comma or specified via multiple flags.
@@ -1361,7 +1372,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
-     Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
+     Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file.
+     Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
@@ -1380,7 +1392,8 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
-     Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
+     Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file.
+     Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -removeXFFHTTPHeaderValue
      Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. Recommended when vmauth is exposed to the internet.
   -responseTimeout duration
@@ -1389,6 +1402,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing for details (default 0)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
+  -secret.flags array
+     Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tls array
      Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
      Supports array of values separated by comma or specified via multiple flags.
