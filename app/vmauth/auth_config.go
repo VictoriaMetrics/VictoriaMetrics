@@ -537,13 +537,16 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 	return nil
 }
 
-// getLeastLoadedBackendURL returns the backendURL with the minimum number of concurrent requests.
+// getLeastLoadedBackendURL returns a non-broken backendURL with the lowest number of concurrent requests.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *backendURL {
 	if len(bus) == 1 {
 		// Fast path - return the only backend url.
 		bu := bus[0]
+		if bu.isBroken() {
+			return nil
+		}
 		bu.get()
 		return bu
 	}
@@ -568,7 +571,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	// Slow path - return the backend with the minimum number of concurrently executed requests.
 	buMinIdx := n % uint32(len(bus))
 	minRequests := bus[buMinIdx].concurrentRequests.Load()
-	for i := uint32(0); i < uint32(len(bus)); i++ {
+	for i := uint32(1); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
 		if bu.isBroken() {
@@ -582,6 +585,9 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 		}
 	}
 	buMin := bus[buMinIdx]
+	if buMin.isBroken() {
+		return nil
+	}
 	buMin.get()
 	atomicCounter.CompareAndSwap(n+1, buMinIdx+1)
 	return buMin
