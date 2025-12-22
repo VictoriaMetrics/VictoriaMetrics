@@ -1,6 +1,6 @@
 ---
 weight: 11
-title: 'VictoriaMetrics Multi-Regional Setup: Dedicated Monitoring'
+title: 'VictoriaMetrics Multi-Regional Setup: Hyperscale'
 menu:
   docs:
     parent: guides
