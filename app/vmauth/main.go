@@ -238,15 +238,14 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236
 			if ui.BearerToken == "" && ui.Username == "" && len(*authUsers.Load()) > 0 {
 				handleMissingAuthorizationError(w)
-				ui.requestErrors.Inc()
 				return
 			}
+			missingRouteRequests.Inc()
 			var di string
 			if ui.DumpRequestOnErrors {
 				di = debugInfo(u, r)
 			}
 			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
-			ui.requestErrors.Inc()
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -516,6 +515,7 @@ var hopHeaders = []string{
 var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
+	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
