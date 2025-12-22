@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -137,12 +138,8 @@ func (ui *UserInfo) stopHealthChecks() {
 		return
 	}
 
-	pbus := ui.URLPrefix.bus.Load()
-	if *pbus != nil {
-		for _, bu := range *pbus {
-			bu.stopHealthCheck()
-		}
-	}
+	bus := ui.URLPrefix.bus.Load()
+	bus.stopHealthChecks()
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
@@ -280,7 +277,7 @@ type URLPrefix struct {
 	// the list of backend urls
 	//
 	// the list can be dynamically updated if `discover_backend_ips` option is set.
-	bus atomic.Pointer[[]*backendURL]
+	bus atomic.Pointer[backendURLs]
 
 	// if this option is set, then backend ips for busOriginal are periodically re-discovered and put to bus.
 	discoverBackendIPs bool
@@ -304,10 +301,40 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 	}
 }
 
+type backendURLs struct {
+	healthChecksContext context.Context
+	healthChecksCancel  func()
+	healthChecksWG      sync.WaitGroup
+
+	bus []*backendURL
+}
+
+func newBackendURLs() *backendURLs {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &backendURLs{
+		healthChecksContext: ctx,
+		healthChecksCancel:  cancel,
+	}
+}
+
+func (bus *backendURLs) add(u *url.URL) {
+	bus.bus = append(bus.bus, &backendURL{
+		url:                u,
+		healthCheckContext: bus.healthChecksContext,
+		healthCheckWG:      &bus.healthChecksWG,
+	})
+}
+
+func (bus *backendURLs) stopHealthChecks() {
+	bus.healthChecksCancel()
+	bus.healthChecksWG.Wait()
+}
+
 type backendURL struct {
-	broken              atomic.Bool
-	stopHealthCheckCh   chan struct{}
-	stopHealthCheckOnce sync.Once
+	broken atomic.Bool
+
+	healthCheckContext context.Context
+	healthCheckWG      *sync.WaitGroup
 
 	concurrentRequests atomic.Int32
 
@@ -319,55 +346,48 @@ func (bu *backendURL) isBroken() bool {
 }
 
 func (bu *backendURL) setBroken() {
-	if !bu.broken.Load() && bu.broken.CompareAndSwap(false, true) {
-		bu.startHealthCheck()
+	if bu.broken.CompareAndSwap(false, true) {
+		bu.healthCheckWG.Add(1)
+		go func() {
+			defer bu.healthCheckWG.Done()
+			bu.runHealthCheck()
+			bu.broken.Store(false)
+		}()
 	}
 }
 
-func (bu *backendURL) startHealthCheck() {
-	go func() {
-		port := bu.url.Port()
-		if port == "" {
-			port = "80"
-		}
-		addr := net.JoinHostPort(bu.url.Hostname(), port)
+func (bu *backendURL) runHealthCheck() {
+	port := bu.url.Port()
+	if port == "" {
+		port = "80"
+	}
+	addr := net.JoinHostPort(bu.url.Hostname(), port)
 
-		t := time.NewTimer(*failTimeout)
-		for {
-			select {
-			case <-t.C:
-				// Do not perform tcp probe for https urls as
-				// - the network unavailability is less probable for https urls
-				// - it will pollute logs on server side with SSL handshake errors.
-				if bu.url.Scheme == "https" {
-					bu.broken.Store(false)
+	t := time.NewTicker(*failTimeout)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			// Verify network connectivity via TCP dial before marking backend healthy.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9997
+			ctx, cancel := context.WithTimeout(bu.healthCheckContext, time.Second)
+			c, err := netutil.Dialer.DialContext(ctx, "tcp", addr)
+			cancel()
+			if err != nil {
+				if errors.Is(bu.healthCheckContext.Err(), context.Canceled) {
 					return
 				}
-
-				// Verify network connectivity via TCP dial before marking backend healthy.
-				// Previously, backends were auto-restored after failTimeout without validation,
-				// causing requests to repeatedly hang on unreachable backends.
-				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9890
-				c, err := net.DialTimeout(`tcp`, addr, time.Second)
-				if err != nil {
-					t.Reset(*failTimeout)
-					continue
-				}
-				_ = c.Close()
-				bu.broken.Store(false)
-				return
-			case <-bu.stopHealthCheckCh:
-				t.Stop()
-				return
+				logger.Warnf("ignoring the backend at %s for %s becasue of dial error: %s", addr, *failTimeout, err)
+				continue
 			}
-		}
-	}()
-}
 
-func (bu *backendURL) stopHealthCheck() {
-	bu.stopHealthCheckOnce.Do(func() {
-		close(bu.stopHealthCheckCh)
-	})
+			_ = c.Close()
+			return
+		case <-bu.healthCheckContext.Done():
+			return
+		}
+	}
 }
 
 func (bu *backendURL) get() {
@@ -379,8 +399,8 @@ func (bu *backendURL) put() {
 }
 
 func (up *URLPrefix) getBackendsCount() int {
-	pbus := up.bus.Load()
-	return len(*pbus)
+	bus := up.bus.Load()
+	return len(bus.bus)
 }
 
 // getBackendURL returns the backendURL depending on the load balance policy.
@@ -391,16 +411,15 @@ func (up *URLPrefix) getBackendsCount() int {
 func (up *URLPrefix) getBackendURL() *backendURL {
 	up.discoverBackendAddrsIfNeeded()
 
-	pbus := up.bus.Load()
-	bus := *pbus
-	if len(bus) == 0 {
+	bus := up.bus.Load()
+	if len(bus.bus) == 0 {
 		return nil
 	}
 
 	if up.loadBalancingPolicy == "first_available" {
-		return getFirstAvailableBackendURL(bus)
+		return getFirstAvailableBackendURL(bus.bus)
 	}
-	return getLeastLoadedBackendURL(bus, &up.n)
+	return getLeastLoadedBackendURL(bus.bus, &up.n)
 }
 
 func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
@@ -474,32 +493,24 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	cancel()
 
 	// generate new backendURLs for the resolved IPs
-	var busNew []*backendURL
+	busNew := newBackendURLs()
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
 			buCopy.Host = addr
-			busNew = append(busNew, &backendURL{
-				url:               &buCopy,
-				stopHealthCheckCh: make(chan struct{}),
-			})
+			busNew.add(&buCopy)
 		}
 	}
 
-	pbus := up.bus.Load()
-	if areEqualBackendURLs(*pbus, busNew) {
+	bus := up.bus.Load()
+	if areEqualBackendURLs(bus.bus, busNew.bus) {
 		return
 	}
 
 	// Store new backend urls
-	up.bus.Store(&busNew)
-
-	if *pbus != nil {
-		for _, bu := range *pbus {
-			bu.stopHealthCheck()
-		}
-	}
+	up.bus.Store(busNew)
+	bus.stopHealthChecks()
 }
 
 func areEqualBackendURLs(a, b []*backendURL) bool {
@@ -1149,14 +1160,11 @@ func (up *URLPrefix) sanitizeAndInitialize() error {
 	}
 
 	// Initialize up.bus
-	bus := make([]*backendURL, len(up.busOriginal))
-	for i, bu := range up.busOriginal {
-		bus[i] = &backendURL{
-			url:               bu,
-			stopHealthCheckCh: make(chan struct{}),
-		}
+	bus := newBackendURLs()
+	for _, bu := range up.busOriginal {
+		bus.add(bu)
 	}
-	up.bus.Store(&bus)
+	up.bus.Store(bus)
 
 	return nil
 }
