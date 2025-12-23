@@ -264,7 +264,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	// Report only once and for an indexDB instance whose tagFiltersCache is
 	// utilized the most.
-	if db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
+	if m.TagFiltersToMetricIDsCacheSizeBytes == 0 || db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
 		m.TagFiltersToMetricIDsCacheSize = uint64(db.tagFiltersToMetricIDsCache.Len())
 		m.TagFiltersToMetricIDsCacheSizeBytes = db.tagFiltersToMetricIDsCache.SizeBytes()
 		m.TagFiltersToMetricIDsCacheSizeMaxBytes = db.tagFiltersToMetricIDsCache.SizeMaxBytes()
@@ -276,7 +276,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	// Report only once and for an indexDB instance whose metricIDCache is
 	// utilized the most.
 	mcs := db.metricIDCache.Stats()
-	if mcs.SizeBytes > m.MetricIDCacheSizeBytes {
+	if m.MetricIDCacheSizeBytes == 0 || mcs.SizeBytes > m.MetricIDCacheSizeBytes {
 		m.MetricIDCacheSize = mcs.Size
 		m.MetricIDCacheSizeBytes = mcs.SizeBytes
 		m.MetricIDCacheSyncsCount = mcs.SyncsCount
@@ -286,7 +286,7 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	// Report only once and for an indexDB instance whose dateMetricIDCache is
 	// utilized the most.
 	dmcs := db.dateMetricIDCache.Stats()
-	if dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
+	if m.DateMetricIDCacheSizeBytes == 0 || dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
 		m.DateMetricIDCacheSize = dmcs.Size
 		m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
 		m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
