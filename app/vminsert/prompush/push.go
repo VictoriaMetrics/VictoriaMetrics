@@ -45,7 +45,7 @@ func Push(wr *prompb.WriteRequest) {
 	}
 	if prommetadata.IsEnabled() {
 		if err := ctx.WriteMetadata(wr.Metadata); err != nil {
-			logger.Errorf("cannot flush metrics metadata to storage: %s", err)
+			logger.Errorf("cannot write promscrape metrics metadata to storage: %s", err)
 		} else {
 			metadataRowsInserted.Add(len(wr.Metadata))
 		}
