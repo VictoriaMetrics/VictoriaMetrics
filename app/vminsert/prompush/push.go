@@ -43,7 +43,7 @@ func Push(wr *prompb.WriteRequest) {
 		}
 		push(ctx, tssBlock)
 	}
-	if prommetadata.IsEnabled() && len(wr.Metadata) > 0 {
+	if prommetadata.IsEnabled() {
 		if err := ctx.WriteMetadata(wr.Metadata); err != nil {
 			logger.Errorf("cannot flush metrics metadata to storage: %s", err)
 		} else {
