@@ -284,7 +284,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		if mnt.IsEmpty() {
 			// metric names tracker performs attempt to track timeseries during ingestion only at tsid cache miss.
 			// It allows to do not decrease storage performance.
-			logger.Infof("resetting tsidCache in order to properly track metric names stats usage")
+			logger.Infof("resetting tsidCache in order to properly track metric name usage stats")
 			s.tsidCache.Reset()
 		}
 	}
