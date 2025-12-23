@@ -2046,7 +2046,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			// This guarantees that invalid rows don't prevent
 			// from adding valid rows into the storage.
 			if firstWarn == nil {
-				firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+				firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 			}
 			s.invalidRawMetricNames.Add(1)
 			continue
