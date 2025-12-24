@@ -9,14 +9,14 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/metrics"
+	"go.yaml.in/yaml/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"go.yaml.in/yaml/v3"
-
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -132,6 +132,7 @@ func reloadRelabelConfigs() {
 func loadRelabelConfigs() (*relabelConfigs, error) {
 	var rcs relabelConfigs
 	if *relabelConfigPathGlobal != "" {
+		rcs.flagSet = true
 		global, rawCfg, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
 		if err != nil {
 			return nil, fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %w", *relabelConfigPathGlobal, err)
@@ -139,9 +140,13 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		remoteWriteRelabelConfigData.Store(&rawCfg)
 		rcs.global = global
 	}
-	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
-		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
-			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
+
+	if len(*relabelConfigPaths) > 0 {
+		rcs.flagSet = true
+		if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
+			return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
+				len(*relabelConfigPaths), (len(*remoteWriteURLs)))
+		}
 	}
 
 	var urlRelabelCfgs []interface{}
@@ -172,23 +177,13 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 }
 
 type relabelConfigs struct {
-	global *promrelabel.ParsedConfigs
-	perURL []*promrelabel.ParsedConfigs
+	global  *promrelabel.ParsedConfigs
+	perURL  []*promrelabel.ParsedConfigs
+	flagSet bool // whether (global or per-URL) command-line flags is set
 }
 
 func (rcs *relabelConfigs) isSet() bool {
-	if rcs == nil {
-		return false
-	}
-	if rcs.global.Len() > 0 {
-		return true
-	}
-	for _, pc := range rcs.perURL {
-		if pc.Len() > 0 {
-			return true
-		}
-	}
-	return false
+	return rcs.flagSet
 }
 
 // initLabelsGlobal must be called after parsing command-line flags.
