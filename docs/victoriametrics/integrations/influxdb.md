@@ -51,14 +51,23 @@ Comma-separated list of expected databases can be passed to VictoriaMetrics via 
 ## InfluxDB v2 format
 
 VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
+
+prepare file `influx.data` with
+```text
+measurement1,tag1=value1,tag2=value2 field1=123,field2=1.23
+measurement2,tag1=value1,tag2=value2 field1=456,field2=4.56
+```
+
 ```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
+curl -X POST 'http://localhost:8428/api/v2/write' --data-binary @influx.data
 ```
 
 The `/api/v1/export` endpoint should return the following response:
 ```json
-{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1695902762311]}
-{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
+{"metric":{"__name__":"measurement1_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1695902762311]}
+{"metric":{"__name__":"measurement1_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
+{"metric":{"__name__":"measurement2_field1","tag1":"value1","tag2":"value2"},"values":[456],"timestamps":[1695902762311]}
+{"metric":{"__name__":"measurement2_field2","tag1":"value1","tag2":"value2"},"values":[4.56],"timestamps":[1695902762311]}
 ```
 
 ## Data transformations
