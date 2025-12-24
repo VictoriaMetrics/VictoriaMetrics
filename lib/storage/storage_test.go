@@ -16,10 +16,9 @@ import (
 	"testing/quick"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
 )
@@ -390,7 +389,8 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	}
 }
 
-func TestNextRetentionDeadlineSeconds(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyNextRetentionDeadlineSeconds(t *testing.T) {
 	f := func(currentTime string, retention, offset time.Duration, deadlineExpected string) {
 		t.Helper()
 
@@ -399,7 +399,7 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 			t.Fatalf("cannot parse currentTime=%q: %s", currentTime, err)
 		}
 
-		d := nextRetentionDeadlineSeconds(now.Unix(), int64(retention.Seconds()), int64(offset.Seconds()))
+		d := legacyNextRetentionDeadlineSeconds(now.Unix(), int64(retention.Seconds()), int64(offset.Seconds()))
 		deadline := time.Unix(d, 0).UTC().Format(time.RFC3339)
 		if deadline != deadlineExpected {
 			t.Fatalf("unexpected deadline; got %s; want %s", deadline, deadlineExpected)
@@ -668,7 +668,6 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 			t.Fatalf("unexpected rows count; got %d; want %d", n, count)
 		}
 	}
-
 	// Verify no metrics exist
 	assertCountRows(0)
 
@@ -685,17 +684,18 @@ func TestStorageDeletePendingSeries(t *testing.T) {
 
 	assertDeleteSeries(1)
 
-	// Verify metrics are fully deleted
+	// Verify metrics are partially deleted
 	s.DebugFlush()
-	assertCountRows(0)
+	assertCountRows(numMonths / 2)
 
-	// Verify all deleted TSIDs are recreated
+	// Verify all deleted TSIDs are recreated. TSIDs should be deleted only for some subset of months in the beginning.
+	// Add rows in reverse order to ensure that cache is not leaking between partitions.
 	addRows(start, end, true)
 	s.DebugFlush()
 	assertCountMonthsWithLabels(numMonths)
 
 	// Verify all metrics are present
-	assertCountRows(numMonths)
+	assertCountRows(numMonths/2 + numMonths)
 
 	s.MustClose()
 }
@@ -1036,8 +1036,11 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 		})
 	})
 
-	// All ingested samples belong to two months. Since the index is global,
-	// DeleteSeries() is expected to return an error too.
+	// All ingested samples belong to two months. In this case,
+	// DeleteSeries() must delete the requested metrics because the 1000 metrics
+	// is spread across two months and each month has roughly 500 metrics. Since
+	// the number of metrics to delete at once (999) is applied per partition
+	// index, the DeleteSeries() must succeed.
 	t.Run("2m", func(t *testing.T) {
 		f(t, &options{
 			tr: TimeRange{
@@ -1046,7 +1049,7 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 			},
 			numMetrics: 1000,
 			maxMetrics: 999,
-			wantErr:    true,
+			wantCount:  1000,
 		})
 	})
 }
@@ -1115,7 +1118,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 
 	assertMetricNameCached := func(metricNameRaw []byte, want bool) {
 		t.Helper()
-		var v generationTSID
+		var v legacyTSID
 		if got := s.getTSIDFromCache(&v, metricNameRaw); got != want {
 			t.Errorf("unexpected %q metric name in TSID cache: got %t, want %t", string(metricNameRaw), got, want)
 		}
@@ -1123,19 +1126,38 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached := func(tfss []*TagFilters, tr TimeRange, want bool) {
 		t.Helper()
 
-		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		ptws := s.tb.GetPartitions(tr)
+		defer s.tb.PutPartitions(ptws)
 
+		if got, want := len(ptws), 1; got != want {
+			t.Fatalf("unexpected partitions count for %v: got %d, want %d", &tr, got, want)
+		}
+		idb := ptws[0].pt.idb
+		tfssTR := tr
+		if idb.tr.MinTimestamp > tfssTR.MinTimestamp {
+			tfssTR.MinTimestamp = idb.tr.MinTimestamp
+		}
+		if idb.tr.MaxTimestamp < tfssTR.MaxTimestamp {
+			tfssTR.MaxTimestamp = idb.tr.MaxTimestamp
+		}
 		tfssKey := marshalTagFiltersKey(nil, tfss, tr)
-		_, got := idbCurr.getMetricIDsFromTagFiltersCache(nil, tfssKey)
+		_, got := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey)
 		if got != want {
 			t.Errorf("unexpected tag filters in cache %v %v: got %t, want %t", tfss, &tr, got, want)
 		}
 	}
-	assertDeletedMetricIDsCacheSize := func(want int) {
+
+	assertDeletedMetricIDsCacheSize := func(tr TimeRange, want int) {
 		t.Helper()
 
-		if got := s.getDeletedMetricIDs().Len(); got != want {
+		ptws := s.tb.GetPartitions(tr)
+		defer s.tb.PutPartitions(ptws)
+
+		if got, want := len(ptws), 1; got != want {
+			t.Fatalf("unexpected partitions count for %v: got %d, want %d", &tr, got, want)
+		}
+		idb := ptws[0].pt.idb
+		if got := idb.getDeletedMetricIDs().Len(); got != want {
 			t.Fatalf("unexpected deletedMetricIDs cache size: got %d, want %d", got, want)
 		}
 	}
@@ -1156,7 +1178,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	searchMetricNames := func(tfss []*TagFilters, tr TimeRange, wantMetricCount int) {
 		t.Helper()
@@ -1186,7 +1209,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric1 in month2. month2 does not contain metric1, but the
 	// empty result is still cached for month2.
@@ -1205,7 +1229,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric2 in month1. month1 does not contain metric2, but the
 	// empty result is still cached for month1.
@@ -1224,7 +1249,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric2 in month2. month2 contains metric2, therefore the tag
 	// filters will be cached for month2.
@@ -1243,7 +1269,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric3 in month1. Both month1 and 2 contain metric3;
 	// however, the search time range is month1, therefore the tag
@@ -1263,7 +1290,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric3 in month2. Now the tag filters will also be cached for
 	// month2.
@@ -1282,7 +1310,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric1 or 2 in month1. The tag filters must be cached for
 	// month1 only.
@@ -1301,7 +1330,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric1 or 2 in month2. The tag filters must be also be cached
 	// for month2.
@@ -1320,7 +1350,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, true)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric1,2,3 in month1. The tag filters are cached
 	// for month1 only.
@@ -1339,7 +1370,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, true)
 	assertTagFiltersCached(tfssMetric123, month1, true)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	// Search for metric1,2,3 in month2. The tag filters are also cached
 	// for month2.
@@ -1358,7 +1390,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, true)
 	assertTagFiltersCached(tfssMetric123, month1, true)
 	assertTagFiltersCached(tfssMetric123, month2, true)
-	assertDeletedMetricIDsCacheSize(0)
+	assertDeletedMetricIDsCacheSize(month1, 0)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
 	deleteSeries := func(tfss []*TagFilters, want int) {
 		t.Helper()
@@ -1371,33 +1404,34 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		}
 	}
 
-	// Delete metric1. TSID cache must be cleared. Tag filters for month1 and
-	// month 2 must be cleared.
+	// Delete metric1. TSID cache not must be cleared. Tag filters for month1
+	// must be cleared but not for month2 because metric1 is in month1 only.
 	// deletedMetricIDsCache size must be 1.
 	deleteSeries(tfssMetric1, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, false)
-	assertTagFiltersCached(tfssMetric1, month2, false)
+	assertTagFiltersCached(tfssMetric1, month2, true)
 	assertTagFiltersCached(tfssMetric2, month1, false)
-	assertTagFiltersCached(tfssMetric2, month2, false)
+	assertTagFiltersCached(tfssMetric2, month2, true)
 	assertTagFiltersCached(tfssMetric3, month1, false)
-	assertTagFiltersCached(tfssMetric3, month2, false)
+	assertTagFiltersCached(tfssMetric3, month2, true)
 	assertTagFiltersCached(tfssMetric12, month1, false)
-	assertTagFiltersCached(tfssMetric12, month2, false)
+	assertTagFiltersCached(tfssMetric12, month2, true)
 	assertTagFiltersCached(tfssMetric123, month1, false)
-	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(1)
+	assertTagFiltersCached(tfssMetric123, month2, true)
+	assertDeletedMetricIDsCacheSize(month1, 1)
+	assertDeletedMetricIDsCacheSize(month2, 0)
 
-	// Delete metric2. TSID cache must be cleared. Tag filters for month2
-	// must be cleared and deletedMetricIDsCache size for month2 must be 2.
+	// Delete metric2. TSID cache not must be cleared. Tag filters for month2
+	// must be cleared and deletedMetricIDsCache size for month2 must be 1.
 	deleteSeries(tfssMetric2, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, false)
 	assertTagFiltersCached(tfssMetric1, month2, false)
 	assertTagFiltersCached(tfssMetric2, month1, false)
@@ -1408,15 +1442,16 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(2)
+	assertDeletedMetricIDsCacheSize(month1, 1)
+	assertDeletedMetricIDsCacheSize(month2, 1)
 
-	// Delete metric3. TSID cache must be cleared.
-	// deletedMetricIDsCache size for month1 and 2 must be 3.
+	// Delete metric3. TSID cache not must be cleared.
+	// deletedMetricIDsCache size for month1 and 2 must be 2.
 	deleteSeries(tfssMetric3, 1)
 
-	assertMetricNameCached(mr1Month1.MetricNameRaw, false)
-	assertMetricNameCached(mr2Month2.MetricNameRaw, false)
-	assertMetricNameCached(mr3Month1.MetricNameRaw, false)
+	assertMetricNameCached(mr1Month1.MetricNameRaw, true)
+	assertMetricNameCached(mr2Month2.MetricNameRaw, true)
+	assertMetricNameCached(mr3Month1.MetricNameRaw, true)
 	assertTagFiltersCached(tfssMetric1, month1, false)
 	assertTagFiltersCached(tfssMetric1, month2, false)
 	assertTagFiltersCached(tfssMetric2, month1, false)
@@ -1427,7 +1462,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertTagFiltersCached(tfssMetric12, month2, false)
 	assertTagFiltersCached(tfssMetric123, month1, false)
 	assertTagFiltersCached(tfssMetric123, month2, false)
-	assertDeletedMetricIDsCacheSize(3)
+	assertDeletedMetricIDsCacheSize(month1, 2)
+	assertDeletedMetricIDsCacheSize(month2, 2)
 }
 
 func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
@@ -1449,6 +1485,11 @@ func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
 		MaxTimestamp: time.Date(2020, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 	}
 	mrsCurr := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "curr", trCurr)
+	trPt := TimeRange{
+		MinTimestamp: time.Date(2020, 1, 3, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2020, 1, 3, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrsPt := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "pt", trPt)
 	deleteSeries := func(s *Storage, want, wantTotal int) {
 		t.Helper()
 		tfs := NewTagFilters(accountID, projectID)
@@ -1471,16 +1512,25 @@ func TestStorageDeleteSeriesFromPrevAndCurrIndexDB(t *testing.T) {
 	}
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
-	defer s.MustClose()
+
+	// legacy prev idb
 	s.AddRows(mrsPrev, defaultPrecisionBits)
 	s.DebugFlush()
 	deleteSeries(s, numSeries, numSeries)
+	s = mustConvertToLegacy(s, accountID, projectID)
 
-	s.mustRotateIndexDB(time.Now())
-
+	// legacy curr idb
 	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
 	deleteSeries(s, numSeries, 2*numSeries)
+	s = mustConvertToLegacy(s, accountID, projectID)
+
+	// pt idb
+	s.AddRows(mrsPt, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, numSeries, 3*numSeries)
+
+	s.MustClose()
 }
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
@@ -1817,7 +1867,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	if err := s1.ForceMergePartitions(""); err != nil {
 		return fmt.Errorf("error when force merging partitions: %w", err)
 	}
-	ptws := s1.tb.GetPartitions(nil)
+	ptws := s1.tb.GetAllPartitions(nil)
 	for _, ptw := range ptws {
 		pws := ptw.pt.GetParts(nil, true)
 		numParts := len(pws)
@@ -1843,89 +1893,8 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	return nil
 }
 
-func TestStorageRotateIndexDB(t *testing.T) {
-	defer testRemoveAll(t)
-
-	const (
-		numRotations = 4
-		numWorkers   = 10
-		numRows      = 10000
-		accountID    = 0
-		projectID    = 0
-	)
-	tr := TimeRange{
-		MinTimestamp: time.Now().UTC().Add(-numRows * time.Hour).UnixMilli(),
-		MaxTimestamp: time.Now().UTC().UnixMilli(),
-	}
-	s := MustOpenStorage(t.Name(), OpenOptions{})
-	defer s.MustClose()
-
-	insertAndRotateConcurrently := func(i int) (int, int) {
-		var wg sync.WaitGroup
-		for workerNum := range numWorkers {
-			wg.Add(1)
-			go func() {
-				time.Sleep(1 * time.Millisecond)
-				rng := rand.New(rand.NewSource(1))
-				prefix := fmt.Sprintf("metric_%d_%d", i, workerNum)
-				mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numRows, prefix, tr)
-				s.AddRows(mrs, defaultPrecisionBits)
-				wg.Done()
-			}()
-		}
-		s.mustRotateIndexDB(time.Now())
-		wg.Wait()
-		s.DebugFlush()
-
-		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
-		isCurr := idbCurr.getIndexSearch(accountID, projectID, noDeadline)
-		defer idbCurr.putIndexSearch(isCurr)
-		isPrev := idbPrev.getIndexSearch(accountID, projectID, noDeadline)
-		defer idbPrev.putIndexSearch(isPrev)
-
-		tfss := NewTagFilters(accountID, projectID)
-		return testCountAllMetricNamesInIndex(tfss, isPrev, tr), testCountAllMetricNamesInIndex(tfss, isCurr, tr)
-	}
-
-	var oldCurr int
-	for i := range numRotations {
-		newPrev, newCurr := insertAndRotateConcurrently(i)
-
-		var m Metrics
-		s.UpdateMetrics(&m)
-		if got, want := m.TableMetrics.TotalRowsCount(), uint64(numWorkers*numRows*(i+1)); got != want {
-			t.Errorf("[rotation %d] unexpected row count: got %d, want %d", i, got, want)
-		}
-
-		if got, want := newPrev-oldCurr+newCurr, numWorkers*numRows; got != want {
-			t.Errorf("[rotation %d] unexpected metric count count: got (%d - %d) + %d = %d, want %d", i, newPrev, oldCurr, newCurr, got, want)
-		}
-		oldCurr = newCurr
-	}
-}
-
-func testCountAllMetricNamesInIndex(tfss *TagFilters, is *indexSearch, tr TimeRange) int {
-	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
-	}
-	metricIDs, err := is.searchMetricIDs(nil, []*TagFilters{tfss}, tr, 1e9)
-	if err != nil {
-		panic(fmt.Sprintf("searchMetricIDs failed unexpectedly: %v", err))
-	}
-	metricNames := map[string]bool{}
-	var metricName []byte
-	metricIDs.ForEach(func(part []uint64) bool {
-		for _, metricID := range part {
-			metricName, _ = is.searchMetricName(metricName[:0], metricID)
-			metricNames[string(metricName)] = true
-		}
-		return true
-	})
-	return len(metricNames)
-}
-
-func TestStorageRotateIndexDB_AddRows(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_AddRows(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -1940,11 +1909,11 @@ func TestStorageRotateIndexDB_AddRows(t *testing.T) {
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 	}
-
-	testRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
 }
 
-func TestStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -1959,11 +1928,11 @@ func TestStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
 		s.RegisterMetricNames(nil, mrs)
 		s.DebugFlush()
 	}
-
-	testRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
 }
 
-func TestStorageRotateIndexDB_DeleteSeries(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_DeleteSeries(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -1984,11 +1953,11 @@ func TestStorageRotateIndexDB_DeleteSeries(t *testing.T) {
 			panic(fmt.Sprintf("DeleteSeries() failed unexpectedly: %v", err))
 		}
 	}
-
-	testRotateIndexDB(t, accountID, projectID, mrs, op)
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
 }
 
-func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2002,11 +1971,11 @@ func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
 	op := func(s *Storage) {
 		_ = s.MustCreateSnapshot()
 	}
-
-	testRotateIndexDB(t, accountID, projectID, mrs, op)
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
 }
 
-func TestStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2029,10 +1998,11 @@ func TestStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
 		}
 	}
 
-	testRotateIndexDB(t, accountID, projectID, mrs, op)
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
 }
 
-func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2044,7 +2014,7 @@ func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
-	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		_, err := s.SearchLabelNames(nil, accountID, projectID, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelNames() failed unexpectedly: %v", err))
@@ -2052,7 +2022,8 @@ func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2064,7 +2035,7 @@ func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
-	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		_, err := s.SearchLabelValues(nil, accountID, projectID, "__name__", []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchLabelValues() failed unexpectedly: %v", err))
@@ -2072,7 +2043,8 @@ func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2084,7 +2056,7 @@ func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric.", tr)
 
-	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		_, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "metric.", '.', 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchTagValueSuffixes() failed unexpectedly: %v", err))
@@ -2092,7 +2064,8 @@ func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2104,7 +2077,7 @@ func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric.", tr)
 
-	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		_, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("SearchGraphitePaths() failed unexpectedly: %v", err))
@@ -2112,7 +2085,8 @@ func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2124,7 +2098,7 @@ func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 	}
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 
-	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		_, err := s.GetSeriesCount(accountID, projectID, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("GetSeriesCount() failed unexpectedly: %v", err))
@@ -2132,7 +2106,8 @@ func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2145,7 +2120,7 @@ func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
 	date := uint64(tr.MinTimestamp) / msecPerDay
 
-	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		_, err := s.GetTSDBStatus(nil, accountID, projectID, nil, date, "", 10, 1e6, noDeadline)
 		if err != nil {
 			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly: %v", err))
@@ -2153,7 +2128,8 @@ func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	})
 }
 
-func TestStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2165,10 +2141,11 @@ func TestStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
 		s.notifyReadWriteMode()
 	}
 
-	testRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
+	testLegacyRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
 }
 
-func TestStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2177,10 +2154,11 @@ func TestStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
 		s.UpdateMetrics(&Metrics{})
 	}
 
-	testRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
+	testLegacyRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
 }
 
-func TestStorageRotateIndexDB_Search(t *testing.T) {
+// TODO(@rtm0): Move to storage_legacy_test.go
+func TestLegacyStorageRotateIndexDB_Search(t *testing.T) {
 	const (
 		accountID = 12
 		projectID = 34
@@ -2197,7 +2175,7 @@ func TestStorageRotateIndexDB_Search(t *testing.T) {
 	}
 	tfss := []*TagFilters{tfs}
 
-	testRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
 		var search Search
 		search.Init(nil, s, tfss, tr, 1e5, noDeadline)
 		for search.NextMetricBlock() {
@@ -2211,16 +2189,23 @@ func TestStorageRotateIndexDB_Search(t *testing.T) {
 	})
 }
 
-// testRotateIndexDB checks that storage handles gracefully indexDB rotation
+// testLegacyRotateIndexDB checks that storage handles gracefully indexDB rotation
 // that happens concurrently with some operation (ingestion or search). The
 // operation is expected to finish successfully and there must be no panics.
-func testRotateIndexDB(t *testing.T, _, _ uint32, mrs []MetricRow, op func(s *Storage)) {
+//
+// TODO(@rtm0): Move to storage_legacy_test.go
+func testLegacyRotateIndexDB(t *testing.T, accountID, projectID uint32, mrs []MetricRow, op func(s *Storage)) {
 	defer testRemoveAll(t)
 
 	s := MustOpenStorage(t.Name(), OpenOptions{})
-	defer s.MustClose()
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
+	// Convert to legacy 2 times in order to have both prev and curr legacy idbs.
+	s = mustConvertToLegacy(s, accountID, projectID)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s = mustConvertToLegacy(s, accountID, projectID)
+	defer s.MustClose()
 
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
@@ -2240,7 +2225,7 @@ func testRotateIndexDB(t *testing.T, _, _ uint32, mrs []MetricRow, op func(s *St
 	}
 
 	for range 10 {
-		s.mustRotateIndexDB(time.Now())
+		s.legacyMustRotateIndexDB(time.Now())
 	}
 
 	close(stop)
@@ -2303,8 +2288,7 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 		data           = filepath.Join(root, dataDirname)
 		smallData      = filepath.Join(data, smallDirname)
 		bigData        = filepath.Join(data, bigDirname)
-		indexData      = filepath.Join(root, indexdbDirname)
-		nextIndexData  = filepath.Join(root, indexdbDirname, s.idbNext.Load().name)
+		indexData      = filepath.Join(data, indexdbDirname)
 		smallSnapshots = filepath.Join(smallData, snapshotsDirname)
 		bigSnapshots   = filepath.Join(bigData, snapshotsDirname)
 		indexSnapshots = filepath.Join(indexData, snapshotsDirname)
@@ -2323,7 +2307,7 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 	}
 	assertDirEntries(smallData, smallSnapshot, smallSnapshots)
 	assertDirEntries(bigData, bigSnapshot, bigSnapshots)
-	assertDirEntries(indexData, indexSnapshot, indexSnapshots, nextIndexData)
+	assertDirEntries(indexData, indexSnapshot, indexSnapshots)
 
 	// Check snapshot symlinks
 
@@ -2331,7 +2315,7 @@ func TestStorageSnapshots_CreateListDelete(t *testing.T) {
 		snapshot     = filepath.Join(root, snapshotsDirname, snapshotName)
 		bigSymlink   = filepath.Join(snapshot, dataDirname, bigDirname)
 		smallSymlink = filepath.Join(snapshot, dataDirname, smallDirname)
-		indexSymlink = filepath.Join(snapshot, indexdbDirname)
+		indexSymlink = filepath.Join(snapshot, dataDirname, indexdbDirname)
 	)
 	assertSymlink := func(symlink string, wantRealpath string) {
 		t.Helper()
@@ -2659,10 +2643,7 @@ func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		tfss := NewTagFilters(accountID, projectID)
@@ -2858,12 +2839,10 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		wantErr:    true,
 	})
 
-	// Using one filter to search metric names within the time range of 41 days.
-	// This time range corresponds to the day difference of 40 days, which is
-	// the max day difference when the per-day index is still used for
-	// searching. The maxMetrics param is set to match exactly the number of
-	// time series that match the filter within that time range. Search
-	// operation must complete successfully.
+	// Using one filter to search metric names within 41 days. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// filter within that time range. Search operation must complete
+	// successfully.
 	f(&options{
 		path:    "40Days/OneTagFilter/MaxMetricsNotExeeded",
 		filters: []string{"metric1"},
@@ -2875,35 +2854,19 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		wantCount:  numRows * 41,
 	})
 
-	// Using one filter to search metric names within the time range of 42 days.
-	// This time range corresponds to the day difference of 41 days, which is
-	// longer than than 40 days. In this case, the search is performed using
-	// global index instead of per-day index and the metric names will be
-	// searched within the entire retention period. The maxMetrics parameter,
-	// however, is set to the number of time series within the 42 days. The
-	// search must fail because the number of metrics will be much larger.
+	// Using one filter to search metric names within 42 days. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// filter within that time range. Search operation must complete
+	// successfully.
 	f(&options{
-		path:    "MoreThan40Days/OneTagFilter/MaxMetricsExeeded",
+		path:    "40Days/OneTagFilter/MaxMetricsNotExeeded",
 		filters: []string{"metric1"},
 		tr: TimeRange{
 			MinTimestamp: days[0].MinTimestamp,
 			MaxTimestamp: days[41].MaxTimestamp,
 		},
 		maxMetrics: numRows * 42,
-		wantErr:    true,
-	})
-
-	// To fix the above case, the maxMetrics must be adjusted to be not less
-	// than the number of time series within the entire retention period.
-	f(&options{
-		path:    "MoreThan40Days/OneTagFilter/MaxMetricsNotExeeded",
-		filters: []string{"metric1"},
-		tr: TimeRange{
-			MinTimestamp: days[0].MinTimestamp,
-			MaxTimestamp: days[41].MaxTimestamp,
-		},
-		maxMetrics: numRows * numDays,
-		wantCount:  numRows * numDays,
+		wantCount:  numRows * 42,
 	})
 }
 
@@ -2946,10 +2909,7 @@ func TestStorageSearchLabelNames_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchLabelNames(nil, accountID, projectID, nil, tr, 1e9, 1e9, noDeadline)
@@ -3004,10 +2964,7 @@ func TestStorageSearchLabelValues_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs[:numRows/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numRows/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchLabelValues(nil, accountID, projectID, "label", nil, tr, 1e9, 1e9, noDeadline)
@@ -3055,10 +3012,7 @@ func TestStorageSearchTagValueSuffixes_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "prefix.", '.', 1e9, noDeadline)
@@ -3105,10 +3059,7 @@ func TestStorageSearchGraphitePaths_VariousTimeRanges(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
 		got, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e9, noDeadline)
@@ -3247,15 +3198,11 @@ func TestStorageGetSeriesCount(t *testing.T) {
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
-		for i, tr := range trs {
+		for _, tr := range trs {
 			for j := range mrs {
 				mrs[j].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
 			}
 			s.AddRows(mrs, defaultPrecisionBits)
-			if i == 0 {
-				// Rotate the indexDB to ensure that the search operation covers both current and prev indexDBs.
-				s.mustRotateIndexDB(time.Now())
-			}
 		}
 		s.DebugFlush()
 
@@ -3283,13 +3230,13 @@ func TestStorageGetSeriesCount(t *testing.T) {
 	f(numMetrics, oneMonth, want)
 
 	twoMonths := []TimeRange{month(1), month(2)}
-	// index inflation since the same metrics are inserted both to the previous and current indexDBs
+	// index inflation since the same metrics are inserted into two partitions.
 	want = numMetrics * 2
 	f(numMetrics, twoMonths, want)
 
 	fourMonths := []TimeRange{month(1), month(2), month(3), month(4)}
-	// index inflation since the same metrics are inserted both to the previous and current indexDBs
-	want = numMetrics * 2
+	// index inflation since the same metrics are inserted into four partitions.
+	want = numMetrics * 4
 	f(numMetrics, fourMonths, want)
 }
 
@@ -3410,59 +3357,132 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 func TestStorageAdjustTimeRange(t *testing.T) {
 	defer testRemoveAll(t)
 
-	f := func(disablePerDayIndex bool, tr TimeRange, want TimeRange) {
+	f := func(disablePerDayIndex bool, searchTR, idbTR, want TimeRange) {
 		t.Helper()
 
 		s := MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: disablePerDayIndex,
 		})
 		defer s.MustClose()
-		if got := s.adjustTimeRange(tr); got != want {
+		if got := s.adjustTimeRange(searchTR, idbTR); got != want {
 			t.Errorf("unexpected time range: got %v, want %v", &got, &want)
 		}
 	}
 
-	var tr TimeRange
+	legacyIDBTimeRange := TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: math.MaxInt64,
+	}
+	partitionIDBTimeRange := TimeRange{
+		MinTimestamp: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 2, 28, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	var searchTimeRange TimeRange
 
-	// Zero time range is adjusted to globalIndexTimeRange regardless whether
-	// the -disablePerDayIndex flag is set or not.
-	tr = TimeRange{}
-	f(false, tr, globalIndexTimeRange)
-	f(true, tr, globalIndexTimeRange)
+	// Zero search time range is adjusted to globalIndexTimeRange regardless
+	// whether the -disablePerDayIndex flag is set or not.
+	searchTimeRange = TimeRange{}
+	f(false, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
-	// Time range is smaller than 40 days. When the -disablePerDayIndex flag is
-	// unset, the time range will not be adjusted. When the flag is set, the
-	// adjusted time range will be globalIndexTimeRange.
-	tr = TimeRange{10 * msecPerDay, 50*msecPerDay - 1}
-	f(false, tr, tr)
-	f(true, tr, globalIndexTimeRange)
+	// The search time range is smaller than a month (and therefore < 40 days)
+	// and is fully included into the partition idb time range.
+	// If -disablePerDayIndex is set, the effective search time range is
+	// expected to be globalIndexTimeRange. Otherwise it must remain the same
+	// after the adjustment.
+	searchTimeRange = TimeRange{
+		MinTimestamp: partitionIDBTimeRange.MinTimestamp + msecPerDay,
+		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp - msecPerDay,
+	}
+	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, searchTimeRange)
+	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
-	// Time range is exactly 40 days. In this case, the TimeRange.MaxTimestamp
-	// is set to the minimum possible value when the time range becomes 40 days.
-	// When the -disablePerDayIndex flag is unset, the time range will not be
-	// adjusted. When the flag is set, the adjusted time range will be
-	// globalIndexTimeRange.
-	tr = TimeRange{10 * msecPerDay, 50*msecPerDay + 1}
-	f(false, tr, tr)
-	f(true, tr, globalIndexTimeRange)
+	// The search time range is the same as partition idb time range.
+	// If -disablePerDayIndex is set, the effective search time range is
+	// expected to be globalIndexTimeRange for both legacy and parition idb.
+	// Otherwise:
+	// - For the legacy idb: it must remain the same
+	// - For the partition idb: it must be replaced with globalIndexTimeRange.
+	searchTimeRange = partitionIDBTimeRange
+	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
-	// Another case when time range is exactly 40 days. This time the the
-	// TimeRange.MaxTimestamp is set to its max value when the time range is
-	// still 40 days.
-	// When the -disablePerDayIndex flag is unset, the time range will not be
-	// adjusted. When the flag is set, the adjusted time range will be
-	// globalIndexTimeRange.
-	tr = TimeRange{10 * msecPerDay, 50 * msecPerDay}
-	f(false, tr, tr)
-	f(true, tr, globalIndexTimeRange)
+	// The search time range is smaller than 40 days and fully includes the
+	// partition idb time range.
+	// If -disablePerDayIndex is set, the effective search time range is
+	// expected to be globalIndexTimeRange for both legacy and parition idb.
+	// Otherwise:
+	// - For the legacy idb: it must remain the same
+	// - For the partition idb: it must be replaced with globalIndexTimeRange.
+	searchTimeRange = TimeRange{
+		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
+		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp + msecPerDay,
+	}
+	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
-	// Time range is more than 40 days. The time range is adjusted to
-	// globalIndexTimeRange regardless whether the -disablePerDayIndex flag is
-	// set or not.
-	tr = TimeRange{10 * msecPerDay, 51*msecPerDay + 1}
-	f(false, tr, globalIndexTimeRange)
-	f(true, tr, globalIndexTimeRange)
+	// The search time range is 41 days and fully includes the partition idb
+	// time range.
+	// If -disablePerDayIndex is set, the effective search time range is
+	// expected to be globalIndexTimeRange for both legacy and parition idb.
+	// Otherwise it must be replaced with globalIndexTimeRange for both legacy
+	// and partition idbs.
+	searchTimeRange = TimeRange{
+		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
+		MaxTimestamp: partitionIDBTimeRange.MinTimestamp + 41*msecPerDay,
+	}
+	f(false, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 
+	// The search time range is smaller than 40 days and overlaps with partition
+	// idb time range on the left.
+	// If -disablePerDayIndex is set, the effective search time range is
+	// expected to be globalIndexTimeRange for both legacy and parition idb.
+	// Otherwise:
+	// - For the legacy idb: it must remain the same
+	// - For the partition idb: the MinTimestamp must be adjusted to match the
+	// partition idb time range MinTimestamp.
+	searchTimeRange = TimeRange{
+		MinTimestamp: partitionIDBTimeRange.MinTimestamp - msecPerDay,
+		MaxTimestamp: partitionIDBTimeRange.MinTimestamp + msecPerDay,
+	}
+	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, TimeRange{
+		MinTimestamp: partitionIDBTimeRange.MinTimestamp,
+		MaxTimestamp: searchTimeRange.MaxTimestamp,
+	})
+	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
+
+	// The search time range is smaller than 40 days and overlaps with partition
+	// idb time range on the right.
+	// If -disablePerDayIndex is set, the effective search time range is
+	// expected to be globalIndexTimeRange for both legacy and parition idb.
+	// Otherwise:
+	// - For the legacy idb, it must remain the same
+	// - For the partition idb: its MaxTimestamp must be adjusted to match the
+	//   partition idb time range MaxTimestamp.
+	searchTimeRange = TimeRange{
+		MinTimestamp: partitionIDBTimeRange.MaxTimestamp - msecPerDay,
+		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp + msecPerDay,
+	}
+	f(false, searchTimeRange, legacyIDBTimeRange, searchTimeRange)
+	f(false, searchTimeRange, partitionIDBTimeRange, TimeRange{
+		MinTimestamp: searchTimeRange.MinTimestamp,
+		MaxTimestamp: partitionIDBTimeRange.MaxTimestamp,
+	})
+	f(true, searchTimeRange, legacyIDBTimeRange, globalIndexTimeRange)
+	f(true, searchTimeRange, partitionIDBTimeRange, globalIndexTimeRange)
 }
 
 type testStorageSearchWithoutPerDayIndexOptions struct {
@@ -3548,6 +3568,7 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 		s = MustOpenStorage(t.Name(), OpenOptions{
 			DisablePerDayIndex: false,
 		})
+
 		for tr := range opts.wantPerTimeRange {
 			opts.assertSearchResult(t, s, tr, opts.wantEmpty)
 		}
@@ -4234,31 +4255,19 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 		s.DebugFlush()
 		assertCounts(t, s, accountID, projectID, wantCounts, strict)
 
-		// Rotate indexDB to test the case when TSIDs from tsidCache have the
-		// generation that is older than the generation of the current indexDB.
-		s.mustRotateIndexDB(time.Now())
-		testDoConcurrently(s, op, concurrency, splitBatches, batches)
-		s.DebugFlush()
-		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
-		assertCounts(t, s, accountID, projectID, wantCounts, strict)
+		// TODO(rtm0): Add a case when a metricID is present in TSID cache but
+		// not in partition idb.
 
 		// Empty the tsidCache to test the case when tsid is retrieved from the
-		// index that belongs to the current generation indexDB.
+		// index.
 		s.resetAndSaveTSIDCache()
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
 		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
 		assertCounts(t, s, accountID, projectID, wantCounts, strict)
 
-		// Empty the tsidCache and rotate indexDB to test the case when tsid is
-		// retrieved from the index that belongs to the previous generation
-		// indexDB.
-		s.resetAndSaveTSIDCache()
-		s.mustRotateIndexDB(time.Now())
-		testDoConcurrently(s, op, concurrency, splitBatches, batches)
-		s.DebugFlush()
-		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
-		assertCounts(t, s, accountID, projectID, wantCounts, strict)
+		// TODO(rtm0): Add a case when a metricID is present in legacy IDB but
+		// not in partition idb.
 
 		s.MustClose()
 	}
@@ -4523,6 +4532,15 @@ func testGenerateMetricRowBatches(accountID, projectID uint32, opts *batchOption
 	days := time.Duration(0)
 	trNames := make(map[TimeRange]map[string]bool)
 	names := make(map[string]bool)
+
+	roundToMonth := func(ts int64) int64 {
+		t := time.UnixMilli(ts).UTC()
+		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	}
+	// Need to count metric names per month because we now have a separate
+	// indexDB per partition.
+	monthNames := make(map[int64]map[string]bool)
+
 	for batch := range opts.numBatches {
 		batchMetricName := metricName
 		if !opts.sameBatchMetricNames {
@@ -4555,8 +4573,14 @@ func testGenerateMetricRowBatches(accountID, projectID uint32, opts *batchOption
 			if trNames[tr] == nil {
 				trNames[tr] = make(map[string]bool)
 			}
+			month := roundToMonth(tr.MinTimestamp)
+			if monthNames[month] == nil {
+				monthNames[month] = make(map[string]bool)
+			}
 			names[rowMetricName] = true
 			trNames[tr][rowMetricName] = true
+			monthNames[month][rowMetricName] = true
+
 		}
 		batches[batch] = rows
 		if opts.sameBatchDates {
@@ -4582,10 +4606,13 @@ func testGenerateMetricRowBatches(accountID, projectID uint32, opts *batchOption
 		timeRangeCounts:  make(map[TimeRange]int),
 		dateTSDBStatuses: make(map[uint64]*TSDBStatus),
 	}
+
 	for tr, names := range trNames {
+
 		var count int
 		if opts.disablePerDayIndex {
-			count = allTimeseries
+			month := roundToMonth(tr.MinTimestamp)
+			count = len(monthNames[month])
 		} else {
 			count = len(names)
 		}
@@ -4694,21 +4721,20 @@ func TestStorageSearchTagValueSuffixes_maxTagValueSuffixes(t *testing.T) {
 	assertSuffixCount(maxTagValueSuffixes, wantCount)
 }
 
-func TestMustOpenIndexDBTables_noTables(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_noTables(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := s.idbPrev.Load()
-	assertIndexDBIsNotNil(t, prev)
-	assertIndexDBIsNotNil(t, curr)
-	assertIndexDBIsNotNil(t, next)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBIsNil(t, legacyIDBs.getIDBPrev())
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
 }
 
-func TestMustOpenIndexDBTables_prevOnly(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_prevOnly(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4721,15 +4747,13 @@ func TestMustOpenIndexDBTables_prevOnly(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := s.idbPrev.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBIsNotNil(t, curr)
-	assertIndexDBIsNotNil(t, next)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
 }
 
-func TestMustOpenIndexDBTables_currAndPrev(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_currAndPrev(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4747,15 +4771,13 @@ func TestMustOpenIndexDBTables_currAndPrev(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := s.idbPrev.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
-	assertIndexDBIsNotNil(t, next)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
 }
 
-func TestMustOpenIndexDBTables_nextAndCurrAndPrev(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_nextIsRemoved(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4776,15 +4798,14 @@ func TestMustOpenIndexDBTables_nextAndCurrAndPrev(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := s.idbPrev.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
-	assertIndexDBName(t, next, nextName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
+	assertPathsDoNotExist(t, nextPath)
 }
 
-func TestMustOpenIndexDBTables_ObsoleteDirsAreRemoved(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestMustOpenLegacyIndexDBTables_nextAndObsoleteDirsAreRemoved(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4814,16 +4835,14 @@ func TestMustOpenIndexDBTables_ObsoleteDirsAreRemoved(t *testing.T) {
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := s.idbPrev.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
-	assertIndexDBName(t, next, nextName)
-	assertPathsDoNotExist(t, obsolete1Path, obsolete2Path)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
+	assertPathsDoNotExist(t, obsolete1Path, obsolete2Path, nextPath)
 }
 
-func TestMustRotateIndexDBs_dirNames(t *testing.T) {
+// TODO(rtm0): Move to storage_legacy_test.go
+func TestLegacyMustRotateIndexDBs_dirNames(t *testing.T) {
 	defer testRemoveAll(t)
 
 	storageDataPath := t.Name()
@@ -4837,34 +4856,27 @@ func TestMustRotateIndexDBs_dirNames(t *testing.T) {
 	currPath := filepath.Join(idbPath, currName)
 	createEmptyIndexdb(currPath)
 
-	nextName := "123456789ABCDEF2"
-	nextPath := filepath.Join(idbPath, nextName)
-	createEmptyIndexdb(nextPath)
-
-	assertPathsExist(t, prevPath, currPath, nextPath)
+	assertPathsExist(t, prevPath, currPath)
 
 	s := MustOpenStorage(storageDataPath, OpenOptions{})
 	defer s.MustClose()
-	next := s.idbNext.Load()
-	curr := s.idbCurr.Load()
-	prev := s.idbPrev.Load()
-	assertIndexDBName(t, prev, prevName)
-	assertIndexDBName(t, curr, currName)
-	assertIndexDBName(t, next, nextName)
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
+	assertPathsExist(t, prevPath, currPath)
 
-	s.mustRotateIndexDB(time.Now())
-	next = s.idbNext.Load()
-	curr = s.idbCurr.Load()
-	prev = s.idbPrev.Load()
-	newNextName := next.name
-	newNextPath := filepath.Join(idbPath, newNextName)
+	s.legacyMustRotateIndexDB(time.Now())
+	legacyIDBs = s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), currName)
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
 	assertPathsDoNotExist(t, prevPath)
-	assertIndexDBName(t, prev, currName)
-	assertIndexDBName(t, curr, nextName)
-	assertPathsExist(t, newNextPath)
-	if newNextName == nextName {
-		t.Fatalf("Unexpected next dir name after rotation: got %s, want something else", newNextName)
-	}
+	assertPathsExist(t, currPath)
+
+	s.legacyMustRotateIndexDB(time.Now())
+	legacyIDBs = s.legacyIndexDBs.Load()
+	assertIndexDBIsNil(t, legacyIDBs.getIDBPrev())
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
+	assertPathsDoNotExist(t, prevPath, currPath)
 }
 
 func createEmptyIndexdb(path string) {
@@ -4904,11 +4916,11 @@ func assertIndexDBName(t *testing.T, idb *indexDB, want string) {
 	}
 }
 
-func assertIndexDBIsNotNil(t *testing.T, idb *indexDB) {
+func assertIndexDBIsNil(t *testing.T, idb *indexDB) {
 	t.Helper()
 
-	if idb == nil {
-		t.Fatalf("unexpected idb: got nil, want non-nil")
+	if idb != nil {
+		t.Fatalf("unexpected idb: got %s, want nil", idb.name)
 	}
 }
 
@@ -4930,15 +4942,17 @@ func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
 	assertMetrics := func(s *Storage) {
 		t.Helper()
 
-		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+		defer s.tb.PutPartition(ptw)
+		idb := ptw.pt.idb
+
 		var storageMetrics Metrics
 		s.UpdateMetrics(&storageMetrics)
-		got := storageMetrics.IndexDBMetrics
+		got := storageMetrics.TableMetrics.IndexDBMetrics
 		// Block cache metrics are the same for every indexDB, thus use block
-		// cache metrics from idbCurr.
+		// cache metrics from idb for the current month.
 		var want IndexDBMetrics
-		idbCurr.UpdateMetrics(&want)
+		idb.UpdateMetrics(&want)
 
 		assertMetric("DataBlocksCacheSize", got.DataBlocksCacheSize, want.DataBlocksCacheSize)
 		assertMetric("DataBlocksCacheSizeBytes", got.DataBlocksCacheSizeBytes, want.DataBlocksCacheSizeBytes)
@@ -4963,7 +4977,7 @@ func TestStorageMetrics_IndexDBBlockCaches(t *testing.T) {
 	)
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
-		MinTimestamp: time.Now().UnixMilli() - msecPerDay,
+		MinTimestamp: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Now().UnixMilli(),
 	}
 	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 100, "metric", tr)

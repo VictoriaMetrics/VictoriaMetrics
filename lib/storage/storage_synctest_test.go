@@ -31,8 +31,9 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 			numMetrics = 10
 		)
 		date := uint64(tr.MinTimestamp) / msecPerDay
-		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		ptw := s.tb.MustGetPartition(tr.MinTimestamp)
+		idb := ptw.pt.idb
+		defer s.tb.PutPartition(ptw)
 		var wantMetricIDs []uint64
 
 		// Simulate corrupted index by not creating nsPrefixMetricIDToTSID
@@ -50,9 +51,9 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 				skipMetricIDToTSID: true,
 			})
 
-			idbCurr.tb.AddItems(ii.Items)
+			idb.tb.AddItems(ii.Items)
 		}
-		idbCurr.tb.DebugFlush()
+		idb.tb.DebugFlush()
 
 		tfsAll := NewTagFilters(accountID, projectID)
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
@@ -61,7 +62,7 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idbCurr.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
@@ -95,7 +96,7 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		// is not incremented yet.
 		var m Metrics
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
 			t.Fatalf("unexpected MissingTSIDsForMetricID: got %d, want %d", got, want)
 		}
 
@@ -114,7 +115,7 @@ func TestStorageSearchTSIDs_CorruptedIndex(t *testing.T) {
 		// Ensure the metric that counts metricIDs for which no TSIDs were found
 		// is incremented after the metricID deletion.
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(numMetrics); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingTSIDsForMetricID, uint64(numMetrics); got != want {
 			t.Fatalf("unexpected MissingTSIDsForMetricID: got %d, want %d", got, want)
 		}
 	})
@@ -138,8 +139,9 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			numMetrics = 10
 		)
 		date := uint64(tr.MinTimestamp) / msecPerDay
-		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-		defer s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		ptw := s.tb.MustGetPartition(tr.MinTimestamp)
+		idb := ptw.pt.idb
+		defer s.tb.PutPartition(ptw)
 		var wantMetricIDs []uint64
 
 		// Simulate corrupted index by not creating nsPrefixMetricIDToMetricName
@@ -156,9 +158,9 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 			ii := testCreateIndexItems(date, &tsid, &mn, testIndexItemOpts{
 				skipMetricIDToMetricName: true,
 			})
-			idbCurr.tb.AddItems(ii.Items)
+			idb.tb.AddItems(ii.Items)
 		}
-		idbCurr.tb.DebugFlush()
+		idb.tb.DebugFlush()
 
 		tfsAll := NewTagFilters(accountID, projectID)
 		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
@@ -167,7 +169,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		tfssAll := []*TagFilters{tfsAll}
 
 		searchMetricIDs := func() []uint64 {
-			metricIDs, err := idbCurr.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
+			metricIDs, err := idb.searchMetricIDs(nil, tfssAll, tr, 1e9, noDeadline)
 			if err != nil {
 				panic(fmt.Sprintf("searchMetricIDs() failed unexpectedly: %v", err))
 			}
@@ -201,7 +203,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		// were found is not incremented yet.
 		var m Metrics
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingMetricNamesForMetricID, uint64(0); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingMetricNamesForMetricID, uint64(0); got != want {
 			t.Fatalf("unexpected MissingMetricNamesForMetricID: got %d, want %d", got, want)
 		}
 
@@ -220,7 +222,7 @@ func TestStorageSearchMetricNames_CorruptedIndex(t *testing.T) {
 		// Ensure the metric that counts metricIDs for which no metric names
 		// were found is incremented after the metricID deletion.
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingMetricNamesForMetricID, uint64(numMetrics); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingMetricNamesForMetricID, uint64(numMetrics); got != want {
 			t.Fatalf("unexpected MissingMetricNamesForMetricID: got %d, want %d", got, want)
 		}
 	})
@@ -296,93 +298,103 @@ func testCreateIndexItems(date uint64, tsid *TSID, mn *MetricName, opts testInde
 }
 
 func TestStorageRotateIndexDBPrefill(t *testing.T) {
-	f := func(opts OpenOptions, prefillStart time.Duration) {
-		defer testRemoveAll(t)
+	defer testRemoveAll(t)
+	f := func(t *testing.T, opts OpenOptions, prefillStart time.Duration) {
 		t.Helper()
 
-		synctest.Test(t, func(t *testing.T) {
-			// Align start time to 05:00 in order to have 23h before the next rotation cycle at 04:00 next morning.
-			time.Sleep(time.Hour * 5)
-
-			nextRotationTime := time.Now().Add(time.Hour * 23).Truncate(time.Hour)
+		synctest.Run(func() {
+			// Prefill of the next partition indexDB happens during the
+			// (nextMonth-prefillStart, nextMonth] time interval.
+			// Advance current time right before the the beginning of that interval.
+			ct := time.Now().UTC()
+			nextMonth := time.Date(ct.Year(), ct.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+			time.Sleep(nextMonth.Sub(ct.Add(prefillStart)))
 
 			s := MustOpenStorage(t.Name(), opts)
 			defer s.MustClose()
-			// first rotation cycle in 4 hours due to synctest start time of 00:00:00
-			rng := rand.New(rand.NewSource(1))
-			ct := time.Now()
-			tr := TimeRange{
-				MinTimestamp: ct.Add(time.Hour).UnixMilli(),
-				MaxTimestamp: ct.Add(time.Hour * 24).UnixMilli(),
-			}
+
 			const (
 				accountID = 12
 				projectID = 34
 				numSeries = 1000
 			)
-
-			mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "metric.", tr)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			createdSeries := s.newTimeseriesCreated.Load()
-			if createdSeries != numSeries {
-				t.Fatalf("unexpected number of created series (-%d;+%d)", numSeries, createdSeries)
+			addRows := func() {
+				t.Helper()
+				rng := rand.New(rand.NewSource(1))
+				ct := time.Now().UTC()
+				tr := TimeRange{
+					MinTimestamp: ct.Add(-prefillStart).UnixMilli(),
+					MaxTimestamp: ct.UnixMilli(),
+				}
+				mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "metric.", tr)
+				s.AddRows(mrs, 1)
+				s.DebugFlush()
 			}
 
-			// Sleep until a minute before the prefill start time,
-			// then verify that no timeseries have been pre-created yet.
-			time.Sleep(time.Hour*23 - prefillStart - 1*time.Minute)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			preCreated := s.timeseriesPreCreated.Load()
-			if preCreated != 0 {
-				t.Fatalf("expected no timeseries to be re-created, got: %d", preCreated)
+			// Insert metrics into the empty storage right before the prefill
+			// interval starts.
+			addRows()
+			if got, want := s.newTimeseriesCreated.Load(), uint64(numSeries); got != want {
+				t.Fatalf("unexpected number of new timeseries: got %d, want %d", got, want)
+			}
+			if got, want := s.timeseriesPreCreated.Load(), uint64(0); got != want {
+				t.Fatalf("unexpected number of pre-created timeseries: got %d, want %d", got, want)
 			}
 
-			// Sleep until half of the prefill rotation interval has elapsed,
+			// Sleep until half of the prefill interval has elapsed,
 			// then verify that some time series have been pre-created.
 			time.Sleep(prefillStart / 2)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			preCreated = s.timeseriesPreCreated.Load()
-			if preCreated == 0 {
-				t.Fatalf("expected some timeseries to be re-created, got: %d", preCreated)
+			addRows()
+			if got, want := s.timeseriesPreCreated.Load(), uint64(0); got <= want {
+				t.Fatalf("unexpected number of pre-created timeseries: got %d, want > %d", got, want)
 			}
 
-			// Sleep until a minute before the index rotation,
-			// verify that almost all time series have been pre-created.
-			time.Sleep(nextRotationTime.Sub(time.Now().Add(time.Minute)))
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			preCreated = s.timeseriesPreCreated.Load()
-			if preCreated == 0 || preCreated < numSeries/2 {
-				t.Fatalf("expected more than 50 percent of timeseries to be re-created, got: %d", preCreated)
+			// Sleep until a minute before the next partition transition, verify
+			// that almost all time series have been pre-created.
+			ct = time.Now().UTC()
+			time.Sleep(nextMonth.Sub(ct.Add(time.Minute)))
+			addRows()
+			if got, want := s.timeseriesPreCreated.Load(), uint64(numSeries/2); got <= want {
+				t.Fatalf("unexpected number of pre-created timeseries: got %d, want > %d", got, want)
 			}
 
-			// Sleep until the rotation is over, verify that the rest of time series have been re-created
-			time.Sleep(time.Hour)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
-			createdSeries, reCreated, rePopulated := s.newTimeseriesCreated.Load(), s.timeseriesPreCreated.Load(), s.timeseriesRepopulated.Load()
-			if createdSeries != numSeries {
-				t.Fatalf("unexpected number of created series (-%d;+%d)", numSeries, createdSeries)
-			}
-			if reCreated+rePopulated != numSeries {
-				t.Fatalf("unexpected number of re-created=%d and re-populated=%d series, want sum to be equal to %d", numSeries, createdSeries, numSeries)
+			// Align the time with the start of the next month.
+			time.Sleep(time.Minute)
+			// Sleep until the transition to the next partition is over, verify
+			// that the rest of time series have been re-created
+			time.Sleep(prefillStart)
+			newCreated := s.newTimeseriesCreated.Load()
+			addRows()
+			newCreated = s.newTimeseriesCreated.Load() - newCreated
+			// If jump in time is bigger than 1h, the tsidCache will be cleared
+			// and therefore the metrics will not be repopulated. Instead, new
+			// metrics will be created.
+			preCreated, repopulated := s.timeseriesPreCreated.Load(), s.timeseriesRepopulated.Load()
+			if preCreated+repopulated+newCreated != numSeries {
+				t.Fatalf("unexpected number of pre-populated, repopulated, and new timeseries: got %d + %d + %d, want %d", preCreated, repopulated, newCreated, numSeries)
 			}
 		})
 	}
 
-	// Test the default prefill start duration, see -storage.idbPrefillStart flag:
-	// VictoriaMetrics starts prefill indexDB at 3 A.M UTC, while indexDB rotates at 4 A.M UTC.
-	f(OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: time.Hour}, time.Hour)
-
-	// Zero IDBPrefillStart option should fallback to 1 hour prefill start:
-	f(OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 0}, time.Hour)
-
-	// Test a custom prefill duration: 2h:
-	// VictoriaMetrics starts prefill indexDB at 2 A.M UTC, while indexDB rotates at 4 A.M UTC.
-	f(OpenOptions{Retention: time.Hour * 24, IDBPrefillStart: 2 * time.Hour}, 2*time.Hour)
+	// Verify an interval that is shorter than one hour.
+	t.Run("30m", func(t *testing.T) {
+		f(t, OpenOptions{IDBPrefillStart: 30 * time.Minute}, 30*time.Minute)
+	})
+	// Verify 1h inteval (which is also the default).
+	// tsidCache will be cleared because it will have two cache rotations (one
+	// every 30 mins). This means that once the new month starts the timeseries
+	// that waren't pre-populated will be re-created instead of being
+	// re-populated.
+	t.Run("default", func(t *testing.T) {
+		f(t, OpenOptions{IDBPrefillStart: 0}, time.Hour)
+	})
+	t.Run("1h", func(t *testing.T) {
+		f(t, OpenOptions{IDBPrefillStart: time.Hour}, time.Hour)
+	})
+	// Vefiry 2h interval. Same here, the tsidCache will be cleared.
+	t.Run("2h", func(t *testing.T) {
+		f(t, OpenOptions{IDBPrefillStart: 2 * time.Hour}, 2*time.Hour)
+	})
 }
 
 // TestStorageAddRows_nextDayIndexPrefill tests gradual creation of per-day
@@ -560,11 +572,11 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 	defer testRemoveAll(t)
 
-	assertNextDayMetricIDs := func(t *testing.T, gotNextDayMetricIDs *nextDayMetricIDs, wantGen, wantDate uint64, wantLen int) {
+	assertNextDayMetricIDs := func(t *testing.T, gotNextDayMetricIDs *nextDayMetricIDs, wantIDBID, wantDate uint64, wantLen int) {
 		t.Helper()
 
-		if got, want := gotNextDayMetricIDs.generation, wantGen; got != want {
-			t.Fatalf("unexpected nextDayMetricIDs idb generation: got %d, want %d", got, want)
+		if got, want := gotNextDayMetricIDs.idbID, wantIDBID; got != want {
+			t.Fatalf("unexpected nextDayMetricIDs idb id: got %d, want %d", got, want)
 		}
 		if got, want := gotNextDayMetricIDs.date, wantDate; got != want {
 			t.Fatalf("unexpected nextDayMetricIDs date: got %d, want %d", got, want)
@@ -578,7 +590,7 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		// synctest starts at 2000-01-01T00:00:00Z.
 		// Advance time to 23:30 to enable next day prefill.
 		time.Sleep(23*time.Hour + 30*time.Minute) // 2000-01-01T23:30:00Z
-		date := uint64(time.Now().UnixMilli() / msecPerDay)
+		date := uint64(time.Now().UnixMilli()) / msecPerDay
 
 		const (
 			accountID = 12
@@ -586,9 +598,9 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 			numSeries = 1000
 		)
 		s := MustOpenStorage(t.Name(), OpenOptions{})
-		idbPrev, idbCurr := s.getPrevAndCurrIndexDBs()
-		genCurr := idbCurr.generation
-		s.putPrevAndCurrIndexDBs(idbPrev, idbCurr)
+		ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+		idbID := ptw.pt.idb.id
+		s.tb.PutPartition(ptw)
 
 		rng := rand.New(rand.NewSource(1))
 		mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, numSeries, "metric", TimeRange{
@@ -605,7 +617,7 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		numNextDayMetricIDs := s.pendingNextDayMetricIDs.Len()
 		// But not in the nextDayMetricIDs cache. The pending metrics will be
 		// moved to it by a bg process a few seconds later.
-		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), genCurr, date, 0)
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, 0)
 
 		// Wait for nextDayMetricIDs cache to populate.
 		time.Sleep(15 * time.Second)
@@ -618,7 +630,7 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		}
 		// While the actual cache, must contain the exact number of metricIDs
 		// that once were pending.
-		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), genCurr, date, numNextDayMetricIDs)
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, numNextDayMetricIDs)
 
 		// Close the storage to persist nextDayMetricIDs cache to a file.
 		s.MustClose()
@@ -628,18 +640,19 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
 			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
 		}
-		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), genCurr, date, numNextDayMetricIDs)
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, numNextDayMetricIDs)
+		s.MustClose()
 
-		// Try loading the cache file contents for a different indexDB.
-		genOther := genCurr + 1
-		gotNextDayMetricIDs := s.mustLoadNextDayMetricIDs(genOther, date)
-		assertNextDayMetricIDs(t, gotNextDayMetricIDs, genOther, date, 0)
-
-		// Try loading the cache file contents for a different date.
-		dateOther := date + 1
-		gotNextDayMetricIDs = s.mustLoadNextDayMetricIDs(genCurr, dateOther)
-		assertNextDayMetricIDs(t, gotNextDayMetricIDs, genCurr, dateOther, 0)
-
+		// Advance the time by one day and open the storage.
+		// Since the current date and the date in the cache file do not match,
+		// nothing will be loaded into cache.
+		time.Sleep(24 * time.Hour)
+		date = uint64(time.Now().UnixMilli()) / msecPerDay
+		s = MustOpenStorage(t.Name(), OpenOptions{})
+		if got := s.pendingNextDayMetricIDs.Len(); got != 0 {
+			t.Fatalf("unexpected pendingNextDayMetricIDs count: got %d, want 0", got)
+		}
+		assertNextDayMetricIDs(t, s.nextDayMetricIDs.Load(), idbID, date, 0)
 		s.MustClose()
 	})
 }

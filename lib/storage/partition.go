@@ -99,7 +99,11 @@ type partition struct {
 	// the path to directory with bigParts.
 	bigPartsPath string
 
+	// the path to directory with IndexDB parts.
+	indexDBPartsPath string
+
 	// The parent storage.
+	// TODO(@rtm0): Do not depend on Storage, pass only what is required.
 	s *Storage
 
 	// Name is the name of the partition in the form YYYY_MM.
@@ -126,6 +130,9 @@ type partition struct {
 
 	// Contains file-based parts with big number of items, which are visible for search.
 	bigParts []*partWrapper
+
+	// Contains the inverted index for the data stored in this partition.
+	idb *indexDB
 
 	// stopCh is used for notifying all the background workers to stop.
 	//
@@ -193,14 +200,19 @@ func (pw *partWrapper) decRef() {
 }
 
 // mustCreatePartition creates new partition for the given timestamp and the given paths to small and big partitions.
-func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) *partition {
+func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath, indexDBPath string, s *Storage) *partition {
+	var tr TimeRange
+	tr.fromPartitionTimestamp(timestamp)
 	name := timestampToPartitionName(timestamp)
+
 	smallPartsPath := filepath.Join(filepath.Clean(smallPartitionsPath), name)
 	bigPartsPath := filepath.Join(filepath.Clean(bigPartitionsPath), name)
-	logger.Infof("creating a partition %q with smallPartsPath=%q, bigPartsPath=%q", name, smallPartsPath, bigPartsPath)
+	indexDBPartsPath := filepath.Join(filepath.Clean(indexDBPath), name)
+	logger.Infof("creating a partition %q with smallPartsPath=%q, bigPartsPath=%q, indexDBPartsPath=%q", name, smallPartsPath, bigPartsPath, indexDBPartsPath)
 
 	fs.MustMkdirFailIfExist(smallPartsPath)
 	fs.MustMkdirFailIfExist(bigPartsPath)
+	fs.MustMkdirFailIfExist(indexDBPartsPath)
 
 	// Create parts.json file. Since we are creating a new partition, there
 	// will be no parts, i.e. the smallPartsPath and bigPartPath dirs will be
@@ -208,13 +220,11 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 	// there will be panic.
 	mustWritePartNames(nil, nil, smallPartsPath)
 
-	var tr TimeRange
-	tr.fromPartitionTimestamp(timestamp)
-
-	pt := newPartition(name, smallPartsPath, bigPartsPath, tr, s)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, tr, s)
 
 	fs.MustSyncPathAndParentDir(smallPartsPath)
 	fs.MustSyncPathAndParentDir(bigPartsPath)
+	fs.MustSyncPathAndParentDir(indexDBPartsPath)
 
 	pt.startBackgroundWorkers()
 
@@ -238,21 +248,24 @@ func (pt *partition) startBackgroundWorkers() {
 //
 // The pt must be detached from table before calling pt.Drop.
 func (pt *partition) Drop() {
-	logger.Infof("dropping partition %q at smallPartsPath=%q, bigPartsPath=%q", pt.name, pt.smallPartsPath, pt.bigPartsPath)
+	logger.Infof("dropping partition %q at smallPartsPath=%q, bigPartsPath=%q, indexDBPartsPath=%q", pt.name, pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath)
 
 	fs.MustRemoveDir(pt.smallPartsPath)
 	fs.MustRemoveDir(pt.bigPartsPath)
+	fs.MustRemoveDir(pt.indexDBPartsPath)
 	logger.Infof("partition %q has been dropped", pt.name)
 }
 
 // mustOpenPartition opens the existing partition from the given paths.
-func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partition {
+func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s *Storage) *partition {
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
+	indexDBPartsPath = filepath.Clean(indexDBPartsPath)
 
 	// Create paths to parts if they are missing.
 	fs.MustMkdirIfNotExist(smallPartsPath)
 	fs.MustMkdirIfNotExist(bigPartsPath)
+	fs.MustMkdirIfNotExist(indexDBPartsPath)
 
 	name := filepath.Base(smallPartsPath)
 	var tr TimeRange
@@ -261,6 +274,9 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 	}
 	if !strings.HasSuffix(bigPartsPath, name) {
 		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
+	}
+	if !strings.HasSuffix(indexDBPartsPath, name) {
+		logger.Panicf("FATAL: partition name in indexDBPartsPath %q doesn't match smallPartsPath %q; want %q", indexDBPartsPath, smallPartsPath, name)
 	}
 
 	partsFile := filepath.Join(smallPartsPath, partsFilename)
@@ -276,7 +292,7 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, tr, s)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, tr, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
 
@@ -288,17 +304,23 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 	return pt
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath string, tr TimeRange, s *Storage) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, tr TimeRange, s *Storage) *partition {
+	id := uint64(tr.MinTimestamp)
+	idb := mustOpenIndexDB(id, tr, name, indexDBPartsPath, s, &s.isReadOnly, false)
+
 	p := &partition{
-		name:           name,
-		smallPartsPath: smallPartsPath,
-		bigPartsPath:   bigPartsPath,
-		tr:             tr,
-		s:              s,
-		stopCh:         make(chan struct{}),
+		name:             name,
+		smallPartsPath:   smallPartsPath,
+		bigPartsPath:     bigPartsPath,
+		indexDBPartsPath: indexDBPartsPath,
+		tr:               tr,
+		s:                s,
+		idb:              idb,
+		stopCh:           make(chan struct{}),
 	}
 	p.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	p.rawRows.init()
+
 	return p
 }
 
@@ -350,6 +372,8 @@ type partitionMetrics struct {
 
 	ScheduledDownsamplingPartitions     uint64
 	ScheduledDownsamplingPartitionsSize uint64
+
+	IndexDBMetrics IndexDBMetrics
 }
 
 // TotalRowsCount returns total number of rows in tm.
@@ -426,6 +450,8 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.InmemoryRowsDeleted += pt.inmemoryRowsDeleted.Load()
 	m.SmallRowsDeleted += pt.smallRowsDeleted.Load()
 	m.BigRowsDeleted += pt.bigRowsDeleted.Load()
+
+	pt.idb.UpdateMetrics(&m.IndexDBMetrics)
 }
 
 // AddRows adds the given rows to the partition pt.
@@ -634,6 +660,7 @@ func (pt *partition) NotifyReadWriteMode() {
 	pt.startInmemoryPartsMergers()
 	pt.startSmallPartsMergers()
 	pt.startBigPartsMergers()
+	pt.idb.tb.NotifyReadWriteMode()
 }
 
 func (pt *partition) inmemoryPartsMerger() {
@@ -962,13 +989,18 @@ func (pt *partition) MustClose() {
 			logger.Panicf("BUG: unexpected non-zero refCount: %d", refCount)
 		}
 	}
+
+	idb := pt.idb
+	pt.idb = nil
+	idb.MustClose()
 }
 
-// DebugFlush flushes pending raw data rows of this partition so they
+// DebugFlush flushes pending raw index and data rows of this partition so they
 // become visible to search.
 //
 // This function is for debug purposes only.
 func (pt *partition) DebugFlush() {
+	pt.idb.tb.DebugFlush()
 	pt.flushPendingRows(true)
 }
 
@@ -1600,7 +1632,7 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
 	activeMerges.Add(1)
 	_ = useSparseCache // unused in OSS version.
-	dmis := pt.s.getDeletedMetricIDs()
+	dmis := pt.idb.getDeletedMetricIDs()
 	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
@@ -1994,8 +2026,8 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 // MustCreateSnapshotAt creates pt snapshot at the given smallPath and bigPath dirs.
 //
 // Snapshot is created using linux hard links, so it is usually created very quickly.
-func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath string) {
-	logger.Infof("creating partition snapshot of %q and %q...", pt.smallPartsPath, pt.bigPartsPath)
+func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath, indexDBPath string) {
+	logger.Infof("creating partition snapshot of %q, %q, and %q...", pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath)
 	startTime := time.Now()
 
 	// Flush inmemory data to disk.
@@ -2025,8 +2057,10 @@ func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath string) {
 	fs.MustSyncPathAndParentDir(smallPath)
 	fs.MustSyncPathAndParentDir(bigPath)
 
-	logger.Infof("created partition snapshot of %q and %q at %q and %q in %.3f seconds",
-		pt.smallPartsPath, pt.bigPartsPath, smallPath, bigPath, time.Since(startTime).Seconds())
+	pt.idb.tb.MustCreateSnapshotAt(indexDBPath)
+
+	logger.Infof("created partition snapshot of %q, %q, and %q at %q, %q, and %q in %.3f seconds",
+		pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath, smallPath, bigPath, indexDBPath, time.Since(startTime).Seconds())
 }
 
 // mustCreateSnapshot creates a snapshot from srcDir to dstDir.
