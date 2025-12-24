@@ -51,6 +51,10 @@ func (db *legacyIndexDB) scheduleToDrop() {
 }
 
 func (db *legacyIndexDB) MustClose() {
+	rc := db.refCount.Load()
+	if rc != 1 {
+		logger.Fatalf("BUG: %q unexpected legacy indexDB refCount: %d", db.idb.name, rc)
+	}
 	db.decRef()
 }
 

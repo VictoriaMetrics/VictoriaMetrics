@@ -29,14 +29,16 @@ func TestIsAutoMetric(t *testing.T) {
 	}
 	f("up", true)
 	f("scrape_duration_seconds", true)
-	f("scrape_samples_scraped", true)
-	f("scrape_samples_post_metric_relabeling", true)
-	f("scrape_series_added", true)
-	f("scrape_timeout_seconds", true)
+	f("scrape_response_size_bytes", true)
 	f("scrape_samples_limit", true)
+	f("scrape_samples_post_metric_relabeling", true)
+	f("scrape_samples_scraped", true)
+	f("scrape_series_added", true)
+	f("scrape_series_current", true)
 	f("scrape_series_limit_samples_dropped", true)
 	f("scrape_series_limit", true)
-	f("scrape_series_current", true)
+	f("scrape_labels_limit", true)
+	f("scrape_timeout_seconds", true)
 
 	f("foobar", false)
 	f("exported_up", false)
@@ -234,7 +236,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_timeout_seconds 42 123
 	`, []prompb.MetricMetadata{})
 	f(`
-	    # HELP foo This is test metric.
+		# HELP foo This is test metric.
 		# TYPE foo gauge
 		foo{bar="baz",empty_label=""} 34.45 3
 		abc -2
@@ -246,7 +248,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		abc -2 123
 		up 1 123
 		scrape_samples_scraped 2 123
-		scrape_response_size_bytes 107 123
+		scrape_response_size_bytes 104 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_series_added 2 123
@@ -532,23 +534,23 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 	`, []prompb.MetricMetadata{})
 	// Scrape failure because of the exceeded LabelLimit
 	f(`
-                foo{bar="baz"} 34.44
-                bar{a="b",c="d",e="f"} -3e4
-        `, &ScrapeWork{
+		foo{bar="baz"} 34.44
+		bar{a="b",c="d",e="f"} -3e4
+	`, &ScrapeWork{
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
 		LabelLimit:    2,
 	}, `
-                up 0 123
-                scrape_samples_scraped 2 123
-                scrape_response_size_bytes 0 123
-                scrape_duration_seconds 0 123
-                scrape_samples_post_metric_relabeling 0 123
-                scrape_series_added 0 123
-                scrape_timeout_seconds 42 123
+		up 0 123
+		scrape_samples_scraped 2 123
+		scrape_response_size_bytes 0 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 0 123
+		scrape_series_added 0 123
+		scrape_timeout_seconds 42 123
 		scrape_labels_limit 2 123
-        `, []prompb.MetricMetadata{})
+	`, []prompb.MetricMetadata{})
 	// Scrape success with the given SeriesLimit.
 	f(`
 		foo{bar="baz"} 34.44

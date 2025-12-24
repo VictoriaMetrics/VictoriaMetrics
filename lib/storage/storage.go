@@ -241,7 +241,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		if mnt.IsEmpty() {
 			// metric names tracker performs attempt to track timeseries during ingestion only at tsid cache miss.
 			// It allows to do not decrease storage performance.
-			logger.Infof("resetting tsidCache in order to properly track metric names stats usage")
+			logger.Infof("resetting tsidCache in order to properly track metric name usage stats")
 			s.tsidCache.Reset()
 		}
 	}
@@ -1808,7 +1808,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			// This guarantees that invalid rows don't prevent
 			// from adding valid rows into the storage.
 			if firstWarn == nil {
-				firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+				firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 			}
 			s.invalidRawMetricNames.Add(1)
 			continue

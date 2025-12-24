@@ -262,6 +262,7 @@ func (cfg *Config) getJobNames() []string {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
 	LabelLimit           int                         `yaml:"label_limit,omitempty"`
+	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
 	ScrapeInterval       *promutil.Duration          `yaml:"scrape_interval,omitempty"`
 	ScrapeTimeout        *promutil.Duration          `yaml:"scrape_timeout,omitempty"`
 	ExternalLabels       *promutil.Labels            `yaml:"external_labels,omitempty"`
@@ -955,6 +956,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
+	sampleLimit := sc.SampleLimit
+	if sampleLimit <= 0 {
+		sampleLimit = globalCfg.SampleLimit
+	}
 	externalLabels := globalCfg.ExternalLabels
 	noStaleTracking := *noStaleMarkers
 	if sc.NoStaleMarkers != nil {
@@ -987,7 +992,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		externalLabels:       externalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
-		sampleLimit:          sc.SampleLimit,
+		sampleLimit:          sampleLimit,
 		labelLimit:           labelLimit,
 		disableCompression:   disableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
