@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -44,12 +45,13 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	indexPath := filepath.Join(path, indexFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 
-	var psw filestream.ParallelStreamWriter
-	psw.Add(timestampsPath, &mp.timestampsData)
-	psw.Add(valuesPath, &mp.valuesData)
-	psw.Add(indexPath, &mp.indexData)
-	psw.Add(metaindexPath, &mp.metaindexData)
-	psw.Run()
+	var pe fsutil.ParallelExecutor
+
+	pe.Add(filestream.NewStreamWriterTask(timestampsPath, &mp.timestampsData))
+	pe.Add(filestream.NewStreamWriterTask(valuesPath, &mp.valuesData))
+	pe.Add(filestream.NewStreamWriterTask(indexPath, &mp.indexData))
+	pe.Add(filestream.NewStreamWriterTask(metaindexPath, &mp.metaindexData))
+	pe.Run()
 
 	mp.ph.MustWriteMetadata(path)
 
