@@ -26,9 +26,9 @@ Please implement [VictoriaMetrics cluster setup](https://docs.victoriametrics.co
 Specifically, we recommend to deploy `vmauth` in every AZ-cluster when we build hyperscale cluster, although it is marked as optional in the cluster setup docs. `vmauth` can provide a unified access point for the global route layer of hyperscale cluster. For example, for N AZ-clusters, we will have `http://az[1-N]-vmauth-addr>:8427`
 
 ## 3. Install vmagent in global route layer
-vmagent resides in the global route layer. It is responsible for distributing write requests to various AZ-clusters within a region. It also enhances fault tolerance. When an AZ-cluster becomes unavailable, it can temporarily buffer data on the local storage instead of dropping it directly. Please refer to [On-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
+`vmagent` resides in the global route layer. It is responsible for distributing write requests to various AZ-clusters within a region. It also enhances fault tolerance. When an AZ-cluster becomes unavailable, it can temporarily buffer data on the local storage instead of dropping it directly. Please refer to [On-disk persistence](https://docs.victoriametrics.com/victoriametrics/vmagent/#on-disk-persistence).
 
-By default, vmagent replicates the full copy of data to every AZ-cluster indicated by `-remoteWrite.url`. We can also configure `-remoteWrite.shardByURLReplicas=N` to instruct `vmagent` to write every outgoing sample to N numbers of distinct AZ clusters, see [Sharding among remote storages](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages) for detail. The choice of write-path depends on the trade-off between availability and read speed.
+By default, `vmagent` replicates the full copy of data to every AZ-cluster indicated by `-remoteWrite.url`. We can also configure `-remoteWrite.shardByURLReplicas=N` to instruct `vmagent` to write every outgoing sample to N numbers of distinct AZ clusters, see [Sharding among remote storages](https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages) for detail. The choice of write-path depends on the trade-off between availability and read speed.
 
 Suppose we have 4 AZ-clusters. To deploy `vmagent`, we should prepare `vmagent.yaml`:
 ```yaml
