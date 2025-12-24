@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -56,9 +57,11 @@ var (
 		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
 	maxHourlySeries = flag.Int("storage.maxHourlySeries", 0, "The maximum number of unique series can be added to the storage during the last hour. "+
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", bloomfilter.MaxLimit)+
 		"See also -storage.maxDailySeries")
 	maxDailySeries = flag.Int("storage.maxDailySeries", 0, "The maximum number of unique series can be added to the storage during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
+		fmt.Sprintf("Setting this flag to '-1' sets limit to maximum possible value (%d) which is useful in order to enable series tracking without enforcing limits. ", bloomfilter.MaxLimit)+
 		"See also -storage.maxHourlySeries")
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
@@ -140,8 +143,8 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	WG = syncwg.WaitGroup{}
 	opts := storage.OpenOptions{
 		Retention:             retentionPeriod.Duration(),
-		MaxHourlySeries:       *maxHourlySeries,
-		MaxDailySeries:        *maxDailySeries,
+		MaxHourlySeries:       int32(*maxHourlySeries),
+		MaxDailySeries:        int32(*maxDailySeries),
 		DisablePerDayIndex:    *disablePerDayIndex,
 		TrackMetricNamesStats: *trackMetricNamesStats,
 		IDBPrefillStart:       *idbPrefillStart,
@@ -588,10 +591,10 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="big_timestamp"}`, m.TooBigTimestampRows)
 	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="small_timestamp"}`, m.TooSmallTimestampRows)
 	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="invalid_raw_metric_name"}`, m.InvalidRawMetricNames)
-	if *maxHourlySeries > 0 {
+	if bloomfilter.IsLimiterEnabled(int32(*maxHourlySeries)) {
 		metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="hourly_limit_exceeded"}`, m.HourlySeriesLimitRowsDropped)
 	}
-	if *maxDailySeries > 0 {
+	if bloomfilter.IsLimiterEnabled(int32(*maxDailySeries)) {
 		metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="daily_limit_exceeded"}`, m.DailySeriesLimitRowsDropped)
 	}
 
@@ -601,13 +604,13 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_slow_row_inserts_total`, m.SlowRowInserts)
 	metrics.WriteCounterUint64(w, `vm_slow_per_day_index_inserts_total`, m.SlowPerDayIndexInserts)
 
-	if *maxHourlySeries > 0 {
+	if bloomfilter.IsLimiterEnabled(int32(*maxHourlySeries)) {
 		metrics.WriteGaugeUint64(w, `vm_hourly_series_limit_current_series`, m.HourlySeriesLimitCurrentSeries)
 		metrics.WriteGaugeUint64(w, `vm_hourly_series_limit_max_series`, m.HourlySeriesLimitMaxSeries)
 		metrics.WriteCounterUint64(w, `vm_hourly_series_limit_rows_dropped_total`, m.HourlySeriesLimitRowsDropped)
 	}
 
-	if *maxDailySeries > 0 {
+	if bloomfilter.IsLimiterEnabled(int32(*maxDailySeries)) {
 		metrics.WriteGaugeUint64(w, `vm_daily_series_limit_current_series`, m.DailySeriesLimitCurrentSeries)
 		metrics.WriteGaugeUint64(w, `vm_daily_series_limit_max_series`, m.DailySeriesLimitMaxSeries)
 		metrics.WriteCounterUint64(w, `vm_daily_series_limit_rows_dropped_total`, m.DailySeriesLimitRowsDropped)
