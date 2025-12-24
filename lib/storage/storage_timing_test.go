@@ -273,7 +273,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 		var (
 			rowsAddedTotal int
 			dataSize       int64
-			indexSize      int64
 		)
 
 		path := b.Name()
@@ -295,7 +294,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 			rowsAddedTotal = numBatches * numRowsPerBatch
 			dataSize = benchmarkDirSize(path + "/data")
-			indexSize = benchmarkDirSize(path + "/indexdb")
 
 			s.MustClose()
 			fs.MustRemoveDir(path)
@@ -303,7 +301,6 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 		b.ReportMetric(float64(rowsAddedTotal)/float64(b.Elapsed().Seconds()), "rows/s")
 		b.ReportMetric(float64(dataSize)/(1024*1024), "data-MiB")
-		b.ReportMetric(float64(indexSize)/(1024*1024), "indexdb-MiB")
 	}
 
 	b.Run("HighChurnRate/perDayIndexes", func(b *testing.B) {
@@ -392,7 +389,7 @@ type dataConfig struct {
 type searchFunc func(b *testing.B, s *Storage, tr TimeRange, mrs []MetricRow)
 
 // splitFunc split the test data between prev and curr indexDBs.
-type splitFunc func(total dataConfig) (prev, curr dataConfig)
+type splitFunc func(total dataConfig) (prev, curr, pt dataConfig)
 
 // benchmarkSearch implements the core logic of benchmark of a search operation.
 //
@@ -455,11 +452,13 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 
 	}
 
-	cfgPrev, cfgCurr := split(dataConfig)
+	cfgPrev, cfgCurr, cfgPt := split(dataConfig)
 	mrsToDeletePrev := genRows(cfgPrev.numDeletedSeries, "prev", cfgPrev.tr)
 	mrsToDeleteCurr := genRows(cfgCurr.numDeletedSeries, "curr", cfgCurr.tr)
+	mrsToDeletePt := genRows(cfgPt.numDeletedSeries, "pt", cfgPt.tr)
 	mrsPrev := genRows(cfgPrev.numSeries, "prev", cfgPrev.tr)
 	mrsCurr := genRows(cfgCurr.numSeries, "curr", cfgCurr.tr)
+	mrsPt := genRows(cfgPt.numSeries, "pt", cfgPt.tr)
 
 	s := MustOpenStorage(b.Name(), OpenOptions{})
 	s.AddRows(mrsToDeletePrev, defaultPrecisionBits)
@@ -468,8 +467,7 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 	s.DebugFlush()
 	s.AddRows(mrsPrev, defaultPrecisionBits)
 	s.DebugFlush()
-
-	s.mustRotateIndexDB(time.Now())
+	s = mustConvertToLegacy(s)
 
 	s.AddRows(mrsToDeleteCurr, defaultPrecisionBits)
 	s.DebugFlush()
@@ -477,8 +475,16 @@ func benchmarkSearch(b *testing.B, dataConfig dataConfig, split splitFunc, searc
 	s.DebugFlush()
 	s.AddRows(mrsCurr, defaultPrecisionBits)
 	s.DebugFlush()
+	s = mustConvertToLegacy(s)
 
-	mrs := slices.Concat(mrsPrev, mrsCurr)
+	s.AddRows(mrsToDeletePt, defaultPrecisionBits)
+	s.DebugFlush()
+	deleteSeries(s, "pt", cfgPt.numDeletedSeries)
+	s.DebugFlush()
+	s.AddRows(mrsPt, defaultPrecisionBits)
+	s.DebugFlush()
+
+	mrs := slices.Concat(mrsPrev, mrsCurr, mrsPt)
 	search(b, s, dataConfig.tr, mrs)
 
 	s.MustClose()
@@ -691,36 +697,38 @@ func isGraphite(op searchFunc) bool {
 
 // indexConfigs holds the index configurations for which BenchmarkSearch() will
 // perform the measurements.
-var indexConfigs = []splitFunc{prevOnly, currOnly, prevCurr}
-var indexConfigNames = []string{"PrevOnly", "CurrOnly", "PrevCurr"}
+var indexConfigs = []splitFunc{prevOnly, currOnly, prevCurr, ptOnly, prevPt, currPt, prevCurrPt}
+var indexConfigNames = []string{"PrevOnly", "CurrOnly", "PrevCurr", "PtOnly", "PrevPt", "CurrPt", "PrevCurrPt"}
 
-// prevOnly is an index config func that puts all index data into prev indexDB.
-// No index data goes to curr indexDB.
+// prevOnly is an index config func that puts all index data into legacy prev
+// indexDB. No index data goes to legacy curr indexDB or pt indexDBs.
 //
-// This config corresponds to a state when indexDBs have just been rotated.
-// I.e. most of the index entries are in the prev indexDB.
-func prevOnly(total dataConfig) (prev, curr dataConfig) {
+// This config corresponds to a state when the deployment has switched to pt
+// index right after legacy indexDBs have just been rotated. I.e. most of the
+// index entries are in the prev indexDB.
+func prevOnly(total dataConfig) (prev, curr, pt dataConfig) {
 	prev = total
-	return prev, curr
+	return prev, curr, pt
 }
 
-// currOnly is an index config func that puts all index data into curr
-// indexDB. No index data goes to prev indexDB.
+// currOnly is an index config func that puts all index data into legacy curr
+// indexDB. No index data goes to legacy prev indexDB or pt indexDBs.
 //
-// This config corresponds to a state when indexDBs haven't been rotated yet or
-// rotated long time ago. I.e. most of the index entries are in the curr
-// indexDB.
-func currOnly(total dataConfig) (prev, curr dataConfig) {
+// This config corresponds to a state when the deployment has switched to pt
+// index before legacy indexDB rotation or the rotation has happened long time
+// ago. I.e. most of the index entries are in the curr indexDB.
+func currOnly(total dataConfig) (prev, curr, pt dataConfig) {
 	curr = total
-	return prev, curr
+	return prev, curr, pt
 }
 
 // prevCurr is an index config func that splits index data evenly between
-// prev and curr indexDBs.
+// prev and curr legacy indexDBs. No data goes to pt indexDBs.
 //
-// This config corresponds to a state when the indexDB rotation has happened
-// some time ago. I.e. index entries are in both prev and curr indexDBs.
-func prevCurr(total dataConfig) (prev, curr dataConfig) {
+// This config corresponds to a state when the the deployment has switched to pt
+// index some significant time after legacy indexDB rotation. I.e. index entries
+// are in both prev and curr legacy indexDBs.
+func prevCurr(total dataConfig) (prev, curr, pt dataConfig) {
 	prev.numSeries = total.numSeries / 2
 	prev.numDeletedSeries = total.numDeletedSeries / 2
 	prev.tr.MinTimestamp = total.tr.MinTimestamp
@@ -731,7 +739,82 @@ func prevCurr(total dataConfig) (prev, curr dataConfig) {
 	curr.tr.MinTimestamp = prev.tr.MaxTimestamp + 1
 	curr.tr.MaxTimestamp = total.tr.MaxTimestamp
 
-	return prev, curr
+	return prev, curr, pt
+}
+
+// ptOnly is an index config func that puts all index data into pt indexDBs. No
+// index data goes to prev or curr legacy indexDBs.
+//
+// This config corresponds to a state when a fresh deployment has started with
+// pt index right away.I.e. all the index entries are in the pt indexDBs.
+func ptOnly(total dataConfig) (prev, curr, pt dataConfig) {
+	pt = total
+	return prev, curr, pt
+}
+
+// prevPt is an index config func that splits index data evenly between
+// prev legacy indexDB and pt indexDBs. No data goes to curr legacy indexDB.
+//
+// This config corresponds to a state when the the deployment has switched to pt
+// index right after legacy indexDB rotation and continued to work for some
+// time.
+func prevPt(total dataConfig) (prev, curr, pt dataConfig) {
+	prev.numSeries = total.numSeries / 2
+	prev.numDeletedSeries = total.numDeletedSeries / 2
+	prev.tr.MinTimestamp = total.tr.MinTimestamp
+	prev.tr.MaxTimestamp = total.tr.MinTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/2
+
+	pt.numSeries = total.numSeries - prev.numSeries
+	pt.numDeletedSeries = total.numDeletedSeries - prev.numDeletedSeries
+	pt.tr.MinTimestamp = prev.tr.MaxTimestamp + 1
+	pt.tr.MaxTimestamp = total.tr.MaxTimestamp
+
+	return prev, curr, pt
+}
+
+// currPt is an index config func that splits index data evenly between
+// curr legacy indexDB and pt indexDBs. No data goes to prev legacy indexDB.
+//
+// This config corresponds to a state when the the deployment has switched to pt
+// index right before legacy indexDB rotation and continued to work for some
+// time.
+func currPt(total dataConfig) (prev, curr, pt dataConfig) {
+	curr.numSeries = total.numSeries / 2
+	curr.numDeletedSeries = total.numDeletedSeries / 2
+	curr.tr.MinTimestamp = total.tr.MinTimestamp
+	curr.tr.MaxTimestamp = total.tr.MinTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/2
+
+	pt.numSeries = total.numSeries - curr.numSeries
+	pt.numDeletedSeries = total.numDeletedSeries - curr.numDeletedSeries
+	pt.tr.MinTimestamp = curr.tr.MaxTimestamp + 1
+	pt.tr.MaxTimestamp = total.tr.MaxTimestamp
+
+	return prev, curr, pt
+}
+
+// prevCurrPt is an index config func that splits index data evenly between
+// prev and curr legacy indexDBs and pt indexDBs.
+//
+// This config corresponds to a state when the the deployment has switched to pt
+// index right some time after legacy indexDB rotation and continued to work for
+// some time.
+func prevCurrPt(total dataConfig) (prev, curr, pt dataConfig) {
+	prev.numSeries = total.numSeries / 3
+	prev.numDeletedSeries = total.numDeletedSeries / 3
+	prev.tr.MinTimestamp = total.tr.MinTimestamp
+	prev.tr.MaxTimestamp = total.tr.MinTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/3
+
+	curr.numSeries = prev.numSeries
+	curr.numDeletedSeries = prev.numDeletedSeries
+	curr.tr.MinTimestamp = prev.tr.MaxTimestamp + 1
+	curr.tr.MaxTimestamp = prev.tr.MaxTimestamp + (total.tr.MaxTimestamp-total.tr.MinTimestamp)/3
+
+	pt.numSeries = total.numSeries - prev.numSeries - curr.numSeries
+	pt.numDeletedSeries = total.numDeletedSeries - prev.numDeletedSeries - curr.numDeletedSeries
+	pt.tr.MinTimestamp = curr.tr.MaxTimestamp + 1
+	pt.tr.MaxTimestamp = total.tr.MaxTimestamp
+
+	return prev, curr, pt
 }
 
 // dataConfigFunc generates a collection of data configs. For example, various
