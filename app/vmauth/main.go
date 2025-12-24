@@ -629,7 +629,8 @@ func handleMissingAuthorizationError(w http.ResponseWriter) {
 }
 
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
-	if errors.Is(err, context.Canceled) {
+	ctx := r.Context()
+	if errors.Is(ctx.Err(), context.Canceled) {
 		// Do not return any response for the request canceled by the client,
 		// since the connection to the client is already closed.
 		return
