@@ -51,7 +51,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": 3,
+  "id": 1,
   "links": [
     {
       "icon": "doc",
@@ -1124,7 +1124,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}",
+          "expr": "sum(vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{instance}}",
@@ -1342,7 +1342,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, path) > 0",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -1457,9 +1457,9 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, level, location) > 0",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, level) > 0",
           "interval": "5m",
-          "legendFormat": "{{job}} - {{level}}: {{location}}",
+          "legendFormat": "{{job}} - {{level}}",
           "range": true,
           "refId": "A"
         }
@@ -1557,7 +1557,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1814
+            "y": 31
           },
           "id": 112,
           "options": {
@@ -1672,7 +1672,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1814
+            "y": 31
           },
           "id": 114,
           "options": {
@@ -1790,7 +1790,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1822
+            "y": 39
           },
           "id": 123,
           "options": {
@@ -1897,7 +1897,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1822
+            "y": 39
           },
           "id": 134,
           "options": {
@@ -2029,7 +2029,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1830
+            "y": 47
           },
           "id": 44,
           "options": {
@@ -2215,7 +2215,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1830
+            "y": 47
           },
           "id": 57,
           "options": {
@@ -2339,7 +2339,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1838
+            "y": 55
           },
           "id": 135,
           "options": {
@@ -2477,7 +2477,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1838
+            "y": 55
           },
           "id": 76,
           "options": {
@@ -2621,7 +2621,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1846
+            "y": 63
           },
           "id": 142,
           "options": {
@@ -2745,7 +2745,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1846
+            "y": 63
           },
           "id": 124,
           "options": {
@@ -2872,7 +2872,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1854
+            "y": 71
           },
           "id": 47,
           "options": {
@@ -2979,7 +2979,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1854
+            "y": 71
           },
           "id": 136,
           "options": {
@@ -3105,7 +3105,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1862
+            "y": 79
           },
           "id": 143,
           "options": {
@@ -3217,7 +3217,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1862
+            "y": 79
           },
           "id": 37,
           "options": {
@@ -3329,7 +3329,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1870
+            "y": 209
           },
           "id": 125,
           "options": {
@@ -3438,7 +3438,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1870
+            "y": 209
           },
           "id": 49,
           "options": {
@@ -3546,7 +3546,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1878
+            "y": 217
           },
           "id": 133,
           "options": {
@@ -3650,38 +3650,13 @@
               },
               "unit": "s"
             },
-            "overrides": [
-              {
-                "__systemRef": "hideSeriesFrom",
-                "matcher": {
-                  "id": "byNames",
-                  "options": {
-                    "mode": "exclude",
-                    "names": [
-                      "victoriametrics"
-                    ],
-                    "prefix": "All except:",
-                    "readOnly": true
-                  }
-                },
-                "properties": [
-                  {
-                    "id": "custom.hideFrom",
-                    "value": {
-                      "legend": false,
-                      "tooltip": true,
-                      "viz": true
-                    }
-                  }
-                ]
-              }
-            ]
+            "overrides": []
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1878
+            "y": 217
           },
           "id": 128,
           "options": {
@@ -3802,7 +3777,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1886
+            "y": 225
           },
           "id": 127,
           "options": {
@@ -3941,7 +3916,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2642
+            "y": 32
           },
           "id": 66,
           "options": {
@@ -4063,7 +4038,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2642
+            "y": 32
           },
           "id": 68,
           "options": {
@@ -4175,7 +4150,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2650
+            "y": 40
           },
           "id": 116,
           "options": {
@@ -4285,7 +4260,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2650
+            "y": 40
           },
           "id": 60,
           "options": {
@@ -4394,7 +4369,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 2658
+            "y": 48
           },
           "id": 90,
           "options": {
@@ -4425,9 +4400,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"} / vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}",
+              "expr": "max(\n    vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"} \n    /\n    vm_cache_size_max_bytes{job=~\"$job\", instance=~\"$instance\"}\n) by(type)",
               "interval": "",
-              "legendFormat": "{{job}} - {{type}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -4505,7 +4480,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 2658
+            "y": 48
           },
           "id": 118,
           "options": {
@@ -4616,7 +4591,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2667
+            "y": 57
           },
           "id": 131,
           "options": {
@@ -4740,7 +4715,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2667
+            "y": 57
           },
           "id": 132,
           "links": [
@@ -4868,7 +4843,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2675
+            "y": 65
           },
           "id": 126,
           "options": {
@@ -4967,7 +4942,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2675
+            "y": 65
           },
           "id": 129,
           "options": {
@@ -5078,7 +5053,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2683
+            "y": 73
           },
           "id": 137,
           "options": {
@@ -5198,7 +5173,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3020
+            "y": 33
           },
           "id": 10,
           "options": {
@@ -5315,7 +5290,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3020
+            "y": 33
           },
           "id": 73,
           "options": {
@@ -5441,7 +5416,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3028
+            "y": 41
           },
           "id": 144,
           "links": [
@@ -5589,7 +5564,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3028
+            "y": 41
           },
           "id": 34,
           "options": {
@@ -5715,7 +5690,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3036
+            "y": 49
           },
           "id": 62,
           "options": {
@@ -5822,7 +5797,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3036
+            "y": 49
           },
           "id": 64,
           "options": {
@@ -5936,7 +5911,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3044
+            "y": 57
           },
           "id": 145,
           "options": {
@@ -6073,7 +6048,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3044
+            "y": 57
           },
           "id": 36,
           "options": {
@@ -6199,7 +6174,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3052
+            "y": 65
           },
           "id": 146,
           "options": {
@@ -6323,7 +6298,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3052
+            "y": 65
           },
           "id": 53,
           "options": {
@@ -6480,7 +6455,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3060
+            "y": 73
           },
           "id": 30,
           "options": {
@@ -6622,7 +6597,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3060
+            "y": 73
           },
           "id": 147,
           "options": {
@@ -6652,7 +6627,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(vm_pending_rows{job=~\"$job_storage\", instance=~\"$instance\", type=\"storage\"}[$__rate_interval]))",
+              "expr": "sum(max_over_time(vm_pending_rows{job=~\"$job\", instance=~\"$instance\", type=\"storage\"}[$__rate_interval]))",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -6666,7 +6641,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(max_over_time(vm_pending_rows{job=~\"$job_storage\", instance=~\"$instance\", type=\"indexdb\"}[$__rate_interval]))",
+              "expr": "sum(max_over_time(vm_pending_rows{job=~\"$job\", instance=~\"$instance\", type=\"indexdb\"}[$__rate_interval]))",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -6747,7 +6722,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3068
+            "y": 81
           },
           "id": 58,
           "options": {
@@ -6859,7 +6834,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3068
+            "y": 81
           },
           "id": 103,
           "options": {
@@ -6987,7 +6962,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3076
+            "y": 89
           },
           "id": 59,
           "options": {
@@ -7109,7 +7084,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3076
+            "y": 89
           },
           "id": 105,
           "options": {
@@ -7221,7 +7196,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3084
+            "y": 97
           },
           "id": 99,
           "options": {
@@ -7333,7 +7308,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3084
+            "y": 97
           },
           "id": 122,
           "options": {
@@ -7442,7 +7417,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3092
+            "y": 105
           },
           "id": 130,
           "options": {
@@ -7500,7 +7475,7 @@
             "h": 2,
             "w": 17,
             "x": 0,
-            "y": 1897
+            "y": 34
           },
           "id": 139,
           "options": {
@@ -7584,7 +7559,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1899
+            "y": 36
           },
           "id": 140,
           "options": {
@@ -7689,7 +7664,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1899
+            "y": 36
           },
           "id": 141,
           "options": {
@@ -7856,7 +7831,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1907
+            "y": 44
           },
           "id": 148,
           "options": {
@@ -7962,7 +7937,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1907
+            "y": 44
           },
           "id": 149,
           "options": {
@@ -8072,7 +8047,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1915
+            "y": 52
           },
           "id": 150,
           "options": {
@@ -8179,7 +8154,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1915
+            "y": 52
           },
           "id": 151,
           "options": {
@@ -8242,8 +8217,8 @@
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
                 "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
+                "fillOpacity": 10,
+                "gradientMode": "opacity",
                 "hideFrom": {
                   "legend": false,
                   "tooltip": false,
@@ -8261,7 +8236,7 @@
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
-                  "mode": "none"
+                  "mode": "percent"
                 },
                 "thresholdsStyle": {
                   "mode": "line"
@@ -8287,7 +8262,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1923
+            "y": 60
           },
           "id": 152,
           "options": {
@@ -8407,7 +8382,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1923
+            "y": 60
           },
           "id": 153,
           "options": {
@@ -8523,7 +8498,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1931
+            "y": 68
           },
           "id": 154,
           "options": {
