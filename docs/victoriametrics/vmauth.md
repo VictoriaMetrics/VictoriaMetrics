@@ -1207,4 +1207,4 @@ It is safe to share the collected profiles from security point of view, since th
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 
-{{% content "vmagent_flags.md" %}}
+{{% content "vmauth_flags.md" %}}
