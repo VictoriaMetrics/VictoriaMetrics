@@ -52,10 +52,15 @@ Comma-separated list of expected databases can be passed to VictoriaMetrics via 
 
 VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
 
-prepare file `influx.data` with
+Here's an example writing data with `curl`:
+```sh
+curl --data-binary 'measurement1,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
+```
+
+And to write multiple lines of data at once, prepare an `influx.data` file with:
 ```text
-measurement1,tag1=value1,tag2=value2 field1=123,field2=1.23
 measurement2,tag1=value1,tag2=value2 field1=456,field2=4.56
+measurement3,tag1=value1,tag2=value2 field1=789,field2=7.89
 ```
 
 ```sh
@@ -64,10 +69,12 @@ curl -X POST 'http://localhost:8428/api/v2/write' --data-binary @influx.data
 
 The `/api/v1/export` endpoint should return the following response:
 ```json
-{"metric":{"__name__":"measurement1_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1695902762311]}
-{"metric":{"__name__":"measurement1_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
-{"metric":{"__name__":"measurement2_field1","tag1":"value1","tag2":"value2"},"values":[456],"timestamps":[1695902762311]}
-{"metric":{"__name__":"measurement2_field2","tag1":"value1","tag2":"value2"},"values":[4.56],"timestamps":[1695902762311]}
+{"metric":{"__name__":"measurement1_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1766983684142]}
+{"metric":{"__name__":"measurement1_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1766983684142]}
+{"metric":{"__name__":"measurement2_field1","tag1":"value1","tag2":"value2"},"values":[456],"timestamps":[1767012583021]}
+{"metric":{"__name__":"measurement2_field2","tag1":"value1","tag2":"value2"},"values":[4.56],"timestamps":[1767012583021]}
+{"metric":{"__name__":"measurement3_field1","tag1":"value1","tag2":"value2"},"values":[789],"timestamps":[1767012583021]}
+{"metric":{"__name__":"measurement3_field2","tag1":"value1","tag2":"value2"},"values":[7.89],"timestamps":[1767012583021]}
 ```
 
 ## Data transformations
