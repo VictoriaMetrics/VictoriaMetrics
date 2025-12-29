@@ -132,7 +132,6 @@ func reloadRelabelConfigs() {
 func loadRelabelConfigs() (*relabelConfigs, error) {
 	var rcs relabelConfigs
 	if *relabelConfigPathGlobal != "" {
-		rcs.flagSet = true
 		global, rawCfg, err := promrelabel.LoadRelabelConfigs(*relabelConfigPathGlobal)
 		if err != nil {
 			return nil, fmt.Errorf("cannot load -remoteWrite.relabelConfig=%q: %w", *relabelConfigPathGlobal, err)
@@ -141,12 +140,9 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		rcs.global = global
 	}
 
-	if len(*relabelConfigPaths) > 0 {
-		rcs.flagSet = true
-		if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
-			return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
-				len(*relabelConfigPaths), (len(*remoteWriteURLs)))
-		}
+	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
+		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
+			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
 	}
 
 	var urlRelabelCfgs []interface{}
@@ -177,13 +173,13 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 }
 
 type relabelConfigs struct {
-	global  *promrelabel.ParsedConfigs
-	perURL  []*promrelabel.ParsedConfigs
-	flagSet bool // whether (global or per-URL) command-line flags is set
+	global *promrelabel.ParsedConfigs
+	perURL []*promrelabel.ParsedConfigs
 }
 
+// isSet indicates whether (global or per-URL) command-line flags is set
 func (rcs *relabelConfigs) isSet() bool {
-	return rcs.flagSet
+	return *relabelConfigPathGlobal != "" || len(*relabelConfigPaths) > 0
 }
 
 // initLabelsGlobal must be called after parsing command-line flags.
