@@ -11,6 +11,7 @@ groups:
         labels:
           severity: warning
         annotations:
+          dashboard: "http://localhost:3000/d/nbuo5Mr4k?viewPanel=10&var-instance={{ $labels.instance }}"
           summary: "vmauth ({{ $labels.instance }}) reached concurrent requests limit"
           description: "Possible solutions: increase the limit with flag: -maxConcurrentRequests, 
           deploy additional vmauth replicas, check requests latency at backend service. 
@@ -21,7 +22,27 @@ groups:
         labels:
           severity: warning
         annotations:
+          dashboard: "http://localhost:3000/d/nbuo5Mr4k?viewPanel=10&var-instance={{ $labels.instance }}"
           summary: "vmauth has reached concurrent requests limit for username {{ $labels.username }}"
           description: "Possible solutions: increase limit with flag: -maxConcurrentPerUserRequests, 
           deploy additional vmauth replicas, check requests latency at backend service."
-
+      - alert: UnauthorizedUserRequestErrors
+        expr: increase(vmauth_unauthorized_user_request_errors_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/nbuo5Mr4k?viewPanel=37&var-instance={{ $labels.instance }}"
+          summary: "Too many errors served for unauthorized user (instance {{ $labels.instance }})"
+          description: "Requests from unauthorized user are receiving errors.
+            Please check the vmauth logs to verify that the configuration is correct and clients are sending valid requests."
+      - alert: UserRequestErrors
+        expr: increase(vmauth_user_request_errors_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/nbuo5Mr4k?viewPanel=37&var-instance={{ $labels.instance }}"
+          summary: "Too many errors served for user {{ $labels.username }} (instance {{ $labels.instance }})"
+          description: "Requests from user {{ $labels.username }} are receiving errors.
+            Please check the vmauth logs to verify that the configuration is correct and clients are sending valid requests."

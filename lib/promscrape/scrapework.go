@@ -961,8 +961,9 @@ func isAutoMetric(s string) bool {
 		"scrape_samples_scraped",
 		"scrape_series_added",
 		"scrape_series_current",
-		"scrape_series_limit",
 		"scrape_series_limit_samples_dropped",
+		"scrape_series_limit",
+		"scrape_labels_limit",
 		"scrape_timeout_seconds":
 		return true
 	default:
@@ -977,7 +978,7 @@ func isAutoMetric(s string) bool {
 // sw is used as read-only config source.
 func (wc *writeRequestCtx) addAutoMetrics(sw *scrapeWork, am *autoMetrics, timestamp int64) {
 	rows := getAutoRows()
-	dst := slicesutil.SetLength(rows.Rows, 11)[:0]
+	dst := slicesutil.SetLength(rows.Rows, 12)[:0]
 
 	dst = appendRow(dst, "scrape_duration_seconds", am.scrapeDurationSeconds, timestamp)
 	dst = appendRow(dst, "scrape_response_size_bytes", float64(am.scrapeResponseSize), timestamp)
