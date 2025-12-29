@@ -173,6 +173,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt := testCreatePartition(t, ptt, strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
+	indexDBPartsPath := pt.indexDBPartsPath
 	for _, rows := range rowss {
 		pt.AddRows(rows)
 
@@ -183,7 +184,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt.MustClose()
 
 	// Open the created partition and test search on it.
-	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
+	pt = mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
 	stopTestStorage(strg)

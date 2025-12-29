@@ -246,7 +246,7 @@ Or create secret via `kubectl`:
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
-Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
+Note that the license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
 
 ### Kubernetes operator
 
@@ -273,7 +273,7 @@ spec:
     tag: v1.132.0-enterprise
 ```
 
-In order to provide the license key via existing secret, the following custom resource is used:
+In order to provide the license key via an existing secret, the following custom resource is used:
 
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -308,8 +308,26 @@ Or create secret via `kubectl`:
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
-Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
-See full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api/).
+Note that the license key provided by using a secret is mounted as a file. This allows updates to the license without the need to restart the pod.
+See the full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api/).
+
+### Updating the license key
+
+Updating the license key for VictoriaMetrics and VictoriaLogs Enterprise components depends on the way
+the license key is provided to the component:
+- If the license key is provided via `-license` command-line flag, then the component should be restarted
+  with the new license key.
+- If the license key is provided via `-licenseFile` command-line flag, then the license file should be updated
+  with the new license key. The component will automatically reload the license file at the interval specified
+  via `-licenseFile.reloadInterval` command-line flag (1 hour by default) and apply the new license key without the need to restart the component.
+- If the license key is provided via Kubernetes secret, then the secret should be updated
+  with the new license key. The component will automatically reload the license file at the interval specified
+  via `-licenseFile.reloadInterval` command-line flag (1 hour by default) and apply the new license key without the need to restart the component.
+- If the license key is provided via Helm chart value, then the corresponding `values.yaml` file
+  should be updated with the new license key and then the Helm chart should be upgraded via `helm upgrade` command.
+  This will restart the component with the new license key.
+- If the license key is provided via Kubernetes operator custom resource, then the corresponding custom resource
+  should be updated with the new license key. This will restart the component with the new license key.
 
 ### FIPS Compatibility
 

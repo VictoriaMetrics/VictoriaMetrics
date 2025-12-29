@@ -118,7 +118,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	}
 
 	resetResponseCacheIfNeeded = resetCacheIfNeeded
-	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
+	storage.LegacySetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
 	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
@@ -500,7 +500,7 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
-	idbm := &m.IndexDBMetrics
+	idbm := &m.TableMetrics.IndexDBMetrics
 
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *DataPath), fs.MustGetFreeSpace(*DataPath))
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *DataPath), uint64(minFreeDiskSpaceBytes.N))
