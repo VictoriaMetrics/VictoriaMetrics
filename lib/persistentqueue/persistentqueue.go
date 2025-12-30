@@ -2,12 +2,14 @@ package persistentqueue
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -26,6 +28,7 @@ const MaxBlockSize = 32 * 1024 * 1024
 const DefaultChunkFileSize = (MaxBlockSize + 8) * 16
 
 var chunkFileNameRegex = regexp.MustCompile("^[0-9A-F]{16}$")
+var getFreeSpace = fs.MustGetFreeSpace
 
 // queue represents persistent queue.
 //
@@ -171,6 +174,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	}
 
 	fs.MustMkdirIfNotExist(path)
+	warnIfInsufficientDiskSpace(path, maxPendingBytes, chunkFileSize)
 	q.flockF = fs.MustCreateFlockFile(path)
 	mustCloseFlockF := true
 	defer func() {
@@ -312,6 +316,22 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	return &q, nil
 }
 
+func warnIfInsufficientDiskSpace(path string, maxPendingBytes, chunkFileSize uint64) {
+	if maxPendingBytes == 0 {
+		return
+	}
+	freeBytes := getFreeSpace(path)
+	if freeBytes == 0 {
+		return
+	}
+	if freeBytes >= maxPendingBytes {
+		return
+	}
+	throttlerName := fmt.Sprintf("persistentqueue-low-disk-%s", path)
+	logger.WithThrottler(throttlerName, time.Minute).Warnf("persistent queue at %q is configured to use up to %d bytes on disk, but only %d bytes are currently available; "+
+		"decrease the on-disk queue size or increase free space to avoid `no space left on device` errors (chunk size is %d bytes)", path, maxPendingBytes, freeBytes, chunkFileSize)
+}
+
 // MustClose closes q.
 //
 // MustWriteBlock mustn't be called during and after the call to MustClose.
@@ -346,11 +366,20 @@ func (q *queue) metainfoPath() string {
 //
 // The block size cannot exceed MaxBlockSize.
 func (q *queue) MustWriteBlock(block []byte) {
+	if err := q.tryWriteBlock(block); err != nil {
+		logger.Panicf("FATAL: %s", err)
+	}
+}
+
+// tryWriteBlock writes block to q.
+//
+// The block size cannot exceed MaxBlockSize.
+func (q *queue) tryWriteBlock(block []byte) error {
 	if uint64(len(block)) > q.maxBlockSize {
-		logger.Panicf("BUG: too big block to send: %d bytes; it mustn't exceed %d bytes", len(block), q.maxBlockSize)
+		return fmt.Errorf("BUG: too big block to send: %d bytes; it mustn't exceed %d bytes", len(block), q.maxBlockSize)
 	}
 	if q.readerOffset > q.writerOffset {
-		logger.Panicf("BUG: readerOffset=%d shouldn't exceed writerOffset=%d", q.readerOffset, q.writerOffset)
+		return fmt.Errorf("BUG: readerOffset=%d shouldn't exceed writerOffset=%d", q.readerOffset, q.writerOffset)
 	}
 	if q.maxPendingBytes > 0 {
 		// Drain the oldest blocks until the number of pending bytes becomes enough for the block.
@@ -369,7 +398,8 @@ func (q *queue) MustWriteBlock(block []byte) {
 				break
 			}
 			if err != nil {
-				logger.Panicf("FATAL: cannot read the oldest block %s", err)
+				blockBufPool.Put(bb)
+				return fmt.Errorf("cannot read the oldest block: %w", err)
 			}
 			q.blocksDropped.Inc()
 			q.bytesDropped.Add(len(bb.B))
@@ -377,12 +407,10 @@ func (q *queue) MustWriteBlock(block []byte) {
 		blockBufPool.Put(bb)
 		if blockSize > q.maxPendingBytes {
 			// The block is too big to put it into the queue. Drop it.
-			return
+			return nil
 		}
 	}
-	if err := q.writeBlock(block); err != nil {
-		logger.Panicf("FATAL: %s", err)
-	}
+	return q.writeBlock(block)
 }
 
 var blockBufPool bytesutil.ByteBufferPool
@@ -392,6 +420,10 @@ func (q *queue) writeBlock(block []byte) error {
 	defer func() {
 		writeDurationSeconds.Add(time.Since(startTime).Seconds())
 	}()
+	requiredBytes := uint64(len(block) + 8)
+	if err := q.ensureEnoughDiskSpace(requiredBytes); err != nil {
+		return err
+	}
 	if q.writerLocalOffset+q.maxBlockSize+8 > q.chunkFileSize {
 		if err := q.nextChunkFileForWrite(); err != nil {
 			return fmt.Errorf("cannot create next chunk file: %w", err)
@@ -421,7 +453,11 @@ var writeDurationSeconds = metrics.NewFloatCounter(`vm_persistentqueue_write_dur
 
 func (q *queue) nextChunkFileForWrite() error {
 	// Finalize the current chunk and start new one.
-	q.writer.MustClose()
+	if err := runWithDiskSpaceError(func() {
+		q.writer.MustClose()
+	}); err != nil {
+		return fmt.Errorf("cannot close current chunk file: %w", err)
+	}
 	// There is no need to do fs.MustSyncPath(q.writerPath) here,
 	// since MustClose already does this.
 	if n := q.writerOffset % q.chunkFileSize; n > 0 {
@@ -430,12 +466,21 @@ func (q *queue) nextChunkFileForWrite() error {
 	q.writerFlushedOffset = q.writerOffset
 	q.writerLocalOffset = 0
 	q.writerPath = q.chunkFilePath(q.writerOffset)
-	w := filestream.MustCreate(q.writerPath, false)
+	var w *filestream.Writer
+	if err := runWithDiskSpaceError(func() {
+		w = filestream.MustCreate(q.writerPath, false)
+	}); err != nil {
+		return fmt.Errorf("cannot create next chunk file: %w", err)
+	}
 	q.writer = w
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
 	}
-	fs.MustSyncPath(q.dir)
+	if err := runWithDiskSpaceError(func() {
+		fs.MustSyncPath(q.dir)
+	}); err != nil {
+		return fmt.Errorf("cannot sync %q: %w", q.dir, err)
+	}
 	return nil
 }
 
@@ -524,7 +569,10 @@ func (q *queue) skipBrokenChunkFile() error {
 	return q.nextChunkFileForRead()
 }
 
-var errEmptyQueue = fmt.Errorf("the queue is empty")
+var (
+	errEmptyQueue         = fmt.Errorf("the queue is empty")
+	errNotEnoughDiskSpace = errors.New("not enough free disk space left for persistent queue")
+)
 
 func (q *queue) nextChunkFileForRead() error {
 	// Remove the current chunk and go to the next chunk.
@@ -547,6 +595,17 @@ func (q *queue) nextChunkFileForRead() error {
 	return nil
 }
 
+func (q *queue) ensureEnoughDiskSpace(neededBytes uint64) error {
+	freeBytes := getFreeSpace(q.dir)
+	if freeBytes == 0 {
+		return nil
+	}
+	if freeBytes > neededBytes {
+		return nil
+	}
+	return fmt.Errorf("%w: need at least %d bytes of free space at %q; available %d bytes", errNotEnoughDiskSpace, neededBytes, q.dir, freeBytes)
+}
+
 func (q *queue) write(buf []byte) error {
 	bufLen := uint64(len(buf))
 	n, err := q.writer.Write(buf)
@@ -564,7 +623,11 @@ func (q *queue) write(buf []byte) error {
 func (q *queue) readFull(buf []byte) error {
 	bufLen := uint64(len(buf))
 	if q.readerOffset+bufLen > q.writerFlushedOffset {
-		q.writer.MustFlush(false)
+		if err := runWithDiskSpaceError(func() {
+			q.writer.MustFlush(false)
+		}); err != nil {
+			return fmt.Errorf("cannot flush pending data before reading: %w", err)
+		}
 		q.writerFlushedOffset = q.writerOffset
 	}
 	n, err := io.ReadFull(q.reader, buf)
@@ -604,7 +667,11 @@ func (q *queue) flushWriterMetainfoIfNeeded() error {
 	if t == q.lastMetainfoFlushTime {
 		return nil
 	}
-	q.writer.MustFlush(true)
+	if err := runWithDiskSpaceError(func() {
+		q.writer.MustFlush(true)
+	}); err != nil {
+		return fmt.Errorf("cannot flush writer: %w", err)
+	}
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
 	}
@@ -619,8 +686,14 @@ func (q *queue) flushMetainfo() error {
 		WriterOffset: q.writerOffset,
 	}
 	metainfoPath := q.metainfoPath()
-	if err := mi.WriteToFile(metainfoPath); err != nil {
+	var writeErr error
+	if err := runWithDiskSpaceError(func() {
+		writeErr = mi.WriteToFile(metainfoPath)
+	}); err != nil {
 		return fmt.Errorf("cannot write metainfo to %q: %w", metainfoPath, err)
+	}
+	if writeErr != nil {
+		return fmt.Errorf("cannot write metainfo to %q: %w", metainfoPath, writeErr)
 	}
 	return nil
 }
@@ -663,4 +736,49 @@ func (mi *metainfo) ReadFromFile(path string) error {
 		return fmt.Errorf("invalid data read from %q: readerOffset=%d cannot exceed writerOffset=%d", path, mi.ReaderOffset, mi.WriterOffset)
 	}
 	return nil
+}
+
+func isDiskSpaceError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, errNotEnoughDiskSpace) {
+		return true
+	}
+	errMsg := strings.ToLower(err.Error())
+	if strings.Contains(errMsg, "no space left on device") {
+		return true
+	}
+	if strings.Contains(errMsg, "not enough space") {
+		return true
+	}
+	if strings.Contains(errMsg, "disk quota exceeded") {
+		return true
+	}
+	if strings.Contains(errMsg, "disk full") {
+		return true
+	}
+	return false
+}
+
+func runWithDiskSpaceError(fn func()) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			e := panicToError(r)
+			if isDiskSpaceError(e) {
+				err = e
+				return
+			}
+			panic(r)
+		}
+	}()
+	fn()
+	return nil
+}
+
+func panicToError(v any) error {
+	if err, ok := v.(error); ok {
+		return err
+	}
+	return fmt.Errorf("%v", v)
 }
