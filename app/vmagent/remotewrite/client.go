@@ -336,7 +336,7 @@ func (c *client) runWorker() {
 			return
 		case <-c.stopCh:
 			// c must be stopped. Wait for a while in the hope the block will be sent.
-			graceDuration := gracefulShutdownFlushDuration
+			graceDuration := getShutdownFlushTimeout()
 			select {
 			case ok := <-ch:
 				if !ok {

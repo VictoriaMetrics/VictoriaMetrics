@@ -94,6 +94,8 @@ var (
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
 	sendFileBuffersOnShutdown = flag.Bool("remoteWrite.sendFileBuffersOnShutdown", false, "Whether to send pending data from file-based buffers to remote storage during graceful shutdown. "+
 		"This may delay shutdown significantly if the buffers are large.")
+	shutdownFlushTimeout = flag.Duration("remoteWrite.shutdownFlushTimeout", 5*time.Second, "Grace period for sending in-memory buffers to remote storage during graceful shutdown before persisting them to disk. "+
+		"See also -remoteWrite.sendFileBuffersOnShutdown")
 )
 
 var (
@@ -136,9 +138,27 @@ var deduplicatorGlobal *streamaggr.Deduplicator
 var maxQueues = cgroup.AvailableCPUs() * 16
 
 const (
-	persistentQueueDirname        = "persistent-queue"
-	gracefulShutdownFlushDuration = 5 * time.Second
+	persistentQueueDirname = "persistent-queue"
 )
+
+func getShutdownFlushTimeout() time.Duration {
+	d := *shutdownFlushTimeout
+	if d <= 0 {
+		return 5 * time.Second
+	}
+	return d
+}
+
+func getShutdownPollInterval(timeout time.Duration) time.Duration {
+	poll := timeout / 50
+	if poll < 10*time.Millisecond {
+		poll = 10 * time.Millisecond
+	}
+	if poll > 100*time.Millisecond {
+		poll = 100 * time.Millisecond
+	}
+	return poll
+}
 
 // InitSecretFlags must be called after flag.Parse and before any logging.
 func InitSecretFlags() {
@@ -965,7 +985,9 @@ func shouldSendPendingOnShutdown(pendingFileBytes uint64) bool {
 
 func (rwctx *remoteWriteCtx) waitPendingBlocksOnShutdown(pendingFileBytes uint64) {
 	waitIndefinitely := *sendFileBuffersOnShutdown && pendingFileBytes > 0
-	deadline := time.Now().Add(gracefulShutdownFlushDuration)
+	timeout := getShutdownFlushTimeout()
+	deadline := time.Now().Add(timeout)
+	pollInterval := getShutdownPollInterval(timeout)
 	if waitIndefinitely {
 		logger.Infof("sending %d pending bytes from file-based buffer at %q during shutdown; this may take a while", pendingFileBytes, rwctx.c.sanitizedURL)
 	}
@@ -979,7 +1001,7 @@ func (rwctx *remoteWriteCtx) waitPendingBlocksOnShutdown(pendingFileBytes uint64
 			logger.Infof("graceful shutdown deadline reached for %q; %d pending bytes and %d in-flight blocks will be saved to file-based buffer", rwctx.c.sanitizedURL, pendingBytes, inflightBlocks)
 			return
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(pollInterval)
 	}
 }
 

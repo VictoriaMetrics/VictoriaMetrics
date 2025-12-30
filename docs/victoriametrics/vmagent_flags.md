@@ -483,6 +483,10 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Empty values are set to false.
   -remoteWrite.dropSamplesOnOverload
      Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence
+  -remoteWrite.sendFileBuffersOnShutdown
+     Whether to send pending data from file-based buffers to remote storage during graceful shutdown. This may delay shutdown significantly if the buffers are large. See also -remoteWrite.shutdownFlushTimeout
+  -remoteWrite.shutdownFlushTimeout duration
+     Grace period for sending in-memory buffers to remote storage during graceful shutdown before persisting them to disk. See also -remoteWrite.sendFileBuffersOnShutdown (default 5s)
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than -remoteWrite.maxRowsPerBlock data points per -remoteWrite.flushInterval are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array
