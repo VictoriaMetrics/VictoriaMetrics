@@ -349,14 +349,17 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		err = ctxErr
 	}
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			// Do not retry canceled or timed out requests
+		// Do not retry canceled
+		if errors.Is(err, context.Canceled) {
+			clientCanceledRequests.Inc()
+			return false, false
+		}
+		// Do not retry timed out requests
+		if errors.Is(err, context.DeadlineExceeded) {
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
-			if errors.Is(err, context.DeadlineExceeded) {
-				// Timed out request must be counted as errors, since this usually means that the backend is slow.
-				logger.Warnf("remoteAddr: %s; requestURI: %s; timeout while proxying the response from %s: %s", remoteAddr, requestURI, targetURL, err)
-			}
+			// Timed out request must be counted as errors, since this usually means that the backend is slow.
+			logger.Warnf("remoteAddr: %s; requestURI: %s; timeout while proxying the response from %s: %s", remoteAddr, requestURI, targetURL, err)
 			return false, false
 		}
 		if !rtbOK || !rtb.canRetry() {
@@ -546,6 +549,7 @@ var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	clientCanceledRequests   = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
@@ -633,6 +637,7 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 	if errors.Is(ctx.Err(), context.Canceled) {
 		// Do not return any response for the request canceled by the client,
 		// since the connection to the client is already closed.
+		clientCanceledRequests.Inc()
 		return
 	}
 
