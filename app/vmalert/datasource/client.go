@@ -29,7 +29,7 @@ func toDatasourceType(s string) datasourceType {
 		return datasourcePrometheus
 	case string(datasourceGraphite):
 		return datasourceGraphite
-	case string(datasourceVLogs):
+	case string(datasourceVLogs), "vtraces":
 		return datasourceVLogs
 	default:
 		logger.Panicf("BUG: unknown datasource type %q", s)

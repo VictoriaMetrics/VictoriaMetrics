@@ -343,6 +343,34 @@ func TestGroupValidate_Failure(t *testing.T) {
 			},
 		},
 	}, true, "bad prometheus expr")
+
+	f(&Group{
+		Name: "test vtraces expr",
+		Type: NewVTracesType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: "stats count(*) as requests"},
+		},
+	}, true, "bad LogsQL expr")
+
+	f(&Group{
+		Name: "test vtraces expr",
+		Type: NewVTracesType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: "_time: 1m | stats by (path, _time: 1m) count(*) as requests"},
+		},
+	}, true, "bad LogsQL expr")
+
+	f(&Group{
+		Name: "test vtraces with prometheus exp",
+		Type: NewVTracesType(),
+		Rules: []Rule{
+			{
+				Record: "r1",
+				Expr:   "sum(up == 0 ) by (host)",
+				For:    promutil.NewDuration(10 * time.Millisecond),
+			},
+		},
+	}, true, "bad LogsQL expr")
 }
 
 func TestGroupValidate_Success(t *testing.T) {
@@ -412,6 +440,15 @@ func TestGroupValidate_Success(t *testing.T) {
 	f(&Group{
 		Name: "test victorialogs",
 		Type: NewVLogsType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: " _time: 1m | stats count(*) as requests", Labels: map[string]string{
+				"description": "{{ value|query }}",
+			}},
+		},
+	}, false, true)
+	f(&Group{
+		Name: "test victoriatraces",
+		Type: NewVTracesType(),
 		Rules: []Rule{
 			{Alert: "alert", Expr: " _time: 1m | stats count(*) as requests", Labels: map[string]string{
 				"description": "{{ value|query }}",

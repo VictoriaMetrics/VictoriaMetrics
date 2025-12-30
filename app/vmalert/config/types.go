@@ -36,6 +36,13 @@ func NewVLogsType() Type {
 	}
 }
 
+// NewVTracesType returns victoriatraces datasource type
+func NewVTracesType() Type {
+	return Type{
+		Name: "vtraces",
+	}
+}
+
 // NewRawType returns datasource type from raw string
 // without validation.
 func NewRawType(d string) Type {
@@ -71,7 +78,7 @@ func (t *Type) ValidateExpr(expr string) error {
 		if _, err := metricsql.Parse(expr); err != nil {
 			return fmt.Errorf("bad prometheus expr: %q, err: %w", expr, err)
 		}
-	case "vlogs":
+	case "vlogs", "vtraces":
 		q, err := logstorage.ParseStatsQuery(expr, 0)
 		if err != nil {
 			return fmt.Errorf("bad LogsQL expr: %q, err: %w", expr, err)
@@ -92,7 +99,7 @@ func (t *Type) ValidateExpr(expr string) error {
 
 // SupportedType is true if given datasource type is supported
 func SupportedType(dsType string) bool {
-	return dsType == "graphite" || dsType == "prometheus" || dsType == "vlogs"
+	return dsType == "graphite" || dsType == "prometheus" || dsType == "vlogs" || dsType == "vtraces"
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -102,7 +109,7 @@ func (t *Type) UnmarshalYAML(unmarshal func(any) error) error {
 		return err
 	}
 	if !SupportedType(s) {
-		return fmt.Errorf("unknown datasource type=%q, want prometheus, graphite or vlogs", s)
+		return fmt.Errorf("unknown datasource type=%q, want prometheus, graphite, vlogs or vtraces", s)
 	}
 	t.Name = s
 	return nil
