@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -867,4 +868,604 @@ func mustConvertToLegacy(s *Storage, accountID, projectID uint32) *Storage {
 	}
 
 	return MustOpenStorage(s.path, OpenOptions{})
+}
+
+func TestLegacyNextRetentionDeadlineSeconds(t *testing.T) {
+	f := func(currentTime string, retention, offset time.Duration, deadlineExpected string) {
+		t.Helper()
+
+		now, err := time.Parse(time.RFC3339, currentTime)
+		if err != nil {
+			t.Fatalf("cannot parse currentTime=%q: %s", currentTime, err)
+		}
+
+		d := legacyNextRetentionDeadlineSeconds(now.Unix(), int64(retention.Seconds()), int64(offset.Seconds()))
+		deadline := time.Unix(d, 0).UTC().Format(time.RFC3339)
+		if deadline != deadlineExpected {
+			t.Fatalf("unexpected deadline; got %s; want %s", deadline, deadlineExpected)
+		}
+	}
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-22T03:44:35Z", 24*time.Hour, 0, "2023-07-22T04:00:00Z")
+	f("2023-07-22T04:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-22T23:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+	f("2023-07-23T03:59:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-22T01:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-22T02:00:00Z")
+	f("2023-07-22T02:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-22T23:44:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+	f("2023-07-23T01:59:35Z", 24*time.Hour, 2*time.Hour, "2023-07-23T02:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-23T09:00:00Z")
+	f("2023-07-22T08:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-22T09:00:00Z")
+	f("2023-07-22T09:44:35Z", 24*time.Hour, -5*time.Hour, "2023-07-23T09:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-22T16:00:00Z")
+	f("2023-07-22T15:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-22T16:00:00Z")
+	f("2023-07-22T16:44:35Z", 24*time.Hour, -12*time.Hour, "2023-07-23T16:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-22T22:00:00Z")
+	f("2023-07-22T21:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-22T22:00:00Z")
+	f("2023-07-22T22:44:35Z", 24*time.Hour, -18*time.Hour, "2023-07-23T22:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-23T10:00:00Z")
+	f("2023-07-22T09:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-22T10:00:00Z")
+	f("2023-07-22T10:44:35Z", 24*time.Hour, 18*time.Hour, "2023-07-23T10:00:00Z")
+
+	f("2023-07-22T12:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-22T15:00:00Z")
+	f("2023-07-22T14:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-22T15:00:00Z")
+	f("2023-07-22T15:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-23T15:00:00Z")
+
+	// The test cases below confirm that it is possible to pick a retention
+	// period such that the previous IndexDB may be removed earlier than it should be.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7609
+
+	// Cluster is configured with 12 month retentionPeriod on 2023-01-01.
+	f("2023-01-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+
+	// Restarts during that period do not change the retention deadline:
+	f("2023-03-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-06-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-09-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-12-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-12-19T03:59:59Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+
+	// At 2023-12-19T04:00:00Z the rotation occurs. New deadline is
+	// 2024-12-18T04:00:00Z. Restarts during that period do not change the
+	// new deadline:
+	f("2023-12-19T04:00:01Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-01-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-03-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-04-29T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+
+	// Now restart again but with the new retention period of 451d and the
+	// rotation time becomes 2024-05-01T04:00:00Z.
+	//
+	// At 2024-05-01T04:00:00Z, a new IndexDB is created and the current
+	// IndexDB (currently applicable to only ~4 months of data) becomes the
+	// previous IndexDB.  The preceding IndexDB is deleted despite possibly
+	// being related to ~8 months of data that is still within retention.
+	f("2024-04-29T00:00:00Z", 451*24*time.Hour, 0, "2024-05-01T04:00:00Z")
+}
+
+func TestLegacyStorageRotateIndexDB_AddRows(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	op := func(s *Storage) {
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+	}
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
+}
+
+func TestLegacyStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	op := func(s *Storage) {
+		s.RegisterMetricNames(nil, mrs)
+		s.DebugFlush()
+	}
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
+}
+
+func TestLegacyStorageRotateIndexDB_DeleteSeries(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	tfs := NewTagFilters(accountID, projectID)
+	if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	op := func(s *Storage) {
+		_, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		if err != nil {
+			panic(fmt.Sprintf("DeleteSeries() failed unexpectedly: %v", err))
+		}
+	}
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
+}
+
+func TestLegacyStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	op := func(s *Storage) {
+		_ = s.MustCreateSnapshot()
+	}
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
+}
+
+func TestLegacyStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	tfs := NewTagFilters(accountID, projectID)
+	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	tfss := []*TagFilters{tfs}
+	op := func(s *Storage) {
+		_, err := s.SearchMetricNames(nil, tfss, tr, 1e9, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
+		}
+	}
+
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, op)
+}
+
+func TestLegacyStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.SearchLabelNames(nil, accountID, projectID, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchLabelNames() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestLegacyStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.SearchLabelValues(nil, accountID, projectID, "__name__", []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchLabelValues() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestLegacyStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric.", tr)
+
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.SearchTagValueSuffixes(nil, accountID, projectID, tr, "", "metric.", '.', 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchTagValueSuffixes() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestLegacyStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric.", tr)
+
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.SearchGraphitePaths(nil, accountID, projectID, tr, []byte("*.*"), 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchGraphitePaths() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestLegacyStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.GetSeriesCount(accountID, projectID, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("GetSeriesCount() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestLegacyStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	date := uint64(tr.MinTimestamp) / msecPerDay
+
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		_, err := s.GetTSDBStatus(nil, accountID, projectID, nil, date, "", 10, 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestLegacyStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	op := func(s *Storage) {
+		// Set readonly so that the background workers started by
+		// notifyReadWriteMode exit early.
+		s.isReadOnly.Store(true)
+		s.notifyReadWriteMode()
+	}
+
+	testLegacyRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
+}
+
+func TestLegacyStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	op := func(s *Storage) {
+		s.UpdateMetrics(&Metrics{})
+	}
+
+	testLegacyRotateIndexDB(t, accountID, projectID, []MetricRow{}, op)
+}
+
+func TestLegacyStorageRotateIndexDB_Search(t *testing.T) {
+	const (
+		accountID = 12
+		projectID = 34
+	)
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefixForTenantID(rng, accountID, projectID, 1000, "metric", tr)
+	tfs := NewTagFilters(accountID, projectID)
+	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	tfss := []*TagFilters{tfs}
+
+	testLegacyRotateIndexDB(t, accountID, projectID, mrs, func(s *Storage) {
+		var search Search
+		search.Init(nil, s, tfss, tr, 1e5, noDeadline)
+		for search.NextMetricBlock() {
+			var b Block
+			search.MetricBlockRef.BlockRef.MustReadBlock(&b)
+		}
+		if err := search.Error(); err != nil {
+			panic(fmt.Sprintf("search error: %v", err))
+		}
+		search.MustClose()
+	})
+}
+
+// testLegacyRotateIndexDB checks that storage handles gracefully indexDB rotation
+// that happens concurrently with some operation (ingestion or search). The
+// operation is expected to finish successfully and there must be no panics.
+func testLegacyRotateIndexDB(t *testing.T, accountID, projectID uint32, mrs []MetricRow, op func(s *Storage)) {
+	defer testRemoveAll(t)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	// Convert to legacy 2 times in order to have both prev and curr legacy idbs.
+	s = mustConvertToLegacy(s, accountID, projectID)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s = mustConvertToLegacy(s, accountID, projectID)
+	defer s.MustClose()
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	for range 100 {
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case <-stop:
+					wg.Done()
+					return
+				default:
+				}
+				op(s)
+			}
+		}()
+	}
+
+	for range 10 {
+		s.legacyMustRotateIndexDB(time.Now())
+	}
+
+	close(stop)
+	wg.Wait()
+}
+
+func TestMustOpenLegacyIndexDBTables_noTables(t *testing.T) {
+	defer testRemoveAll(t)
+
+	storageDataPath := t.Name()
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBIsNil(t, legacyIDBs.getIDBPrev())
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
+}
+
+func TestMustOpenLegacyIndexDBTables_prevOnly(t *testing.T) {
+	defer testRemoveAll(t)
+
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
+	prevName := "123456789ABCDEF0"
+	prevPath := filepath.Join(idbPath, prevName)
+	createEmptyIndexdb(prevPath)
+	assertPathsExist(t, prevPath)
+
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
+}
+
+func TestMustOpenLegacyIndexDBTables_currAndPrev(t *testing.T) {
+	defer testRemoveAll(t)
+
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
+	prevName := "123456789ABCDEF0"
+	prevPath := filepath.Join(idbPath, prevName)
+	createEmptyIndexdb(prevPath)
+
+	currName := "123456789ABCDEF1"
+	currPath := filepath.Join(idbPath, currName)
+	createEmptyIndexdb(currPath)
+
+	assertPathsExist(t, prevPath, currPath)
+
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
+}
+
+func TestMustOpenLegacyIndexDBTables_nextIsRemoved(t *testing.T) {
+	defer testRemoveAll(t)
+
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+	prevName := "123456789ABCDEF0"
+	prevPath := filepath.Join(idbPath, prevName)
+	createEmptyIndexdb(prevPath)
+
+	currName := "123456789ABCDEF1"
+	currPath := filepath.Join(idbPath, currName)
+	createEmptyIndexdb(currPath)
+
+	nextName := "123456789ABCDEF2"
+	nextPath := filepath.Join(idbPath, nextName)
+	createEmptyIndexdb(nextPath)
+
+	assertPathsExist(t, prevPath, currPath, nextPath)
+
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
+	assertPathsDoNotExist(t, nextPath)
+}
+
+func TestMustOpenLegacyIndexDBTables_nextAndObsoleteDirsAreRemoved(t *testing.T) {
+	defer testRemoveAll(t)
+
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
+	obsolete1Name := "123456789ABCDEEE"
+	obsolete1Path := filepath.Join(idbPath, obsolete1Name)
+	createEmptyIndexdb(obsolete1Path)
+
+	obsolete2Name := "123456789ABCDEEF"
+	obsolete2Path := filepath.Join(idbPath, obsolete2Name)
+	createEmptyIndexdb(obsolete2Path)
+
+	prevName := "123456789ABCDEF0"
+	prevPath := filepath.Join(idbPath, prevName)
+	createEmptyIndexdb(prevPath)
+
+	currName := "123456789ABCDEF1"
+	currPath := filepath.Join(idbPath, currName)
+	createEmptyIndexdb(currPath)
+
+	nextName := "123456789ABCDEF2"
+	nextPath := filepath.Join(idbPath, nextName)
+	createEmptyIndexdb(nextPath)
+
+	assertPathsExist(t, obsolete1Path, obsolete2Path, prevPath, currPath, nextPath)
+
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
+	assertPathsDoNotExist(t, obsolete1Path, obsolete2Path, nextPath)
+}
+
+func TestLegacyMustRotateIndexDBs_dirNames(t *testing.T) {
+	defer testRemoveAll(t)
+
+	storageDataPath := t.Name()
+	idbPath := filepath.Join(storageDataPath, indexdbDirname)
+
+	prevName := "123456789ABCDEF0"
+	prevPath := filepath.Join(idbPath, prevName)
+	createEmptyIndexdb(prevPath)
+
+	currName := "123456789ABCDEF1"
+	currPath := filepath.Join(idbPath, currName)
+	createEmptyIndexdb(currPath)
+
+	assertPathsExist(t, prevPath, currPath)
+
+	s := MustOpenStorage(storageDataPath, OpenOptions{})
+	defer s.MustClose()
+	legacyIDBs := s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), prevName)
+	assertIndexDBName(t, legacyIDBs.getIDBCurr(), currName)
+	assertPathsExist(t, prevPath, currPath)
+
+	s.legacyMustRotateIndexDB(time.Now())
+	legacyIDBs = s.legacyIndexDBs.Load()
+	assertIndexDBName(t, legacyIDBs.getIDBPrev(), currName)
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
+	assertPathsDoNotExist(t, prevPath)
+	assertPathsExist(t, currPath)
+
+	s.legacyMustRotateIndexDB(time.Now())
+	legacyIDBs = s.legacyIndexDBs.Load()
+	assertIndexDBIsNil(t, legacyIDBs.getIDBPrev())
+	assertIndexDBIsNil(t, legacyIDBs.getIDBCurr())
+	assertPathsDoNotExist(t, prevPath, currPath)
+}
+
+func createEmptyIndexdb(path string) {
+	fs.MustMkdirIfNotExist(path)
+	partsFilePath := filepath.Join(path, "parts.json")
+	fs.MustWriteAtomic(partsFilePath, []byte("[]"), false)
+}
+
+func assertPathsExist(t *testing.T, paths ...string) {
+	t.Helper()
+
+	for _, path := range paths {
+		if !fs.IsPathExist(path) {
+			t.Fatalf("path does not exist: %s", path)
+		}
+	}
+}
+
+func assertPathsDoNotExist(t *testing.T, paths ...string) {
+	t.Helper()
+
+	for _, path := range paths {
+		if fs.IsPathExist(path) {
+			t.Fatalf("path exists: %s", path)
+		}
+	}
+}
+
+func assertIndexDBName(t *testing.T, idb *indexDB, want string) {
+	t.Helper()
+
+	if idb == nil {
+		t.Fatalf("unexpected idb: got nil, want non-nil")
+	}
+	if got := idb.name; got != want {
+		t.Errorf("unexpected idb name: got %s, want %s", got, want)
+	}
+}
+
+func assertIndexDBIsNil(t *testing.T, idb *indexDB) {
+	t.Helper()
+
+	if idb != nil {
+		t.Fatalf("unexpected idb: got %s, want nil", idb.name)
+	}
 }
