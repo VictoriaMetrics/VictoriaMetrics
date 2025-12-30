@@ -92,6 +92,8 @@ var (
 		"See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
 		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/victoriametrics/vmagent/#disabling-on-disk-persistence")
+	sendFileBuffersOnShutdown = flag.Bool("remoteWrite.sendFileBuffersOnShutdown", false, "Whether to send pending data from file-based buffers to remote storage during graceful shutdown. "+
+		"This may delay shutdown significantly if the buffers are large.")
 )
 
 var (
@@ -133,7 +135,10 @@ var deduplicatorGlobal *streamaggr.Deduplicator
 // since it may lead to high memory usage due to big number of buffers.
 var maxQueues = cgroup.AvailableCPUs() * 16
 
-const persistentQueueDirname = "persistent-queue"
+const (
+	persistentQueueDirname        = "persistent-queue"
+	gracefulShutdownFlushDuration = 5 * time.Second
+)
 
 // InitSecretFlags must be called after flag.Parse and before any logging.
 func InitSecretFlags() {
@@ -932,6 +937,12 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	for _, ps := range rwctx.pss {
 		ps.MustStop()
 	}
+
+	pendingFileBytes := rwctx.fq.GetFilePendingBytes()
+	if shouldSendPendingOnShutdown(pendingFileBytes) {
+		rwctx.waitPendingBlocksOnShutdown(pendingFileBytes)
+	}
+
 	rwctx.idx = 0
 	rwctx.pss = nil
 	rwctx.fq.UnblockAllReaders()
@@ -943,6 +954,33 @@ func (rwctx *remoteWriteCtx) MustStop() {
 
 	rwctx.rowsPushedAfterRelabel = nil
 	rwctx.rowsDroppedByRelabel = nil
+}
+
+func shouldSendPendingOnShutdown(pendingFileBytes uint64) bool {
+	if *sendFileBuffersOnShutdown {
+		return true
+	}
+	return pendingFileBytes == 0
+}
+
+func (rwctx *remoteWriteCtx) waitPendingBlocksOnShutdown(pendingFileBytes uint64) {
+	waitIndefinitely := *sendFileBuffersOnShutdown && pendingFileBytes > 0
+	deadline := time.Now().Add(gracefulShutdownFlushDuration)
+	if waitIndefinitely {
+		logger.Infof("sending %d pending bytes from file-based buffer at %q during shutdown; this may take a while", pendingFileBytes, rwctx.c.sanitizedURL)
+	}
+	for {
+		pendingBytes := rwctx.fq.GetPendingBytes()
+		inflightBlocks := rwctx.c.inflightBlocks.Load()
+		if pendingBytes == 0 && inflightBlocks == 0 {
+			return
+		}
+		if !waitIndefinitely && time.Now().After(deadline) {
+			logger.Infof("graceful shutdown deadline reached for %q; %d pending bytes and %d in-flight blocks will be saved to file-based buffer", rwctx.c.sanitizedURL, pendingBytes, inflightBlocks)
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 // TryPushTimeSeries sends tss series to the configured remote write endpoint

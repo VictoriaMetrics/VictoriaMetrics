@@ -149,6 +149,14 @@ func (fq *FastQueue) GetPendingBytes() uint64 {
 	return n
 }
 
+// GetFilePendingBytes returns the number of pending bytes stored on disk.
+func (fq *FastQueue) GetFilePendingBytes() uint64 {
+	fq.mu.Lock()
+	n := fq.pq.GetPendingBytes()
+	fq.mu.Unlock()
+	return n
+}
+
 // GetInmemoryQueueLen returns the length of inmemory queue.
 func (fq *FastQueue) GetInmemoryQueueLen() int {
 	fq.mu.Lock()

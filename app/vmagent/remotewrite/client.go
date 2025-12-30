@@ -118,6 +118,8 @@ type client struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
+
+	inflightBlocks atomic.Int64
 }
 
 func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
@@ -315,10 +317,13 @@ func (c *client) runWorker() {
 			// see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6241
 			continue
 		}
+		c.inflightBlocks.Add(1)
 		go func() {
 			startTime := time.Now()
-			ch <- c.sendBlock(block)
+			ok := c.sendBlock(block)
 			c.sendDuration.Add(time.Since(startTime).Seconds())
+			c.inflightBlocks.Add(-1)
+			ch <- ok
 		}()
 		select {
 		case ok := <-ch:
@@ -331,7 +336,7 @@ func (c *client) runWorker() {
 			return
 		case <-c.stopCh:
 			// c must be stopped. Wait for a while in the hope the block will be sent.
-			graceDuration := 5 * time.Second
+			graceDuration := gracefulShutdownFlushDuration
 			select {
 			case ok := <-ch:
 				if !ok {
