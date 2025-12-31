@@ -113,6 +113,8 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 	case ui.concurrencyLimitCh <- struct{}{}:
 		return nil
 	default:
+		ui.concurrencyLimitReached.Inc()
+
 		// The per-user limit for the number of concurrent requests is reached.
 		// Wait until the currently executed requests are finished, so the current request could be executed.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
@@ -121,9 +123,6 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 			return nil
 		case <-ctx.Done():
 			err := ctx.Err()
-
-			ui.concurrencyLimitReached.Inc()
-
 			if errors.Is(err, context.DeadlineExceeded) {
 				return fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because %d concurrent requests from the user %s are executed",
 					*maxQueueDuration, ui.getMaxConcurrentRequests(), ui.name())

@@ -717,4 +717,13 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
      Whether to replace characters unsupported by Prometheus with underscores in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
   -version
      Show VictoriaMetrics version
+  -zabbixconnector.addDuplicateTagsSeparator string
+     If set to non-empty value, enables merging of duplicate Zabbix tag values and set a separator for the values of these labels.
+  -zabbixconnector.addEmptyTagsValue string
+     If set to non-empty value, enables adding Zabbix tags without values to labels and set value for these labels.
+  -zabbixconnector.addGroupsValue string
+     If set to non-empty value, enables adding Zabbix host groups to labels and set value for these labels.
+  -zabbixconnector.maxLineLen size
+     The maximum length in bytes of a single line accepted by /zabbixconnector/api/v1/history
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
 ```
