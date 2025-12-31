@@ -63,6 +63,8 @@ measurement2,tag1=value1,tag2=value2 field1=456,field2=4.56
 measurement3,tag1=value1,tag2=value2 field1=789,field2=7.89
 ```
 
+Then execute this command to upload data:
+
 ```sh
 curl -X POST 'http://localhost:8428/api/v2/write' --data-binary @influx.data
 ```
