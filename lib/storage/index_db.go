@@ -245,9 +245,13 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
 	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
 
-	// Report only once and for an indexDB instance whose tagFiltersCache is
-	// utilized the most.
-	if m.TagFiltersToMetricIDsCacheSizeBytes == 0 || db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
+	// Report only once and either for the first met indexDB instance or whose
+	// tagFiltersCache is utilized the most.
+	//
+	// In case of tagFiltersCache, use TagFiltersToMetricIDsCacheRequests as an
+	// indicator that this is the first indexDB instance whose metrics are being
+	// collected because this cache may be reset too often.
+	if m.TagFiltersToMetricIDsCacheRequests == 0 || db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
 		m.TagFiltersToMetricIDsCacheSize = uint64(db.tagFiltersToMetricIDsCache.Len())
 		m.TagFiltersToMetricIDsCacheSizeBytes = db.tagFiltersToMetricIDsCache.SizeBytes()
 		m.TagFiltersToMetricIDsCacheSizeMaxBytes = db.tagFiltersToMetricIDsCache.SizeMaxBytes()
@@ -256,8 +260,8 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
 	}
 
-	// Report only once and for an indexDB instance whose metricIDCache is
-	// utilized the most.
+	// Report only once and for either the first met indexDB instance or whose
+	// metricIDCache is utilized the most.
 	mcs := db.metricIDCache.Stats()
 	if m.MetricIDCacheSizeBytes == 0 || mcs.SizeBytes > m.MetricIDCacheSizeBytes {
 		m.MetricIDCacheSize = mcs.Size
@@ -266,8 +270,8 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.MetricIDCacheRotationsCount = mcs.RotationsCount
 	}
 
-	// Report only once and for an indexDB instance whose dateMetricIDCache is
-	// utilized the most.
+	// Report only once and for either the first met indexDB instance or whose
+	// dateMetricIDCache is utilized the most.
 	dmcs := db.dateMetricIDCache.Stats()
 	if m.DateMetricIDCacheSizeBytes == 0 || dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
 		m.DateMetricIDCacheSize = dmcs.Size
