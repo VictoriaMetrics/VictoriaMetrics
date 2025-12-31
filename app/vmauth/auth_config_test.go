@@ -753,7 +753,7 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 	up.loadBalancingPolicy = "least_loaded"
 
 	pbus := up.bus.Load()
-	bus := *pbus
+	bus := pbus.bus
 
 	fn := func(ns ...int) {
 		t.Helper()
@@ -825,7 +825,7 @@ func TestBrokenBackend(t *testing.T) {
 	})
 	up.loadBalancingPolicy = "least_loaded"
 	pbus := up.bus.Load()
-	bus := *pbus
+	bus := pbus.bus
 
 	// explicitly mark one of the backends as broken
 	bus[1].setBroken()
@@ -848,7 +848,7 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 
 		up.discoverBackendAddrsIfNeeded()
 		pbus := up.bus.Load()
-		bus := *pbus
+		bus := pbus.bus
 
 		if len(bus) != 1 {
 			t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
@@ -942,17 +942,14 @@ func mustParseURL(u string) *URLPrefix {
 }
 
 func mustParseURLs(us []string) *URLPrefix {
-	bus := make([]*backendURL, len(us))
+	bus := newBackendURLs()
 	urls := make([]*url.URL, len(us))
 	for i, u := range us {
 		pu, err := url.Parse(u)
 		if err != nil {
 			panic(fmt.Errorf("BUG: cannot parse %q: %w", u, err))
 		}
-		bus[i] = &backendURL{
-			url:               pu,
-			stopHealthCheckCh: make(chan struct{}),
-		}
+		bus.add(pu)
 		urls[i] = pu
 	}
 	up := &URLPrefix{}
@@ -961,7 +958,7 @@ func mustParseURLs(us []string) *URLPrefix {
 	} else {
 		up.vOriginal = us
 	}
-	up.bus.Store(&bus)
+	up.bus.Store(bus)
 	up.busOriginal = urls
 	return up
 }
