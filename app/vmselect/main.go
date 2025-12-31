@@ -736,9 +736,10 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	r.URL.Path = strings.TrimPrefix(path, "prometheus")
-	r.Host = vmalertProxyHost
-	vmalertProxy.ServeHTTP(w, r)
+	req := r.Clone(r.Context())
+	req.URL.Path = strings.TrimPrefix(path, "prometheus")
+	req.Host = vmalertProxyHost
+	vmalertProxy.ServeHTTP(w, req)
 }
 
 var (
