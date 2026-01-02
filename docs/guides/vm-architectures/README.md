@@ -190,7 +190,7 @@ For Enterprise users, the queueing can be offloaded to an external message broke
 
 **Recommended for:** Large-scale workloads or services with high SLA requirements that must survive the complete failure of a datacenter or an Availability Zone (AZ).
 
-High availability implementation: [VictoriaMetrics Multi-Regional Setup](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions/)
+High availability implementation: [VictoriaMetrics Multi-Regional Setup](https://docs.victoriametrics.com/guides/multi-region-setup/#multi-az-cluster)
 
 **Key characteristics:** The core principle of this architecture is to run two or more independent, self-contained VictoriaMetrics clusters (from the [Single AZ](https://docs.victoriametrics.com/guides/vm-architectures/#single-availability-zone) section) in separate failure domains, such as different Availability Zones or geographic regions. A global, stateless layer is responsible for routing write and read traffic to these clusters. Each participating AZ must be provisioned to handle the entire workload if another AZ fails. 
 
@@ -284,6 +284,9 @@ Global vmselect -> Local vmselects (in each cell)
 
 * **High resource overhead.** The global VMSelect performs a significant amount of redundant work, merging and aggregating data. This requires significant CPU and memory, and increases query latency.
 
+Hyperscale PathA implementation: [Hyperscale PathA Setup](https://docs.victoriametrics.com/guides/multi-region-setup/#pathaprioritize-data-completeness)
+
+
 ### Path B: Focus on Read Speed (The vmauth with first_available mode)
 
 In this model, your primary goal is to provide users with the fastest possible response, accepting certain risks associated with data freshness.
@@ -305,6 +308,9 @@ Global vmauth -> Cell -> vmselect
 
 * **High storage cost.** You are storing redundant, full copies of data, which is an expensive approach.  
 * **The Freshness Trap.** This is the greatest and most significant risk associated with this approach. If the write path to one storage cell slows down, vmagent will start buffering data for it. Internally, vmagent maintains a separate queue for each `-remoteWrite.url` target, so lag in a single cell can cause it to serve stale results under the `first_available` policy.  If vmauth sends a user to this cell while its queue is not empty, that user will receive stale data (data that is not 100% fresh). A certain automation could be used to disable reads from cells that are lagging behind.
+
+Hyperscale PathB implementation: [Hyperscale PathB Setup](https://docs.victoriametrics.com/guides/multi-region-setup/#pathbfocus-on-read-speed)
+
 
 ### Alerting Strategy Trade-offs
 
