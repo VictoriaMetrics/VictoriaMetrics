@@ -1,0 +1,32 @@
+@use "src/styles/variables" as *;
+
+.vm-pagination {
+  display: flex;
+  justify-content: space-between;
+  &-stats {
+    display: flex;
+    align-items: center;
+    color: var(--color-text-secondary);
+    column-gap: $padding-tiny;
+  }
+  &-buttons {
+    display: flex;
+    column-gap: $padding-small;
+  }
+  .vm-button-borderless {
+    border: 0;
+  }
+  &-more {
+    align-self: center;
+  }
+  &-prev {
+    svg {
+      transform: rotate(90deg);
+    }
+  }
+  &-next {
+    svg {
+      transform: rotate(-90deg);
+    }
+  }
+}

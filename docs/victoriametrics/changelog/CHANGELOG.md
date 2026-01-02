@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `search` query argument for search and `group_limit`, `page_num` query arguments for pagination support at `/api/v1/rules` API. See [#9580](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9580).
+
 ## [v1.133.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.133.0)
 
 Released at 2026-01-02

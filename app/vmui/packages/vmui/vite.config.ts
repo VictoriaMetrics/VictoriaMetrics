@@ -10,16 +10,7 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
   switch (playground) {
     case "METRICS": {
       return {
-        "^/(api|vmalert)/.*": {
-          target: "https://play.victoriametrics.com/select/0/prometheus",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("error", (err) => {
-              console.error("[proxy error]", err.message);
-            });
-          },
-        },
-        "/vmui/config.json": {
+        "^/prometheus/.*": {
           target: "https://play.victoriametrics.com/select/0",
           changeOrigin: true,
           configure: (proxy) => {
