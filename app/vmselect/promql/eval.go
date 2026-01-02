@@ -785,7 +785,8 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 // - rollupFunc(m) if iafc is nil
 // - aggrFunc(rollupFunc(m)) if iafc isn't nil
 func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr,
-	re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext,
+) ([]*timeseries, error) {
 	if re.At == nil {
 		return evalRollupFuncWithoutAt(qt, ec, funcName, rf, expr, re, iafc)
 	}
@@ -835,7 +836,8 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 }
 
 func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext,
+) ([]*timeseries, error) {
 	funcName = strings.ToLower(funcName)
 	ecNew := ec
 	var offset int64
@@ -1058,7 +1060,8 @@ func removeNanValues(dstValues []float64, dstTimestamps []int64, values []float6
 
 // evalInstantRollup evaluates instant rollup where ec.Start == ec.End.
 func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64,
+) ([]*timeseries, error) {
 	if ec.Start != ec.End {
 		logger.Panicf("BUG: evalInstantRollup cannot be called on non-empty time range; got %s", ec.timeRangeString())
 	}
@@ -1083,10 +1086,12 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		rollupResultCacheV.DeleteInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	}
 	getCachedSeries := func(qt *querytracer.Tracer) ([]*timeseries, int64, error) {
+		rollupResultCacheV.rollupResultCacheRequests.Inc()
 	again:
 		offset := int64(0)
 		tssCached := rollupResultCacheV.GetInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
 		if len(tssCached) == 0 {
+			rollupResultCacheV.rollupResultCacheMisses.Inc()
 			// Cache miss. Re-populate the missing data.
 			start := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds()
 			offset = timestamp - start
@@ -1129,6 +1134,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			deleteCachedSeries(qt)
 			goto again
 		}
+		rollupResultCacheV.rollupResultCachePartialHits.Inc()
 		ec.QueryStats.addSeriesFetched(len(tssCached))
 		return tssCached, offset, nil
 	}
@@ -1537,16 +1543,11 @@ func assertInstantValues(tss []*timeseries) {
 	}
 }
 
-var (
-	rollupResultCacheFullHits    = metrics.NewCounter(`vm_rollup_result_cache_full_hits_total`)
-	rollupResultCachePartialHits = metrics.NewCounter(`vm_rollup_result_cache_partial_hits_total`)
-	rollupResultCacheMiss        = metrics.NewCounter(`vm_rollup_result_cache_miss_total`)
-
-	memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
-)
+var memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
 
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr,
+) ([]*timeseries, error) {
 	window, err := windowExpr.NonNegativeDuration(ec.Step)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", expr.AppendString(nil), err)
@@ -1582,19 +1583,20 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 
 	// Search for cached results.
+	rollupResultCacheV.rollupResultCacheRequests.Inc()
 	tssCached, start := rollupResultCacheV.GetSeries(qt, ec, expr, window)
 	ec.QueryStats.addSeriesFetched(len(tssCached))
 	if start > ec.End {
 		qt.Printf("the result is fully cached")
-		rollupResultCacheFullHits.Inc()
+		rollupResultCacheV.rollupResultCacheFullHits.Inc()
 		return tssCached, nil
 	}
 	if start > ec.Start {
 		qt.Printf("partial cache hit")
-		rollupResultCachePartialHits.Inc()
+		rollupResultCacheV.rollupResultCachePartialHits.Inc()
 	} else {
 		qt.Printf("cache miss")
-		rollupResultCacheMiss.Inc()
+		rollupResultCacheV.rollupResultCacheMisses.Inc()
 	}
 
 	// Fetch missing results, which aren't cached yet.
@@ -1630,7 +1632,8 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 //
 // pointsPerSeries is used only for estimating the needed memory for query processing
 func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, pointsPerSeries int64) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, pointsPerSeries int64,
+) ([]*timeseries, error) {
 	if qt.Enabled() {
 		qt = qt.NewChild("rollup %s: timeRange=%s, step=%d, window=%d", expr.AppendString(nil), ec.timeRangeString(), ec.Step, window)
 		defer qt.Done()
@@ -1753,7 +1756,8 @@ func maxSilenceInterval() int64 {
 
 func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool,
 	iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
-	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
+) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() with incremental aggregation %s() over %d series; rollupConfigs=%s", funcName, iafc.ae.Name, rss.Len(), rcs)
 	defer qt.Done()
 	var samplesScannedTotal atomic.Uint64
@@ -1792,7 +1796,8 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 }
 
 func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
-	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
+) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)
 	defer qt.Done()
 
@@ -1832,7 +1837,8 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 }
 
 func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConfig, tsDst *timeseries, mnSrc *storage.MetricName,
-	valuesSrc []float64, timestampsSrc []int64, sharedTimestamps []int64) uint64 {
+	valuesSrc []float64, timestampsSrc []int64, sharedTimestamps []int64,
+) uint64 {
 	tsDst.MetricName.CopyFrom(mnSrc)
 	if len(rc.TagValue) > 0 {
 		tsDst.MetricName.AddTag("rollup", rc.TagValue)
