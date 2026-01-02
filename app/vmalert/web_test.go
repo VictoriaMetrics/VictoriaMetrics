@@ -255,6 +255,11 @@ func TestHandler(t *testing.T) {
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=foo", 200, 3, 0)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert", 200, 3, 3)
 		check("/api/v1/rules?rule_group[]=group&file[]=rules.yaml&rule_name[]=alert&rule_name[]=record", 200, 3, 6)
+
+		check("/api/v1/rules?group_limit=1", 200, 1, 2)
+		check("/api/v1/rules?group_limit=1&type=alert", 200, 1, 1)
+		check("/api/v1/rules?group_limit=1&type=record", 200, 1, 1)
+		check("/api/v1/rules?group_limit=2", 200, 2, 4)
 	})
 	t.Run("/api/v1/rules&exclude_alerts=true", func(t *testing.T) {
 		// check if response returns active alerts by default
