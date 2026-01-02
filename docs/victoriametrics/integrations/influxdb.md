@@ -51,14 +51,31 @@ Comma-separated list of expected databases can be passed to VictoriaMetrics via 
 ## InfluxDB v2 format
 
 VictoriaMetrics exposes endpoint for InfluxDB v2 HTTP API at `/influx/api/v2/write` and `/api/v2/write`.
+
+Here's an example writing data with `curl`:
 ```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/api/v2/write'
+curl --data-binary 'measurement1,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://<victoriametrics-addr>:8428/api/v2/write'
+```
+
+And to write multiple lines of data at once, prepare a file (e.g., `influx.data`) with your data:
+```text
+measurement2,tag1=value1,tag2=value2 field1=456,field2=4.56
+measurement3,tag1=value1,tag2=value2 field1=789,field2=7.89
+```
+
+And execute this command to import the data:
+```sh
+curl -X POST 'http://<victoriametrics-addr>:8428/api/v2/write' --data-binary @influx.data
 ```
 
 The `/api/v1/export` endpoint should return the following response:
 ```json
-{"metric":{"__name__":"measurement_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1695902762311]}
-{"metric":{"__name__":"measurement_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1695902762311]}
+{"metric":{"__name__":"measurement1_field1","tag1":"value1","tag2":"value2"},"values":[123],"timestamps":[1766983684142]}
+{"metric":{"__name__":"measurement1_field2","tag1":"value1","tag2":"value2"},"values":[1.23],"timestamps":[1766983684142]}
+{"metric":{"__name__":"measurement2_field1","tag1":"value1","tag2":"value2"},"values":[456],"timestamps":[1767012583021]}
+{"metric":{"__name__":"measurement2_field2","tag1":"value1","tag2":"value2"},"values":[4.56],"timestamps":[1767012583021]}
+{"metric":{"__name__":"measurement3_field1","tag1":"value1","tag2":"value2"},"values":[789],"timestamps":[1767012583021]}
+{"metric":{"__name__":"measurement3_field2","tag1":"value1","tag2":"value2"},"values":[7.89],"timestamps":[1767012583021]}
 ```
 
 ## Data transformations
@@ -92,13 +109,13 @@ foo_field2{tag1="value1", tag2="value2"} 40
 Example for writing data with [InfluxDB line protocol](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/)
 to local VictoriaMetrics using `curl`:
 ```sh
-curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://localhost:8428/write'
+curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://<victoriametrics-addr>:8428/write'
 ```
 
 An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
 After that the data may be read via [/api/v1/export](https://docs.victoriametrics.com/victoriametrics/#how-to-export-data-in-json-line-format) endpoint:
 ```sh
-curl -G 'http://localhost:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
+curl -G 'http://<victoriametrics-addr>:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
 ```
 
 The `/api/v1/export` endpoint should return the following response:
