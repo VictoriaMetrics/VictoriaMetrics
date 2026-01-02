@@ -88,6 +88,40 @@ func TestFastQueueWriteReadMixed(t *testing.T) {
 	fs.MustRemoveDir(path)
 }
 
+func TestFastQueueGetFilePendingBytes(t *testing.T) {
+	path := "fast-queue-file-bytes"
+	fs.MustRemoveDir(path)
+
+	fq := MustOpenFastQueue(path, "foobar", 1, 0, false)
+	defer fs.MustRemoveDir(path)
+	defer fq.MustClose()
+
+	if n := fq.GetFilePendingBytes(); n != 0 {
+		t.Fatalf("unexpected file-based pending bytes for empty queue; got %d", n)
+	}
+	if !fq.TryWriteBlock([]byte("block-1")) {
+		t.Fatalf("TryWriteBlock must return true for the first block")
+	}
+	if n := fq.GetFilePendingBytes(); n != 0 {
+		t.Fatalf("expected zero file-based bytes for in-memory block; got %d", n)
+	}
+	if !fq.TryWriteBlock([]byte("block-2")) {
+		t.Fatalf("TryWriteBlock must return true for the second block")
+	}
+	if n := fq.GetFilePendingBytes(); n == 0 {
+		t.Fatalf("expected non-zero file-based pending bytes after spilling to disk")
+	}
+
+	for i := 0; i < 2; i++ {
+		if _, ok := fq.MustReadBlock(nil); !ok {
+			t.Fatalf("unexpected ok=false when reading block %d", i)
+		}
+	}
+	if n := fq.GetFilePendingBytes(); n != 0 {
+		t.Fatalf("expected file-based pending bytes to be 0 after draining; got %d", n)
+	}
+}
+
 func TestFastQueueWriteReadWithCloses(t *testing.T) {
 	path := "fast-queue-write-read-with-closes"
 	fs.MustRemoveDir(path)
