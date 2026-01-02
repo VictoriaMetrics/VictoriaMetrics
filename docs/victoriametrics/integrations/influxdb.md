@@ -57,7 +57,7 @@ Here's an example writing data with `curl`:
 curl --data-binary 'measurement1,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'http://<victoriametrics-addr>:8428/api/v2/write'
 ```
 
-And to write multiple lines of data at once, prepare a file (e.g., `influx.data`) with your data
+And to write multiple lines of data at once, prepare a file (e.g., `influx.data`) with your data:
 ```text
 measurement2,tag1=value1,tag2=value2 field1=456,field2=4.56
 measurement3,tag1=value1,tag2=value2 field1=789,field2=7.89
