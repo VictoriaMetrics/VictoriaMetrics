@@ -1,17 +1,4 @@
----
-weight: 501
-title: Release process guidance
-menu:
-  docs:
-    parent: 'victoriametrics'
-    identifier: "victoriametrics-release-process-guidance"
-    weight: 501
-tags: []
-aliases:
-- /Release-Guide.html
-- /release-guide/index.html
-- /release-guide/
----
+# Release Guide
 
 ## PreRequisites
 
@@ -65,19 +52,12 @@ release candidate images are built and pushed, a draft GitHub release is created
 and the candidate is deployed to the sandbox environment.
 
 1. Lock merges for 24h with `/mutex merge` in Slack.
-1. Set NEXT_TAG, CURR_TAG (consult [changelog](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#tip) for the current version):
-   ```sh
-   export CURR_TAG=v1.xx.y && export NEXT_TAG=v1.xx.y
-   ```
-   
-1. Make sure you get all changes fetched.
+1. Update NEXT_TAG, CURR_TAG in `Makefile`:
+
+1. Init release. It git checkout VictoriaMetrics, set up git remotes, and fetch latest `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster` branches.
 
    ```sh
-   git checkout master && git pull opensource master && \
-   git checkout cluster && git pull opensource cluster && \
-   git checkout enterprise-single-node && git pull enterprise enterprise-single-node && \
-   git checkout enterprise-cluster && git pull enterprise enterprise-cluster && \
-   echo "SUCCESS: all branches are up to date"
+   make init
    ```
 
 1. Make sure all the changes are synced between `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster` branches.
@@ -85,11 +65,7 @@ and the candidate is deployed to the sandbox environment.
    You can use the following commands to gather the changes and then compare them using your favorite diff tool.
 
    ```sh
-   git checkout master && git log "${CURR_TAG}..HEAD" --oneline > master_changelog.txt && \
-   git checkout cluster && git log "${CURR_TAG}-cluster..HEAD" --oneline > cluster_changelog.txt && \
-   git checkout enterprise-single-node && git log "${CURR_TAG}-enterprise..HEAD" --oneline > enterprise_changelog.txt && \
-   git checkout enterprise-cluster && git log "${CURR_TAG}-enterprise-cluster..HEAD" --oneline > enterprise_cluster_changelog.txt && \
-   echo "SUCCESS: changelogs are gathered"
+   make compare-git-history
    ```
 
 1. Review bugfixes in the [changelog](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md#tip) to determine if they need to be backported to LTS versions.
@@ -99,32 +75,27 @@ and the candidate is deployed to the sandbox environment.
 1. Make sure tests pass on branches `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster`.
 
    ```sh
-   git checkout master && make test check-all integration-test && \
-   git checkout cluster && make test check-all integration-test && \
-   git checkout enterprise-single-node && make test check-all integration-test && \
-   git checkout enterprise-cluster && make test check-all integration-test && \
-   echo "SUCCESS: all tests passed"
+   make tests
    ```
 
 1. Verify no CVEs in Go code or base images according to the [CVE handling policy](https://docs.victoriametrics.com/victoriametrics/#cve-handling-policy).
-   It’s sufficient to run `govulncheck` on the `master` branch since other branches are checked in CI on regular bases. 
+   It’s sufficient to run `govulncheck` on the `master` branch since other branches are checked in CI on regular bases.
    For image scanning, build and check Alpine base image.
    Alpine update [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/8f3e96fa38757cd2f55abe700abb540c90e4c2e9) example.
    GOlang update [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/7dbe569fe71ac3a5e0068b1cd85adfff41e5a365) example.
 
    ```sh
-   make govulncheck
-   
-   make package-base
-   grype db update && grype  --only-fixed [base-image-tag]
+   make security
    ```
 
 1. Re-build `vmui` static files. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650).
 
    ```sh
-   make vmui-update && \
-   echo "SUCCESS: vmui static files are rebuilt"
+   make vmui-opensource-update
+   make vmui-enterprise-update
    ```
+
+----------
 
 1. Update "available from" tooltip in docs and commit. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/70afdd02854990cbf44ac2272b191c5d14d6e118).
 
@@ -145,18 +116,18 @@ and the candidate is deployed to the sandbox environment.
    ```
 
 1. Publish release candidate images with the command. This command performs the following tasks:
-   * a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
+    * a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
       This step can be run manually with the command `make release` from the needed git tag.
-   * b)  Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
+    * b)  Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
       for the given `TAG`, `TAG-cluster`, `TAG-enterprise` and `TAG-enterprise-cluster`.
       The resulting docker images will have special release candidate suffix for the given `EXTRA_DOCKER_TAG_SUFFIX`.
       The multi-platform Docker image is built for the following platforms:
-      * linux/amd64
-      * linux/arm64
-      * linux/arm
-      * linux/ppc64le
-      * linux/386
-      This step can be run manually with the command `make publish` from the needed git tag.
+        * linux/amd64
+        * linux/arm64
+        * linux/arm
+        * linux/ppc64le
+        * linux/386
+          This step can be run manually with the command `make publish` from the needed git tag.
 
    ```sh
    TAG="$NEXT_TAG" EXTRA_DOCKER_TAG_SUFFIX=-rc0 make publish-release && \
@@ -164,19 +135,19 @@ and the candidate is deployed to the sandbox environment.
    ```
 
 1. Create a draft release on Github. This command performs the following tasks:
-   * a) Create draft GitHub release with the name `TAG`. This step can be run manually
+    * a) Create draft GitHub release with the name `TAG`. This step can be run manually
       with the command `TAG=v1.xx.y make github-create-release`.
       The release id is stored at `/tmp/vm-github-release` file.
-   * b) Upload all the binaries and checksums created at step `11a` to that release.
+    * b) Upload all the binaries and checksums created at step `11a` to that release.
       This step can be run manually with the command `make github-upload-assets`.
       It is expected that the needed release id is stored at `/tmp/vm-github-release` file,
       which must be created at the step `a`.
       If the upload process is interrupted by any reason, then the following recovery steps must be performed:
-      * To delete the created draft release by running the command `make github-delete-release`.
-        This command expects that the id of the release to delete is located at `/tmp/vm-github-release`
-        file created at the step `a`.
-      * To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
-        and all the needed assets are re-uploaded to it.
+        * To delete the created draft release by running the command `make github-delete-release`.
+          This command expects that the id of the release to delete is located at `/tmp/vm-github-release`
+          file created at the step `a`.
+        * To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
+          and all the needed assets are re-uploaded to it.
 
    ```sh
    TAG=${NEXT_TAG} make github-create-release github-upload-assets && \
@@ -241,8 +212,8 @@ Issues included in the release are closed, with the comment.
 The operator repository [https://github.com/VictoriaMetrics/operator/](https://github.com/VictoriaMetrics/operator/)
 
 1. Bump the VictoriaMetrics version in [file `internal/config/config.go`](https://github.com/VictoriaMetrics/operator/blob/master/internal/config/config.go) with new release version for:
-   * `VM_METRICS_VERSION` key in `defaultEnvs` map.
-   * `BaseOperatorConf.MetricsVersion` default value.
+    * `VM_METRICS_VERSION` key in `defaultEnvs` map.
+    * `BaseOperatorConf.MetricsVersion` default value.
 1. Run `make docs`.
 1. Add the dependency to the new release to the tip section in `docs/CHANGELOG.md` ([example](https://github.com/VictoriaMetrics/operator/pull/1355/commits/1d7f4439c359b371b05a06e93f615dbcfb266cf5)).
 1. Commit and send a PR for review.
