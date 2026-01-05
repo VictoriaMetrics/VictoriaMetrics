@@ -242,6 +242,8 @@
                                   {% space %}
                                   (<a href="target_response?id={%s targetID %}" target="_blank"
                                     title="click to fetch target response on behalf of the scraper">response</a>)
+                                {% else %}
+                                  {% space %}(N/A)
                                 {% endif %}
                             </td>
                             <td>
