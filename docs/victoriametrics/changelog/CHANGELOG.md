@@ -294,6 +294,22 @@ Released at 2025-08-01
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): do not configure `-httpListenAddr.useProxyProtocol` for `-httpInternalListenAddr`. See this issue [#9515](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9515) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): always display the tenant selector if the list of tenants is not empty. See [#9396](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9396).
 
+## [v1.122.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.12)
+
+Released at 2026-01-02
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.24.10 to Go1.24.11. It addresses [CVE-2025-61729](http://scout.docker.com/v/CVE-2025-61729). See [the list of issues addressed in Go1.24.11](https://github.com/golang/go/issues?q=milestone%3AGo1.24.11+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.22.2 to 3.23.2. See [Alpine 3.23.2 release notes](https://www.alpinelinux.org/posts/Alpine-3.23.2-released.html).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly add `exported_` prefix to scraped metrics that have the same names as [auto-generated metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics). Previously, some auto-generated metrics were not recognized, so scraped metrics with the same names could overwrite them. See [#10197](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10197). Thanks to @fxrlv for the contribution.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `vmagent_rows_inserted_total{type="newrelic"}` metric to correctly count samples. See [#10191](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10191). Thanks to @fxrlv for the contribution.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix `vmauth_user_request_backend_errors_total` and `vmauth_unauthorized_user_request_backend_errors_total` to only reflect backend request errors. Previously, these counters could be overcounted with user request error. See [#10177](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10177).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly proxy requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) when `-vmalert.proxyURL` flag is set. See [#10178](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10178).
+
 ## [v1.122.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.11)
 
 Released at 2025-12-12
@@ -814,6 +830,20 @@ Released at 2025-02-10
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui) for [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmselect](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series.
+
+## [v1.110.27](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.27)
+
+Released at 2026-01-02
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
+
+* SECURITY: upgrade base docker image (Alpine) from 3.22.2 to 3.23.2. See [Alpine 3.23.2 release notes](https://www.alpinelinux.org/posts/Alpine-3.23.2-released.html).
+* SECURITY: upgrade Go builder from Go1.24.10 to Go1.24.11. It addresses [CVE-2025-61729](http://scout.docker.com/v/CVE-2025-61729). See [the list of issues addressed in Go1.24.11](https://github.com/golang/go/issues?q=milestone%3AGo1.24.11+label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix `vmagent_rows_inserted_total{type="newrelic"}` metric to correctly count samples.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix `vmauth_user_request_backend_errors_total` and `vmauth_unauthorized_user_request_backend_errors_total` to only reflect backend request errors. Previously, these counters could be overcounted with user request error.
 
 ## [v1.110.26](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.26)
 
