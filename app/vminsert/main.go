@@ -88,6 +88,7 @@ var staticServer = http.FileServer(http.FS(staticFiles))
 // Init initializes vminsert.
 func Init() {
 	relabel.Init()
+	common.InitCardinalityEstimator()
 	common.InitStreamAggr()
 	protoparserutil.StartUnmarshalWorkers()
 	if len(*graphiteListenAddr) > 0 {
@@ -124,6 +125,7 @@ func Stop() {
 		opentsdbhttpServer.MustStop()
 	}
 	protoparserutil.StopUnmarshalWorkers()
+	common.MustStopCardinalityEstimator()
 	common.MustStopStreamAggr()
 }
 

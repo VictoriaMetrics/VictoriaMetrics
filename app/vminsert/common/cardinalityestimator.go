@@ -56,5 +56,5 @@ func InitCardinalityEstimator() {
 }
 
 func MustStopCardinalityEstimator() {
-
+	// TODO: looking for review from vm team
 }
