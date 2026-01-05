@@ -117,7 +117,7 @@ It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [
 
 Binary releases of Enterprise components are available at [the releases page for VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 and [the releases page for VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/releases/latest).
-Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.131.0-enterprise.tar.gz`.
+Enterprise binaries and packages have `enterprise` suffix in their names. For example, `victoria-metrics-linux-amd64-v1.132.0-enterprise.tar.gz`.
 
 In order to run binary release of Enterprise component, please download the `*-enterprise.tar.gz` archive for your OS and architecture
 from the corresponding releases page and unpack it. Then run the unpacked binary.
@@ -135,8 +135,8 @@ For example, the following command runs VictoriaMetrics Enterprise binary with t
 obtained at [this page](https://victoriametrics.com/products/enterprise/trial/):
 
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.131.0/victoria-metrics-linux-amd64-v1.131.0-enterprise.tar.gz
-tar -xzf victoria-metrics-linux-amd64-v1.131.0-enterprise.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.132.0/victoria-metrics-linux-amd64-v1.132.0-enterprise.tar.gz
+tar -xzf victoria-metrics-linux-amd64-v1.132.0-enterprise.tar.gz
 ./victoria-metrics-prod -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
@@ -151,7 +151,7 @@ Alternatively, VictoriaMetrics Enterprise license can be stored in the file and 
 It is allowed to run VictoriaMetrics and VictoriaLogs Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
 Docker images for Enterprise components are available at [VictoriaMetrics Docker Hub](https://hub.docker.com/u/victoriametrics) and [VictoriaMetrics Quay](https://quay.io/organization/victoriametrics).
-Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.131.0-enterprise`.
+Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.132.0-enterprise`.
 
 In order to run Docker image of VictoriaMetrics Enterprise component, it is required to provide the license key via the command-line
 flag as described in the [binary-releases](#binary-releases) section.
@@ -161,13 +161,13 @@ Enterprise license key can be obtained at [this page](https://victoriametrics.co
 For example, the following command runs VictoriaMetrics Enterprise Docker image with the specified license key:
 
 ```sh
-docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.131.0-enterprise -license=BASE64_ENCODED_LICENSE_KEY
+docker run --name=victoria-metrics victoriametrics/victoria-metrics:v1.132.0-enterprise -license=BASE64_ENCODED_LICENSE_KEY
 ```
 
 Alternatively, the license code can be stored in the file and then referred via `-licenseFile` command-line flag:
 
 ```sh
-docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.131.0-enterprise -licenseFile=/path/to/vm-license
+docker run --name=victoria-metrics -v /vm-license:/vm-license  victoriametrics/victoria-metrics:v1.132.0-enterprise -licenseFile=/path/to/vm-license
 ```
 
 Example docker-compose configuration:
@@ -177,7 +177,7 @@ version: "3.5"
 services:
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.131.0
+    image: victoriametrics/victoria-metrics:v1.132.0
     ports:
       - 8428:8428
     volumes:
@@ -209,7 +209,7 @@ is used to provide the license key in plain-text:
 ```yaml
 server:
   image:
-    tag: v1.131.0-enterprise
+    tag: v1.132.0-enterprise
 
 license:
   key: {BASE64_ENCODED_LICENSE_KEY}
@@ -220,7 +220,7 @@ In order to provide the license key via existing secret, the following values fi
 ```yaml
 server:
   image:
-    tag: v1.131.0-enterprise
+    tag: v1.132.0-enterprise
 
 license:
   secret:
@@ -246,7 +246,7 @@ Or create secret via `kubectl`:
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
-Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
+Note that the license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
 
 ### Kubernetes operator
 
@@ -270,10 +270,10 @@ spec:
   license:
     key: {BASE64_ENCODED_LICENSE_KEY}
   image:
-    tag: v1.131.0-enterprise
+    tag: v1.132.0-enterprise
 ```
 
-In order to provide the license key via existing secret, the following custom resource is used:
+In order to provide the license key via an existing secret, the following custom resource is used:
 
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -287,7 +287,7 @@ spec:
       name: vm-license
       key: license
   image:
-    tag: v1.131.0-enterprise
+    tag: v1.132.0-enterprise
 ```
 
 Example secret with license key:
@@ -308,8 +308,26 @@ Or create secret via `kubectl`:
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
-Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
-See full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api/).
+Note that the license key provided by using a secret is mounted as a file. This allows updates to the license without the need to restart the pod.
+See the full list of the CRD specifications in the [Operator API](https://docs.victoriametrics.com/operator/api/).
+
+### Updating the license key
+
+Updating the license key for VictoriaMetrics and VictoriaLogs Enterprise components depends on the way
+the license key is provided to the component:
+- If the license key is provided via `-license` command-line flag, then the component should be restarted
+  with the new license key.
+- If the license key is provided via `-licenseFile` command-line flag, then the license file should be updated
+  with the new license key. The component will automatically reload the license file at the interval specified
+  via `-licenseFile.reloadInterval` command-line flag (1 hour by default) and apply the new license key without the need to restart the component.
+- If the license key is provided via Kubernetes secret, then the secret should be updated
+  with the new license key. The component will automatically reload the license file at the interval specified
+  via `-licenseFile.reloadInterval` command-line flag (1 hour by default) and apply the new license key without the need to restart the component.
+- If the license key is provided via Helm chart value, then the corresponding `values.yaml` file
+  should be updated with the new license key and then the Helm chart should be upgraded via `helm upgrade` command.
+  This will restart the component with the new license key.
+- If the license key is provided via Kubernetes operator custom resource, then the corresponding custom resource
+  should be updated with the new license key. This will restart the component with the new license key.
 
 ### FIPS Compatibility
 
@@ -320,7 +338,7 @@ Builds are available for amd64 and arm64 architectures.
 
 Example archive:
 
-`victoria-metrics-linux-amd64-v1.131.0-enterprise.tar.gz`
+`victoria-metrics-linux-amd64-v1.132.0-enterprise.tar.gz`
 
 Includes:
 
@@ -329,7 +347,7 @@ Includes:
 
 Example Docker image:
 
-`victoriametrics/victoria-metrics:v1.131.0-enterprise-fips` – uses the FIPS-compatible binary and based on `scratch` image.
+`victoriametrics/victoria-metrics:v1.132.0-enterprise-fips` – uses the FIPS-compatible binary and based on `scratch` image.
 
 ## Monitoring license expiration
 

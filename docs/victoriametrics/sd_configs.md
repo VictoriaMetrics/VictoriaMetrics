@@ -1981,6 +1981,7 @@ scrape_configs:
   # If more than this number of samples are present after metric relabeling
   # the entire scrape will be treated as failed.
   # By default, the limit is disabled.
+  # The `global` sample_limit sets a default limit for all scrape targets. Available starting from v1.133.0.
   # The sample_limit can be set on a per-target basis by specifying `__sample_limit__`
   # label during target relabeling phase. Available starting from v1.103.0.
   # See https://docs.victoriametrics.com/victoriametrics/relabeling/
