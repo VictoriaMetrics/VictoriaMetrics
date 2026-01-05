@@ -29,9 +29,6 @@ type CardinalityMetricEmitter struct {
 	emitMinCardinality uint64 // Minimum cardinality to emit.
 }
 
-type CardinalityMetricEmitterConfig struct {
-}
-
 func NewCardinalityMetricEmitter(ctx context.Context, ce *CardinalityEstimator, emitMetricNamePrefix string, opts ...EmitOption) *CardinalityMetricEmitter {
 	cme := &CardinalityMetricEmitter{
 		ce:      ce,

@@ -1,4 +1,4 @@
-package common
+package ce
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -17,7 +16,7 @@ var (
 	writeRequestsTotal          = metrics.NewCounter("vm_ce_write_requests_total")
 	writeRequestsProcessedTotal = metrics.NewCounter("vm_ce_write_requests_processed_total")
 
-	_ = metrics.NewGauge("vm_ce_hlls_inuse", func() float64 { return float64(CardinalityEstimator.Allocator.Inuse()) })
+	_ = metrics.NewGauge("vm_ce_hlls_inuse", func() float64 { return float64(DefaultCardinalityEstimator.Allocator.Inuse()) })
 	_ = metrics.NewGauge("vm_ce_max_hlls_inuse", func() float64 { return float64(*estimatorMaxHllsInuse) })
 )
 
@@ -35,35 +34,33 @@ var (
 	emitMinCardinality     = flag.Uint64("ce.emit.minCardinality", 1, "Minimum cardinality to emit for estimations metrics.")
 )
 
-// Check if nil before use!!
-var CardinalityEstimator *ce.CardinalityEstimator
+var DefaultCardinalityEstimator *CardinalityEstimator
+var DefaultCardinalityMetricEmitter *CardinalityMetricEmitter
+var DefaultResetOperator *ResetOperator
 
-var emitter *ce.CardinalityMetricEmitter
-var resetOperator *ce.ResetOperator
-
-func InitCardinalityEstimator() {
+func InitDefaultCardinalityEstimator() {
 	if !*estimatorEnabled {
 		return
 	}
 
-	CardinalityEstimator = ce.NewCardinalityEstimatorWithSettings(*estimatorShards, *estimatorMaxHllsInuse)
-	emitter = ce.NewCardinalityMetricEmitter(context.Background(), CardinalityEstimator, "vm_cardinality_count",
-		ce.WithEmitEnabled(*emitEnabled),
-		ce.WithEmitEnabledByFixed(*emitEnabledByFixed),
-		ce.WithEmitEnabledByMetric(*emitEnabledByMetric),
-		ce.WithEmitEnabledMetricCount(*emitEnabledMetricCount),
-		ce.WithEmitNamespace(*emitNamespace),
-		ce.WithEmitMinCardinality(*emitMinCardinality),
+	DefaultCardinalityEstimator = NewCardinalityEstimatorWithSettings(*estimatorShards, *estimatorMaxHllsInuse)
+	DefaultCardinalityMetricEmitter = NewCardinalityMetricEmitter(context.Background(), DefaultCardinalityEstimator, "vm_cardinality_count",
+		WithEmitEnabled(*emitEnabled),
+		WithEmitEnabledByFixed(*emitEnabledByFixed),
+		WithEmitEnabledByMetric(*emitEnabledByMetric),
+		WithEmitEnabledMetricCount(*emitEnabledMetricCount),
+		WithEmitNamespace(*emitNamespace),
+		WithEmitMinCardinality(*emitMinCardinality),
 	)
-	resetOperator = ce.NewResetOperator(context.Background(), CardinalityEstimator)
+	DefaultResetOperator = NewResetOperator(context.Background(), DefaultCardinalityEstimator)
 }
 
-func MustStopCardinalityEstimator() {
+func MustStopDefaultCardinalityEstimator() {
 	// TODO: looking for review from vm team
 }
 
 func HandleCeGetBinary(w http.ResponseWriter, r *http.Request) {
-	data, err := CardinalityEstimator.MarshalBinary()
+	data, err := DefaultCardinalityEstimator.MarshalBinary()
 	if err != nil {
 		log.Printf("Cardinality estimator failed to marshal: %v", err)
 		http.Error(w, "Failed to marshal", http.StatusInternalServerError)
@@ -81,13 +78,13 @@ func HandleUpdateCeResetSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var rs ce.ResetSchedule
+	var rs ResetSchedule
 	if err := json.NewDecoder(r.Body).Decode(&rs); err != nil {
 		http.Error(w, "Failed to decode JSON", http.StatusBadRequest)
 		return
 	}
 
-	resetOperator.UpdateSchedule(&rs)
+	DefaultResetOperator.UpdateSchedule(&rs)
 }
 
 func HandleCeGetCardinality(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +92,7 @@ func HandleCeGetCardinality(w http.ResponseWriter, r *http.Request) {
 
 	switch queryType {
 	case "fixed":
-		estimate := CardinalityEstimator.EstimateFixedMetricCardinality()
+		estimate := DefaultCardinalityEstimator.EstimateFixedMetricCardinality()
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(estimate); err != nil {
@@ -104,7 +101,7 @@ func HandleCeGetCardinality(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
-		estimate := CardinalityEstimator.EstimateMetricsCardinality()
+		estimate := DefaultCardinalityEstimator.EstimateMetricsCardinality()
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(estimate); err != nil {
@@ -116,6 +113,6 @@ func HandleCeGetCardinality(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleCeReset(w http.ResponseWriter, r *http.Request) {
-	CardinalityEstimator.Reset()
+	DefaultCardinalityEstimator.Reset()
 	w.WriteHeader(http.StatusOK)
 }
