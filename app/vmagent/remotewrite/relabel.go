@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/metrics"
-	"go.yaml.in/yaml/v3"
+	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
