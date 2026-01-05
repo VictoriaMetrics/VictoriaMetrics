@@ -312,4 +312,13 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/cluster-victori
      Timeout for establishing RPC connections from vminsert to vmstorage. See also -vmstorageUserTimeout (default 3s)
   -vmstorageUserTimeout duration
      Network timeout for RPC connections from vminsert to vmstorage (Linux only). Lower values speed up re-rerouting recovery when some of vmstorage nodes become unavailable because of networking issues. Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . See also -vmstorageDialTimeout (default 3s)
+  -zabbixconnector.addDuplicateTagsSeparator string
+     If set to non-empty value, enables merging of duplicate Zabbix tag values and set a separator for the values of these labels.
+  -zabbixconnector.addEmptyTagsValue string
+     If set to non-empty value, enables adding Zabbix tags without values to labels and set value for these labels.
+  -zabbixconnector.addGroupsValue string
+     If set to non-empty value, enables adding Zabbix host groups to labels and set value for these labels.
+  -zabbixconnector.maxLineLen size
+     The maximum length in bytes of a single line accepted by /zabbixconnector/api/v1/history
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
 ```

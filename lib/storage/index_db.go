@@ -245,9 +245,13 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
 	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
 
-	// Report only once and for an indexDB instance whose tagFiltersCache is
-	// utilized the most.
-	if m.TagFiltersToMetricIDsCacheSizeBytes == 0 || db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
+	// Report only once and either for the first met indexDB instance or whose
+	// tagFiltersCache is utilized the most.
+	//
+	// In case of tagFiltersCache, use TagFiltersToMetricIDsCacheRequests as an
+	// indicator that this is the first indexDB instance whose metrics are being
+	// collected because this cache may be reset too often.
+	if m.TagFiltersToMetricIDsCacheRequests == 0 || db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
 		m.TagFiltersToMetricIDsCacheSize = uint64(db.tagFiltersToMetricIDsCache.Len())
 		m.TagFiltersToMetricIDsCacheSizeBytes = db.tagFiltersToMetricIDsCache.SizeBytes()
 		m.TagFiltersToMetricIDsCacheSizeMaxBytes = db.tagFiltersToMetricIDsCache.SizeMaxBytes()
@@ -256,8 +260,8 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
 	}
 
-	// Report only once and for an indexDB instance whose metricIDCache is
-	// utilized the most.
+	// Report only once and for either the first met indexDB instance or whose
+	// metricIDCache is utilized the most.
 	mcs := db.metricIDCache.Stats()
 	if m.MetricIDCacheSizeBytes == 0 || mcs.SizeBytes > m.MetricIDCacheSizeBytes {
 		m.MetricIDCacheSize = mcs.Size
@@ -266,8 +270,8 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.MetricIDCacheRotationsCount = mcs.RotationsCount
 	}
 
-	// Report only once and for an indexDB instance whose dateMetricIDCache is
-	// utilized the most.
+	// Report only once and for either the first met indexDB instance or whose
+	// dateMetricIDCache is utilized the most.
 	dmcs := db.dateMetricIDCache.Stats()
 	if m.DateMetricIDCacheSizeBytes == 0 || dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
 		m.DateMetricIDCacheSize = dmcs.Size
@@ -1935,73 +1939,6 @@ func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, bo
 	v := ts.Item[len(kb.B):]
 	dst = append(dst, v...)
 	return dst, true
-}
-
-// TODO(@rtm0): Move to index_db_legacy.go
-func (is *indexSearch) legacyContainsTimeRange(tr TimeRange) bool {
-	if tr == globalIndexTimeRange {
-		return true
-	}
-
-	db := is.db
-	if !db.noRegisterNewSeries.Load() {
-		// indexDB could register new time series - it is not safe to cache minMissingTimestamp
-		return true
-	}
-
-	// use common prefix as a key for minMissingTimestamp
-	// it's needed to properly track timestamps for cluster version
-	// which uses tenant labels for the index search
-	kb := &is.kb
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
-	key := kb.B
-
-	db.legacyMinMissingTimestampByKeyLock.Lock()
-	minMissingTimestamp, ok := db.legacyMinMissingTimestampByKey[string(key)]
-	db.legacyMinMissingTimestampByKeyLock.Unlock()
-
-	if ok && tr.MinTimestamp >= minMissingTimestamp {
-		return false
-	}
-	if is.legacyContainsTimeRangeSlow(kb, tr) {
-		return true
-	}
-
-	db.legacyMinMissingTimestampByKeyLock.Lock()
-	minMissingTimestamp, ok = db.legacyMinMissingTimestampByKey[string(key)]
-	if !ok || tr.MinTimestamp < minMissingTimestamp {
-		db.legacyMinMissingTimestampByKey[string(key)] = tr.MinTimestamp
-	}
-	db.legacyMinMissingTimestampByKeyLock.Unlock()
-
-	return false
-}
-
-// TODO(@rtm0): Move to index_db_legacy.go
-func (is *indexSearch) legacyContainsTimeRangeSlow(prefixBuf *bytesutil.ByteBuffer, tr TimeRange) bool {
-	ts := &is.ts
-
-	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
-	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
-	// This means that this func can return true if `tr` is located below the min date stored in `ts`.
-	// This is OK, since this case isn't encountered too much in practice.
-	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
-	// is located above the max date stored there.
-	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	prefix := prefixBuf.B
-	prefixBuf.B = encoding.MarshalUint64(prefixBuf.B, minDate)
-	ts.Seek(prefixBuf.B)
-	if !ts.NextItem() {
-		if err := ts.Error(); err != nil {
-			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %w", minDate, prefixBuf.B, err)
-		}
-		return false
-	}
-	if !bytes.HasPrefix(ts.Item, prefix) {
-		// minDate exceeds max date from ts.
-		return false
-	}
-	return true
 }
 
 func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) bool {
