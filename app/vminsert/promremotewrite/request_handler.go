@@ -2,6 +2,7 @@ package promremotewrite
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
@@ -27,6 +28,11 @@ func InsertHandler(req *http.Request) error {
 	}
 	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
 	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
+		if common.CardinalityEstimator != nil {
+			if err := common.CardinalityEstimator.Insert(tss); err != nil {
+				log.Panicf("BUG: cardinality estimator inserts should never fail: %v", err)
+			}
+		}
 		return insertRows(tss, mms, extraLabels)
 	})
 }
