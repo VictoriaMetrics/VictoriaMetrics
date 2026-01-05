@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	ceResetsTotal = metrics.NewCounter("ce_resets_total")
+	timeseriesInsertedTotal = metrics.NewCounter("vm_ce_timeseries_inserted_total")
+	ceResetsTotal           = metrics.NewCounter("vm_ce_resets_total")
 )
 
 type CardinalityEstimator struct {
@@ -30,6 +31,7 @@ type CardinalityEstimator struct {
 		estimators    map[string]*MetricCardinalityEstimator
 		insertCounter *metrics.Counter
 	}
+	sampleRate int
 
 	insertSequences [][]int
 
@@ -38,7 +40,7 @@ type CardinalityEstimator struct {
 }
 
 func NewCardinalityEstimator() *CardinalityEstimator {
-	return NewCardinalityEstimatorWithSettings(64, math.MaxUint64)
+	return NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
 }
 
 // CardinalityEstimator provides a concurrency-safe API for inserting timeseries and estimating cardinalities, across all metrics.
@@ -50,9 +52,12 @@ func NewCardinalityEstimator() *CardinalityEstimator {
 // Why Shards?
 // To optimize for throughput, we need some mechanism to partition the workload across parallel threads. We use sharding by MetricName to achieve this.
 // For performance reasons, we avoid using channels here as they become expensive compared to other synchronization primitives when called very frequently.
-func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64) *CardinalityEstimator {
+func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64, sampleRate int) *CardinalityEstimator {
 	if shards <= 0 {
 		log.Panicf("BUG: invalid estimator shards value %d, must be > 0", shards)
+	}
+	if sampleRate <= 0 {
+		log.Panicf("BUG: invalid estimator sampleRate value %d, must be > 0", sampleRate)
 	}
 
 	ret := &CardinalityEstimator{
@@ -61,6 +66,7 @@ func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64) *Cardi
 			estimators    map[string]*MetricCardinalityEstimator
 			insertCounter *metrics.Counter
 		}, shards),
+		sampleRate:      sampleRate,
 		insertSequences: make([][]int, 10_000),
 		Allocator:       NewAllocator(maxHllsInuse),
 	}
@@ -109,6 +115,14 @@ func (ce *CardinalityEstimator) Reset() {
 
 // Can be called concurrently.
 func (ce *CardinalityEstimator) Insert(tss []prompb.TimeSeries) error {
+	if rand.Intn(ce.sampleRate) != 0 {
+		return nil
+	}
+	return ce.InsertRaw(tss)
+}
+
+// Can be called concurrently. Does not apply sampling.
+func (ce *CardinalityEstimator) InsertRaw(tss []prompb.TimeSeries) error {
 
 	for i := range tss {
 		tss[i].ShardIdx = ce.shardIdx(tss[i].MetricName)
@@ -183,6 +197,7 @@ func (ce *CardinalityEstimator) Insert(tss []prompb.TimeSeries) error {
 				if err := mce.Insert(tss[i]); err != nil {
 					return err
 				}
+				timeseriesInsertedTotal.Inc()
 				shard.insertCounter.Inc()
 			}
 

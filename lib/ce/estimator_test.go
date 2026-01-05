@@ -12,7 +12,7 @@ import (
 func Test_ShardIterator(t *testing.T) {
 
 	n := 10
-	ce := NewCardinalityEstimatorWithSettings(n, math.MaxUint64)
+	ce := NewCardinalityEstimatorWithSettings(n, math.MaxUint64, 1)
 
 	correct := []int{}
 	for i := range n {
@@ -34,7 +34,7 @@ func Test_ShardIterator(t *testing.T) {
 }
 
 func Test_MarshalUnmarshalBinary(t *testing.T) {
-	ce := NewCardinalityEstimatorWithSettings(4, math.MaxUint64)
+	ce := NewCardinalityEstimatorWithSettings(4, math.MaxUint64, 1)
 
 	testTimeSeries := []prompb.TimeSeries{
 		{
@@ -64,7 +64,7 @@ func Test_MarshalUnmarshalBinary(t *testing.T) {
 	assert.NoError(t, err)
 
 	// unmarshal
-	newCe := NewCardinalityEstimatorWithSettings(4, math.MaxUint64)
+	newCe := NewCardinalityEstimatorWithSettings(4, math.MaxUint64, 1)
 	err = newCe.UnmarshalBinary(marshaledData)
 	assert.NoError(t, err)
 

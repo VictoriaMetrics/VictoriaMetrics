@@ -29,8 +29,10 @@ func InsertHandler(req *http.Request) error {
 	}
 	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
 	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
-		if err := ce.DefaultCardinalityEstimator.Insert(tss); err != nil {
-			log.Panicf("BUG: cardinality estimator inserts should never fail: %v", err)
+		if *ce.EstimatorDefaultEnabled {
+			if err := ce.DefaultCardinalityEstimator.Insert(tss); err != nil {
+				log.Panicf("BUG: cardinality estimator inserts should never fail: %v", err)
+			}
 		}
 		return insertRows(tss, mms, extraLabels)
 	})

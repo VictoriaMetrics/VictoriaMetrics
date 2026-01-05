@@ -13,7 +13,7 @@ import (
 )
 
 func Test_HLLAccuracy(t *testing.T) {
-	DefaultCardinalityEstimator = NewCardinalityEstimatorWithSettings(64, math.MaxInt64) // 64 shards, unlimited hlls
+	DefaultCardinalityEstimator = NewCardinalityEstimatorWithSettings(64, math.MaxInt64, 1) // 64 shards, unlimited hlls
 
 	// Target unique instances
 	numInstances := 1_000_000
