@@ -2,8 +2,11 @@ package common
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
+	"log"
 	"math"
+	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce"
 	"github.com/VictoriaMetrics/metrics"
@@ -57,4 +60,62 @@ func InitCardinalityEstimator() {
 
 func MustStopCardinalityEstimator() {
 	// TODO: looking for review from vm team
+}
+
+func HandleCeGetBinary(w http.ResponseWriter, r *http.Request) {
+	data, err := CardinalityEstimator.MarshalBinary()
+	if err != nil {
+		log.Printf("Cardinality estimator failed to marshal: %v", err)
+		http.Error(w, "Failed to marshal", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+}
+
+func HandleUpdateCeResetSchedule(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var rs ce.ResetSchedule
+	if err := json.NewDecoder(r.Body).Decode(&rs); err != nil {
+		http.Error(w, "Failed to decode JSON", http.StatusBadRequest)
+		return
+	}
+
+	resetOperator.UpdateSchedule(&rs)
+}
+
+func HandleCeGetCardinality(w http.ResponseWriter, r *http.Request) {
+	queryType := r.URL.Query().Get("type")
+
+	switch queryType {
+	case "fixed":
+		estimate := CardinalityEstimator.EstimateFixedMetricCardinality()
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(estimate); err != nil {
+			log.Printf("Cardinality estimator failed to encode json, %v", err)
+			http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
+			return
+		}
+	default:
+		estimate := CardinalityEstimator.EstimateMetricsCardinality()
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(estimate); err != nil {
+			log.Printf("Cardinality estimator failed to encode json, %v", err)
+			http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func HandleCeReset(w http.ResponseWriter, r *http.Request) {
+	CardinalityEstimator.Reset()
+	w.WriteHeader(http.StatusOK)
 }

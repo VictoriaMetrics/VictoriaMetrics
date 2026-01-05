@@ -384,6 +384,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			w.Write([]byte("OK"))
 		}
 		return true
+	case "/ce/binary":
+		common.HandleCeGetBinary(w, r)
+		return true
+	case "/ce/configure":
+		common.HandleUpdateCeResetSchedule(w, r)
+		return true
+	case "/ce/estimate":
+		common.HandleCeGetCardinality(w, r)
+		return true
+	case "/ce/reset":
+		common.HandleCeReset(w, r)
+		return true
 	default:
 		// This is not our link
 		return false
