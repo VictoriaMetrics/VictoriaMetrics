@@ -2,7 +2,6 @@ package persistentqueue
 
 import (
 	"fmt"
-	"math"
 	"path/filepath"
 	"sync"
 
@@ -71,7 +70,7 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes
 		if maxPendingBytes == 0 {
 			return float64(freeSpaceBytes)
 		}
-		return math.Min(float64(maxPendingBytes), float64(freeSpaceBytes))
+		return min(float64(maxPendingBytes), float64(freeSpaceBytes))
 	})
 
 	pendingBytes := fq.GetPendingBytes()
