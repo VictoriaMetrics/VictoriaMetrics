@@ -351,7 +351,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	if err != nil {
 		// Do not retry canceled
 		if errors.Is(err, context.Canceled) {
-			ui.requestErrors.Inc()
 			clientCanceledRequests.Inc()
 			return true, false
 		}
