@@ -112,7 +112,7 @@ docs-update-flags:
 	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/victoria_metrics_flags.md
 
 
-	# ---- vmagent
+	# ---- vmagen
 	(cd /tmp/vm-enterprise-single-node && make vmagent)
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmagent_flags.md
 	(cd /tmp/vm-enterprise-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_flags.md
