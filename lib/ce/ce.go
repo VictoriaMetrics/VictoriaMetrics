@@ -60,6 +60,11 @@ func MustStopDefaultCardinalityEstimator() {
 }
 
 func HandleCeGetBinary(w http.ResponseWriter, r *http.Request) {
+	if *EstimatorDefaultEnabled == false {
+		http.Error(w, "Cardinality estimator is disabled", http.StatusBadRequest)
+		return
+	}
+
 	data, err := DefaultCardinalityEstimator.MarshalBinary()
 	if err != nil {
 		log.Printf("Cardinality estimator failed to marshal: %v", err)
@@ -73,6 +78,11 @@ func HandleCeGetBinary(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleUpdateCeResetSchedule(w http.ResponseWriter, r *http.Request) {
+	if *EstimatorDefaultEnabled == false {
+		http.Error(w, "Cardinality estimator is disabled", http.StatusBadRequest)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -88,6 +98,11 @@ func HandleUpdateCeResetSchedule(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleCeGetCardinality(w http.ResponseWriter, r *http.Request) {
+	if *EstimatorDefaultEnabled == false {
+		http.Error(w, "Cardinality estimator is disabled", http.StatusBadRequest)
+		return
+	}
+
 	queryType := r.URL.Query().Get("type")
 
 	switch queryType {
@@ -113,6 +128,11 @@ func HandleCeGetCardinality(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleCeReset(w http.ResponseWriter, r *http.Request) {
+	if *EstimatorDefaultEnabled == false {
+		http.Error(w, "Cardinality estimator is disabled", http.StatusBadRequest)
+		return
+	}
+
 	DefaultCardinalityEstimator.Reset()
 	w.WriteHeader(http.StatusOK)
 }
