@@ -320,7 +320,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			fmt.Fprintf(w, `{"error":%q}`, err.Error())
 			return true
 		}
-		w.WriteHeader(http.StatusAccepted)
+		w.WriteHeader(http.StatusOK)
 		return true
 	case "newrelic":
 		newrelicCheckRequest.Inc()
