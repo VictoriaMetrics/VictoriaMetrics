@@ -87,7 +87,9 @@ func writePrometheusMetrics(w io.Writer) {
 	})
 
 	// Export cardinality estimator metrics
-	ce.DefaultCardinalityMetricEmitter.WritePrometheus(w)
+	if *ce.EstimatorDefaultEnabled {
+		ce.DefaultCardinalityMetricEmitter.WritePrometheus(w)
+	}
 }
 
 var startTime = time.Now()

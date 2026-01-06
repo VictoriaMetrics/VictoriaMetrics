@@ -12,7 +12,12 @@ import (
 )
 
 var (
-	_ = metrics.NewGauge("vm_ce_hlls_inuse", func() float64 { return float64(DefaultCardinalityEstimator.Allocator.Inuse()) })
+	_ = metrics.NewGauge("vm_ce_hlls_inuse", func() float64 {
+		if DefaultCardinalityEstimator != nil {
+			return float64(DefaultCardinalityEstimator.Allocator.Inuse())
+		}
+		return 0
+	})
 	_ = metrics.NewGauge("vm_ce_max_hlls_inuse", func() float64 { return float64(*EstimatorMaxHllsInuse) })
 )
 
@@ -50,6 +55,7 @@ func InitDefaultCardinalityEstimator() {
 		WithEmitMinCardinality(*EmitMinCardinality),
 	)
 	DefaultResetOperator = NewResetOperator(context.Background(), DefaultCardinalityEstimator)
+
 }
 
 func MustStopDefaultCardinalityEstimator() {
