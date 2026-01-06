@@ -566,12 +566,6 @@ func (app *Vmsingle) SnapshotDeleteAll(t *testing.T) *SnapshotDeleteAllResponse 
 	return &res
 }
 
-// HTTPAddr returns the address at which the vmstorage process is listening
-// for http connections.
-func (app *Vmsingle) HTTPAddr() string {
-	return app.httpListenAddr
-}
-
 // APIV1StatusTSDB sends a query to a /prometheus/api/v1/status/tsdb
 // //
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#tsdb-stats
@@ -601,6 +595,31 @@ func (app *Vmsingle) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	}
 	status.Sort()
 	return status
+}
+
+// ZabbixConnectorHistory is a test helper function that inserts a
+// collection of records in zabbixconnector  format by sending a HTTP
+// POST request to /zabbixconnector/api/v1/history vmsingle endpoint.
+func (app *Vmsingle) ZabbixConnectorHistory(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/zabbixconnector/api/v1/history", app.httpListenAddr)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte(strings.Join(records, "\n"))
+	_, statusCode := app.cli.Post(t, url, "application/json", data)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+}
+
+// HTTPAddr returns the address at which the vminsert process is
+// listening for incoming HTTP requests.
+func (app *Vmsingle) HTTPAddr() string {
+	return app.httpListenAddr
 }
 
 // String returns the string representation of the vmsingle app state.
