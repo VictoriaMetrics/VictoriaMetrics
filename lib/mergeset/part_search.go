@@ -334,9 +334,10 @@ func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) 
 	if bh.itemsCount == 1 {
 		// special case for single item
 		// there is no need to cache it, since firstItem is always stored in-memory
-		ps.tmpIB.Reset()
-		ps.tmpIB.unmarshalSingleItem(bh.firstItem, bh.marshalType)
-		return ps.tmpIB, nil
+		ib := ps.tmpIB
+		ib.Reset()
+		ib.unmarshalSingleItem(bh.commonPrefix, bh.firstItem, bh.marshalType)
+		return ib, nil
 	}
 	ibKey := blockcache.Key{
 		Part:   ps.p,
