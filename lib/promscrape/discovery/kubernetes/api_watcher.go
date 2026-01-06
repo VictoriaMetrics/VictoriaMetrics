@@ -470,8 +470,13 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 	if gw.attachNodeMetadata && (role == "pod" || role == "endpoints" || role == "endpointslice") {
 		gw.startWatchersForRole("node", nil)
 	}
-	if gw.attachNamespaceMetadata && (role == "pod" || role == "service" || role == "endpoints" || role == "endpointslice" || role == "ingress") {
+	if gw.attachNamespaceMetadata && (role == "pod" || role == "service" || role == "endpoints" || role == "endpointslice" || role == "ingress" || role == "httproute" || role == "grpcroute") {
 		gw.startWatchersForRole("namespace", nil)
+	}
+	// watch service and gateway objects as they can be referenced in parentRefs
+	if role == "httproute" || role == "grpcroute" {
+		gw.startWatchersForRole("service", nil)
+		gw.startWatchersForRole("gateway", nil)
 	}
 
 	paths := getAPIPathsWithNamespaces(role, gw.namespaces, gw.selectors)
@@ -493,7 +498,7 @@ func (gw *groupWatcher) startWatchersForRole(role string, aw *apiWatcher) {
 			go uw.watchForUpdates()
 			needRecreate := role == "endpoints" || role == "endpointslice" ||
 				(gw.attachNodeMetadata && role == "pod") ||
-				(gw.attachNamespaceMetadata && (role == "pod" || role == "service" || role == "ingress"))
+				(gw.attachNamespaceMetadata && (role == "pod" || role == "service" || role == "ingress" || role == "httproute" || role == "grpcroute"))
 			if needRecreate {
 				// Refresh targets in background, since they depend on other object types such as pod, service, node or namespace.
 				// This should guarantee that the ScrapeWork objects for these objects are properly updated
@@ -980,8 +985,8 @@ func (uw *urlWatcher) maybeUpdateDependedScrapeWorksLocked() {
 			uwx.needRecreateScrapeWorks = true
 			continue
 		}
-		if attachNamespaceMetadata && role == "namespace" && (uwx.role == "pod" || uwx.role == "service" || uwx.role == "endpoints" || uwx.role == "endpointslice" || uwx.role == "ingress") {
-			// pod, service, endpoints, endpointslice and ingress objects depend on namespace objects if attachNamespaceMetadata is set
+		if attachNamespaceMetadata && role == "namespace" && (uwx.role == "pod" || uwx.role == "service" || uwx.role == "endpoints" || uwx.role == "endpointslice" || uwx.role == "ingress" || role == "httproute" || role == "grpcroute") {
+			// pod, service, endpoints, endpointslice, ingress, httproute and grpcroute objects depend on namespace objects if attachNamespaceMetadata is set
 			uwx.needRecreateScrapeWorks = true
 			continue
 		}
@@ -1043,13 +1048,16 @@ func getAPIPath(objectType, namespace, query string) string {
 	if len(query) > 0 {
 		suffix += "?" + query
 	}
-	if objectType == "ingresses" {
+	switch objectType {
+	case "ingresses":
 		return "/apis/networking.k8s.io/v1/" + suffix
-	}
-	if objectType == "endpointslices" {
+	case "endpointslices":
 		return "/apis/discovery.k8s.io/v1/" + suffix
+	case "httproute", "grpcroute", "gateway":
+		return "/apis/gateway.networking.k8s.io/v1/" + suffix
+	default:
+		return "/api/v1/" + suffix
 	}
-	return "/api/v1/" + suffix
 }
 
 func joinSelectors(role string, selectors []Selector) string {
@@ -1091,6 +1099,12 @@ func getObjectTypeByRole(role string) string {
 		return "ingresses"
 	case "namespace":
 		return "namespaces"
+	case "gateway":
+		return "gateways"
+	case "httproute":
+		return "httproutes"
+	case "grpcroute":
+		return "grpcroute"
 	default:
 		logger.Panicf("BUG: unknown role=%q", role)
 		return ""
@@ -1100,19 +1114,25 @@ func getObjectTypeByRole(role string) string {
 func getObjectParsersForRole(role string) (parseObjectFunc, parseObjectListFunc) {
 	switch role {
 	case "node":
-		return parseNode, parseNodeList
+		return parseObject[Node], parseObjectList[Node]
 	case "pod":
-		return parsePod, parsePodList
+		return parseObject[Pod], parseObjectList[Pod]
 	case "service":
-		return parseService, parseServiceList
+		return parseObject[Service], parseObjectList[Service]
 	case "endpoints":
-		return parseEndpoints, parseEndpointsList
+		return parseObject[Endpoints], parseObjectList[Endpoints]
 	case "endpointslice":
-		return parseEndpointSlice, parseEndpointSliceList
+		return parseObject[EndpointSlice], parseObjectList[EndpointSlice]
 	case "ingress":
-		return parseIngress, parseIngressList
+		return parseObject[Ingress], parseObjectList[Ingress]
 	case "namespace":
-		return parseNamespace, parseNamespaceList
+		return parseObject[Namespace], parseObjectList[Namespace]
+	case "httproute":
+		return parseObject[HTTPRoute], parseObjectList[HTTPRoute]
+	case "grpcroute":
+		return parseObject[GRPCRoute], parseObjectList[GRPCRoute]
+	case "gateway":
+		return parseObject[Gateway], parseObjectList[Gateway]
 	default:
 		logger.Panicf("BUG: unsupported role=%q", role)
 		return nil, nil
@@ -1124,4 +1144,35 @@ func getQueryArgsDelimiter(apiURL string) string {
 		return "&"
 	}
 	return "?"
+}
+
+type objectPointer[T any] interface {
+	object
+	*T
+}
+
+type objectList[T object] struct {
+	Metadata ListMeta
+	Items    []T
+}
+
+func parseObjectList[T any, PT objectPointer[T]](r io.Reader) (map[string]object, ListMeta, error) {
+	var l objectList[PT]
+	d := json.NewDecoder(r)
+	if err := d.Decode(&l); err != nil {
+		return nil, l.Metadata, fmt.Errorf("cannot unmarshal object list: %w", err)
+	}
+	objectsByKey := make(map[string]object)
+	for _, o := range l.Items {
+		objectsByKey[o.key()] = o
+	}
+	return objectsByKey, l.Metadata, nil
+}
+
+func parseObject[T any, PT objectPointer[T]](data []byte) (object, error) {
+	o := PT(new(T))
+	if err := json.Unmarshal(data, o); err != nil {
+		return nil, err
+	}
+	return o, nil
 }

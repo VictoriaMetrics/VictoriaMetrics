@@ -9,7 +9,7 @@ func TestParseNamespaceListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parseNamespaceList(r)
+		objectsByKey, _, err := parseObjectList[Namespace](r)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -107,7 +107,7 @@ func TestParseNamespaceListSuccess(t *testing.T) {
 }
 `
 	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseNamespaceList(r)
+	objectsByKey, meta, err := parseObjectList[Namespace](r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -132,8 +132,8 @@ func TestParseNamespaceListSuccess(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected namespace object for default, got %T", objectsByKey["/default"])
 	}
-	if defaultNS.Metadata.Name != "default" {
-		t.Fatalf("unexpected namespace name; got %s; want default", defaultNS.Metadata.Name)
+	if defaultNS.Name != "default" {
+		t.Fatalf("unexpected namespace name; got %s; want default", defaultNS.Name)
 	}
 	if defaultNS.Status.Phase != "Active" {
 		t.Fatalf("unexpected namespace phase; got %s; want Active", defaultNS.Status.Phase)

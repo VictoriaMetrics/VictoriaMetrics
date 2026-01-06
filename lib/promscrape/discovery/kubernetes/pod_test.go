@@ -11,7 +11,7 @@ func TestParsePodListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parsePodList(r)
+		objectsByKey, _, err := parseObjectList[Pod](r)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -694,7 +694,7 @@ func TestParsePodListSuccess(t *testing.T) {
 	f := func(response string, expectedLabels []*promutil.Labels) {
 		t.Helper()
 		r := bytes.NewBufferString(response)
-		objectsByKey, meta, err := parsePodList(r)
+		objectsByKey, meta, err := parseObjectList[Pod](r)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

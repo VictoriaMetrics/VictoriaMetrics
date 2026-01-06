@@ -1,39 +1,11 @@
 package kubernetes
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
-
-func (eps *EndpointSlice) key() string {
-	return eps.Metadata.key()
-}
-
-func parseEndpointSliceList(r io.Reader) (map[string]object, ListMeta, error) {
-	var epsl EndpointSliceList
-	d := json.NewDecoder(r)
-	if err := d.Decode(&epsl); err != nil {
-		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointSliceList: %w", err)
-	}
-	objectsByKey := make(map[string]object)
-	for _, eps := range epsl.Items {
-		objectsByKey[eps.key()] = eps
-	}
-	return objectsByKey, epsl.Metadata, nil
-}
-
-func parseEndpointSlice(data []byte) (object, error) {
-	var eps EndpointSlice
-	if err := json.Unmarshal(data, &eps); err != nil {
-		return nil, err
-	}
-	return &eps, nil
-}
 
 // getTargetLabels returns labels for eps.
 //
@@ -41,9 +13,9 @@ func parseEndpointSlice(data []byte) (object, error) {
 func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 	// The associated service name is stored in kubernetes.io/service-name label.
 	// See https://kubernetes.io/docs/reference/labels-annotations-taints/#kubernetesioservice-name
-	svcName := eps.Metadata.Labels.Get("kubernetes.io/service-name")
+	svcName := eps.Labels.Get("kubernetes.io/service-name")
 	var svc *Service
-	if o := gw.getObjectByRoleLocked("service", eps.Metadata.Namespace, svcName); o != nil {
+	if o := gw.getObjectByRoleLocked("service", eps.Namespace, svcName); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
@@ -124,7 +96,7 @@ func getEndpointSliceLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[
 		svc.appendCommonLabels(m, gw)
 	}
 	// See https://github.com/prometheus/prometheus/issues/10284
-	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpointslice", m)
+	eps.registerLabelsAndAnnotations("__meta_kubernetes_endpointslice", m)
 	if ea.TargetRef.Kind != "Pod" || p == nil {
 		return m
 	}
@@ -161,8 +133,8 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 	addr = discoveryutil.JoinHostPort(addr, epp.Port)
 	m := promutil.GetLabels()
 	m.Add("__address__", addr)
-	m.Add("__meta_kubernetes_namespace", eps.Metadata.Namespace)
-	m.Add("__meta_kubernetes_endpointslice_name", eps.Metadata.Name)
+	m.Add("__meta_kubernetes_namespace", eps.Namespace)
+	m.Add("__meta_kubernetes_endpointslice_name", eps.Name)
 	m.Add("__meta_kubernetes_endpointslice_address_type", eps.AddressType)
 	m.Add("__meta_kubernetes_endpointslice_endpoint_conditions_ready", strconv.FormatBool(ea.Conditions.Ready))
 	m.Add("__meta_kubernetes_endpointslice_endpoint_conditions_serving", strconv.FormatBool(ea.Conditions.Serving))
@@ -190,19 +162,11 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 	return m
 }
 
-// EndpointSliceList - implements kubernetes endpoint slice list object, that groups service endpoints slices.
-//
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointslicelist-v1-discovery-k8s-io
-type EndpointSliceList struct {
-	Metadata ListMeta
-	Items    []*EndpointSlice
-}
-
 // EndpointSlice - implements kubernetes endpoint slice.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointslice-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#endpointslice-v1-discovery-k8s-io
 type EndpointSlice struct {
-	Metadata    ObjectMeta
+	ObjectMeta  `json:"metadata"`
 	Endpoints   []Endpoint
 	AddressType string
 	Ports       []EndpointPort
@@ -210,7 +174,7 @@ type EndpointSlice struct {
 
 // Endpoint implements kubernetes object endpoint for endpoint slice.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpoint-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#endpoint-v1-discovery-k8s-io
 type Endpoint struct {
 	Addresses  []string
 	Conditions EndpointConditions
@@ -222,7 +186,7 @@ type Endpoint struct {
 
 // EndpointConditions implements kubernetes endpoint condition.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointconditions-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#endpointconditions-v1-discovery-k8s-io
 type EndpointConditions struct {
 	Ready       bool
 	Serving     bool

@@ -1,58 +1,22 @@
 package kubernetes
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
-func (ig *Ingress) key() string {
-	return ig.Metadata.key()
-}
-
-func parseIngressList(r io.Reader) (map[string]object, ListMeta, error) {
-	var igl IngressList
-	d := json.NewDecoder(r)
-	if err := d.Decode(&igl); err != nil {
-		return nil, igl.Metadata, fmt.Errorf("cannot unmarshal IngressList: %w", err)
-	}
-	objectsByKey := make(map[string]object)
-	for _, ig := range igl.Items {
-		objectsByKey[ig.key()] = ig
-	}
-	return objectsByKey, igl.Metadata, nil
-}
-
-func parseIngress(data []byte) (object, error) {
-	var ig Ingress
-	if err := json.Unmarshal(data, &ig); err != nil {
-		return nil, err
-	}
-	return &ig, nil
-}
-
-// IngressList represents ingress list in k8s.
-//
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingresslist-v1-networking-k8s-io
-type IngressList struct {
-	Metadata ListMeta
-	Items    []*Ingress
-}
-
 // Ingress represents ingress in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingress-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#ingress-v1-networking-k8s-io
 type Ingress struct {
-	Metadata ObjectMeta
-	Spec     IngressSpec
+	ObjectMeta `json:"metadata"`
+	Spec       IngressSpec
 }
 
 // IngressSpec represents ingress spec in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingressspec-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#ingressspec-v1-networking-k8s-io
 type IngressSpec struct {
 	TLS              []IngressTLS `json:"tls"`
 	Rules            []IngressRule
@@ -61,14 +25,14 @@ type IngressSpec struct {
 
 // IngressTLS represents ingress TLS spec in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingresstls-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#ingresstls-v1-networking-k8s-io
 type IngressTLS struct {
 	Hosts []string
 }
 
 // IngressRule represents ingress rule in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#ingressrule-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#ingressrule-v1-networking-k8s-io
 type IngressRule struct {
 	Host string
 	HTTP HTTPIngressRuleValue `json:"http"`
@@ -76,14 +40,14 @@ type IngressRule struct {
 
 // HTTPIngressRuleValue represents HTTP ingress rule value in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#httpingressrulevalue-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#httpingressrulevalue-v1-networking-k8s-io
 type HTTPIngressRuleValue struct {
 	Paths []HTTPIngressPath
 }
 
 // HTTPIngressPath represents HTTP ingress path in k8s.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#httpingresspath-v1-networking-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#httpingresspath-v1-networking-k8s-io
 type HTTPIngressPath struct {
 	Path string
 }
@@ -134,20 +98,20 @@ func matchesHostPattern(pattern, host string) bool {
 func getLabelsForIngressPath(ig *Ingress, gw *groupWatcher, scheme, host, path string) *promutil.Labels {
 	m := promutil.GetLabels()
 	m.Add("__address__", host)
-	m.Add("__meta_kubernetes_namespace", ig.Metadata.Namespace)
-	m.Add("__meta_kubernetes_ingress_name", ig.Metadata.Name)
+	m.Add("__meta_kubernetes_namespace", ig.Namespace)
+	m.Add("__meta_kubernetes_ingress_name", ig.Name)
 	m.Add("__meta_kubernetes_ingress_scheme", scheme)
 	m.Add("__meta_kubernetes_ingress_host", host)
 	m.Add("__meta_kubernetes_ingress_path", path)
 	m.Add("__meta_kubernetes_ingress_class_name", ig.Spec.IngressClassName)
 	if gw.attachNamespaceMetadata {
-		o := gw.getObjectByRoleLocked("namespace", "", ig.Metadata.Namespace)
+		o := gw.getObjectByRoleLocked("namespace", "", ig.Namespace)
 		if o != nil {
 			ns := o.(*Namespace)
-			ns.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
+			ns.registerLabelsAndAnnotations("__meta_kubernetes_namespace", m)
 		}
 	}
-	ig.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_ingress", m)
+	ig.registerLabelsAndAnnotations("__meta_kubernetes_ingress", m)
 	return m
 }
 

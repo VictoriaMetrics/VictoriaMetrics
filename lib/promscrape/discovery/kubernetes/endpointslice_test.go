@@ -10,7 +10,7 @@ import (
 func TestParseEndpointSliceListFail(t *testing.T) {
 	f := func(data string) {
 		r := bytes.NewBufferString(data)
-		objectsByKey, _, err := parseEndpointSliceList(r)
+		objectsByKey, _, err := parseObjectList[EndpointSlice](r)
 		if err == nil {
 			t.Fatalf("unexpected result, test must fail! data: %s", data)
 		}
@@ -158,7 +158,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
   ]
 }`
 	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseEndpointSliceList(r)
+	objectsByKey, meta, err := parseObjectList[EndpointSlice](r)
 	if err != nil {
 		t.Fatalf("cannot parse data for EndpointSliceList: %v", err)
 	}
@@ -242,7 +242,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 	f := func(t *testing.T, args testArgs, wantLabels []*promutil.Labels) {
 		t.Helper()
 		eps := EndpointSlice{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				Name:      "test-eps",
 				Namespace: "default",
 				Labels: promutil.NewLabelsFromMap(map[string]string{
@@ -275,7 +275,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 			Ports:       args.endpointPorts,
 		}
 		svc := Service{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				Name:      "test-svc",
 				Namespace: "default",
 			},
@@ -291,7 +291,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 			},
 		}
 		pod := Pod{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				UID:       "pod-uid",
 				Name:      "test-pod",
 				Namespace: "default",
@@ -306,12 +306,12 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 			},
 		}
 		node := Node{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				Labels: promutil.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 			},
 		}
 		namespace := Namespace{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				Name: "default",
 				Labels: promutil.NewLabelsFromMap(map[string]string{
 					"environment": "test",

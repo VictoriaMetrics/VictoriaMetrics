@@ -14,7 +14,7 @@ func TestParseNodeListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parseNodeList(r)
+		objectsByKey, _, err := parseObjectList[Node](r)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -232,7 +232,7 @@ func TestParseNodeListSuccess(t *testing.T) {
 }
 `
 	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseNodeList(r)
+	objectsByKey, meta, err := parseObjectList[Node](r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -307,8 +307,25 @@ func newTestGroupWatcher() *groupWatcher {
 			role: "node",
 			objectsByKey: map[string]object{
 				"/test-node": &Node{
-					Metadata: ObjectMeta{
+					ObjectMeta: ObjectMeta{
 						Labels: promutil.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
+					},
+				},
+			},
+		},
+		"gateway": {
+			role: "gateway",
+			objectsByKey: map[string]object{
+				"default/global-http": &Gateway{
+					ObjectMeta: ObjectMeta{
+						Labels: promutil.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
+					},
+					Spec: GatewaySpec{
+						Listeners: []GatewayListener{
+							{
+								Protocol: "HTTPS",
+							},
+						},
 					},
 				},
 			},

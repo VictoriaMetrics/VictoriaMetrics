@@ -11,7 +11,7 @@ func TestParseServiceListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parseServiceList(r)
+		objectsByKey, _, err := parseObjectList[Service](r)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -90,7 +90,7 @@ func TestParseServiceListSuccess(t *testing.T) {
 }
 `
 	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseServiceList(r)
+	objectsByKey, meta, err := parseObjectList[Service](r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

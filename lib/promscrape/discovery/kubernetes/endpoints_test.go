@@ -11,7 +11,7 @@ func TestParseEndpointsListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parseEndpointsList(r)
+		objectsByKey, _, err := parseObjectList[Endpoints](r)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -80,7 +80,7 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 }
 `
 	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseEndpointsList(r)
+	objectsByKey, meta, err := parseObjectList[Endpoints](r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -122,7 +122,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 	f := func(t *testing.T, args testArgs, wantLabels []*promutil.Labels) {
 		t.Helper()
 		eps := Endpoints{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				Name:      "test-eps",
 				Namespace: "default",
 			},
@@ -143,7 +143,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 			},
 		}
 		svc := Service{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				Name:      "test-eps",
 				Namespace: "default",
 			},
@@ -159,7 +159,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 			},
 		}
 		pod := Pod{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				UID:       "pod-uid",
 				Name:      "test-pod",
 				Namespace: "default",
@@ -174,12 +174,12 @@ func TestGetEndpointsLabels(t *testing.T) {
 			},
 		}
 		node := Node{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				Labels: promutil.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 			},
 		}
 		namespace := Namespace{
-			Metadata: ObjectMeta{
+			ObjectMeta: ObjectMeta{
 				Name: "default",
 				Labels: promutil.NewLabelsFromMap(map[string]string{
 					"environment": "test",

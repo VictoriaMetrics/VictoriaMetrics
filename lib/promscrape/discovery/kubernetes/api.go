@@ -12,9 +12,9 @@ import (
 func newAPIConfig(sdc *SDConfig, baseDir string, swcFunc ScrapeWorkConstructorFunc) (*apiConfig, error) {
 	role := sdc.role()
 	switch role {
-	case "node", "pod", "service", "endpoints", "endpointslice", "ingress":
+	case "node", "pod", "service", "endpoints", "endpointslice", "ingress", "httproute", "grpcroute":
 	default:
-		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslice` or `ingress`", role)
+		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `node`, `pod`, `service`, `endpoints`, `endpointslice`, `ingress`, `httproute` or `grpcroute`", role)
 	}
 	cc := &sdc.HTTPClientConfig
 	ac, err := cc.NewConfig(baseDir)

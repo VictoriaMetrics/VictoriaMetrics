@@ -31,7 +31,7 @@ func TestParseIngressListFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parseIngressList(r)
+		objectsByKey, _, err := parseObjectList[Ingress](r)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -93,7 +93,7 @@ func TestParseIngressListSuccess(t *testing.T) {
   ]
 }`
 	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseIngressList(r)
+	objectsByKey, meta, err := parseObjectList[Ingress](r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

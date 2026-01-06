@@ -1,59 +1,22 @@
 package kubernetes
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
-func (eps *Endpoints) key() string {
-	return eps.Metadata.key()
-}
-
-func parseEndpointsList(r io.Reader) (map[string]object, ListMeta, error) {
-	var epsl EndpointsList
-	d := json.NewDecoder(r)
-	if err := d.Decode(&epsl); err != nil {
-		return nil, epsl.Metadata, fmt.Errorf("cannot unmarshal EndpointsList: %w", err)
-	}
-	objectsByKey := make(map[string]object)
-	for _, eps := range epsl.Items {
-		objectsByKey[eps.key()] = eps
-	}
-	return objectsByKey, epsl.Metadata, nil
-}
-
-func parseEndpoints(data []byte) (object, error) {
-	var eps Endpoints
-	if err := json.Unmarshal(data, &eps); err != nil {
-		return nil, err
-	}
-	return &eps, nil
-}
-
-// EndpointsList implements k8s endpoints list.
-//
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointslist-v1-core
-type EndpointsList struct {
-	Metadata ListMeta
-	Items    []*Endpoints
-}
-
 // Endpoints implements k8s endpoints.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpoints-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#endpoints-v1-core
 type Endpoints struct {
-	Metadata ObjectMeta
-	Subsets  []EndpointSubset
+	ObjectMeta `json:"metadata"`
+	Subsets    []EndpointSubset
 }
 
 // EndpointSubset implements k8s endpoint subset.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointsubset-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#endpointsubset-v1-core
 type EndpointSubset struct {
 	Addresses         []EndpointAddress
 	NotReadyAddresses []EndpointAddress
@@ -62,7 +25,7 @@ type EndpointSubset struct {
 
 // EndpointAddress implements k8s endpoint address.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointaddress-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#endpointaddress-v1-core
 type EndpointAddress struct {
 	Hostname  string
 	IP        string
@@ -72,7 +35,7 @@ type EndpointAddress struct {
 
 // ObjectReference implements k8s object reference.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#objectreference-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#objectreference-v1-core
 type ObjectReference struct {
 	Kind      string
 	Name      string
@@ -81,7 +44,7 @@ type ObjectReference struct {
 
 // EndpointPort implements k8s endpoint port.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointport-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.35/#endpointport-v1-discovery-k8s-io
 type EndpointPort struct {
 	AppProtocol string
 	Name        string
@@ -94,7 +57,7 @@ type EndpointPort struct {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
 func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 	var svc *Service
-	if o := gw.getObjectByRoleLocked("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
+	if o := gw.getObjectByRoleLocked("service", eps.Namespace, eps.Name); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
@@ -107,11 +70,11 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 	}
 	// See https://kubernetes.io/docs/reference/labels-annotations-taints/#endpoints-kubernetes-io-over-capacity
 	// and https://github.com/kubernetes/kubernetes/pull/99975
-	switch eps.Metadata.Annotations.Get("endpoints.kubernetes.io/over-capacity") {
+	switch eps.Annotations.Get("endpoints.kubernetes.io/over-capacity") {
 	case "truncated":
-		logger.Warnf(`the number of targets for "role: endpoints" %q exceeds 1000 and has been truncated; please use "role: endpointslice" instead`, eps.Metadata.key())
+		logger.Warnf(`the number of targets for "role: endpoints" %q exceeds 1000 and has been truncated; please use "role: endpointslice" instead`, eps.key())
 	case "warning":
-		logger.Warnf(`the number of targets for "role: endpoints" %q exceeds 1000 and will be truncated in the next k8s releases; please use "role: endpointslice" instead`, eps.Metadata.key())
+		logger.Warnf(`the number of targets for "role: endpoints" %q exceeds 1000 and will be truncated in the next k8s releases; please use "role: endpointslice" instead`, eps.key())
 	}
 
 	// Append labels for skipped ports on seen pods.
@@ -180,12 +143,12 @@ func appendEndpointLabelsForAddresses(ms []*promutil.Labels, gw *groupWatcher, p
 
 func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints, ea EndpointAddress, epp EndpointPort,
 	p *Pod, svc *Service, ready string) *promutil.Labels {
-	m := getEndpointLabels(eps.Metadata, ea, epp, ready)
+	m := getEndpointLabels(eps.ObjectMeta, ea, epp, ready)
 	if svc != nil {
 		svc.appendCommonLabels(m, gw)
 	}
 	// See https://github.com/prometheus/prometheus/issues/10284
-	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpoints", m)
+	eps.registerLabelsAndAnnotations("__meta_kubernetes_endpoints", m)
 	if ea.TargetRef.Kind != "Pod" || p == nil {
 		return m
 	}

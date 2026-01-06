@@ -8,7 +8,7 @@ import (
 
 func BenchmarkPodGetTargetLabels(b *testing.B) {
 	r := bytes.NewBufferString(testPodsList)
-	objectsByKey, _, err := parsePodList(r)
+	objectsByKey, _, err := parseObjectList[Pod](r)
 	if err != nil {
 		panic(fmt.Errorf("BUG: unexpected error: %w", err))
 	}
