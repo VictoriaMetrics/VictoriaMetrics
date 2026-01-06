@@ -1542,9 +1542,9 @@ See also [Why IndexDB size is so large?](https://docs.victoriametrics.com/victor
 ## Retention
 
 Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit
-character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month (31 days) is assumed.
+character - `h(ours)`, `d(ays)`, `w(eeks)`, `M(onth)`, `y(ears)`. If the time unit is not specified, a month (31 days) is assumed.
 For instance, `-retentionPeriod=3` means that the data will be stored for 3 months (93 days) and then deleted.
-The default retention period is one month. The **minimum retention** period is 24h or 1d.
+The default retention period is one month: 1M (31 days). The **minimum retention** period is 24h or 1d.
 
 Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
 **Data partitions** outside the configured retention are deleted **on the first day of the new month**.
