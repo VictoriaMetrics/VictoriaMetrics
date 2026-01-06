@@ -118,6 +118,7 @@ docs-update-flags:
 	(cd /tmp/vm-enterprise-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_flags.md
 	echo '```' >> docs/victoriametrics/vmagent_flags.md
 
+
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_flags.md
 
