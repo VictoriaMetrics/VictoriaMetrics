@@ -76,9 +76,20 @@ func (d *RetentionDuration) Set(value string) error {
 		d.valueString = ""
 		return nil
 	}
-	// An attempt to parse value in months.
-	months, err := strconv.ParseFloat(value, 64)
-	if err == nil {
+
+	// An attempt to parse value as a number without unit. Such values are should be treated as months.
+	// The format is deprecated, number with unit M should be used instead.
+	if _, err := strconv.ParseFloat(value, 64); err == nil {
+		value = value + "M"
+	}
+
+	if strings.HasSuffix(value, "M") {
+		valueWithoutUnit := strings.TrimSuffix(value, "M")
+		months, err := strconv.ParseFloat(valueWithoutUnit, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse months from %q: %w", value, err)
+		}
+
 		if months > maxMonths {
 			return fmt.Errorf("duration months must be smaller than %d; got %g", maxMonths, months)
 		}
@@ -89,10 +100,11 @@ func (d *RetentionDuration) Set(value string) error {
 		d.valueString = value
 		return nil
 	}
+
 	// Parse duration.
 	value = strings.ToLower(value)
 	if strings.HasSuffix(value, "m") {
-		return fmt.Errorf("duration in months must be set without `m` suffix due to ambiguity with duration in minutes; got %s", value)
+		return fmt.Errorf("duration in months must be set with capital `M` suffix, lower case `m` means minutes and not allowed; got %s", value)
 	}
 	msecs, err := metricsql.PositiveDurationValue(value, 0)
 	if err != nil {

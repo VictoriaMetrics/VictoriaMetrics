@@ -31,12 +31,14 @@ func TestDurationSetFailure(t *testing.T) {
 	f("-1")
 	f("-34h")
 
+	f("1mM")
+
 	// RetentionDuration in minutes is confused with duration in months
 	f("1m")
 }
 
 func TestDurationSetSuccess(t *testing.T) {
-	f := func(value string, expectedMsecs int64) {
+	f := func(value string, expectedMsecs int64, expectedValueString string) {
 		t.Helper()
 		var d RetentionDuration
 		if err := d.Set(value); err != nil {
@@ -46,21 +48,21 @@ func TestDurationSetSuccess(t *testing.T) {
 			t.Fatalf("unexpected result; got %d; want %d", d.Milliseconds(), expectedMsecs)
 		}
 		valueString := d.String()
-		valueExpected := strings.ToLower(value)
-		if valueString != valueExpected {
-			t.Fatalf("unexpected valueString; got %q; want %q", valueString, valueExpected)
+		if valueString != expectedValueString {
+			t.Fatalf("unexpected valueString; got %q; want %q", valueString, expectedValueString)
 		}
 	}
-	f("", 0)
-	f("0", 0)
-	f("1", msecsPer31Days)
-	f("123.456", 123.456*msecsPer31Days)
-	f("1h", 3600*1000)
-	f("1.5d", 1.5*24*3600*1000)
-	f("2.3W", 2.3*7*24*3600*1000)
-	f("1w", 7*24*3600*1000)
-	f("0.25y", 0.25*365*24*3600*1000)
-	f("100y", 100*365*24*3600*1000)
+	f("", 0, "")
+	f("0", 0, "0M")
+	f("1", msecsPer31Days, "1M")
+	f("123.456", 123.456*msecsPer31Days, "123.456M")
+	f("1h", 3600*1000, "1h")
+	f("1.5d", 1.5*24*3600*1000, "1.5d")
+	f("2.3W", 2.3*7*24*3600*1000, "2.3w")
+	f("1w", 7*24*3600*1000, "1w")
+	f("0.25y", 0.25*365*24*3600*1000, "0.25y")
+	f("3M", 93*24*3600*1000, "3M")
+	f("100y", 100*365*24*3600*1000, "100y")
 }
 
 func TestDurationDuration(t *testing.T) {
