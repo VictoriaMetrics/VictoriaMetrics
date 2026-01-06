@@ -156,6 +156,8 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	r.Body = &readDurationTrackingBody{r: r.Body}
+
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
 		// Process requests for unauthorized users
@@ -349,6 +351,26 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		err = ctxErr
 	}
 	if err != nil {
+		if errors.Is(err, errReadTimeout) {
+			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			requestURI := httpserver.GetRequestURI(r)
+
+			logger.Warnf("remoteAddr: %s; requestURI: %s; client %s request exceeded single read timeout -readTimeout=%s, closing connection", remoteAddr, requestURI, ui.name(), *readTimeout)
+
+			rejectSlowClientRequests.Inc()
+			if w1, ok := w.(http.Hijacker); ok {
+				conn, _, connErr := w1.Hijack()
+				if connErr != nil {
+					logger.Errorf("cannot hijack connection for slow read timeout handling for %s: %s", targetURL, connErr)
+					return true, false
+				}
+				_ = conn.Close()
+				return true, false
+			}
+
+			return true, false
+		}
+
 		// Do not retry canceled
 		if errors.Is(err, context.Canceled) {
 			clientCanceledRequests.Inc()
@@ -553,6 +575,7 @@ var (
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 	clientCanceledRequests   = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
+	rejectSlowClientRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
@@ -778,4 +801,35 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
+}
+
+var slowReadDuration = metrics.NewSummary(`vmauth_request_slow_read_duration_seconds`)
+
+var readTimeout = flag.Duration("readTimeout", 0, "The maximum duration for a single read call when exceeded the connection is closed. Zero disables request read timeout. "+
+	"See also -writeTimeout")
+
+var errReadTimeout = fmt.Errorf("request read timeout")
+
+type readDurationTrackingBody struct {
+	r io.ReadCloser
+}
+
+func (r *readDurationTrackingBody) Read(p []byte) (n int, err error) {
+	start := time.Now()
+	n, err = r.r.Read(p)
+	dur := time.Since(start)
+
+	// Record slow read durations only to avoid overhead for fast reads.
+	if dur > time.Millisecond {
+		slowReadDuration.Update(dur.Seconds())
+	}
+	if err == nil && *readTimeout > 0 && dur > *readTimeout {
+		return n, errReadTimeout
+	}
+
+	return n, err
+}
+
+func (r *readDurationTrackingBody) Close() error {
+	return r.r.Close()
 }
