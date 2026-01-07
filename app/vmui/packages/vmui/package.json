@@ -25,7 +25,7 @@
     "dayjs": "^1.11.13",
     "lodash.debounce": "^4.0.8",
     "marked": "^16.0.0",
-    "preact": "^10.26.9",
+    "preact": "^10.28.2",
     "qs": "^6.14.0",
     "react-input-mask": "^2.0.4",
     "react-router-dom": "^7.6.3",
