@@ -38,6 +38,9 @@ settings:
   n_workers: 4  # number of workers to run models in parallel
   anomaly_score_outside_data_range: 5.0  # default anomaly score for anomalies outside expected data range
   restore_state: True  # restore state from previous run, if available
+  retention:  # how long to keep stale models on disk/in memory
+    ttl: "1d"  # time-to-live duration, if the model was not used for inference within this duration, it will be considered stale
+    check_every: "1h"  # how often to check for stale models and remove them
 
 # how and when to run the models is defined by schedulers
 # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/
