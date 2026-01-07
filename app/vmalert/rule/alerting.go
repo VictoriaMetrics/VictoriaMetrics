@@ -866,8 +866,8 @@ func (ar *AlertingRule) alertsToSend(resolveDuration, resendDelay time.Duration)
 		if a.State == notifier.StateFiring && a.End.Before(a.LastSent) {
 			return true
 		}
-		if a.State == notifier.StateInactive && a.ResolvedAt.After(a.LastSent) {
-			return true
+		if a.State == notifier.StateInactive {
+			return a.ResolvedAt.After(a.LastSent)
 		}
 		return a.LastSent.Add(resendDelay).Before(currentTime)
 	}

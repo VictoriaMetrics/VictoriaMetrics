@@ -1313,7 +1313,7 @@ func TestAlertsToSend(t *testing.T) {
 		// no need to resend resolved
 		{Name: "b", State: notifier.StateInactive, ResolvedAt: ts, LastSent: ts},
 		// resend resolved
-		{Name: "c", State: notifier.StateInactive, ResolvedAt: ts.Add(-1 * time.Minute), LastSent: ts.Add(-1 * time.Minute)},
+		{Name: "c", State: notifier.StateInactive, ResolvedAt: ts.Add(1 * time.Minute), LastSent: ts.Add(-1 * time.Minute)},
 	},
 		[]*notifier.Alert{{Name: "a"}, {Name: "c"}},
 		5*time.Minute, time.Minute,
