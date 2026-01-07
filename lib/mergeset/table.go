@@ -401,11 +401,9 @@ func (tb *Table) startInmemoryPartsMergerLocked() {
 		return
 	default:
 	}
-	tb.wg.Add(1)
-	go func() {
+	tb.wg.Go(func() {
 		tb.inmemoryPartsMerger()
-		tb.wg.Done()
-	}()
+	})
 }
 
 func (tb *Table) startFilePartsMergers() {
@@ -422,27 +420,21 @@ func (tb *Table) startFilePartsMergerLocked() {
 		return
 	default:
 	}
-	tb.wg.Add(1)
-	go func() {
+	tb.wg.Go(func() {
 		tb.filePartsMerger()
-		tb.wg.Done()
-	}()
+	})
 }
 
 func (tb *Table) startPendingItemsFlusher() {
-	tb.wg.Add(1)
-	go func() {
+	tb.wg.Go(func() {
 		tb.pendingItemsFlusher()
-		tb.wg.Done()
-	}()
+	})
 }
 
 func (tb *Table) startInmemoryPartsFlusher() {
-	tb.wg.Add(1)
-	go func() {
+	tb.wg.Go(func() {
 		tb.inmemoryPartsFlusher()
-		tb.wg.Done()
-	}()
+	})
 }
 
 func (tb *Table) startFlushCallbackWorker() {

@@ -421,11 +421,9 @@ func (tb *table) getMinMaxTimestamps() (int64, int64) {
 }
 
 func (tb *table) startRetentionWatcher() {
-	tb.retentionWatcherWG.Add(1)
-	go func() {
+	tb.retentionWatcherWG.Go(func() {
 		tb.retentionWatcher()
-		tb.retentionWatcherWG.Done()
-	}()
+	})
 }
 
 func (tb *table) retentionWatcher() {
@@ -469,11 +467,9 @@ func (tb *table) retentionWatcher() {
 }
 
 func (tb *table) startHistoricalMergeWatcher() {
-	tb.historicalMergeWatcherWG.Add(1)
-	go func() {
+	tb.historicalMergeWatcherWG.Go(func() {
 		tb.historicalMergeWatcher()
-		tb.historicalMergeWatcherWG.Done()
-	}()
+	})
 }
 
 func (tb *table) historicalMergeWatcher() {

@@ -363,12 +363,10 @@ func (bu *backendURL) isBroken() bool {
 
 func (bu *backendURL) setBroken() {
 	if bu.broken.CompareAndSwap(false, true) {
-		bu.healthCheckWG.Add(1)
-		go func() {
-			defer bu.healthCheckWG.Done()
+		bu.healthCheckWG.Go(func() {
 			bu.runHealthCheck()
 			bu.broken.Store(false)
-		}()
+		})
 	}
 }
 
@@ -733,11 +731,9 @@ func initAuthConfig() {
 	configTimestamp.Set(fasttime.UnixTimestamp())
 
 	stopCh = make(chan struct{})
-	authConfigWG.Add(1)
-	go func() {
-		defer authConfigWG.Done()
+	authConfigWG.Go(func() {
 		authConfigReloader(sighupCh)
-	}()
+	})
 }
 
 func stopAuthConfig() {

@@ -477,22 +477,18 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 		var tssFirst []*timeseries
 		var errFirst error
 		qtFirst := qt.NewChild("expr1")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
 			qtFirst.Done()
-		}()
+		})
 
 		var tssSecond []*timeseries
 		var errSecond error
 		qtSecond := qt.NewChild("expr2")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
 			qtSecond.Done()
-		}()
+		})
 
 		wg.Wait()
 		if errFirst != nil {

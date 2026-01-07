@@ -718,11 +718,9 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 	a.cs.Store(cs)
 
-	a.wg.Add(1)
-	go func() {
+	a.wg.Go(func() {
 		a.runFlusher(pushFunc, alignFlushToInterval, skipFlushOnShutdown, ignoreFirstIntervals)
-		a.wg.Done()
-	}()
+	})
 
 	return a, nil
 }

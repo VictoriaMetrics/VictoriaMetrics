@@ -205,11 +205,9 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 		return float64(*queues)
 	})
 	for i := 0; i < concurrency; i++ {
-		c.wg.Add(1)
-		go func() {
-			defer c.wg.Done()
+		c.wg.Go(func() {
 			c.runWorker()
-		}()
+		})
 	}
 	logger.Infof("initialized client for -remoteWrite.url=%q", c.sanitizedURL)
 }

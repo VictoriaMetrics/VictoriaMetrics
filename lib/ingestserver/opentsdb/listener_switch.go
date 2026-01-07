@@ -33,13 +33,11 @@ func newListenerSwitch(ln net.Listener) *listenerSwitch {
 	}
 	ls.telnetConnsCh = make(chan net.Conn)
 	ls.httpConnsCh = make(chan net.Conn)
-	ls.wg.Add(1)
-	go func() {
+	ls.wg.Go(func() {
 		ls.worker()
 		close(ls.telnetConnsCh)
 		close(ls.httpConnsCh)
-		ls.wg.Done()
-	}()
+	})
 	return ls
 }
 
