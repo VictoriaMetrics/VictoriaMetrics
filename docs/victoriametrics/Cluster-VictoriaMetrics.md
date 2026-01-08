@@ -1147,16 +1147,37 @@ Report bugs and propose new features in our [GitHub Issues](https://github.com/V
 
 ### List of command-line flags for vminsert
 
-Below is the output for `/path/to/vminsert -help`:
+Pass `-help` to vminsert in order to see the list of supported command-line flags with their description.
 
-{{% content "vminsert_flags.md" %}}
+#### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vminsert_common_flags.md" %}}
+
+#### Enterprise-specific flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vminsert_enterprise_flags.md" %}}
+
 
 ### List of command-line flags for vmselect
 
-Below is the output for `/path/to/vmselect -help`:
+Pass `-help` to vmselect in order to see the list of supported command-line flags with their description.
 
-{{% content "vmselect_flags.md" %}}
+#### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmselect_common_flags.md" %}}
+
+#### Enterprise-specific flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmselect_enterprise_flags.md" %}}
 
 ### List of command-line flags for vmstorage
 
-{{% content "vmstorage_flags.md" %}}
+Pass `-help` to vmstorage in order to see the list of supported command-line flags with their description.
+
+#### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmstorage_common_flags.md" %}}
+
+#### Enterprise-specific flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmstorage_enterprise_flags.md" %}}

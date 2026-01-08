@@ -1244,9 +1244,15 @@ It is safe sharing the collected profiles from security point of view, since the
 
 ## Advanced usage
 
-`vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default values:
+`vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default value.
 
-{{% content "vmagent_flags.md" %}}
+### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmagent_common_flags.md" %}}
+
+### Enterprise-specific flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmagent_enterprise_flags.md" %}}
 
 ---
 

@@ -39,7 +39,7 @@ docs-debug: docs docs-image
 		--platform $(DOCKER_PLATFORM) \
 		-p 1313:1313 \
 		$(foreach dir,$(wildcard ./docs/$(dir)/*), -v ./docs/$(notdir $(dir)):/opt/docs/content/$(notdir $(dir))) \
-			vmdocs-docker-package
+			vmdocs-docker-package2
 
 docs-update-version: docs-image
 	$(if $(filter v%,$(PKG_TAG)), \
@@ -66,6 +66,202 @@ docs-images-to-webp: docs-image
 			content \
 				-regex ".*\.\(png\|jpg\|jpeg\)" \
 				-exec sh -c 'cwebp -preset drawing -m 6 -o $$(echo {} | cut -f-1 -d.).webp {} && rm -rf {}' {} \;
+
+docs-update-vmsingle-flags:
+	(cd /tmp/vm-enterprise-single-node && make victoria-metrics)
+	(cd /tmp/vm-opensource-single-node && make victoria-metrics)
+	(cd /tmp/vm-enterprise-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_common_flags_tmp.md
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/victoria_metrics_common_flags.md
+	(cd /tmp/vm-opensource-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_common_flags.md
+	printf -- '```\n' >> docs/victoriametrics/victoria_metrics_common_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/victoria_metrics_enterprise_flags.md
+	diff docs/victoriametrics/victoria_metrics_enterprise_flags_tmp.md docs/victoriametrics/victoria_metrics_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/victoria_metrics_enterprise_flags.md
+	printf -- '```\n' >> docs/victoriametrics/victoria_metrics_enterprise_flags.md
+
+	rm docs/victoriametrics/victoria_metrics_enterprise_flags_tmp.md
+	rm docs/victoriametrics/victoria_metrics_common_flags_tmp.md
+
+	# replace tabs in output with one space
+	sed -i 's/\t/ /g' docs/victoriametrics/victoria_metrics_common_flags.md
+	sed -i 's/\t/ /g' docs/victoriametrics/victoria_metrics_enterprise_flags.md
+
+	# adjust flags with dynamic default values
+	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
+	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/victoria_metrics_common_flags.md
+	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/victoria_metrics_common_flags.md
+	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/victoria_metrics_common_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/victoria_metrics_common_flags.md
+
+docs-update-vmauth-flags:
+	# ---- vmauth
+	(cd /tmp/vm-enterprise-single-node && make vmauth)
+	(cd /tmp/vm-opensource-single-node && make vmauth)
+	(cd /tmp/vm-enterprise-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_common_flags_tmp.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmauth_common_flags.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_common_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmauth_common_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmauth_enterprise_flags.md
+	diff docs/victoriametrics/vmauth_enterprise_flags_tmp.md docs/victoriametrics/vmauth_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmauth_enterprise_flags.md
+	printf -- '```' >> docs/victoriametrics/vmauth_enterprise_flags.md
+
+	rm docs/victoriametrics/vmauth_common_flags_tmp.md
+	rm docs/victoriametrics/vmauth_enterprise_flags_tmp.md
+
+	# replace tabs in output with one space
+	sed -i 's/\t/ /g' docs/victoriametrics/vmauth_common_flags.md
+	sed -i 's/\t/ /g' docs/victoriametrics/vmauth_enterprise_flags.md
+
+	# adjust flags with dynamic default values
+	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmauth_common_flags.md
+
+docs-update-vmagent-flags:
+	(cd /tmp/vm-enterprise-single-node && make vmagent)
+	(cd /tmp/vm-opensource-single-node && make vmagent)
+	(cd /tmp/vm-enterprise-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_common_flags_tmp.md
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmagent_common_flags.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_common_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmagent_common_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmagent_enterprise_flags.md
+	diff docs/victoriametrics/vmagent_enterprise_flags_tmp.md docs/victoriametrics/vmagent_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmagent_enterprise_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmagent_enterprise_flags.md
+
+	rm docs/victoriametrics/vmagent_common_flags_tmp.md
+	rm docs/victoriametrics/vmagent_enterprise_flags_tmp.md
+
+	# replace tabs in output with one space
+	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_common_flags.md
+	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_enterprise_flags.md
+
+	# adjust flags with dynamic default values
+	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
+	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_common_flags.md
+	sed -i '/The number of concurrent queues to each -remoteWrite.url./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_common_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmagent_common_flags.md
+
+docs-update-vmalert-flags:
+	(cd /tmp/vm-enterprise-single-node && make vmalert)
+	(cd /tmp/vm-opensource-single-node && make vmalert)
+	(cd /tmp/vm-enterprise-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_common_flags_tmp.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmalert_common_flags.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_common_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmalert_common_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmalert_enterprise_flags.md
+	diff docs/victoriametrics/vmalert_enterprise_flags_tmp.md docs/victoriametrics/vmalert_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmalert_enterprise_flags.md
+	printf -- '```' >> docs/victoriametrics/vmalert_enterprise_flags.md
+
+	rm docs/victoriametrics/vmalert_common_flags_tmp.md
+	rm docs/victoriametrics/vmalert_enterprise_flags_tmp.md
+
+	# replace tabs in output with one space
+	sed -i 's/\t/ /g' docs/victoriametrics/vmalert_common_flags.md
+	sed -i 's/\t/ /g' docs/victoriametrics/vmalert_enterprise_flags.md
+
+	# adjust flags with dynamic default values
+	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
+	sed -i '/Defines number of writers for concurrent writing into remote write endpoint./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmalert_common_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmalert_common_flags.md
+
+docs-update-vmselect-flags:
+	(cd /tmp/vm-enterprise-cluster && make vmselect)
+	(cd /tmp/vm-opensource-cluster && make vmselect)
+	(cd /tmp/vm-enterprise-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_common_flags_tmp.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmselect_common_flags.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_common_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmselect_common_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmselect_enterprise_flags.md
+	diff docs/victoriametrics/vmselect_enterprise_flags_tmp.md docs/victoriametrics/vmselect_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmselect_enterprise_flags.md
+	printf -- '```' >> docs/victoriametrics/vmselect_enterprise_flags.md
+
+	rm docs/victoriametrics/vmselect_enterprise_flags_tmp.md
+	rm docs/victoriametrics/vmselect_common_flags_tmp.md
+
+	# replace tabs in output with one space
+	sed -i 's/\t/ /g' docs/victoriametrics/vmselect_common_flags.md
+	sed -i 's/\t/ /g' docs/victoriametrics/vmselect_enterprise_flags.md
+
+	# adjust flags with dynamic default values
+	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
+	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/vmselect_common_flags.md
+	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/vmselect_common_flags.md
+	sed -i '/The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmselect_common_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmselect_common_flags.md
+
+docs-update-vminsert-flags:
+	(cd /tmp/vm-enterprise-cluster && make vminsert)
+	(cd /tmp/vm-opensource-cluster && make vminsert)
+	(cd /tmp/vm-enterprise-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_common_flags_tmp.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vminsert_common_flags.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_common_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vminsert_common_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vminsert_enterprise_flags.md
+	diff docs/victoriametrics/vminsert_enterprise_flags_tmp.md docs/victoriametrics/vminsert_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vminsert_enterprise_flags.md
+	printf -- '```' >> docs/victoriametrics/vminsert_enterprise_flags.md
+
+	rm docs/victoriametrics/vminsert_common_flags_tmp.md
+	rm docs/victoriametrics/vminsert_enterprise_flags_tmp.md
+
+	# replace tabs in output with one space
+	sed -i 's/\t/ /g' docs/victoriametrics/vminsert_common_flags.md
+	sed -i 's/\t/ /g' docs/victoriametrics/vminsert_enterprise_flags.md
+
+	# uncomment and adjust if you need to remove some flags from the documentation.
+	# should be used as a temporary workaround only.
+	#awk -i inplace '\
+	#	  /^  -promscrape./ {skip=1; next}\
+	#	  skip && /^    / {next}\
+	#	  skip {skip=0}\
+	#	  {print}\
+	#	' docs/victoriametrics/vminsert_common_flags.md
+
+	# adjust flags with dynamic default values
+	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
+	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vminsert_common_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vminsert_common_flags.md
+
+docs-update-vmstorage-flags:
+	(cd /tmp/vm-enterprise-cluster && make vmstorage)
+	(cd /tmp/vm-opensource-cluster && make vmstorage)
+	(cd /tmp/vm-enterprise-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_common_flags_tmp.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmstorage_common_flags.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_common_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmstorage_common_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmstorage_enterprise_flags.md
+	diff docs/victoriametrics/vmstorage_enterprise_flags_tmp.md docs/victoriametrics/vmstorage_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmstorage_enterprise_flags.md
+	printf -- '```' >> docs/victoriametrics/vmstorage_enterprise_flags.md
+
+	rm docs/victoriametrics/vmstorage_common_flags_tmp.md
+	rm docs/victoriametrics/vmstorage_enterprise_flags_tmp.md
+
+	# replace tabs in output with one space
+	sed -i 's/\t/ /g' docs/victoriametrics/vmstorage_common_flags.md
+	sed -i 's/\t/ /g' docs/victoriametrics/vmstorage_enterprise_flags.md
+
+	# adjust flags with dynamic default values
+	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
+	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_common_flags.md
+	sed -i '/The maximum number of concurrent vmselect requests the vmstorage can process at./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_common_flags.md
+	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmstorage_common_flags.md
+
 
 # docs-update-flags updates flags in the documentation using the actual binaries compiled
 # from the latest enterprise-single-node and enterprise-cluster branches (hardcoded for now).
@@ -104,186 +300,10 @@ docs-update-flags:
 	git worktree remove /tmp/vm-opensource-single-node || true
 	git worktree add /tmp/vm-opensource-single-node origin/master
 
-	# ---- victoria-metrics
-	(cd /tmp/vm-enterprise-single-node && make victoria-metrics)
-	(cd /tmp/vm-opensource-single-node && make victoria-metrics)
-	(cd /tmp/vm-enterprise-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_enterprise_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_opensource_flags.md
-	echo "$$FLAGS_HEADER" > docs/victoriametrics/victoria_metrics_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_flags.md
-	printf -- '```\n' >> docs/victoriametrics/victoria_metrics_flags.md
-	printf  -- 'The following flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/):\n' >> docs/victoriametrics/victoria_metrics_flags.md
-	printf -- '```\n' >> docs/victoriametrics/victoria_metrics_flags.md
-	diff docs/victoriametrics/victoria_metrics_enterprise_flags.md docs/victoriametrics/victoria_metrics_opensource_flags.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/victoria_metrics_flags.md
-	printf -- '```' >> docs/victoriametrics/victoria_metrics_flags.md
-
-	rm docs/victoriametrics/victoria_metrics_opensource_flags.md
-	rm docs/victoriametrics/victoria_metrics_enterprise_flags.md
-
-	# replace tabs in output with one space
-	sed -i 's/\t/ /g' docs/victoriametrics/victoria_metrics_flags.md
-
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/victoria_metrics_flags.md
-	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/victoria_metrics_flags.md
-	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/victoria_metrics_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/victoria_metrics_flags.md
-
-
-	# ---- vmagent
-	(cd /tmp/vm-enterprise-single-node && make vmagent)
-	(cd /tmp/vm-opensource-single-node && make vmagent)
-	(cd /tmp/vm-enterprise-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_enterprise_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_opensource_flags.md
-	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmagent_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmagent_flags.md
-	printf  -- 'The following flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/):\n' >> docs/victoriametrics/vmagent_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmagent_flags.md
-	diff docs/victoriametrics/vmagent_enterprise_flags.md docs/victoriametrics/vmagent_opensource_flags.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmagent_flags.md
-	printf -- '```' >> docs/victoriametrics/vmagent_flags.md
-
-	rm docs/victoriametrics/vmagent_opensource_flags.md
-	rm docs/victoriametrics/vmagent_enterprise_flags.md
-
-	# replace tabs in output with one space
-	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_flags.md
-
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_flags.md
-	sed -i '/The number of concurrent queues to each -remoteWrite.url./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmagent_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmagent_flags.md
-
-	# ---- vmalert
-	(cd /tmp/vm-enterprise-single-node && make vmalert)
-	(cd /tmp/vm-opensource-single-node && make vmalert)
-	(cd /tmp/vm-enterprise-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_enterprise_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_opensource_flags.md
-	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmalert_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmalert_flags.md
-	printf  -- 'The following flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/):\n' >> docs/victoriametrics/vmalert_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmalert_flags.md
-	diff docs/victoriametrics/vmalert_enterprise_flags.md docs/victoriametrics/vmalert_opensource_flags.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmalert_flags.md
-	printf -- '```' >> docs/victoriametrics/vmalert_flags.md
-
-	rm docs/victoriametrics/vmalert_opensource_flags.md
-	rm docs/victoriametrics/vmalert_enterprise_flags.md
-
-	# replace tabs in output with one space
-	sed -i 's/\t/ /g' docs/victoriametrics/vmalert_flags.md
-
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/Defines number of writers for concurrent writing into remote write endpoint./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmalert_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmalert_flags.md
-
-	# ---- vmauth
-	(cd /tmp/vm-enterprise-single-node && make vmauth)
-	(cd /tmp/vm-opensource-single-node && make vmauth)
-	(cd /tmp/vm-enterprise-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_enterprise_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_opensource_flags.md
-	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmauth_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmauth_flags.md
-	printf  -- 'The following flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/):\n' >> docs/victoriametrics/vmauth_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmauth_flags.md
-	diff docs/victoriametrics/vmauth_enterprise_flags.md docs/victoriametrics/vmauth_opensource_flags.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmauth_flags.md
-	printf -- '```' >> docs/victoriametrics/vmauth_flags.md
-
-	rm docs/victoriametrics/vmauth_opensource_flags.md
-	rm docs/victoriametrics/vmauth_enterprise_flags.md
-
-	# replace tabs in output with one space
-	sed -i 's/\t/ /g' docs/victoriametrics/vmauth_flags.md
-
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmauth_flags.md
-
-
-	# ---- vminsert
-	(cd /tmp/vm-enterprise-cluster && make vminsert)
-	(cd /tmp/vm-opensource-cluster && make vminsert)
-	(cd /tmp/vm-enterprise-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_enterprise_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_opensource_flags.md
-	echo "$$FLAGS_HEADER" > docs/victoriametrics/vminsert_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vminsert_flags.md
-	printf  -- 'The following flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/):\n' >> docs/victoriametrics/vminsert_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vminsert_flags.md
-	diff docs/victoriametrics/vminsert_enterprise_flags.md docs/victoriametrics/vminsert_opensource_flags.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vminsert_flags.md
-	printf -- '```' >> docs/victoriametrics/vminsert_flags.md
-
-	rm docs/victoriametrics/vminsert_opensource_flags.md
-	rm docs/victoriametrics/vminsert_enterprise_flags.md
-
-	# replace tabs in output with one space
-	sed -i 's/\t/ /g' docs/victoriametrics/vminsert_flags.md
-
-	# uncomment and adjust if you need to remove some flags from the documentation.
-	# should be used as a temporary workaround only.
-	#awk -i inplace '\
-	#	  /^  -promscrape./ {skip=1; next}\
-	#	  skip && /^    / {next}\
-	#	  skip {skip=0}\
-	#	  {print}\
-	#	' docs/victoriametrics/vminsert_flags.md
-
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vminsert_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vminsert_flags.md
-
-	# ---- vmselect
-	(cd /tmp/vm-enterprise-cluster && make vmselect)
-	(cd /tmp/vm-opensource-cluster && make vmselect)
-	(cd /tmp/vm-enterprise-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_enterprise_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_opensource_flags.md
-	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmselect_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmselect_flags.md
-	printf  -- 'The following flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/):\n' >> docs/victoriametrics/vmselect_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmselect_flags.md
-	diff docs/victoriametrics/vmselect_enterprise_flags.md docs/victoriametrics/vmselect_opensource_flags.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmselect_flags.md
-	printf -- '```' >> docs/victoriametrics/vmselect_flags.md
-
-	rm docs/victoriametrics/vmselect_opensource_flags.md
-	rm docs/victoriametrics/vmselect_enterprise_flags.md
-
-	# replace tabs in output with one space
-	sed -i 's/\t/ /g' docs/victoriametrics/vmselect_flags.md
-
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent search requests\./ s/(default [0-9]\+)/(default vmselect.getDefaultMaxConcurrentRequests())/' docs/victoriametrics/vmselect_flags.md
-	sed -i '/The maximum number of CPU cores a single query can use\./ s/(default [0-9]\+)/(default netstorage.defaultMaxWorkersPerQuery())/' docs/victoriametrics/vmselect_flags.md
-	sed -i '/The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmselect_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmselect_flags.md
-
-	# ---- vmstorage
-	(cd /tmp/vm-enterprise-cluster && make vmstorage)
-	(cd /tmp/vm-opensource-cluster && make vmstorage)
-	(cd /tmp/vm-enterprise-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_enterprise_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_opensource_flags.md
-	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmstorage_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmstorage_flags.md
-	printf  -- 'The following flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/):\n' >> docs/victoriametrics/vmstorage_flags.md
-	printf -- '```\n' >> docs/victoriametrics/vmstorage_flags.md
-	diff docs/victoriametrics/vmstorage_enterprise_flags.md docs/victoriametrics/vmstorage_opensource_flags.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmstorage_flags.md
-	printf -- '```' >> docs/victoriametrics/vmstorage_flags.md
-
-	rm docs/victoriametrics/vmstorage_opensource_flags.md
-	rm docs/victoriametrics/vmstorage_enterprise_flags.md
-
-	# replace tabs in output with one space
-	sed -i 's/\t/ /g' docs/victoriametrics/vmstorage_flags.md
-
-	# adjust flags with dynamic default values
-	# remove after https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9680 implemented
-	sed -i '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_flags.md
-	sed -i '/The maximum number of concurrent vmselect requests the vmstorage can process at./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_flags.md
-	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmstorage_flags.md
+	make docs-update-vmsingle-flags
+	make docs-update-vmalert-flags
+	make docs-update-vmauth-flags
+	make docs-update-vmagent-flags
+	make docs-update-vmselect-flags
+	make docs-update-vminsert-flags
+	make docs-update-vmstorage-flags

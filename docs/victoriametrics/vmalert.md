@@ -1169,7 +1169,13 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-{{% content "vmalert_flags.md" %}}
+#### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmalert_common_flags.md" %}}
+
+#### Enterprise-specific flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmalert_enterprise_flags.md" %}}
 
 ### Hot config reload
 

@@ -2443,7 +2443,13 @@ Files included in each folder:
 
 Pass `-help` to VictoriaMetrics in order to see the list of supported command-line flags with their description:
 
-{{% content "victoria_metrics_flags.md" %}}
+### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "victoria_metrics_common_flags.md" %}}
+
+### Enterprise-specific flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "victoria_metrics_enterprise_flags.md" %}}
 
 ---
 
