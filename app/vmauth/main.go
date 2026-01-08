@@ -416,7 +416,10 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 
 	err = copyStreamToClient(w, res.Body)
 	_ = res.Body.Close()
-	if err != nil && !netutil.IsTrivialNetworkError(err) && !errors.Is(err, context.Canceled) {
+	if errors.Is(err, context.Canceled) {
+		clientCanceledRequests.Inc()
+		return true, false
+	} else if err != nil && !netutil.IsTrivialNetworkError(err) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 
