@@ -70,18 +70,15 @@ docs-images-to-webp: docs-image
 docs-update-vmsingle-flags:
 	(cd /tmp/vm-enterprise-single-node && make victoria-metrics)
 	(cd /tmp/vm-opensource-single-node && make victoria-metrics)
-	(cd /tmp/vm-enterprise-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_enterprise_flags_tmp.md
-	(cd /tmp/vm-opensource-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_common_flags_tmp.md
+	(cd /tmp/vm-enterprise-single-node && ./bin/victoria-metrics -help 2>&1) > /tmp/vm-enterprise-single-node/victoria_metrics_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/victoria-metrics -help 2>&1) > /tmp/vm-opensource-single-node/victoria_metrics_common_flags_tmp.md
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/victoria_metrics_common_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/victoria-metrics -help 2>&1) >> docs/victoriametrics/victoria_metrics_common_flags.md
+	cat /tmp/vm-opensource-single-node/victoria_metrics_common_flags_tmp.md >> docs/victoriametrics/victoria_metrics_common_flags.md
 	printf -- '```\n' >> docs/victoriametrics/victoria_metrics_common_flags.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/victoria_metrics_enterprise_flags.md
-	diff docs/victoriametrics/victoria_metrics_enterprise_flags_tmp.md docs/victoriametrics/victoria_metrics_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/victoria_metrics_enterprise_flags.md
+	diff /tmp/vm-enterprise-single-node/victoria_metrics_enterprise_flags_tmp.md /tmp/vm-opensource-single-node/victoria_metrics_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/victoria_metrics_enterprise_flags.md
 	printf -- '```\n' >> docs/victoriametrics/victoria_metrics_enterprise_flags.md
-
-	rm docs/victoriametrics/victoria_metrics_enterprise_flags_tmp.md
-	rm docs/victoriametrics/victoria_metrics_common_flags_tmp.md
 
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/victoria_metrics_common_flags.md
@@ -98,19 +95,16 @@ docs-update-vmauth-flags:
 	# ---- vmauth
 	(cd /tmp/vm-enterprise-single-node && make vmauth)
 	(cd /tmp/vm-opensource-single-node && make vmauth)
-	(cd /tmp/vm-enterprise-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_enterprise_flags_tmp.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_common_flags_tmp.md
+	(cd /tmp/vm-enterprise-single-node && ./bin/vmauth -help 2>&1) > /tmp/vm-enterprise-single-node/vmauth_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmauth -help 2>&1) > /tmp/vm-opensource-single-node/vmauth_common_flags_tmp.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmauth_common_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmauth -help 2>&1) >> docs/victoriametrics/vmauth_common_flags.md
+	cat /tmp/vm-opensource-single-node/vmauth_common_flags_tmp.md >> docs/victoriametrics/vmauth_common_flags.md
 	printf -- '```\n' >> docs/victoriametrics/vmauth_common_flags.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmauth_enterprise_flags.md
-	diff docs/victoriametrics/vmauth_enterprise_flags_tmp.md docs/victoriametrics/vmauth_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmauth_enterprise_flags.md
+	diff /tmp/vm-enterprise-single-node/vmauth_enterprise_flags_tmp.md /tmp/vm-opensource-single-node/vmauth_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmauth_enterprise_flags.md
 	printf -- '```' >> docs/victoriametrics/vmauth_enterprise_flags.md
-
-	rm docs/victoriametrics/vmauth_common_flags_tmp.md
-	rm docs/victoriametrics/vmauth_enterprise_flags_tmp.md
 
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/vmauth_common_flags.md
@@ -123,18 +117,15 @@ docs-update-vmauth-flags:
 docs-update-vmagent-flags:
 	(cd /tmp/vm-enterprise-single-node && make vmagent)
 	(cd /tmp/vm-opensource-single-node && make vmagent)
-	(cd /tmp/vm-enterprise-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_enterprise_flags_tmp.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_common_flags_tmp.md
+	(cd /tmp/vm-enterprise-single-node && ./bin/vmagent -help 2>&1) > /tmp/vm-enterprise-single-node/vmagent_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmagent -help 2>&1) > /tmp/vm-opensource-single-node/vmagent_common_flags_tmp.md
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmagent_common_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmagent -help 2>&1) >> docs/victoriametrics/vmagent_common_flags.md
+	cat /tmp/vm-opensource-single-node/vmagent_common_flags_tmp.md >> docs/victoriametrics/vmagent_common_flags.md
 	printf -- '```\n' >> docs/victoriametrics/vmagent_common_flags.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmagent_enterprise_flags.md
-	diff docs/victoriametrics/vmagent_enterprise_flags_tmp.md docs/victoriametrics/vmagent_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmagent_enterprise_flags.md
+	diff /tmp/vm-enterprise-single-node/vmagent_enterprise_flags_tmp.md /tmp/vm-opensource-single-node/vmagent_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmagent_enterprise_flags.md
 	printf -- '```\n' >> docs/victoriametrics/vmagent_enterprise_flags.md
-
-	rm docs/victoriametrics/vmagent_common_flags_tmp.md
-	rm docs/victoriametrics/vmagent_enterprise_flags_tmp.md
 
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/vmagent_common_flags.md
@@ -149,19 +140,16 @@ docs-update-vmagent-flags:
 docs-update-vmalert-flags:
 	(cd /tmp/vm-enterprise-single-node && make vmalert)
 	(cd /tmp/vm-opensource-single-node && make vmalert)
-	(cd /tmp/vm-enterprise-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_enterprise_flags_tmp.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_common_flags_tmp.md
+	(cd /tmp/vm-enterprise-single-node && ./bin/vmalert -help 2>&1) > /tmp/vm-enterprise-single-node/vmalert_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmalert -help 2>&1) > /tmp/vm-opensource-single-node/vmalert_common_flags_tmp.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmalert_common_flags.md
-	(cd /tmp/vm-opensource-single-node && ./bin/vmalert -help 2>&1) >> docs/victoriametrics/vmalert_common_flags.md
+	cat /tmp/vm-opensource-single-node/vmalert_common_flags_tmp.md >> docs/victoriametrics/vmalert_common_flags.md
 	printf -- '```\n' >> docs/victoriametrics/vmalert_common_flags.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmalert_enterprise_flags.md
-	diff docs/victoriametrics/vmalert_enterprise_flags_tmp.md docs/victoriametrics/vmalert_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmalert_enterprise_flags.md
+	diff /tmp/vm-enterprise-single-node/vmalert_enterprise_flags_tmp.md /tmp/vm-opensource-single-node/vmalert_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmalert_enterprise_flags.md
 	printf -- '```' >> docs/victoriametrics/vmalert_enterprise_flags.md
-
-	rm docs/victoriametrics/vmalert_common_flags_tmp.md
-	rm docs/victoriametrics/vmalert_enterprise_flags_tmp.md
 
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/vmalert_common_flags.md
@@ -175,19 +163,16 @@ docs-update-vmalert-flags:
 docs-update-vmselect-flags:
 	(cd /tmp/vm-enterprise-cluster && make vmselect)
 	(cd /tmp/vm-opensource-cluster && make vmselect)
-	(cd /tmp/vm-enterprise-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_enterprise_flags_tmp.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_common_flags_tmp.md
+	(cd /tmp/vm-enterprise-cluster && ./bin/vmselect -help 2>&1) > /tmp/vm-enterprise-cluster/vmselect_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vmselect -help 2>&1) > /tmp/vm-opensource-cluster/vmselect_common_flags_tmp.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmselect_common_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vmselect -help 2>&1) >> docs/victoriametrics/vmselect_common_flags.md
+	cat /tmp/vm-opensource-cluster/vmselect_common_flags_tmp.md >> docs/victoriametrics/vmselect_common_flags.md
 	printf -- '```\n' >> docs/victoriametrics/vmselect_common_flags.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmselect_enterprise_flags.md
-	diff docs/victoriametrics/vmselect_enterprise_flags_tmp.md docs/victoriametrics/vmselect_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmselect_enterprise_flags.md
+	diff /tmp/vm-enterprise-cluster/vmselect_enterprise_flags_tmp.md /tmp/vm-opensource-cluster/vmselect_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmselect_enterprise_flags.md
 	printf -- '```' >> docs/victoriametrics/vmselect_enterprise_flags.md
-
-	rm docs/victoriametrics/vmselect_enterprise_flags_tmp.md
-	rm docs/victoriametrics/vmselect_common_flags_tmp.md
 
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/vmselect_common_flags.md
@@ -203,19 +188,16 @@ docs-update-vmselect-flags:
 docs-update-vminsert-flags:
 	(cd /tmp/vm-enterprise-cluster && make vminsert)
 	(cd /tmp/vm-opensource-cluster && make vminsert)
-	(cd /tmp/vm-enterprise-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_enterprise_flags_tmp.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_common_flags_tmp.md
+	(cd /tmp/vm-enterprise-cluster && ./bin/vminsert -help 2>&1) > /tmp/vm-enterprise-cluster/vminsert_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vminsert -help 2>&1) > /tmp/vm-opensource-cluster/vminsert_common_flags_tmp.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vminsert_common_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vminsert -help 2>&1) >> docs/victoriametrics/vminsert_common_flags.md
+	cat /tmp/vm-opensource-cluster/vminsert_common_flags_tmp.md >> docs/victoriametrics/vminsert_common_flags.md
 	printf -- '```\n' >> docs/victoriametrics/vminsert_common_flags.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vminsert_enterprise_flags.md
-	diff docs/victoriametrics/vminsert_enterprise_flags_tmp.md docs/victoriametrics/vminsert_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vminsert_enterprise_flags.md
+	diff /tmp/vm-enterprise-cluster/vminsert_enterprise_flags_tmp.md /tmp/vm-opensource-cluster/vminsert_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vminsert_enterprise_flags.md
 	printf -- '```' >> docs/victoriametrics/vminsert_enterprise_flags.md
-
-	rm docs/victoriametrics/vminsert_common_flags_tmp.md
-	rm docs/victoriametrics/vminsert_enterprise_flags_tmp.md
 
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/vminsert_common_flags.md
@@ -238,19 +220,16 @@ docs-update-vminsert-flags:
 docs-update-vmstorage-flags:
 	(cd /tmp/vm-enterprise-cluster && make vmstorage)
 	(cd /tmp/vm-opensource-cluster && make vmstorage)
-	(cd /tmp/vm-enterprise-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_enterprise_flags_tmp.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_common_flags_tmp.md
+	(cd /tmp/vm-enterprise-cluster && ./bin/vmstorage -help 2>&1) > /tmp/vm-enterprise-cluster/vmstorage_enterprise_flags_tmp.md
+	(cd /tmp/vm-opensource-cluster && ./bin/vmstorage -help 2>&1) > /tmp/vm-opensource-cluster/vmstorage_common_flags_tmp.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmstorage_common_flags.md
-	(cd /tmp/vm-opensource-cluster && ./bin/vmstorage -help 2>&1) >> docs/victoriametrics/vmstorage_common_flags.md
+	cat /tmp/vm-opensource-cluster/vmstorage_common_flags_tmp.md >> docs/victoriametrics/vmstorage_common_flags.md
 	printf -- '```\n' >> docs/victoriametrics/vmstorage_common_flags.md
 
 	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmstorage_enterprise_flags.md
-	diff docs/victoriametrics/vmstorage_enterprise_flags_tmp.md docs/victoriametrics/vmstorage_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmstorage_enterprise_flags.md
+	diff /tmp/vm-enterprise-cluster/vmstorage_enterprise_flags_tmp.md /tmp/vm-opensource-cluster/vmstorage_common_flags_tmp.md |grep '^<' | sed 's/^< //' >> docs/victoriametrics/vmstorage_enterprise_flags.md
 	printf -- '```' >> docs/victoriametrics/vmstorage_enterprise_flags.md
-
-	rm docs/victoriametrics/vmstorage_common_flags_tmp.md
-	rm docs/victoriametrics/vmstorage_enterprise_flags_tmp.md
 
 	# replace tabs in output with one space
 	sed -i 's/\t/ /g' docs/victoriametrics/vmstorage_common_flags.md
