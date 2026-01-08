@@ -1250,7 +1250,7 @@ It is safe sharing the collected profiles from security point of view, since the
 These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
 {{% content "vmagent_common_flags.md" %}}
 
-### Enterprise-specific flags
+### Enterprise flags
 These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 {{% content "vmagent_enterprise_flags.md" %}}
 

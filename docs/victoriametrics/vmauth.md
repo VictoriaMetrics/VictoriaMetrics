@@ -1211,6 +1211,6 @@ Pass `-help` command-line arg to `vmauth` in order to see all the configuration 
 These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
 {{% content "vmauth_common_flags.md" %}}
 
-### Enterprise-specific flags
+### Enterprise flags
 These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 {{% content "vmauth_enterprise_flags.md" %}}

@@ -2447,7 +2447,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
 {{% content "victoria_metrics_common_flags.md" %}}
 
-### Enterprise-specific flags
+### Enterprise flags
 These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 {{% content "victoria_metrics_enterprise_flags.md" %}}
 
