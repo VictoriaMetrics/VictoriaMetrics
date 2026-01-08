@@ -387,11 +387,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			return nil, err
 		}
 		alertID := hash(ls.processed)
-		as, err := ar.expandAnnotationTemplates(s, qFn, time.Time{}, ls)
-		if err != nil {
-			return nil, err
-		}
-		a := ar.newAlert(s, time.Time{}, ls.processed, as) // initial alert
+		a := ar.newAlert(s, time.Time{}, ls.processed, nil) // initial alert
 
 		prevT := time.Time{}
 		for i := range s.Values {
@@ -407,8 +403,6 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 				// reset to Pending if there are gaps > EvalInterval between DPs
 				a.State = notifier.StatePending
 				a.ActiveAt = at
-				// re-template the annotations as active timestamp is changed
-				a.Annotations, _ = ar.expandAnnotationTemplates(s, qFn, at, ls)
 				a.Start = time.Time{}
 			} else if at.Sub(a.ActiveAt) >= ar.For && a.State != notifier.StateFiring {
 				a.State = notifier.StateFiring

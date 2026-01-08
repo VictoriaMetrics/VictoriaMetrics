@@ -858,6 +858,8 @@ ALERTS{alertname="your_alertname", alertstate="firing"}
 
 Execute the query against storage which was used for `-remoteWrite.url` during the `replay`.
 
+> Since alerting rule annotations are attached to alert messages sent to the notifier (such as Alertmanager), and vmalert does not send alert messages to notifier in replay mode, all rule annotations will be ignored.
+
 ### Additional configuration
 
 There are following non-required `replay` flags:
