@@ -13,6 +13,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -206,6 +207,9 @@ func (mt *Tracker) MustClose() {
 
 // mustSaveLocked stores in-memory state of tracker on disk
 func (mt *Tracker) mustSaveLocked() {
+	startTime := time.Now()
+	logger.Infof("saving metric name usage stats to %s", mt.cachePath)
+
 	var bb bytes.Buffer
 	zw := gzip.NewWriter(&bb)
 	jw := json.NewEncoder(zw)
@@ -242,6 +246,11 @@ func (mt *Tracker) mustSaveLocked() {
 	// Atomically store the data at mt.cachePath.
 	data := bb.Bytes()
 	fs.MustWriteAtomic(mt.cachePath, data, true)
+
+	d := time.Since(startTime).Seconds()
+	size := mt.currentItemsCount.Load()
+	sizeBytes := mt.currentSizeBytes.Load()
+	logger.Infof("metric name usage stats has been successfully saved to %s in %.3f seconds; entriesCount: %d, sizeBytes: %d", mt.cachePath, d, size, sizeBytes)
 }
 
 // TrackerMetrics holds metrics to report

@@ -4,6 +4,7 @@ package storage
 
 import (
 	"math/rand"
+	"slices"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -12,22 +13,37 @@ import (
 func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 	defer testRemoveAll(t)
 
-	synctest.Test(t, func(t *testing.T) {
-		const numMetrics = 10
+	synctest.Run(func() {
+		const numSeries = 10
 		tr := TimeRange{
 			MinTimestamp: time.Now().UnixMilli(),
 			MaxTimestamp: time.Now().Add(23 * time.Hour).UnixMilli(),
 		}
 		rng := rand.New(rand.NewSource(1))
-		mrs := testGenerateMetricRowsWithPrefix(rng, numMetrics, "metric", tr)
+		mrsPrev := testGenerateMetricRowsWithPrefix(rng, numSeries, "legacy_prev", tr)
+		mrsCurr := testGenerateMetricRowsWithPrefix(rng, numSeries, "legacy_curr", tr)
+		mrsPt := testGenerateMetricRowsWithPrefix(rng, numSeries, "pt", tr)
+		mrs := slices.Concat(mrsPrev, mrsCurr, mrsPt)
 		s := MustOpenStorage(t.Name(), OpenOptions{})
-		defer s.MustClose()
-		s.AddRows(mrs[:numMetrics/2], defaultPrecisionBits)
-		// Rotate the indexDB to ensure that the index for the entire dataset is
-		// split across prev and curr indexDBs.
-		s.mustRotateIndexDB(time.Now())
-		s.AddRows(mrs[numMetrics/2:], defaultPrecisionBits)
+		s.AddRows(mrsPrev, defaultPrecisionBits)
 		s.DebugFlush()
+		// Advance the time a bit before converting to legacy so that the
+		// storage could use a different timestamp for a legacy idb.
+		time.Sleep(time.Second)
+		s = mustConvertToLegacy(s)
+		s.AddRows(mrsCurr, defaultPrecisionBits)
+		s.DebugFlush()
+		// Advance the time a bit before converting to legacy so that the
+		// storage could use a different timestamp for a legacy idb.
+		time.Sleep(time.Second)
+		// Convert second time to have two legacy idbs (prev and curr)
+		s = mustConvertToLegacy(s)
+		// Advance the time a bit before converting to legacy so that the
+		// storage could use a different timestamp for data and pt index parts.
+		time.Sleep(time.Second)
+		s.AddRows(mrsPt, defaultPrecisionBits)
+		s.DebugFlush()
+		defer s.MustClose()
 
 		tfs := NewTagFilters()
 		if err := tfs.Add(nil, []byte(".*"), false, true); err != nil {
@@ -45,7 +61,7 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 
 		var m Metrics
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
 			t.Fatalf("unexpected MissingTSIDsForMetricID count: got %d, want %d", got, want)
 		}
 
@@ -63,7 +79,7 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 		}
 
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
 			t.Fatalf("unexpected MissingTSIDsForMetricID count: got %d, want %d", got, want)
 		}
 
@@ -77,7 +93,7 @@ func TestSearch_metricNamesIndifferentIndexDBs(t *testing.T) {
 		}
 
 		s.UpdateMetrics(&m)
-		if got, want := m.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
+		if got, want := m.TableMetrics.IndexDBMetrics.MissingTSIDsForMetricID, uint64(0); got != want {
 			t.Fatalf("unexpected MissingTSIDsForMetricID count: got %d, want %d", got, want)
 		}
 	})

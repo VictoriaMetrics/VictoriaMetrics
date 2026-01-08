@@ -58,7 +58,7 @@ func maxItemsPerCachedPart() uint64 {
 	// Production data shows that each item occupies ~4 bytes in the compressed part.
 	// It is expected no more than defaultPartsToMerge/2 parts exist
 	// in the OS page cache before they are merged into bigger part.
-	// Halft of the remaining RAM must be left for lib/storage parts,
+	// Half of the remaining RAM must be left for lib/storage parts,
 	// so the maxItems is calculated using the below code:
 	maxItems := uint64(mem) / (4 * defaultPartsToMerge)
 	if maxItems < 1e6 {
@@ -1561,9 +1561,6 @@ func mustOpenParts(path string) []*partWrapper {
 // or a problem with the underlying file system (such as insufficient
 // permissions).
 func (tb *Table) MustCreateSnapshotAt(dstDir string) {
-	logger.Infof("creating Table snapshot of %q...", tb.path)
-	startTime := time.Now()
-
 	var err error
 	srcDir := tb.path
 	srcDir, err = filepath.Abs(srcDir)
@@ -1602,8 +1599,6 @@ func (tb *Table) MustCreateSnapshotAt(dstDir string) {
 	}
 
 	fs.MustSyncPathAndParentDir(dstDir)
-
-	logger.Infof("created Table snapshot of %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
 }
 
 func mustWritePartNames(pws []*partWrapper, dstDir string) {

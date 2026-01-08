@@ -44,12 +44,17 @@ var (
 		"See also -maxConcurrentRequests")
 	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
 		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
-	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
+	responseTimeout = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
+
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
-		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
+		"'429 Too Many Requests' http status code. See also -maxQueueDuration, -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
-		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option "+
-		"in per-user config")
+		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxQueueDuration and -maxConcurrentRequests command-line options "+
+		"and max_concurrent_requests option in per-user config")
+	maxQueueDuration = flag.Duration("maxQueueDuration", 10*time.Second, "The maximum duration the request waits for execution when the number of concurrently executed "+
+		"requests reach -maxConcurrentRequests or -maxConcurrentPerUserRequests before returning '429 Too Many Requests' error. "+
+		"This allows graceful handling of short spikes in the number of concurrent requests")
+
 	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
@@ -151,7 +156,6 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
 		// Process requests for unauthorized users
@@ -208,20 +212,45 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 	ui.requests.Inc()
 
+	ctx, cancel := context.WithTimeout(r.Context(), *maxQueueDuration)
+	defer cancel()
+
 	// Limit the concurrency of requests to backends
 	concurrencyLimitOnce.Do(concurrencyLimitInit)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
-		if err := ui.beginConcurrencyLimit(); err != nil {
+		if err := ui.beginConcurrencyLimit(ctx); err != nil {
 			handleConcurrencyLimitError(w, r, err)
 			<-concurrencyLimitCh
 			return
 		}
 	default:
-		concurrentRequestsLimitReached.Inc()
-		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
-		handleConcurrencyLimitError(w, r, err)
-		return
+		// The -maxConcurrentRequests are executed. Wait until some of the requests are finished,
+		// so the current request could be executed.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
+		select {
+		case concurrencyLimitCh <- struct{}{}:
+			if err := ui.beginConcurrencyLimit(ctx); err != nil {
+				handleConcurrencyLimitError(w, r, err)
+				<-concurrencyLimitCh
+				return
+			}
+		case <-ctx.Done():
+			err := ctx.Err()
+
+			concurrentRequestsLimitReached.Inc()
+
+			if errors.Is(err, context.DeadlineExceeded) {
+				err = fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because -maxConcurrentRequests=%d concurrent requests are executed",
+					*maxQueueDuration, cap(concurrencyLimitCh))
+				handleConcurrencyLimitError(w, r, err)
+				return
+			}
+
+			err = fmt.Errorf("cannot start executing the request because -maxConcurrentRequests=%d concurrent requests are executed: %w", cap(concurrencyLimitCh), err)
+			handleConcurrencyLimitError(w, r, err)
+			return
+		}
 	}
 	processRequest(w, r, ui)
 	ui.endConcurrencyLimit()
@@ -285,16 +314,18 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			return
 		}
 		bu.setBroken()
+		ui.backendErrors.Inc()
 	}
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable", up.getBackendsCount(), ui.name()),
 		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)
-	ui.backendErrors.Inc()
+	ui.requestErrors.Inc()
 }
 
 func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
+	ui.backendRequests.Inc()
 	req := sanitizeRequestHeaders(r)
 
 	req.URL = targetURL
@@ -325,7 +356,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			if errors.Is(err, context.DeadlineExceeded) {
 				// Timed out request must be counted as errors, since this usually means that the backend is slow.
 				logger.Warnf("remoteAddr: %s; requestURI: %s; timeout while proxying the response from %s: %s", remoteAddr, requestURI, targetURL, err)
-				ui.backendErrors.Inc()
 			}
 			return false, false
 		}
@@ -337,6 +367,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			}
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
+			ui.requestErrors.Inc()
 			return true, false
 		}
 		if netutil.IsTrivialNetworkError(err) {
@@ -344,11 +375,11 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			return false, true
 		}
 
-		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
+		// Request body wasn't read yet, this usually means that the backend isn't reachable; retry the request at another backend
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
 		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because of response error: %s", remoteAddr, req.URL, targetURL, err)
+		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed: %s, retrying the request at another backend", remoteAddr, req.URL, targetURL, err)
 		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
@@ -357,12 +388,13 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			// If we get an error from the retry_status_codes list, but cannot execute retry,
 			// we consider such a request an error as well.
 			err := &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("got response status code=%d from %s, but cannot retry the request on another backend, because the request has been already consumed",
+				Err: fmt.Errorf("got response status code=%d from %s, but cannot retry the request at another backend, because the request has been already consumed",
 					res.StatusCode, targetURL),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
+			ui.requestErrors.Inc()
 			return true, false
 		}
 		// Retry requests at other backends if it matches retryStatusCodes.
@@ -370,7 +402,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		// NOTE: do not use httpserver.GetRequestURI
 		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; retrying the request to %s because response status code=%d belongs to retry_status_codes=%d",
+		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed, retrying the request at another backend because response status code=%d belongs to retry_status_codes=%d",
 			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
 		return false, false
 	}
@@ -386,6 +418,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		requestURI := httpserver.GetRequestURI(r)
 
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
+		ui.requestErrors.Inc()
 		return true, false
 	}
 	return true, false
@@ -596,6 +629,13 @@ func handleMissingAuthorizationError(w http.ResponseWriter) {
 }
 
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
+	ctx := r.Context()
+	if errors.Is(ctx.Err(), context.Canceled) {
+		// Do not return any response for the request canceled by the client,
+		// since the connection to the client is already closed.
+		return
+	}
+
 	w.Header().Add("Retry-After", "10")
 	err = &httpserver.ErrorWithStatusCode{
 		Err:        err,
@@ -652,6 +692,7 @@ type zeroReader struct{}
 func (r *zeroReader) Read(_ []byte) (int, error) {
 	return 0, io.EOF
 }
+
 func (r *zeroReader) Close() error {
 	return nil
 }

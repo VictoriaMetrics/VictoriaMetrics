@@ -555,9 +555,6 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
   -storage.cacheSizeIndexDBDataBlocksSparse size
      Overrides max size for indexdb/dataBlocksSparse cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
-  -storage.cacheSizeIndexDBDateMetricID size
-     Overrides max size for indexdb/date_metricID cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBIndexBlocks size
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -647,4 +644,13 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/
      Optional path to vmui dashboards. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
   -vmui.defaultTimezone string
      The default timezone to be used in vmui. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local
+  -zabbixconnector.addDuplicateTagsSeparator string
+     If set to non-empty value, enables merging of duplicate Zabbix tag values and set a separator for the values of these labels.
+  -zabbixconnector.addEmptyTagsValue string
+     If set to non-empty value, enables adding Zabbix tags without values to labels and set value for these labels.
+  -zabbixconnector.addGroupsValue string
+     If set to non-empty value, enables adding Zabbix host groups to labels and set value for these labels.
+  -zabbixconnector.maxLineLen size
+     The maximum length in bytes of a single line accepted by /zabbixconnector/api/v1/history
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
 ```
