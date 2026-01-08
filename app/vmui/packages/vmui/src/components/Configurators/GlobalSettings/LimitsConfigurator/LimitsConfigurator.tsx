@@ -29,7 +29,7 @@ const LimitsConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
   const { seriesLimits } = useCustomPanelState();
   const customPanelDispatch = useCustomPanelDispatch();
 
-  const storageCollapse = getFromStorage("LEGEND_AUTO_COLLAPSE")
+  const storageCollapse = getFromStorage("LEGEND_AUTO_COLLAPSE");
   const [legendCollapse, setLegendCollapse] = useState(storageCollapse ? storageCollapse === "true" : true);
 
   const [limits, setLimits] = useState(seriesLimits);
@@ -58,7 +58,7 @@ const LimitsConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
   }, [limits]);
 
   useEffect(() => {
-    saveToStorage("LEGEND_AUTO_COLLAPSE", `${legendCollapse}`)
+    saveToStorage("LEGEND_AUTO_COLLAPSE", `${legendCollapse}`);
   }, [legendCollapse]);
 
   useImperativeHandle(ref, () => ({ handleApply }), [handleApply]);
