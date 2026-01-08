@@ -39,7 +39,7 @@ docs-debug: docs docs-image
 		--platform $(DOCKER_PLATFORM) \
 		-p 1313:1313 \
 		$(foreach dir,$(wildcard ./docs/$(dir)/*), -v ./docs/$(notdir $(dir)):/opt/docs/content/$(notdir $(dir))) \
-			vmdocs-docker-package2
+			vmdocs-docker-package
 
 docs-update-version: docs-image
 	$(if $(filter v%,$(PKG_TAG)), \
@@ -282,6 +282,7 @@ docs-update-flags:
 	# Add tools to PATH see how in `brew info gnu-sed` and `brew info gawk
 
 	git fetch enterprise
+	git fetch opensource
 
 	rm -rf /tmp/vm-enterprise-cluster
 	git worktree remove /tmp/vm-enterprise-cluster || true
@@ -294,11 +295,11 @@ docs-update-flags:
 
 	rm -rf /tmp/vm-opensource-cluster
 	git worktree remove /tmp/vm-opensource-cluster || true
-	git worktree add /tmp/vm-opensource-cluster origin/cluster
+	git worktree add /tmp/vm-opensource-cluster opensource/cluster
 
 	rm -rf /tmp/vm-opensource-single-node
 	git worktree remove /tmp/vm-opensource-single-node || true
-	git worktree add /tmp/vm-opensource-single-node origin/master
+	git worktree add /tmp/vm-opensource-single-node opensource/master
 
 	make docs-update-vmsingle-flags
 	make docs-update-vmalert-flags
