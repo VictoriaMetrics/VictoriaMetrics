@@ -286,7 +286,7 @@ expr: <string>
 # In case of conflicts, original labels are kept with prefix `exported_`.
 #
 # Labels only support limited templating variables in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating,
-# including `$labels`, `$value` and `expr`, to avoid breaking alert states or causing cardinality issue with results.
+# including `$labels`, `$value` and `$expr`, to avoid breaking alert states or causing cardinality issue with results.
 # Note: be careful set dynamic label values like `$value`, because each time the $value changes - the new alert will be
 # generated which also break `for` condition.
 labels:
@@ -316,6 +316,7 @@ The following variables are available in templating:
 | $for or .For                       | Alert's configured for param.                                                                             | Number of connections is too high for more than {{ .For }}                                                                                                                           |
 | $externalLabels or .ExternalLabels | List of labels configured via `-external.label` command-line flag.                                        | Issues with {{ $labels.instance }} (datacenter-{{ $externalLabels.dc }})                                                                                                             |
 | $externalURL or .ExternalURL       | URL configured via `-external.url` command-line flag. Used for cases when vmalert is hidden behind proxy. | Visit {{ $externalURL }} for more details                                                                                                                                            |
+| $isPartial or .IsPartial           | Indicates whether the latest rule query response from the datasource(that supports returning `isPartial` option, such as vmcluster) could be partial.       | {{ if $isPartial }}WARNING: The latest alert state may be a false alarm due to a partial response from the datasource.{{ end }}
 
 Additionally, `vmalert` provides some extra templating functions listed in [template functions](#template-functions) and [reusable templates](#reusable-templates).
 
