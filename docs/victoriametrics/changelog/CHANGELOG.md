@@ -26,9 +26,11 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): refine `VictoriaMetrics - single` dashboard and aligned it with the [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard. See [#10132-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10187#issuecomment-3696769466).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add `vm_persistentqueue_free_disk_space_bytes` metric for vmagent's persistentqueue capacity. See [#10193](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10193).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix configuration reloading for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` when vmagent is launched with empty files. Previously, if vmagent started with an empty config, subsequent config reloads were ignored. See [#10211](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10211).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): Fixed a missing path error for `http://<victoriametrics-addr>:8428/zabbixconnector/api/v1/history`. See PR [10214](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10214)
 
 ## [v1.133.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.133.0)
 

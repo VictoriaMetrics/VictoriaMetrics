@@ -232,7 +232,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		firehose.WriteSuccessResponse(w, r)
 		return true
-	case "zabbixconnector/api/v1/history":
+	case "/zabbixconnector/api/v1/history":
 		zabbixconnectorHistoryRequests.Inc()
 		if err := zabbixconnector.InsertHandlerForHTTP(r); err != nil {
 			zabbixconnectorHistoryErrors.Inc()
@@ -241,7 +241,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			fmt.Fprintf(w, `{"error":%q}`, err.Error())
 			return true
 		}
-		w.WriteHeader(http.StatusAccepted)
+		w.WriteHeader(http.StatusOK)
 		return true
 	case "/newrelic":
 		newrelicCheckRequest.Inc()
