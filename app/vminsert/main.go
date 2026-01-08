@@ -412,16 +412,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/ce/binary":
+	case "ce/binary":
 		ce.HandleCeGetBinary(w, r)
 		return true
-	case "/ce/configure":
+	case "ce/configure":
 		ce.HandleUpdateCeResetSchedule(w, r)
 		return true
-	case "/ce/estimate":
+	case "ce/estimate":
 		ce.HandleCeGetCardinality(w, r)
 		return true
-	case "/ce/reset":
+	case "ce/reset":
 		ce.HandleCeReset(w, r)
 		return true
 	default:
