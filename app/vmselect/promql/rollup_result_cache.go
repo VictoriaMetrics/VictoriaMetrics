@@ -126,6 +126,12 @@ func InitRollupResultCache(cachePath string) {
 
 	rollupResultCacheV = &rollupResultCache{
 		c: c,
+
+		rollupResultCacheRequests:    metrics.GetOrCreateCounter(`vm_rollup_result_cache_requests_total`),
+		rollupResultCacheFullHits:    metrics.GetOrCreateCounter(`vm_rollup_result_cache_full_hits_total`),
+		rollupResultCachePartialHits: metrics.GetOrCreateCounter(`vm_rollup_result_cache_partial_hits_total`),
+		rollupResultCacheMisses:      metrics.GetOrCreateCounter(`vm_rollup_result_cache_miss_total`),
+		rollupResultCacheResets:      metrics.GetOrCreateCounter(`vm_rollup_result_cache_resets_total`),
 	}
 }
 
@@ -143,13 +149,18 @@ func StopRollupResultCache() {
 // instances in the cluster.
 type rollupResultCache struct {
 	c *workingsetcache.Cache
-}
 
-var rollupResultCacheResets = metrics.NewCounter(`vm_cache_resets_total{type="promql/rollupResult"}`)
+	rollupResultCacheRequests    *metrics.Counter
+	rollupResultCacheFullHits    *metrics.Counter
+	rollupResultCachePartialHits *metrics.Counter
+	rollupResultCacheMisses      *metrics.Counter
+
+	rollupResultCacheResets *metrics.Counter
+}
 
 // ResetRollupResultCache resets rollup result cache.
 func ResetRollupResultCache() {
-	rollupResultCacheResets.Inc()
+	rollupResultCacheV.rollupResultCacheResets.Inc()
 	rollupResultCacheKeyPrefix.Add(1)
 	logger.Infof("rollupResult cache has been cleared")
 }
