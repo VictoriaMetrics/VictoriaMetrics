@@ -8,19 +8,19 @@ import (
 )
 
 func TestFilter(t *testing.T) {
-	for _, maxItems := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5} {
+	for _, maxItems := range []int32{1e0, 1e1, 1e2, 1e3, 1e4, 1e5} {
 		testFilter(t, maxItems)
 	}
 }
 
-func testFilter(t *testing.T, maxItems int) {
+func testFilter(t *testing.T, maxItems int32) {
 	r := rand.New(rand.NewSource(int64(0)))
 	f := newFilter(maxItems)
 	items := make(map[uint64]struct{}, maxItems)
 
 	// Populate f with maxItems
 	collisions := 0
-	for i := 0; i < maxItems; i++ {
+	for i := int32(0); i < maxItems; i++ {
 		h := r.Uint64()
 		items[h] = struct{}{}
 		if !f.Add(h) {
@@ -36,7 +36,7 @@ func testFilter(t *testing.T, maxItems int) {
 	}
 
 	// Verify that the added items exist in f.
-	i := 0
+	i := int32(0)
 	for h := range items {
 		if !f.Has(h) {
 			t.Fatalf("cannot find item %d on iteration %d for maxItems %d", h, i, maxItems)
@@ -64,7 +64,7 @@ func testFilter(t *testing.T, maxItems int) {
 
 	// Check filter reset
 	f.Reset()
-	for i := 0; i < maxItems; i++ {
+	for i := int32(0); i < maxItems; i++ {
 		h := r.Uint64()
 		if f.Has(h) {
 			t.Fatalf("unexpected item found in empty filter: %d", h)
@@ -74,13 +74,13 @@ func testFilter(t *testing.T, maxItems int) {
 
 func TestFilterConcurrent(t *testing.T) {
 	concurrency := 3
-	maxItems := 10000
+	maxItems := int32(10000)
 	doneCh := make(chan struct{}, concurrency)
 	f := newFilter(maxItems)
 	for i := 0; i < concurrency; i++ {
 		go func(randSeed int) {
 			r := rand.New(rand.NewSource(int64(randSeed)))
-			for i := 0; i < maxItems; i++ {
+			for i := int32(0); i < maxItems; i++ {
 				h := r.Uint64()
 				f.Add(h)
 				if !f.Has(h) {

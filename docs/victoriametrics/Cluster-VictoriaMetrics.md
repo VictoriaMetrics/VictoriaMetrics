@@ -558,6 +558,9 @@ See more details on [how to monitor VictoriaMetrics components](https://docs.vic
 - `-storage.maxHourlySeries` is the limit on the number of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series) during the last hour.
 - `-storage.maxDailySeries` is the limit on the number of unique time series during the day. This limit can be used for limiting daily [time series churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
 
+It is possible to use `-1` as a value for these flags in order to enable series tracking but set limit to maximum possible value.
+This is useful in order to estimate the number of unique series which is written to remote storage systems without enforcing limits.
+
 Note that these limits are set and applied individually per each `vmstorage` node in the cluster. So, if the cluster has `N` `vmstorage` nodes, then the cluster-level limits will be `N` times bigger than the per-`vmstorage` limits.
 
 See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter).
