@@ -77,19 +77,29 @@ func (d *RetentionDuration) Set(value string) error {
 		return nil
 	}
 
-	// An attempt to parse value as a number without unit. Such values are should be treated as months.
-	// The format is deprecated, number with unit M should be used instead.
-	if _, err := strconv.ParseFloat(value, 64); err == nil {
-		value = value + "M"
-	}
-
-	if strings.HasSuffix(value, "M") {
-		valueWithoutUnit := strings.TrimSuffix(value, "M")
-		months, err := strconv.ParseFloat(valueWithoutUnit, 64)
+	// An attempt to parse value as months with unit M(onth).
+	if cutValue, found := strings.CutSuffix(value, "M"); found {
+		months, err := strconv.ParseFloat(cutValue, 64)
 		if err != nil {
 			return fmt.Errorf("cannot parse months from %q: %w", value, err)
 		}
 
+		if months > maxMonths {
+			return fmt.Errorf("duration months must be smaller than %d; got %g", maxMonths, months)
+		}
+		if months < 0 {
+			return fmt.Errorf("duration months cannot be negative; got %g", months)
+		}
+		d.msecs = int64(months * msecsPer31Days)
+		d.valueString = value
+		return nil
+	}
+
+	// An attempt to parse value as a numeric month (without unit).
+	// Such values should be treated as months for BC and historical reasons.
+	// The format is deprecated, value with unit M should be used instead.
+	months, err := strconv.ParseFloat(value, 64)
+	if err == nil {
 		if months > maxMonths {
 			return fmt.Errorf("duration months must be smaller than %d; got %g", maxMonths, months)
 		}

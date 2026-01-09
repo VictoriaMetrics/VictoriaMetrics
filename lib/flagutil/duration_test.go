@@ -53,9 +53,9 @@ func TestDurationSetSuccess(t *testing.T) {
 		}
 	}
 	f("", 0, "")
-	f("0", 0, "0M")
-	f("1", msecsPer31Days, "1M")
-	f("123.456", 123.456*msecsPer31Days, "123.456M")
+	f("0", 0, "0")
+	f("1", msecsPer31Days, "1")
+	f("123.456", 123.456*msecsPer31Days, "123.456")
 	f("1h", 3600*1000, "1h")
 	f("1.5d", 1.5*24*3600*1000, "1.5d")
 	f("2.3W", 2.3*7*24*3600*1000, "2.3w")
