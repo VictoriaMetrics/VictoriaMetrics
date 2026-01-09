@@ -1,5 +1,5 @@
 ---
-weight: 7
+weight: 8
 title: Year 2020
 search:
   weight: 0.1
@@ -7,7 +7,7 @@ menu:
   docs:
     identifier: vm-changelog-2020
     parent: vm-changelog
-    weight: 7
+    weight: 8
 tags:
   - metrics
 aliases:
