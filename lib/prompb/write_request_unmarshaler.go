@@ -166,6 +166,19 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesP
 	}
 	ts.Labels = labelsPool[labelsPoolLen:]
 	ts.Samples = samplesPool[samplesPoolLen:]
+
+	// Calculate cardinality estimator metadata.
+	for _, label := range ts.Labels {
+		switch label.Name {
+		case "__name__":
+			ts.MetricName = label.Value
+		case *CardinalityEstimatorFixedLabel1:
+			ts.FixedLabelValue1 = label.Value
+		case *CardinalityEstimatorFixedLabel2:
+			ts.FixedLabelValue2 = label.Value
+		}
+	}
+
 	return labelsPool, samplesPool, nil
 }
 

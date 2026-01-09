@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/zabbixconnector"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/influxutil"
@@ -88,6 +89,7 @@ var staticServer = http.FileServer(http.FS(staticFiles))
 // Init initializes vminsert.
 func Init() {
 	relabel.Init()
+	ce.InitDefaultCardinalityEstimator()
 	common.InitStreamAggr()
 	protoparserutil.StartUnmarshalWorkers()
 	if len(*graphiteListenAddr) > 0 {
@@ -124,6 +126,7 @@ func Stop() {
 		opentsdbhttpServer.MustStop()
 	}
 	protoparserutil.StopUnmarshalWorkers()
+	ce.MustStopDefaultCardinalityEstimator()
 	common.MustStopStreamAggr()
 }
 
@@ -381,6 +384,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("OK"))
 		}
+		return true
+	case "/ce/binary":
+		ce.HandleCeGetBinary(w, r)
+		return true
+	case "/ce/configure":
+		ce.HandleUpdateCeResetSchedule(w, r)
+		return true
+	case "/ce/estimate":
+		ce.HandleCeGetCardinality(w, r)
+		return true
+	case "/ce/reset":
+		ce.HandleCeReset(w, r)
 		return true
 	default:
 		// This is not our link
