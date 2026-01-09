@@ -138,7 +138,6 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 		}
 		tlsConfig = tc
 	}
-
 	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
