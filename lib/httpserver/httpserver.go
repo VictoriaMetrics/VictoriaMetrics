@@ -143,7 +143,6 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
 	}
-
 	logger.Infof("started server at %s://%s/", scheme, ln.Addr())
 	if !opts.DisableBuiltinRoutes {
 		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
