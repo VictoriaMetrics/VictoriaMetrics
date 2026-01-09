@@ -2,148 +2,73 @@ package filestream
 
 import (
 	"io"
-	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// ParallelFileCreator is used for parallel creating of files for the given dstPath.
-//
-// ParallelFileCreator is needed for speeding up creating many files on high-latency
-// storage systems such as NFS or Ceph.
-type ParallelFileCreator struct {
-	tasks []parallelFileCreatorTask
-}
-
-type parallelFileCreatorTask struct {
-	dstPath string
+// FileCreatorTask a task for creating the file at the given path and assigning it to *wc.
+type FileCreatorTask struct {
+	path    string
 	wc      *WriteCloser
 	nocache bool
 }
 
-// Add registers a task for creating the file at dstPath and assigning it to *wc.
-//
-// Tasks are executed in parallel on Run() call.
-func (pfc *ParallelFileCreator) Add(dstPath string, wc *WriteCloser, nocache bool) {
-	pfc.tasks = append(pfc.tasks, parallelFileCreatorTask{
-		dstPath: dstPath,
+// NewFileCreatorTask creates new task for creating the file at the given path an assigning it to *wc
+func NewFileCreatorTask(path string, wc *WriteCloser, nocache bool) *FileCreatorTask {
+	return &FileCreatorTask{
+		path:    path,
 		wc:      wc,
 		nocache: nocache,
-	})
-}
-
-// Run runs all the registered tasks for creating files in parallel.
-func (pfc *ParallelFileCreator) Run() {
-	var wg sync.WaitGroup
-	concurrencyCh := fsutil.GetConcurrencyCh()
-	for _, task := range pfc.tasks {
-		concurrencyCh <- struct{}{}
-		wg.Add(1)
-
-		go func(dstPath string, wc *WriteCloser, nocache bool) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
-
-			*wc = MustCreate(dstPath, nocache)
-		}(task.dstPath, task.wc, task.nocache)
 	}
-	wg.Wait()
 }
 
-// ParallelFileOpener is used for parallel opening of files at the given dstPath.
-//
-// ParallelFileOpener is needed for speeding up opening many files on high-latency
-// storage systems such as NFS or Ceph.
-type ParallelFileOpener struct {
-	tasks []parallelFileOpenerTask
+// Run executes file creating task
+func (t *FileCreatorTask) Run() {
+	*t.wc = MustCreate(t.path, t.nocache)
 }
 
-type parallelFileOpenerTask struct {
+// FileOpenerTask a task for opening the file at the given path and assigning it to *rc.
+type FileOpenerTask struct {
 	path    string
 	rc      *ReadCloser
 	nocache bool
 }
 
-// Add registers a task for opening the file ath the given path and assigning it to *rc.
-//
-// Tasks are executed in parallel on Run() call.
-func (pfo *ParallelFileOpener) Add(path string, rc *ReadCloser, nocache bool) {
-	pfo.tasks = append(pfo.tasks, parallelFileOpenerTask{
+// NewFileOpenerTask creates new task for opening the file at the given path an assigning it to *rc
+func NewFileOpenerTask(path string, rc *ReadCloser, nocache bool) *FileOpenerTask {
+	return &FileOpenerTask{
 		path:    path,
 		rc:      rc,
 		nocache: nocache,
-	})
-}
-
-// Run runs all the registered tasks for opening files in parallel.
-func (pfo *ParallelFileOpener) Run() {
-	var wg sync.WaitGroup
-	concurrencyCh := fsutil.GetConcurrencyCh()
-	for _, task := range pfo.tasks {
-		concurrencyCh <- struct{}{}
-		wg.Add(1)
-
-		go func(path string, rc *ReadCloser, nocache bool) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
-
-			*rc = MustOpen(path, nocache)
-		}(task.path, task.rc, task.nocache)
 	}
-	wg.Wait()
 }
 
-// ParallelStreamWriter is used for parallel writing of data from io.WriterTo to the given dstPath files.
-//
-// ParallelStreamWriter is needed for speeding up writing data to many files on high-latency
-// storage systems such as NFS or Ceph.
-type ParallelStreamWriter struct {
-	tasks []parallelStreamWriterTask
+// Run executes file opening task
+func (t *FileOpenerTask) Run() {
+	*t.rc = MustOpen(t.path, t.nocache)
 }
 
-type parallelStreamWriterTask struct {
-	dstPath string
-	src     io.WriterTo
+// StreamWriterTask adds a task to execute in parallel - to write the data from src to the path.
+type StreamWriterTask struct {
+	path string
+	src  io.WriterTo
 }
 
-// Add adds a task to execute in parallel - to write the data from src to the dstPath.
-//
-// Tasks are executed in parallel on Run() call.
-func (psw *ParallelStreamWriter) Add(dstPath string, src io.WriterTo) {
-	psw.tasks = append(psw.tasks, parallelStreamWriterTask{
-		dstPath: dstPath,
-		src:     src,
-	})
-}
-
-// Run executes all the tasks added via Add() call in parallel.
-func (psw *ParallelStreamWriter) Run() {
-	var wg sync.WaitGroup
-	concurrencyCh := fsutil.GetConcurrencyCh()
-	for _, task := range psw.tasks {
-		concurrencyCh <- struct{}{}
-		wg.Add(1)
-
-		go func(dstPath string, src io.WriterTo) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
-
-			f := MustCreate(dstPath, false)
-			if _, err := src.WriteTo(f); err != nil {
-				f.MustClose()
-				// Do not call MustRemovePath(path), so the user could inspect
-				// the file contents during investigation of the issue.
-				logger.Panicf("FATAL: cannot write data to %q: %s", dstPath, err)
-			}
-			f.MustClose()
-		}(task.dstPath, task.src)
+// NewStreamWriterTask creates new task for writing the data from src to the path
+func NewStreamWriterTask(path string, src io.WriterTo) *StreamWriterTask {
+	return &StreamWriterTask{
+		path: path,
+		src:  src,
 	}
-	wg.Wait()
+}
+
+func (t *StreamWriterTask) Run() {
+	f := MustCreate(t.path, false)
+	if _, err := t.src.WriteTo(f); err != nil {
+		f.MustClose()
+		// Do not call MustRemovePath(path), so the user could inspect
+		// the file contents during investigation of the issue.
+		logger.Panicf("FATAL: cannot write data to %q: %s", t.path, err)
+	}
+	f.MustClose()
 }

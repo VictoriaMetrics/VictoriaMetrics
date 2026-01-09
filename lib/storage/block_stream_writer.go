@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -92,22 +93,22 @@ func (bsw *blockStreamWriter) MustInitFromFilePart(path string, nocache bool, co
 	// Create part files in the directory in parallel in order to reduce the duration
 	// of the operation on high-latency storage systems such as NFS and Ceph.
 
-	var pfc filestream.ParallelFileCreator
+	var pe fsutil.ParallelExecutor
 
 	timestampsPath := filepath.Join(path, timestampsFilename)
 	valuesPath := filepath.Join(path, valuesFilename)
 	indexPath := filepath.Join(path, indexFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 
-	pfc.Add(timestampsPath, &bsw.timestampsWriter, nocache)
-	pfc.Add(valuesPath, &bsw.valuesWriter, nocache)
-	pfc.Add(indexPath, &bsw.indexWriter, nocache)
+	pe.Add(filestream.NewFileCreatorTask(timestampsPath, &bsw.timestampsWriter, nocache))
+	pe.Add(filestream.NewFileCreatorTask(valuesPath, &bsw.valuesWriter, nocache))
+	pe.Add(filestream.NewFileCreatorTask(indexPath, &bsw.indexWriter, nocache))
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
-	pfc.Add(metaindexPath, &bsw.metaindexWriter, false)
+	pe.Add(filestream.NewFileCreatorTask(metaindexPath, &bsw.metaindexWriter, false))
 
-	pfc.Run()
+	pe.Run()
 }
 
 // MustClose closes the bsw.
@@ -123,13 +124,12 @@ func (bsw *blockStreamWriter) MustClose() {
 
 	// Close writers in parallel in order to reduce the time needed for closing them
 	// on high-latency storage systems such as NFS or Ceph.
-	cs := []fs.MustCloser{
-		bsw.timestampsWriter,
-		bsw.valuesWriter,
-		bsw.indexWriter,
-		bsw.metaindexWriter,
-	}
-	fs.MustCloseParallel(cs)
+	var pe fsutil.ParallelExecutor
+	pe.Add(fs.NewCloserTask(bsw.timestampsWriter))
+	pe.Add(fs.NewCloserTask(bsw.valuesWriter))
+	pe.Add(fs.NewCloserTask(bsw.indexWriter))
+	pe.Add(fs.NewCloserTask(bsw.metaindexWriter))
+	pe.Run()
 
 	bsw.reset()
 }
