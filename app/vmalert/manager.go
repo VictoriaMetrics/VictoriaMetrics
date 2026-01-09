@@ -98,7 +98,7 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) error {
+func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) {
 	id := g.GetID()
 	g.Init()
 	m.wg.Go(func() {
@@ -110,7 +110,6 @@ func (m *manager) startGroup(ctx context.Context, g *rule.Group, restore bool) e
 	})
 
 	m.groups[id] = g
-	return nil
 }
 
 func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore bool) error {
@@ -119,7 +118,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	for _, cfg := range groupsCfg {
 		for _, r := range cfg.Rules {
 			if rrPresent && arPresent {
-				continue
+				break
 			}
 			if r.Record != "" {
 				rrPresent = true
@@ -162,10 +161,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 		}
 	}
 	for _, ng := range groupsRegistry {
-		if err := m.startGroup(ctx, ng, restore); err != nil {
-			m.groupsMu.Unlock()
-			return err
-		}
+		m.startGroup(ctx, ng, restore)
 	}
 	m.groupsMu.Unlock()
 
