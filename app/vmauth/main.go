@@ -112,12 +112,6 @@ func main() {
 		UseProxyProtocol: useProxyProtocol,
 		// built-in routes will be exposed at *httpInternalListenAddr
 		DisableBuiltinRoutes: disableInternalRoutes,
-
-		WrapListener: func(ln net.Listener) net.Listener {
-			return &connTimeoutTCPListener{
-				ln: ln,
-			}
-		},
 	})
 
 	if len(*httpInternalListenAddr) > 0 {
@@ -162,6 +156,9 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+	r.Body = &measureReadDurationBody{r: r.Body}
+	w = wrapResponseWriter(w)
+
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
 		// Process requests for unauthorized users

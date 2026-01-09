@@ -98,8 +98,6 @@ type ServeOptions struct {
 	//
 	// Mostly required by http proxy servers, which performs own authorization and requests routing
 	DisableBuiltinRoutes bool
-
-	WrapListener func(ln net.Listener) net.Listener
 }
 
 // Serve starts an http server on the given addrs with the given optional rh.
@@ -140,17 +138,10 @@ func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 		}
 		tlsConfig = tc
 	}
-	
-	var ln net.Listener
+
 	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
-	}
-	if opts.WrapListener != nil {
-		ln = opts.WrapListener(ln)
-		if ln == nil {
-			logger.Fatalf("BUG: wrap listener returned nil listener")
-		}
 	}
 
 	logger.Infof("started server at %s://%s/", scheme, ln.Addr())
