@@ -215,9 +215,7 @@ func Init() {
 	dropDanglingQueues()
 
 	// Start config reloader.
-	configReloaderWG.Add(1)
-	go func() {
-		defer configReloaderWG.Done()
+	configReloaderWG.Go(func() {
 		for {
 			select {
 			case <-configReloaderStopCh:
@@ -227,7 +225,7 @@ func Init() {
 			reloadRelabelConfigs()
 			reloadStreamAggrConfigs()
 		}
-	}()
+	})
 }
 
 func dropDanglingQueues() {

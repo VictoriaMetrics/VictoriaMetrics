@@ -1018,11 +1018,9 @@ func (pt *partition) startInmemoryPartsMergerLocked() {
 		return
 	default:
 	}
-	pt.wg.Add(1)
-	go func() {
+	pt.wg.Go(func() {
 		pt.inmemoryPartsMerger()
-		pt.wg.Done()
-	}()
+	})
 }
 
 func (pt *partition) startSmallPartsMergers() {
@@ -1039,11 +1037,9 @@ func (pt *partition) startSmallPartsMergerLocked() {
 		return
 	default:
 	}
-	pt.wg.Add(1)
-	go func() {
+	pt.wg.Go(func() {
 		pt.smallPartsMerger()
-		pt.wg.Done()
-	}()
+	})
 }
 
 func (pt *partition) startBigPartsMergers() {
@@ -1060,35 +1056,27 @@ func (pt *partition) startBigPartsMergerLocked() {
 		return
 	default:
 	}
-	pt.wg.Add(1)
-	go func() {
+	pt.wg.Go(func() {
 		pt.bigPartsMerger()
-		pt.wg.Done()
-	}()
+	})
 }
 
 func (pt *partition) startPendingRowsFlusher() {
-	pt.wg.Add(1)
-	go func() {
+	pt.wg.Go(func() {
 		pt.pendingRowsFlusher()
-		pt.wg.Done()
-	}()
+	})
 }
 
 func (pt *partition) startInmemoryPartsFlusher() {
-	pt.wg.Add(1)
-	go func() {
+	pt.wg.Go(func() {
 		pt.inmemoryPartsFlusher()
-		pt.wg.Done()
-	}()
+	})
 }
 
 func (pt *partition) startStalePartsRemover() {
-	pt.wg.Add(1)
-	go func() {
+	pt.wg.Go(func() {
 		pt.stalePartsRemover()
-		pt.wg.Done()
-	}()
+	})
 }
 
 var (

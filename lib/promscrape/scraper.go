@@ -68,11 +68,9 @@ func CheckConfig() error {
 func Init(pushData func(at *auth.Token, wr *prompb.WriteRequest)) {
 	mustInitClusterMemberID()
 	globalStopChan = make(chan struct{})
-	scraperWG.Add(1)
-	go func() {
-		defer scraperWG.Done()
+	scraperWG.Go(func() {
 		runScraper(*promscrapeConfigFile, pushData, globalStopChan)
-	}()
+	})
 }
 
 // Stop stops Prometheus scraper.
@@ -245,11 +243,9 @@ func (scs *scrapeConfigs) add(name string, checkInterval time.Duration, getScrap
 
 		discoveryDuration: metrics.GetOrCreateHistogram(fmt.Sprintf("vm_promscrape_service_discovery_duration_seconds{type=%q}", name)),
 	}
-	scs.wg.Add(1)
-	go func() {
-		defer scs.wg.Done()
+	scs.wg.Go(func() {
 		scfg.run(scs.globalStopCh)
-	}()
+	})
 	scs.scfgs = append(scs.scfgs, scfg)
 }
 

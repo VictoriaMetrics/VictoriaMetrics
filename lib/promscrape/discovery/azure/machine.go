@@ -134,23 +134,19 @@ func enrichVirtualMachinesNetworkInterfaces(ac *apiConfig, vms []virtualMachine)
 	resultCh := make(chan error, concurrency)
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for vm := range workCh {
 				err := enrichVMNetworkInterfaces(ac, vm)
 				resultCh <- err
 			}
-		}()
+		})
 	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for i := range vms {
 			workCh <- &vms[i]
 		}
 		close(workCh)
-	}()
+	})
 	var firstErr error
 	for range vms {
 		err := <-resultCh

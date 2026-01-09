@@ -72,9 +72,7 @@ func TestLabelsCompressorConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			series := newTestSeries(100, 20)
 			for n, labels := range series {
 				sExpected := labelsToString(labels)
@@ -90,7 +88,7 @@ func TestLabelsCompressorConcurrent(t *testing.T) {
 					panic(fmt.Errorf("unexpected result on iteration %d; got %s; want %s", i, sResult, sExpected))
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

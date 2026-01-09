@@ -153,13 +153,11 @@ func TestTraceConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 3; i++ {
 		child := qt.NewChild("child %d", i)
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			for j := 0; j < 100; j++ {
 				child.Printf("message %d", j)
 			}
-			wg.Done()
-		}()
+		})
 	}
 	qt.Done()
 	// Verify that it is safe to call qt.String() when child traces aren't done yet

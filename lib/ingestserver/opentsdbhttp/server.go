@@ -56,9 +56,7 @@ func MustServe(ln net.Listener, insertHandler func(r *http.Request) error) *Serv
 		s:  hs,
 		ln: ln,
 	}
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
+	s.wg.Go(func() {
 		err := s.s.Serve(s.ln)
 		if err == http.ErrServerClosed {
 			return
@@ -66,7 +64,7 @@ func MustServe(ln net.Listener, insertHandler func(r *http.Request) error) *Serv
 		if err != nil {
 			logger.Fatalf("error serving HTTP OpenTSDB at %q: %s", s.ln.Addr(), err)
 		}
-	}()
+	})
 	return s
 }
 

@@ -191,9 +191,7 @@ func TestMetricsTrackerConcurrent(t *testing.T) {
 
 		var wg sync.WaitGroup
 		for range concurrency {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				for _, op := range ops {
 					switch op.o {
 					case 'i':
@@ -202,7 +200,7 @@ func TestMetricsTrackerConcurrent(t *testing.T) {
 						umt.RegisterQueryRequest(0, 0, []byte(op.mg))
 					}
 				}
-			}()
+			})
 		}
 		wg.Wait()
 

@@ -62,18 +62,14 @@ func MustStart(addr string, useProxyProtocol bool, insertHandler func(r io.Reade
 		lnUDP: lnUDP,
 	}
 	s.cm.Init("graphite")
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
+	s.wg.Go(func() {
 		s.serveTCP(insertHandler)
 		logger.Infof("stopped TCP Graphite server at %q", addr)
-	}()
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
+	})
+	s.wg.Go(func() {
 		s.serveUDP(insertHandler)
 		logger.Infof("stopped UDP Graphite server at %q", addr)
-	}()
+	})
 	return s
 }
 
@@ -136,9 +132,7 @@ func (s *Server) serveUDP(insertHandler func(r io.Reader) error) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	for i := 0; i < gomaxprocs; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.ResizeNoCopyNoOverallocate(bb.B, 64*1024)
 			for {
@@ -169,7 +163,7 @@ func (s *Server) serveUDP(insertHandler func(r io.Reader) error) {
 					continue
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

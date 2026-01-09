@@ -114,16 +114,14 @@ func TestDateMetricIDCacheIsConsistent(_ *testing.T) {
 	defer dmc.MustStop()
 	var wg sync.WaitGroup
 	for i := range concurrency {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for id := uint64(i * numMetrics); id < uint64((i+1)*numMetrics); id++ {
 				dmc.Set(date, id)
 				if !dmc.Has(date, id) {
 					panic(fmt.Errorf("dmc.Has(metricID=%d): unexpected cache miss after adding the entry to cache", id))
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

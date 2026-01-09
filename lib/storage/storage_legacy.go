@@ -173,11 +173,9 @@ func (s *Storage) startLegacyRetentionWatcher() {
 	if !s.hasLegacyIndexDBs() {
 		return
 	}
-	s.legacyRetentionWatcherWG.Add(1)
-	go func() {
+	s.legacyRetentionWatcherWG.Go(func() {
 		s.legacyRetentionWatcher()
-		s.legacyRetentionWatcherWG.Done()
-	}()
+	})
 }
 
 func (s *Storage) legacyRetentionWatcher() {

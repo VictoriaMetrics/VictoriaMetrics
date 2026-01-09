@@ -94,11 +94,9 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		client.Stop()
 		return nil, fmt.Errorf("cannot discover Kuma targets: %w", err)
 	}
-	cfg.wg.Add(1)
-	go func() {
-		defer cfg.wg.Done()
+	cfg.wg.Go(func() {
 		cfg.runTargetsWatcher(ctx)
-	}()
+	})
 
 	return cfg, nil
 }

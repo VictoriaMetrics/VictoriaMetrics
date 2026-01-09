@@ -746,9 +746,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		}
 	}
 	f()
-	s.freeDiskSpaceWatcherWG.Add(1)
-	go func() {
-		defer s.freeDiskSpaceWatcherWG.Done()
+	s.freeDiskSpaceWatcherWG.Go(func() {
 		d := timeutil.AddJitterToDuration(time.Second)
 		ticker := time.NewTicker(d)
 		defer ticker.Stop()
@@ -760,7 +758,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 				f()
 			}
 		}
-	}()
+	})
 }
 
 func (s *Storage) notifyReadWriteMode() {
@@ -769,19 +767,15 @@ func (s *Storage) notifyReadWriteMode() {
 }
 
 func (s *Storage) startCurrHourMetricIDsUpdater() {
-	s.currHourMetricIDsUpdaterWG.Add(1)
-	go func() {
+	s.currHourMetricIDsUpdaterWG.Go(func() {
 		s.currHourMetricIDsUpdater()
-		s.currHourMetricIDsUpdaterWG.Done()
-	}()
+	})
 }
 
 func (s *Storage) startNextDayMetricIDsUpdater() {
-	s.nextDayMetricIDsUpdaterWG.Add(1)
-	go func() {
+	s.nextDayMetricIDsUpdaterWG.Go(func() {
 		s.nextDayMetricIDsUpdater()
-		s.nextDayMetricIDsUpdaterWG.Done()
-	}()
+	})
 }
 
 func (s *Storage) currHourMetricIDsUpdater() {
