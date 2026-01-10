@@ -1313,7 +1313,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 62
           },
           "id": 25,
           "options": {
@@ -1418,7 +1418,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 62
           },
           "id": 26,
           "options": {
@@ -1525,7 +1525,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 70
           },
           "id": 27,
           "options": {
@@ -1691,7 +1691,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 70
           },
           "id": 28,
           "options": {
@@ -1808,7 +1808,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 78
           },
           "id": 23,
           "options": {
@@ -1911,7 +1911,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 78
           },
           "id": 24,
           "options": {
@@ -2034,7 +2034,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 102
           },
           "id": 20,
           "options": {
@@ -2141,7 +2141,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 102
           },
           "id": 21,
           "options": {
@@ -2245,7 +2245,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 110
           },
           "id": 29,
           "options": {
@@ -2732,109 +2732,7 @@
               "refId": "A"
             }
           ],
-          "title": "Incoming Request Read Duration",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "stepAfter",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 54
-          },
-          "id": 40,
-          "options": {
-            "legend": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Last *",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.4.0-20418128491",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "editorMode": "code",
-              "expr": "max(vmauth_response_write_duration_seconds) by (job,quantile)",
-              "format": "time_series",
-              "instant": false,
-              "legendFormat": "q{{quantile}} ({{job}})",
-              "refId": "A"
-            }
-          ],
-          "title": "Outgoing Response Write Duration",
+          "title": "Request Single Read Duration",
           "type": "timeseries"
         }
       ],
@@ -2865,9 +2763,7 @@
       },
       {
         "current": {
-          "text": [
-            "All"
-          ],
+          "text": "All",
           "value": [
             "$__all"
           ]
@@ -2894,9 +2790,7 @@
       {
         "allValue": ".*",
         "current": {
-          "text": [
-            "All"
-          ],
+          "text": "All",
           "value": [
             "$__all"
           ]
@@ -2922,8 +2816,12 @@
       },
       {
         "current": {
-          "text": "All",
-          "value": "$__all"
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "prometheus",
@@ -2957,13 +2855,13 @@
     ]
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "browser",
-  "title": "Testing #10084 VictoriaMetrics - vmauth",
-  "uid": "nbuo5Mr4k_10084",
-  "version": 4,
+  "timezone": "utc",
+  "title": "Testing 10084-2 VictoriaMetrics - vmauth",
+  "uid": "nbuo5Mr4k_10084-2",
+  "version": 3,
   "weekStart": ""
 }
