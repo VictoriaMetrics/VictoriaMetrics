@@ -352,6 +352,31 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		err = ctxErr
 	}
 	if err != nil {
+		if errors.Is(err, errReadTimeout) {
+			// Log client-identifying headers to help track slow clients
+			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			xff := sanitizeHeader(r.Header.Get("X-Forwarded-For"))
+			realIP := sanitizeHeader(r.Header.Get("X-Real-IP"))
+			clientIP := sanitizeHeader(r.Header.Get("X-Client-IP"))
+			cfConnectingIP := sanitizeHeader(r.Header.Get("CF-Connecting-IP"))
+
+			logger.Warnf("client request read exceeded -readTimeout=%s, closing connection; remoteAddr=%s; X-Forwarded-For=%q; X-Real-IP=%q; X-Client-IP=%q; CF-Connecting-IP=%q",
+				*readTimeout, remoteAddr, xff, realIP, clientIP, cfConnectingIP)
+
+			slowClientRequests.Inc()
+			if w1, ok := w.(http.Hijacker); ok {
+				conn, _, connErr := w1.Hijack()
+				if connErr != nil {
+					logger.Errorf("cannot hijack connection for slow read timeout handling for %s: %s", targetURL, connErr)
+					return true, false
+				}
+				_ = conn.Close()
+				return true, false
+			}
+
+			return true, false
+		}
+
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			// Do not retry canceled or timed out requests
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
@@ -549,6 +574,7 @@ var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	slowClientRequests       = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
@@ -773,4 +799,13 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
+}
+
+// sanitizeHeader limits header value to 200 characters to prevent log bloat
+func sanitizeHeader(value string) string {
+	const maxLen = 200
+	if len(value) <= maxLen {
+		return value
+	}
+	return value[:maxLen] + "..."
 }
