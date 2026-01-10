@@ -352,15 +352,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	}
 	if err != nil {
 		if errors.Is(err, errReadTimeout) {
-			// Log client-identifying headers to help track slow clients
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-			xff := sanitizeHeader(r.Header.Get("X-Forwarded-For"))
-			realIP := sanitizeHeader(r.Header.Get("X-Real-IP"))
-			clientIP := sanitizeHeader(r.Header.Get("X-Client-IP"))
-			cfConnectingIP := sanitizeHeader(r.Header.Get("CF-Connecting-IP"))
 
-			logger.Warnf("client request read exceeded -readTimeout=%s, closing connection; remoteAddr=%s; X-Forwarded-For=%q; X-Real-IP=%q; X-Client-IP=%q; CF-Connecting-IP=%q",
-				*readTimeout, remoteAddr, xff, realIP, clientIP, cfConnectingIP)
+			logger.Warnf("client request read exceeded -readTimeout=%s, closing connection; remoteAddr=%s;", *readTimeout, remoteAddr)
 
 			rejectSlowClientRequests.Inc()
 			if w1, ok := w.(http.Hijacker); ok {
@@ -798,13 +792,4 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
-}
-
-// sanitizeHeader limits header value to 200 characters to prevent log bloat
-func sanitizeHeader(value string) string {
-	const maxLen = 200
-	if len(value) <= maxLen {
-		return value
-	}
-	return value[:maxLen] + "..."
 }
