@@ -795,7 +795,7 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	return s.String()
 }
 
-var readDuration = metrics.NewSummaryExt(`vmauth_request_read_duration_seconds`, time.Second*30, []float64{0.5, 0.8, 0.97, 0.99})
+var readDuration = metrics.NewSummary(`vmauth_request_read_duration_seconds`)
 
 var readTimeout = flag.Duration("readTimeout", 0, "The maximum duration for a single read call when exceeded the connection is closed. Zero disables request read timeout. "+
 	"See also -writeTimeout")
