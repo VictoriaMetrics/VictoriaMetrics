@@ -1,38 +1,4 @@
 {
-  "__inputs": [],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.4.2"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -59,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
+  "id": 15,
   "links": [
     {
       "icon": "doc",
@@ -98,7 +64,6 @@
       "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }
   ],
-  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -161,7 +126,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -226,7 +191,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -293,7 +258,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -380,7 +345,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -469,7 +434,7 @@
         "frameIndex": 0,
         "showHeader": true
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -577,7 +542,7 @@
           "sort": "asc"
         }
       },
-      "pluginVersion": "12.2.0",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -701,7 +666,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason)",
-          "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -813,7 +777,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
-          "hide": false,
           "legendFormat": "unauthorized",
           "range": true,
           "refId": "B"
@@ -825,7 +788,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total[$__rate_interval])) > 0",
-          "hide": false,
           "legendFormat": "global at {{ $instance }}",
           "range": true,
           "refId": "C"
@@ -924,7 +886,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
-          "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -936,7 +897,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-          "hide": false,
           "legendFormat": "unauthorized_user",
           "range": true,
           "refId": "B"
@@ -1035,7 +995,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_user_request_errors_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by (username) > 0",
-          "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1047,7 +1006,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
-          "hide": false,
           "legendFormat": "unauthorized_user",
           "range": true,
           "refId": "B"
@@ -1154,7 +1112,6 @@
           },
           "editorMode": "code",
           "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
-          "hide": false,
           "interval": "5m",
           "legendFormat": "__auto",
           "range": true,
@@ -1261,7 +1218,6 @@
           },
           "editorMode": "code",
           "expr": "max(vmauth_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", username=~\"$user\", quantile=~\"(0.99|0.5)\"}) by (quantile, username) > 0",
-          "hide": false,
           "legendFormat": "user: {{username}} q: {{ quantile}}",
           "range": true,
           "refId": "A"
@@ -1273,7 +1229,6 @@
           },
           "editorMode": "code",
           "expr": "max(vmauth_unauthorized_user_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.99|0.5)\"}) by (quantile) > 0",
-          "hide": false,
           "legendFormat": "user: unauthorized q: {{ quantile}}",
           "range": true,
           "refId": "B"
@@ -1288,7 +1243,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 36
       },
       "id": 22,
       "panels": [
@@ -1358,7 +1313,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 62
           },
           "id": 25,
           "options": {
@@ -1463,7 +1418,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 62
           },
           "id": 26,
           "options": {
@@ -1510,7 +1465,6 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1571,7 +1525,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 70
           },
           "id": 27,
           "options": {
@@ -1601,7 +1555,6 @@
               },
               "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "requested from system",
               "refId": "A"
@@ -1613,7 +1566,6 @@
               },
               "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "heap inuse",
               "refId": "B"
@@ -1625,7 +1577,6 @@
               },
               "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "stack inuse",
               "refId": "C"
@@ -1637,7 +1588,6 @@
               },
               "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "resident",
@@ -1651,7 +1601,6 @@
               "exemplar": false,
               "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "resident anonymous",
@@ -1666,7 +1615,6 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1743,7 +1691,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 70
           },
           "id": 28,
           "options": {
@@ -1786,7 +1734,6 @@
               "exemplar": false,
               "expr": "process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Limit",
@@ -1801,7 +1748,6 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1862,7 +1808,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 78
           },
           "id": 23,
           "options": {
@@ -1892,7 +1838,6 @@
               },
               "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "connections",
               "refId": "A"
@@ -1906,7 +1851,6 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1967,7 +1911,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 78
           },
           "id": 24,
           "options": {
@@ -1998,7 +1942,6 @@
               "editorMode": "code",
               "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "connections",
               "range": true,
@@ -2091,7 +2034,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 102
           },
           "id": 20,
           "options": {
@@ -2122,7 +2065,6 @@
               "editorMode": "code",
               "expr": "max_over_time(process_open_fds{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n/\nprocess_max_fds{job=~\"$job\", instance=~\"$instance\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "{{job}}",
@@ -2199,7 +2141,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 102
           },
           "id": 21,
           "options": {
@@ -2303,7 +2245,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 110
           },
           "id": 29,
           "options": {
@@ -2351,7 +2293,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 37
       },
       "id": 35,
       "panels": [
@@ -2371,6 +2313,9 @@
                   "type": "auto"
                 },
                 "filterable": true,
+                "footer": {
+                  "reducers": []
+                },
                 "inspect": false
               },
               "mappings": [],
@@ -2379,7 +2324,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2396,7 +2341,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.hidden",
+                    "id": "custom.hideFrom.viz",
                     "value": true
                   }
                 ]
@@ -2408,7 +2353,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.hidden",
+                    "id": "custom.hideFrom.viz",
                     "value": true
                   }
                 ]
@@ -2419,22 +2364,14 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 38
           },
           "id": 34,
           "options": {
             "cellHeight": "sm",
-            "footer": {
-              "countRows": false,
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
+            "filterable": true,
             "showHeader": true,
             "showSearch": true,
-            "filterable": true,
             "sortBy": [
               {
                 "desc": true,
@@ -2442,7 +2379,7 @@
               }
             ]
           },
-          "pluginVersion": "10.4.2",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2503,6 +2440,7 @@
                 "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -2519,6 +2457,7 @@
                   "type": "linear"
                 },
                 "showPoints": "auto",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2534,7 +2473,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   }
                 ]
               }
@@ -2545,7 +2484,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 38
           },
           "id": 8,
           "options": {
@@ -2560,11 +2499,12 @@
               "showLegend": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "single",
               "sort": "none"
             }
           },
-          "pluginVersion": "10.4.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2600,6 +2540,7 @@
                 "axisPlacement": "auto",
                 "axisSoftMin": 0,
                 "barAlignment": 0,
+                "barWidthFactor": 0.6,
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
@@ -2616,6 +2557,7 @@
                   "type": "linear"
                 },
                 "showPoints": "never",
+                "showValues": false,
                 "spanNulls": false,
                 "stacking": {
                   "group": "A",
@@ -2633,7 +2575,7 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": null
+                    "value": 0
                   },
                   {
                     "color": "red",
@@ -2649,9 +2591,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 46
           },
-          "id": 37,
+          "id": 38,
           "options": {
             "legend": {
               "calcs": [
@@ -2664,11 +2606,12 @@
               "sortDesc": true
             },
             "tooltip": {
+              "hideZeros": false,
               "mode": "multi",
               "sort": "desc"
             }
           },
-          "pluginVersion": "9.1.0",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2685,15 +2628,121 @@
           ],
           "title": "Restarts ($job)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 46
+          },
+          "id": 39,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(vmauth_request_read_duration_seconds) by (job, quantile)",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "q{{quantile}} ({{job}})",
+              "refId": "A"
+            }
+          ],
+          "title": "Request Single Read Duration",
+          "type": "timeseries"
         }
       ],
       "title": "Troubleshooting",
       "type": "row"
     }
   ],
+  "preload": false,
   "refresh": "30s",
-  "revision": 1,
-  "schemaVersion": 39,
+  "schemaVersion": 42,
   "tags": [
     "victoriametrics"
   ],
@@ -2701,30 +2750,31 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "VictoriaMetrics - cluster",
-          "value": "PAF93674D0B4E9963"
+          "text": "prometheus",
+          "value": "P1809F7CD0C75ACF3"
         },
-        "hide": 0,
         "includeAll": false,
-        "multi": false,
         "name": "ds",
         "options": [],
         "query": "prometheus",
-        "queryValue": "",
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
         "type": "datasource"
       },
       {
-        "current": {},
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmauth.*\"}, job)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "job",
@@ -2735,19 +2785,25 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
       {
         "allValue": ".*",
-        "current": {},
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "instance",
@@ -2758,18 +2814,20 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
       {
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\"}, username)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "user",
@@ -2780,19 +2838,18 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
       {
+        "baseFilters": [],
         "datasource": {
           "type": "victoriametrics-datasource",
           "uid": "P38648FE0F8C5BEA2"
         },
         "filters": [],
-        "hide": 0,
         "name": "adhoc",
-        "skipUrlSync": false,
         "type": "adhoc"
       }
     ]
@@ -2802,9 +2859,9 @@
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
+  "timezone": "utc",
   "title": "VictoriaMetrics - vmauth",
   "uid": "nbuo5Mr4k",
-  "version": 1,
+  "version": 3,
   "weekStart": ""
 }
