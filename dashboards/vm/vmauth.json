@@ -127,7 +127,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-20418128491",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -192,7 +192,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-20418128491",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -259,7 +259,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-20418128491",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -346,7 +346,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-20418128491",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -435,7 +435,7 @@
         "frameIndex": 0,
         "showHeader": true
       },
-      "pluginVersion": "12.4.0-20418128491",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -543,7 +543,7 @@
           "sort": "asc"
         }
       },
-      "pluginVersion": "12.4.0-20418128491",
+      "pluginVersion": "12.3.0",
       "targets": [
         {
           "datasource": {
@@ -667,7 +667,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (reason)",
-          "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -779,7 +778,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_concurrent_requests_limit_reached_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
-          "hide": false,
           "legendFormat": "unauthorized",
           "range": true,
           "refId": "B"
@@ -791,7 +789,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_concurrent_requests_limit_reached_total[$__rate_interval])) > 0",
-          "hide": false,
           "legendFormat": "global at {{ $instance }}",
           "range": true,
           "refId": "C"
@@ -890,7 +887,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_user_requests_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by(username)",
-          "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -902,7 +898,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
-          "hide": false,
           "legendFormat": "unauthorized_user",
           "range": true,
           "refId": "B"
@@ -1001,7 +996,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_user_request_errors_total{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])) by (username) > 0",
-          "hide": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1013,7 +1007,6 @@
           },
           "editorMode": "code",
           "expr": "sum(rate(vmauth_unauthorized_user_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) > 0",
-          "hide": false,
           "legendFormat": "unauthorized_user",
           "range": true,
           "refId": "B"
@@ -1120,7 +1113,6 @@
           },
           "editorMode": "code",
           "expr": "max(\nmax_over_time(vmauth_user_concurrent_requests_current{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}[$__rate_interval])\n/ \nvmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\", username=~\"$user\"}\n) by(username) > 0\n",
-          "hide": false,
           "interval": "5m",
           "legendFormat": "__auto",
           "range": true,
@@ -2388,7 +2380,7 @@
               }
             ]
           },
-          "pluginVersion": "12.4.0-20418128491",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2513,7 +2505,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.4.0-20418128491",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2620,7 +2612,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.4.0-20418128491",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2726,7 +2718,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.4.0-20418128491",
+          "pluginVersion": "12.3.0",
           "targets": [
             {
               "datasource": {
@@ -2869,8 +2861,8 @@
   },
   "timepicker": {},
   "timezone": "utc",
-  "title": "Testing 10084-2 VictoriaMetrics - vmauth",
-  "uid": "nbuo5Mr4k_vm_10084-2",
+  "title": "VictoriaMetrics - vmauth (VM)",
+  "uid": "nbuo5Mr4k_vm",
   "version": 3,
   "weekStart": ""
 }
