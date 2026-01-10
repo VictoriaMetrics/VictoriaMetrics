@@ -39,14 +39,14 @@ const LegendGroup: FC<LegendGroupProps> = ({ labels, group, isAnomalyView, onCha
 
   const Content = isTableView ? LegendTable : LegendLines;
 
-  const disableAutoCollapse = getFromStorage("LEGEND_AUTO_COLLAPSE") === "false"
-  const defaultExpanded = disableAutoCollapse ? true : sortedLabels.length <= LEGEND_COLLAPSE_SERIES_LIMIT
+  const disableAutoCollapse = getFromStorage("LEGEND_AUTO_COLLAPSE") === "false";
+  const defaultExpanded = disableAutoCollapse ? true : sortedLabels.length <= LEGEND_COLLAPSE_SERIES_LIMIT;
 
   const expandedWarning = (
     <span className="vm-legend-group-header__warning">
       Legend collapsed by default ({sortedLabels.length} series) — click to expand.
     </span>
-  )
+  );
 
   return (
     <div

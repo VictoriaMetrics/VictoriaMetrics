@@ -55,6 +55,7 @@ Get started with VictoriaMetrics Anomaly Detection by following our guides and i
 
 - **Quickstart**: Learn how to quickly set up `vmanomaly` by following the [Quickstart Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/).
 - **UI**: Explore anomaly detection configurations through the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/).
+- **MCP**: Allow AI to assist you in generating service and alerting configurations, answering questions, planning migration with the [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly). Find the setup guide how to setup and use it [here](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly?tab=readme-ov-file#installation).
 - **Integration**: Integrate anomaly detection into your existing observability stack. Find detailed steps [here](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
 - **Anomaly Detection Presets**: Enable anomaly detection on predefined sets of metrics. Learn more [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
 

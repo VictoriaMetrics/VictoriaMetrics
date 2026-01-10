@@ -83,9 +83,11 @@ func checkRollupResultCacheReset() {
 
 const checkRollupResultCacheResetInterval = 5 * time.Second
 
-var needRollupResultCacheReset atomic.Bool
-var checkRollupResultCacheResetOnce sync.Once
-var rollupResultResetMetricRowSample atomic.Pointer[storage.MetricRow]
+var (
+	needRollupResultCacheReset       atomic.Bool
+	checkRollupResultCacheResetOnce  sync.Once
+	rollupResultResetMetricRowSample atomic.Pointer[storage.MetricRow]
+)
 
 var rollupResultCacheV = &rollupResultCache{
 	c: workingsetcache.New(1024 * 1024), // This is a cache for testing.
@@ -178,6 +180,12 @@ func InitRollupResultCache(cachePath string) {
 
 	rollupResultCacheV = &rollupResultCache{
 		c: c,
+
+		rollupResultCacheRequests:    metrics.GetOrCreateCounter(`vm_rollup_result_cache_requests_total`),
+		rollupResultCacheFullHits:    metrics.GetOrCreateCounter(`vm_rollup_result_cache_full_hits_total`),
+		rollupResultCachePartialHits: metrics.GetOrCreateCounter(`vm_rollup_result_cache_partial_hits_total`),
+		rollupResultCacheMisses:      metrics.GetOrCreateCounter(`vm_rollup_result_cache_miss_total`),
+		rollupResultCacheResets:      metrics.GetOrCreateCounter(`vm_rollup_result_cache_resets_total`),
 	}
 }
 
@@ -193,13 +201,18 @@ func StopRollupResultCache() {
 
 type rollupResultCache struct {
 	c *workingsetcache.Cache
-}
 
-var rollupResultCacheResets = metrics.NewCounter(`vm_cache_resets_total{type="promql/rollupResult"}`)
+	rollupResultCacheRequests    *metrics.Counter
+	rollupResultCacheFullHits    *metrics.Counter
+	rollupResultCachePartialHits *metrics.Counter
+	rollupResultCacheMisses      *metrics.Counter
+
+	rollupResultCacheResets *metrics.Counter
+}
 
 // ResetRollupResultCache resets rollup result cache.
 func ResetRollupResultCache() {
-	rollupResultCacheResets.Inc()
+	rollupResultCacheV.rollupResultCacheResets.Inc()
 	rollupResultCacheKeyPrefix.Add(1)
 	logger.Infof("rollupResult cache has been cleared")
 }

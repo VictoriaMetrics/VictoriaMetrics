@@ -858,6 +858,8 @@ ALERTS{alertname="your_alertname", alertstate="firing"}
 
 Execute the query against storage which was used for `-remoteWrite.url` during the `replay`.
 
+> Since alerting rule annotations are attached to alert messages sent to the notifier (such as Alertmanager), and vmalert does not send alert messages to notifier in replay mode, all rule annotations will be ignored.
+
 ### Additional configuration
 
 There are following non-required `replay` flags:
@@ -1169,7 +1171,13 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-{{% content "vmalert_flags.md" %}}
+#### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmalert_common_flags.md" %}}
+
+#### Enterprise flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmalert_enterprise_flags.md" %}}
 
 ### Hot config reload
 

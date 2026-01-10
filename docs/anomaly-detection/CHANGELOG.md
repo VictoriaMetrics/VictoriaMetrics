@@ -14,6 +14,11 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.28.3
+Released: 2025-12-17
+
+- IMPROVEMENT: Aligned service endpoints for `vmanomaly` [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) integration.
+
 ## v1.28.2
 Released: 2025-12-11
 
@@ -22,6 +27,8 @@ Released: 2025-12-11
 
 ## v1.28.1
 Released: 2025-12-01
+
+- FEATURE: Added TTL support for service artifacts (such as stored model instances). Disabled by default, it can be enabled via new `retention` section in the [settings](https://docs.victoriametrics.com/anomaly-detection/components/settings/#retention). When set, the service will periodically check and clean up model instances that have not been used for inference or refitting within the specified period of time, helping to manage resources in long-running deployments.
 
 - UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.2.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v120) to [v1.3.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v130), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v130) for details.
 

@@ -517,7 +517,7 @@ Produced model instances are **stored in-memory** between consecutive re-fit cal
 
 ### Online Models
 
-> Online models are best used **in combination with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) {{% available_from "v1.24.0" anomaly %}} to ensure that the model state is preserved if the service restarts and any aggregated model updates are not lost**. E.g. if the model was already trained on many weeks of data and is being updated on new datapoints every minute, there is no need to re-train it from scratch on the same data after each restart, as it can continue to update restored state on new datapoints.
+> Online models are best used **in combination with [stateful service](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) {{% available_from "v1.24.0" anomaly %}} to ensure that the model state is preserved if the service restarts and any aggregated model updates are not lost**. E.g. if the model was already trained on many weeks of data and is being updated on new datapoints every minute, there is no need to re-train it from scratch on the same data after each restart, as it can continue to update restored state on new datapoints. Also it is worth setting [retention policy](https://docs.victoriametrics.com/anomaly-detection/components/settings/#retention) {{% available_from "v1.28.1" anomaly %}} for such models to periodically clean up outdated artifacts, e.g. due to high churn rate of unique labelsets in input data.
 
 Online (incremental) models {{% available_from "v1.15.0" anomaly %}} allow defining a smaller frame `fit_window` and less frequent `fit` calls to reduce the data burden from VictoriaMetrics. They make incremental updates to model parameters during each `infer_every` call, even on a single datapoint.
 If the model doesn't support online mode, it's called **offline** (its parameters are only updated during `fit` calls).
@@ -1331,7 +1331,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.2
+docker pull victoriametrics/vmanomaly:v1.28.3
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1345,7 +1345,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.28.2 /config.yaml \
+victoriametrics/vmanomaly:v1.28.3 /config.yaml \
 --licenseFile=/license
 --watch
 ```

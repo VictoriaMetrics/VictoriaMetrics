@@ -1207,4 +1207,10 @@ It is safe to share the collected profiles from security point of view, since th
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 
-{{% content "vmauth_flags.md" %}}
+### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmauth_common_flags.md" %}}
+
+### Enterprise flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmauth_enterprise_flags.md" %}}

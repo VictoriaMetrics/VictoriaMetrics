@@ -31,7 +31,7 @@ const shortDurations = supportedDurations.map(d => d.short);
 
 export const sameTs = (a: number, b: number) => {
   return roundToThousandths(a) === roundToThousandths(b);
-}
+};
 
 export const humanizeSeconds = (num: number): string => {
   return getDurationFromMilliseconds(dayjs.duration(num, "seconds").asMilliseconds());

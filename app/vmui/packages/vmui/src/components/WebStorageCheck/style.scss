@@ -1,0 +1,11 @@
+@use "src/styles/variables" as *;
+
+.vm-storage-check {
+  h3 {
+    font-weight: bold;
+  }
+
+  p {
+    margin-bottom: $padding-global
+  }
+}

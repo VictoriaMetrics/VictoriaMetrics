@@ -1,5 +1,5 @@
 ---
-weight: 6
+weight: 7
 title: Year 2021
 search:
   weight: 0.1
@@ -7,7 +7,7 @@ menu:
   docs:
     identifier: vm-changelog-2021
     parent: vm-changelog
-    weight: 6
+    weight: 7
 tags:
   - metrics
 aliases:
