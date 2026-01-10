@@ -157,7 +157,6 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	r.Body = &measureReadDurationBody{r: r.Body}
-	w = wrapResponseWriter(w)
 
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
