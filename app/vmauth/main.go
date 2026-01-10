@@ -156,7 +156,7 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	r.Body = &measureReadDurationBody{r: r.Body}
+	r.Body = &readDurationTrackingBody{r: r.Body}
 
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
@@ -353,8 +353,9 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	if err != nil {
 		if errors.Is(err, errReadTimeout) {
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			requestURI := httpserver.GetRequestURI(r)
 
-			logger.Warnf("client request read exceeded -readTimeout=%s, closing connection; remoteAddr=%s;", *readTimeout, remoteAddr)
+			logger.Warnf("remoteAddr: %s; requestURI: %s; client %s request exceeded single read timeout -readTimeout=%s, closing connection", remoteAddr, requestURI, ui.name(), *readTimeout)
 
 			rejectSlowClientRequests.Inc()
 			if w1, ok := w.(http.Hijacker); ok {
@@ -792,4 +793,34 @@ func debugInfo(u *url.URL, r *http.Request) string {
 	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
+}
+
+var readDuration = metrics.NewSummaryExt(`vmauth_request_read_duration_seconds`, time.Second*30, []float64{0.5, 0.8, 0.97, 0.99})
+
+var readTimeout = flag.Duration("readTimeout", 0, "The maximum duration for a single read call when exceeded the connection is closed. Zero disables request read timeout. "+
+	"See also -writeTimeout")
+
+var errReadTimeout = fmt.Errorf("request read timeout")
+
+type readDurationTrackingBody struct {
+	r io.ReadCloser
+}
+
+func (r *readDurationTrackingBody) Read(p []byte) (n int, err error) {
+	start := time.Now()
+
+	n, err = r.r.Read(p)
+
+	dur := time.Since(start)
+	readDuration.Update(dur.Seconds())
+
+	if err == nil && *readTimeout > 0 && dur > *readTimeout {
+		return n, errReadTimeout
+	}
+
+	return n, err
+}
+
+func (r *readDurationTrackingBody) Close() error {
+	return r.r.Close()
 }
