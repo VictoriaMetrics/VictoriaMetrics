@@ -362,7 +362,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			logger.Warnf("client request read exceeded -readTimeout=%s, closing connection; remoteAddr=%s; X-Forwarded-For=%q; X-Real-IP=%q; X-Client-IP=%q; CF-Connecting-IP=%q",
 				*readTimeout, remoteAddr, xff, realIP, clientIP, cfConnectingIP)
 
-			slowClientRequests.Inc()
+			rejectSlowClientRequests.Inc()
 			if w1, ok := w.(http.Hijacker); ok {
 				conn, _, connErr := w1.Hijack()
 				if connErr != nil {
@@ -573,7 +573,7 @@ var (
 	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
-	slowClientRequests       = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
+	rejectSlowClientRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
