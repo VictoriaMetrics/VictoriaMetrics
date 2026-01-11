@@ -213,7 +213,7 @@ func isTemporaryNFSError(err error) bool {
 			return true
 		}
 	}
-	// Do not check for NFS file handle error, usually it means that other client has openned file without proper lock
+	// Do not check for NFS file handle error, usually it means that other client has opened file without proper lock
 	// in this scenario it's better to panic.
 	// User must configure proper locking options for the NFS client to prevent such error.
 	// It must never have "nolock" or "local_lock=all" options to be set.
