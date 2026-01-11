@@ -60,7 +60,7 @@ func MustRemoveDir(dirPath string) {
 
 	// schedule NFS background dir removal.
 	// NFS may perform "silly rename" before deletion, if client detects more than 1 file reference.
-	// Silly raname is async operation and client may take an additional time before
+	// Silly rename is async operation and client may take an additional time before
 	// unlink operation will succeed and could be actually deleted.
 	select {
 	case removeDirConcurrencyCh <- struct{}{}:
