@@ -14,6 +14,12 @@ const (
 	globalSilent             = "s"
 	globalVerbose            = "verbose"
 	globalDisableProgressBar = "disable-progress-bar"
+
+	globalPushMetricsURL         = "pushmetrics.url"
+	globalPushMetricsInterval    = "pushmetrics.interval"
+	globalPushExtraLabels        = "pushmetrics.extraLabel"
+	globalPushHeaders            = "pushmetrics.header"
+	globalPushDisableCompression = "pushmetrics.disableCompression"
 )
 
 var (
@@ -32,6 +38,29 @@ var (
 			Name:  globalDisableProgressBar,
 			Value: false,
 			Usage: "Whether to disable progress bar during the import.",
+		},
+		&cli.StringSliceFlag{
+			Name:  globalPushMetricsURL,
+			Usage: "Optional URL to push metrics. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics",
+		},
+		&cli.DurationFlag{
+			Name:  globalPushMetricsInterval,
+			Value: 10 * time.Second,
+			Usage: "Interval for pushing metrics to every -pushmetrics.url",
+		},
+		&cli.StringSliceFlag{
+			Name: globalPushExtraLabels,
+			Usage: "Extra labels to add to pushed metrics. In case of collision, label value defined by flag will have priority. " +
+				"Flag can be set multiple times, to add few additional labels. " +
+				"For example, -pushmetrics.extraLabel='instance=\"foo\"' adds instance=\"foo\" label to all the metrics pushed to every -pushmetrics.url",
+		},
+		&cli.StringSliceFlag{
+			Name:  globalPushHeaders,
+			Usage: "Optional HTTP headers to add to pushed metrics. Flag can be set multiple times, to add few additional headers.",
+		},
+		&cli.BoolFlag{
+			Name:  globalPushDisableCompression,
+			Usage: "Whether to disable compression when pushing metrics.",
 		},
 	}
 )
