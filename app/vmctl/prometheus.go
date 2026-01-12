@@ -11,6 +11,8 @@ import (
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
@@ -113,6 +115,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 }
 
 func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
+	promBlocksTotal.Add(len(blocks))
 	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing blocks"), len(blocks))
 	if err := barpool.Start(); err != nil {
 		return err
@@ -128,9 +131,11 @@ func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
 		wg.Go(func() {
 			for br := range blockReadersCh {
 				if err := pp.do(br); err != nil {
+					promErrorsTotal.Inc()
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
+				promBlocksProcessed.Inc()
 				bar.Increment()
 			}
 		})
@@ -143,6 +148,7 @@ func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
 			return fmt.Errorf("prometheus error: %s", promErr)
 		case vmErr := <-pp.im.Errors():
 			close(blockReadersCh)
+			promErrorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, pp.isVerbose))
 		case blockReadersCh <- br:
 		}
@@ -156,6 +162,7 @@ func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
 	// drain import errors channel
 	for vmErr := range pp.im.Errors() {
 		if vmErr.Err != nil {
+			promErrorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, pp.isVerbose))
 		}
 	}
@@ -165,3 +172,9 @@ func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
 
 	return nil
 }
+
+var (
+	promBlocksTotal     = metrics.NewCounter(`vmctl_prometheus_migration_blocks_total`)
+	promBlocksProcessed = metrics.NewCounter(`vmctl_prometheus_migration_blocks_processed`)
+	promErrorsTotal     = metrics.NewCounter(`vmctl_prometheus_migration_errors_total`)
+)
