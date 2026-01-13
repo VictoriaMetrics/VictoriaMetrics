@@ -324,9 +324,10 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 }
 
 var (
-	rowsReadPerSeries  = metrics.NewHistogram(`vm_rows_read_per_series`)
-	rowsReadPerQuery   = metrics.NewHistogram(`vm_rows_read_per_query`)
-	seriesReadPerQuery = metrics.NewHistogram(`vm_series_read_per_query`)
+	rowsReadPerSeries            = metrics.NewHistogram(`vm_rows_read_per_series`)
+	rowsReadPerQuery             = metrics.NewHistogram(`vm_rows_read_per_query`)
+	seriesReadPerQuery           = metrics.NewHistogram(`vm_series_read_per_query`)
+	seriesPrometheusReadPerQuery = metrics.NewHistogram(`vm_promdb_series_read_per_query`)
 )
 
 type packedTimeseries struct {
@@ -1376,7 +1377,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		putStorageSearch(sr)
 		return nil, fmt.Errorf("error when searching in Prometheus data: %w", err)
 	}
-
+	seriesPrometheusReadPerQuery.Update(float64(len(pm)))
 	var rss Results
 	rss.tr = tr
 	rss.deadline = deadline
