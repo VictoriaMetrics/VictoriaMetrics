@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 )
 
@@ -45,9 +47,16 @@ func (l *Limiter) Register(dataLen int) {
 			t := timerpool.Get(d)
 			<-t.C
 			timerpool.Put(t)
+			limiterThrottleEventsTotal.Inc()
 		}
 		l.budget += limit
 		l.deadline = time.Now().Add(time.Second)
 	}
 	l.budget -= int64(dataLen)
+	limiterBytesProcessed.Add(dataLen)
 }
+
+var (
+	limiterBytesProcessed      = metrics.NewCounter(`vmctl_limiter_bytes_processed_total`)
+	limiterThrottleEventsTotal = metrics.NewCounter(`vmctl_limiter_throttle_events_total`)
+)

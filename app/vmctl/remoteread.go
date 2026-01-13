@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
@@ -51,6 +53,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 		return nil
 	}
 
+	remoteReadRangesTotal.Add(len(ranges))
 	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
 	if err := barpool.Start(); err != nil {
 		return err
@@ -72,9 +75,11 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 			defer wg.Done()
 			for r := range rangeC {
 				if err := rrp.do(ctx, r); err != nil {
+					remoteReadErrorsTotal.Inc()
 					errCh <- fmt.Errorf("request failed for: %s", err)
 					return
 				}
+				remoteReadRangesProcessed.Inc()
 				bar.Increment()
 			}
 		}()
@@ -85,6 +90,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 		case infErr := <-errCh:
 			return fmt.Errorf("remote read error: %s", infErr)
 		case vmErr := <-rrp.dst.Errors():
+			remoteReadErrorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, rrp.isVerbose))
 		case rangeC <- &remoteread.Filter{
 			StartTimestampMs: r[0].UnixMilli(),
@@ -100,6 +106,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	// drain import errors channel
 	for vmErr := range rrp.dst.Errors() {
 		if vmErr.Err != nil {
+			remoteReadErrorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, rrp.isVerbose))
 		}
 	}
@@ -120,3 +127,9 @@ func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filte
 		return nil
 	})
 }
+
+var (
+	remoteReadRangesTotal     = metrics.NewCounter(`vmctl_migration_ranges_total{mode="remote-read"}`)
+	remoteReadRangesProcessed = metrics.NewCounter(`vmctl_migration_ranges_processed{mode="remote-read"}`)
+	remoteReadErrorsTotal     = metrics.NewCounter(`vmctl_migration_errors_total{mode="remote-read"}`)
+)

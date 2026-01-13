@@ -169,6 +169,74 @@ see `--vm-concurrency` flag.
 Please note, you can also use [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
+### Monitoring the migration process
+
+`vmctl` can push internal metrics to a remote storage for monitoring migration progress and performance.
+This is especially useful for long-running migrations where you want to track progress, detect issues,
+or build dashboards to visualize the migration status.
+
+Example usage with VictoriaMetrics as the metrics destination:
+
+```sh
+./vmctl influx \
+  --influx-addr=http://localhost:8086 \
+  --influx-database=mydb \
+  --vm-addr=http://localhost:8428 \
+  --pushmetrics.url=http://localhost:8428/api/v1/import/prometheus \
+  --pushmetrics.extraLabel='job="vmctl"' \
+  --pushmetrics.extraLabel='instance="migration-1"'
+```
+
+#### Available metrics
+
+The following metrics are exposed by `vmctl`:
+
+General metrics (available for all migration modes):
+
+| Metric | Description |
+|--------|-------------|
+| `vmctl_migration_errors_total{mode="..."}` | Total number of migration errors |
+| `vmctl_backoff_retries_total` | Total number of retry attempts across all operations |
+| `vmctl_limiter_bytes_processed_total` | Total bytes processed through rate limiter (when `--vm-rate-limit` is set) |
+| `vmctl_limiter_throttle_events_total` | Number of times rate limiting caused a pause |
+
+The `mode` label indicates the migration mode: `influx`, `prometheus`, `opentsdb`, `remote-read`, or `vm-native`.
+
+Mode-specific progress metrics:
+
+Each migration mode exposes its own progress metrics:
+
+| Mode | Metrics |
+|------|---------|
+| `influx` | `vmctl_migration_series_total`, `vmctl_migration_series_processed` |
+| `prometheus` | `vmctl_migration_blocks_total`, `vmctl_migration_blocks_processed` |
+| `opentsdb` | `vmctl_migration_series_total`, `vmctl_migration_series_processed` |
+| `remote-read` | `vmctl_migration_ranges_total`, `vmctl_migration_ranges_processed` |
+| `vm-native` | `vmctl_migration_metrics_total`, `vmctl_migration_metrics_processed`, `vmctl_migration_requests_planned`, `vmctl_migration_requests_completed`, `vmctl_migration_tenants_total`, `vmctl_migration_tenants_processed`, `vmctl_migration_bytes_transferred_total` |
+
+#### Example PromQL queries
+
+Monitor migration progress:
+```promql
+# Migration completion percentage for influx mode
+vmctl_migration_series_processed{mode="influx"} / vmctl_migration_series_total{mode="influx"} * 100
+
+# Migration completion percentage for vm-native mode
+vmctl_migration_metrics_processed{mode="vm-native"} / vmctl_migration_metrics_total{mode="vm-native"} * 100
+
+# Retry rate
+rate(vmctl_backoff_retries_total[5m])
+
+# Rate limiter throttling events per second
+rate(vmctl_limiter_throttle_events_total[5m])
+
+# Data transfer speed in bytes per second (when rate limiting is enabled)
+rate(vmctl_limiter_bytes_processed_total[5m])
+
+# Data transfer speed in MB per second for vm-native mode
+rate(vmctl_migration_bytes_transferred_total{mode="vm-native"}[5m]) / 1Mb
+```
+
 ## Verifying exported blocks from VictoriaMetrics
 
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via
@@ -254,13 +322,25 @@ Commands:
 Flags available for all commands:
 
 ```shellhelp
-  -s
+   -s
      Whether to run in silent mode. If set to true no confirmation prompts will appear. (default false)
-  -verbose
+   --verbose
      Whether to enable verbosity in logs output. (default false)
-  -disable-progress-bar
+   --disable-progress-bar
      Whether to disable progress bar during the import. (default false)
-     
+   --pushmetrics.url value
+     Optional URL to push metrics exposed at /metrics page. 
+     See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics.
+     By default, metrics exposed at /metrics page aren't pushed to any remote storage.
+   --pushmetrics.interval value
+     Interval for pushing metrics to every --pushmetrics.url (default: 10s)
+   --pushmetrics.extraLabel value
+     Extra labels to add to pushed metrics. In case of collision, label value defined by flag will have priority.
+     Flag can be set multiple times, to add few additional labels.
+   --pushmetrics.header value
+     Optional HTTP headers to add to pushed metrics. Flag can be set multiple times, to add few additional headers.
+   --pushmetrics.disableCompression
+     Whether to disable compression when pushing metrics. (default: false)
    --vm-addr vmctl
      VictoriaMetrics address to perform import requests. 
      Should be the same as --httpListenAddr value for single-node version or vminsert component. 
