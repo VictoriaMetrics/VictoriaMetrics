@@ -436,14 +436,13 @@ models:
 
 There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible combinations**:
 
-- [Univariate models](#univariate-models)
-- [Multivariate models](#multivariate-models)
+By input data handling:
+- [Univariate models](#univariate-models) - models fit/used per each individual time series, producing **individual** [output](#vmanomaly-output)
+- [Multivariate models](#multivariate-models) - models fit/used on a set of time series simultaneously, producing shared [output](#vmanomaly-output)
 
-Each of these models can be of type
-- [Rolling](#rolling-models) - **no longer present {{% deprecated_from "v1.28.0" anomaly %}}, being reworked into [online models](#online-models)**
-- [Non-rolling](#non-rolling-models)
-
-Moreover, {{% available_from "v1.15.0" anomaly %}}, there exist **[online (incremental) models](#online-models)** subclass for effective streaming-like data processing. Please refer to the [correspondent section](#online-models) for more details.
+By update strategy:
+- [Offline models](#offline-models) - models that require **full re-fit** on a defined `fit_window` of data to update their parameters defined by `fit_every` schedule in [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)
+- [Online (incremental) models](#online-models) {{% available_from "v1.15.0" anomaly %}} - models that support **incremental updates** of their parameters on each `infer_every` step, even on a single datapoint, without the need for a full re-fit on a `fit_window` of data. This is a recommended approach to reduce data burden from VictoriaMetrics or other data sources.
 
 ### Univariate Models
 
@@ -475,44 +474,6 @@ If during an inference, you got a **different amount of series** or some series 
 **Examples:** [IsolationForest](#isolation-forest-multivariate)
 
 ![vmanomaly-model-type-multivariate](model-lifecycle-multivariate.webp)
-
-
-### Rolling Models
-
-> Rolling models as a class were deprecated {{% deprecated_from "v1.28.0" anomaly %}} in favor of [online models](#online-models), which provide similar benefits with additional advantages. Respective rolling models are refactored into online models (e.g., [RollingQuantile](#rolling-quantile)). Existing configurations that use rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`).
-
-A rolling model is a model that, once trained, **cannot be (naturally) used to make inference on data, not seen during its fit phase**.
-
-An instance of rolling model is **simultaneously fit and used for inference** during its `infer` method call.
-
-As a result, such model instances are **not stored** between consecutive re-fit calls (defined by `fit_every` [arg](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) in `PeriodicScheduler`), leading to **lower RAM** consumption.
-
-Such models put **more pressure** on your reader's source, i.e. if your model should be fit on large amount of data (say, 14 days with 1-minute resolution) and at the same time you have **frequent inference** (say, once per minute) on new chunks of data - that's because such models require (fit + infer) window of data to be fit first to be used later in each inference call.
-
-> Rolling models require `fit_every` either to be missing or explicitly set equal to `infer_every` in your [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler).
-
-**Examples:** [RollingQuantile](#rolling-quantile)
-
-![vmanomaly-model-type-rolling](model-type-rolling.webp)
-
-
-### Non-Rolling Models
-
-> Every model type is now {{% available_from "v1.28.0" anomaly %}} non-rolling. Configurations that used rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`).
-
-Everything that is not classified as [rolling](#rolling-models). 
-
-Produced models can be explicitly used to **infer on data, not seen during its fit phase**, thus, it **doesn't require re-fit procedure**.
-
-Such models put **less pressure** on your reader's source, i.e. if you fit on large amount of data (say, 14 days with 1-minute resolution) but do it occasionally (say, once per day), at the same time you have **frequent inference**(say, once per minute) on new chunks of data
-
-> However, it's still highly recommended, to keep your model up-to-date with tendencies found in your data as it evolves in time.
-
-Produced model instances are **stored in-memory** between consecutive re-fit calls (defined by `fit_every` [arg](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) in `PeriodicScheduler`), leading to **higher RAM** consumption.
-
-**Examples:** [Prophet](#prophet)
-
-![vmanomaly-model-type-non-rolling](model-type-non-rolling.webp)
 
 
 ### Online Models
@@ -570,15 +531,13 @@ Built-in models support 2 groups of arguments:
 **Models**:
 * [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best hyperparameters on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
 * [Prophet](#prophet) - the most versatile one for production usage, especially for complex data ([trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend), [change points](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties), [multi-seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality))
-* [Z-score](#z-score) - useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
-* [Online Z-score](#online-z-score) - [online](#online-models) alternative to [Z-score](#z-score) model with exact same behavior and use cases.
-* [Holt-Winters](#holt-winters) - well-suited for **data with moderate complexity**, exhibiting distinct [trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) and/or [single seasonal pattern](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality).
-* [MAD (Median Absolute Deviation)](#mad-median-absolute-deviation) - similarly to [Z-score](#z-score), is effective for **identifying outliers in relatively consistent data** (useful for detecting sudden, stark deviations from the median).
-* [Online MAD](#online-mad) - approximate [online](#online-models) alternative to [MAD model](#mad-median-absolute-deviation), appropriate for the same use cases.
+* [Online Z-score](#online-z-score) - useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
+* [MAD](#online-mad) - similarly to [Z-score](#online-z-score), is effective for **identifying outliers in relatively consistent data**. Useful for detecting sudden, stark deviations from the median, being less prone to outlier's magnitude than z-score.
 * [Rolling Quantile](#rolling-quantile) - best for **data with evolving patterns**, as it adapts to changes over a rolling window.
 * [Online Seasonal Quantile](#online-seasonal-quantile) - best used on **[de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data with strong (possibly multiple) [seasonalities](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality)**. Can act as a (slightly less powerful) [online](#online-models) replacement to [`ProphetModel`](#prophet).
 * [Seasonal Trend Decomposition](#seasonal-trend-decomposition) - similarly to Holt-Winters, is best for **data with pronounced [seasonal](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and [trend](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) components**
 * [Isolation forest (Multivariate)](#isolation-forest-multivariate) - useful for **metrics data interaction** (several queries/metrics -> single anomaly score) and **efficient in detecting anomalies in high-dimensional datasets**
+* [Holt-Winters](#holt-winters) - well-suited for **data with moderate complexity**, exhibiting distinct [trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) and/or [single seasonal pattern](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality).
 * [Custom model](#custom-model-guide) - benefit from your own models and expertise to better support your **unique use case**.
 
 
@@ -764,42 +723,9 @@ models:
 
 Resulting metrics of the model are described [here](#vmanomaly-output)
 
-### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
-
-> `ZScoreModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
-
-Model is useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data).
-
-*Parameters specific for vmanomaly*:
-
-* `class` (string) - model class name `"model.zscore.ZscoreModel"` (or `zscore` with class alias support{{% available_from "v1.13.0" anomaly %}})
-* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
-
-*Config Example*
-
-```yaml
-models:
-  your_desired_alias_for_a_model:
-    class: "zscore"  # or 'model.zscore.ZscoreModel' until v1.13.0
-    z_threshold: 3.5
-    # Common arguments for built-in model, if not set, default to
-    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
-    #
-    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
-    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
-    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
-    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
-```
-
-Resulting metrics of the model are described [here](#vmanomaly-output).
-
 ### Online Z-score
 
-> `OnlineZScoreModel` is a [univariate](#univariate-models), [online](#online-models) model.
+> `OnlineZscoreModel` is a [univariate](#univariate-models), [online](#online-models) model.
 
 Online version of existing [Z-score](#z-score) implementation with the same exact behavior and implications {{% available_from "v1.15.0" anomaly %}}.
 
@@ -818,98 +744,6 @@ models:
     z_threshold: 3.5
     min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
     provide_series: ['anomaly_score', 'yhat']  # common arg example
-    # Common arguments for built-in model, if not set, default to
-    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
-    #
-    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
-    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
-    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
-    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
-```
-
-Resulting metrics of the model are described [here](#vmanomaly-output).
-
-
-### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
-
-> `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
-
-Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing). All parameters from this library can be passed to the model.
-
-*Parameters specific for vmanomaly*:
-
-* `class` (string) - model class name `"model.holtwinters.HoltWinters"` (or `holtwinters` with class alias support{{% available_from "v1.13.0" anomaly %}})
-
-* `frequency` (string) - Must be set equal to sampling_period. Model needs to know expected data-points frequency (e.g. '10m'). If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.  E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. As accepted by pandas.Timedelta (e.g. '5m').
-
-* `seasonality` (string, optional) - As accepted by pandas.Timedelta.
-
-* If `seasonal_periods` is not specified, it is calculated as `seasonality` / `frequency`
-Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
-
-* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to 2.5.
-
-
-*Default model parameters*:
-
-* If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `seasonal` is not specified, default value will be `add`.
-
-* If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `initialization_method` is not specified, default value will be `estimated`.
-
-* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters). Defaults to empty (not provided). Example:  {"seasonal": "add", "initialization_method": "estimated"}
-
-*Config Example*
-
-```yaml
-models:
-  your_desired_alias_for_a_model:
-    class: "holtwinters"  # or 'model.holtwinters.HoltWinters' until v1.13.0
-    seasonality: '1d'
-    frequency: '1h'
-    # Inner model args (key-value pairs) accepted by statsmodels.tsa.holtwinters.ExponentialSmoothing
-    args:
-      seasonal: 'add'
-      initialization_method: 'estimated'
-    # Common arguments for built-in model, if not set, default to
-    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
-    #
-    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
-    # schedulers: [all scheduler aliases defined in `scheduler` section]
-    # queries: [all query aliases defined in `reader.queries` section]
-    # detection_direction: 'both'  # meaning both drops and spikes will be captured
-    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
-    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
-    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
-    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
-```
-
-
-Resulting metrics of the model are described [here](#vmanomaly-output).
-
-
-### [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
-
-> `MADModel` is a [univariate](#univariate-models), [offline](#offline-models) model.
-
-The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
-
-*Parameters specific for vmanomaly*:
-
-* `class` (string) - model class name `"model.mad.MADModel"` (or `mad` with class alias support{{% available_from "v1.13.0" anomaly %}})
-* `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
-
-*Config Example*
-
-
-```yaml
-models:
-  your_desired_alias_for_a_model:
-    class: "mad"  # or 'model.mad.MADModel' until v1.13.0
-    threshold: 2.5
     # Common arguments for built-in model, if not set, default to
     # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
     #
@@ -1155,6 +989,60 @@ models:
     # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
+Resulting metrics of the model are described [here](#vmanomaly-output).
+
+### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
+
+> `HoltWinters` is a [univariate](#univariate-models), [offline](#offline-models) model.
+
+Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing). All parameters from this library can be passed to the model.
+
+*Parameters specific for vmanomaly*:
+
+* `class` (string) - model class name `"model.holtwinters.HoltWinters"` (or `holtwinters` with class alias support{{% available_from "v1.13.0" anomaly %}})
+
+* `frequency` (string) - Must be set equal to sampling_period. Model needs to know expected data-points frequency (e.g. '10m'). If omitted, frequency is guessed during fitting as **the median of intervals between fitting data timestamps**. During inference, if incoming data doesn't have the same frequency, then it will be interpolated.  E.g. data comes at 15 seconds resolution, and our resample_freq is '1m'. Then fitting data will be downsampled to '1m' and internal model is trained at '1m' intervals. So, during inference, prediction data would be produced at '1m' intervals, but interpolated to "15s" to match with expected output, as output data must have the same timestamps. As accepted by pandas.Timedelta (e.g. '5m').
+
+* `seasonality` (string, optional) - As accepted by pandas.Timedelta.
+
+* If `seasonal_periods` is not specified, it is calculated as `seasonality` / `frequency`
+Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
+
+* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculating boundaries to define anomaly score. Defaults to 2.5.
+
+
+*Default model parameters*:
+
+* If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `seasonal` is not specified, default value will be `add`.
+
+* If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `initialization_method` is not specified, default value will be `estimated`.
+
+* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters). Defaults to empty (not provided). Example:  {"seasonal": "add", "initialization_method": "estimated"}
+
+*Config Example*
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: "holtwinters"  # or 'model.holtwinters.HoltWinters' until v1.13.0
+    seasonality: '1d'
+    frequency: '1h'
+    # Inner model args (key-value pairs) accepted by statsmodels.tsa.holtwinters.ExponentialSmoothing
+    args:
+      seasonal: 'add'
+      initialization_method: 'estimated'
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
+```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
 
@@ -1331,7 +1219,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.3
+docker pull victoriametrics/vmanomaly:v1.28.4
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1345,7 +1233,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.28.3 /config.yaml \
+victoriametrics/vmanomaly:v1.28.4 /config.yaml \
 --licenseFile=/license
 --watch
 ```
@@ -1361,3 +1249,117 @@ In this particular example, 2 metrics will be produced. Also, there will be adde
 {__name__="custom_anomaly_score", for="ingestion_rate", model_alias="custom_model", scheduler_alias="s1", run="test-format"},
 {__name__="custom_anomaly_score", for="churn_rate",     model_alias="custom_model", scheduler_alias="s1", run="test-format"}
 ```
+
+## Deprecations
+
+Here is a list of all deprecated model types and specific models with respective version info and suggestions for migration.
+
+### Deprecated types
+
+[Rolling models](#rolling-models) - starting from [v1.28.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1280) all rolling models are deprecated in favor of their online counterparts with respective documentation adjustments. **Now every model class is [non-rolling](#non-rolling-models)**.
+
+#### Rolling Models
+
+> Rolling models as a class were deprecated {{% deprecated_from "v1.28.0" anomaly %}} in favor of [online models](#online-models), which provide similar benefits with additional advantages. Respective rolling models are refactored into online models (e.g., [RollingQuantile](#rolling-quantile)). Existing configurations that use rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`). **Description below is kept for older deployments and hyperlinks consistency**.
+
+A rolling model is a model that, once trained, **cannot be (naturally) used to make inference on data, not seen during its fit phase**.
+
+An instance of rolling model is **simultaneously fit and used for inference** during its `infer` method call.
+
+As a result, such model instances are **not stored** between consecutive re-fit calls (defined by `fit_every` [arg](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) in `PeriodicScheduler`), leading to **lower RAM** consumption.
+
+Such models put **more pressure** on your reader's source, i.e. if your model should be fit on large amount of data (say, 14 days with 1-minute resolution) and at the same time you have **frequent inference** (say, once per minute) on new chunks of data - that's because such models require (fit + infer) window of data to be fit first to be used later in each inference call.
+
+> Rolling models require `fit_every` to be either unset or explicitly set equal to `infer_every` in [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler).
+
+**Examples:** [RollingQuantile](#rolling-quantile), **prior to [v1.28.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1280)** where it become online model.
+
+![vmanomaly-model-type-rolling](model-type-rolling.webp)
+
+#### Non-Rolling Models
+
+> The section is moved to deprecations as **Every model class is now {{% available_from "v1.28.0" anomaly %}} non-rolling**. Configurations that used rolling models' aliases will continue to function, with less limitations (e.g. no constraint on `fit_every` == `infer_every`). **Description below is kept for older deployments and hyperlinks consistency**.
+
+Everything that is not classified as [rolling](#rolling-models). 
+
+Produced models can be explicitly used to **infer on data, not seen during its fit phase**, thus, it **doesn't require re-fit procedure**.
+
+Such models put **less pressure** on your reader's source, i.e. if you fit on large amount of data (say, 14 days with 1-minute resolution) but do it occasionally (say, once per day), at the same time you have **frequent inference**(say, once per minute) on new chunks of data
+
+> However, it's still highly recommended, to keep your model up-to-date with tendencies found in your data as it evolves in time.
+
+Produced model instances are **stored in-memory** between consecutive re-fit calls (defined by `fit_every` [arg](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) in `PeriodicScheduler`), leading to **higher RAM** consumption.
+
+**Examples:** [Prophet](#prophet)
+
+![vmanomaly-model-type-non-rolling](model-type-non-rolling.webp)
+
+### Deprecated models
+
+#### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
+
+> `ZScoreModel` is a [univariate](#univariate-models), [offline](#offline-models) model. {{% deprecated_from "v1.28.4" anomaly %}} Was removed in favor of its online version to improve data efficiency and reduce user confusion. **Configs that used this model (where model's class is `zscore` or `model.zscore.ZscoreModel`) will continue to work, with a warning raised while actually changed to the online version under the hood. Suggestion is to replace it with `zscore_online` or `model.online.OnlineZscoreModel` class explicitly to get [online model benefits](https://docs.victoriametrics.com/anomaly-detection/faq/#online-models) for data querying by reducing `fit_every` frequency**.
+
+Model is useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data).
+
+*Parameters specific for vmanomaly*:
+
+* `class` (string) - model class name `"model.zscore.ZscoreModel"` (or `zscore` with class alias support{{% available_from "v1.13.0" anomaly %}})
+* `z_threshold` (float, optional) - [standard score](https://en.wikipedia.org/wiki/Standard_score) for calculation boundaries and anomaly score. Defaults to `2.5`.
+
+*Config Example*
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: "zscore"  # or 'model.zscore.ZscoreModel' until v1.13.0
+    z_threshold: 3.5
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
+```
+
+Resulting metrics of the model are described [here](#vmanomaly-output).
+
+
+#### [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
+
+> `MADModel` is a [univariate](#univariate-models), [offline](#offline-models) model. {{% deprecated_from "v1.28.4" anomaly %}} Was removed in favor of its online version to improve data efficiency and reduce user confusion. **Configs that used this model (where model's class is `mad` or `model.mad.MADModel`) will continue to work, with a warning raised while actually changed to the online version under the hood. Suggestion is to replace it with `mad_online` or `model.online.OnlineMADModel` class explicitly to get [online model benefits](https://docs.victoriametrics.com/anomaly-detection/faq/#online-models) for data querying by reducing `fit_every` frequency**.
+
+The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
+
+*Parameters specific for vmanomaly*:
+
+* `class` (string) - model class name `"model.mad.MADModel"` (or `mad` with class alias support{{% available_from "v1.13.0" anomaly %}})
+* `threshold` (float, optional) - The threshold multiplier for the MAD to determine anomalies. Defaults to `2.5`. Higher values will identify fewer points as anomalies.
+
+*Config Example*
+
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: "mad"  # or 'model.mad.MADModel' until v1.13.0
+    threshold: 2.5
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: [0.0, 0.0]  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
+```
+
+Resulting metrics of the model are described [here](#vmanomaly-output).
