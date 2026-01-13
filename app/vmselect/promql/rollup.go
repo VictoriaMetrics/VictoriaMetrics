@@ -869,17 +869,17 @@ func getScrapeInterval(timestamps []int64, defaultInterval int64) int64 {
 		return defaultInterval
 	}
 
-	// Estimate scrape interval as 0.6 quantile for the first 20 intervals.
-	tsPrev := timestamps[0]
-	timestamps = timestamps[1:]
+	// Estimate scrape interval as 0.6 quantile of the last 20 intervals.
+	tsPrev := timestamps[len(timestamps)-1]
+	timestamps = timestamps[:len(timestamps)-1]
 	if len(timestamps) > 20 {
-		timestamps = timestamps[:20]
+		timestamps = timestamps[len(timestamps)-20:]
 	}
 	a := getFloat64s()
 	intervals := a.A[:0]
-	for _, ts := range timestamps {
-		intervals = append(intervals, float64(ts-tsPrev))
-		tsPrev = ts
+	for i := len(timestamps) - 1; i >= 0; i-- {
+		intervals = append(intervals, float64(tsPrev-timestamps[i]))
+		tsPrev = timestamps[i]
 	}
 	scrapeInterval := int64(quantile(0.6, intervals))
 	a.A = intervals
