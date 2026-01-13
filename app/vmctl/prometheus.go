@@ -47,7 +47,6 @@ func (pp *prometheusProcessor) run(ctx context.Context) error {
 	}
 
 	if err := pp.processBlocks(blocks); err != nil {
-		promErrorsTotal.Inc()
 		return fmt.Errorf("migration failed: %s", err)
 	}
 
