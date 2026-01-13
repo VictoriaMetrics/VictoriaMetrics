@@ -253,12 +253,12 @@ server:
   port: 8490
   # Limit on concurrent tasks to manage UI load (default: 2)
   max_concurrent_tasks: 5
+  # path_prefix: /my-app  # optional, available from v1.28.4
+  # To locate the UI at http://<vmanomaly-host>:8490/my-app/vmui/
 
 settings:
   # Number of workers for single job speed-ups (default: 1)
   n_workers: 2
-  # path_prefix: /my-app  # optional, available from v1.28.4
-  # to locate the UI at http://<vmanomaly-host>:8490/my-app/vmui/
   # Adjust logging levels to reduce verbosity
   logger_levels:
     vmanomaly: WARNING
