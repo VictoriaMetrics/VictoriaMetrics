@@ -257,6 +257,8 @@ server:
 settings:
   # Number of workers for single job speed-ups (default: 1)
   n_workers: 2
+  # path_prefix: /my-app  # optional, available from v1.28.4
+  # to locate the UI at http://<vmanomaly-host>:8490/my-app/vmui/
   # Adjust logging levels to reduce verbosity
   logger_levels:
     vmanomaly: WARNING
@@ -287,6 +289,10 @@ server:
   port: 8490
   # Limit on concurrent tasks to manage UI load (default: 2)
   max_concurrent_tasks: 5
+  # override server's configured URL path prefix for all HTTP routes
+  # e.g. locate the UI at http://<vmanomaly-host>:8490/my-app/vmui/
+  # available from v1.28.4
+  # path_prefix: /my-app
 
 # other production components, e.g. schedulers, models, reader, writer, etc.
 ```
@@ -388,8 +394,16 @@ If the **results** look good and the **model configuration should be deployed in
 
 ## Changelog
 
+### v1.4.1
+Released: 2026-01-12
+
+vmanomaly version: [v1.28.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1284)
+
+- FEATURE: Allow `path_prefix` parameter to override the server's configured URL path prefix for all HTTP routes. This is useful when the UI is served behind a reverse proxy that modifies the base path. For example, if the server is configured with `path_prefix: /my-app`, accessing the UI at `/my-app/` will work correctly even if the proxy serves it at a different base path.
+
 ### v1.4.0
 Released: 2025-12-11
+
 vmanomaly version: [v1.28.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1282)
 
 - FEATURE: Added an option to show **consecutive anomalies** (if N points in a row exceed anomaly threshold T) in the Visualization Panel, to reduce visual clutter when many anomalies are detected in a row. The option is available as "Streaks" button in the [Model Panel](#model-panel). Respective "streaks: N" stats appears in legend for each series. Example alerting rule's `for` parameter is adjusted accordingly if streaks are used.
