@@ -15,7 +15,7 @@ import (
 //
 // DefaultValue is in months.
 func NewRetentionDuration(name string, defaultValue string, description string) *RetentionDuration {
-	description += "\nThe following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). " +
+	description += "\nThe following optional suffixes are supported: s (second), h (hour), d (day), w (week), M (month), y (year). " +
 		"If suffix isn't set, then the duration is counted in months"
 	d := &RetentionDuration{}
 	if err := d.Set(defaultValue); err != nil {
