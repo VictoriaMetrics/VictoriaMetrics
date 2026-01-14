@@ -8409,7 +8409,7 @@
       "1d"
     ]
   },
-  "timezone": "Asia/Shanghai",
+  "timezone": "",
   "title": "VictoriaMetrics - vmagent (VM)",
   "uid": "G7Z9GzMGz_vm",
   "version": 1
