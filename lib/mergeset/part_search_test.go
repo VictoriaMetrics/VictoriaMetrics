@@ -218,19 +218,25 @@ func TestGetInmemoryBlockWithZeroSizeBlock(t *testing.T) {
 		t.Fatalf("the first block must have zero itemsBlockSize; got %d", ps.bhs[0].itemsBlockSize)
 	}
 
+	// iterate 4 times in order to place block into the cache
+	// storage caches it after 2 missed requests according to the flag blockcache.missesBeforeCaching=2
 	for i := range 4 {
 		if _, err := ps.getInmemoryBlock(&ps.bhs[1]); err != nil {
 			t.Fatalf("cannot load non-empty block at iteration %d: %s", i, err)
 		}
 	}
-	ibZero, err := ps.getInmemoryBlock(&ps.bhs[0])
-	if err != nil {
-		t.Fatalf("cannot load zero-size block: %s", err)
+	assertBlockAt := func(bhIdx int, wantFirstItemValue string) {
+		block, err := ps.getInmemoryBlock(&ps.bhs[bhIdx])
+		if err != nil {
+			t.Fatalf("cannot block=%d : %s", bhIdx, err)
+		}
+		if len(block.items) != int(ps.bhs[bhIdx].itemsCount) {
+			t.Fatalf("unexpected items count in block=%d; got %d; want %d", bhIdx, len(block.items), ps.bhs[bhIdx].itemsCount)
+		}
+		if got := string(block.items[0].Bytes(block.data)); got != wantFirstItemValue {
+			t.Fatalf("unexpected item in block=%d; got %q; want %q", bhIdx, got, wantFirstItemValue)
+		}
 	}
-	if len(ibZero.items) != int(ps.bhs[0].itemsCount) {
-		t.Fatalf("unexpected items count in zero-size block; got %d; want %d", len(ibZero.items), ps.bhs[0].itemsCount)
-	}
-	if got := string(ibZero.items[0].Bytes(ibZero.data)); got != "a" {
-		t.Fatalf("unexpected item in zero-size block; got %q; want %q", got, "a")
-	}
+	assertBlockAt(0, "a")
+	assertBlockAt(1, "b0")
 }
