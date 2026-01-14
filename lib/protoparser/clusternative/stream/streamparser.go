@@ -27,7 +27,10 @@ import (
 //
 // callback shouldn't hold block after returning.
 func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
-	wcr := writeconcurrencylimiter.GetReader(bc)
+	wcr, err := writeconcurrencylimiter.GetReader(bc)
+	if err != nil {
+		return err
+	}
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(wcr)
 
@@ -59,7 +62,6 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 			if err := sendAck(bc, consts.StorageStatusReadOnly); err != nil {
 				return wrapErr(fmt.Errorf("cannot send readonly status to vminsert: %w", err), true)
 			}
-			wcr.DecConcurrency()
 			continue
 		}
 
@@ -78,7 +80,6 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 		uw.wg = &wg
 		wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
 		// Send `ack` to vminsert that the packet has been received and scheduled for processing
 		if err := sendAck(bc, consts.StorageStatusAck); err != nil {
 			return wrapErr(fmt.Errorf("cannot send `ack` to vminsert: %w", err), true)
@@ -92,7 +93,10 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 //
 // callback shouldn't hold block after returning.
 func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
-	wcr := writeconcurrencylimiter.GetReader(bc)
+	wcr, err := writeconcurrencylimiter.GetReader(bc)
+	if err != nil {
+		return err
+	}
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(wcr)
 
@@ -101,7 +105,6 @@ func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricR
 		return err
 	}
 	blocksRead.Inc()
-	wcr.DecConcurrency()
 	if isReadOnly != nil && isReadOnly() {
 		return storage.ErrReadOnly
 	}
@@ -125,7 +128,10 @@ func ParseBlock(bc *handshake.BufferedConn, callback func(rows []storage.MetricR
 //
 // callback shouldn't hold block after returning.
 func ParseMetricsMetadataBlock(bc *handshake.BufferedConn, callback func(rows []metricsmetadata.Row) error, isReadOnly func() bool) error {
-	wcr := writeconcurrencylimiter.GetReader(bc)
+	wcr, err := writeconcurrencylimiter.GetReader(bc)
+	if err != nil {
+		return err
+	}
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(wcr)
 
@@ -139,7 +145,6 @@ func ParseMetricsMetadataBlock(bc *handshake.BufferedConn, callback func(rows []
 		return err
 	}
 	metadataBlocksRead.Inc()
-	wcr.DecConcurrency()
 	if isReadOnly != nil && isReadOnly() {
 		return storage.ErrReadOnly
 	}
