@@ -23,11 +23,13 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 //
 // callback shouldn't hold tss after returning.
 func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
+	wcr, err := writeconcurrencylimiter.GetReader(r)
+	if err != nil {
+		return err
+	}
 	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
 
-	ctx := getPushCtx(r)
+	ctx := getPushCtx(wcr)
 	defer putPushCtx(ctx)
 	if err := ctx.Read(); err != nil {
 		return err
@@ -38,7 +40,6 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896
 	bb := bodyBufferPool.Get()
 	defer bodyBufferPool.Put(bb)
-	var err error
 	if isVMRemoteWrite {
 		bb.B, err = encoding.DecompressZSTDLimited(bb.B[:0], ctx.reqBuf.B, maxInsertRequestSize.IntN())
 		if err != nil {
