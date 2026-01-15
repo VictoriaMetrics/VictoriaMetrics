@@ -80,14 +80,15 @@ func (as AlertState) String() string {
 
 // AlertTplData is used to execute templating
 type AlertTplData struct {
-	Type     string
-	Labels   map[string]string
-	Value    float64
-	Expr     string
-	AlertID  uint64
-	GroupID  uint64
-	ActiveAt time.Time
-	For      time.Duration
+	Type      string
+	Labels    map[string]string
+	Value     float64
+	Expr      string
+	AlertID   uint64
+	GroupID   uint64
+	ActiveAt  time.Time
+	For       time.Duration
+	IsPartial bool
 }
 
 var tplHeaders = []string{
@@ -101,6 +102,7 @@ var tplHeaders = []string{
 	"{{ $groupID := .GroupID }}",
 	"{{ $activeAt := .ActiveAt }}",
 	"{{ $for := .For }}",
+	"{{ $isPartial := .IsPartial }}",
 }
 
 // ExecTemplate executes the Alert template for given
