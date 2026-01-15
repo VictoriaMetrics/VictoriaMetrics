@@ -35,7 +35,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): add `Persistent queue Full ETA` panel to the `Drilldown` section. This panel helps estimate how much time remains until `vmagent` starts dropping incoming metrics. See [#10193](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10193).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix configuration reloading for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` when vmagent is launched with empty files. Previously, if vmagent started with an empty config, subsequent config reloads were ignored. See [#10211](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10211).
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): Fixed a missing path error for `http://<victoriametrics-addr>:8428/zabbixconnector/api/v1/history`. See PR [10214](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10214)
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): Fixed a missing path error for `http://<victoriametrics-addr>:8428/zabbixconnector/api/v1/history`. See PR [10214](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10214).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): remove legacy `tenantID` query param and use the URL path as the single source of truth for multitenancy. See [#10232](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10232).
 
 ## [v1.133.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.133.0)
 

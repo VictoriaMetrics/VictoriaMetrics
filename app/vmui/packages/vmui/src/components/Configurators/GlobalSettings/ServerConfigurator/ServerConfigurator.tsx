@@ -9,7 +9,6 @@ import { getFromStorage, removeFromStorage, saveToStorage } from "../../../../ut
 import useBoolean from "../../../../hooks/useBoolean";
 import { ChildComponentHandle } from "../GlobalSettings";
 import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
-import { getTenantIdFromUrl } from "../../../../utils/tenants";
 
 interface ServerConfiguratorProps {
   onClose: () => void;
@@ -39,10 +38,6 @@ const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
   };
 
   const handleApply = useCallback(() => {
-    const tenantIdFromUrl = getTenantIdFromUrl(serverUrl);
-    if (tenantIdFromUrl !== "") {
-      dispatch({ type: "SET_TENANT_ID", payload: tenantIdFromUrl });
-    }
     dispatch({ type: "SET_SERVER", payload: serverUrl });
     onClose();
   }, [serverUrl]);
@@ -59,12 +54,6 @@ const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
       removeFromStorage(["SERVER_URL"]);
     }
   }, [enabledStorage]);
-
-  useEffect(() => {
-    if (enabledStorage) {
-      saveToStorage("SERVER_URL", serverUrl);
-    }
-  }, [serverUrl]);
 
   useEffect(() => {
     // the tenant selector can change the serverUrl
