@@ -394,7 +394,7 @@ func (bu *backendURL) runHealthCheck() {
 				if errors.Is(bu.healthCheckContext.Err(), context.Canceled) {
 					return
 				}
-				logger.Warnf("ignoring the backend at %s for %s becasue of dial error: %s", addr, *failTimeout, err)
+				logger.Warnf("ignoring the backend at %s for %s because of dial error: %s", addr, *failTimeout, err)
 				continue
 			}
 
@@ -809,7 +809,7 @@ func reloadAuthConfig() (bool, error) {
 
 	ok, err := reloadAuthConfigData(data)
 	if err != nil {
-		return false, fmt.Errorf("failed to pars -auth.config=%q: %w", *authConfigPath, err)
+		return false, fmt.Errorf("failed to parse -auth.config=%q: %w", *authConfigPath, err)
 	}
 	if !ok {
 		return false, nil
