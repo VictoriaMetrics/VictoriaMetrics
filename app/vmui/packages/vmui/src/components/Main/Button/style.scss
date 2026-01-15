@@ -1,4 +1,5 @@
 @use "src/styles/variables" as *;
+@use 'sass:meta';
 
 $button-radius: 6px;
 
@@ -42,6 +43,8 @@ $button-radius: 6px;
 
     svg {
       width: 14px;
+      min-width: 14px;
+      max-width: 14px;
     }
   }
 
@@ -51,6 +54,8 @@ $button-radius: 6px;
 
     svg {
       width: 16px;
+      min-width: 16px;
+      max-width: 16px;
     }
   }
 
@@ -60,6 +65,8 @@ $button-radius: 6px;
 
     svg {
       width: 18px;
+      min-width: 18px;
+      max-width: 18px;
       line-height: 16px;
     }
   }
@@ -128,8 +135,14 @@ $button-radius: 6px;
   );
 
   @each $name, $color in $button-colors {
-    @include contained-button($name, $color, if($name == white, $color-black, $color-white));
-    @include outlined-button($name, $color, if($name == white, $color-white, $color));
-    @include text-button($name, if($name == white, $color-white, $color));
+    @if $name == white {
+      @include contained-button($name, $color, $color-black);
+      @include outlined-button($name, $color, $color-white);
+      @include text-button($name, $color-white);
+    } @else {
+      @include contained-button($name, $color, $color-white);
+      @include outlined-button($name, $color, $color);
+      @include text-button($name, $color);
+    }
   }
 }
