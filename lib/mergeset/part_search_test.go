@@ -163,3 +163,80 @@ func newTestPart(r *rand.Rand, blocksCount, maxItemsPerBlock int) (*part, []stri
 	p := newPart(&ip.ph, "partName", size, ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
 	return p, items, nil
 }
+
+func TestGetInmemoryBlockWithZeroSizeBlock(t *testing.T) {
+	var ph partHeader
+	var ip inmemoryPart
+	var bsw blockStreamWriter
+	bsw.MustInitFromInmemoryPart(&ip, -3)
+
+	buildBlock := func(items ...string) inmemoryBlock {
+		var ib inmemoryBlock
+		for _, item := range items {
+			if !ib.Add([]byte(item)) {
+				t.Fatalf("cannot add item %q", item)
+			}
+		}
+		ib.SortItems()
+		return ib
+	}
+
+	writeBlock := func(ib inmemoryBlock) {
+		if len(ib.items) == 0 {
+			t.Fatalf("block must contain items")
+		}
+		data := ib.data
+		ph.itemsCount += uint64(len(ib.items))
+		if ph.blocksCount == 0 {
+			ph.firstItem = append(ph.firstItem[:0], ib.items[0].Bytes(data)...)
+		}
+		ph.lastItem = append(ph.lastItem[:0], ib.items[len(ib.items)-1].Bytes(data)...)
+		ph.blocksCount++
+		bsw.WriteBlock(&ib)
+	}
+
+	writeBlock(buildBlock("a"))
+	writeBlock(buildBlock("b0", "b1"))
+	bsw.MustClose()
+
+	p := newPart(&ph, "test", ip.size(), ip.metaindexData.NewReader(), &ip.indexData, &ip.itemsData, &ip.lensData)
+	defer p.MustClose()
+
+	var ps partSearch
+	ps.Init(p, false)
+	ps.mrs = p.mrs
+	if err := ps.nextBHS(); err != nil {
+		t.Fatalf("cannot read block headers: %s", err)
+	}
+	if len(ps.bhs) != 2 {
+		t.Fatalf("unexpected block headers count: %d", len(ps.bhs))
+	}
+	if ps.bhs[0].itemsBlockOffset != ps.bhs[1].itemsBlockOffset {
+		t.Fatalf("blocks must share itemsBlockOffset for the test: %d vs %d", ps.bhs[0].itemsBlockOffset, ps.bhs[1].itemsBlockOffset)
+	}
+	if ps.bhs[0].itemsBlockSize != 0 {
+		t.Fatalf("the first block must have zero itemsBlockSize; got %d", ps.bhs[0].itemsBlockSize)
+	}
+
+	// iterate 4 times in order to place block into the cache
+	// storage caches it after 2 missed requests according to the flag blockcache.missesBeforeCaching=2
+	for i := range 4 {
+		if _, err := ps.getInmemoryBlock(&ps.bhs[1]); err != nil {
+			t.Fatalf("cannot load non-empty block at iteration %d: %s", i, err)
+		}
+	}
+	assertBlockAt := func(bhIdx int, wantFirstItemValue string) {
+		block, err := ps.getInmemoryBlock(&ps.bhs[bhIdx])
+		if err != nil {
+			t.Fatalf("cannot block=%d : %s", bhIdx, err)
+		}
+		if len(block.items) != int(ps.bhs[bhIdx].itemsCount) {
+			t.Fatalf("unexpected items count in block=%d; got %d; want %d", bhIdx, len(block.items), ps.bhs[bhIdx].itemsCount)
+		}
+		if got := string(block.items[0].Bytes(block.data)); got != wantFirstItemValue {
+			t.Fatalf("unexpected item in block=%d; got %q; want %q", bhIdx, got, wantFirstItemValue)
+		}
+	}
+	assertBlockAt(0, "a")
+	assertBlockAt(1, "b0")
+}
