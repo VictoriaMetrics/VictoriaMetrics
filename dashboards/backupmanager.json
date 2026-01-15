@@ -452,7 +452,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"}[1h]))",
+          "expr": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -605,7 +605,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"}[1h]))",
+          "expr": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"

@@ -1,5 +1,5 @@
 ---
-weight: 3
+weight: 4
 title: Year 2024
 search:
   weight: 0.1
@@ -7,7 +7,7 @@ menu:
   docs:
     identifier: vm-changelog-2024
     parent: vm-changelog
-    weight: 3
+    weight: 4
 tags:
   - metrics
 aliases:

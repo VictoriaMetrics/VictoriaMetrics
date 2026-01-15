@@ -14,6 +14,15 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.28.4
+Released: 2026-01-12
+
+- IMPROVEMENT: Migrate `MADModel` and `ZScoreModel` to their respective [online model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) implementations by default. The previous offline versions of these models are now deprecated and will raise warnings when used. Users are encouraged to switch to the new online versions or use the provided aliases (`mad_online`, `zscore_online`) for seamless transition. This change enhances performance and efficiency in processing streaming data without the limitations of offline models. See [online models FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/#online-models) for more details.
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.4.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v140) to [v1.4.1](https://docs.victoriametrics.com/anomaly-detection/ui/#v141), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v141) for details.
+
+- BUGFIX: Restored expected behavior when `fit_every` equals `infer_every` in [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) - now full data range `fit_window` is fetched for model trainings instead of a  last point from that interval.
+
 ## v1.28.3
 Released: 2025-12-17
 

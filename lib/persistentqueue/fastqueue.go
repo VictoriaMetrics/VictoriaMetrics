@@ -70,7 +70,10 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes
 		if maxPendingBytes == 0 {
 			return float64(freeSpaceBytes)
 		}
-		return min(float64(maxPendingBytes), float64(freeSpaceBytes))
+		fq.mu.Lock()
+		curPendingBytes := fq.pq.GetPendingBytes()
+		fq.mu.Unlock()
+		return min(float64(maxPendingBytes)-float64(curPendingBytes), float64(freeSpaceBytes))
 	})
 
 	pendingBytes := fq.GetPendingBytes()

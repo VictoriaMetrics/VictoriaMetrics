@@ -31,7 +31,10 @@ const maxSnappyBlockSize = 56_000_000
 //
 // The callback must not hold references to the data after returning.
 func ReadUncompressedData(r io.Reader, contentType string, maxDataSize *flagutil.Bytes, callback func(data []byte) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
+	wcr, err := writeconcurrencylimiter.GetReader(r)
+	if err != nil {
+		return err
+	}
 	defer writeconcurrencylimiter.PutReader(wcr)
 
 	if contentType == "zstd" {
