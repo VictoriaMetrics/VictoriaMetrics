@@ -156,7 +156,9 @@ func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bo
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	r.Body = &readDurationTrackingBody{r: r.Body}
+	if r.Body != nil {
+		r.Body = &readDurationTrackingBody{r: r.Body}
+	}
 
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
