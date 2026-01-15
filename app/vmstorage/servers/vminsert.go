@@ -14,9 +14,10 @@ import (
 var (
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression "+
 		"at the cost of precision loss")
-	vminsertConnsShutdownDuration = flag.Duration("storage.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of vminsert connections during "+
+	vminsertConnsShutdownDuration = flag.Duration("storage.vminsertConnsShutdownDuration", 10*time.Second, "The time needed for gradual closing of vminsert connections during "+
 		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. "+
 		"Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. "+
+		"Configured value must always be lower than the graceful shutdown period configured by the orchestration platform (terminationGracePeriodSeconds for Kubernetes). "+
 		"See https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
 )
 
