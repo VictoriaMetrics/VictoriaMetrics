@@ -298,7 +298,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		fmt.Fprintf(w, `{"status":"success","data":{"logEndTime":%q}}`, time.Unix(int64(endTime), 0))
 		return true
 	}
-	if !strings.HasPrefix(path, "/snapshot") {
+	if !strings.HasPrefix(path, "/snapshot/") {
 		return false
 	}
 	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey) {
@@ -310,8 +310,20 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotPath := strg.MustCreateSnapshot()
-		fmt.Fprintf(w, `{"status":"ok","snapshot":%s}`, stringsutil.JSONString(snapshotPath))
+		snapshotName := strg.MustCreateSnapshot()
+
+		// Verify whether the client already closed the connection.
+		// In this case it is better to drop the created partition, since the client isn't interested in it.
+		if err := r.Context().Err(); err != nil {
+			logger.Infof("deleting already created snapshot at %s because the client canceled the request", snapshotName)
+			if err := deleteSnapshot(strg, snapshotName); err != nil {
+				logger.Infof("cannot delete just created snapshot: %s", err)
+				return true
+			}
+			return true
+		}
+
+		fmt.Fprintf(w, `{"status":"ok","snapshot":%s}`, stringsutil.JSONString(snapshotName))
 		return true
 	case "/list":
 		snapshotsListTotal.Inc()
@@ -330,22 +342,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		snapshotsDeleteTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-		snapshots := strg.MustListSnapshots()
-		for _, snName := range snapshots {
-			if snName == snapshotName {
-				if err := strg.DeleteSnapshot(snName); err != nil {
-					err = fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
-					jsonResponseError(w, err)
-					snapshotsDeleteErrorsTotal.Inc()
-					return true
-				}
-				fmt.Fprintf(w, `{"status":"ok"}`)
-				return true
-			}
+		if err := deleteSnapshot(strg, snapshotName); err != nil {
+			jsonResponseError(w, err)
+			snapshotsDeleteErrorsTotal.Inc()
+			return true
 		}
-
-		err := fmt.Errorf("cannot find snapshot %q", snapshotName)
-		jsonResponseError(w, err)
+		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
@@ -364,6 +366,19 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	default:
 		return false
 	}
+}
+
+func deleteSnapshot(strg *storage.Storage, snapshotName string) error {
+	snapshots := strg.MustListSnapshots()
+	for _, snName := range snapshots {
+		if snName == snapshotName {
+			if err := strg.DeleteSnapshot(snName); err != nil {
+				return fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("cannot find snapshot %q", snapshotName)
 }
 
 func initStaleSnapshotsRemover(strg *storage.Storage) {
