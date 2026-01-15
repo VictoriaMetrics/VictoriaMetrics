@@ -1,4 +1,4 @@
-import { FC, useState, useRef, useEffect, useMemo } from "preact/compat";
+import { FC, useState, useRef, useMemo } from "preact/compat";
 import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { ArrowDownIcon, StorageIcon } from "../../../Main/Icons";
@@ -10,14 +10,14 @@ import { getAppModeEnable } from "../../../../utils/app-mode";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import TextField from "../../../Main/TextField/TextField";
-import { getTenantIdFromUrl, replaceTenantId } from "../../../../utils/tenants";
+import { replaceTenantId } from "../../../../utils/tenants";
 import useBoolean from "../../../../hooks/useBoolean";
 
 const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
 
-  const { tenantId: tenantIdState, serverUrl } = useAppState();
+  const { tenantId, serverUrl } = useAppState();
   const dispatch = useAppDispatch();
   const timeDispatch = useTimeDispatch();
 
@@ -48,26 +48,14 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   }, [accountIds]);
 
   const createHandlerChange = (value: string) => () => {
-    const tenant = value;
-    dispatch({ type: "SET_TENANT_ID", payload: tenant });
     if (serverUrl) {
-      const updateServerUrl = replaceTenantId(serverUrl, tenant);
+      const updateServerUrl = replaceTenantId(serverUrl, value);
       if (updateServerUrl === serverUrl) return;
       dispatch({ type: "SET_SERVER", payload: updateServerUrl });
       timeDispatch({ type: "RUN_QUERY" });
     }
     handleCloseOptions();
   };
-
-  useEffect(() => {
-    const id = getTenantIdFromUrl(serverUrl);
-
-    if (tenantIdState && tenantIdState !== id) {
-      createHandlerChange(tenantIdState)();
-    } else {
-      createHandlerChange(id)();
-    }
-  }, [serverUrl]);
 
   if (!showTenantSelector) return null;
 
@@ -83,7 +71,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
               <span className="vm-mobile-option__icon"><StorageIcon/></span>
               <div className="vm-mobile-option-text">
                 <span className="vm-mobile-option-text__label">Tenant ID</span>
-                <span className="vm-mobile-option-text__value">{tenantIdState}</span>
+                <span className="vm-mobile-option-text__value">{tenantId}</span>
               </div>
               <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
             </div>
@@ -106,7 +94,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
               )}
               onClick={toggleOpenOptions}
             >
-              {tenantIdState}
+              {tenantId}
             </Button>
           )}
         </div>
@@ -138,7 +126,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
               className={classNames({
                 "vm-list-item": true,
                 "vm-list-item_mobile": isMobile,
-                "vm-list-item_active": id === tenantIdState
+                "vm-list-item_active": id === tenantId
               })}
               key={id}
               onClick={createHandlerChange(id)}

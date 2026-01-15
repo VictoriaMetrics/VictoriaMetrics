@@ -8966,6 +8966,113 @@
           ],
           "title": "Network usage: vmstorage ($instance)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the [rollup result cache](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#rollup-result-cache) miss ratio for query when cache is enabled. \nRollup cache is typically hit in two scenarios:\n1. Repeated [range queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query) with increasing time, start and end arguments;\n2. Repeated [instant queries](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) containing rollup functions with lookbehind window exceeding `-search.minWindowForInstantRollupOptimization`.\n\nA lower value indicates high cache utilization, suggesting that most queries are repeated from stable clients such as vmalert rules or Grafana dashboards.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "max": 1,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8424
+          },
+          "id": 226,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vm_rollup_result_cache_miss_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval]))\n/\nsum(rate(vm_rollup_result_cache_requests_total{job=~\"$job_select\", instance=~\"$instance\"}[$__rate_interval]))",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "miss",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Rollup result cache miss ratio ($instance)",
+          "type": "timeseries"
         }
       ],
       "title": "vmselect ($instance)",

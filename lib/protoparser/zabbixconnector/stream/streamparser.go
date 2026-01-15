@@ -26,15 +26,17 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func Parse(r io.Reader, encoding string, callback func(rows []zabbixconnector.Row) error) error {
-	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	wcr, err := writeconcurrencylimiter.GetReader(r)
+	if err != nil {
+		return err
+	}
+	defer writeconcurrencylimiter.PutReader(wcr)
+
+	reader, err := protoparserutil.GetUncompressedReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode zabbixconnector data: %w", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	reader = wcr
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
@@ -45,7 +47,6 @@ func Parse(r io.Reader, encoding string, callback func(rows []zabbixconnector.Ro
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {

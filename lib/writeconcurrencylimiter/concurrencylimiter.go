@@ -24,75 +24,65 @@ var (
 		"concurrent insert requests are executed")
 )
 
-// Reader is a reader, which increases the concurrency after the first Read() call
+// Reader is a reader, which decreases the concurrency before every Read() call
+// and increases the concurrency after Read() call.
 //
-// The concurrency can be reduced by calling DecConcurrency().
-// Then the concurrency is increased after the next Read() call.
+// It effectively limits the number of concurrent goroutines,
+// which may process results returned by concurrently processed Reader structs.
+//
+// The Reader must be obtained via GetReader() call.
 type Reader struct {
-	r                    io.Reader
-	increasedConcurrency bool
+	r io.Reader
 }
 
 // GetReader returns the Reader for r.
 //
 // The PutReader() must be called when the returned Reader is no longer needed.
-func GetReader(r io.Reader) *Reader {
+func GetReader(r io.Reader) (*Reader, error) {
+	if err := incConcurrency(); err != nil {
+		return nil, err
+	}
+
 	v := readerPool.Get()
 	if v == nil {
-		return &Reader{
-			r: r,
-		}
+		v = &Reader{}
 	}
 	rr := v.(*Reader)
 	rr.r = r
-	return rr
+
+	return rr, nil
 }
 
 // PutReader returns the r to the pool.
 //
-// It decreases the concurrency if r has increased concurrency.
+// It decreases the concurrency.
 func PutReader(r *Reader) {
-	r.DecConcurrency()
 	r.r = nil
 	readerPool.Put(r)
+
+	decConcurrency()
 }
 
 var readerPool sync.Pool
 
 // Read implements io.Reader.
-//
-// It increases concurrency after the first call or after the next call after DecConcurrency() call.
 func (r *Reader) Read(p []byte) (int, error) {
+	decConcurrency()
+
 	n, err := r.r.Read(p)
-	if !r.increasedConcurrency {
-		if !incConcurrency() {
-			err = &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("cannot process insert request for %.3f seconds because %d concurrent insert requests are executed. "+
-					"Possible solutions: to reduce workload; to increase compute resources at the server; "+
-					"to increase -insert.maxQueueDuration; to increase -maxConcurrentInserts",
-					maxQueueDuration.Seconds(), *maxConcurrentInserts),
-				StatusCode: http.StatusServiceUnavailable,
-			}
-			return 0, err
-		}
-		r.increasedConcurrency = true
+
+	if errC := incConcurrency(); errC != nil {
+		return n, errC
 	}
+
 	if errors.Is(err, io.ErrUnexpectedEOF) {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8704
 		err = fmt.Errorf("%w: while reading the request body. This might be caused by a timeout on the client side. "+
 			"Possible solutions: to lower -insert.maxQueueDuration below the client’s timeout; to increase the client-side timeout; "+
-			"to scale up vmagent (e.g., adding more CPU resources); to increase -maxConcurrentInserts if CPU capacity allows", err)
+			"to increase compute resources at the server; to increase -maxConcurrentInserts", err)
 	}
 
 	return n, err
-}
-
-// DecConcurrency decreases the concurrency, so it could be increased again after the next Read() call.
-func (r *Reader) DecConcurrency() {
-	if r.increasedConcurrency {
-		decConcurrency()
-		r.increasedConcurrency = false
-	}
 }
 
 func initConcurrencyLimitCh() {
@@ -104,12 +94,12 @@ var (
 	concurrencyLimitChOnce sync.Once
 )
 
-func incConcurrency() bool {
+func incConcurrency() error {
 	concurrencyLimitChOnce.Do(initConcurrencyLimitCh)
 
 	select {
 	case concurrencyLimitCh <- struct{}{}:
-		return true
+		return nil
 	default:
 	}
 
@@ -118,10 +108,16 @@ func incConcurrency() bool {
 	defer timerpool.Put(t)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
-		return true
+		return nil
 	case <-t.C:
 		concurrencyLimitTimeout.Inc()
-		return false
+		return &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("cannot process insert request for %.3f seconds because %d concurrent insert requests are executed. "+
+				"Possible solutions: to reduce workload; to increase compute resources at the server; "+
+				"to increase -insert.maxQueueDuration; to increase -maxConcurrentInserts",
+				maxQueueDuration.Seconds(), *maxConcurrentInserts),
+			StatusCode: http.StatusServiceUnavailable,
+		}
 	}
 }
 
