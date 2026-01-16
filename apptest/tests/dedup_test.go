@@ -193,9 +193,10 @@ func testDeduplication(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier,
 				}},
 				{Metric: map[string]string{"__name__": "metric4"}, Samples: []*apptest.Sample{
 					// If multiple raw samples have the same timestamp on the
-					// given -dedup.minScrapeInterval discrete interval, then
-					// stale markers are preferred over any other value.
-					{Timestamp: ts10, Value: decimal.StaleNaN},
+					// given -dedup.minScrapeInterval discrete interval,
+					// always prefer a non-decimal.StaleNaN value,
+					// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10196
+					{Timestamp: ts10, Value: 50},
 				}},
 			},
 		},
