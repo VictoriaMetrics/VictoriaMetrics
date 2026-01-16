@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
+
+Released at 2026-01-16
+
 * SECURITY: upgrade Go builder from Go1.25.5 to Go1.25.5. See [the list of issues addressed in Go1.25.6](https://github.com/golang/go/issues?q=milestone%3AGo1.25.6%20label%3ACherryPickApproved).
 
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): refine `VictoriaMetrics - single` dashboard and aligned it with the [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176) dashboard. For the full list of changes see [#10132-comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10187#issuecomment-3696769466) and [#10260](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10260).
