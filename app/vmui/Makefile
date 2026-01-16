@@ -1,4 +1,18 @@
 # All these commands must run from repository root.
+vmui-package-base-image:
+	docker build -t vmui-builder-image -f app/vmui/Dockerfile-build ./app/vmui
+
+vmui-run-npm-command: vmui-package-base-image
+	docker run --rm \
+		--user $(shell id -u):$(shell id -g) \
+		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
+		--mount type=bind,src="$(shell pwd)/docs",dst=/docs \
+		-w /build/packages/vmui \
+		--entrypoint=/bin/bash \
+		vmui-builder-image -c "npm ci && $(NPM_COMMAND)"
+
+vmui-install:
+	NPM_COMMAND="true" $(MAKE) vmui-run-npm-command
 
 copy-metricsql-docs:
 	cp docs/victoriametrics/MetricsQL.md app/vmui/packages/vmui/src/assets/MetricsQL.md
@@ -6,21 +20,11 @@ copy-metricsql-docs:
 vmui-package-base-image:
 	docker build -t vmui-builder-image -f app/vmui/Dockerfile-build ./app/vmui
 
-vmui-build: copy-metricsql-docs vmui-package-base-image
-	docker run --rm \
-		--user $(shell id -u):$(shell id -g) \
-		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
-		-w /build/packages/vmui \
-		--entrypoint=/bin/bash \
-		vmui-builder-image -c "npm install && npm run build"
+vmui-build:
+	NPM_COMMAND="npm run build" $(MAKE) vmui-run-npm-command
 
-vmui-anomaly-build: vmui-package-base-image
-	docker run --rm \
-		--user $(shell id -u):$(shell id -g) \
-		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
-		-w /build/packages/vmui \
-		--entrypoint=/bin/bash \
-		vmui-builder-image -c "npm install && npm run build:anomaly"
+vmui-anomaly-build:
+	NPM_COMMAND="npm run build:anomaly" $(MAKE) vmui-run-npm-command
 
 vmui-release: vmui-build
 	docker build -t ${DOCKER_NAMESPACE}/vmui:latest -f app/vmui/Dockerfile-web ./app/vmui/packages/vmui
@@ -38,11 +42,11 @@ vmui-update: vmui-build
 vmui-install-dependencies:
 	cd app/vmui/packages/vmui && npm ci
 
-vmui-lint: vmui-install-dependencies
-	cd app/vmui/packages/vmui && npm run lint
+vmui-lint:
+	NPM_COMMAND="npm run lint" $(MAKE) vmui-run-npm-command
 
-vmui-typecheck: vmui-install-dependencies
-	cd app/vmui/packages/vmui && npm run typecheck
+vmui-typecheck:
+	NPM_COMMAND="npm run typecheck" $(MAKE) vmui-run-npm-command
 
-vmui-test: vmui-install-dependencies
-	cd app/vmui/packages/vmui && npm run test
+vmui-test:
+	NPM_COMMAND="npm run test" $(MAKE) vmui-run-npm-command
