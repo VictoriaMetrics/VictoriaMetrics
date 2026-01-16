@@ -2116,7 +2116,6 @@ func TestSearchLabelValues(t *testing.T) {
 	}
 	got := sortedSlice(lvs)
 	if !reflect.DeepEqual(got, labelValues) {
-		println("len ", len(got), len(labelValues))
 		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValues)
 	}
 
@@ -2131,6 +2130,9 @@ func TestSearchLabelValues(t *testing.T) {
 	// if filter result exceeds quick search limit
 	originValue := maxMetricIDsForDirectLabelsLookup
 	maxMetricIDsForDirectLabelsLookup = 10
+	defer func() {
+		maxMetricIDsForDirectLabelsLookup = originValue
+	}()
 	lvs, err = db.SearchLabelValues(nil, "__name__", []*TagFilters{tfsMetricNameRe}, tr, 10000, 1e9, noDeadline)
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelValues(timeRange=%s): %s", &tr, err)
@@ -2140,7 +2142,6 @@ func TestSearchLabelValues(t *testing.T) {
 	if !reflect.DeepEqual(got, labelValuesReMatch) {
 		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValuesReMatch)
 	}
-	maxMetricIDsForDirectLabelsLookup = originValue
 
 	s.tb.PutPartition(ptw)
 	s.MustClose()
