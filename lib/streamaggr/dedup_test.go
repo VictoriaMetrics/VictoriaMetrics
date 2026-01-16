@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
 
 func TestDedupAggrSerial(t *testing.T) {
@@ -76,4 +78,23 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestDeduplicateSamples(t *testing.T) {
+	f := func(oldT, newT int64, oldV, newV float64, expectedT int64, expectedV float64) {
+		t.Helper()
+		dedupT, dedupV := deduplicateSamples(oldT, newT, oldV, newV)
+		if dedupT != expectedT || dedupV != expectedV {
+			t.Fatalf("unexpected deduplicated result for oldT=%d, newT=%d, oldV=%f, newV=%f; got dedupT=%d, dedupV=%f; want dedupT=%d, dedupV=%f",
+				oldT, newT, oldV, newV, dedupT, dedupV, expectedT, expectedV)
+		}
+	}
+
+	f(1000, 2000, 1.0, 2.0, 2000, 2.0)
+	f(2000, 1000, 2.0, 1.0, 2000, 2.0)
+	f(1000, 1000, 1.0, 2.0, 1000, 2.0)
+	f(1000, 1000, 2.0, 1.0, 1000, 2.0)
+	f(1000, 1000, 1.0, 1.0, 1000, 1.0)
+	f(1000, 1000, 1.0, float64(decimal.StaleNaN), 1000, 1.0)
+	f(1000, 1000, float64(decimal.StaleNaN), 2.0, 1000, 2.0)
 }
