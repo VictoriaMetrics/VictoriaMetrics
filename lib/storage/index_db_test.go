@@ -2129,8 +2129,8 @@ func TestSearchLabelValues(t *testing.T) {
 	}
 	// Check SearchLabelValues with the specified time range and tfs matches correct results
 	// if filter result exceeds quick search limit
-	originValue := labelsSearchFilterMaxQuickSearch
-	labelsSearchFilterMaxQuickSearch = 10
+	originValue := maxMetricIDsForDirectLabelsLookup
+	maxMetricIDsForDirectLabelsLookup = 10
 	lvs, err = db.SearchLabelValues(nil, "__name__", []*TagFilters{tfsMetricNameRe}, tr, 10000, 1e9, noDeadline)
 	if err != nil {
 		t.Fatalf("unexpected error in SearchLabelValues(timeRange=%s): %s", &tr, err)
@@ -2140,7 +2140,7 @@ func TestSearchLabelValues(t *testing.T) {
 	if !reflect.DeepEqual(got, labelValuesReMatch) {
 		t.Fatalf("unexpected labelValues; got\n%s\nwant\n%s", got, labelValuesReMatch)
 	}
-	labelsSearchFilterMaxQuickSearch = originValue
+	maxMetricIDsForDirectLabelsLookup = originValue
 
 	s.tb.PutPartition(ptw)
 	s.MustClose()

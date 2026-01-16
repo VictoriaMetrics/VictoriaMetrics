@@ -166,6 +166,8 @@ func getTagFiltersLoopsCacheSize() uint64 {
 	return uint64(float64(memory.Allowed()) / 128)
 }
 
+var maxMetricIDsForDirectLabelsLookup int = 100e3
+
 func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isReadOnly *atomic.Bool, noRegisterNewSeries bool) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must not be nil")
@@ -579,7 +581,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		if err != nil {
 			return nil, err
 		}
-		if filter != nil && filter.Len() <= 100e3 {
+		if filter != nil && filter.Len() <= maxMetricIDsForDirectLabelsLookup {
 			// It is faster to obtain label names by metricIDs from the filter
 			// instead of scanning the inverted index for the matching filters.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
@@ -850,7 +852,7 @@ func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName
 		if err != nil {
 			return nil, err
 		}
-		if filter != nil && filter.Len() <= 100e3 {
+		if filter != nil && filter.Len() <= maxMetricIDsForDirectLabelsLookup {
 			// It is faster to obtain label values by metricIDs from the filter
 			// instead of scanning the inverted index for the matching filters.
 			// This should help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
