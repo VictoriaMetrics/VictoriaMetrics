@@ -574,7 +574,8 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, maxLabelNames, maxMetrics int) (map[string]struct{}, error) {
 	var filter *uint64set.Set
 	if !isSingleMetricNameFilter(tfss) {
-		filter, err := is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
+		var err error
+		filter, err = is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
@@ -844,7 +845,8 @@ func (is *indexSearch) searchLabelValuesOnDate(qt *querytracer.Tracer, labelName
 	useCompositeScan := labelName != "" && isSingleMetricNameFilter(tfss)
 	var filter *uint64set.Set
 	if !useCompositeScan {
-		filter, err := is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
+		var err error
+		filter, err = is.searchMetricIDsWithFiltersOnDate(qt, tfss, date, maxMetrics)
 		if err != nil {
 			return nil, err
 		}
