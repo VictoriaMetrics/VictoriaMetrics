@@ -8,6 +8,7 @@ menu:
 tags: []
 aliases:
   - /CaseStudies.html
+  - /casestudies.html
   - /casestudies/index.html
   - /casestudies/
 ---
