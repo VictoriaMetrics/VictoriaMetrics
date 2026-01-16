@@ -215,8 +215,8 @@ func deduplicateSamples(oldT, newT int64, oldV, newV float64) (int64, float64) {
 	// if both samples have the same timestamp, choose the maximum value, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3333;
 	// always prefer a non-decimal.StaleNaN value, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10196
 	if newT == oldT {
-		if decimal.IsStaleNaN(newV) {
-			return oldT, oldV
+		if decimal.IsStaleNaN(oldV) {
+			return newT, newV
 		}
 		if newV > oldV {
 			return newT, newV
