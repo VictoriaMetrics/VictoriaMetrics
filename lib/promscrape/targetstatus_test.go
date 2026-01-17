@@ -101,7 +101,7 @@ func TestRegisterDroppedTargets(t *testing.T) {
 }
 
 func Test_targetStatus_GetSizeFromLastScrape_RoundUp(t *testing.T) {
-	// the formular is: (N + 1023) / 1024, to avoid using `math` and doing type conversion.
+	// the formula is: (N + 1023) / 1024, to avoid using `math` and doing type conversion.
 	f := func(n int, expect string) {
 		t.Helper()
 
