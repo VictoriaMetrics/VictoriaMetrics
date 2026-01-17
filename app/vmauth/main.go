@@ -58,7 +58,7 @@ var (
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process simultaneously. "+
 		"Requests exceeding this limit are immediately rejected with '429 Too Many Requests' http status code. "+
 		"This protects vmauth itself from overloading and out-of-memory (OOM) failures. "+
-		"The memory needed for request processing can be roughly estimated as (32KB + -maxRequestBodySizeToRetry) * -maxConcurrentRequests. "+
+		"The memory needed for request processing can be roughly estimated as (32KB + -maxRequestBodySizeToRetry) * -maxConcurrentRequests < available memory. "+
 		"See also -maxConcurrentPerUserRequests, -maxRequestBodySizeToRetry and -maxIdleConnsPerBackend")
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
 		"Requests exceeding this limit are queued for up to -maxQueueDuration and then rejected with '429 Too Many Requests' http status code if the limit is still reached. "+
