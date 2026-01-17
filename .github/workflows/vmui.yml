@@ -34,18 +34,25 @@ jobs:
       - name: Code checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - name: Restore node_modules cache
+        id: cache-restore
+        uses: actions/cache/restore@v5
         with:
-          node-version: '24.x'
+          path: app/vmui/packages/vmui/node_modules
+          key: vmui-deps-${{ runner.os }}-${{ hashFiles('app/vmui/packages/vmui/package-lock.json') }}
+          restore-keys: |
+            vmui-deps-${{ runner.os }}-
 
-      - name: Cache node-modules
-        uses: actions/cache@v4
+      - name: Install dependencies
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        run: make vmui-install
+
+      - name: Save node_modules cache
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
         with:
-          path: |
-            app/vmui/packages/vmui/node_modules
-          key: vmui-artifacts-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: vmui-artifacts-${{ runner.os }}-
+          path: app/vmui/packages/vmui/node_modules
+          key: vmui-deps-${{ runner.os }}-${{ hashFiles('app/vmui/packages/vmui/package-lock.json') }}
 
       - name: Run lint
         id: lint
