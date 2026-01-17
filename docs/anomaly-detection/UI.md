@@ -26,7 +26,7 @@ aliases:
 
 ## Accessing the UI
 
-The UI is available at `http://<vmanomaly-host>:8490` by default, however, the port can be changed in `server` section of the [configuration file](https://docs.victoriametrics.com/anomaly-detection/components/) using the `port` parameter:
+The UI is available at `http://<vmanomaly-host>:8490` by default, however, the port can be changed in `server` [section](https://docs.victoriametrics.com/anomaly-detection/components/server/) of the [configuration file](https://docs.victoriametrics.com/anomaly-detection/components/) using the `port` parameter:
 
 ```yaml
 server:
@@ -435,7 +435,7 @@ Released: 2026-01-12
 
 vmanomaly version: [v1.28.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1284)
 
-- FEATURE: Allow `path_prefix` parameter to override the server's configured URL path prefix for all HTTP routes. This is useful when the UI is served behind a reverse proxy that modifies the base path. For example, if the server is configured with `path_prefix: /my-app`, accessing the UI at `/my-app/` will work correctly even if the proxy serves it at a different base path.
+- FEATURE: Allow `path_prefix` parameter to override the server's configured URL path prefix for all HTTP routes. This is useful when the UI is served behind a reverse proxy that modifies the base path. For example, if the server is configured with `path_prefix: /my-app`, accessing the UI at `/my-app/` will work correctly even if the proxy serves it at a different base path. It can be set in the `server` [section](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters) of the configuration file.
 
 ### v1.4.0
 Released: 2025-12-11
