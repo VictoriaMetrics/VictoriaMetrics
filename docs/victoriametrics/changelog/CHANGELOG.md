@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): ceiling the last scrape size as an integer in kilobytes to avoid misleading dots. See [#10307](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10307).
+
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
 Released at 2026-01-16
