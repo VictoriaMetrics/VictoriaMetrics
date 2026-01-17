@@ -268,11 +268,13 @@ func bufferRequestBody(r *http.Request, ui *UserInfo) error {
 	start := time.Now()
 	n, err := rtb.Read(make([]byte, maxRequestBodySizeToRetry.IntN()))
 	if err != nil {
+		bufferRequestBodyDuration.UpdateDuration(start)
 		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot read request body: %w", err),
 			StatusCode: http.StatusBadRequest,
 		}
 	}
+	bufferRequestBodyDuration.UpdateDuration(start)
 
 	dur := time.Since(start)
 	if *bufferRequestTimeout > 0 && dur > *bufferRequestTimeout && !rtb.bufComplete {
@@ -581,12 +583,12 @@ var hopHeaders = []string{
 }
 
 var (
-	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
-	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
-	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
-	clientCanceledRequests   = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
-	rejectSlowClientRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
-	bufferReadDuration       = metrics.NewSummaryExt(`vmauth_request_slow_read_duration_seconds`, time.Second*30, []float64{0.95, 0.97, 0.99, 1})
+	configReloadRequests      = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
+	invalidAuthTokenRequests  = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
+	missingRouteRequests      = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	clientCanceledRequests    = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
+	rejectSlowClientRequests  = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
+	bufferRequestBodyDuration = metrics.NewSummary(`vmauth_buffer_request_body_duration_seconds`)
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
