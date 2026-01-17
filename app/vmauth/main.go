@@ -265,8 +265,10 @@ func bufferRequestBody(r *http.Request, ui *UserInfo) error {
 		return nil
 	}
 
+	rtb.buf = make([]byte, 0, maxRequestBodySizeToRetry.IntN())
+
 	start := time.Now()
-	n, err := rtb.Read(make([]byte, maxRequestBodySizeToRetry.IntN()))
+	n, err := rtb.Read(rtb.buf[:cap(rtb.buf)])
 	if err != nil && !errors.Is(err, io.EOF) {
 		bufferRequestBodyDuration.UpdateDuration(start)
 		return &httpserver.ErrorWithStatusCode{
@@ -274,6 +276,7 @@ func bufferRequestBody(r *http.Request, ui *UserInfo) error {
 			StatusCode: http.StatusBadRequest,
 		}
 	}
+	rtb.readBuf = rtb.buf[:n]
 	bufferRequestBodyDuration.UpdateDuration(start)
 
 	dur := time.Since(start)
