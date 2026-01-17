@@ -46,21 +46,38 @@ var (
 		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
 	responseTimeout = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 
-	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
-		"'429 Too Many Requests' http status code. See also -maxQueueDuration, -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
+	bufferRequestSize = flagutil.NewBytes("bufferRequestSize", 0, "The size of the initial request body chunk to buffer proactively. "+
+		"When set to a value greater than 0, vmauth reads up to max(-bufferRequestSize, -maxRequestBodySizeToRetry) bytes from the request body upfront. "+
+		"This allows detecting and rejecting slow clients early before consuming upstream servers capacity. "+
+		"Set to 0 to disable proactive buffering. "+
+		"See also -bufferRequestTimeout and -maxRequestBodySizeToRetry")
+
+	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process simultaneously. "+
+		"Requests exceeding this limit are immediately rejected with '429 Too Many Requests' http status code. "+
+		"This protects vmauth itself from overloading and out-of-memory (OOM) failures. "+
+		"The memory needed for request processing can be roughly estimated as (32KiB + max(-bufferRequestSize, -maxRequestBodySizeToRetry)) * -maxConcurrentRequests < Available Memory. "+
+		"See also -maxConcurrentPerUserRequests, -maxRequestBodySizeToRetry and -maxIdleConnsPerBackend")
 	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
-		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxQueueDuration and -maxConcurrentRequests command-line options "+
-		"and max_concurrent_requests option in per-user config")
-	maxQueueDuration = flag.Duration("maxQueueDuration", 10*time.Second, "The maximum duration the request waits for execution when the number of concurrently executed "+
-		"requests reach -maxConcurrentRequests or -maxConcurrentPerUserRequests before returning '429 Too Many Requests' error. "+
-		"This allows graceful handling of short spikes in the number of concurrent requests")
+		"Requests exceeding this limit are queued for up to -maxQueueDuration and then rejected with '429 Too Many Requests' http status code if the limit is still reached. "+
+		"This limit provides fairness and isolation between users, preventing a single user from consuming all available resources. "+
+		"It works in conjunction with -maxConcurrentRequests, which sets the global limit across all users. "+
+		"This default can be overridden for individual users via max_concurrent_requests option in per-user config. "+
+		"See also -maxQueueDuration and -maxConcurrentRequests")
+	maxQueueDuration = flag.Duration("maxQueueDuration", 10*time.Second, "The maximum duration for buffering request body (if -bufferRequestSize is set) "+
+		"and waiting for a per-user concurrency slot when -maxConcurrentPerUserRequests is reached. "+
+		"Returns '400 Bad Request' if request body buffering exceeds this duration (slow client). "+
+		"Returns '429 Too Many Requests' if concurrency slot cannot be acquired within this duration. "+
+		"This allows graceful handling of short spikes in concurrent requests and rejection of slow clients")
 
 	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
-	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
-		"Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests")
+	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size to buffer in memory for potential retries at other backends. "+
+		"Request bodies larger than this size cannot be retried if the backend fails. "+
+		"When -bufferRequestSize is greater than 0, vmauth proactively reads up to max(-bufferRequestSize, -maxRequestBodySizeToRetry) bytes. "+
+		"Bigger values may require more memory. Zero or negative value disables request body buffering and retries. "+
+		"See also -bufferRequestSize")
 	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
@@ -219,42 +236,93 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	concurrencyLimitOnce.Do(concurrencyLimitInit)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
+		if err := bufferRequestBody(ctx, r, ui); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			ui.requestErrors.Inc()
+			<-concurrencyLimitCh
+			return
+		}
 		if err := ui.beginConcurrencyLimit(ctx); err != nil {
 			handleConcurrencyLimitError(w, r, err)
 			<-concurrencyLimitCh
 			return
 		}
 	default:
-		// The -maxConcurrentRequests are executed. Wait until some of the requests are finished,
-		// so the current request could be executed.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
-		select {
-		case concurrencyLimitCh <- struct{}{}:
-			if err := ui.beginConcurrencyLimit(ctx); err != nil {
-				handleConcurrencyLimitError(w, r, err)
-				<-concurrencyLimitCh
-				return
-			}
-		case <-ctx.Done():
-			err := ctx.Err()
+		concurrentRequestsLimitReached.Inc()
 
-			concurrentRequestsLimitReached.Inc()
-
-			if errors.Is(err, context.DeadlineExceeded) {
-				err = fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because -maxConcurrentRequests=%d concurrent requests are executed",
-					*maxQueueDuration, cap(concurrencyLimitCh))
-				handleConcurrencyLimitError(w, r, err)
-				return
-			}
-
-			err = fmt.Errorf("cannot start executing the request because -maxConcurrentRequests=%d concurrent requests are executed: %w", cap(concurrencyLimitCh), err)
-			handleConcurrencyLimitError(w, r, err)
-			return
-		}
+		err := fmt.Errorf("cannot start executing the request because -maxConcurrentRequests=%d concurrent requests are executed", cap(concurrencyLimitCh))
+		handleConcurrencyLimitError(w, r, err)
+		return
 	}
 	processRequest(w, r, ui)
 	ui.endConcurrencyLimit()
 	<-concurrencyLimitCh
+}
+
+func bufferRequestBody(ctx context.Context, r *http.Request, ui *UserInfo) error {
+	maxSize := max(bufferRequestSize.IntN(), maxRequestBodySizeToRetry.IntN())
+	rtb := newBufferedBody(r.Body, maxSize)
+	r.Body = rtb
+
+	if bufferRequestSize.IntN() <= 0 {
+		return nil
+	}
+
+	start := time.Now()
+	tmpBuf := make([]byte, 8*1024)
+	read := 0
+
+loop:
+	for read < maxSize {
+		select {
+		case <-ctx.Done():
+			break loop
+		default:
+		}
+
+		tmpBuf = tmpBuf[:cap(tmpBuf)]
+		if maxSize-read < len(tmpBuf) {
+			tmpBuf = tmpBuf[:maxSize-read]
+		}
+
+		n, err := rtb.Read(tmpBuf)
+		read += n
+		if errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			bufferRequestBodyDuration.UpdateDuration(start)
+			return &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("cannot read request body: %w", err),
+				StatusCode: http.StatusBadRequest,
+			}
+		}
+	}
+	rtb.readBuf = rtb.buf
+
+	bufferRequestBodyDuration.UpdateDuration(start)
+
+	select {
+	case <-ctx.Done():
+		if rtb.bufComplete {
+			break
+		}
+
+		rejectSlowClientRequests.Inc()
+
+		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+		requestURI := httpserver.GetRequestURI(r)
+		dur := time.Since(start)
+
+		logger.Warnf("remoteAddr: %s; requestURI: %s; client %s; rejecting request because the clients sends body too slow; reading %d bytes took %s", remoteAddr, requestURI, ui.name(), read, dur)
+
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("client sends request body too slow, reading first %d bytes took %.2fsec, which exceeds -maxQueueDuration=%s", read, dur.Seconds(), *maxQueueDuration),
+			StatusCode: http.StatusBadRequest,
+		}
+	default:
+	}
+
+	return nil
 }
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
@@ -281,9 +349,6 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		up, hc = ui.DefaultURL, ui.HeadersConf
 		isDefault = true
 	}
-
-	rtb := newReadTrackingBody(r.Body, maxRequestBodySizeToRetry.IntN())
-	r.Body = rtb
 
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
@@ -339,7 +404,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 	}
 
-	rtb, rtbOK := req.Body.(*readTrackingBody)
+	rtb, rtbOK := req.Body.(*bufferedBody)
 	res, err := ui.rt.RoundTrip(req)
 
 	if ctxErr := r.Context().Err(); ctxErr != nil {
@@ -549,10 +614,12 @@ var hopHeaders = []string{
 }
 
 var (
-	configReloadRequests     = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
-	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
-	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
-	clientCanceledRequests   = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
+	configReloadRequests      = metrics.NewCounter(`vmauth_http_requests_total{path="/-/reload"}`)
+	invalidAuthTokenRequests  = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
+	missingRouteRequests      = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
+	clientCanceledRequests    = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
+	rejectSlowClientRequests  = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
+	bufferRequestBodyDuration = metrics.NewSummary(`vmauth_buffer_request_body_duration_seconds`)
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
@@ -652,8 +719,18 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 	httpserver.Errorf(w, r, "%s", err)
 }
 
-// readTrackingBody must be obtained via getReadTrackingBody()
-type readTrackingBody struct {
+// bufferedBody implements io.ReadCloser and wraps an HTTP request body.
+//
+// It serves two purposes:
+//  1. Enables request retries when the body size does not exceed maxBodySize
+//     by fully buffering the body in memory.
+//  2. Prevents slow clients from reducing effective server capacity by
+//     buffering the request body before acquiring a per-user concurrency slot.
+//
+// Instances must be created via newBufferedBody().
+//
+// See bufferRequestBody for details on how bufferedBody is used.
+type bufferedBody struct {
 	// maxBodySize is the maximum body size to cache in buf.
 	//
 	// Bigger bodies cannot be retried.
@@ -677,11 +754,11 @@ type readTrackingBody struct {
 	bufComplete bool
 }
 
-func newReadTrackingBody(r io.ReadCloser, maxBodySize int) *readTrackingBody {
+func newBufferedBody(r io.ReadCloser, maxBodySize int) *bufferedBody {
 	// do not use sync.Pool there
 	// since http.RoundTrip may still use request body after return
 	// See this issue for details https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051
-	rtb := &readTrackingBody{}
+	rtb := &bufferedBody{}
 	if maxBodySize < 0 {
 		maxBodySize = 0
 	}
@@ -706,7 +783,7 @@ func (r *zeroReader) Close() error {
 }
 
 // Read implements io.Reader interface.
-func (rtb *readTrackingBody) Read(p []byte) (int, error) {
+func (rtb *bufferedBody) Read(p []byte) (int, error) {
 	if len(rtb.readBuf) > 0 {
 		n := copy(p, rtb.readBuf)
 		rtb.readBuf = rtb.readBuf[n:]
@@ -736,7 +813,7 @@ func (rtb *readTrackingBody) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (rtb *readTrackingBody) canRetry() bool {
+func (rtb *bufferedBody) canRetry() bool {
 	if rtb.cannotRetry {
 		return false
 	}
@@ -747,7 +824,7 @@ func (rtb *readTrackingBody) canRetry() bool {
 }
 
 // Close implements io.Closer interface.
-func (rtb *readTrackingBody) Close() error {
+func (rtb *bufferedBody) Close() error {
 	if !rtb.cannotRetry {
 		rtb.readBuf = rtb.buf
 	} else {

@@ -734,6 +734,22 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 * `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
+## Request body buffering
+
+`vmauth` can buffer request bodies before forwarding them to backend servers to prevent slow-writing clients from occupying concurrency slots for the entire request duration. 
+This is especially important for clients on unreliable or low-bandwidth networks (for example, [IoT](https://en.wikipedia.org/wiki/Internet_of_things) devices over EDGE), 
+where slow uploads can exhaust concurrency limits, increase latency, reduce ingestion rate, and trigger `429 Too Many Requests` responses even when backend resources are not saturated. 
+
+Request body buffering is disabled by default and can be enabled with the `-bufferRequestSize` flag, 
+which defines the maximum number of bytes to buffer from the request body. 
+When enabled, `vmauth` reads up to `max(-bufferRequestSize, -maxRequestBodySizeToRetry)` bytes before acquiring a per-user [concurrency slot](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting). 
+If buffering takes longer than `-maxQueueDuration`, the request is rejected early with `400 Bad Request`.
+
+The following [metrics](#monitoring) related to request buffering are exposed by `vmauth`:
+
+* `vmauth_http_request_errors_total{reason="reject_slow_client"}` - the number of requests rejected with `400 Bad Request` error because buffering exceeded `-maxQueueDuration`.
+* `vmauth_buffer_request_body_duration_seconds` - the [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) of request body buffering duration. Use this metric to understand buffering performance and identify slow clients.
+
 ## Backend TLS setup
 
 By default, `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option in the [`-auth.config`](#auth-config). These settings can be overridden with the following command-line flags:
