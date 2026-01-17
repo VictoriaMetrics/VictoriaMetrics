@@ -219,11 +219,11 @@ preset: ui
 # other sections, if needed e.g. settings
 
 server:
-  ui_default_state: '?#/?anomaly_threshold=1.0&anomaly_consecutive_points=3&fit_window=3d'
+  ui_default_state: '#/?anomaly_threshold=1.0&anomaly_consecutive=true&fit_window=3d'
   # other server parameters, if needed e.g. port, max_concurrent_tasks, etc.
 ```
 
-After that, accessing `http://<vmanomaly-host>:<port>/vmui/` (e.g. `http://localhost:8490/vmui/`) will open the UI with the preconfigured default state: `anomaly_threshold=1.0`, `anomaly_consecutive_points=3` (consecutive anomaly mode turned on, respectively), `fit_window=3d` in the example above.
+After that, accessing `http://<vmanomaly-host>:<port>/vmui/` (e.g. `http://localhost:8490/vmui/`) will open the UI with the preconfigured default state: `anomaly_threshold=1.0`, consecutive anomaly mode turned on and `fit_window=3d` given the example above.
 
 > Please refer to [URL sharing](#url-sharing) section for details on how to construct and copy the desired UI state URL.
 

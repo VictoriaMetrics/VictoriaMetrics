@@ -13,7 +13,7 @@ aliases:
   - ./server.html
 ---
 
-Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsible for serving the REST API (e.g. `/metrics` endpoint) and the [web UI](https://docs.victoriametrics.com/anomaly-detection/UI/) for anomaly detection. 
+Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsible for serving the REST API (e.g. `/metrics` endpoint) and the [web UI](https://docs.victoriametrics.com/anomaly-detection/ui/) for anomaly detection. 
 
 > If set, it also acts as metrics publishing endpoint for VictoriaMetrics Agent or other Prometheus-compatible scrapers to collect [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/), so no `monitoring.pull` is needed to be set in such cases.
 
@@ -24,7 +24,7 @@ Server component of VictoriaMetrics Anomaly Detection (`vmanomaly`) is responsib
 - `addr`: IP address of the query server to listen on. Default is `0.0.0.0`.
 - `port`: Port of the query server to listen on. Default is `8490`.
 - `path_prefix`: Optional URL path prefix for all HTTP routes. If set to `my-app` or `/my-app`, routes will be served under `<vmanomaly-host>:<port>/my-app/...`.
-- `ui_default_state`: Optional [UI](https://docs.victoriametrics.com/anomaly-detection/UI/) state fragment to open on `/vmui/`. Must be URL-encoded and start with `#/?` (e.g. `#/?param=value`). See [Default State](https://docs.victoriametrics.com/anomaly-detection/ui/#default-state) section for details on constructing the value from UI state.
+- `ui_default_state`: Optional [UI](https://docs.victoriametrics.com/anomaly-detection/ui/) state fragment to open on `/vmui/`. Must be URL-encoded and start with `#/?` (e.g. `#/?param=value`). See [Default State](https://docs.victoriametrics.com/anomaly-detection/ui/#default-state) section for details on constructing the value from UI state.
 - `max_concurrent_tasks`: Maximum number of concurrent anomaly detection tasks processed by the backend. Positive integer. All tasks above the limit will be cancelled if the limit is exceeded. Defaults to `2`.
 - `uvicorn_config`: Uvicorn configuration dictionary. Default is `{"log_level": "warning"}`. See [Uvicorn server settings](https://www.uvicorn.org/settings/) for details.
 
@@ -39,7 +39,7 @@ server:
   path_prefix: '/vmanomaly'  # optional path prefix for all HTTP routes
   
   # see https://docs.victoriametrics.com/anomaly-detection/ui/#default-state section for details on constructing the value from UI state
-  ui_default_state: '#/?anomaly_threshold=1.0&anomaly_consecutive_points=3&fit_window=3d'
+  ui_default_state: '#/?anomaly_threshold=1.0&anomaly_consecutive=true&fit_window=3d'  # optional default UI state opened on /vmui/
   max_concurrent_tasks: 4  # maximum number of concurrent anomaly detection tasks processed by backend
 
   uvicorn_config:  # optional Uvicorn server configuration
