@@ -1,55 +1,27 @@
 package fs
 
-import (
-	"sync"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
-)
-
-// ParallelReaderAtOpener opens ReaderAt files in parallel.
-//
-// ParallelReaderAtOpener speeds up opening multiple ReaderAt files on high-latency
-// storage systems such as NFS or Ceph.
-type ParallelReaderAtOpener struct {
-	tasks []parallelReaderAtOpenerTask
-}
-
-type parallelReaderAtOpenerTask struct {
+// ReaderAtOpenerTask task to open ReaderAt files in parallel.
+type ReaderAtOpenerTask struct {
 	path     string
 	rc       *MustReadAtCloser
 	fileSize *uint64
 }
 
-// Add adds a task for opening the file at the given path and storing it to *r, while storing the file size into *fileSize.
+// NewReaderAtOpenerTask creates new task for writing the data from src to the path
 //
-// Call Run() for running all the registered tasks in parallel.
-func (pro *ParallelReaderAtOpener) Add(path string, rc *MustReadAtCloser, fileSize *uint64) {
-	pro.tasks = append(pro.tasks, parallelReaderAtOpenerTask{
+// ParallelReaderAtOpener speeds up opening multiple ReaderAt files on high-latency
+// storage systems such as NFS or Ceph.
+func NewReaderAtOpenerTask(path string, rc *MustReadAtCloser, fileSize *uint64) *ReaderAtOpenerTask {
+	return &ReaderAtOpenerTask{
 		path:     path,
 		rc:       rc,
 		fileSize: fileSize,
-	})
+	}
 }
 
-// Run executes all the registered tasks in parallel.
-func (pro *ParallelReaderAtOpener) Run() {
-	var wg sync.WaitGroup
-	concurrencyCh := fsutil.GetConcurrencyCh()
-	for _, task := range pro.tasks {
-		concurrencyCh <- struct{}{}
-		wg.Add(1)
-
-		go func(path string, rc *MustReadAtCloser, fileSize *uint64) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
-
-			*rc = MustOpenReaderAt(path)
-			*fileSize = MustFileSize(path)
-		}(task.path, task.rc, task.fileSize)
-	}
-	wg.Wait()
+func (t *ReaderAtOpenerTask) Run() {
+	*t.rc = OpenReaderAt(t.path)
+	*t.fileSize = MustFileSize(t.path)
 }
 
 // MustCloser must implement MustClose() function.
@@ -57,23 +29,24 @@ type MustCloser interface {
 	MustClose()
 }
 
-// MustCloseParallel closes all the cs in parallel.
+// CloserTask task to close all the MustCloser in parallel.
 //
 // Parallel closing reduces the time needed to flush the data to the underlying files on close
 // on high-latency storage systems such as NFS or Ceph.
-func MustCloseParallel(cs []MustCloser) {
-	var wg sync.WaitGroup
-	concurrencyCh := fsutil.GetConcurrencyCh()
-	for _, c := range cs {
-		concurrencyCh <- struct{}{}
-		wg.Add(1)
-		go func(c MustCloser) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
-			c.MustClose()
-		}(c)
+type CloserTask struct {
+	c MustCloser
+}
+
+// NewCloserTask creates new task for writing the data from src to the path
+//
+// NewCloserTask speeds up opening multiple MustCloser files on high-latency
+// storage systems such as NFS or Ceph.
+func NewCloserTask(c MustCloser) *CloserTask {
+	return &CloserTask{
+		c: c,
 	}
-	wg.Wait()
+}
+
+func (t *CloserTask) Run() {
+	t.c.MustClose()
 }

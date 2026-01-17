@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
@@ -84,10 +85,9 @@ func (w *bloomValuesWriter) totalBytesWritten() uint64 {
 	return w.bloom.bytesWritten + w.values.bytesWritten
 }
 
-func (w *bloomValuesWriter) appendClosers(dst []fs.MustCloser) []fs.MustCloser {
-	dst = append(dst, &w.bloom)
-	dst = append(dst, &w.values)
-	return dst
+func (w *bloomValuesWriter) appendCloserTasks(pe *fsutil.ParallelExecutor) {
+	pe.Add(fs.NewCloserTask(&w.bloom))
+	pe.Add(fs.NewCloserTask(&w.values))
 }
 
 type bloomValuesStreamWriter struct {
@@ -158,22 +158,21 @@ func (sw *streamWriters) totalBytesWritten() uint64 {
 func (sw *streamWriters) MustClose() {
 	// Flush and close files in parallel in order to reduce the time needed for this operation
 	// on high-latency storage systems such as NFS or Ceph.
-	cs := []fs.MustCloser{
-		&sw.columnNamesWriter,
-		&sw.columnIdxsWriter,
-		&sw.metaindexWriter,
-		&sw.indexWriter,
-		&sw.columnsHeaderIndexWriter,
-		&sw.columnsHeaderWriter,
-		&sw.timestampsWriter,
-	}
+	var pe fsutil.ParallelExecutor
+	pe.Add(fs.NewCloserTask(&sw.columnNamesWriter))
+	pe.Add(fs.NewCloserTask(&sw.columnIdxsWriter))
+	pe.Add(fs.NewCloserTask(&sw.metaindexWriter))
+	pe.Add(fs.NewCloserTask(&sw.indexWriter))
+	pe.Add(fs.NewCloserTask(&sw.columnsHeaderIndexWriter))
+	pe.Add(fs.NewCloserTask(&sw.columnsHeaderWriter))
+	pe.Add(fs.NewCloserTask(&sw.timestampsWriter))
 
-	cs = sw.messageBloomValuesWriter.appendClosers(cs)
+	sw.messageBloomValuesWriter.appendCloserTasks(&pe)
 	for i := range sw.bloomValuesShards {
-		cs = sw.bloomValuesShards[i].appendClosers(cs)
+		sw.bloomValuesShards[i].appendCloserTasks(&pe)
 	}
 
-	fs.MustCloseParallel(cs)
+	pe.Run()
 }
 
 func (sw *streamWriters) getBloomValuesWriterForColumnName(name string) *bloomValuesWriter {
@@ -312,39 +311,39 @@ func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
 	columnsHeaderPath := filepath.Join(path, columnsHeaderFilename)
 	timestampsPath := filepath.Join(path, timestampsFilename)
 
-	var pfc filestream.ParallelFileCreator
+	var pe fsutil.ParallelExecutor
 
 	// Always cache columnNames file, since it is re-read immediately after part creation
 	var columnNamesWriter filestream.WriteCloser
-	pfc.Add(columnNamesPath, &columnNamesWriter, false)
+	pe.Add(filestream.NewFileCreatorTask(columnNamesPath, &columnNamesWriter, false))
 
 	// Always cache columnIdxs file, since it is re-read immediately after part creation
 	var columnIdxsWriter filestream.WriteCloser
-	pfc.Add(columnIdxsPath, &columnIdxsWriter, false)
+	pe.Add(filestream.NewFileCreatorTask(columnIdxsPath, &columnIdxsWriter, false))
 
 	// Always cache metaindex file, since it is re-read immediately after part creation
 	var metaindexWriter filestream.WriteCloser
-	pfc.Add(metaindexPath, &metaindexWriter, false)
+	pe.Add(filestream.NewFileCreatorTask(metaindexPath, &metaindexWriter, false))
 
 	var indexWriter filestream.WriteCloser
-	pfc.Add(indexPath, &indexWriter, nocache)
+	pe.Add(filestream.NewFileCreatorTask(indexPath, &indexWriter, nocache))
 
 	var columnsHeaderIndexWriter filestream.WriteCloser
-	pfc.Add(columnsHeaderIndexPath, &columnsHeaderIndexWriter, nocache)
+	pe.Add(filestream.NewFileCreatorTask(columnsHeaderIndexPath, &columnsHeaderIndexWriter, nocache))
 
 	var columnsHeaderWriter filestream.WriteCloser
-	pfc.Add(columnsHeaderPath, &columnsHeaderWriter, nocache)
+	pe.Add(filestream.NewFileCreatorTask(columnsHeaderPath, &columnsHeaderWriter, nocache))
 
 	var timestampsWriter filestream.WriteCloser
-	pfc.Add(timestampsPath, &timestampsWriter, nocache)
+	pe.Add(filestream.NewFileCreatorTask(timestampsPath, &timestampsWriter, nocache))
 
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
 	var messageBloomValuesWriter bloomValuesStreamWriter
-	pfc.Add(messageBloomFilterPath, &messageBloomValuesWriter.bloom, nocache)
-	pfc.Add(messageValuesPath, &messageBloomValuesWriter.values, nocache)
+	pe.Add(filestream.NewFileCreatorTask(messageBloomFilterPath, &messageBloomValuesWriter.bloom, nocache))
+	pe.Add(filestream.NewFileCreatorTask(messageValuesPath, &messageBloomValuesWriter.values, nocache))
 
-	pfc.Run()
+	pe.Run()
 
 	createBloomValuesWriter := func(shardIdx uint64) bloomValuesStreamWriter {
 		bloomPath := getBloomFilePath(path, shardIdx)
