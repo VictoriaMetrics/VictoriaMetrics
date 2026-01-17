@@ -1,19 +1,16 @@
 package stream
 
 import (
-	"bufio"
 	"fmt"
 	"io"
-	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/snappy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -23,25 +20,28 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 //
 // callback shouldn't hold tss after returning.
 func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error) error {
-	wcr, err := writeconcurrencylimiter.GetReader(r)
+	startTime := fasttime.UnixTimestamp()
+
+	readCalls.Inc()
+	err := protoparserutil.ReadUncompressedData(r, "", maxInsertRequestSize, func(data []byte) error {
+		return parseRequestBody(data, isVMRemoteWrite, callback)
+	})
 	if err != nil {
-		return err
+		readErrors.Inc()
+		return fmt.Errorf("cannot read prometheus remote_write data from client in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
 	}
-	defer writeconcurrencylimiter.PutReader(wcr)
+	return nil
+}
 
-	ctx := getPushCtx(wcr)
-	defer putPushCtx(ctx)
-	if err := ctx.Read(); err != nil {
-		return err
-	}
-
+func parseRequestBody(data []byte, isVMRemoteWrite bool, callback func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error) error {
 	// Synchronously process the request in order to properly return errors to Parse caller,
 	// so it could properly return HTTP 503 status code in response.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896
 	bb := bodyBufferPool.Get()
 	defer bodyBufferPool.Put(bb)
 	if isVMRemoteWrite {
-		bb.B, err = encoding.DecompressZSTDLimited(bb.B[:0], ctx.reqBuf.B, maxInsertRequestSize.IntN())
+		var err error
+		bb.B, err = encoding.DecompressZSTDLimited(bb.B[:0], data, maxInsertRequestSize.IntN())
 		if err != nil {
 			// Fall back to Snappy decompression, since vmagent may send snappy-encoded messages
 			// with 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
@@ -51,13 +51,14 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 			// The logic is preserved for backwards compatibility.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650
 			zstdErr := err
-			bb.B, err = snappy.Decode(bb.B, ctx.reqBuf.B, maxInsertRequestSize.IntN())
+			bb.B, err = snappy.Decode(bb.B, data, maxInsertRequestSize.IntN())
 			if err != nil {
-				return fmt.Errorf("cannot decompress zstd-encoded request with length %d: %w", len(ctx.reqBuf.B), zstdErr)
+				return fmt.Errorf("cannot decompress zstd-encoded request with length %d: %w", len(data), zstdErr)
 			}
 		}
 	} else {
-		bb.B, err = snappy.Decode(bb.B, ctx.reqBuf.B, maxInsertRequestSize.IntN())
+		var err error
+		bb.B, err = snappy.Decode(bb.B, data, maxInsertRequestSize.IntN())
 		if err != nil {
 			// Fall back to zstd decompression, since vmagent may send zstd-encoded messages
 			// without 'Content-Encoding: zstd' header if they were put into persistent queue before vmagent restart.
@@ -67,9 +68,9 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 			// The logic is preserved for backwards compatibility.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8650
 			snappyErr := err
-			bb.B, err = encoding.DecompressZSTDLimited(bb.B[:0], ctx.reqBuf.B, maxInsertRequestSize.IntN())
+			bb.B, err = encoding.DecompressZSTDLimited(bb.B[:0], data, maxInsertRequestSize.IntN())
 			if err != nil {
-				return fmt.Errorf("cannot decompress snappy-encoded request with length %d: %w", len(ctx.reqBuf.B), snappyErr)
+				return fmt.Errorf("cannot decompress snappy-encoded request with length %d: %w", len(data), snappyErr)
 			}
 		}
 	}
@@ -101,33 +102,6 @@ func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSer
 
 var bodyBufferPool bytesutil.ByteBufferPool
 
-type pushCtx struct {
-	br     *bufio.Reader
-	reqBuf bytesutil.ByteBuffer
-}
-
-func (ctx *pushCtx) reset() {
-	ctx.br.Reset(nil)
-	ctx.reqBuf.Reset()
-}
-
-func (ctx *pushCtx) Read() error {
-	readCalls.Inc()
-	lr := ioutil.GetLimitedReader(ctx.br, int64(maxInsertRequestSize.N)+1)
-	startTime := fasttime.UnixTimestamp()
-	reqLen, err := ctx.reqBuf.ReadFrom(lr)
-	ioutil.PutLimitedReader(lr)
-	if err != nil {
-		readErrors.Inc()
-		return fmt.Errorf("cannot read compressed request in %d seconds: %w", fasttime.UnixTimestamp()-startTime, err)
-	}
-	if reqLen > int64(maxInsertRequestSize.N) {
-		readErrors.Inc()
-		return fmt.Errorf("too big packed request; mustn't exceed -maxInsertRequestSize=%d bytes; got %d bytes", maxInsertRequestSize.N, reqLen)
-	}
-	return nil
-}
-
 var (
 	readCalls       = metrics.NewCounter(`vm_protoparser_read_calls_total{type="promremotewrite"}`)
 	readErrors      = metrics.NewCounter(`vm_protoparser_read_errors_total{type="promremotewrite"}`)
@@ -135,21 +109,3 @@ var (
 	metadataRead    = metrics.NewCounter(`vm_protoparser_metadata_read_total{type="promremotewrite"}`)
 	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="promremotewrite"}`)
 )
-
-func getPushCtx(r io.Reader) *pushCtx {
-	if v := pushCtxPool.Get(); v != nil {
-		ctx := v.(*pushCtx)
-		ctx.br.Reset(r)
-		return ctx
-	}
-	return &pushCtx{
-		br: bufio.NewReaderSize(r, 64*1024),
-	}
-}
-
-func putPushCtx(ctx *pushCtx) {
-	ctx.reset()
-	pushCtxPool.Put(ctx)
-}
-
-var pushCtxPool sync.Pool
