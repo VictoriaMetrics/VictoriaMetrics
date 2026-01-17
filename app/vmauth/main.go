@@ -267,7 +267,7 @@ func bufferRequestBody(r *http.Request, ui *UserInfo) error {
 
 	start := time.Now()
 	n, err := rtb.Read(make([]byte, maxRequestBodySizeToRetry.IntN()))
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
 		bufferRequestBodyDuration.UpdateDuration(start)
 		return &httpserver.ErrorWithStatusCode{
 			Err:        fmt.Errorf("cannot read request body: %w", err),
