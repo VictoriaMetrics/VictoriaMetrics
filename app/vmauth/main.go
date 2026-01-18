@@ -258,25 +258,38 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 }
 
 func bufferRequestBody(r *http.Request, ui *UserInfo) error {
-	rtb := newReadTrackingBody(r.Body, maxRequestBodySizeToRetry.IntN())
+	maxBufferSize := maxRequestBodySizeToRetry.IntN()
+
+	rtb := newReadTrackingBody(r.Body, maxBufferSize)
 	r.Body = rtb
 
-	if maxRequestBodySizeToRetry.IntN() <= 0 || !*bufferRequest {
+	if maxBufferSize <= 0 || !*bufferRequest {
 		return nil
 	}
 
-	rtb.buf = make([]byte, 0, maxRequestBodySizeToRetry.IntN())
-
 	start := time.Now()
-	n, err := rtb.Read(rtb.buf[:cap(rtb.buf)])
-	if err != nil && !errors.Is(err, io.EOF) {
-		bufferRequestBodyDuration.UpdateDuration(start)
-		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot read request body: %w", err),
-			StatusCode: http.StatusBadRequest,
+	tmpBuf := make([]byte, 8*1024)
+	read := 0
+	for read < maxBufferSize {
+		tmpBuf = tmpBuf[:cap(tmpBuf)]
+		if maxBufferSize-read < len(tmpBuf) {
+			tmpBuf = tmpBuf[:maxBufferSize-read]
+		}
+
+		n, err := rtb.Read(tmpBuf)
+		read += n
+		if errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			bufferRequestBodyDuration.UpdateDuration(start)
+			return &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("cannot read request body: %w", err),
+				StatusCode: http.StatusBadRequest,
+			}
 		}
 	}
-	rtb.readBuf = rtb.buf[:n]
+	rtb.readBuf = rtb.buf
+
 	bufferRequestBodyDuration.UpdateDuration(start)
 
 	dur := time.Since(start)
@@ -286,10 +299,10 @@ func bufferRequestBody(r *http.Request, ui *UserInfo) error {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 
-		logger.Warnf("remoteAddr: %s; requestURI: %s; client %s; rejecting request because the clients sends body too slow; reading %d bytes took %s", remoteAddr, requestURI, ui.name(), n, dur)
+		logger.Warnf("remoteAddr: %s; requestURI: %s; client %s; rejecting request because the clients sends body too slow; reading %d bytes took %s", remoteAddr, requestURI, ui.name(), read, dur)
 
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("client sends request body too slow, reading first %d bytes took %s", n, dur),
+			Err:        fmt.Errorf("client sends request body too slow, reading first %d bytes took %s", read, dur),
 			StatusCode: http.StatusBadRequest,
 		}
 	}
