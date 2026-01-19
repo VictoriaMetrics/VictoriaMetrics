@@ -2262,3 +2262,85 @@ func TestSearchLabelValues(t *testing.T) {
 	s.MustClose()
 	fs.MustRemoveDir(path)
 }
+
+func TestSearchTenantsOnDate(t *testing.T) {
+	path := t.Name()
+	defer fs.MustRemoveAll(path)
+	s := MustOpenStorage(path, OpenOptions{})
+	defer s.MustClose()
+
+	db, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
+
+	// Create test data for different dates
+	baseTime := time.Date(2024, time.January, 15, 0, 0, 0, 0, time.UTC)
+	date1 := uint64(baseTime.UnixMilli()) / msecPerDay
+	date2 := date1 + 1
+	date3 := date1 + 2
+
+	// Create different tenants for different dates
+	tenants := []struct {
+		accountID uint32
+		projectID uint32
+		date      uint64
+	}{
+		{1, 10, date1},
+		{1, 11, date2},
+		{2, 20, date1},
+		{2, 21, date3},
+		{3, 30, date2},
+	}
+
+	is := db.getIndexSearch(0, 0, noDeadline)
+	for _, tt := range tenants {
+		var mn MetricName
+		mn.AccountID = tt.accountID
+		mn.ProjectID = tt.projectID
+		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", tt.accountID, tt.projectID))
+		mn.AddTag("test", "value")
+		mn.sortTags()
+
+		var tsid TSID
+		generateTSID(&tsid, &mn)
+		createAllIndexesForMetricName(db, &mn, &tsid, tt.date)
+	}
+	db.putIndexSearch(is)
+	s.DebugFlush()
+
+	// Test searching date1, should only return tenants for date1
+	is2 := db.getIndexSearch(0, 0, noDeadline)
+	tenantsMap := make(map[string]struct{})
+	err := is2.searchTenantsOnDate(tenantsMap, date1)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedTenants := []string{"1:10", "2:20"}
+	if len(tenantsMap) != len(expectedTenants) {
+		t.Fatalf("unexpected tenants count for date1; got %d; want %d", len(tenantsMap), len(expectedTenants))
+	}
+	for _, tenant := range expectedTenants {
+		if _, ok := tenantsMap[tenant]; !ok {
+			t.Fatalf("expected tenant %s not found for date1", tenant)
+		}
+	}
+
+	// Test searching date2
+	tenantsMap2 := make(map[string]struct{})
+	err = is2.searchTenantsOnDate(tenantsMap2, date2)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	expectedTenants2 := []string{"1:11", "3:30"}
+	if len(tenantsMap2) != len(expectedTenants2) {
+		t.Fatalf("unexpected tenants count for date2; got %d; want %d", len(tenantsMap2), len(expectedTenants2))
+	}
+	for _, tenant := range expectedTenants2 {
+		if _, ok := tenantsMap2[tenant]; !ok {
+			t.Fatalf("expected tenant %s not found for date2", tenant)
+		}
+	}
+
+	db.putIndexSearch(is2)
+}
