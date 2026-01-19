@@ -42,9 +42,11 @@ func NewResetOperator(ctx context.Context, ce *CardinalityEstimator) *ResetOpera
 		var curr time.Time
 		var canReset bool
 
-		for range time.Tick(1 * time.Second) {
+		ticker := time.NewTicker(1 * time.Second)
+		for range ticker.C {
 			select {
 			case <-ctx.Done():
+				ticker.Stop()
 				return
 			default:
 				func() {

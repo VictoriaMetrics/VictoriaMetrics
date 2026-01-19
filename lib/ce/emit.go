@@ -60,9 +60,11 @@ func NewCardinalityMetricEmitter(ctx context.Context, ce *CardinalityEstimator, 
 
 		b := bytes.Buffer{}
 
-		for range time.Tick(10 * time.Second) {
+		ticker := time.NewTicker(10 * time.Second)
+		for range ticker.C {
 			select {
 			case <-ctx.Done():
+				ticker.Stop()
 				log.Printf("CardinalityMetricEmitter stopped: %v", ctx.Err())
 				return
 			default:
