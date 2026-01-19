@@ -220,7 +220,8 @@ func (dmc *dateMetricIDCache) syncLocked() {
 }
 
 func (dmc *dateMetricIDCache) startRotation() {
-	d := timeutil.AddJitterToDuration(10 * time.Minute)
+	// 1 hour was chosen based on https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10064#issuecomment-3749046726
+	d := timeutil.AddJitterToDuration(time.Hour)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	for {

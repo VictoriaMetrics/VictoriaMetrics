@@ -11,6 +11,7 @@ aliases:
   - /relabeling.html
   - /relabeling/index.html
   - /relabeling/
+  - /victoria-metrics/relabeling/
 ---
 
 The relabeling cookbook provides practical examples and patterns for

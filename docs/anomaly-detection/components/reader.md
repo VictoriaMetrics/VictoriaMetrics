@@ -482,7 +482,7 @@ reader:
 
 ## VictoriaLogs reader
 
-{{% available_from "v1.26.0" anomaly %}} `vmanomaly` adds support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows quering and analyzing log data stored in VictoriaLogs, enabling anomaly detection on metrics generated from logs.
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly` adds support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows quering and analyzing log data stored in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), enabling anomaly detection on metrics generated from logs. **Querying [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) is supported with the same reader, as the endpoints for both are equivalent.**
 
 Its queries should be expressed in a subset of [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/), which is similar to MetricsQL/PromQL but adapted for log data.
 
@@ -508,7 +508,7 @@ The supported stats functions currently include:
 
 ### Query Examples
 
-> You can test your LogsQL queries with stats pipe functions using our [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/). Use either UI to access graphical results or the `/select/logsql/stats_query_range` endpoint to run your queries and see the raw results, e.g. as this [sample query](https://play-vmlogs.victoriametrics.com/select/logsql/stats_query_range?query=_time%3A5m%20%7C%20stats%20by%20%28_stream%29%20count%28%29%20as%20sample_row&step=1m).
+> You can test your LogsQL queries with stats pipe functions using our [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/) or [VictoriaTraces playground](https://play-vtraces.victoriametrics.com/). Use either UI to access graphical results or the `/select/logsql/stats_query_range` endpoint to run your queries and see the raw results, e.g. as this [sample query](https://play-vmlogs.victoriametrics.com/select/logsql/stats_query_range?query=_time%3A5m%20%7C%20stats%20by%20%28_stream%29%20count%28%29%20as%20sample_row&step=1m).
 
 Here are examples of simple valid LogsQL queries with stats pipe functions that can be used with `VLogsReader`.
 
@@ -557,7 +557,7 @@ The class name of the reader, must be `vlogs` (or `reader.vlogs.VLogsReader`).
 See [per-query config example](#per-query-config-example-1) below
             </td>
             <td>
-Dictionary of queries. Keys are query aliases, values are LogsQL queries to select data in format: `QUERY_ALIAS:<query>`, as accepted by `/select/logsql/stats_query_range?query=%s` VictoriaLogs endpoint. The `<query>` must contain `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe. Only functions returning numeric values are supported, e.g. `count()`, `sum()`, `avg()`, `count_uniq()`, `median()`, `quantile()`, etc.
+Dictionary of queries. Keys are query aliases, values are LogsQL queries to select data in format: `QUERY_ALIAS:<query>`, as accepted by `/select/logsql/stats_query_range?query=%s` VictoriaLogs/VictoriaTraces endpoint. The `<query>` must contain `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe. Only functions returning numeric values are supported, e.g. `count()`, `sum()`, `avg()`, `count_uniq()`, `median()`, `quantile()`, etc.
             </td>
         </tr>
         <tr>
@@ -569,7 +569,7 @@ Dictionary of queries. Keys are query aliases, values are LogsQL queries to sele
 `https://play-vmlogs.victoriametrics.com/`
             </td>
             <td>
-URL address of the VictoriaLogs datasource. Must be a valid URL.
+URL address of the VictoriaLogs/VictoriaTraces datasource. Must be a valid URL.
             </td>
         </tr>
         <tr>
@@ -766,6 +766,7 @@ reader:
   class: 'vlogs'  # or 'reader.vlogs.VLogsReader'
   # don't include /select/stats_query_range part in the URL, it is added automatically
   datasource_url: 'https://play-vmlogs.victoriametrics.com/'  # source victorialogs
+  # datasource_url: 'https://play-vtraces.victoriametrics.com/'  # source victoriatraces
   # tenant_id: '0:0'  # for cluster version only
   sampling_period: '1m'
   max_points_per_query: 10000

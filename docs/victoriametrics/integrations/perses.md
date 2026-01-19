@@ -43,7 +43,7 @@ Since VictoriaMetrics is Prometheus-compatible TSDB it's possible to use set of 
 * Select `Time Series Chart` in `Type` dropdown.
 * Select `Prometheus Time Series Query` in `Query Type` dropdown.
 * Select the Prometheus datasource you configured above from the `Prometheus Datasource` dropdown.
-* Type a valid [MetricsQL expression](https://docs.victoriametrics.com/victoriametrics/metricsql) you want to build a graph for in `PromQL Expression` field. It may reference a variable defined in variables plugin section using `${var-name}` expression or with specific formats like `${var:pipe}` for regex filters or `${var:csv}` for comma-separated values.
+* Type a valid [MetricsQL expression](https://docs.victoriametrics.com/victoriametrics/metricsql/) you want to build a graph for in `PromQL Expression` field. It may reference a variable defined in variables plugin section using `${var-name}` expression or with specific formats like `${var:pipe}` for regex filters or `${var:csv}` for comma-separated values.
 * Click `Add` to save a panel.
 
 ![Build Time Series panel using Prometheus plugin](./perses-time-panel.webp)

@@ -23,15 +23,17 @@ var maxLineLen = flagutil.NewBytes("import.maxLineLen", 10*1024*1024, "The maxim
 //
 // callback shouldn't hold rows after returning.
 func Parse(r io.Reader, encoding string, callback func(rows []vmimport.Row) error) error {
-	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	wcr, err := writeconcurrencylimiter.GetReader(r)
+	if err != nil {
+		return err
+	}
+	defer writeconcurrencylimiter.PutReader(wcr)
+
+	reader, err := protoparserutil.GetUncompressedReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode vmimport data: %w", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	reader = wcr
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
@@ -42,7 +44,6 @@ func Parse(r io.Reader, encoding string, callback func(rows []vmimport.Row) erro
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {

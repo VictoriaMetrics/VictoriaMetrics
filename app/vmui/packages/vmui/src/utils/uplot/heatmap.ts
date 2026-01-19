@@ -23,7 +23,18 @@ export const countsToFills = (u: uPlot, seriesIdx: number) => {
     }
   }
 
+  // no valid counts
+  if (!isFinite(minCount) || !isFinite(maxCount)) {
+    return counts.map(() => -1);
+  }
+
   const range = maxCount - minCount;
+
+  // all counts are the same
+  if (range === 0) {
+    return counts.map(c => (c > hideThreshold ? 0 : -1));
+  }
+
   const paletteSize = palette.length;
   const indexedFills = Array(counts.length);
 
@@ -40,9 +51,9 @@ export const heatmapPaths = () => (u: uPlot, seriesIdx: number) => {
   const cellGap = Math.round(devicePixelRatio);
 
   uPlot.orient(u, seriesIdx, (
-    series,
-    dataX,
-    dataY,
+    _series,
+    _dataX,
+    _dataY,
     scaleX,
     scaleY,
     valToPosX,
@@ -51,8 +62,8 @@ export const heatmapPaths = () => (u: uPlot, seriesIdx: number) => {
     yOff,
     xDim,
     yDim,
-    moveTo,
-    lineTo,
+    _moveTo,
+    _lineTo,
     rect
   ) => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -80,7 +91,7 @@ export const heatmapPaths = () => (u: uPlot, seriesIdx: number) => {
     const cys = ys.slice(0, yBinQty).map((y: number) => {
       return Math.round(valToPosY(y, scaleY, yDim, yOff) - ySize / 2);
     });
-    const cxs = Array.from({ length: xBinQty }, (v, i) => {
+    const cxs = Array.from({ length: xBinQty }, (_v, i) => {
       return Math.round(valToPosX(xs[i * yBinQty], scaleX, xDim, xOff) - xSize);
     });
 
@@ -114,7 +125,7 @@ export const heatmapPaths = () => (u: uPlot, seriesIdx: number) => {
 export const convertPrometheusToVictoriaMetrics = (buckets: MetricResult[]): MetricResult[] => {
   if (!buckets.every(a => a.metric.le)) return buckets;
 
-  const sortedBuckets = buckets.sort((a,b) => parseFloat(a.metric.le) - parseFloat(b.metric.le));
+  const sortedBuckets = buckets.sort((a, b) => parseFloat(a.metric.le) - parseFloat(b.metric.le));
   const group = buckets[0]?.group || 1;
   let prevBucket: MetricResult = { metric: { le: "" }, values: [], group };
   const result: MetricResult[] = [];
@@ -169,5 +180,29 @@ export const normalizeData = (buckets: MetricResult[], isHistogram?: boolean): M
     return { ...bucket, values };
   }) as MetricResult[];
 
-  return result.filter(r => !r.values.every(v => v[1] === "0"));
+  // Indices of buckets that have any non-zero values
+  const idxsWithData = result
+    .map((r, i) => (r.values.every(v => v[1] === "0") ? -1 : i))
+    .filter(i => i !== -1);
+
+  const countWithData = idxsWithData.length;
+
+  // No data at all, or too few buckets to bother slicing
+  if (countWithData === 0 || result.length <= 3) {
+    return result;
+  }
+
+  // More than one non-empty bucket: keep only buckets with data
+  if (countWithData > 1) {
+    return result.filter((_, i) => idxsWithData.includes(i));
+  }
+
+  // Keep the only non-empty bucket plus its adjacent buckets (if available)
+  const idx = idxsWithData[0];
+  const keep = new Set<number>([idx]);
+
+  if (idx - 1 >= 0) keep.add(idx - 1);
+  if (idx + 1 < result.length) keep.add(idx + 1);
+
+  return result.filter((_, i) => keep.has(i));
 };

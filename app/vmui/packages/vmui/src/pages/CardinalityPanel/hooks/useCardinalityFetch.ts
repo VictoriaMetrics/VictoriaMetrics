@@ -7,7 +7,6 @@ import AppConfigurator from "../appConfigurator";
 import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { DATE_FORMAT } from "../../../constants/date";
-import { getTenantIdFromUrl } from "../../../utils/tenants";
 import usePrevious from "../../../hooks/usePrevious";
 
 export const useFetchQuery = (): {
@@ -27,7 +26,7 @@ export const useFetchQuery = (): {
   const prevDate = usePrevious(date);
   const prevTotal = useRef<{ data: TSDBStatus }>();
 
-  const { serverUrl } = useAppState();
+  const { tenantId, serverUrl } = useAppState();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
   const [tsdbStatus, setTSDBStatus] = useState<TSDBStatus>(appConfigurator.defaultTSDBStatus);
@@ -158,9 +157,8 @@ export const useFetchQuery = (): {
   }, [error]);
 
   useEffect(() => {
-    const id = getTenantIdFromUrl(serverUrl);
-    setIsCluster(!!id);
-  }, [serverUrl]);
+    setIsCluster(!!tenantId);
+  }, [tenantId]);
 
 
   appConfigurator.tsdbStatusData = tsdbStatus;

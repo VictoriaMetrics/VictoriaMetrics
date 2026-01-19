@@ -23,19 +23,22 @@ import (
 // limitConcurrency defines whether to control the number of concurrent calls to this function.
 // It is recommended setting limitConcurrency=true if the caller doesn't have concurrency limits set,
 // like /api/v1/write calls.
-func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency, enableMetadata bool, callback func(rows []prometheus.Row, metadataList []prometheus.Metadata) error, errLogger func(string)) error {
+func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrency, enableMetadata bool,
+	callback func(rows []prometheus.Row, metadataList []prometheus.Metadata) error, errLogger func(string)) error {
+	if limitConcurrency {
+		wcr, err := writeconcurrencylimiter.GetReader(r)
+		if err != nil {
+			return err
+		}
+		defer writeconcurrencylimiter.PutReader(wcr)
+		r = wcr
+	}
+
 	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode Prometheus text exposition data: %w", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
-
-	var wcr *writeconcurrencylimiter.Reader
-	if limitConcurrency {
-		wcr = writeconcurrencylimiter.GetReader(reader)
-		defer writeconcurrencylimiter.PutReader(wcr)
-		reader = wcr
-	}
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
@@ -49,9 +52,6 @@ func Parse(r io.Reader, defaultTimestamp int64, encoding string, limitConcurrenc
 		uw.enableMetadata = enableMetadata
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
-		if wcr != nil {
-			wcr.DecConcurrency()
-		}
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {

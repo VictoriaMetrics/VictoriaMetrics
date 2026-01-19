@@ -58,7 +58,7 @@ func maxItemsPerCachedPart() uint64 {
 	// Production data shows that each item occupies ~4 bytes in the compressed part.
 	// It is expected no more than defaultPartsToMerge/2 parts exist
 	// in the OS page cache before they are merged into bigger part.
-	// Halft of the remaining RAM must be left for lib/storage parts,
+	// Half of the remaining RAM must be left for lib/storage parts,
 	// so the maxItems is calculated using the below code:
 	maxItems := uint64(mem) / (4 * defaultPartsToMerge)
 	if maxItems < 1e6 {

@@ -664,7 +664,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			Name:        "for-pending",
 			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-pending"},
-			Annotations: map[string]string{"activeAt": "5000"},
+			Annotations: map[string]string{},
 			State:       notifier.StatePending,
 			ActiveAt:    time.Unix(5, 0),
 			Value:       1,
@@ -684,7 +684,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			Name:        "for-firing",
 			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-firing"},
-			Annotations: map[string]string{"activeAt": "1000"},
+			Annotations: map[string]string{},
 			State:       notifier.StateFiring,
 			ActiveAt:    time.Unix(1, 0),
 			Start:       time.Unix(5, 0),
@@ -705,7 +705,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			Name:        "for-hold-pending",
 			Type:        config.NewPrometheusType().String(),
 			Labels:      map[string]string{"alertname": "for-hold-pending"},
-			Annotations: map[string]string{"activeAt": "5000"},
+			Annotations: map[string]string{},
 			State:       notifier.StatePending,
 			ActiveAt:    time.Unix(5, 0),
 			Value:       1,
@@ -1120,7 +1120,7 @@ func TestAlertingRuleLimit_Success(t *testing.T) {
 }
 
 func TestAlertingRule_Template(t *testing.T) {
-	f := func(rule *AlertingRule, metrics []datasource.Metric, alertsExpected map[uint64]*notifier.Alert) {
+	f := func(rule *AlertingRule, metrics []datasource.Metric, isResponsePartial bool, alertsExpected map[uint64]*notifier.Alert) {
 		t.Helper()
 
 		fakeGroup := Group{
@@ -1133,6 +1133,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			entries: make([]StateEntry, 10),
 		}
 		fq.Add(metrics...)
+		fq.SetPartialResponse(isResponsePartial)
 
 		if _, err := rule.exec(context.TODO(), time.Now(), 0); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -1163,7 +1164,7 @@ func TestAlertingRule_Template(t *testing.T) {
 	}, []datasource.Metric{
 		metricWithValueAndLabels(t, 1, "instance", "foo"),
 		metricWithValueAndLabels(t, 1, "instance", "bar"),
-	}, map[uint64]*notifier.Alert{
+	}, false, map[uint64]*notifier.Alert{
 		hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "foo"}): {
 			Annotations: map[string]string{
 				"summary": `common: Too high connection number for "foo"`,
@@ -1192,14 +1193,14 @@ func TestAlertingRule_Template(t *testing.T) {
 			"instance": "{{ $labels.instance }}",
 		},
 		Annotations: map[string]string{
-			"summary":     `{{ $labels.__name__ }}: Too high connection number for "{{ $labels.instance }}"`,
+			"summary":     `{{ $labels.__name__ }}: Too high connection number for "{{ $labels.instance }}".{{ if $isPartial }} WARNING: Partial response detected - this alert may be incomplete. Please verify the results manually.{{ end }}`,
 			"description": `{{ $labels.alertname}}: It is {{ $value }} connections for "{{ $labels.instance }}"`,
 		},
 		alerts: make(map[uint64]*notifier.Alert),
 	}, []datasource.Metric{
 		metricWithValueAndLabels(t, 2, "__name__", "first", "instance", "foo", alertNameLabel, "override"),
 		metricWithValueAndLabels(t, 10, "__name__", "second", "instance", "bar", alertNameLabel, "override"),
-	}, map[uint64]*notifier.Alert{
+	}, false, map[uint64]*notifier.Alert{
 		hash(map[string]string{alertNameLabel: "override label", "exported_alertname": "override", "instance": "foo"}): {
 			Labels: map[string]string{
 				alertNameLabel:       "override label",
@@ -1207,7 +1208,7 @@ func TestAlertingRule_Template(t *testing.T) {
 				"instance":           "foo",
 			},
 			Annotations: map[string]string{
-				"summary":     `first: Too high connection number for "foo"`,
+				"summary":     `first: Too high connection number for "foo".`,
 				"description": `override: It is 2 connections for "foo"`,
 			},
 		},
@@ -1218,7 +1219,7 @@ func TestAlertingRule_Template(t *testing.T) {
 				"instance":           "bar",
 			},
 			Annotations: map[string]string{
-				"summary":     `second: Too high connection number for "bar"`,
+				"summary":     `second: Too high connection number for "bar".`,
 				"description": `override: It is 10 connections for "bar"`,
 			},
 		},
@@ -1231,7 +1232,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			"instance": "{{ $labels.instance }}",
 		},
 		Annotations: map[string]string{
-			"summary": `Alert "{{ $labels.alertname }}({{ $labels.alertgroup }})" for instance {{ $labels.instance }}`,
+			"summary": `Alert "{{ $labels.alertname }}({{ $labels.alertgroup }})" for instance {{ $labels.instance }}.{{ if $isPartial }} WARNING: Partial response detected - this alert may be incomplete. Please verify the results manually.{{ end }}`,
 		},
 		alerts: make(map[uint64]*notifier.Alert),
 	}, []datasource.Metric{
@@ -1239,7 +1240,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			alertNameLabel, "originAlertname",
 			alertGroupNameLabel, "originGroupname",
 			"instance", "foo"),
-	}, map[uint64]*notifier.Alert{
+	}, true, map[uint64]*notifier.Alert{
 		hash(map[string]string{
 			alertNameLabel:        "OriginLabels",
 			"exported_alertname":  "originAlertname",
@@ -1255,7 +1256,7 @@ func TestAlertingRule_Template(t *testing.T) {
 				"instance":            "foo",
 			},
 			Annotations: map[string]string{
-				"summary": `Alert "originAlertname(originGroupname)" for instance foo`,
+				"summary": `Alert "originAlertname(originGroupname)" for instance foo. WARNING: Partial response detected - this alert may be incomplete. Please verify the results manually.`,
 			},
 		},
 	})
@@ -1385,7 +1386,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		"group":         "vmalert",
 		"alertname":     "ConfigurationReloadFailure",
 		"alertgroup":    "vmalert",
-		"invalid_label": `error evaluating template: template: :1:268: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
+		"invalid_label": `error evaluating template: template: :1:298: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 
 	expectedProcessedLabels := map[string]string{
@@ -1395,7 +1396,7 @@ func TestAlertingRule_ToLabels(t *testing.T) {
 		"exported_alertname": "ConfigurationReloadFailure",
 		"group":              "vmalert",
 		"alertgroup":         "vmalert",
-		"invalid_label":      `error evaluating template: template: :1:268: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
+		"invalid_label":      `error evaluating template: template: :1:298: executing "" at <.Values.mustRuntimeFail>: can't evaluate field Values in type notifier.tplData`,
 	}
 
 	ls, err := ar.toLabels(metric, nil)

@@ -27,11 +27,13 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func Parse(r io.Reader, callback func(rows []opentsdb.Row) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
+	wcr, err := writeconcurrencylimiter.GetReader(r)
+	if err != nil {
+		return err
+	}
 	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
 
-	ctx := getStreamContext(r)
+	ctx := getStreamContext(wcr)
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
@@ -40,7 +42,6 @@ func Parse(r io.Reader, callback func(rows []opentsdb.Row) error) error {
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {
