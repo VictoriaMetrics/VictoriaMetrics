@@ -136,10 +136,12 @@ func (mce *MetricCardinalityEstimator) MarshalBinary() ([]byte, error) {
 		MetricName          string
 		MetricNameFixedHlls map[string]*hyperloglog.Sketch
 		MetricNameHll       *hyperloglog.Sketch
+		Allocator           *Allocator
 	}{
 		MetricName:          mce.metricName,
 		MetricNameFixedHlls: mce.hlls,
 		MetricNameHll:       mce.metricHll,
+		Allocator:           mce.allocator,
 	}
 
 	var buf bytes.Buffer
@@ -155,6 +157,7 @@ func (mce *MetricCardinalityEstimator) UnmarshalBinary(data []byte) error {
 		MetricName          string
 		MetricNameFixedHlls map[string]*hyperloglog.Sketch
 		MetricNameHll       *hyperloglog.Sketch
+		Allocator           *Allocator
 	}{}
 
 	var buf bytes.Buffer
@@ -166,6 +169,7 @@ func (mce *MetricCardinalityEstimator) UnmarshalBinary(data []byte) error {
 	mce.metricName = anon.MetricName
 	mce.hlls = anon.MetricNameFixedHlls
 	mce.metricHll = anon.MetricNameHll
+	mce.allocator = anon.Allocator
 
 	return nil
 }
