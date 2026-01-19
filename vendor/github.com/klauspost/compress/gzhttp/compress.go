@@ -103,10 +103,7 @@ func (w *GzipResponseWriter) Write(b []byte) (int, error) {
 
 	// Save the write into a buffer for later use in GZIP responseWriter
 	// (if content is long enough) or at close with regular responseWriter.
-	wantBuf := 512
-	if w.minSize > wantBuf {
-		wantBuf = w.minSize
-	}
+	wantBuf := max(w.minSize, 512)
 	if w.jitterBuffer > 0 && w.jitterBuffer > wantBuf {
 		wantBuf = w.jitterBuffer
 	}
@@ -455,7 +452,7 @@ func GzipHandler(h http.Handler) http.HandlerFunc {
 	return defaultWrapper(h)
 }
 
-var grwPool = sync.Pool{New: func() interface{} { return &GzipResponseWriter{} }}
+var grwPool = sync.Pool{New: func() any { return &GzipResponseWriter{} }}
 
 // NewWrapper returns a reusable wrapper with the supplied options.
 func NewWrapper(opts ...option) (func(http.Handler) http.HandlerFunc, error) {
@@ -890,8 +887,8 @@ func parseCoding(s string) (coding string, qvalue float64, err error) {
 
 		if n == 0 {
 			coding = strings.ToLower(part)
-		} else if strings.HasPrefix(part, "q=") {
-			qvalue, err = strconv.ParseFloat(strings.TrimPrefix(part, "q="), 64)
+		} else if after, ok := strings.CutPrefix(part, "q="); ok {
+			qvalue, err = strconv.ParseFloat(after, 64)
 
 			if qvalue < 0.0 {
 				qvalue = 0.0
