@@ -41,9 +41,16 @@ func NewAllocator(max uint64) *Allocator {
 // Allocate creates a new HyperLogLog sketch and tracks it in the allocator.
 // Returns nil if the maximum number of HLLs in use would be exceeded.
 func (alloc *Allocator) Allocate() (*hyperloglog.Sketch, error) {
-	// Check if we can allocate another HLL
-	if alloc.inuse.Load() >= alloc.max {
-		return nil, ERROR_MAX_HLLS_INUSE
+	// Use CAS loop to atomically check and reserve a slot to avoid TOCTOU race
+	for {
+		current := alloc.inuse.Load()
+		if current >= alloc.max {
+			return nil, ERROR_MAX_HLLS_INUSE
+		}
+		if alloc.inuse.CompareAndSwap(current, current+1) {
+			break
+		}
+		// CAS failed, another goroutine modified inuse, retry
 	}
 
 	// Create a new HLL sketch with precision p=10 and useSparse=true.
@@ -62,10 +69,7 @@ func (alloc *Allocator) Allocate() (*hyperloglog.Sketch, error) {
 		log.Panicf("BUG: failed to create HLL sketch: %v", err)
 	}
 
-	// Update counters atomically
-	alloc.inuse.Add(1)
 	alloc.created.Add(1)
-
 	hllsCreatedTotal.Inc()
 
 	return hll, nil
