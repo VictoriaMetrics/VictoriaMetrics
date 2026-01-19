@@ -46,6 +46,11 @@ func NewCardinalityMetricEmitter(ctx context.Context, ce *CardinalityEstimator, 
 		emitMinCardinality: 0,
 	}
 
+	// apply options
+	for _, opt := range opts {
+		opt(cme)
+	}
+
 	// Low frequency goroutine that calculates estimations and emits metrics.
 	go func() {
 		if !cme.emitEnabled {
