@@ -1,6 +1,9 @@
 package ce
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
 type ResetSchedule struct {
 	ResetInterval time.Duration `json:"resetInterval"`
@@ -9,6 +12,13 @@ type ResetSchedule struct {
 }
 
 func NewResetSchedule(ceLookbackWindow time.Duration, ceNodeCount int, ceNodeIndex int) ResetSchedule {
+	if ceNodeCount <= 0 {
+		log.Panicf("node count cannot be leq 0")
+	}
+	if ceNodeIndex >= ceNodeCount {
+		log.Panicf("node index cannot be geq to node count")
+	}
+
 	resetInterval := ceLookbackWindow
 	quantum := resetInterval / time.Duration(ceNodeCount)
 
