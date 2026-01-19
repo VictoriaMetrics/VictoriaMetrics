@@ -115,7 +115,8 @@ func Test_targetStatus_GetSizeFromLastScrape_RoundUp(t *testing.T) {
 	}
 
 	f(0, "never scraped")
-	f(1, "1KiB")
+	f(1, "1B")
+	f(1023, "1023B")
 	f(1024, "1KiB")
 	f(1025, "2KiB")
 	f(1024*1024, "1024KiB")
