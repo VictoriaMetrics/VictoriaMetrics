@@ -13,7 +13,6 @@ import { getFromStorage } from "../../../../utils/storage";
 
 export type LegendProps = {
   labels: LegendItemType[];
-  isAnomalyView?: boolean;
   duplicateFields?: string[];
   onChange: (item: LegendItemType, metaKey: boolean) => void;
 }
@@ -22,7 +21,7 @@ interface LegendGroupProps extends LegendProps {
   group: string | number;
 }
 
-const LegendGroup: FC<LegendGroupProps> = ({ labels, group, isAnomalyView, onChange }) => {
+const LegendGroup: FC<LegendGroupProps> = ({ labels, group, onChange }) => {
   const { isTableView } = useLegendView();
   const { groupByLabel } = useLegendGroup();
   const copyToClipboard = useCopyToClipboard();
@@ -81,7 +80,6 @@ const LegendGroup: FC<LegendGroupProps> = ({ labels, group, isAnomalyView, onCha
       >
         <Content
           labels={sortedLabels}
-          isAnomalyView={isAnomalyView}
           duplicateFields={duplicateFields}
           onChange={onChange}
         />
