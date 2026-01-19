@@ -77,7 +77,7 @@ func NewResetOperator(ctx context.Context, ce *CardinalityEstimator) *ResetOpera
 
 	// Start job to automatically reset estimators
 	go func() {
-		if *estimatorResetInterval == 0 {
+		if *estimatorResetInterval <= 0 {
 			log.Printf("Reset interval is set to 0 (disabled).")
 			return
 		}
