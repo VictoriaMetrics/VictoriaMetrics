@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
@@ -61,19 +63,19 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 	var it chunkenc.Iterator
 	for ss.Next() {
 		var name string
-		var labels []vm.LabelPair
+		var labelPairs []vm.LabelPair
 		series := ss.At()
 
-		for _, label := range series.Labels() {
+		series.Labels().Range(func(label labels.Label) {
 			if label.Name == "__name__" {
 				name = label.Value
-				continue
+				return
 			}
-			labels = append(labels, vm.LabelPair{
-				Name:  label.Name,
-				Value: label.Value,
+			labelPairs = append(labelPairs, vm.LabelPair{
+				Name:  strings.Clone(label.Name),
+				Value: strings.Clone(label.Value),
 			})
-		}
+		})
 		if name == "" {
 			return fmt.Errorf("failed to find `__name__` label in labelset for block %v", b.Meta().ULID)
 		}
@@ -99,7 +101,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		}
 		ts := vm.TimeSeries{
 			Name:       name,
-			LabelPairs: labels,
+			LabelPairs: labelPairs,
 			Timestamps: timestamps,
 			Values:     values,
 		}

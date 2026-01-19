@@ -162,7 +162,7 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 			var matchers []*labels.Matcher
 			cb := func() (int64, error) { return 0, nil }
 
-			c := remote.NewSampleAndChunkQueryableClient(rrs.storage, nil, matchers, true, cb)
+			c := remote.NewSampleAndChunkQueryableClient(rrs.storage, labels.New(), matchers, true, cb)
 
 			q, err := c.ChunkQuerier(startTs, endTs)
 			if err != nil {
@@ -317,13 +317,13 @@ func generateRemoteReadSamples(idx int, startTime, endTime, numOfSamples int64) 
 	return samples
 }
 
-func labelsToLabelsProto(labels labels.Labels) []prompb.Label {
-	result := make([]prompb.Label, 0, len(labels))
-	for _, l := range labels {
+func labelsToLabelsProto(ls labels.Labels) []prompb.Label {
+	result := make([]prompb.Label, 0, ls.Len())
+	ls.Range(func(l labels.Label) {
 		result = append(result, prompb.Label{
-			Name:  l.Name,
-			Value: l.Value,
+			Name:  strings.Clone(l.Name),
+			Value: strings.Clone(l.Value),
 		})
-	}
+	})
 	return result
 }
