@@ -12,8 +12,8 @@ var maxConcurrency = flag.Int("fs.maxConcurrency", getDefaultConcurrency(), "The
 
 func getDefaultConcurrency() int {
 	n := 16 * cgroup.AvailableCPUs()
-	if n > 265 {
-		n = 265
+	if n > 256 {
+		n = 256
 	}
 	return n
 }
