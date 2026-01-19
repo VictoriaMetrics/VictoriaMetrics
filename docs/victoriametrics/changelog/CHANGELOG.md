@@ -121,6 +121,21 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
 
+## [v1.122.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.13)
+
+Released at 2026-01-16
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* SECURITY: upgrade Go builder from Go1.24.11 to Go1.24.12. It addresses [CVE-2025-61729](http://scout.docker.com/v/CVE-2025-61729). See [the list of issues addressed in Go1.24.12](https://github.com/golang/go/issues?q=milestone%3AGo1.24.12+label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix configuration reloading for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` when vmagent is launched with empty files. Previously, if vmagent started with an empty config, subsequent config reloads were ignored. See [#10211](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10211).
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): reduce default value for `storage.vminsertConnsShutdownDuration` flag from `25s` to `10s` seconds. It reduces probability of ungraceful storage shutdown at Kubernetes based environments, which has 30 seconds default graceful termination period value. See [#10273](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10273)
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix heatmap rendering issues where charts could break or appear empty when bucket values were uniform or sparse. See [#10240](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10240).
+* BUGFIX: all VictoriaMetrics components: prefer numerical values over [stale markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers) when samples share the same timestamp during deduplication. See [#10196](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10196#issuecomment-3738433938).
+
 ## [v1.122.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.12)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v112212)
@@ -220,6 +235,21 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11110)
+
+## [v1.110.28](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.28)
+
+Released at 2026-01-16
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
+
+* SECURITY: upgrade Go builder from Go1.24.11 to Go1.24.12. See [the list of issues addressed in Go1.24.12](https://github.com/golang/go/issues?q=milestone%3AGo1.24.12+label%3ACherryPickApproved).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): fix configuration reloading for `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig` when vmagent is launched with empty files. Previously, if vmagent started with an empty config, subsequent config reloads were ignored. See [#10211](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10211).
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): reduce default value for `storage.vminsertConnsShutdownDuration` flag from `25s` to `10s` seconds. It reduces probability of ungraceful storage shutdown at Kubernetes based environments, which has 30 seconds default graceful termination period value. See [#10273](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10273)
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix heatmap rendering issues where charts could break or appear empty when bucket values were uniform or sparse. See [#10240](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10240).
+* BUGFIX: all VictoriaMetrics components: prefer numerical values over [stale markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers) when samples share the same timestamp during deduplication. See [#10196](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10196#issuecomment-3738433938).
 
 ## [v1.110.27](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.27)
 
