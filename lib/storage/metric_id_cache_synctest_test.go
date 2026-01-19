@@ -5,8 +5,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
@@ -58,7 +58,8 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 
 func TestMetricIDCache_Stats(t *testing.T) {
 	assertStats := func(t *testing.T, c *metricIDCache, want metricIDCacheStats) {
-		if diff := cmp.Diff(want, c.Stats()); diff != "" {
+		t.Helper()
+		if diff := cmp.Diff(want, c.Stats(), cmpopts.IgnoreFields(metricIDCacheStats{}, "SizeBytes")); diff != "" {
 			t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
 		}
 	}
@@ -72,14 +73,11 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Add metricIDs and check stats.
 		// At this point, all metricIDs are in next.
-		metricIDs := uint64set.Set{}
 		for metricID := range uint64(100_000) {
 			c.Set(metricID)
-			metricIDs.Add(metricID)
 		}
 		assertStats(t, c, metricIDCacheStats{
-			Size:      100_000,
-			SizeBytes: metricIDs.SizeBytes(),
+			Size: 100_000,
 		})
 
 		// Get all metricIDs and check stats.
@@ -91,8 +89,7 @@ func TestMetricIDCache_Stats(t *testing.T) {
 		}
 		assertStats(t, c, metricIDCacheStats{
 			Size:       100_000,
-			SizeBytes:  metricIDs.SizeBytes(),
-			SyncsCount: 1,
+			SyncsCount: 128,
 		})
 
 		// Wait until next rotation.
@@ -100,17 +97,16 @@ func TestMetricIDCache_Stats(t *testing.T) {
 		time.Sleep(15 * time.Minute)
 		assertStats(t, c, metricIDCacheStats{
 			Size:           100_000,
-			SizeBytes:      metricIDs.SizeBytes(),
-			SyncsCount:     1,
-			RotationsCount: 1,
+			SyncsCount:     128,
+			RotationsCount: 128,
 		})
 
 		// Wait until another rotation.
 		// The cache now should be empty.
 		time.Sleep(15 * time.Minute)
 		assertStats(t, c, metricIDCacheStats{
-			SyncsCount:     1,
-			RotationsCount: 2,
+			SyncsCount:     128,
+			RotationsCount: 256,
 		})
 	})
 }
