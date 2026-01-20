@@ -386,15 +386,27 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/ce/binary":
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
+			return true
+		}
 		ce.HandleCeGetBinary(w, r)
 		return true
 	case "/ce/configure":
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
+			return true
+		}
 		ce.HandleUpdateCeResetSchedule(w, r)
 		return true
 	case "/ce/estimate":
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
+			return true
+		}
 		ce.HandleCeGetCardinality(w, r)
 		return true
 	case "/ce/reset":
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
+			return true
+		}
 		ce.HandleCeReset(w, r)
 		return true
 	default:
