@@ -89,6 +89,100 @@ func Benchmark_MetricCardinalityEstimator(b *testing.B) {
 	b.StopTimer()
 }
 
+// Benchmark_CardinalityEstimator_EndToEnd benchmarks the full end-to-end flow
+// using the CardinalityEstimator with realistic batch sizes and concurrent access patterns.
+func Benchmark_CardinalityEstimator_EndToEnd(b *testing.B) {
+	// Setup: create a fresh estimator with default settings
+	ce := NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+
+	// Generate test data: 10k timeseries across 100 metrics
+	timeseries := generateUniqueTimeseriesPrompb(10000, func() string {
+		return fmt.Sprintf("test_metric_%d", rand.Int63n(100))
+	})
+
+	// Simulate realistic batch sizes (typical remote write batch is 500-2000 samples)
+	batchSize := 500
+	batches := make([][]prompb.TimeSeries, 0)
+	for i := 0; i < len(timeseries); i += batchSize {
+		end := min(i+batchSize, len(timeseries))
+		batches = append(batches, timeseries[i:end])
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// Insert all batches
+		for _, batch := range batches {
+			if err := ce.InsertRaw(batch); err != nil {
+				b.Fatalf("Failed to insert batch: %v", err)
+			}
+		}
+	}
+
+	b.StopTimer()
+
+	// Report throughput
+	b.ReportMetric(float64(len(timeseries)), "timeseries/op")
+}
+
+// Benchmark_CardinalityEstimator_EndToEnd_Concurrent benchmarks concurrent inserts
+// simulating multiple concurrent remote write requests.
+func Benchmark_CardinalityEstimator_EndToEnd_Concurrent(b *testing.B) {
+	// Setup: create a fresh estimator with default settings
+	ce := NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+
+	// Generate test data: 10k timeseries across 100 metrics
+	timeseries := generateUniqueTimeseriesPrompb(10000, func() string {
+		return fmt.Sprintf("test_metric_%d", rand.Int63n(100))
+	})
+
+	// Simulate realistic batch sizes
+	batchSize := 500
+	batches := make([][]prompb.TimeSeries, 0)
+	for i := 0; i < len(timeseries); i += batchSize {
+		end := min(i+batchSize, len(timeseries))
+		batches = append(batches, timeseries[i:end])
+	}
+
+	numGoroutines := 8 // Simulate 8 concurrent writers
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		var wg sync.WaitGroup
+		batchChan := make(chan []prompb.TimeSeries, len(batches))
+
+		// Queue all batches
+		for _, batch := range batches {
+			batchChan <- batch
+		}
+		close(batchChan)
+
+		// Start concurrent workers
+		for range numGoroutines {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for batch := range batchChan {
+					if err := ce.InsertRaw(batch); err != nil {
+						b.Errorf("Failed to insert batch: %v", err)
+					}
+				}
+			}()
+		}
+
+		wg.Wait()
+	}
+
+	b.StopTimer()
+
+	// Report throughput
+	b.ReportMetric(float64(len(timeseries)), "timeseries/op")
+	b.ReportMetric(float64(numGoroutines), "goroutines")
+}
+
 func generateUniqueTimeseriesPrompb(count int, metricNameGen func() string) []prompb.TimeSeries {
 	timeseries := []prompb.TimeSeries{}
 
