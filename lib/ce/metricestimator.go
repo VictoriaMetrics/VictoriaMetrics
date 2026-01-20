@@ -204,9 +204,9 @@ func (mce *MetricCardinalityEstimator) encodeTimeseriesPath(ts prompb.TimeSeries
 	mce.b1 = mce.b1[:0]
 
 	mce.b1 = append(mce.b1, ts.MetricName...)
-	mce.b1 = append(mce.b1, ',')
+	mce.b1 = append(mce.b1, 0x00) // \x00 cannot appear in label names/values, so its okay to use it as a separator
 	mce.b1 = append(mce.b1, []byte(ts.FixedLabelValue1)...)
-	mce.b1 = append(mce.b1, ',')
+	mce.b1 = append(mce.b1, 0x00)
 	mce.b1 = append(mce.b1, []byte(ts.FixedLabelValue2)...)
 
 	return mce.b1
@@ -222,16 +222,16 @@ func (mce *MetricCardinalityEstimator) byteifyLabelSet(labels []prompb.Label) []
 		}
 
 		mce.b = append(mce.b, l.Name...)
-		mce.b = append(mce.b, '=')
+		mce.b = append(mce.b, 0x00) // \x00 cannot appear in label names/values, so its okay to use it as a separator
 		mce.b = append(mce.b, l.Value...)
-		mce.b = append(mce.b, ',')
+		mce.b = append(mce.b, 0x00)
 	}
 
 	return mce.b
 }
 
 func DecodeTimeSeriesPath(path string) (metricName, fixedLabel1Val, fixedLabel2Val string) {
-	parts := strings.Split(path, ",")
+	parts := strings.Split(path, "\x00")
 	if len(parts) != 3 {
 		log.Panicf("BUG: invalid timeseries path %q with parts %v", path, parts)
 	}
