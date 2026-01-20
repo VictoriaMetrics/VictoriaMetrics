@@ -1485,7 +1485,7 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date
 				defer qtLocal.Done()
 				res, err = currIDB.idb.GetTSDBStatus(qtLocal, tfss, date, focusLabel, topN, maxMetrics, deadline)
 				if err != nil {
-					return nil, fmt.Errorf("cannot TSDB status from legacy current idb: %w", err)
+					return nil, fmt.Errorf("cannot get TSDB status from legacy current idb: %w", err)
 				}
 			}
 		}
