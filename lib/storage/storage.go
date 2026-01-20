@@ -1473,6 +1473,23 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date
 	if err != nil {
 		return nil, err
 	}
+	if res.TotalSeries == 0 {
+		// fallback to the legacy indexDB search
+		// since after migration monthly partition may not have stats for time range covered
+		// by partition index.
+		legacyIndexDBs := s.getLegacyIndexDBs()
+		defer s.putLegacyIndexDBs(legacyIndexDBs)
+		if legacyIndexDBs != nil {
+			if currIDB := legacyIndexDBs.idbCurr; currIDB != nil {
+				qtLocal := qt.NewChild("fallback to the legacy current indexDB search")
+				defer qtLocal.Done()
+				res, err = currIDB.idb.GetTSDBStatus(qtLocal, tfss, date, focusLabel, topN, maxMetrics, deadline)
+				if err != nil {
+					return nil, fmt.Errorf("cannot TSDB status from legacy current idb: %w", err)
+				}
+			}
+		}
+	}
 	if s.metricsTracker != nil && len(res.SeriesCountByMetricName) > 0 {
 		// for performance reason always check if metricsTracker is configured
 		names := make([]string, len(res.SeriesCountByMetricName))

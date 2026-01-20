@@ -1358,3 +1358,74 @@ func assertIndexDBIsNil(t *testing.T, idb *indexDB) {
 		t.Fatalf("unexpected idb: got %s, want nil", idb.name)
 	}
 }
+
+func TestLegacyStorageIndexDB_GetTSDBStatus(t *testing.T) {
+	defer testRemoveAll(t)
+	fs.MustRemoveDir(t.Name())
+
+	rng := rand.New(rand.NewSource(1))
+	metricsCount := uint64(1000)
+
+	// fill legacy index with data
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+
+	// create 2 monthly partitions in order to convert it later into 2 legacy idbs
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, metricsCount, "metric", tr)
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s = mustConvertToLegacy(s)
+
+	tr = TimeRange{
+		MinTimestamp: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 2, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs = testGenerateMetricRowsWithPrefix(rng, metricsCount, "metric", tr)
+
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s = mustConvertToLegacy(s)
+	defer s.MustClose()
+
+	date := uint64(tr.MinTimestamp / msecPerDay)
+
+	// fill partitioned index with data
+	trPtIndex := TimeRange{
+		MinTimestamp: time.Date(2024, 3, 2, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 3, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	datePtIndex := uint64(trPtIndex.MinTimestamp / msecPerDay)
+
+	mrsPtIndex := testGenerateMetricRowsWithPrefix(rng, metricsCount, "metric", trPtIndex)
+	s.AddRows(mrsPtIndex, defaultPrecisionBits)
+	s.DebugFlush()
+
+	want := &TSDBStatus{
+		TotalSeries:          1000,
+		TotalLabelValuePairs: 3000,
+	}
+	assertTSDBStatus := func(t *testing.T, got *TSDBStatus) {
+		t.Helper()
+		if want.TotalSeries != got.TotalSeries {
+			t.Fatalf("unexpected TotalSeries; got %d; want %d", got.TotalSeries, want.TotalSeries)
+		}
+		if want.TotalLabelValuePairs != got.TotalLabelValuePairs {
+			t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", got.TotalLabelValuePairs, want.TotalLabelValuePairs)
+		}
+	}
+	// check legacy date
+	got, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus failed unexpectedly: %v", err)
+	}
+	assertTSDBStatus(t, got)
+
+	got, err = s.GetTSDBStatus(nil, nil, datePtIndex, "", 10, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus failed unexpectedly: %v", err)
+	}
+	assertTSDBStatus(t, got)
+}
