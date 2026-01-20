@@ -14,12 +14,11 @@ export type QueryGroup = {
 interface LegendProps {
   labels: LegendItemType[];
   query: string[];
-  isAnomalyView?: boolean;
   isPredefinedPanel?: boolean;
   onChange: (item: LegendItemType, metaKey: boolean) => void;
 }
 
-const Legend: FC<LegendProps> = ({ labels, query, isAnomalyView, isPredefinedPanel, onChange }) => {
+const Legend: FC<LegendProps> = ({ labels, query, isPredefinedPanel, onChange }) => {
   const { groupByLabel } = useLegendGroup();
   const groupSeries = useGroupSeries({ labels, query, groupByLabel });
 
@@ -33,7 +32,6 @@ const Legend: FC<LegendProps> = ({ labels, query, isAnomalyView, isPredefinedPan
             key={group}
             labels={items}
             group={group}
-            isAnomalyView={isAnomalyView}
             onChange={onChange}
           />
         ))}

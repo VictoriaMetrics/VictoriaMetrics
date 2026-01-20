@@ -7,10 +7,8 @@
   "scripts": {
     "prestart": "npm run copy-metricsql-docs",
     "start": "vite",
-    "start:playground": "cross-env PLAYGROUND=METRICS npm run start",
-    "start:anomaly": "vite --mode vmanomaly",
+    "start:playground": "cross-env PLAYGROUND=true npm run start",
     "build": "vite build",
-    "build:anomaly": "vite build --mode vmanomaly",
     "lint": "eslint --output-file vmui-lint-report.json --format json 'src/**/*.{ts,tsx}'",
     "lint:local": "eslint --ext .ts,.tsx -f stylish src",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
