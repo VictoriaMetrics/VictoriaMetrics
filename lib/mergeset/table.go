@@ -1390,29 +1390,30 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 	removedInmemoryParts := 0
 	removedFileParts := 0
 
-	tb.partsLock.Lock()
+	func() {
+		tb.partsLock.Lock()
+		defer tb.partsLock.Unlock()
 
-	tb.inmemoryParts, removedInmemoryParts = removeParts(tb.inmemoryParts, m)
-	tb.fileParts, removedFileParts = removeParts(tb.fileParts, m)
-	switch dstPartType {
-	case partInmemory:
-		tb.inmemoryParts = append(tb.inmemoryParts, pwNew)
-		tb.startInmemoryPartsMergerLocked()
-	case partFile:
-		tb.fileParts = append(tb.fileParts, pwNew)
-		tb.startFilePartsMergerLocked()
-	default:
-		logger.Panicf("BUG: unknown partType=%d", dstPartType)
-	}
+		tb.inmemoryParts, removedInmemoryParts = removeParts(tb.inmemoryParts, m)
+		tb.fileParts, removedFileParts = removeParts(tb.fileParts, m)
+		switch dstPartType {
+		case partInmemory:
+			tb.inmemoryParts = append(tb.inmemoryParts, pwNew)
+			tb.startInmemoryPartsMergerLocked()
+		case partFile:
+			tb.fileParts = append(tb.fileParts, pwNew)
+			tb.startFilePartsMergerLocked()
+		default:
+			logger.Panicf("BUG: unknown partType=%d", dstPartType)
+		}
 
-	// Atomically store the updated list of file-based parts on disk.
-	// This must be performed under partsLock in order to prevent from races
-	// when multiple concurrently running goroutines update the list.
-	if removedFileParts > 0 || dstPartType == partFile {
-		mustWritePartNames(tb.fileParts, tb.path)
-	}
-
-	tb.partsLock.Unlock()
+		// Atomically store the updated list of file-based parts on disk.
+		// This must be performed under partsLock in order to prevent from races
+		// when multiple concurrently running goroutines update the list.
+		if removedFileParts > 0 || dstPartType == partFile {
+			mustWritePartNames(tb.fileParts, tb.path)
+		}
+	}()
 
 	// Update inmemoryPartsLimitCh accordingly to the number of the remaining in-memory parts.
 	for i := 0; i < removedInmemoryParts; i++ {
