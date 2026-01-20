@@ -167,7 +167,10 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesP
 	ts.Labels = labelsPool[labelsPoolLen:]
 	ts.Samples = samplesPool[samplesPoolLen:]
 
-	// Calculate cardinality estimator metadata.
+	// Calculate cardinality estimator metadata.)
+	ts.MetricName = ""
+	ts.FixedLabelValue1 = ""
+	ts.FixedLabelValue2 = ""
 	for _, label := range ts.Labels {
 		switch label.Name {
 		case "__name__":
