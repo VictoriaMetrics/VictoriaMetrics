@@ -1,7 +1,6 @@
 import { useAppDispatch, useAppState } from "../state/common/StateContext";
 import { useEffect, useState } from "preact/compat";
 import { ErrorTypes } from "../types";
-import { APP_TYPE_VM } from "../constants/appType";
 
 const useFetchAppConfig = () => {
   const { serverUrl } = useAppState();
@@ -12,7 +11,6 @@ const useFetchAppConfig = () => {
 
   useEffect(() => {
     const fetchAppConfig = async () => {
-      if (!APP_TYPE_VM) return;
       setError("");
       setIsLoading(true);
 

@@ -2,7 +2,7 @@ import { FC, useMemo } from "preact/compat";
 import { useNavigate } from "react-router-dom";
 import router from "../../router";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
-import { LogoAnomalyIcon, LogoIcon } from "../../components/Main/Icons";
+import { LogoIcon } from "../../components/Main/Icons";
 import { getCssVariable } from "../../utils/theme";
 import "./style.scss";
 import classNames from "classnames";
@@ -13,19 +13,10 @@ import HeaderControls, { ControlsProps } from "./HeaderControls/HeaderControls";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import useWindowSize from "../../hooks/useWindowSize";
 import { ComponentType } from "react";
-import { APP_TYPE, AppType } from "../../constants/appType";
 
 export interface HeaderProps {
   controlsComponent: ComponentType<ControlsProps>
 }
-const Logo = () => {
-  switch (APP_TYPE) {
-    case AppType.vmanomaly:
-      return <LogoAnomalyIcon/>;
-    default:
-      return <LogoIcon/>;
-  }
-};
 
 const Header: FC<HeaderProps> = ({ controlsComponent }) => {
   const { isMobile } = useDeviceDetect();
@@ -75,7 +66,7 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
       onClick={onClickLogo}
       style={{ color }}
     >
-      {<Logo/>}
+      {<LogoIcon/>}
     </div>
 
     {displaySidebar ? (

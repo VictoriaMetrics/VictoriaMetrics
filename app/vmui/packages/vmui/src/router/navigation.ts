@@ -1,4 +1,4 @@
-import router, { routerOptions } from "./index";
+import router from "./index";
 
 export enum NavigationItemType {
   internalLink,
@@ -65,14 +65,4 @@ export const getDefaultNavigation = ({
   { label: "Tools", submenu: getToolsNav(isEnterpriseLicense) },
   { value: router.dashboards, hide: !showPredefinedDashboards },
   { value: "Alerting", submenu: getAlertingNav(), hide: !showAlerting },
-];
-
-/**
- * vmanomaly navigation menu
- */
-export const getAnomalyNavigation = (): NavigationItem[] => [
-  {
-    label: routerOptions[router.anomaly].title,
-    value: router.home,
-  },
 ];
