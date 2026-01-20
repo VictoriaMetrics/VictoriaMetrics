@@ -90,6 +90,7 @@ func (alloc *Allocator) Max() uint64 {
 	return alloc.max
 }
 
+// Do not call concurrently.
 func (alloc *Allocator) Merge(other *Allocator) {
 	alloc.inuse.Store(max(alloc.inuse.Load(), other.inuse.Load()))
 	alloc.created.Store(alloc.created.Load() + other.created.Load())
