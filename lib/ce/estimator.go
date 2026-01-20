@@ -346,7 +346,7 @@ func (ce *CardinalityEstimator) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Can be called concurrently. The other estimator should not be used after the merge.
+// Do not call concurrently. The other estimator should not be used after the merge.
 func (ce *CardinalityEstimator) Merge(other *CardinalityEstimator) error {
 	if len(ce.shards) != len(other.shards) {
 		return fmt.Errorf("mismatched shard counts, self has %d, other has %d", len(ce.shards), len(other.shards))
