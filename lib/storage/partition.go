@@ -1687,35 +1687,36 @@ func (pt *partition) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper,
 	removedSmallParts := 0
 	removedBigParts := 0
 
-	pt.partsLock.Lock()
+	func() {
+		pt.partsLock.Lock()
+		defer pt.partsLock.Unlock()
 
-	pt.inmemoryParts, removedInmemoryParts = removeParts(pt.inmemoryParts, m)
-	pt.smallParts, removedSmallParts = removeParts(pt.smallParts, m)
-	pt.bigParts, removedBigParts = removeParts(pt.bigParts, m)
-	if pwNew != nil {
-		switch dstPartType {
-		case partInmemory:
-			pt.inmemoryParts = append(pt.inmemoryParts, pwNew)
-			pt.startInmemoryPartsMergerLocked()
-		case partSmall:
-			pt.smallParts = append(pt.smallParts, pwNew)
-			pt.startSmallPartsMergerLocked()
-		case partBig:
-			pt.bigParts = append(pt.bigParts, pwNew)
-			pt.startBigPartsMergerLocked()
-		default:
-			logger.Panicf("BUG: unknown partType=%d", dstPartType)
+		pt.inmemoryParts, removedInmemoryParts = removeParts(pt.inmemoryParts, m)
+		pt.smallParts, removedSmallParts = removeParts(pt.smallParts, m)
+		pt.bigParts, removedBigParts = removeParts(pt.bigParts, m)
+		if pwNew != nil {
+			switch dstPartType {
+			case partInmemory:
+				pt.inmemoryParts = append(pt.inmemoryParts, pwNew)
+				pt.startInmemoryPartsMergerLocked()
+			case partSmall:
+				pt.smallParts = append(pt.smallParts, pwNew)
+				pt.startSmallPartsMergerLocked()
+			case partBig:
+				pt.bigParts = append(pt.bigParts, pwNew)
+				pt.startBigPartsMergerLocked()
+			default:
+				logger.Panicf("BUG: unknown partType=%d", dstPartType)
+			}
 		}
-	}
 
-	// Atomically store the updated list of file-based parts on disk.
-	// This must be performed under partsLock in order to prevent from races
-	// when multiple concurrently running goroutines update the list.
-	if removedSmallParts > 0 || removedBigParts > 0 || pwNew != nil && (dstPartType == partSmall || dstPartType == partBig) {
-		mustWritePartNames(pt.smallParts, pt.bigParts, pt.smallPartsPath)
-	}
-
-	pt.partsLock.Unlock()
+		// Atomically store the updated list of file-based parts on disk.
+		// This must be performed under partsLock in order to prevent from races
+		// when multiple concurrently running goroutines update the list.
+		if removedSmallParts > 0 || removedBigParts > 0 || (pwNew != nil && (dstPartType == partSmall || dstPartType == partBig)) {
+			mustWritePartNames(pt.smallParts, pt.bigParts, pt.smallPartsPath)
+		}
+	}()
 
 	removedParts := removedInmemoryParts + removedSmallParts + removedBigParts
 	if removedParts != len(m) {
