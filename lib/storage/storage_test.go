@@ -985,9 +985,9 @@ func TestStorageSearchTenantsOnDate(t *testing.T) {
 	date2Start := base + msecPerDay
 	date3Start := base + 2*msecPerDay
 
-	tr1 := TimeRange{MinTimestamp: date1Start, MaxTimestamp: date1Start + msecPerDay}
-	tr2 := TimeRange{MinTimestamp: date2Start, MaxTimestamp: date2Start + msecPerDay}
-	tr3 := TimeRange{MinTimestamp: date3Start, MaxTimestamp: date3Start + msecPerDay}
+	tr1 := TimeRange{MinTimestamp: date1Start, MaxTimestamp: date1Start + msecPerDay - 1}
+	tr2 := TimeRange{MinTimestamp: date2Start, MaxTimestamp: date2Start + msecPerDay - 1}
+	tr3 := TimeRange{MinTimestamp: date3Start, MaxTimestamp: date3Start + msecPerDay - 1}
 
 	rng := rand.New(rand.NewSource(1))
 	var mrs []MetricRow
