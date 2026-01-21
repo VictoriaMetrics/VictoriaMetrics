@@ -161,7 +161,7 @@ func logLevelSkipframes(skipframes int, level, format string, args []any) {
 		return
 	}
 	msg := formatLogMessage(*maxLogArgLen, format, args)
-	logMessage(level, msg, location)
+	isPrinted = logMessage(level, msg, location)
 }
 
 func formatLogMessage(maxArgLen int, format string, args []any) string {
@@ -257,7 +257,7 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func logMessage(level, msg string, location string) {
+func logMessage(level, msg string, location string) bool {
 	timestamp := ""
 	if !*disableTimestamps {
 		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
@@ -272,7 +272,7 @@ func logMessage(level, msg string, location string) {
 		}
 		ok, suppressMessage := logLimiter.needSuppress(location, limit)
 		if ok {
-			return
+			return false
 		}
 		if len(suppressMessage) > 0 {
 			msg = suppressMessage + msg
@@ -324,6 +324,7 @@ func logMessage(level, msg string, location string) {
 	case "FATAL":
 		os.Exit(-1)
 	}
+	return true
 }
 
 var mu sync.Mutex
