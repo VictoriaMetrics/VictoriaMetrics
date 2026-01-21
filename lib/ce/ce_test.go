@@ -183,6 +183,33 @@ func Benchmark_CardinalityEstimator_EndToEnd_Concurrent(b *testing.B) {
 	b.ReportMetric(float64(numGoroutines), "goroutines")
 }
 
+// MAKE SURE THIS BENCHMARK RETURNS 0 ALLOCS/OP
+func Benchmark_CardinalityEstimator_EndToEnd_SingleBatch_1Alloc(b *testing.B) {
+	// Setup: create a fresh estimator with default settings
+	ce := NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+
+	// Generate a single batch of 500 timeseries (typical remote write batch size)
+	batch := generateUniqueTimeseriesPrompb(500, func() string {
+		return fmt.Sprintf("test_metric")
+	})
+
+	// Warm up: insert once to ensure all maps and structures are initialized
+	if err := ce.InsertRaw(batch); err != nil {
+		b.Fatalf("Failed to insert batch: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		if err := ce.InsertRaw(batch); err != nil {
+			b.Fatalf("Failed to insert batch: %v", err)
+		}
+	}
+
+	b.StopTimer()
+}
+
 func generateUniqueTimeseriesPrompb(count int, metricNameGen func() string) []prompb.TimeSeries {
 	timeseries := []prompb.TimeSeries{}
 
