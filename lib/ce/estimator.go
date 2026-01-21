@@ -22,6 +22,10 @@ var (
 	ceResetsTotal           = metrics.NewCounter("vm_ce_resets_total")
 )
 
+const (
+	CE_MAX_SHARDS = 64
+)
+
 type CardinalityEstimator struct {
 	// Each shard contains a a map of MetricName -> MetricCardinalityEstimator and a lock to protect concurrent access to that map.
 	//
@@ -40,7 +44,7 @@ type CardinalityEstimator struct {
 }
 
 func NewCardinalityEstimator() *CardinalityEstimator {
-	return NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+	return NewCardinalityEstimatorWithSettings(CE_MAX_SHARDS, math.MaxUint64, 1)
 }
 
 // CardinalityEstimator provides a concurrency-safe API for inserting timeseries and estimating cardinalities, across all metrics.
@@ -58,6 +62,9 @@ func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64, sample
 	}
 	if sampleRate <= 0 {
 		log.Panicf("BUG: invalid estimator sampleRate value %d, must be > 0", sampleRate)
+	}
+	if shards > CE_MAX_SHARDS {
+		log.Panicf("BUG: too many estimator shards: %d; max allowed is %d", shards, CE_MAX_SHARDS)
 	}
 
 	ret := &CardinalityEstimator{
@@ -147,8 +154,8 @@ func (ce *CardinalityEstimator) InsertRaw(tss []prompb.TimeSeries) error {
 	// To reduce scheduling costs, we precompute a large number of random sequences, and randomly select one of them to use for each request. Since
 	// the CE itself is long-lived, the amortized cost per request of computing these sequences is basically zero.
 
-	// mark which shards need to be inserted into
-	workTodo := make([]bool, len(ce.shards))
+	// mark which shards need to be inserted into using a bitmask (zero allocation for <= 64 shards)
+	workTodo := [CE_MAX_SHARDS]bool{}
 	for i := range tss {
 		workTodo[tss[i].ShardIdx] = true
 	}
