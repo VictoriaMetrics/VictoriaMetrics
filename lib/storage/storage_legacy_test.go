@@ -1361,7 +1361,6 @@ func assertIndexDBIsNil(t *testing.T, idb *indexDB) {
 
 func TestLegacyStorageIndexDB_GetTSDBStatus(t *testing.T) {
 	defer testRemoveAll(t)
-	fs.MustRemoveDir(t.Name())
 
 	rng := rand.New(rand.NewSource(1))
 	metricsCount := uint64(1000)
@@ -1378,7 +1377,7 @@ func TestLegacyStorageIndexDB_GetTSDBStatus(t *testing.T) {
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 	s = mustConvertToLegacy(s)
-
+	datePrevIDB := uint64(tr.MinTimestamp / msecPerDay)
 	tr = TimeRange{
 		MinTimestamp: time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 		MaxTimestamp: time.Date(2024, 2, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
@@ -1390,7 +1389,7 @@ func TestLegacyStorageIndexDB_GetTSDBStatus(t *testing.T) {
 	s = mustConvertToLegacy(s)
 	defer s.MustClose()
 
-	date := uint64(tr.MinTimestamp / msecPerDay)
+	dateCurrIDB := uint64(tr.MinTimestamp / msecPerDay)
 
 	// fill partitioned index with data
 	trPtIndex := TimeRange{
@@ -1416,8 +1415,15 @@ func TestLegacyStorageIndexDB_GetTSDBStatus(t *testing.T) {
 			t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", got.TotalLabelValuePairs, want.TotalLabelValuePairs)
 		}
 	}
-	// check legacy date
-	got, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e9, noDeadline)
+	// check legacy prev date
+	got, err := s.GetTSDBStatus(nil, nil, datePrevIDB, "", 10, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus failed unexpectedly: %v", err)
+	}
+	assertTSDBStatus(t, got)
+
+	// check legacy curr date
+	got, err = s.GetTSDBStatus(nil, nil, dateCurrIDB, "", 10, 1e9, noDeadline)
 	if err != nil {
 		t.Fatalf("GetTSDBStatus failed unexpectedly: %v", err)
 	}

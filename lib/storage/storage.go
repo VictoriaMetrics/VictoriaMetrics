@@ -1473,19 +1473,29 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date
 	if err != nil {
 		return nil, err
 	}
-	if res.TotalSeries == 0 {
-		// fallback to the legacy indexDB search
+	if !res.hasEntries() {
+		// fallback to the legacy indexDBs search
 		// since after migration monthly partition may not have stats for time range covered
 		// by partition index.
 		legacyIndexDBs := s.getLegacyIndexDBs()
 		defer s.putLegacyIndexDBs(legacyIndexDBs)
 		if legacyIndexDBs != nil {
-			if currIDB := legacyIndexDBs.idbCurr; currIDB != nil {
+			if legacyIndexDBs.idbCurr != nil {
+				idb := legacyIndexDBs.idbCurr.idb
 				qtLocal := qt.NewChild("fallback to the legacy current indexDB search")
 				defer qtLocal.Done()
-				res, err = currIDB.idb.GetTSDBStatus(qtLocal, tfss, date, focusLabel, topN, maxMetrics, deadline)
+				res, err = idb.GetTSDBStatus(qtLocal, tfss, date, focusLabel, topN, maxMetrics, deadline)
 				if err != nil {
 					return nil, fmt.Errorf("cannot get TSDB status from legacy current idb: %w", err)
+				}
+			}
+			if !res.hasEntries() && legacyIndexDBs.idbPrev != nil {
+				idb := legacyIndexDBs.idbPrev.idb
+				qtLocal := qt.NewChild("fallback to the legacy prev indexDB search")
+				defer qtLocal.Done()
+				res, err = idb.GetTSDBStatus(qtLocal, tfss, date, focusLabel, topN, maxMetrics, deadline)
+				if err != nil {
+					return nil, fmt.Errorf("cannot get TSDB status from legacy prev idb: %w", err)
 				}
 			}
 		}
