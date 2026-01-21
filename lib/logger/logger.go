@@ -148,11 +148,20 @@ func logLevel(level, format string, args []any) {
 }
 
 func logLevelSkipframes(skipframes int, level, format string, args []any) {
+	file, line := logLocation(3 + skipframes)
+	location := fmt.Sprintf("%s:%d", file, line)
+	isPrinted := true
+	defer func() {
+		// Increase vm_log_messages_total
+		counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q, is_printed="%t"}`, buildinfo.Version, strings.ToLower(level), location, isPrinted)
+		metrics.GetOrCreateCounter(counterName).Inc()
+	}()
 	if shouldSkipLog(level) {
+		isPrinted = false
 		return
 	}
 	msg := formatLogMessage(*maxLogArgLen, format, args)
-	logMessage(level, msg, 3+skipframes)
+	logMessage(level, msg, location)
 }
 
 func formatLogMessage(maxArgLen int, format string, args []any) string {
@@ -170,6 +179,19 @@ func formatLogMessage(maxArgLen int, format string, args []any) string {
 		}
 	}
 	return fmt.Sprintf(format, args...)
+}
+
+func logLocation(skipframes int) (string, int) {
+	_, file, line, ok := runtime.Caller(skipframes)
+	if !ok {
+		file = "???"
+		line = 0
+	}
+	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
+		// Strip /VictoriaMetrics/ prefix
+		file = file[n+len("/VictoriaMetrics/"):]
+	}
+	return file, line
 }
 
 func logLimiterCleaner() {
@@ -235,22 +257,12 @@ func (lw *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func logMessage(level, msg string, skipframes int) {
+func logMessage(level, msg string, location string) {
 	timestamp := ""
 	if !*disableTimestamps {
 		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
 	}
 	levelLowercase := strings.ToLower(level)
-	_, file, line, ok := runtime.Caller(skipframes)
-	if !ok {
-		file = "???"
-		line = 0
-	}
-	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
-		// Strip /VictoriaMetrics/ prefix
-		file = file[n+len("/VictoriaMetrics/"):]
-	}
-	location := fmt.Sprintf("%s:%d", file, line)
 
 	// rate limit ERROR and WARN log messages with given limit.
 	if level == "ERROR" || level == "WARN" {
@@ -301,10 +313,6 @@ func logMessage(level, msg string, skipframes int) {
 	mu.Lock()
 	fmt.Fprint(output, logMsg)
 	mu.Unlock()
-
-	// Increment vm_log_messages_total
-	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q}`, buildinfo.Version, levelLowercase, location)
-	metrics.GetOrCreateCounter(counterName).Inc()
 
 	switch level {
 	case "PANIC":
