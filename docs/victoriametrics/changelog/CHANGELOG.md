@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): apply `metric_relabel_configs` (including global configs) to [auto-generated metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics) such as `scrape_duration_seconds`, `up`, etc. Previously, these metrics bypassed relabeling, causing issues when users needed to drop labels from all metrics including auto-generated ones. See [#10322](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10322).
+
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
 Released at 2026-01-16

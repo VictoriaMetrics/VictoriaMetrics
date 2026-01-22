@@ -408,13 +408,43 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 	}, `
 		foo{bar="baz",job="xx",instance="foo.com/xx"} 34.44 123
 		bar{a="b",job="xx",instance="foo.com/xx"} -3e4 123
-		up{job="xx"} 1 123
-		scrape_samples_scraped{job="xx"} 2 123
-		scrape_response_size_bytes{job="xx"} 49 123
-		scrape_duration_seconds{job="xx"} 0 123
-		scrape_samples_post_metric_relabeling{job="xx"} 2 123
-		scrape_series_added{job="xx"} 2 123
-		scrape_timeout_seconds{job="xx"} 42 123
+		up{job="xx",instance="foo.com/xx"} 1 123
+		scrape_samples_scraped{job="xx",instance="foo.com/xx"} 2 123
+		scrape_response_size_bytes{job="xx",instance="foo.com/xx"} 49 123
+		scrape_duration_seconds{job="xx",instance="foo.com/xx"} 0 123
+		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com/xx"} 2 123
+		scrape_series_added{job="xx",instance="foo.com/xx"} 2 123
+		scrape_timeout_seconds{job="xx",instance="foo.com/xx"} 42 123
+	`, []prompb.MetricMetadata{})
+	// Verify that metric_relabel_configs is applied to auto-generated metrics.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10322
+	f(`
+		foo{bar="baz"} 34.44
+	`, &ScrapeWork{
+		StreamParse:   streamParse,
+		ScrapeTimeout: time.Second * 42,
+		HonorLabels:   true,
+		Labels: promutil.NewLabelsFromMap(map[string]string{
+			"job":                                  "xx",
+			"instance":                             "foo.com",
+			"node_kubernetes_io_instance_type":     "some-type",
+			"feature_node_kubernetes_io_cpu_cpuid": "true",
+		}),
+		MetricRelabelConfigs: mustParseRelabelConfigs(`
+- action: labeldrop
+  regex: "node_kubernetes_io_instance_type"
+- action: labeldrop
+  regex: "feature_node_kubernetes.*"
+`),
+	}, `
+		foo{bar="baz",job="xx",instance="foo.com"} 34.44 123
+		up{job="xx",instance="foo.com"} 1 123
+		scrape_samples_scraped{job="xx",instance="foo.com"} 1 123
+		scrape_response_size_bytes{job="xx",instance="foo.com"} 25 123
+		scrape_duration_seconds{job="xx",instance="foo.com"} 0 123
+		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com"} 1 123
+		scrape_series_added{job="xx",instance="foo.com"} 1 123
+		scrape_timeout_seconds{job="xx",instance="foo.com"} 42 123
 	`, []prompb.MetricMetadata{})
 	f(`
 		foo{bar="baz"} 34.44
@@ -440,7 +470,6 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 `),
 	}, `
 		foo{bar="baz",job="xx",instance="foo.com"} 34.44 123
-		up{job="xx",instance="foo.com"} 1 123
 		scrape_samples_scraped{job="xx",instance="foo.com"} 4 123
 		scrape_response_size_bytes{job="xx",instance="foo.com"} 106 123
 		scrape_duration_seconds{job="xx",instance="foo.com"} 0 123
@@ -448,6 +477,9 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_series_added{job="xx",instance="foo.com"} 4 123
 		scrape_timeout_seconds{job="xx",instance="foo.com"} 42 123
 	`, []prompb.MetricMetadata{})
+	// Note: the auto-generated 'up' metric is now also dropped by the relabel rule above.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10322
+
 	// Scrape metrics with names clashing with auto metrics
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3406
 	f(`
@@ -704,7 +736,7 @@ func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {
 		t.Helper()
 		r := parsePromRow(row)
 		var wc writeRequestCtx
-		err := wc.addRow(cfg, r, r.Timestamp, false)
+		err := wc.addRow(cfg, r, r.Timestamp, false, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
