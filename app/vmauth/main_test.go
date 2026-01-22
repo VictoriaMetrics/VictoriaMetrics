@@ -657,6 +657,13 @@ unauthorized_user:
 
 	// body bigger than a buffer
 	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "499", "0")
+
+	// body bigger than tmpBuf 8KiB used in buffering
+	f(bytes.NewBufferString(strings.Repeat("a", 32*1024)), "16384", "")
+
+	f(bytes.NewBufferString(strings.Repeat("a", 32*1024)), "16385", "")
+
+	f(bytes.NewBufferString(strings.Repeat("a", 32*1024)), "16383", "")
 }
 
 func TestBufferRequestBody_Failure(t *testing.T) {
