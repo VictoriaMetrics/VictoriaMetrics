@@ -531,7 +531,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	samplesScraped := len(wc.rows.Rows)
 	scrapedSamples.Update(float64(samplesScraped))
 	wc.addMetadata(wc.metadataRows.Rows)
-	scrapeErr := wc.addRows(cfg, wc.rows.Rows, scrapeTimestamp, true)
+	scrapeErr := wc.addRows(cfg, wc.rows.Rows, scrapeTimestamp, true, false)
 	if scrapeErr == nil {
 		samplesPostRelabeling = len(wc.writeRequest.Timeseries)
 		if cfg.SampleLimit > 0 && samplesPostRelabeling > cfg.SampleLimit {
@@ -635,7 +635,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		}()
 
 		samplesScraped.Add(int64(len(rows)))
-		if err := wc.addRows(cfg, rows, scrapeTimestamp, true); err != nil {
+		if err := wc.addRows(cfg, rows, scrapeTimestamp, true, false); err != nil {
 			if errors.Is(err, errLabelsLimitExceeded) {
 				scrapesSkippedByLabelLimit.Inc()
 				return fmt.Errorf("the response from %q contains samples with a number of labels exceeding label_limit=%d; "+
@@ -875,7 +875,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 			defer writeRequestCtxPool.Put(wc)
 
-			if err := wc.addRows(sw.Config, rows, timestamp, true); err != nil {
+			if err := wc.addRows(sw.Config, rows, timestamp, true, false); err != nil {
 				sw.logError(fmt.Errorf("cannot send stale markers: %w", err).Error())
 				return err
 			}
@@ -1002,7 +1002,7 @@ func (wc *writeRequestCtx) addAutoMetrics(sw *scrapeWork, am *autoMetrics, times
 	dst = appendRow(dst, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
 	dst = appendRow(dst, "up", float64(am.up), timestamp)
 
-	err := wc.addRows(sw.Config, dst, timestamp, false)
+	err := wc.addRows(sw.Config, dst, timestamp, true, true)
 	if err != nil {
 		sw.logError(fmt.Errorf("cannot add auto metrics: %w", err).Error())
 	}
@@ -1034,7 +1034,7 @@ func appendRow(dst []parser.Row, metric string, value float64, timestamp int64) 
 	})
 }
 
-func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel bool) error {
+func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp int64, needRelabel, isInternalAutoMetric bool) error {
 	// pre-allocate buffers
 	labelsLen := 0
 	for i := range rows {
@@ -1051,7 +1051,7 @@ func (wc *writeRequestCtx) addRows(cfg *ScrapeWork, rows []parser.Row, timestamp
 
 	// add rows
 	for i := range rows {
-		err := wc.addRow(cfg, &rows[i], timestamp, needRelabel)
+		err := wc.addRow(cfg, &rows[i], timestamp, needRelabel, isInternalAutoMetric)
 		if err != nil {
 			return err
 		}
@@ -1084,7 +1084,11 @@ func (wc *writeRequestCtx) addMetadata(metadataRows []parser.Metadata) {
 // addRow adds r with the given timestamp to wc.
 //
 // The cfg is used as a read-only configuration source.
-func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int64, needRelabel bool) error {
+//
+// If isInternalAutoMetric is set to true, the row is treated as an internally generated
+// auto-metric (like scrape_duration_seconds), so the `exported_` prefix isn't added
+// even if the metric name clashes with auto-metric names.
+func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int64, needRelabel, isInternalAutoMetric bool) error {
 	metric := r.Metric
 
 	// Add `exported_` prefix to metrics, which clash with the automatically generated
@@ -1095,10 +1099,12 @@ func (wc *writeRequestCtx) addRow(cfg *ScrapeWork, r *parser.Row, timestamp int6
 	//   because the user explicitly asked about it in the config.
 	// - The metric has no labels (tags). If it has labels, then the metric value
 	//   will be written into a separate time series comparing to automatically generated time series.
+	// - The metric is not an internally generated auto-metric. Internal auto-metrics
+	//   should keep their original names.
 	//
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3557
 	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3406
-	if needRelabel && !cfg.HonorLabels && len(r.Tags) == 0 && isAutoMetric(metric) {
+	if needRelabel && !cfg.HonorLabels && len(r.Tags) == 0 && isAutoMetric(metric) && !isInternalAutoMetric {
 		bb := bbPool.Get()
 		bb.B = append(bb.B, "exported_"...)
 		bb.B = append(bb.B, metric...)
