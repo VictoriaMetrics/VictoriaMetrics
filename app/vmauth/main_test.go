@@ -646,19 +646,17 @@ unauthorized_user:
 	// no body, buffering on, retry on
 	f(bytes.NewBuffer(nil), "100", "100")
 
-	body := bytes.NewBufferString(strings.Repeat("abcdf", 100))
-
 	// body smaller than buffer, retry max on
-	f(body, "101", "101")
+	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "101", "101")
 
 	// body smaller than buffer
-	f(body, "501", "0")
+	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "501", "0")
 
 	// body same size as buffer
-	f(body, "500", "0")
+	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "500", "0")
 
 	// body bigger than a buffer
-	f(body, "499", "0")
+	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "499", "0")
 }
 
 func TestBufferRequestBody_Failure(t *testing.T) {

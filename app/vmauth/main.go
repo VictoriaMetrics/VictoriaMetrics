@@ -50,7 +50,7 @@ var (
 		"When set to a value greater than 0, vmauth reads up to max(-bufferRequestSize, -maxRequestBodySizeToRetry) bytes from the request body upfront. "+
 		"This allows detecting and rejecting slow clients early before consuming upstream servers capacity. "+
 		"Set to 0 to disable proactive buffering. "+
-		"See also -bufferRequestTimeout and -maxRequestBodySizeToRetry")
+		"See also -maxQueueDuration and -maxRequestBodySizeToRetry")
 
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process simultaneously. "+
 		"Requests exceeding this limit are immediately rejected with '429 Too Many Requests' http status code. "+
