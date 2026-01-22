@@ -84,7 +84,7 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 	// concurrent create connections
 	for i := 0; i < concurrency; i++ {
 		go func() {
-			conn, err := cp.Get()
+			conn, err := cp.GetV2()
 			if err != nil {
 				t.Errorf("get conn from connection pool err:%v", err)
 				panic(err)

@@ -2494,6 +2494,7 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
+	logger.Infof("jayice first try")
 	err := sn.execOnConn(qtChild, funcName, f, deadline)
 	defer qtChild.Done()
 	if err == nil {
@@ -2503,6 +2504,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	var ne net.Error
 	var le *limitExceededErr
 	if errors.As(err, &le) || errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() || errors.Is(err, errCannotObtainConn) {
+		logger.Infof("jayice dont retry")
 		// There is no sense in repeating the query on the following errors:
 		//
 		//   - exceeded complexity limits (limitExceededErr)
@@ -2512,8 +2514,11 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 		//   - cannot obtain connection from the pool (pool exhaustion, dial or handshake errors)
 		return err
 	}
+	println(err.Error())
 	// Repeat the query in the hope the error was temporary.
 	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
+	logger.Infof("jayice second try")
+
 	err = sn.execOnConn(qtRetry, funcName, f, deadline)
 	qtRetry.Done()
 	return err
@@ -2532,7 +2537,7 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	if timeout <= 0 {
 		return fmt.Errorf("request timeout reached: %s", deadline.String())
 	}
-	bc, err := sn.connPool.Get()
+	bc, err := sn.connPool.GetV2()
 	if err != nil {
 		return fmt.Errorf("%w: %w", errCannotObtainConn, err)
 	}

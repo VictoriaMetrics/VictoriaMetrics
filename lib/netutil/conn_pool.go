@@ -2,9 +2,11 @@ package netutil
 
 import (
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -72,6 +74,7 @@ func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Fun
 		compressionLevel: compressionLevel,
 	}
 	cp.checkAvailability(true)
+	cp.checkAvailability(true)
 	_ = ms.NewGauge(fmt.Sprintf(`vm_tcpdialer_conns_idle{name=%q, addr=%q}`, name, addr), func() float64 {
 		cp.mu.Lock()
 		n := len(cp.conns)
@@ -134,15 +137,143 @@ func (cp *ConnPool) Addr() string {
 
 // Get returns free connection from the pool.
 func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
-	bc, err := cp.tryGetConn()
+	c, err := cp.tryGetConn()
 	if err != nil {
 		return nil, err
 	}
-	if bc != nil {
+	if c.bc != nil {
 		// Fast path - obtained the connection from pool.
-		return bc, nil
+		return c.bc, nil
 	}
 	return cp.getConnSlow()
+}
+
+func (cp *ConnPool) healthCheck(bc *handshake.BufferedConn) bool {
+	logger.Infof("jayice health check")
+	time.Sleep(6 * time.Second)
+
+	funcName := "healthCheck_v1"
+	buf := []byte(funcName)
+	sizeBuf := encoding.MarshalUint64(nil, uint64(len(buf)))
+	if _, err := bc.Write(sizeBuf); err != nil {
+		return false
+	}
+	_, err := bc.Write(buf)
+	if err != nil {
+		return false
+	}
+	var trace [1]byte
+	_, err = bc.Write(trace[:])
+	if err != nil {
+		return false
+	}
+	timeout := encoding.MarshalUint32(nil, 5)
+	_, err = bc.Write(timeout)
+	if err != nil {
+		return false
+	}
+	if err = bc.Flush(); err != nil {
+		return false
+	}
+
+	var resp [8]byte
+	if _, err = io.ReadFull(bc, resp[:]); err != nil {
+		return false
+	}
+	n := encoding.UnmarshalUint64(resp[:])
+	logger.Infof("jayice health check success:%d", n)
+
+	if _, err = io.ReadFull(bc, resp[:]); err != nil {
+		return false
+	}
+	n = encoding.UnmarshalUint64(resp[:])
+	logger.Infof("jayice health check trace size:%d", n)
+
+	return true
+}
+
+func (cp *ConnPool) GetV2() (*handshake.BufferedConn, error) {
+	c, err := cp.tryGetConn()
+	if err == nil && c.bc != nil {
+		// fast path: fresh connection don't need health check
+		if fasttime.UnixTimestamp()-c.lastActiveTime < 30000 {
+			logger.Infof("jayice1")
+			return c.bc, nil
+		}
+	} else {
+		//
+		return cp.getConnSlow()
+	}
+
+	// slow path
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	connChannel := make(chan *handshake.BufferedConn, 1)
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		defer close(connChannel)
+		if c.bc != nil {
+			logger.Infof("jayice4")
+			if cp.healthCheck(c.bc) {
+				select {
+				case connChannel <- c.bc:
+				case <-done:
+					logger.Infof("jayice iam timeout")
+					cp.Put(c.bc)
+				}
+				return
+			} else {
+				logger.Infof("jayice health check failed")
+				_ = c.bc.Close()
+				c.bc = nil
+			}
+		}
+		for {
+			select {
+			case <-done:
+				if c.bc != nil {
+					_ = c.bc.Close()
+				}
+				return
+			default:
+			}
+			logger.Infof("jayice test1")
+
+			c, err = cp.tryGetConn()
+			if err != nil || c.bc == nil {
+				select {
+				case connChannel <- nil:
+				case <-done:
+				}
+				return
+			}
+			if fasttime.UnixTimestamp()-c.lastActiveTime < 30000 || cp.healthCheck(c.bc) {
+				select {
+				case connChannel <- c.bc:
+				case <-done:
+					cp.Put(c.bc)
+				}
+				return
+			} else {
+				_ = c.bc.Close()
+				c.bc = nil
+				continue
+			}
+		}
+	}()
+
+	select {
+	case conn := <-connChannel:
+		logger.Infof("jayice2")
+		if conn != nil {
+			return conn, nil
+		}
+		return cp.getConnSlow()
+	case <-timeout.C:
+		logger.Infof("jayice3")
+		return nil, fmt.Errorf("error")
+	}
 }
 
 func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
@@ -158,15 +289,15 @@ func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 		default:
 			// Make attempt to get already established connections from the pool.
 			// It may appear there while waiting for cp.concurrentDialsCh.
-			bc, err := cp.tryGetConn()
+			c, err := cp.tryGetConn()
 			if err != nil {
 				return nil, err
 			}
-			if bc == nil {
+			if c.bc == nil {
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
-			return bc, nil
+			return c.bc, nil
 		}
 	}
 }
@@ -193,27 +324,27 @@ func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
 	return bc, err
 }
 
-func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
+func (cp *ConnPool) tryGetConn() (connWithTimestamp, error) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
 
 	if cp.isStopped {
-		return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
+		return connWithTimestamp{}, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
 	}
 	if len(cp.conns) == 0 {
-		return nil, cp.lastDialError
+		return connWithTimestamp{}, cp.lastDialError
 	}
+	logger.Infof("jayice con len:%d", len(cp.conns))
 	c := cp.conns[len(cp.conns)-1]
-	bc := c.bc
-	c.bc = nil
 	cp.conns = cp.conns[:len(cp.conns)-1]
-	return bc, nil
+	return c, nil
 }
 
 // Put puts bc back to the pool.
 //
 // Do not put broken and closed connections to the pool!
 func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
+	logger.Infof("jayice put")
 	if err := bc.SetDeadline(time.Time{}); err != nil {
 		// Close the connection instead of returning it to the pool,
 		// since it may be broken.
