@@ -308,15 +308,9 @@ loop:
 		}
 
 		rejectSlowClientRequests.Inc()
-
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
 		dur := time.Since(start)
-
-		logger.Warnf("remoteAddr: %s; requestURI: %s; client %s; rejecting request because the clients sends body too slow; reading %d bytes took %s", remoteAddr, requestURI, ui.name(), read, dur)
-
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("client sends request body too slow, reading first %d bytes took %.2fsec, which exceeds -maxQueueDuration=%s", read, dur.Seconds(), *maxQueueDuration),
+			Err:        fmt.Errorf("client %s; rejecting request because the client sends body too slow; reading %d bytes took %.2fs, which exceeds -maxQueueDuration=%s", ui.name(), read, dur.Seconds(), *maxQueueDuration),
 			StatusCode: http.StatusBadRequest,
 		}
 	default:
