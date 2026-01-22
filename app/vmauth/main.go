@@ -237,6 +237,12 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	select {
 	case concurrencyLimitCh <- struct{}{}:
 		if err := bufferRequestBody(ctx, r, ui); err != nil {
+			if errors.Is(err, context.Canceled) {
+				clientCanceledRequests.Inc()
+				<-concurrencyLimitCh
+				return
+			}
+
 			httpserver.Errorf(w, r, "%s", err)
 			ui.requestErrors.Inc()
 			<-concurrencyLimitCh
@@ -273,12 +279,11 @@ func bufferRequestBody(ctx context.Context, r *http.Request, ui *UserInfo) error
 
 	if err := rtb.fill(ctx); errors.Is(err, context.DeadlineExceeded) {
 		rejectSlowClientRequests.Inc()
-		dur := time.Since(start)
-		dur = dur.Truncate(time.Second)
+		dur := time.Since(start).Truncate(time.Second)
 
 		name := ui.name()
 		if name == "" {
-			name = "annonymous"
+			name = "anonymous"
 		}
 
 		return &httpserver.ErrorWithStatusCode{
