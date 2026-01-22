@@ -15,11 +15,11 @@ func InsertPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries) e
 	if rand.Intn(estimator.SampleRate) != 0 {
 		return nil
 	}
-	return InsertRaw(estimator, tss)
+	return InsertRawPrompb(estimator, tss)
 }
 
 // Can be called concurrently. Does not apply sampling.
-func InsertRaw(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries) error {
+func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries) error {
 
 	for i := range tss {
 		tss[i].ShardIdx = estimator.ShardIdx(tss[i].MetricName)
@@ -116,13 +116,13 @@ func mceInsertPrompb(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries) e
 		return fmt.Errorf("BUG: timeseries metric name (%s) does not match estimator metric name (%s)", ts.MetricName, mce.MetricName)
 	}
 
-	tsEncoding := byteifyLabelSet(mce, ts.Labels)
+	tsEncoding := byteifyLabelSetPrompb(mce, ts.Labels)
 
 	// Count cardinality for the whole metric
 	mce.MetricHll.Insert(tsEncoding)
 
 	// Count cardinality for the whole metric by fixed dimension
-	pathBytes := encodeTimeseriesPath(mce, ts)
+	pathBytes := encodeTimeseriesPathPrompb(mce, ts)
 	path := unsafe.String(unsafe.SliceData(pathBytes), len(pathBytes))
 
 	hll := mce.Hlls[path]
@@ -144,7 +144,7 @@ func mceInsertPrompb(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries) e
 }
 
 // Return slice only valid until the next call to EncodeTimeseriesPath
-func encodeTimeseriesPath(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries) []byte {
+func encodeTimeseriesPathPrompb(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries) []byte {
 	mce.B1 = mce.B1[:0]
 
 	mce.B1 = append(mce.B1, ts.MetricName...)
@@ -157,7 +157,7 @@ func encodeTimeseriesPath(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeri
 }
 
 // Return slice only valid until the next call to ByteifyLabelSet
-func byteifyLabelSet(mce *ce.MetricCardinalityEstimator, labels []prompb.Label) []byte {
+func byteifyLabelSetPrompb(mce *ce.MetricCardinalityEstimator, labels []prompb.Label) []byte {
 	mce.B = mce.B[:0]
 
 	for _, l := range labels {

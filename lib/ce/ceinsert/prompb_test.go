@@ -206,7 +206,7 @@ func Benchmark_CardinalityEstimator_EndToEnd(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Insert all batches
 		for _, batch := range batches {
-			if err := InsertRaw(estimator, batch); err != nil {
+			if err := InsertRawPrompb(estimator, batch); err != nil {
 				b.Fatalf("Failed to insert batch: %v", err)
 			}
 		}
@@ -258,7 +258,7 @@ func Benchmark_CardinalityEstimator_EndToEnd_Concurrent(b *testing.B) {
 			go func() {
 				defer wg.Done()
 				for batch := range batchChan {
-					if err := InsertRaw(estimator, batch); err != nil {
+					if err := InsertRawPrompb(estimator, batch); err != nil {
 						b.Errorf("Failed to insert batch: %v", err)
 					}
 				}
@@ -286,7 +286,7 @@ func Benchmark_CardinalityEstimator_EndToEnd_SingleBatch_1Alloc(b *testing.B) {
 	})
 
 	// Warm up: insert once to ensure all maps and structures are initialized
-	if err := InsertRaw(estimator, batch); err != nil {
+	if err := InsertRawPrompb(estimator, batch); err != nil {
 		b.Fatalf("Failed to insert batch: %v", err)
 	}
 
@@ -294,7 +294,7 @@ func Benchmark_CardinalityEstimator_EndToEnd_SingleBatch_1Alloc(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		if err := InsertRaw(estimator, batch); err != nil {
+		if err := InsertRawPrompb(estimator, batch); err != nil {
 			b.Fatalf("Failed to insert batch: %v", err)
 		}
 	}
