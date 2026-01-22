@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/axiomhq/hyperloglog"
 )
@@ -41,14 +39,14 @@ var (
 //  2. Each of the 20 HLLs for the combinations of "task_name" and "region" will estimate a cardinality of ~1000, since each combination
 //     of "task_name" and "region" is associated with 1000 distinct "ipaddress" values.
 type MetricCardinalityEstimator struct {
-	metricName string
-	allocator  *Allocator
+	MetricName string
+	Allocator  *Allocator
 
-	metricHll *hyperloglog.Sketch            // HLL for the entire stream of metrics.
-	hlls      map[string]*hyperloglog.Sketch // HLLs for each substream of metrics by fixed label dimensions.
+	MetricHll *hyperloglog.Sketch            // HLL for the entire stream of metrics.
+	Hlls      map[string]*hyperloglog.Sketch // HLLs for each substream of metrics by fixed label dimensions.
 
-	b  []byte
-	b1 []byte
+	B  []byte
+	B1 []byte
 }
 
 func NewMetricCardinalityEstimator(metricName string) *MetricCardinalityEstimator {
@@ -62,63 +60,29 @@ func NewMetricCardinalityEstimator(metricName string) *MetricCardinalityEstimato
 func NewMetricCardinalityEstimatorWithAllocator(metricName string, allocator *Allocator) (*MetricCardinalityEstimator, error) {
 
 	ret := MetricCardinalityEstimator{
-		metricName: metricName,
-		hlls:       make(map[string]*hyperloglog.Sketch),
-		metricHll:  nil,
-		b:          make([]byte, 1024),
-		b1:         make([]byte, 1024),
-		allocator:  allocator,
+		MetricName: metricName,
+		Hlls:       make(map[string]*hyperloglog.Sketch),
+		MetricHll:  nil,
+		B:          make([]byte, 1024),
+		B1:         make([]byte, 1024),
+		Allocator:  allocator,
 	}
 
 	hll, err := allocator.Allocate()
 	if err != nil {
 		return nil, err
 	}
-	ret.metricHll = hll
+	ret.MetricHll = hll
 
 	metricEstimatorsCreated.Inc()
 	return &ret, nil
 }
 
 // Do not call this function concurrently.
-func (mce *MetricCardinalityEstimator) Insert(ts prompb.TimeSeries) error {
-	// Make sure the timeseries has a metric name label and it matches the estimator's metric name
-	if ts.MetricName != mce.metricName {
-		return fmt.Errorf("BUG: timeseries metric name (%s) does not match estimator metric name (%s)", ts.MetricName, mce.metricName)
-	}
-
-	tsEncoding := mce.byteifyLabelSet(ts.Labels)
-
-	// Count cardinality for the whole metric
-	mce.metricHll.Insert(tsEncoding)
-
-	// Count cardinality for the whole metric by fixed dimension
-	pathBytes := mce.encodeTimeseriesPath(ts)
-	path := unsafe.String(unsafe.SliceData(pathBytes), len(pathBytes))
-
-	hll := mce.hlls[path]
-	if hll == nil {
-		path := strings.Clone(path) // ensure we own the string
-
-		newHll, err := mce.allocator.Allocate()
-		if err != nil {
-			return err
-		}
-
-		hll = newHll
-		mce.hlls[path] = newHll
-	}
-
-	hll.Insert(tsEncoding)
-
-	return nil
-}
-
-// Do not call this function concurrently.
 func (mce *MetricCardinalityEstimator) EstimateFixedMetricCardinality() map[string]uint64 {
 	estimates := make(map[string]uint64)
 
-	for key, hll := range mce.hlls {
+	for key, hll := range mce.Hlls {
 		estimates[key] = hll.Estimate()
 	}
 
@@ -127,7 +91,7 @@ func (mce *MetricCardinalityEstimator) EstimateFixedMetricCardinality() map[stri
 
 // Do not call this function concurrently.
 func (mce *MetricCardinalityEstimator) EstimateMetricCardinality() uint64 {
-	return mce.metricHll.Estimate()
+	return mce.MetricHll.Estimate()
 }
 
 // Do not call this function concurrently.
@@ -138,10 +102,10 @@ func (mce *MetricCardinalityEstimator) MarshalBinary() ([]byte, error) {
 		MetricNameHll       *hyperloglog.Sketch
 		Allocator           *Allocator
 	}{
-		MetricName:          mce.metricName,
-		MetricNameFixedHlls: mce.hlls,
-		MetricNameHll:       mce.metricHll,
-		Allocator:           mce.allocator,
+		MetricName:          mce.MetricName,
+		MetricNameFixedHlls: mce.Hlls,
+		MetricNameHll:       mce.MetricHll,
+		Allocator:           mce.Allocator,
 	}
 
 	var buf bytes.Buffer
@@ -166,28 +130,28 @@ func (mce *MetricCardinalityEstimator) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	mce.metricName = anon.MetricName
-	mce.hlls = anon.MetricNameFixedHlls
-	mce.metricHll = anon.MetricNameHll
-	mce.allocator = anon.Allocator
+	mce.MetricName = anon.MetricName
+	mce.Hlls = anon.MetricNameFixedHlls
+	mce.MetricHll = anon.MetricNameHll
+	mce.Allocator = anon.Allocator
 
 	return nil
 }
 
 // Do not call this function concurrently.
 func (mce *MetricCardinalityEstimator) Merge(other *MetricCardinalityEstimator) error {
-	if mce.metricName != other.metricName {
-		return fmt.Errorf("BUG: cannot merge estimators with different metric names: %q vs %q", mce.metricName, other.metricName)
+	if mce.MetricName != other.MetricName {
+		return fmt.Errorf("BUG: cannot merge estimators with different metric names: %q vs %q", mce.MetricName, other.MetricName)
 	}
 
-	if err := mce.metricHll.Merge(other.metricHll); err != nil {
+	if err := mce.MetricHll.Merge(other.MetricHll); err != nil {
 		return fmt.Errorf("failed to merge metric name HLL: %w", err)
 	}
 
-	for path, otherHll := range other.hlls {
-		hll := mce.hlls[path]
+	for path, otherHll := range other.Hlls {
+		hll := mce.Hlls[path]
 		if hll == nil {
-			mce.hlls[path] = otherHll.Clone()
+			mce.Hlls[path] = otherHll.Clone()
 			continue
 		}
 
@@ -197,37 +161,6 @@ func (mce *MetricCardinalityEstimator) Merge(other *MetricCardinalityEstimator) 
 	}
 
 	return nil
-}
-
-// Return slice only valid until the next call to encodeTimeseriesPath
-func (mce *MetricCardinalityEstimator) encodeTimeseriesPath(ts prompb.TimeSeries) []byte {
-	mce.b1 = mce.b1[:0]
-
-	mce.b1 = append(mce.b1, ts.MetricName...)
-	mce.b1 = append(mce.b1, 0x00) // \x00 cannot appear in label names/values, so its okay to use it as a separator
-	mce.b1 = append(mce.b1, []byte(ts.FixedLabelValue1)...)
-	mce.b1 = append(mce.b1, 0x00)
-	mce.b1 = append(mce.b1, []byte(ts.FixedLabelValue2)...)
-
-	return mce.b1
-}
-
-// Return slice only valid until the next call to byteifyLabelSet
-func (mce *MetricCardinalityEstimator) byteifyLabelSet(labels []prompb.Label) []byte {
-	mce.b = mce.b[:0]
-
-	for _, l := range labels {
-		if l.Name == "__name__" { // We require this label to be static, so skip it and save cpu
-			continue
-		}
-
-		mce.b = append(mce.b, l.Name...)
-		mce.b = append(mce.b, 0x00) // \x00 cannot appear in label names/values, so its okay to use it as a separator
-		mce.b = append(mce.b, l.Value...)
-		mce.b = append(mce.b, 0x00)
-	}
-
-	return mce.b
 }
 
 func DecodeTimeSeriesPath(path string) (metricName, fixedLabel1Val, fixedLabel2Val string) {

@@ -1,15 +1,9 @@
 package prompb
 
 import (
-	"flag"
 	"fmt"
 	"sort"
 	"strconv"
-)
-
-var (
-	CardinalityEstimatorFixedLabel1 = flag.String("ce.fixedLabel1", "job", "First fixed label for cardinality estimator.")
-	CardinalityEstimatorFixedLabel2 = flag.String("ce.fixedLabel2", "region", "Second fixed label for cardinality estimator.")
 )
 
 // WriteRequest represents Prometheus remote write API request.

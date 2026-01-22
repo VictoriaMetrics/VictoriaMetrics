@@ -8,8 +8,6 @@ import (
 	"log"
 	"sync"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 type CardinalityMetricEmitter struct {
@@ -100,8 +98,8 @@ func NewCardinalityMetricEmitter(ctx context.Context, ce *CardinalityEstimator, 
 							fmt.Sprintf("%s{metric=\"%s\",%s=\"%s\",%s=\"%s\",namespace=\"%s\"} %d\n",
 								cme.emitMetricNamePrefix,
 								metricName,
-								*prompb.CardinalityEstimatorFixedLabel1, fixedLabel1Val,
-								*prompb.CardinalityEstimatorFixedLabel2, fixedLabel2Val,
+								*EstimatorFixedLabel1, fixedLabel1Val,
+								*EstimatorFixedLabel2, fixedLabel2Val,
 								cme.emitNamespace,
 								cardinality,
 							),
