@@ -28,6 +28,9 @@ var (
 	EstimatorSampleRate     = flag.Int("ce.sampleRate", 1, "1/<N> sampling rate for received timeseries. ex. 1/3 means on average every third timeseries is tracked. <N> should be in range [1, inf).")
 	EstimatorShards         = flag.Int("ce.shards", 64, "Number of shards to use for cardinality estimator. Timeseries will be sharded by __name__ label to different estimators to allow for concurrent inserts.")
 
+	EstimatorFixedLabel1 = flag.String("ce.fixedLabel1", "job", "First fixed label for cardinality estimator.")
+	EstimatorFixedLabel2 = flag.String("ce.fixedLabel2", "region", "Second fixed label for cardinality estimator.")
+
 	EmitEnabled            = flag.Bool("ce.emit.enabled", true, "Whether estimation metrics are emitted at all.")
 	EmitEnabledByFixed     = flag.Bool("ce.emit.enabled.byFixed", true, "Whether filtered estimation metrics by fixed dimensions are emitted.")
 	EmitEnabledByMetric    = flag.Bool("ce.emit.enabled.byMetric", true, "Whether top-level estimation metrics by metric name are emitted.")

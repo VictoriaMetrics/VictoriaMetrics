@@ -9,17 +9,14 @@ import (
 	"math"
 	"math/rand"
 	"sort"
-	"strings"
 	"sync"
 	"unsafe"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	timeseriesInsertedTotal = metrics.NewCounter("vm_ce_timeseries_inserted_total")
-	ceResetsTotal           = metrics.NewCounter("vm_ce_resets_total")
+	ceResetsTotal = metrics.NewCounter("vm_ce_resets_total")
 )
 
 const (
@@ -29,15 +26,15 @@ const (
 type CardinalityEstimator struct {
 	// Each shard contains a a map of MetricName -> MetricCardinalityEstimator and a lock to protect concurrent access to that map.
 	//
-	// Invariant: the sets of MetricNames that shards track are disjoint and collectively exhaustive.
-	shards []*struct {
-		lock          *sync.Mutex
-		estimators    map[string]*MetricCardinalityEstimator
-		insertCounter *metrics.Counter
+	// Invariant: the sets of MetricNames that Shards track are disjoint and collectively exhaustive.
+	Shards []*struct {
+		Lock          *sync.Mutex
+		Estimators    map[string]*MetricCardinalityEstimator
+		InsertCounter *metrics.Counter
 	}
-	sampleRate int
+	SampleRate int
 
-	insertSequences [][]int
+	InsertSequences [][]int
 
 	// READONLY FOR PUBLIC USE
 	Allocator *Allocator
@@ -68,31 +65,31 @@ func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64, sample
 	}
 
 	ret := &CardinalityEstimator{
-		shards: make([]*struct {
-			lock          *sync.Mutex
-			estimators    map[string]*MetricCardinalityEstimator
-			insertCounter *metrics.Counter
+		Shards: make([]*struct {
+			Lock          *sync.Mutex
+			Estimators    map[string]*MetricCardinalityEstimator
+			InsertCounter *metrics.Counter
 		}, shards),
-		sampleRate:      sampleRate,
-		insertSequences: make([][]int, 10_000),
+		SampleRate:      sampleRate,
+		InsertSequences: make([][]int, 10_000),
 		Allocator:       NewAllocator(maxHllsInuse),
 	}
 
 	// intialize shards
-	for i := range ret.shards {
-		ret.shards[i] = &struct {
-			lock          *sync.Mutex
-			estimators    map[string]*MetricCardinalityEstimator
-			insertCounter *metrics.Counter
+	for i := range ret.Shards {
+		ret.Shards[i] = &struct {
+			Lock          *sync.Mutex
+			Estimators    map[string]*MetricCardinalityEstimator
+			InsertCounter *metrics.Counter
 		}{
-			lock:          &sync.Mutex{},
-			estimators:    make(map[string]*MetricCardinalityEstimator),
-			insertCounter: metrics.GetOrCreateCounter(fmt.Sprintf("ce_timeseries_inserted_by_shard_total{shard=\"%d\"}", i)),
+			Lock:          &sync.Mutex{},
+			Estimators:    make(map[string]*MetricCardinalityEstimator),
+			InsertCounter: metrics.GetOrCreateCounter(fmt.Sprintf("ce_timeseries_inserted_by_shard_total{shard=\"%d\"}", i)),
 		}
 	}
 
 	// precompute random insert sequences
-	for i := range ret.insertSequences {
+	for i := range ret.InsertSequences {
 		seq := make([]int, shards)
 		for j := range seq {
 			seq[j] = j
@@ -100,7 +97,7 @@ func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64, sample
 		rand.Shuffle(len(seq), func(a, b int) {
 			seq[a], seq[b] = seq[b], seq[a]
 		})
-		ret.insertSequences[i] = seq
+		ret.InsertSequences[i] = seq
 	}
 
 	return ret
@@ -108,11 +105,11 @@ func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64, sample
 
 // Can be called concurrently.
 func (ce *CardinalityEstimator) Reset() {
-	for _, shard := range ce.shards {
-		shard.lock.Lock()
-		defer shard.lock.Unlock()
+	for _, shard := range ce.Shards {
+		shard.Lock.Lock()
+		defer shard.Lock.Unlock()
 
-		shard.estimators = make(map[string]*MetricCardinalityEstimator)
+		shard.Estimators = make(map[string]*MetricCardinalityEstimator)
 	}
 
 	ce.Allocator = NewAllocator(ce.Allocator.Max())
@@ -121,116 +118,17 @@ func (ce *CardinalityEstimator) Reset() {
 }
 
 // Can be called concurrently.
-func (ce *CardinalityEstimator) Insert(tss []prompb.TimeSeries) error {
-	if rand.Intn(ce.sampleRate) != 0 {
-		return nil
-	}
-	return ce.InsertRaw(tss)
-}
-
-// Can be called concurrently. Does not apply sampling.
-func (ce *CardinalityEstimator) InsertRaw(tss []prompb.TimeSeries) error {
-
-	for i := range tss {
-		tss[i].ShardIdx = ce.shardIdx(tss[i].MetricName)
-	}
-
-	// We need some kind of scheduling to optimize contention on shards. The simplest scheduling is to make each request insert into shards in the same order.
-	// However, this has a major flaw:
-	//
-	// Suppose we always insert into shards in some order, lets say 0, 1, 2, ..., N-1 for simplicity.
-	// Given a sequence of requests, r1, r2, ..., rk, it is possible that r1 may take a long time to insert into shard one, blocking all
-	// subsequent requests r2, ..., rk from making any progress as they are all waiting for r1 to finish with shard 1. Subsequently, once
-	// r1 finishes with shard 1, it may take a long time to finish with shard 2, blocking all subsequent requests again.
-	// In this implementation, one slow insert can block all other inserts from making any progress, which is very bad.
-	// Also, it's not enough to simply randomize the starting shard for each request, since the ordering of access is what causes the problem.
-	// The described behavior was actually observed in a production deployment, which was the initial motivation here to implement a better
-	// scheduling mechanism.
-	//
-	// To avoid the above problem, we need a better scheduling that eliminates the ordering problem, allowing requests to make progress even if some
-	// requests are slow. To optimize for a balance of scheduling expense, simplicity, and low contention, we try to access shards uniformly randomly.
-	// This breaks the ordering problem described above, allowing requests to make progress with high probability even if some requests are slow.
-	//
-	// To reduce scheduling costs, we precompute a large number of random sequences, and randomly select one of them to use for each request. Since
-	// the CE itself is long-lived, the amortized cost per request of computing these sequences is basically zero.
-
-	// mark which shards need to be inserted into using a bitmask (zero allocation for <= 64 shards)
-	workTodo := [CE_MAX_SHARDS]bool{}
-	for i := range tss {
-		workTodo[tss[i].ShardIdx] = true
-	}
-
-	// We iterate throught the shards, and for each shard, we iterate through all the timeseries. We are doing O(shards * timeseries)
-	// iterations here which is theoretically suboptimal, but through benchmarking and production profiling this actually yields the best performance.
-	// My best guess for why that's the case is because the work required to insert into HLL significantly dominates the work done for the iteration
-	// we do here, and so we benefit from a combination of better cache locality, fewer lock operations, and less scheduling overhead.
-	for shardIdx := range ce.randomShardIterator() {
-		if !workTodo[shardIdx] {
-			continue
-		}
-
-		err := func() error {
-			shard := ce.shards[shardIdx]
-
-			shard.lock.Lock()
-			defer shard.lock.Unlock()
-
-			for i := range tss {
-				if tss[i].ShardIdx != shardIdx {
-					continue
-				}
-
-				mce, exists := shard.estimators[tss[i].MetricName]
-				if !exists {
-					// allocate a new string to prevent memory leak where the entire request body is kept in memory due to string pointing to it
-					// in our case, we want to avoid situations like:
-					// putting string in longlived hashmap which refs underlying string byte array which is inside original zstd decoded byte array
-					// => gc cannot free original zstd decoded byte array until hashmap entry (and any other references) is removed
-					metricName := strings.Clone(tss[i].MetricName)
-
-					newMce, err := NewMetricCardinalityEstimatorWithAllocator(metricName, ce.Allocator) // <- this holds a reference to the string
-					if err != nil {
-						if err == ERROR_MAX_HLLS_INUSE {
-							return nil
-						}
-
-						return fmt.Errorf("BUG: failed to create MetricCardinalityEstimator for metric %q: %v", metricName, err)
-					}
-
-					mce = newMce
-					shard.estimators[metricName] = newMce // <- this holds a reference to the string
-				}
-
-				if err := mce.Insert(tss[i]); err != nil {
-					return err
-				}
-				timeseriesInsertedTotal.Inc()
-				shard.insertCounter.Inc()
-			}
-
-			return nil
-		}()
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Can be called concurrently.
 func (ce *CardinalityEstimator) EstimateFixedMetricCardinality() map[string]uint64 {
-	estimate := make([]map[string]uint64, len(ce.shards))
+	estimate := make([]map[string]uint64, len(ce.Shards))
 
-	for i, shard := range ce.shards {
+	for i, shard := range ce.Shards {
 		func() {
-			shard.lock.Lock()
-			defer shard.lock.Unlock()
+			shard.Lock.Lock()
+			defer shard.Lock.Unlock()
 
 			estimate[i] = make(map[string]uint64)
 
-			for _, estimator := range shard.estimators {
+			for _, estimator := range shard.Estimators {
 				for label, cardinality := range estimator.EstimateFixedMetricCardinality() {
 					estimate[i][label] = cardinality
 				}
@@ -259,22 +157,22 @@ func (ce *CardinalityEstimator) EstimateMetricsCardinality() (
 	},
 ) {
 
-	for _, shard := range ce.shards {
-		shard.lock.Lock()
+	for _, shard := range ce.Shards {
+		shard.Lock.Lock()
 
-		for _, estimator := range shard.estimators {
+		for _, estimator := range shard.Estimators {
 			estimate.CardinalityDescByMetricName = append(estimate.CardinalityDescByMetricName, struct {
 				MetricName  string `json:"metric_name"`
 				Cardinality uint64 `json:"cardinality"`
 			}{
-				MetricName:  estimator.metricName,
+				MetricName:  estimator.MetricName,
 				Cardinality: estimator.EstimateMetricCardinality(),
 			})
 
 			estimate.CardinalityTotal += estimator.EstimateMetricCardinality()
 		}
 
-		shard.lock.Unlock()
+		shard.Lock.Unlock()
 	}
 
 	sort.Slice(estimate.CardinalityDescByMetricName, func(i, j int) bool {
@@ -290,7 +188,7 @@ func (ce *CardinalityEstimator) MarshalBinary() ([]byte, error) {
 	encoder := gob.NewEncoder(&buf)
 
 	// First encode the number of shards
-	if err := encoder.Encode(len(ce.shards)); err != nil {
+	if err := encoder.Encode(len(ce.Shards)); err != nil {
 		return nil, err
 	}
 
@@ -300,15 +198,15 @@ func (ce *CardinalityEstimator) MarshalBinary() ([]byte, error) {
 	}
 
 	// Encode each shard one at a time
-	for _, shard := range ce.shards {
-		shard.lock.Lock()
+	for _, shard := range ce.Shards {
+		shard.Lock.Lock()
 
-		if err := encoder.Encode(shard.estimators); err != nil {
-			shard.lock.Unlock()
+		if err := encoder.Encode(shard.Estimators); err != nil {
+			shard.Lock.Unlock()
 			return nil, err
 		}
 
-		shard.lock.Unlock()
+		shard.Lock.Unlock()
 	}
 
 	return buf.Bytes(), nil
@@ -316,10 +214,10 @@ func (ce *CardinalityEstimator) MarshalBinary() ([]byte, error) {
 
 // Can be called concurrently.
 func (ce *CardinalityEstimator) UnmarshalBinary(data []byte) error {
-	for _, shard := range ce.shards {
+	for _, shard := range ce.Shards {
 		// lock all shards
-		shard.lock.Lock()
-		defer shard.lock.Unlock()
+		shard.Lock.Lock()
+		defer shard.Lock.Unlock()
 	}
 
 	decoder := gob.NewDecoder(bytes.NewReader(data))
@@ -330,8 +228,8 @@ func (ce *CardinalityEstimator) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("Failed to decode shard count: %v", err)
 	}
 
-	if numShards != len(ce.shards) {
-		return fmt.Errorf("BUG: mismatched shard counts, received %d, expected %d", numShards, len(ce.shards))
+	if numShards != len(ce.Shards) {
+		return fmt.Errorf("BUG: mismatched shard counts, received %d, expected %d", numShards, len(ce.Shards))
 	}
 
 	// Decode the allocator's state
@@ -342,12 +240,12 @@ func (ce *CardinalityEstimator) UnmarshalBinary(data []byte) error {
 	ce.Allocator = &allocator
 
 	// Decode each shard one at a time
-	for i, shard := range ce.shards {
+	for i, shard := range ce.Shards {
 		var shardEstimators map[string]*MetricCardinalityEstimator
 		if err := decoder.Decode(&shardEstimators); err != nil {
 			return fmt.Errorf("Failed to decode shard %d: %v", i, err)
 		}
-		shard.estimators = shardEstimators
+		shard.Estimators = shardEstimators
 	}
 
 	return nil
@@ -355,29 +253,29 @@ func (ce *CardinalityEstimator) UnmarshalBinary(data []byte) error {
 
 // Can be called concurrently. The other estimator should not be used after the merge.
 func (ce *CardinalityEstimator) Merge(other *CardinalityEstimator) error {
-	if len(ce.shards) != len(other.shards) {
-		return fmt.Errorf("mismatched shard counts, self has %d, other has %d", len(ce.shards), len(other.shards))
+	if len(ce.Shards) != len(other.Shards) {
+		return fmt.Errorf("mismatched shard counts, self has %d, other has %d", len(ce.Shards), len(other.Shards))
 	}
 
 	// merge allocator state
 	ce.Allocator.Merge(other.Allocator)
 
-	for i := range ce.shards {
+	for i := range ce.Shards {
 		err := func() error {
-			selfShard := ce.shards[i]
-			otherShard := other.shards[i]
+			selfShard := ce.Shards[i]
+			otherShard := other.Shards[i]
 
-			selfShard.lock.Lock()
-			otherShard.lock.Lock()
-			defer selfShard.lock.Unlock()
-			defer otherShard.lock.Unlock()
+			selfShard.Lock.Lock()
+			otherShard.Lock.Lock()
+			defer selfShard.Lock.Unlock()
+			defer otherShard.Lock.Unlock()
 
 			// merge estimators
-			for metricName, otherEstimator := range otherShard.estimators {
-				selfEstimator, exists := selfShard.estimators[metricName]
+			for metricName, otherEstimator := range otherShard.Estimators {
+				selfEstimator, exists := selfShard.Estimators[metricName]
 				if !exists {
-					selfShard.estimators[metricName] = otherEstimator
-					otherEstimator.allocator = ce.Allocator // policy: use the self estimator's allocator
+					selfShard.Estimators[metricName] = otherEstimator
+					otherEstimator.Allocator = ce.Allocator // policy: use the self estimator's allocator
 					continue
 				}
 
@@ -387,7 +285,7 @@ func (ce *CardinalityEstimator) Merge(other *CardinalityEstimator) error {
 			}
 
 			// merge insert counters
-			selfShard.insertCounter.Set(selfShard.insertCounter.Get() + otherShard.insertCounter.Get())
+			selfShard.InsertCounter.Set(selfShard.InsertCounter.Get() + otherShard.InsertCounter.Get())
 
 			return nil
 		}()
@@ -402,22 +300,22 @@ func (ce *CardinalityEstimator) Merge(other *CardinalityEstimator) error {
 
 // Can be called concurrently.
 func (ce *CardinalityEstimator) ShardsCount() int {
-	return len(ce.shards)
+	return len(ce.Shards)
 }
 
-func (ce *CardinalityEstimator) shardIdx(metricName string) int {
+func (ce *CardinalityEstimator) ShardIdx(metricName string) int {
 	fnv := fnv.New64a()
 	fnv.Write(unsafe.Slice(unsafe.StringData(metricName), len(metricName)))
-	return int(fnv.Sum64() % uint64(len(ce.shards)))
+	return int(fnv.Sum64() % uint64(len(ce.Shards)))
 }
 
-func (ce *CardinalityEstimator) randomShardIterator() func(yield func(int) bool) {
+func (ce *CardinalityEstimator) RandomShardIterator() func(yield func(int) bool) {
 	return func(yield func(int) bool) {
-		seq := ce.insertSequences[rand.Intn(len(ce.insertSequences))]
-		if len(seq) != len(ce.shards) {
-			log.Panicf("BUG: len(seq)=%d, len(ce.shards)=%d", len(seq), len(ce.shards))
+		seq := ce.InsertSequences[rand.Intn(len(ce.InsertSequences))]
+		if len(seq) != len(ce.Shards) {
+			log.Panicf("BUG: len(seq)=%d, len(ce.shards)=%d", len(seq), len(ce.Shards))
 		}
-		for i := range ce.shards {
+		for i := range ce.Shards {
 			if !yield(seq[i]) {
 				return
 			}
