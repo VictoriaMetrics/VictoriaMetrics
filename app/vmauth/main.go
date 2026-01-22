@@ -269,51 +269,27 @@ func bufferRequestBody(ctx context.Context, r *http.Request, ui *UserInfo) error
 	}
 
 	start := time.Now()
-	tmpBuf := make([]byte, 8*1024)
-	read := 0
+	defer bufferRequestBodyDuration.UpdateDuration(start)
 
-loop:
-	for read < maxSize {
-		select {
-		case <-ctx.Done():
-			break loop
-		default:
-		}
-
-		tmpBuf = tmpBuf[:cap(tmpBuf)]
-		if maxSize-read < len(tmpBuf) {
-			tmpBuf = tmpBuf[:maxSize-read]
-		}
-
-		n, err := rtb.Read(tmpBuf)
-		read += n
-		if errors.Is(err, io.EOF) {
-			break
-		} else if err != nil {
-			bufferRequestBodyDuration.UpdateDuration(start)
-			return &httpserver.ErrorWithStatusCode{
-				Err:        fmt.Errorf("cannot read request body: %w", err),
-				StatusCode: http.StatusBadRequest,
-			}
-		}
-	}
-	rtb.readBuf = rtb.buf
-
-	bufferRequestBodyDuration.UpdateDuration(start)
-
-	select {
-	case <-ctx.Done():
-		if rtb.bufComplete {
-			break
-		}
-
+	if err := rtb.fill(ctx); errors.Is(err, context.DeadlineExceeded) {
 		rejectSlowClientRequests.Inc()
 		dur := time.Since(start)
+		dur = dur.Truncate(time.Second)
+
+		name := ui.name()
+		if name == "" {
+			name = "annonymous"
+		}
+
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("client %s; rejecting request because the client sends body too slow; reading %d bytes took %.2fs, which exceeds -maxQueueDuration=%s", ui.name(), read, dur.Seconds(), *maxQueueDuration),
+			Err:        fmt.Errorf("client %s; request rejected because the client sends body too slow; read %d bytes in %s, which exceeds -maxQueueDuration=%s", name, len(rtb.buf), dur, *maxQueueDuration),
 			StatusCode: http.StatusBadRequest,
 		}
-	default:
+	} else if err != nil {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot read request body: %w", err),
+			StatusCode: http.StatusBadRequest,
+		}
 	}
 
 	return nil
@@ -805,6 +781,42 @@ func (rtb *bufferedBody) Read(p []byte) (int, error) {
 		rtb.bufComplete = true
 	}
 	return n, err
+}
+
+// fill reads data from r into buf until buf reaches maxBodySize or io.EOF is reached.
+// If io.EOF is reached, bufComplete is set to true.
+func (rtb *bufferedBody) fill(ctx context.Context) error {
+	tmpBuf := make([]byte, 8*1024)
+	read := 0
+
+	for read < rtb.maxBodySize {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		tmpBuf = tmpBuf[:cap(tmpBuf)]
+		if rtb.maxBodySize-read < len(tmpBuf) {
+			tmpBuf = tmpBuf[:rtb.maxBodySize-read]
+		}
+
+		n, err := rtb.r.Read(tmpBuf)
+		read += n
+		if errors.Is(err, io.EOF) {
+			rtb.buf = append(rtb.buf, tmpBuf[:n]...)
+			rtb.bufComplete = true
+			rtb.readBuf = rtb.buf
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		rtb.buf = append(rtb.buf, tmpBuf[:n]...)
+	}
+
+	rtb.readBuf = rtb.buf
+	return nil
 }
 
 func (rtb *bufferedBody) canRetry() bool {

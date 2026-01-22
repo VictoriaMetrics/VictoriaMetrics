@@ -754,7 +754,7 @@ cannot read request body: an error`)
 
 	// a sleep 200ms after reading 1024 bytes, maxQueueDuration is 100ms
 	f(&mockBody{head: make([]byte, 1024), sleep: time.Millisecond * 200, tail: make([]byte, 2048)}, `statusCode=400
-client sends request body too slow, reading first 3072 bytes took 0.20sec, which exceeds -maxQueueDuration=100ms`)
+client annonymous; request rejected because the client sends body too slow; read 3072 bytes in 0s, which exceeds -maxQueueDuration=100ms`)
 }
 
 type mockBody struct {
