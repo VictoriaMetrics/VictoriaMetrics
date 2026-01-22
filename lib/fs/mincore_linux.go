@@ -10,9 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-func hasMincore() bool {
-	return true
-}
+var mincoreSupported = true
 
 func mincore(ptr *byte) bool {
 	var result [1]byte

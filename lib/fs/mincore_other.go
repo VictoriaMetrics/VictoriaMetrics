@@ -6,9 +6,7 @@ import (
 	"fmt"
 )
 
-func hasMincore() bool {
-	return false
-}
+var mincoreSupported = false
 
 func mincore(ptr *byte) bool {
 	panic(fmt.Errorf("BUG: unexpected call"))
