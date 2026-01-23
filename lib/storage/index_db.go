@@ -1291,7 +1291,7 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 
 // GetTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
 func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	qt = qt.NewChild("collect TSDB status: filters=%s, date=%d, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, date, focusLabel, topN, maxMetrics)
+	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
 	defer qt.Done()
 
 	is := db.getIndexSearch(deadline)

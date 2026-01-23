@@ -1458,28 +1458,58 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // indexDB and legacy indexDB statuses is non-trivial and not many users use
 // this status for historical data.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
+	defer qt.Done()
+
 	timestamp := int64(date) * msecPerDay
 	ptw := s.tb.GetPartition(timestamp)
 	if ptw == nil {
+		// If no partition is found for the given date, then both partition and
+		// legacy index do not have status for that date, therefore returning
+		// early.
+		qt.Printf("%s is outside the database retention period", dateToString(date))
 		return &TSDBStatus{}, nil
 	}
 	defer s.tb.PutPartition(ptw)
 
 	if s.disablePerDayIndex {
+		// Use special date to instruct indexDB to search global index since
+		// per-day index is disabled.
 		date = globalIndexDate
 	}
 
-	res, err := ptw.pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	var (
+		res *TSDBStatus
+		err error
+	)
+	idbName := ptw.pt.idb.name
+	qt.Printf("collect TSDB status in indexDB %s", idbName)
+	res, err = ptw.pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
+	if res.hasEntries() {
+		qt.Printf("collected TSDB status in indexDB %s", idbName)
+	} else {
+		qt.Printf("TSDB status was not found in indexDB %s", idbName)
+		// fallback to the legacy indexDBs search
+		// since after migration monthly partition may not have stats for time range covered
+		// by partition index.
+		res, err = s.legacyGetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if s.metricsTracker != nil && len(res.SeriesCountByMetricName) > 0 {
 		// for performance reason always check if metricsTracker is configured
+		qt.Printf("update TSDB status with metric name usage stats")
 		names := make([]string, len(res.SeriesCountByMetricName))
 		for idx, mns := range res.SeriesCountByMetricName {
 			names[idx] = mns.Name
 		}
 		res.SeriesQueryStatsByMetricName = s.metricsTracker.GetStatRecordsForNames(0, 0, names)
+		qt.Printf("updated TSDB status with usage stats for %d metric names", len(names))
 	}
 	return res, nil
 }
