@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -26,6 +27,8 @@ const (
 //
 // It must return BufferedConn wrapper for c on successful handshake.
 type Func func(c net.Conn, compressionLevel int) (*BufferedConn, error)
+
+type HealthCheckFunc func(bc *BufferedConn) error
 
 // VMInsertClientWithDialer performs client-side handshake for vminsert protocol.
 //
@@ -142,6 +145,45 @@ func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	return genericServer(c, compressionLevel, func(c net.Conn) error {
 		return readMessage(c, vmselectHello)
 	})
+}
+
+func HealthCheckToVmstroage(bc *BufferedConn) error {
+	funcName := "healthCheck_v1"
+	buf := []byte(funcName)
+	sizeBuf := encoding.MarshalUint64(nil, uint64(len(buf)))
+	if _, err := bc.Write(sizeBuf); err != nil {
+		return fmt.Errorf("cannot write funcName size: %w", err)
+	}
+	_, err := bc.Write(buf)
+	if err != nil {
+		return fmt.Errorf("cannot write funcName: %w", err)
+	}
+	var trace [1]byte
+	_, err = bc.Write(trace[:])
+	if err != nil {
+		return fmt.Errorf("cannot write traceEnable: %w", err)
+	}
+
+	timeout := encoding.MarshalUint32(nil, 5)
+	_, err = bc.Write(timeout)
+	if err != nil {
+		return fmt.Errorf("cannot write timeout: %w", err)
+	}
+	if err = bc.Flush(); err != nil {
+		return fmt.Errorf("cannot flush buf: %w", err)
+	}
+
+	var resp [8]byte
+	if _, err = io.ReadFull(bc, resp[:]); err != nil {
+		return fmt.Errorf("cannot read health check response: %w", err)
+	}
+	_ = encoding.UnmarshalUint64(resp[:])
+
+	if _, err = io.ReadFull(bc, resp[:]); err != nil {
+		return fmt.Errorf("cannot read trace field: %w", err)
+	}
+
+	return nil
 }
 
 // errTCPHealthcheck indicates that the connection was opened as part of a TCP health check
