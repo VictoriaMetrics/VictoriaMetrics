@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce health check functionality for connection pools, this will help to prevent broken connections from persisting for long time. See [#10314](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314)
+
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
 Released at 2026-01-16

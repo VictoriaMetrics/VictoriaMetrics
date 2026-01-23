@@ -1081,7 +1081,6 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 		}
 		blocksRead++
 		s.metricBlocksRead.Inc()
-		logger.Infof("jayice write1")
 		if err := ctx.writeDataBufBytes(); err != nil {
 			return fmt.Errorf("cannot send MetricBlock: %w", err)
 		}
@@ -1096,7 +1095,6 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send 'end of response' marker")
 	}
-	logger.Infof("jayice write2")
 	return nil
 }
 
@@ -1251,11 +1249,9 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 
 func (s *Server) processHealthCheck(ctx *vmselectRequestCtx) error {
 	s.healthCheckRequests.Inc()
-	println("jayice1")
 	if err := ctx.writeUint64(1); err != nil {
-		return fmt.Errorf("cannot write series count to vmselect: %w", err)
+		return fmt.Errorf("cannot response health check to vmselect: %w", err)
 	}
-	println("jayice2")
 	return nil
 }
 
