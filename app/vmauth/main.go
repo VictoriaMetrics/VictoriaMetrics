@@ -244,7 +244,6 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			}
 
 			httpserver.Errorf(w, r, "%s", err)
-			ui.requestErrors.Inc()
 			<-concurrencyLimitCh
 			return
 		}
