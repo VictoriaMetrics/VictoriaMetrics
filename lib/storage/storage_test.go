@@ -2872,13 +2872,18 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetTSDBStatus() failed unexpectedly: %v", err)
 	}
-	want = &TSDBStatus{
-		SeriesCountByMetricName:      []TopHeapEntry{},
-		SeriesCountByLabelName:       []TopHeapEntry{},
-		SeriesCountByFocusLabelValue: []TopHeapEntry{},
-		SeriesCountByLabelValuePair:  []TopHeapEntry{},
-		LabelValueCountByLabelName:   []TopHeapEntry{},
+	want = &TSDBStatus{}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected label values (-want, +got):\n%s", diff)
 	}
+
+	// With partition index we can no longer support zero date to report stats
+	// for the entire retention period. Expect empty status.
+	got, err = s.GetTSDBStatus(nil, accountID, projectID, nil, globalIndexDate, "", 6, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus() failed unexpectedly: %v", err)
+	}
+	want = &TSDBStatus{}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unexpected label values (-want, +got):\n%s", diff)
 	}
