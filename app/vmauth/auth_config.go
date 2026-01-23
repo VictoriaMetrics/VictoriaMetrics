@@ -150,7 +150,7 @@ func (ui *UserInfo) stopHealthChecks() {
 	if ui == nil {
 		return
 	}
-	
+
 	if ui.URLPrefix != nil {
 		bus := ui.URLPrefix.bus.Load()
 		bus.stopHealthChecks()
