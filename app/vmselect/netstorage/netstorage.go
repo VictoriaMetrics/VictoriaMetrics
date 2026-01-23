@@ -2512,7 +2512,6 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 		//   - cannot obtain connection from the pool (pool exhaustion, dial or handshake errors)
 		return err
 	}
-	println(err.Error())
 	// Repeat the query in the hope the error was temporary.
 	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
 

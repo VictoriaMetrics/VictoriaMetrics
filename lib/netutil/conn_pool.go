@@ -216,7 +216,7 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 		// no more connections in the pool, dial a new connection.
 		return cp.getConnSlow()
 	case <-timeout.C:
-		return nil, fmt.Errorf("failed to get valid connection to %s within 5 seconds", cp.d.addr)
+		return nil, fmt.Errorf("failed to get valid connection to %s within %s", cp.d.addr, cp.dialTimeout+time.Second)
 	}
 }
 

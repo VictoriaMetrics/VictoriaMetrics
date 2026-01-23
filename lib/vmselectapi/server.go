@@ -575,7 +575,6 @@ func (s *Server) endConcurrentRequest() {
 }
 
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
-	println(rpcName)
 	switch rpcName {
 	case "search_v7":
 		return s.processSearch(ctx)
@@ -1250,7 +1249,7 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 func (s *Server) processHealthCheck(ctx *vmselectRequestCtx) error {
 	s.healthCheckRequests.Inc()
 	if err := ctx.writeUint64(1); err != nil {
-		return fmt.Errorf("cannot response health check to vmselect: %w", err)
+		return fmt.Errorf("cannot respond to health check from vmselect: %w", err)
 	}
 	return nil
 }
