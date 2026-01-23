@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly return [/api/v1/status/tsdb](https://docs.victoriametrics.com/victoriametrics/#tsdb-stats) response for time range outside [partition index](https://docs.victoriametrics.com/victoriametrics/#indexdb). See [#10315](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10315).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): fix backend health checks for URL prefixes defined in `url_map` not being properly stopped during configuration reloads. Previously, this led to goroutine leaks and repeated warning logs about unreachable backends that were no longer present in the configuration. See [#10334](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10334).
 
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 

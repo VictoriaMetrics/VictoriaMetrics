@@ -150,12 +150,22 @@ func (ui *UserInfo) stopHealthChecks() {
 	if ui == nil {
 		return
 	}
-	if ui.URLPrefix == nil {
-		return
+	
+	if ui.URLPrefix != nil {
+		bus := ui.URLPrefix.bus.Load()
+		bus.stopHealthChecks()
 	}
-
-	bus := ui.URLPrefix.bus.Load()
-	bus.stopHealthChecks()
+	if ui.DefaultURL != nil {
+		bus := ui.DefaultURL.bus.Load()
+		bus.stopHealthChecks()
+	}
+	for i := range ui.URLMaps {
+		um := &ui.URLMaps[i]
+		if um.URLPrefix != nil {
+			bus := um.URLPrefix.bus.Load()
+			bus.stopHealthChecks()
+		}
+	}
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
