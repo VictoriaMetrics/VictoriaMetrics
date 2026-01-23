@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly report `*_requests_total`, `*_misses_total`, `*_resets_total`, `*_syncs_total` metrics for `indexdb/tagFiltersToMetricIDs`, `indexdb/metricID` and `indexdb/date_metricID` caches. See [#10275](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10275).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly report `*_requests_total`, `*_misses_total`, `*_resets_total`, `*_syncs_total`, `*_rotations_total` metrics for `indexdb/tagFiltersToMetricIDs`, `indexdb/metricID` and `indexdb/date_metricID` caches. See [#10275](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10275).
 
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
