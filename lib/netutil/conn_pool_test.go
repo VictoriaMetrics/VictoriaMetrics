@@ -174,7 +174,7 @@ func TestGetWithHealthCheckConnectionPool(t *testing.T) {
 		t.Errorf("failed to get connection from pool")
 	}
 	if handshakeCounter.Load() != 2 {
-		t.Errorf("unexpected health check counter value: %d", healthCheckCounter.Load())
+		t.Errorf("unexpected handshake counter value: %d", handshakeCounter.Load())
 	}
 }
 
