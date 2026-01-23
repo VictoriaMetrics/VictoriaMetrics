@@ -279,7 +279,7 @@ func bufferRequestBody(ctx context.Context, r *http.Request, ui *UserInfo) error
 
 	if err := rtb.fill(ctx); errors.Is(err, context.DeadlineExceeded) {
 		rejectSlowClientRequests.Inc()
-		dur := time.Since(start).Truncate(time.Second)
+		dur := time.Since(start)
 
 		name := ui.name()
 		if name == "" {
@@ -287,7 +287,7 @@ func bufferRequestBody(ctx context.Context, r *http.Request, ui *UserInfo) error
 		}
 
 		return &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("client %s; request rejected because the client sends body too slow; read %d bytes in %s, which exceeds -maxQueueDuration=%s", name, len(rtb.buf), dur, *maxQueueDuration),
+			Err:        fmt.Errorf("client %s; request rejected because the client sends body too slow; read %d bytes in %s, which exceeds -maxQueueDuration=%s", name, len(rtb.buf), dur.Truncate(time.Second), *maxQueueDuration),
 			StatusCode: http.StatusBadRequest,
 		}
 	} else if err != nil {
