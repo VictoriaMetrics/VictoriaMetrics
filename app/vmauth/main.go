@@ -801,7 +801,6 @@ func (rtb *bufferedBody) fill(ctx context.Context) error {
 		default:
 		}
 
-		tmpBuf = tmpBuf[:cap(tmpBuf)]
 		if rtb.maxBodySize-read < len(tmpBuf) {
 			tmpBuf = tmpBuf[:rtb.maxBodySize-read]
 		}
