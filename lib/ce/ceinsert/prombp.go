@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"sync"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce"
@@ -18,11 +19,45 @@ func InsertPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries) e
 	return InsertRawPrompb(estimator, tss)
 }
 
+type metadata struct {
+	MetricName       string
+	ShardIdx         int
+	FixedLabelValue1 string
+	FixedLabelValue2 string
+}
+
+var metadatasPool = sync.Pool{
+	New: func() any {
+		s := make([]metadata, 1000)
+		return &s
+	},
+}
+
 // Can be called concurrently. Does not apply sampling.
 func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries) error {
+	metadatasPtr := metadatasPool.Get().(*[]metadata)
+	if cap(*metadatasPtr) < len(tss) {
+		*metadatasPtr = make([]metadata, len(tss))
+	}
+	metadatas := (*metadatasPtr)[:len(tss)]
+	defer metadatasPool.Put(metadatasPtr)
 
 	for i := range tss {
-		tss[i].ShardIdx = estimator.ShardIdx(tss[i].MetricName)
+		m := &metadatas[i]
+		m.MetricName = "UNKNOWN"
+		m.FixedLabelValue1 = ""
+		m.FixedLabelValue2 = ""
+		for _, label := range tss[i].Labels {
+			switch label.Name {
+			case "__name__":
+				m.MetricName = label.Value
+				m.ShardIdx = estimator.ShardIdx(label.Value)
+			case *ce.EstimatorFixedLabel1:
+				m.FixedLabelValue1 = label.Value
+			case *ce.EstimatorFixedLabel2:
+				m.FixedLabelValue2 = label.Value
+			}
+		}
 	}
 
 	// We need some kind of scheduling to optimize contention on shards. The simplest scheduling is to make each request insert into shards in the same order.
@@ -44,10 +79,10 @@ func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries
 	// To reduce scheduling costs, we precompute a large number of random sequences, and randomly select one of them to use for each request. Since
 	// the CE itself is long-lived, the amortized cost per request of computing these sequences is basically zero.
 
-	// mark which shards need to be inserted into using a bitmask (zero allocation for <= 64 shards)
+	// mark which shards need to be inserted into using a bitmask (stack allocated for <= 64 shards)
 	workTodo := [ce.CE_MAX_SHARDS]bool{}
 	for i := range tss {
-		workTodo[tss[i].ShardIdx] = true
+		workTodo[metadatas[i].ShardIdx] = true
 	}
 
 	// We iterate throught the shards, and for each shard, we iterate through all the timeseries. We are doing O(shards * timeseries)
@@ -66,17 +101,17 @@ func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries
 			defer shard.Lock.Unlock()
 
 			for i := range tss {
-				if tss[i].ShardIdx != shardIdx {
+				if metadatas[i].ShardIdx != shardIdx {
 					continue
 				}
 
-				mce, exists := shard.Estimators[tss[i].MetricName]
+				mce, exists := shard.Estimators[metadatas[i].MetricName]
 				if !exists {
 					// allocate a new string to prevent memory leak where the entire request body is kept in memory due to string pointing to it
 					// in our case, we want to avoid situations like:
 					// putting string in longlived hashmap which refs underlying string byte array which is inside original zstd decoded byte array
 					// => gc cannot free original zstd decoded byte array until hashmap entry (and any other references) is removed
-					metricName := strings.Clone(tss[i].MetricName)
+					metricName := strings.Clone(metadatas[i].MetricName)
 
 					newMce, err := ce.NewMetricCardinalityEstimatorWithAllocator(metricName, estimator.Allocator) // <- this holds a reference to the string
 					if err != nil {
@@ -91,7 +126,7 @@ func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries
 					shard.Estimators[metricName] = newMce // <- this holds a reference to the string
 				}
 
-				if err := mceInsertPrompb(mce, tss[i]); err != nil {
+				if err := mceInsertPrompb(mce, tss[i], metadatas[i]); err != nil {
 					return err
 				}
 				timeseriesInsertedTotal.Inc()
@@ -110,10 +145,10 @@ func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries
 }
 
 // Do not call this function concurrently.
-func mceInsertPrompb(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries) error {
+func mceInsertPrompb(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries, m metadata) error {
 	// Make sure the timeseries has a metric name label and it matches the estimator's metric name
-	if ts.MetricName != mce.MetricName {
-		return fmt.Errorf("BUG: timeseries metric name (%s) does not match estimator metric name (%s)", ts.MetricName, mce.MetricName)
+	if m.MetricName != mce.MetricName {
+		return fmt.Errorf("BUG: timeseries metric name (%s) does not match estimator metric name (%s)", m.MetricName, mce.MetricName)
 	}
 
 	tsEncoding := byteifyLabelSetPrompb(mce, ts.Labels)
@@ -122,7 +157,7 @@ func mceInsertPrompb(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries) e
 	mce.MetricHll.Insert(tsEncoding)
 
 	// Count cardinality for the whole metric by fixed dimension
-	pathBytes := encodeTimeseriesPathPrompb(mce, ts)
+	pathBytes := mce.EncodeTimeseriesPath(m.MetricName, m.FixedLabelValue1, m.FixedLabelValue2)
 	path := unsafe.String(unsafe.SliceData(pathBytes), len(pathBytes))
 
 	hll := mce.Hlls[path]
@@ -141,19 +176,6 @@ func mceInsertPrompb(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries) e
 	hll.Insert(tsEncoding)
 
 	return nil
-}
-
-// Return slice only valid until the next call to EncodeTimeseriesPath
-func encodeTimeseriesPathPrompb(mce *ce.MetricCardinalityEstimator, ts prompb.TimeSeries) []byte {
-	mce.B1 = mce.B1[:0]
-
-	mce.B1 = append(mce.B1, ts.MetricName...)
-	mce.B1 = append(mce.B1, 0x00) // \x00 cannot appear in label names/values, so its okay to use it as a separator
-	mce.B1 = append(mce.B1, []byte(ts.FixedLabelValue1)...)
-	mce.B1 = append(mce.B1, 0x00)
-	mce.B1 = append(mce.B1, []byte(ts.FixedLabelValue2)...)
-
-	return mce.B1
 }
 
 // Return slice only valid until the next call to ByteifyLabelSet
