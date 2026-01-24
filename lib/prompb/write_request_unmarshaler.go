@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce"
 	"github.com/VictoriaMetrics/easyproto"
 )
 
@@ -167,23 +166,6 @@ func (ts *TimeSeries) unmarshalProtobuf(src []byte, labelsPool []Label, samplesP
 	}
 	ts.Labels = labelsPool[labelsPoolLen:]
 	ts.Samples = samplesPool[samplesPoolLen:]
-
-	// Calculate cardinality estimator metadata.)
-	if *ce.EstimatorDefaultEnabled {
-		ts.MetricName = ""
-		ts.FixedLabelValue1 = ""
-		ts.FixedLabelValue2 = ""
-		for _, label := range ts.Labels {
-			switch label.Name {
-			case "__name__":
-				ts.MetricName = label.Value
-			case *ce.EstimatorFixedLabel1:
-				ts.FixedLabelValue1 = label.Value
-			case *ce.EstimatorFixedLabel2:
-				ts.FixedLabelValue2 = label.Value
-			}
-		}
-	}
 
 	return labelsPool, samplesPool, nil
 }

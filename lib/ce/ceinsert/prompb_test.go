@@ -151,10 +151,6 @@ func generateUniqueTimeseriesPrompb(count int, metricNameGen func() string) []pr
 			Samples: []prompb.Sample{
 				{Value: float64(i), Timestamp: time.Now().UnixMilli()},
 			},
-			MetricName:       name,
-			FixedLabelValue1: "",
-			FixedLabelValue2: "",
-			ShardIdx:         0,
 		}
 		timeseries = append(timeseries, ts)
 	}
@@ -162,28 +158,9 @@ func generateUniqueTimeseriesPrompb(count int, metricNameGen func() string) []pr
 	return timeseries
 }
 
-func Benchmark_MetricCardinalityEstimator(b *testing.B) {
-
-	timeseries := generateUniqueTimeseriesPrompb(1000, func() string { return "test_metric" })
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		mce := ce.NewMetricCardinalityEstimator("test_metric")
-
-		for _, data := range timeseries {
-			err := mceInsertPrompb(mce, data)
-			if err != nil {
-				b.Errorf("Failed to insert data: %v", err)
-			}
-		}
-	}
-	b.StopTimer()
-}
-
-// Benchmark_CardinalityEstimator_EndToEnd benchmarks the full end-to-end flow
+// Benchmark_CardinalityEstimator_Insert benchmarks the full end-to-end flow
 // using the CardinalityEstimator with realistic batch sizes and concurrent access patterns.
-func Benchmark_CardinalityEstimator_EndToEnd(b *testing.B) {
+func Benchmark_CardinalityEstimator_Insert(b *testing.B) {
 	// Setup: create a fresh estimator with default settings
 	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
 
@@ -218,9 +195,9 @@ func Benchmark_CardinalityEstimator_EndToEnd(b *testing.B) {
 	b.ReportMetric(float64(len(timeseries)), "timeseries/op")
 }
 
-// Benchmark_CardinalityEstimator_EndToEnd_Concurrent benchmarks concurrent inserts
+// Benchmark_CardinalityEstimator_Insert_Concurrent benchmarks concurrent inserts
 // simulating multiple concurrent remote write requests.
-func Benchmark_CardinalityEstimator_EndToEnd_Concurrent(b *testing.B) {
+func Benchmark_CardinalityEstimator_Insert_Concurrent(b *testing.B) {
 	// Setup: create a fresh estimator with default settings
 	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
 
@@ -276,7 +253,7 @@ func Benchmark_CardinalityEstimator_EndToEnd_Concurrent(b *testing.B) {
 }
 
 // MAKE SURE THIS BENCHMARK RETURNS 0 ALLOCS/OP
-func Benchmark_CardinalityEstimator_EndToEnd_SingleBatch_1Alloc(b *testing.B) {
+func Benchmark_CardinalityEstimator_Insert_SingleBatch(b *testing.B) {
 	// Setup: create a fresh estimator with default settings
 	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
 
@@ -300,4 +277,89 @@ func Benchmark_CardinalityEstimator_EndToEnd_SingleBatch_1Alloc(b *testing.B) {
 	}
 
 	b.StopTimer()
+}
+
+// Benchmark_EndToEnd_BatchInsert benchmarks the full end-to-end flow:
+// 1. Start with a pre-marshaled protobuf WriteRequest
+// 2. Decode it using lib/prompb
+// 3. Insert into CE
+func Benchmark_EndToEnd_BatchInsert(b *testing.B) {
+	// Setup: create a fresh estimator with default settings
+	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+
+	// Create a WriteRequest with 500 timeseries (typical remote write batch size)
+	wr := generateWriteRequest(500)
+
+	// Marshal the WriteRequest to protobuf bytes (simulates what arrives over the network)
+	protoData := wr.MarshalProtobuf(nil)
+
+	// Warm up: decode and insert once to ensure all maps and structures are initialized
+	wru := prompb.GetWriteRequestUnmarshaler()
+	decoded, err := wru.UnmarshalProtobuf(protoData)
+	if err != nil {
+		b.Fatalf("Failed to unmarshal protobuf: %v", err)
+	}
+	if err := InsertRawPrompb(estimator, decoded.Timeseries); err != nil {
+		b.Fatalf("Failed to insert batch: %v", err)
+	}
+	prompb.PutWriteRequestUnmarshaler(wru)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// Get unmarshaler from pool
+		wru := prompb.GetWriteRequestUnmarshaler()
+
+		// Decode protobuf
+		decoded, err := wru.UnmarshalProtobuf(protoData)
+		if err != nil {
+			b.Fatalf("Failed to unmarshal protobuf: %v", err)
+		}
+
+		// Insert into CE
+		if err := InsertRawPrompb(estimator, decoded.Timeseries); err != nil {
+			b.Fatalf("Failed to insert batch: %v", err)
+		}
+
+		// Return unmarshaler to pool
+		prompb.PutWriteRequestUnmarshaler(wru)
+	}
+
+	b.StopTimer()
+
+	// Report throughput
+	b.ReportMetric(float64(len(wr.Timeseries)), "timeseries/op")
+	b.ReportMetric(float64(len(protoData)), "bytes/op")
+}
+
+// generateWriteRequest creates a WriteRequest with the specified number of timeseries
+func generateWriteRequest(count int) *prompb.WriteRequest {
+	randGen := rand.New(rand.NewSource(123))
+
+	tss := make([]prompb.TimeSeries, 0, count)
+	for i := range count {
+		metricName := fmt.Sprintf("test_metric_%d", randGen.Int63n(100))
+		ts := prompb.TimeSeries{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: metricName},
+				{Name: "instance", Value: fmt.Sprintf("host-%d:9090", randGen.Int63n(1000))},
+				{Name: "job", Value: "node-exporter"},
+				{Name: "pod", Value: fmt.Sprintf("pod-%d", randGen.Int63n(1000))},
+				{Name: "namespace", Value: "default"},
+				{Name: "container", Value: fmt.Sprintf("container-%d", randGen.Int63n(100))},
+				{Name: "node", Value: fmt.Sprintf("node-%d", randGen.Int63n(50))},
+				{Name: "region", Value: fmt.Sprintf("region-%d", randGen.Int63n(10))},
+				{Name: "dc", Value: fmt.Sprintf("dc-%d", randGen.Int63n(5))},
+			},
+			Samples: []prompb.Sample{
+				{Value: float64(i), Timestamp: time.Now().UnixMilli()},
+			},
+		}
+		tss = append(tss, ts)
+	}
+
+	return &prompb.WriteRequest{
+		Timeseries: tss,
+	}
 }

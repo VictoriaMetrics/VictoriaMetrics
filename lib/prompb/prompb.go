@@ -28,12 +28,6 @@ type TimeSeries struct {
 
 	// Samples is a list of samples for the given TimeSeries
 	Samples []Sample
-
-	// Reserved for cardinality estimator
-	MetricName       string
-	FixedLabelValue1 string // First fixed label value for estimations, something like service_name. Precalculated for later use.
-	FixedLabelValue2 string // Second fixed label value for estimations, something like region. Precalculated for later use.
-	ShardIdx         int    // Reserved for later use.
 }
 
 // Sample is a timeseries sample.

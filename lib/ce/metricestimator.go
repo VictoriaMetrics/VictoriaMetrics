@@ -163,6 +163,19 @@ func (mce *MetricCardinalityEstimator) Merge(other *MetricCardinalityEstimator) 
 	return nil
 }
 
+// Return slice only valid until the next call to EncodeTimeseriesPath
+func (mce *MetricCardinalityEstimator) EncodeTimeseriesPath(metricName string, fixedLabelValue1 string, fixedLabelValue2 string) []byte {
+	mce.B1 = mce.B1[:0]
+
+	mce.B1 = append(mce.B1, metricName...)
+	mce.B1 = append(mce.B1, 0x00) // \x00 cannot appear in label names/values, so its okay to use it as a separator
+	mce.B1 = append(mce.B1, []byte(fixedLabelValue1)...)
+	mce.B1 = append(mce.B1, 0x00)
+	mce.B1 = append(mce.B1, []byte(fixedLabelValue2)...)
+
+	return mce.B1
+}
+
 func DecodeTimeSeriesPath(path string) (metricName, fixedLabel1Val, fixedLabel2Val string) {
 	parts := strings.Split(path, "\x00")
 	if len(parts) != 3 {
