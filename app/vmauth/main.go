@@ -349,13 +349,13 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		err = ctxErr
 	}
 	if err != nil {
-		// Do not retry canceled
 		if errors.Is(err, context.Canceled) {
+			// Do not retry canceled requests.
 			clientCanceledRequests.Inc()
 			return true, false
 		}
-		// Do not retry timed out requests
 		if errors.Is(err, context.DeadlineExceeded) {
+			// Do not retry timed out requests.
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
 			// Timed out request must be counted as errors, since this usually means that the backend is slow.
@@ -417,9 +417,11 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	err = copyStreamToClient(w, res.Body)
 	_ = res.Body.Close()
 	if errors.Is(err, context.Canceled) {
+		// Do not retry canceled requests.
 		clientCanceledRequests.Inc()
 		return true, false
-	} else if err != nil && !netutil.IsTrivialNetworkError(err) {
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 
