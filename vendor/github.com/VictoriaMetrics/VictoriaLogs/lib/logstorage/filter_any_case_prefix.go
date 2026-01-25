@@ -82,6 +82,12 @@ func (fp *filterAnyCasePrefix) initPrefixUppercase() {
 	fp.prefixUppercase = strings.ToUpper(fp.prefix)
 }
 
+func (fp *filterAnyCasePrefix) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fp.fieldName)
+	prefixLowercase := fp.getPrefixLowercase()
+	return matchAnyCasePrefix(v, prefixLowercase)
+}
+
 func (fp *filterAnyCasePrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
 	prefixLowercase := fp.getPrefixLowercase()
 	applyToBlockResultGeneric(br, bm, fp.fieldName, prefixLowercase, matchAnyCasePrefix)

@@ -235,6 +235,10 @@ func (shp *statsHistogramProcessor) importState(src []byte, _ <-chan struct{}) (
 func (shp *statsHistogramProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	m := shp.getCompleteBucketsMap()
 
+	if len(m) == 0 {
+		return append(dst, "[]"...)
+	}
+
 	vmranges := make([]string, 0, len(m))
 	for vmrange := range m {
 		vmranges = append(vmranges, vmrange)

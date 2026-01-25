@@ -12,12 +12,12 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
 //
-// Use GetParser() for obtaining the parser.
+// Use GetJSONParser() for obtaining the parser.
 type JSONParser struct {
 	// Fields contains the parsed JSON line after Parse() call
 	//
 	// The Fields are valid until the next call to ParseLogMessage()
-	// or until the parser is returned to the pool with PutParser() call.
+	// or until the parser is returned to the pool with PutJSONParser() call.
 	Fields []Field
 
 	// p is used for fast JSON parsing

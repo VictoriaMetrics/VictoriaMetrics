@@ -27,6 +27,11 @@ func (fr *filterIPv4Range) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter(fr.fieldName)
 }
 
+func (fr *filterIPv4Range) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fr.fieldName)
+	return matchIPv4Range(v, fr.minValue, fr.maxValue)
+}
+
 func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue

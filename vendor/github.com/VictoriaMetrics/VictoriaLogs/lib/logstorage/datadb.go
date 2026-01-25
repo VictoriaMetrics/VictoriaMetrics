@@ -480,14 +480,35 @@ func assertIsInMerge(pws []*partWrapper) {
 //
 // if isFinal is set, then the resulting part is guaranteed to be saved to disk.
 // if isFinal is set, then the merge process cannot be interrupted.
-// The pws may remain unmerged after returning from the function if there is no enough disk space.
+//
+// The pws may remain unmerged after returning from the function in the following cases:
+// - if ddb.stopCh is closed
+// - if there is no enough disk space
 //
 // All the parts inside pws must have isInMerge field set to true.
 // The isInMerge field inside pws parts is set to false before returning from the function.
 func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
+	_ = ddb.mustMergePartsInternal(pws, isFinal, nil, ddb.stopCh)
+}
+
+// mustMergePartsInternal merges pws to a single resulting part.
+//
+// if isFinal is set, then the resulting part is guaranteed to be saved to disk.
+// if isFinal is set, then the merge process cannot be interrupted.
+// if dropFilter is non-nil, then rows matching this filter are dropped during the merge.
+//
+// The pws may remain unmerged after returning from the function in the following cases:
+// - if stopCh is closed
+// - if there is no enough disk space
+//
+// If pws aren't merged, then false is returned from the function.
+//
+// All the parts inside pws must have isInMerge field set to true.
+// The isInMerge field inside pws parts is set to false before returning from the function.
+func (ddb *datadb) mustMergePartsInternal(pws []*partWrapper, isFinal bool, dropFilter *partitionSearchOptions, stopCh <-chan struct{}) bool {
 	if len(pws) == 0 {
 		// Nothing to merge.
-		return
+		return true
 	}
 
 	assertIsInMerge(pws)
@@ -499,13 +520,12 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	if dstPartType != partInmemory {
 		// Make sure there is enough disk space for performing the merge
 		partsSize := getCompressedSize(pws)
-		needReleaseDiskSpace := tryReserveDiskSpace(ddb.path, partsSize)
-		if needReleaseDiskSpace {
+		if tryReserveDiskSpace(ddb.path, partsSize) {
 			defer releaseDiskSpace(partsSize)
 		} else {
 			if !isFinal {
 				// There is no enough disk space for performing the non-final merge.
-				return
+				return false
 			}
 			// Try performing final merge even if there is no enough disk space
 			// in order to persist in-memory data to disk.
@@ -541,7 +561,7 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 		pwNew := ddb.openCreatedPart(&mp.ph, pws, nil, dstPartPath)
 		ddb.swapSrcWithDstParts(pws, pwNew, dstPartType)
 		ddb.updateMergeMetrics(dstPartType, mp.ph.RowsCount, startTime, mp.ph.CompressedSizeBytes)
-		return
+		return true
 	}
 
 	// Prepare blockStreamReaders for source parts.
@@ -569,12 +589,11 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 
 	// Merge source parts to destination part.
 	var ph partHeader
-	stopCh := ddb.stopCh
 	if isFinal {
-		// The final merge shouldn't be stopped even if ddb.stopCh is closed.
+		// The final merge shouldn't be stopped even if stopCh is closed.
 		stopCh = nil
 	}
-	mustMergeBlockStreams(&ph, bsw, bsrs, stopCh)
+	mustMergeBlockStreams(&ph, ddb.pt.idb, bsw, bsrs, dropFilter, stopCh)
 	putBlockStreamWriter(bsw)
 	for _, bsr := range bsrs {
 		putBlockStreamReader(bsr)
@@ -593,7 +612,7 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 		if dstPartType != partInmemory {
 			fs.MustRemoveDir(dstPartPath)
 		}
-		return
+		return false
 	}
 
 	// Atomically swap the source parts with the newly created part.
@@ -614,7 +633,7 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 
 	d := time.Since(startTime)
 	if d <= time.Minute {
-		return
+		return true
 	}
 
 	// Log stats for long merges.
@@ -622,6 +641,8 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	rowsPerSec := int(float64(srcRowsCount) / durationSecs)
 	logger.Infof("merged (%d parts, %d rows, %d blocks, %d bytes) into (1 part, %d rows, %d blocks, %d bytes) in %.3f seconds at %d rows/sec to %q",
 		len(pws), srcRowsCount, srcBlocksCount, srcSize, dstRowsCount, dstBlocksCount, dstSize, durationSecs, rowsPerSec, dstPartPath)
+
+	return true
 }
 
 func (ddb *datadb) updateMergeMetrics(partType partType, srcRowCount uint64, startTime time.Time, dstSize uint64) {
@@ -1506,6 +1527,36 @@ func (ddb *datadb) mustForceMergeAllParts() {
 	}
 	wg.Wait()
 	putWaitGroup(wg)
+}
+
+func (ddb *datadb) deleteRows(pso *partitionSearchOptions, stopCh <-chan struct{}) bool {
+	// Get all the parts and make sure they are kept open.
+	pws, pwsDecRef := ddb.getPartsForTimeRange(pso.minTimestamp, pso.maxTimestamp)
+	defer pwsDecRef()
+
+	// Search for parts, which contain logs matching pso for the deletion and which aren't in merge at the moment.
+	var pwsToMerge []*partWrapper
+	for _, pw := range pws {
+		if !pw.p.hasMatchingRows(pso, stopCh) {
+			continue
+		}
+
+		ddb.partsLock.Lock()
+		ok := !pw.isInMerge
+		if ok {
+			pw.isInMerge = true
+			pwsToMerge = append(pwsToMerge, pw)
+		}
+		ddb.partsLock.Unlock()
+
+		if !ok {
+			ddb.releasePartsToMerge(pwsToMerge)
+			return false
+		}
+	}
+
+	// merge pwsToMerge while dropping logs matching pso.
+	return ddb.mustMergePartsInternal(pwsToMerge, false, pso, stopCh)
 }
 
 func appendAllPartsForMergeLocked(dst, src []*partWrapper) []*partWrapper {
