@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): ceiling the last scrape size as an integer in kilobytes to avoid misleading dots. See [#10307](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10307).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improved scrape size display. Sizes below 1024 bytes are now shown in `B`, and larger sizes are shown as whole `KiB` (rounded up). This prevents confusion where values like 123.456 KiB were interpreted as 123456 KiB, while the actual size was only 123 KiB. See [#10307](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10307).
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly return [/api/v1/status/tsdb](https://docs.victoriametrics.com/victoriametrics/#tsdb-stats) response for time range outside [partition index](https://docs.victoriametrics.com/victoriametrics/#indexdb). See [#10315](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10315).
 
