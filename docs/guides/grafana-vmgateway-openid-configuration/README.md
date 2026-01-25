@@ -249,27 +249,27 @@ services:
       - grafana_data:/var/lib/grafana/
 
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.133.0
+    image: victoriametrics/victoria-metrics:v1.134.0
     command:
       - -httpListenAddr=0.0.0.0:8429
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.133.0-cluster
+    image: victoriametrics/vmstorage:v1.134.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.133.0-cluster
+    image: victoriametrics/vminsert:v1.134.0-cluster
     command:
       - -storageNode=vmstorage:8400
       - -httpListenAddr=0.0.0.0:8480
 
   vmselect:
-    image: victoriametrics/vmselect:v1.133.0-cluster
+    image: victoriametrics/vmselect:v1.134.0-cluster
     command:
       - -storageNode=vmstorage:8401
       - -httpListenAddr=0.0.0.0:8481
 
   vmagent:
-    image: victoriametrics/vmagent:v1.133.0
+    image: victoriametrics/vmagent:v1.134.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -278,7 +278,7 @@ services:
       - -remoteWrite.url=http://vmsingle:8429/api/v1/write
 
   vmgateway-cluster:
-    image: victoriametrics/vmgateway:v1.133.0-enterprise
+    image: victoriametrics/vmgateway:v1.134.0-enterprise
     ports:
       - 8431:8431
     volumes:
@@ -294,7 +294,7 @@ services:
       - -auth.oidcDiscoveryEndpoints=http://keycloak:8080/realms/master/.well-known/openid-configuration
 
   vmgateway-single:
-    image: victoriametrics/vmgateway:v1.133.0-enterprise
+    image: victoriametrics/vmgateway:v1.134.0-enterprise
     ports:
       - 8432:8431
     volumes:
@@ -405,7 +405,7 @@ Once iDP configuration is done, vmagent configuration needs to be updated to use
 
 ```yaml
   vmagent:
-    image: victoriametrics/vmagent:v1.133.0
+    image: victoriametrics/vmagent:v1.134.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
       - ./vmagent-client-secret:/etc/vmagent/oauth2-client-secret

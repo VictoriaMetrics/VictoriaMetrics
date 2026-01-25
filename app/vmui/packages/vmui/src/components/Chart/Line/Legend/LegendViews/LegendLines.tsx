@@ -2,7 +2,7 @@ import { FC } from "preact/compat";
 import LegendItem from "../LegendItem/LegendItem";
 import { LegendProps } from "../LegendGroup";
 
-const LegendLines: FC<LegendProps> = ({ labels, isAnomalyView, duplicateFields, onChange }) => {
+const LegendLines: FC<LegendProps> = ({ labels, duplicateFields, onChange }) => {
 
   return (
     <div className="vm-legend-item-container">
@@ -10,7 +10,6 @@ const LegendLines: FC<LegendProps> = ({ labels, isAnomalyView, duplicateFields, 
         <LegendItem
           key={legendItem.label}
           legend={legendItem}
-          isAnomalyView={isAnomalyView}
           duplicateFields={duplicateFields}
           onChange={onChange}
         />

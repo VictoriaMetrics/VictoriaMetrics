@@ -27,7 +27,6 @@ import (
 	"sync"
 
 	"github.com/oklog/ulid/v2"
-
 	"github.com/prometheus/common/promslog"
 
 	"github.com/prometheus/prometheus/model/labels"
@@ -67,10 +66,10 @@ type IndexReader interface {
 	Symbols() index.StringIter
 
 	// SortedLabelValues returns sorted possible label values.
-	SortedLabelValues(ctx context.Context, name string, matchers ...*labels.Matcher) ([]string, error)
+	SortedLabelValues(ctx context.Context, name string, hints *storage.LabelHints, matchers ...*labels.Matcher) ([]string, error)
 
 	// LabelValues returns possible label values which may not be sorted.
-	LabelValues(ctx context.Context, name string, matchers ...*labels.Matcher) ([]string, error)
+	LabelValues(ctx context.Context, name string, hints *storage.LabelHints, matchers ...*labels.Matcher) ([]string, error)
 
 	// Postings returns the postings list iterator for the label pairs.
 	// The Postings here contain the offsets to the series inside the index.
@@ -102,11 +101,6 @@ type IndexReader interface {
 
 	// LabelNames returns all the unique label names present in the index in sorted order.
 	LabelNames(ctx context.Context, matchers ...*labels.Matcher) ([]string, error)
-
-	// LabelValueFor returns label value for the given label name in the series referred to by ID.
-	// If the series couldn't be found or the series doesn't have the requested label a
-	// storage.ErrNotFound is returned as error.
-	LabelValueFor(ctx context.Context, id storage.SeriesRef, label string) (string, error)
 
 	// LabelNamesFor returns all the label names for the series referred to by the postings.
 	// The names returned are sorted.
@@ -189,10 +183,12 @@ type BlockMeta struct {
 
 // BlockStats contains stats about contents of a block.
 type BlockStats struct {
-	NumSamples    uint64 `json:"numSamples,omitempty"`
-	NumSeries     uint64 `json:"numSeries,omitempty"`
-	NumChunks     uint64 `json:"numChunks,omitempty"`
-	NumTombstones uint64 `json:"numTombstones,omitempty"`
+	NumSamples          uint64 `json:"numSamples,omitempty"`
+	NumFloatSamples     uint64 `json:"numFloatSamples,omitempty"`
+	NumHistogramSamples uint64 `json:"numHistogramSamples,omitempty"`
+	NumSeries           uint64 `json:"numSeries,omitempty"`
+	NumChunks           uint64 `json:"numChunks,omitempty"`
+	NumTombstones       uint64 `json:"numTombstones,omitempty"`
 }
 
 // BlockDesc describes a block by ULID and time range.
@@ -476,14 +472,14 @@ func (r blockIndexReader) Symbols() index.StringIter {
 	return r.ir.Symbols()
 }
 
-func (r blockIndexReader) SortedLabelValues(ctx context.Context, name string, matchers ...*labels.Matcher) ([]string, error) {
+func (r blockIndexReader) SortedLabelValues(ctx context.Context, name string, hints *storage.LabelHints, matchers ...*labels.Matcher) ([]string, error) {
 	var st []string
 	var err error
 
 	if len(matchers) == 0 {
-		st, err = r.ir.SortedLabelValues(ctx, name)
+		st, err = r.ir.SortedLabelValues(ctx, name, hints)
 	} else {
-		st, err = r.LabelValues(ctx, name, matchers...)
+		st, err = r.LabelValues(ctx, name, hints, matchers...)
 		if err == nil {
 			slices.Sort(st)
 		}
@@ -494,16 +490,16 @@ func (r blockIndexReader) SortedLabelValues(ctx context.Context, name string, ma
 	return st, nil
 }
 
-func (r blockIndexReader) LabelValues(ctx context.Context, name string, matchers ...*labels.Matcher) ([]string, error) {
+func (r blockIndexReader) LabelValues(ctx context.Context, name string, hints *storage.LabelHints, matchers ...*labels.Matcher) ([]string, error) {
 	if len(matchers) == 0 {
-		st, err := r.ir.LabelValues(ctx, name)
+		st, err := r.ir.LabelValues(ctx, name, hints)
 		if err != nil {
 			return st, fmt.Errorf("block: %s: %w", r.b.Meta().ULID, err)
 		}
 		return st, nil
 	}
 
-	return labelValuesWithMatchers(ctx, r.ir, name, matchers...)
+	return labelValuesWithMatchers(ctx, r.ir, name, hints, matchers...)
 }
 
 func (r blockIndexReader) LabelNames(ctx context.Context, matchers ...*labels.Matcher) ([]string, error) {
@@ -548,11 +544,6 @@ func (r blockIndexReader) Series(ref storage.SeriesRef, builder *labels.ScratchB
 func (r blockIndexReader) Close() error {
 	r.b.pendingReaders.Done()
 	return nil
-}
-
-// LabelValueFor returns label value for the given label name in the series referred to by ID.
-func (r blockIndexReader) LabelValueFor(ctx context.Context, id storage.SeriesRef, label string) (string, error) {
-	return r.ir.LabelValueFor(ctx, id, label)
 }
 
 // LabelNamesFor returns all the label names for the series referred to by the postings.

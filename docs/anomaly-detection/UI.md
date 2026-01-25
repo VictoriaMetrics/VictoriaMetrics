@@ -26,7 +26,7 @@ aliases:
 
 ## Accessing the UI
 
-The UI is available at `http://<vmanomaly-host>:8490` by default, however, the port can be changed in `server` section of the [configuration file](https://docs.victoriametrics.com/anomaly-detection/components/) using the `port` parameter:
+The UI is available at `http://<vmanomaly-host>:8490` by default, however, the port can be changed in `server` [section](https://docs.victoriametrics.com/anomaly-detection/components/server/) of the [configuration file](https://docs.victoriametrics.com/anomaly-detection/components/) using the `port` parameter:
 
 ```yaml
 server:
@@ -187,9 +187,13 @@ Based on the needs, either
 - Full UI state can be [shared via URL](#url-sharing)
 - Or model part / full service configuration can be [viewed and exported in production-ready YAML format](#yaml-configuration).
 
+[Default state](#default-state) can simplify both sharing and experimentation by preconfiguring the UI state on vmanomaly startup.
+
 ### URL Sharing
 
-Similarly to vmui, vmanomaly UI supports **configuration sharing via URL**. This allows users to share their UI state (including queries, time ranges, model type and hyperparameters, and other settings) by copying and sharing the URL from the browser's address bar.
+Similarly to vmui, vmanomaly UI supports **configuration sharing via URL** by encoding the UI state in the URL. This allows users to share their UI state (including queries, time ranges, model type and hyperparameters, and other settings) by copying and sharing the URL from the browser's address bar.
+
+Once the desired UI state is set up (query, time range, model configuration, etc.), the URL can be copied from the browser's address bar and shared with others, who can then open the URL in their browsers to see the same UI state (given that the data source is accessible to them).
 
 ![vmanomaly-ui-state-sharing-url](vmanomaly-ui-state-sharing-url.webp)
 
@@ -199,6 +203,29 @@ Similarly to vmui, vmanomaly UI supports **configuration sharing via URL**. This
 ```shellhelp
 http://localhost:8490/vmui/#/?anomaly_threshold=1.0&fit_window=1d&fit_every=7d&g0.range_input=7d&g0.end_input=2025-09-30T16%3A56%3A13&g0.relative_time=last_7_days&g0.tab=0&g0.tenantID=0&datasourceUrl=https%3A%2F%2Fplay.victoriametrics.com%2Fselect%2F0%2Fprometheus&g0.expr=sum%28rate%28node_cpu_seconds_total%7Bmode%3D%7E%22%28softirq%7Cuser%7Ciowait%29%22%7D%5B10m%5D%29%29+by+%28container%2C+mode%29&g0.step_input=30m&model_config=%257B%2522modelType%2522%253A%2522rolling_quantile%2522%252C%2522settings%2522%253A%257B%2522detection_direction%2522%253A%2522above_expected%2522%252C%2522data_range%2522%253A%255B0%252C100%255D%252C%2522scale%2522%253A%255B1%252C1%255D%252C%2522clip_predictions%2522%253Atrue%252C%2522min_dev_from_expected%2522%253A%255B0%252C6%255D%252C%2522anomaly_score_outside_data_range%2522%253A1.01%252C%2522quantile%2522%253A0.9%252C%2522window_steps%2522%253A48%257D%252C%2522modelSpec%2522%253A%257B%2522class_name%2522%253A%2522rolling_quantile%2522%252C%2522class%2522%253A%2522model.rolling_quantile.RollingQuantileModel%2522%252C%2522detection_direction%2522%253A%2522above_expected%2522%252C%2522data_range%2522%253A%255B0%252C100%255D%252C%2522scale%2522%253A%255B1%252C1%255D%252C%2522clip_predictions%2522%253Atrue%252C%2522min_dev_from_expected%2522%253A%255B0%252C6%255D%252C%2522anomaly_score_outside_data_range%2522%253A1.01%252C%2522window_steps%2522%253A48%252C%2522quantile%2522%253A0.9%257D%252C%2522isValidated%2522%253Atrue%257D
 ```
+
+### Default State
+
+{{% available_from "v1.28.5" anomaly %}} It is possible to preconfigure the default UI state via url-encoded `ui_default_state` parameter, so that `/vmui/` opens with the intended model settings, time range, query and other parameters, which improves user experience by allowing direct access to specific views without manual configuration each time, including state sharing or faster experimentation for internal teams.
+
+This parameter can be set in `server` [section](https://docs.victoriametrics.com/anomaly-detection/components/server/) of the [configuration file](https://docs.victoriametrics.com/anomaly-detection/components/) using the `ui_default_state` parameter. 
+
+> Default state is static by nature, so changing it requires either vmanomaly service restart or enabling [hot-reload mode](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) via `--watch` flag.
+
+Example usage (based on [UI preset](#preset) mode):
+
+```yaml
+preset: ui
+# other sections, if needed e.g. settings
+
+server:
+  ui_default_state: '#/?anomaly_threshold=1.0&anomaly_consecutive=true&fit_window=3d'
+  # other server parameters, if needed e.g. port, max_concurrent_tasks, etc.
+```
+
+After that, accessing `http://<vmanomaly-host>:<port>/vmui/` (e.g. `http://localhost:8490/vmui/`) will open the UI with the preconfigured default state: `anomaly_threshold=1.0`, consecutive anomaly mode turned on and `fit_window=3d` given the example above.
+
+> Please refer to [URL sharing](#url-sharing) section for details on how to construct and copy the desired UI state URL.
 
 ### YAML Configuration
 
@@ -217,7 +244,7 @@ Clicking the "Show Config" button to access (model-only or full) configuration a
 
 ## Optimize Resource Usage
 
-Based on expected usage patterns (quick experiments, internal team serving, number of users, etc.) it is recommended to tune resource usage by adjusting the following parameters in the `server` and `settings` sections of the configuration file:
+Based on expected usage patterns (quick experiments, internal team serving, number of users, etc.) it is recommended to tune resource usage by adjusting the following parameters in the `server` [section](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters) and `settings` [section](https://docs.victoriametrics.com/anomaly-detection/components/settings/) of the configuration file:
 
 ```yaml
 server:
@@ -394,12 +421,21 @@ If the **results** look good and the **model configuration should be deployed in
 
 ## Changelog
 
+### v1.4.2
+Released: 2026-01-17
+
+vmanomaly version: [v1.28.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1285)
+
+- Enable preconfigured default UI state via url-encoded `ui_default_state`, so `/vmui/` opens with the intended model settings, time range, query and other parameters. This improves user experience by allowing direct access to specific views without manual configuration each time. See [Default State](https://docs.victoriametrics.com/anomaly-detection/ui/#default-state) section for details.
+
+- Enable autocomplete for VictoriaLogs / VictoriaTraces data sources in query input area.
+
 ### v1.4.1
 Released: 2026-01-12
 
 vmanomaly version: [v1.28.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1284)
 
-- FEATURE: Allow `path_prefix` parameter to override the server's configured URL path prefix for all HTTP routes. This is useful when the UI is served behind a reverse proxy that modifies the base path. For example, if the server is configured with `path_prefix: /my-app`, accessing the UI at `/my-app/` will work correctly even if the proxy serves it at a different base path.
+- FEATURE: Allow `path_prefix` parameter to override the server's configured URL path prefix for all HTTP routes. This is useful when the UI is served behind a reverse proxy that modifies the base path. For example, if the server is configured with `path_prefix: /my-app`, accessing the UI at `/my-app/` will work correctly even if the proxy serves it at a different base path. It can be set in the `server` [section](https://docs.victoriametrics.com/anomaly-detection/components/server/#parameters) of the configuration file.
 
 ### v1.4.0
 Released: 2025-12-11

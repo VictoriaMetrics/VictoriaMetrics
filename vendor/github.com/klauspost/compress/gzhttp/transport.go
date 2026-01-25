@@ -196,10 +196,10 @@ func lower(b byte) byte {
 var zstdReaderPool sync.Pool
 
 // zstdReader wraps a response body so it can lazily
-// call gzip.NewReader on the first call to Read
+// call zstd.NewReader on the first call to Read
 type zstdReader struct {
 	body io.ReadCloser // underlying HTTP/1 response body framing
-	zr   *zstd.Decoder // lazily-initialized gzip reader
+	zr   *zstd.Decoder // lazily-initialized zstd reader
 	zerr error         // any error from zstd.NewReader; sticky
 }
 
@@ -208,14 +208,12 @@ func (zr *zstdReader) Read(p []byte) (n int, err error) {
 		return 0, zr.zerr
 	}
 	if zr.zr == nil {
-		if zr.zerr == nil {
-			reader, ok := zstdReaderPool.Get().(*zstd.Decoder)
-			if ok {
-				zr.zerr = reader.Reset(zr.body)
-				zr.zr = reader
-			} else {
-				zr.zr, zr.zerr = zstd.NewReader(zr.body, zstd.WithDecoderLowmem(true), zstd.WithDecoderMaxWindow(32<<20), zstd.WithDecoderConcurrency(1))
-			}
+		reader, ok := zstdReaderPool.Get().(*zstd.Decoder)
+		if ok {
+			zr.zerr = reader.Reset(zr.body)
+			zr.zr = reader
+		} else {
+			zr.zr, zr.zerr = zstd.NewReader(zr.body, zstd.WithDecoderLowmem(true), zstd.WithDecoderMaxWindow(32<<20), zstd.WithDecoderConcurrency(1))
 		}
 		if zr.zerr != nil {
 			return 0, zr.zerr

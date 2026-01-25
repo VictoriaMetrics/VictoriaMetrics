@@ -13,10 +13,9 @@ type Props = {
   isHistogram: boolean;
   graphData: MetricResult[];
   controlsRef: RefObject<HTMLDivElement>;
-  isAnomalyView?: boolean;
 }
 
-const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef, isAnomalyView }) => {
+const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef }) => {
   const { isMobile } = useDeviceDetect();
 
   const { customStep, yaxis, spanGaps, showAllPoints } = useGraphState();
@@ -74,7 +73,6 @@ const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef, isAnomalyVie
         setPeriod={setPeriod}
         height={isMobile ? window.innerHeight * 0.5 : 500}
         isHistogram={isHistogram}
-        isAnomalyView={isAnomalyView}
         spanGaps={spanGaps}
         showAllPoints={showAllPoints}
       />

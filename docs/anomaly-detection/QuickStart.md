@@ -121,7 +121,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.4
+docker pull victoriametrics/vmanomaly:v1.28.5
 ```
 
 2. Create the license file with your license key.
@@ -141,7 +141,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.28.4 \
+    victoriametrics/vmanomaly:v1.28.5 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -158,7 +158,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.28.4 \
+    victoriametrics/vmanomaly:v1.28.5 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \

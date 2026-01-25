@@ -269,6 +269,14 @@ type Uploader struct {
 	// Note: S3 Express buckets always require CRC32 checksums regardless of this setting.
 	RequestChecksumCalculation aws.RequestChecksumCalculation
 
+	// By default, the uploader verifies that the number of expected uploaded
+	// parts matches the actual count at the end of an upload.
+	//
+	// You can disable that with this flag, however, Amazon S3 recommends
+	// against doing so because it damages the durability posture of object
+	// uploads.
+	DisableValidateParts bool
+
 	// partPool allows for the re-usage of streaming payload part buffers between upload calls
 	partPool byteSlicePool
 }
@@ -362,8 +370,9 @@ type uploader struct {
 
 	in *s3.PutObjectInput
 
-	readerPos int64 // current reader position
-	totalSize int64 // set to -1 if the size is not known
+	readerPos   int64 // current reader position
+	totalSize   int64 // set to -1 if the size is not known
+	expectParts int64
 }
 
 // internal logic for deciding whether to upload a single part or use a
@@ -445,6 +454,11 @@ func (u *uploader) initSize() error {
 			// Add one to the part size to account for remainders
 			// during the size calculation. e.g odd number of bytes.
 			u.cfg.PartSize = (u.totalSize / int64(u.cfg.MaxUploadParts)) + 1
+		}
+
+		u.expectParts = u.totalSize / u.cfg.PartSize
+		if u.totalSize%u.cfg.PartSize != 0 {
+			u.expectParts++
 		}
 	}
 
@@ -874,6 +888,17 @@ func (u *multiuploader) complete() *s3.CompleteMultipartUploadOutput {
 	resp, err := u.cfg.S3.CompleteMultipartUpload(u.ctx, &params, u.cfg.ClientOptions...)
 	if err != nil {
 		u.seterr(err)
+		u.fail()
+	}
+
+	// expectParts == 0 means we didn't know the content length upfront and
+	// therefore we can't validate this at all
+	if u.expectParts == 0 || u.cfg.DisableValidateParts {
+		return resp
+	}
+
+	if len(u.parts) != int(u.expectParts) {
+		u.seterr(fmt.Errorf("uploaded part count mismatch: expected %d, got %d", u.expectParts, len(u.parts)))
 		u.fail()
 	}
 
