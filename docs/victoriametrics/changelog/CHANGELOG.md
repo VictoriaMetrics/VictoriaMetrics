@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [monitoring](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring): take into account all the generated log messages at `vm_log_messages_total` metric, including suppressed logs if the `-loggerLevel` command-line flag is set to values other than `INFO`. Add `is_printed` label to the `vm_log_messages_total` metric in order to understand whether the log at the given code `location` was suppressed or not. This simplifies troubleshooting of VictoriaMetrics components when logs aren't available. See [#10304](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10304).
+
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly return [/api/v1/status/tsdb](https://docs.victoriametrics.com/victoriametrics/#tsdb-stats) response for time range outside [partition index](https://docs.victoriametrics.com/victoriametrics/#indexdb). See [#10315](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10315).
 
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
