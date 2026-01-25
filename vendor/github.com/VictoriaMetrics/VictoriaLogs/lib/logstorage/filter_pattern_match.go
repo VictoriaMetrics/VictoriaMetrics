@@ -14,7 +14,9 @@ import (
 // See https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe
 type filterPatternMatch struct {
 	fieldName string
-	pm        *patternMatcher
+
+	funcName string
+	pm       *patternMatcher
 
 	tokensOnce   sync.Once
 	tokens       []string
@@ -22,11 +24,7 @@ type filterPatternMatch struct {
 }
 
 func (fp *filterPatternMatch) String() string {
-	funcName := "pattern_match"
-	if fp.pm.isFull {
-		funcName = "pattern_match_full"
-	}
-	return fmt.Sprintf("%s%s(%s)", quoteFieldNameIfNeeded(fp.fieldName), funcName, quoteTokenIfNeeded(fp.pm.String()))
+	return fmt.Sprintf("%s%s(%s)", quoteFieldNameIfNeeded(fp.fieldName), fp.funcName, quoteTokenIfNeeded(fp.pm.String()))
 }
 
 func (fp *filterPatternMatch) updateNeededFields(pf *prefixfilter.Filter) {
@@ -48,46 +46,21 @@ func (fp *filterPatternMatch) initTokens() {
 
 	separators := fp.pm.separators
 
-	if fp.pm.isFull {
-		sep := separators[0]
+	switch fp.pm.pmo {
+	case patternMatcherOptionAny:
 		if len(separators) == 1 {
-			a = append(a, sep)
-			sep = ""
-		}
-		if sep != "" && isSpecialNumStart(sep[len(sep)-1]) {
+			sep := skipFirstToken(separators[0])
 			sep = skipLastToken(sep)
-		}
-		if sep != "" {
 			a = append(a, sep)
+			separators = nil
+			break
 		}
-		separators = separators[1:]
 
-		if len(separators) > 0 {
-			sep := separators[len(separators)-1]
-			if sep != "" && isSpecialNumEnd(sep[0]) {
-				sep = skipFirstToken(sep)
-			}
-			if sep != "" {
-				a = append(a, sep)
-			}
-			separators = separators[:len(separators)-1]
-		}
-	} else {
 		sep := skipFirstToken(separators[0])
-		if len(separators) == 1 {
-			sep = skipFirstToken(sep)
-			sep = skipLastToken(sep)
-			if sep != "" {
-				a = append(a, sep)
-			}
-			sep = ""
-		}
 		if sep != "" && isSpecialNumStart(sep[len(sep)-1]) {
 			sep = skipLastToken(sep)
 		}
-		if sep != "" {
-			a = append(a, sep)
-		}
+		a = append(a, sep)
 		separators = separators[1:]
 
 		if len(separators) > 0 {
@@ -95,11 +68,79 @@ func (fp *filterPatternMatch) initTokens() {
 			if sep != "" && isSpecialNumEnd(sep[0]) {
 				sep = skipFirstToken(sep)
 			}
-			if sep != "" {
-				a = append(a, sep)
-			}
+			a = append(a, sep)
 			separators = separators[:len(separators)-1]
 		}
+	case patternMatcherOptionFull:
+		if len(separators) == 1 {
+			a = append(a, separators[0])
+			separators = nil
+			break
+		}
+
+		sep := separators[0]
+		if sep != "" && isSpecialNumStart(sep[len(sep)-1]) {
+			sep = skipLastToken(sep)
+		}
+		a = append(a, sep)
+		separators = separators[1:]
+
+		if len(separators) > 0 {
+			sep := separators[len(separators)-1]
+			if sep != "" && isSpecialNumEnd(sep[0]) {
+				sep = skipFirstToken(sep)
+			}
+			a = append(a, sep)
+			separators = separators[:len(separators)-1]
+		}
+	case patternMatcherOptionPrefix:
+		if len(separators) == 1 {
+			sep := skipLastToken(separators[0])
+			a = append(a, sep)
+			separators = nil
+			break
+		}
+
+		sep := separators[0]
+		if sep != "" && isSpecialNumStart(sep[len(sep)-1]) {
+			sep = skipLastToken(sep)
+		}
+		a = append(a, sep)
+		separators = separators[1:]
+
+		if len(separators) > 0 {
+			sep := skipLastToken(separators[len(separators)-1])
+			if sep != "" && isSpecialNumEnd(sep[0]) {
+				sep = skipFirstToken(sep)
+			}
+			a = append(a, sep)
+			separators = separators[:len(separators)-1]
+		}
+	case patternMatcherOptionSuffix:
+		if len(separators) == 1 {
+			sep := skipFirstToken(separators[0])
+			a = append(a, sep)
+			separators = nil
+			break
+		}
+
+		sep := skipFirstToken(separators[0])
+		if sep != "" && isSpecialNumStart(sep[len(sep)-1]) {
+			sep = skipLastToken(sep)
+		}
+		a = append(a, sep)
+		separators = separators[1:]
+
+		if len(separators) > 0 {
+			sep := separators[len(separators)-1]
+			if sep != "" && isSpecialNumEnd(sep[0]) {
+				sep = skipFirstToken(sep)
+			}
+			a = append(a, sep)
+			separators = separators[:len(separators)-1]
+		}
+	default:
+		logger.Panicf("BUG: unexpected pmo=%d", fp.pm.pmo)
 	}
 
 	for _, sep := range separators {
@@ -109,13 +150,16 @@ func (fp *filterPatternMatch) initTokens() {
 		if sep != "" && isSpecialNumStart(sep[len(sep)-1]) {
 			sep = skipLastToken(sep)
 		}
-		if sep != "" {
-			a = append(a, sep)
-		}
+		a = append(a, sep)
 	}
 
 	fp.tokens = tokenizeStrings(nil, a)
 	fp.tokensHashes = appendTokensHashes(nil, fp.tokens)
+}
+
+func (fp *filterPatternMatch) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fp.fieldName)
+	return fp.pm.Match(v)
 }
 
 func (fp *filterPatternMatch) applyToBlockResult(br *blockResult, bm *bitmap) {

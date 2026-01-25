@@ -1,12 +1,14 @@
 package logstorage
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // TenantID is an id of a tenant for log streams.
@@ -14,10 +16,10 @@ import (
 // Each log stream is associated with a single TenantID.
 type TenantID struct {
 	// AccountID is the id of the account for the log stream.
-	AccountID uint32
+	AccountID uint32 `json:"account_id"`
 
 	// ProjectID is the id of the project for the log stream.
-	ProjectID uint32
+	ProjectID uint32 `json:"project_id"`
 }
 
 // Reset resets tid.
@@ -27,12 +29,12 @@ func (tid *TenantID) Reset() {
 }
 
 // String returns human-readable representation of tid
-func (tid *TenantID) String() string {
+func (tid TenantID) String() string {
 	return fmt.Sprintf("{accountID=%d,projectID=%d}", tid.AccountID, tid.ProjectID)
 }
 
-// equal returns true if tid equals to a.
-func (tid *TenantID) equal(a *TenantID) bool {
+// Equal returns true if tid equals to a.
+func (tid *TenantID) Equal(a *TenantID) bool {
 	return tid.AccountID == a.AccountID && tid.ProjectID == a.ProjectID
 }
 
@@ -120,26 +122,20 @@ func ParseTenantID(s string) (TenantID, error) {
 	return tenantID, nil
 }
 
-// MarshalTenantIDs appends marshaled tenantIDs to dst and returns the result.
-func MarshalTenantIDs(dst []byte, tenantIDs []TenantID) []byte {
-	for i := range tenantIDs {
-		dst = tenantIDs[i].marshal(dst)
+// MarshalTenantIDsToJSON returns JSON representation of the given tenantIDs
+func MarshalTenantIDsToJSON(tenantIDs []TenantID) []byte {
+	data, err := json.Marshal(tenantIDs)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal tenantIDs to JSON: %s", err)
 	}
-	return dst
+	return data
 }
 
-// UnmarshalTenantIDs unmarshals tenantIDs from src.
-func UnmarshalTenantIDs(src []byte) ([]TenantID, error) {
+// UnmarshalTenantIDsFromJSON unmarshals tenantIDs from JSON array at src.
+func UnmarshalTenantIDsFromJSON(src []byte) ([]TenantID, error) {
 	var tenantIDs []TenantID
-	for len(src) > 0 {
-		var tid TenantID
-		tail, err := tid.unmarshal(src)
-		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal tenantID #%d: %w", len(tenantIDs), err)
-		}
-		src = tail
-
-		tenantIDs = append(tenantIDs, tid)
+	if err := json.Unmarshal(src, &tenantIDs); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal tenantIDs from JSON array: %s", err)
 	}
 	return tenantIDs, nil
 }

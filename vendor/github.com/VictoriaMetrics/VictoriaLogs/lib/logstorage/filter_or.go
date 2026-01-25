@@ -33,6 +33,15 @@ func (fo *filterOr) updateNeededFields(pf *prefixfilter.Filter) {
 	}
 }
 
+func (fo *filterOr) matchRow(fields []Field) bool {
+	for _, f := range fo.filters {
+		if f.matchRow(fields) {
+			return true
+		}
+	}
+	return false
+}
+
 func (fo *filterOr) applyToBlockResult(br *blockResult, bm *bitmap) {
 	bmResult := getBitmap(bm.bitsLen)
 	bmTmp := getBitmap(bm.bitsLen)

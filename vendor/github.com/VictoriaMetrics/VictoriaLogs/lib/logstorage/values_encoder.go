@@ -406,11 +406,17 @@ func parseTimezoneOffset(s string) (int64, string, bool) {
 }
 
 func tryParseHHMM(s string) (int64, bool) {
-	if len(s) != len("hh:mm") || s[2] != ':' {
+	var hourStr, minuteStr string
+	switch {
+	case len(s) == len("hh:mm") && s[2] == ':':
+		hourStr = s[:2]
+		minuteStr = s[3:]
+	case len(s) == len("hhmm"):
+		hourStr = s[:2]
+		minuteStr = s[2:]
+	default:
 		return 0, false
 	}
-	hourStr := s[:2]
-	minuteStr := s[3:]
 	hours, ok := tryParseDateUint64(hourStr)
 	if !ok || hours > 24 {
 		return 0, false
