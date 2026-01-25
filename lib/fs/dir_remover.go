@@ -104,13 +104,12 @@ func IsPartiallyRemovedDir(dirPath string) bool {
 		return true
 	}
 
-	deleteFilePath := filepath.Join(dirPath, deleteDirFilename)
 	for _, de := range des {
 		if de.IsDir() {
 			continue
 		}
 		name := de.Name()
-		if name == deleteFilePath {
+		if name == deleteDirFilename {
 			// The directory contains the deleteDirFilename. This means it is partially deleted.
 			return true
 		}
