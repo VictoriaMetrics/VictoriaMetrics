@@ -202,9 +202,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return false
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, `vminsert - a component of VictoriaMetrics cluster<br/>
-			<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/">docs</a><br>
-`)
+		fmt.Fprintf(w, `vminsert - a component of VictoriaMetrics cluster<br/>`)
+		fmt.Fprintf(w, "Version %s<br>", buildinfo.Version)
+		fmt.Fprintf(w, `<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/">docs</a><br>`)
 		return true
 	}
 	p, err := httpserver.ParsePath(r.URL.Path)

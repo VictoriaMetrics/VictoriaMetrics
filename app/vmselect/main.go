@@ -566,9 +566,9 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 			return false
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, `vmselect - a component of VictoriaMetrics cluster<br/>
-<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/">docs</a><br>
-`)
+		fmt.Fprintf(w, `vmselect - a component of VictoriaMetrics cluster<br/>`)
+		fmt.Fprintf(w, "Version %s<br>", buildinfo.Version)
+		fmt.Fprintf(w, `<a href="https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/">docs</a><br>`)
 		return true
 	}
 	if path == "/api/v1/status/top_queries" {
@@ -597,6 +597,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, "<h2>VictoriaMetrics cluster - vmselect</h2></br>")
+		fmt.Fprintf(w, "Version %s<br>", buildinfo.Version)
 		fmt.Fprintf(w, "See <a href='https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format'>docs</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		fmt.Fprintf(w, `<a href="vmui">Web UI</a><br>`)
