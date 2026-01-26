@@ -274,7 +274,7 @@ func initRemoteWriteCtxs(urls []string) {
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
-		rwctxs[i] = newRemoteWriteCtx(i, len(urls), remoteWriteURL, sanitizedURL)
+		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, sanitizedURL)
 		rwctxIdx[i] = i
 	}
 
@@ -830,7 +830,7 @@ type remoteWriteCtx struct {
 	rowsDroppedOnPushFailure     *metrics.Counter
 }
 
-func newRemoteWriteCtx(argIdx int, rwUrlsLens int, remoteWriteURL *url.URL, sanitizedURL string) *remoteWriteCtx {
+func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string) *remoteWriteCtx {
 	// strip query params, otherwise changing params resets pq
 	pqURL := *remoteWriteURL
 	pqURL.RawQuery = ""
@@ -852,7 +852,7 @@ func newRemoteWriteCtx(argIdx int, rwUrlsLens int, remoteWriteURL *url.URL, sani
 		queuesSize = 1
 	}
 
-	maxInmemoryBlocks := memory.Allowed() / rwUrlsLens / *maxRowsPerBlock / 100
+	maxInmemoryBlocks := memory.Allowed() / len(*remoteWriteURLs) / *maxRowsPerBlock / 100
 	if maxInmemoryBlocks/queuesSize > 100 {
 		// There is no much sense in keeping higher number of blocks in memory,
 		// since this means that the producer outperforms consumer and the queue
