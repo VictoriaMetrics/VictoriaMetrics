@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
@@ -546,28 +548,300 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 	}
 }
 
-func TestReadTrackingBody_RetrySuccess(t *testing.T) {
+// This is needed for net/http.ResponseController
+func (w *fakeResponseWriter) SetReadDeadline(deadline time.Time) error {
+	return nil
+}
+
+func TestBufferRequestBody_Success(t *testing.T) {
+	defaultRequestBufferSize := requestBufferSize.String()
+	defer func() {
+		if err := requestBufferSize.Set(defaultRequestBufferSize); err != nil {
+			t.Fatalf("cannot reset requestBufferSize: %s", err)
+		}
+	}()
+
+	defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+	defer func() {
+		if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+			t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+		}
+	}()
+
+	f := func(body *bytes.Buffer, requestBufferSizeFlag, maxRequestBodySizeToRetryFlag string) {
+		t.Helper()
+
+		expectedResponse := "statusCode=200"
+		if body.Len() > 0 {
+			expectedResponse += "\n" + body.String()
+		}
+
+		if err := requestBufferSize.Set(requestBufferSizeFlag); err != nil {
+			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
+		if err := maxRequestBodySizeToRetry.Set(maxRequestBodySizeToRetryFlag); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
+		}
+
+		var backendCalled bool
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			backendCalled = true
+
+			b, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("cannot read body: %s", err), http.StatusBadRequest)
+				return
+			}
+			if _, err := w.Write(b); err != nil {
+				http.Error(w, fmt.Sprintf("cannot write body: %s", err), http.StatusInternalServerError)
+				return
+			}
+		}))
+		defer ts.Close()
+
+		// regular url_prefix
+		cfgStr := strings.ReplaceAll(`
+unauthorized_user:
+  url_prefix: {BACKEND}/foo`, "{BACKEND}", ts.URL)
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			_, err := reloadAuthConfigData(cfgOrig)
+			if err != nil {
+				t.Fatalf("cannot load the original config: %s", err)
+			}
+		}()
+
+		r, err := http.NewRequest(http.MethodPost, `http://some-host.com`, body)
+		if err != nil {
+			t.Fatalf("cannot initialize http request: %s", err)
+		}
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false is returned from requestHandler")
+		}
+
+		response := w.getResponse()
+		response = strings.ReplaceAll(response, "\r\n", "\n")
+		response = strings.TrimSpace(response)
+
+		if response != expectedResponse {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, expectedResponse)
+		}
+		if !backendCalled {
+			t.Fatalf("backend is not called")
+		}
+	}
+
+	// no body, no buffering, no retry
+	f(bytes.NewBuffer(nil), "0", "0")
+
+	// no body, buffering on, no retry
+	f(bytes.NewBuffer(nil), "100", "0")
+
+	// no body, no buffering, retry on
+	f(bytes.NewBuffer(nil), "0", "100")
+
+	// no body, buffering on, retry on
+	f(bytes.NewBuffer(nil), "100", "100")
+
+	// body smaller than buffer, retry max on
+	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "101", "101")
+
+	// body smaller than buffer
+	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "501", "0")
+
+	// body same size as buffer
+	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "500", "0")
+
+	// body bigger than a buffer
+	f(bytes.NewBufferString(strings.Repeat("abcdf", 100)), "499", "0")
+
+	// body bigger than tmpBuf 8KiB used in buffering
+	f(bytes.NewBufferString(strings.Repeat("a", 32*1024)), "16384", "")
+
+	f(bytes.NewBufferString(strings.Repeat("a", 32*1024)), "16385", "")
+
+	f(bytes.NewBufferString(strings.Repeat("a", 32*1024)), "16383", "")
+}
+
+func TestBufferRequestBody_Failure(t *testing.T) {
+	defaultRequestBufferSize := requestBufferSize.String()
+	defer func() {
+		if err := requestBufferSize.Set(defaultRequestBufferSize); err != nil {
+			t.Fatalf("cannot reset requestBufferSize: %s", err)
+		}
+	}()
+
+	defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+	defer func() {
+		if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+			t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+		}
+	}()
+
+	defaultMaxQueueDuration := *maxQueueDuration
+	defer func() {
+		*maxQueueDuration = defaultMaxQueueDuration
+	}()
+
+	f := func(body *mockBody, expectedResponse string) {
+		t.Helper()
+
+		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
+		}
+		if err := requestBufferSize.Set("2048"); err != nil {
+			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
+		*maxQueueDuration = 100 * time.Millisecond
+
+		var backendCalled bool
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			backendCalled = true
+
+			b, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("cannot read body: %s", err), http.StatusBadRequest)
+				return
+			}
+			if _, err := w.Write(b); err != nil {
+				http.Error(w, fmt.Sprintf("cannot write body: %s", err), http.StatusInternalServerError)
+				return
+			}
+		}))
+		defer ts.Close()
+
+		// regular url_prefix
+		cfgStr := strings.ReplaceAll(`
+unauthorized_user:
+  url_prefix: {BACKEND}/foo`, "{BACKEND}", ts.URL)
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			_, err := reloadAuthConfigData(cfgOrig)
+			if err != nil {
+				t.Fatalf("cannot load the original config: %s", err)
+			}
+		}()
+
+		r, err := http.NewRequest(http.MethodPost, `http://some-host.com`, body)
+		if err != nil {
+			t.Fatalf("cannot initialize http request: %s", err)
+		}
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false is returned from requestHandler")
+		}
+
+		response := w.getResponse()
+		response = strings.ReplaceAll(response, "\r\n", "\n")
+		response = strings.TrimSpace(response)
+
+		if response != expectedResponse {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, expectedResponse)
+		}
+		if backendCalled {
+			t.Fatalf("backend is called")
+		}
+	}
+
+	// an error at the beginning of reading
+	f(&mockBody{err: fmt.Errorf("an error")}, `statusCode=400
+cannot read request body: an error`)
+
+	// an error after reading 1024 bytes, buffer size is 2048 bytes
+	f(&mockBody{head: make([]byte, 1024), err: fmt.Errorf("an error")}, `statusCode=400
+cannot read request body: an error`)
+}
+
+type mockBody struct {
+	head []byte
+	err  error
+	tail []byte
+}
+
+func (r *mockBody) Read(p []byte) (n int, err error) {
+	if len(r.head) > 0 {
+		n = copy(p, r.head)
+		r.head = r.head[n:]
+		return n, nil
+	}
+
+	if r.err != nil {
+		return 0, r.err
+	}
+
+	if len(r.tail) > 0 {
+		n = copy(p, r.tail)
+		r.tail = r.tail[n:]
+		return n, nil
+	}
+
+	return 0, io.EOF
+}
+
+func TestBufferedBody_RetrySuccess(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
+		defaultRequestBufferSize := requestBufferSize.String()
+		defer func() {
+			if err := requestBufferSize.Set(defaultRequestBufferSize); err != nil {
+				t.Fatalf("cannot reset requestBufferSize: %s", err)
+			}
+		}()
+		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
 
-		if !rtb.canRetry() {
+		defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+		defer func() {
+			if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+			}
+		}()
+		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
+		}
+
+		ctx := context.Background()
+		rb, err := bufferRequestBody(ctx, io.NopCloser(bytes.NewBufferString(s)), "foo")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		bb, ok := rb.(*bufferedBody)
+		canRetry := !ok || bb.canRetry()
+
+		if !canRetry {
 			t.Fatalf("canRetry() must return true before reading anything")
 		}
 		for i := 0; i < 5; i++ {
-			data, err := io.ReadAll(rtb)
+			data, err := io.ReadAll(rb)
 			if err != nil {
 				t.Fatalf("unexpected error when reading all the data at iteration %d: %s", i, err)
 			}
 			if string(data) != s {
 				t.Fatalf("unexpected data read at iteration %d\ngot\n%s\nwant\n%s", i, data, s)
 			}
-			if err := rtb.Close(); err != nil {
-				t.Fatalf("unexpected error when closing readTrackingBody at iteration %d: %s", i, err)
-			}
-			if !rtb.canRetry() {
-				t.Fatalf("canRetry() must return true at iteration %d", i)
+			if err := rb.Close(); err != nil {
+				t.Fatalf("unexpected error when closing bufferedBody at iteration %d: %s", i, err)
 			}
 		}
 	}
@@ -577,19 +851,48 @@ func TestReadTrackingBody_RetrySuccess(t *testing.T) {
 	f("", 100)
 	f("foo", 100)
 	f("foobar", 100)
-	f(newTestString(1000), 1000)
+	f(newTestString(1000), 1001)
 }
 
-func TestReadTrackingBody_RetrySuccessPartialRead(t *testing.T) {
+func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
 		// Check the case with partial read
-		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
+		defaultRequestBufferSize := requestBufferSize.String()
+		defer func() {
+			if err := requestBufferSize.Set(defaultRequestBufferSize); err != nil {
+				t.Fatalf("cannot reset requestBufferSize: %s", err)
+			}
+		}()
+		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
 
+		defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+		defer func() {
+			if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+			}
+		}()
+		if err := maxRequestBodySizeToRetry.Set("0"); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
+		}
+
+		ctx := context.Background()
+		rb, err := bufferRequestBody(ctx, io.NopCloser(bytes.NewBufferString(s)), "foo")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		bb, ok := rb.(*bufferedBody)
+		canRetry := !ok || bb.canRetry()
+
+		if !canRetry {
+			t.Fatalf("canRetry must return true")
+		}
 		for i := 0; i < len(s); i++ {
 			buf := make([]byte, i)
-			n, err := io.ReadFull(rtb, buf)
+			n, err := io.ReadFull(rb, buf)
 			if err != nil {
 				t.Fatalf("unexpected error when reading %d bytes: %s", i, err)
 			}
@@ -599,26 +902,20 @@ func TestReadTrackingBody_RetrySuccessPartialRead(t *testing.T) {
 			if string(buf) != s[:i] {
 				t.Fatalf("unexpected data read with the length %d\ngot\n%s\nwant\n%s", i, buf, s[:i])
 			}
-			if err := rtb.Close(); err != nil {
+			if err := rb.Close(); err != nil {
 				t.Fatalf("unexpected error when closing reader after reading %d bytes", i)
-			}
-			if !rtb.canRetry() {
-				t.Fatalf("canRetry() must return true after closing the reader after reading %d bytes", i)
 			}
 		}
 
-		data, err := io.ReadAll(rtb)
+		data, err := io.ReadAll(rb)
 		if err != nil {
 			t.Fatalf("unexpected error when reading all the data: %s", err)
 		}
 		if string(data) != s {
 			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", data, s)
 		}
-		if err := rtb.Close(); err != nil {
-			t.Fatalf("unexpected error when closing readTrackingBody: %s", err)
-		}
-		if !rtb.canRetry() {
-			t.Fatalf("canRetry() must return true after closing the reader after reading all the input")
+		if err := rb.Close(); err != nil {
+			t.Fatalf("unexpected error when closing bufferedBody: %s", err)
 		}
 	}
 
@@ -627,30 +924,53 @@ func TestReadTrackingBody_RetrySuccessPartialRead(t *testing.T) {
 	f("", 100)
 	f("foo", 100)
 	f("foobar", 100)
-	f(newTestString(1000), 1000)
+	f(newTestString(1000), 1001)
 }
 
-func TestReadTrackingBody_RetryFailureTooBigBody(t *testing.T) {
+func TestBufferedBody_RetryFailureTooBigBody(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
+		defaultRequestBufferSize := requestBufferSize.String()
+		defer func() {
+			if err := requestBufferSize.Set(defaultRequestBufferSize); err != nil {
+				t.Fatalf("cannot reset requestBufferSize: %s", err)
+			}
+		}()
+		if err := requestBufferSize.Set("0"); err != nil {
+			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
 
-		if !rtb.canRetry() {
-			t.Fatalf("canRetry() must return true before reading anything")
+		defaultMaxRequestBodySizeToRetry := maxRequestBodySizeToRetry.String()
+		defer func() {
+			if err := maxRequestBodySizeToRetry.Set(defaultMaxRequestBodySizeToRetry); err != nil {
+				t.Fatalf("cannot reset maxRequestBodySizeToRetry: %s", err)
+			}
+		}()
+		if err := maxRequestBodySizeToRetry.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+			t.Fatalf("cannot set maxRequestBodySizeToRetry: %s", err)
+		}
+
+		ctx := context.Background()
+		rb, err := bufferRequestBody(ctx, io.NopCloser(bytes.NewBufferString(s)), "foo")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		bb, ok := rb.(*bufferedBody)
+		canRetry := !ok || bb.canRetry()
+
+		if canRetry {
+			t.Fatalf("canRetry() must return false because of too big request body")
 		}
 		buf := make([]byte, 1)
-		n, err := io.ReadFull(rtb, buf)
+		n, err := io.ReadFull(rb, buf)
 		if err != nil {
 			t.Fatalf("unexpected error when reading a single byte: %s", err)
 		}
 		if n != 1 {
 			t.Fatalf("unexpected number of bytes read; got %d; want 1", n)
 		}
-		if !rtb.canRetry() {
-			t.Fatalf("canRetry() must return true after reading one byte")
-		}
-		data, err := io.ReadAll(rtb)
+		data, err := io.ReadAll(rb)
 		if err != nil {
 			t.Fatalf("unexpected error when reading all the data: %s", err)
 		}
@@ -658,14 +978,11 @@ func TestReadTrackingBody_RetryFailureTooBigBody(t *testing.T) {
 		if dataRead != s {
 			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", dataRead, s)
 		}
-		if err := rtb.Close(); err != nil {
-			t.Fatalf("unexpected error when closing readTrackingBody: %s", err)
-		}
-		if rtb.canRetry() {
-			t.Fatalf("canRetry() must return false after closing the reader")
+		if err := rb.Close(); err != nil {
+			t.Fatalf("unexpected error when closing bufferedBody: %s", err)
 		}
 
-		data, err = io.ReadAll(rtb)
+		data, err = io.ReadAll(rb)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -679,35 +996,48 @@ func TestReadTrackingBody_RetryFailureTooBigBody(t *testing.T) {
 	f(newTestString(2*maxBodySize), maxBodySize)
 }
 
-func TestReadTrackingBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
+func TestBufferedBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
+		defaultRequestBufferSize := requestBufferSize.String()
+		defer func() {
+			if err := requestBufferSize.Set(defaultRequestBufferSize); err != nil {
+				t.Fatalf("cannot reset requestBufferSize: %s", err)
+			}
+		}()
+		if err := requestBufferSize.Set(fmt.Sprintf("%d", maxBodySize)); err != nil {
+			t.Fatalf("cannot set requestBufferSize: %s", err)
+		}
 
-		if !rtb.canRetry() {
+		ctx := context.Background()
+		rb, err := bufferRequestBody(ctx, io.NopCloser(bytes.NewBufferString(s)), "foo")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		bb, ok := rb.(*bufferedBody)
+		canRetry := !ok || bb.canRetry()
+
+		if !canRetry {
 			t.Fatalf("canRetry() must return true before reading anything")
 		}
-		data, err := io.ReadAll(rtb)
+		data, err := io.ReadAll(rb)
 		if err != nil {
 			t.Fatalf("unexpected error when reading all the data: %s", err)
 		}
 		if string(data) != s {
 			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", data, s)
 		}
-		if err := rtb.Close(); err != nil {
-			t.Fatalf("unexpected error when closing readTrackingBody: %s", err)
+		if err := rb.Close(); err != nil {
+			t.Fatalf("unexpected error when closing bufferedBody: %s", err)
 		}
 
-		if rtb.canRetry() {
-			t.Fatalf("canRetry() must return false after closing the reader")
+		data, err = io.ReadAll(rb)
+		if err != nil {
+			t.Fatalf("unexpected error in io.ReadAll: %s", err)
 		}
-		data, err = io.ReadAll(rtb)
-		if err == nil {
-			t.Fatalf("expecting non-nil error")
-		}
-		if len(data) != 0 {
-			t.Fatalf("unexpected non-empty data read: %q", data)
+		if string(data) != s {
+			t.Fatalf("unexpected data read\ngot\n%s\nwant\n%s", data, s)
 		}
 	}
 
