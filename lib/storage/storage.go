@@ -1074,6 +1074,26 @@ func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
 	s.metricNameCache.Set(key[:], metricName)
 }
 
+type indexDBWithType struct {
+	idb        *indexDB
+	legacyPrev bool
+	legacyCurr bool
+	pt         bool
+}
+
+func (idb indexDBWithType) name() string {
+	var idbType string
+	if idb.legacyPrev {
+		idbType = "legacy prev"
+	} else if idb.legacyCurr {
+		idbType = "legacy curr"
+	} else if idb.pt {
+		idbType = "pt"
+	}
+
+	return fmt.Sprintf("%s (%s)", idb.idb.name, idbType)
+}
+
 // searchAndMerge concurrently performs a search operation on all partition
 // IndexDBs that overlap with the given time range and optionally legacy current
 // and previous IndexDBs. The individual search results are then merged.
@@ -1085,12 +1105,16 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
 	defer qt.Done()
 
-	var idbs []*indexDB
+	var idbs []indexDBWithType
 
 	ptws := s.tb.GetPartitions(tr)
 	defer s.tb.PutPartitions(ptws)
 	for _, ptw := range ptws {
-		idbs = append(idbs, ptw.pt.idb)
+		idb := indexDBWithType{
+			idb: ptw.pt.idb,
+			pt:  true,
+		}
+		idbs = append(idbs, idb)
 	}
 
 	legacyIDBs := s.getLegacyIndexDBs()
@@ -1109,21 +1133,27 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	if len(idbs) == 1 {
 		// It is faster to process one indexDB without spawning goroutines.
 		idb := idbs[0]
-		searchTR := s.adjustTimeRange(tr, idb.tr)
-		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-		data[0], errs[0] = search(qtChild, idb, searchTR)
+		searchTR := s.adjustTimeRange(tr, idb.idb.tr)
+		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name(), &searchTR)
+		data[0], errs[0] = search(qtChild, idb.idb, searchTR)
 		qtChild.Done()
 	} else {
 		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
 		var wg sync.WaitGroup
 		for i, idb := range idbs {
-			searchTR := s.adjustTimeRange(tr, idb.tr)
-			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
+			searchTR := s.adjustTimeRange(tr, idb.idb.tr)
+			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name(), &searchTR)
 			wg.Add(1)
-			go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
+			go func(qt *querytracer.Tracer, i int, idb indexDBWithType, tr TimeRange) {
 				defer wg.Done()
 				defer qt.Done()
-				data[i], errs[i] = search(qt, idb, tr)
+				if idb.pt {
+					data[i], errs[i] = search(qt, idb.idb, tr)
+				} else if idb.legacyPrev {
+					data[i], errs[i] = search(qt, idb.idb, tr)
+				} else if idb.legacyCurr {
+					data[i], errs[i] = search(qt, idb.idb, tr)
+				}
 			}(qtChild, i, idb, searchTR)
 		}
 		wg.Wait()

@@ -46,17 +46,25 @@ func (dbs *legacyIndexDBs) decRef() {
 	}
 }
 
-func (dbs *legacyIndexDBs) appendTo(dst []*indexDB) []*indexDB {
+func (dbs *legacyIndexDBs) appendTo(dst []indexDBWithType) []indexDBWithType {
 	if dbs == nil {
 		// No legacy indexDBs, nothing to append.
 		return dst
 	}
 
 	if dbs.idbPrev != nil {
-		dst = append(dst, dbs.idbPrev.idb)
+		idb := indexDBWithType{
+			idb:        dbs.idbPrev.idb,
+			legacyPrev: true,
+		}
+		dst = append(dst, idb)
 	}
 	if dbs.idbCurr != nil {
-		dst = append(dst, dbs.idbCurr.idb)
+		idb := indexDBWithType{
+			idb:        dbs.idbCurr.idb,
+			legacyCurr: true,
+		}
+		dst = append(dst, idb)
 	}
 	return dst
 }
