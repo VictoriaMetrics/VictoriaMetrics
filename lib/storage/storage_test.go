@@ -973,6 +973,58 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 	})
 }
 
+func TestStorageSearchTenantsOnDate(t *testing.T) {
+	defer testRemoveAll(t)
+
+	path := t.Name()
+	s := MustOpenStorage(path, OpenOptions{})
+	defer s.MustClose()
+
+	base := time.Now().UTC().Truncate(24*time.Hour).UnixMilli() - 4*24*time.Hour.Milliseconds() // 4 days ago
+	date1Start := base
+	date2Start := base + msecPerDay
+	date3Start := base + 2*msecPerDay
+
+	tr1 := TimeRange{MinTimestamp: date1Start, MaxTimestamp: date1Start + msecPerDay - 1}
+	tr2 := TimeRange{MinTimestamp: date2Start, MaxTimestamp: date2Start + msecPerDay - 1}
+	tr3 := TimeRange{MinTimestamp: date3Start, MaxTimestamp: date3Start + msecPerDay - 1}
+
+	rng := rand.New(rand.NewSource(1))
+	var mrs []MetricRow
+	mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, 1, 10, 5, "metric", tr1)...)
+	mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, 2, 20, 5, "metric", tr1)...)
+	mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, 1, 11, 5, "metric", tr2)...)
+	mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, 3, 30, 5, "metric", tr2)...)
+	mrs = append(mrs, testGenerateMetricRowsWithPrefixForTenantID(rng, 2, 21, 5, "metric", tr3)...)
+
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	check := func(tr TimeRange, expected []string) {
+		t.Helper()
+		tenantsSlice, err := s.SearchTenants(nil, tr, noDeadline)
+		if err != nil {
+			t.Fatalf("unexpected error in SearchTenants(%v): %s", tr, err)
+		}
+		tenants := append([]string(nil), tenantsSlice...)
+		slices.Sort(tenants)
+		slices.Sort(expected)
+		if !reflect.DeepEqual(tenants, expected) {
+			t.Fatalf("unexpected tenants for %v;\ngot %v\nwant %v", tr, tenants, expected)
+		}
+	}
+
+	check(tr1, []string{"1:10", "2:20"})
+	check(tr2, []string{"1:11", "3:30"})
+	check(tr3, []string{"2:21"})
+
+	allRange := TimeRange{MinTimestamp: base, MaxTimestamp: tr3.MaxTimestamp}
+	check(allRange, []string{"1:10", "1:11", "2:20", "2:21", "3:30"})
+
+	defaultRange := TimeRange{MinTimestamp: 0, MaxTimestamp: time.Now().UnixMilli()}
+	check(defaultRange, []string{"1:10", "1:11", "2:20", "2:21", "3:30"})
+}
+
 func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	defer testRemoveAll(t)
 
