@@ -7,7 +7,8 @@ import (
 )
 
 func TestApplySecretFlags(t *testing.T) {
-	t.Cleanup(flagutil.UnregisterAllSecretFlags)
+	defer flagutil.UnregisterAllSecretFlags()
+
 	secretFlagsList = &flagutil.ArrayString{}
 	if err := secretFlagsList.Set("foo,bar"); err != nil {
 		t.Fatalf("unexpected error: %s", err)

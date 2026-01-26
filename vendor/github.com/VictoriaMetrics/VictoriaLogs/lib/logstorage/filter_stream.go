@@ -49,6 +49,11 @@ func (fs *filterStream) initStreamIDs() {
 	fs.streamIDs = m
 }
 
+func (fs *filterStream) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, "_stream")
+	return fs.f.matchStreamName(v)
+}
+
 func (fs *filterStream) applyToBlockResult(br *blockResult, bm *bitmap) {
 	if fs.f.isEmpty() {
 		return

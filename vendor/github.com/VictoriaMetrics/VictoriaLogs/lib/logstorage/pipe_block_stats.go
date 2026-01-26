@@ -69,18 +69,20 @@ func (psp *pipeBlockStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
+	stream := "{}"
+	partPath := "inmemory"
+	if br.bs != nil {
+		stream = br.bs.getStreamStr()
+		partPath = br.bs.partPath()
+	}
+
 	shard := psp.shards.Get(workerID)
-	shard.wctx.init(workerID, psp.ppNext, br.rowsLen)
+	shard.wctx.init(workerID, psp.ppNext, br.rowsLen, stream, partPath)
 
 	cs := br.getColumns()
 	for _, c := range cs {
-		partPath := "inmemory"
-		if br.bs != nil {
-			partPath = br.bs.partPath()
-		}
-
 		if c.isConst {
-			shard.wctx.writeRow(c.name, "const", uint64(len(c.valuesEncoded[0])), 0, 0, 0, partPath)
+			shard.wctx.writeRow(c.name, "const", uint64(len(c.valuesEncoded[0])), 0, 0, 0)
 			continue
 		}
 		if c.isTime {
@@ -88,11 +90,11 @@ func (psp *pipeBlockStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 			if br.bs != nil {
 				blockSize = br.bs.bsw.bh.timestampsHeader.blockSize
 			}
-			shard.wctx.writeRow(c.name, "time", blockSize, 0, 0, 0, partPath)
+			shard.wctx.writeRow(c.name, "time", blockSize, 0, 0, 0)
 			continue
 		}
 		if br.bs == nil {
-			shard.wctx.writeRow(c.name, "inmemory", 0, 0, 0, 0, partPath)
+			shard.wctx.writeRow(c.name, "inmemory", 0, 0, 0, 0)
 			continue
 		}
 
@@ -105,7 +107,7 @@ func (psp *pipeBlockStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 				dictSize += len(v)
 			}
 		}
-		shard.wctx.writeRow(c.name, typ, ch.valuesSize, ch.bloomFilterSize, uint64(dictItemsCount), uint64(dictSize), partPath)
+		shard.wctx.writeRow(c.name, typ, ch.valuesSize, ch.bloomFilterSize, uint64(dictItemsCount), uint64(dictSize))
 	}
 
 	shard.wctx.flush()
@@ -133,13 +135,15 @@ type pipeBlockStatsWriteContext struct {
 
 	a       arena
 	rowsLen int
-	tmpBuf  []byte
 
 	rcs []resultColumn
 	br  blockResult
 
 	// rowsCount is the number of rows in the current block
 	rowsCount int
+
+	stream   string
+	partPath string
 }
 
 func (wctx *pipeBlockStatsWriteContext) reset() {
@@ -148,7 +152,6 @@ func (wctx *pipeBlockStatsWriteContext) reset() {
 
 	wctx.a.reset()
 	wctx.rowsLen = 0
-	wctx.tmpBuf = wctx.tmpBuf[:0]
 
 	rcs := wctx.rcs
 	for i := range rcs {
@@ -157,21 +160,27 @@ func (wctx *pipeBlockStatsWriteContext) reset() {
 	wctx.rcs = rcs[:0]
 
 	wctx.rowsCount = 0
+
+	wctx.stream = ""
+	wctx.partPath = ""
 }
 
-func (wctx *pipeBlockStatsWriteContext) init(workerID uint, ppNext pipeProcessor, rowsLen int) {
+func (wctx *pipeBlockStatsWriteContext) init(workerID uint, ppNext pipeProcessor, rowsLen int, stream, partPath string) {
 	wctx.reset()
 
 	wctx.workerID = workerID
 	wctx.ppNext = ppNext
 
 	wctx.rowsLen = rowsLen
+
+	wctx.stream = stream
+	wctx.partPath = partPath
 }
 
-func (wctx *pipeBlockStatsWriteContext) writeRow(columnName, columnType string, valuesSize, bloomSize, dictItems, dictSize uint64, partPath string) {
+func (wctx *pipeBlockStatsWriteContext) writeRow(columnName, columnType string, valuesSize, bloomSize, dictItems, dictSize uint64) {
 	rcs := wctx.rcs
 	if len(rcs) == 0 {
-		wctx.rcs = slicesutil.SetLength(wctx.rcs, 8)
+		wctx.rcs = slicesutil.SetLength(wctx.rcs, 9)
 		rcs = wctx.rcs
 
 		rcs[0].name = "field"
@@ -181,34 +190,36 @@ func (wctx *pipeBlockStatsWriteContext) writeRow(columnName, columnType string, 
 		rcs[4].name = "dict_items"
 		rcs[5].name = "dict_bytes"
 		rcs[6].name = "rows"
-		rcs[7].name = "part_path"
+		rcs[7].name = "_stream"
+		rcs[8].name = "part_path"
 	}
 
-	wctx.addValue(&rcs[0], columnName)
-	wctx.addValue(&rcs[1], columnType)
+	wctx.addValueNoCopy(&rcs[0], columnName)
+	wctx.addValueNoCopy(&rcs[1], columnType)
 	wctx.addUint64Value(&rcs[2], valuesSize)
 	wctx.addUint64Value(&rcs[3], bloomSize)
 	wctx.addUint64Value(&rcs[4], dictItems)
 	wctx.addUint64Value(&rcs[5], dictSize)
 	wctx.addUint64Value(&rcs[6], uint64(wctx.rowsLen))
-	wctx.addValue(&rcs[7], partPath)
+	wctx.addValueNoCopy(&rcs[7], wctx.stream)
+	wctx.addValueNoCopy(&rcs[8], wctx.partPath)
 
 	wctx.rowsCount++
 
-	// The 64_000 limit provides the best performance results.
-	if len(wctx.a.b) >= 64_000 {
+	if wctx.rowsCount >= 500 {
 		wctx.flush()
 	}
 }
 
 func (wctx *pipeBlockStatsWriteContext) addUint64Value(rc *resultColumn, n uint64) {
-	wctx.tmpBuf = marshalUint64String(wctx.tmpBuf[:0], n)
-	wctx.addValue(rc, bytesutil.ToUnsafeString(wctx.tmpBuf))
+	bLen := len(wctx.a.b)
+	wctx.a.b = marshalUint64String(wctx.a.b, n)
+	v := bytesutil.ToUnsafeString(wctx.a.b[bLen:])
+	wctx.addValueNoCopy(rc, v)
 }
 
-func (wctx *pipeBlockStatsWriteContext) addValue(rc *resultColumn, v string) {
-	vCopy := wctx.a.copyString(v)
-	rc.addValue(vCopy)
+func (wctx *pipeBlockStatsWriteContext) addValueNoCopy(rc *resultColumn, v string) {
+	rc.addValue(v)
 }
 
 func (wctx *pipeBlockStatsWriteContext) flush() {
