@@ -73,10 +73,8 @@ func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath ma
 
 	// Start workers
 	var wg sync.WaitGroup
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			defer wg.Done()
+	for range concurrency {
+		wg.Go(func() {
 			for parts := range workCh {
 				select {
 				case <-ctxLocal.Done():
@@ -85,7 +83,7 @@ func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath ma
 				}
 				resultCh <- f(parts)
 			}
-		}()
+		})
 	}
 
 	// Feed workers with work.
@@ -126,10 +124,8 @@ func runParallelInternal(concurrency int, parts []common.Part, f func(p common.P
 
 	// Start workers
 	var wg sync.WaitGroup
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			defer wg.Done()
+	for range concurrency {
+		wg.Go(func() {
 			for p := range workCh {
 				select {
 				case <-stopCh:
@@ -138,7 +134,7 @@ func runParallelInternal(concurrency int, parts []common.Part, f func(p common.P
 				}
 				resultCh <- f(p)
 			}
-		}()
+		})
 	}
 
 	// Feed workers with work.

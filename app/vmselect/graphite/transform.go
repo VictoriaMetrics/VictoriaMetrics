@@ -3896,7 +3896,6 @@ func nextSeriesConcurrentWrapper(nextSeries nextSeriesFunc, f func(s *series) (*
 	seriesCh := make(chan *series, goroutines)
 	errCh := make(chan error, 1)
 	var wg sync.WaitGroup
-	wg.Add(goroutines)
 	go func() {
 		var err error
 		for {
@@ -3914,9 +3913,8 @@ func nextSeriesConcurrentWrapper(nextSeries nextSeriesFunc, f func(s *series) (*
 		close(errCh)
 	}()
 	var skipProcessing atomic.Bool
-	for i := 0; i < goroutines; i++ {
-		go func() {
-			defer wg.Done()
+	for range goroutines {
+		wg.Go(func() {
 			for s := range seriesCh {
 				if skipProcessing.Load() {
 					continue
@@ -3934,7 +3932,7 @@ func nextSeriesConcurrentWrapper(nextSeries nextSeriesFunc, f func(s *series) (*
 					}
 				}
 			}
-		}()
+		})
 	}
 	wrapper := func() (*series, error) {
 		r := <-resultCh

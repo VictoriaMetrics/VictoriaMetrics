@@ -268,10 +268,8 @@ func testAddItemsConcurrent(tb *Table, itemsCount int) {
 	const goroutinesCount = 6
 	workCh := make(chan int, itemsCount)
 	var wg sync.WaitGroup
-	for i := 0; i < goroutinesCount; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
+	for n := range goroutinesCount {
+		wg.Go(func() {
 			r := rand.New(rand.NewSource(int64(n)))
 			for range workCh {
 				item := getRandomBytes(r)
@@ -280,9 +278,9 @@ func testAddItemsConcurrent(tb *Table, itemsCount int) {
 				}
 				tb.AddItems([][]byte{item})
 			}
-		}(i)
+		})
 	}
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		workCh <- i
 	}
 	close(workCh)

@@ -59,16 +59,12 @@ func MustRemoveDir(dirPath string) {
 		dirEntryPath := filepath.Join(dirPath, name)
 
 		concurrencyCh <- struct{}{}
-		wg.Add(1)
-		go func(dirEntryPath string) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
+		wg.Go(func() {
 			if err := os.RemoveAll(dirEntryPath); err != nil {
 				logger.Panicf("FATAL: cannot remove %q: %s", dirEntryPath, err)
 			}
-		}(dirEntryPath)
+			<-concurrencyCh
+		})
 	}
 	wg.Wait()
 

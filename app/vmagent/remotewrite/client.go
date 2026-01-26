@@ -204,12 +204,8 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q}`, c.sanitizedURL), func() float64 {
 		return float64(concurrency)
 	})
-	for i := 0; i < concurrency; i++ {
-		c.wg.Add(1)
-		go func() {
-			defer c.wg.Done()
-			c.runWorker()
-		}()
+	for range concurrency {
+		c.wg.Go(c.runWorker)
 	}
 	logger.Infof("initialized client for -remoteWrite.url=%q", c.sanitizedURL)
 }

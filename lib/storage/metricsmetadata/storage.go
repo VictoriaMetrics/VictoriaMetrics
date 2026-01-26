@@ -54,8 +54,7 @@ func NewStorage(maxSizeBytes int) *Storage {
 			maxSizeBytes:     int64(maxShardBytes),
 		}
 	}
-	s.wg.Add(1)
-	go s.cleaner()
+	s.wg.Go(s.cleaner)
 	return s
 }
 
@@ -184,7 +183,6 @@ func (s *Storage) UpdateMetrics(dst *MetadataStorageMetrics) {
 }
 
 func (s *Storage) cleaner() {
-	defer s.wg.Done()
 	d := timeutil.AddJitterToDuration(time.Minute)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()

@@ -3706,13 +3706,11 @@ func testDoConcurrently(s *Storage, op func(s *Storage, mrs []MetricRow), concur
 	var wg sync.WaitGroup
 	mrsCh := make(chan []MetricRow)
 	for range concurrency {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			for mrs := range mrsCh {
 				op(s, mrs)
 			}
-			wg.Done()
-		}()
+		})
 	}
 
 	n := 1
