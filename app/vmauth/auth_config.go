@@ -120,12 +120,10 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 		case ui.concurrencyLimitCh <- struct{}{}:
 			return nil
 		case <-ctx.Done():
-			// The current request couldn't be executed until the request timeout.
-			// Increment the counter of failed requests because of the concurrency limit reached.
-			ui.concurrencyLimitReached.Inc()
-
 			err := ctx.Err()
 			if errors.Is(err, context.DeadlineExceeded) {
+				// The current request couldn't be executed until the request timeout.
+				ui.concurrencyLimitReached.Inc()
 				return fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because %d concurrent requests from the user %s are executed",
 					*maxQueueDuration, ui.getMaxConcurrentRequests(), ui.name())
 			}
