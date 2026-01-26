@@ -144,11 +144,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 	}
 
 	s.connsMap.Init("vmselect")
-	s.wg.Add(1)
-	go func() {
-		s.run()
-		s.wg.Done()
-	}()
+	s.wg.Go(s.run)
 	return s, nil
 }
 
@@ -174,12 +170,10 @@ func (s *Server) run() {
 			return
 		}
 		s.vmselectConns.Inc()
-		s.wg.Add(1)
-		go func() {
+		s.wg.Go(func() {
 			defer func() {
 				s.connsMap.Delete(c)
 				s.vmselectConns.Dec()
-				s.wg.Done()
 			}()
 
 			// Compress responses to vmselect even if they already contain compressed blocks.
@@ -221,7 +215,7 @@ func (s *Server) run() {
 				s.vmselectConnErrors.Inc()
 				logger.Errorf("cannot process vmselect conn %s: %s", c.RemoteAddr(), err)
 			}
-		}()
+		})
 	}
 }
 

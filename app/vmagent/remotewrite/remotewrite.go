@@ -208,9 +208,7 @@ func Init() {
 	dropDanglingQueues()
 
 	// Start config reloader.
-	configReloaderWG.Add(1)
-	go func() {
-		defer configReloaderWG.Done()
+	configReloaderWG.Go(func() {
 		for {
 			select {
 			case <-configReloaderStopCh:
@@ -220,7 +218,7 @@ func Init() {
 			reloadRelabelConfigs()
 			reloadStreamAggrConfigs()
 		}
-	}()
+	})
 }
 
 func dropDanglingQueues() {
@@ -540,11 +538,9 @@ func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.Metr
 	// Push metadata to remote storage systems in parallel to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
-	wg.Add(len(rwctxs))
 	var anyPushFailed atomic.Bool
 	for _, rwctx := range rwctxs {
-		go func(rwctx *remoteWriteCtx) {
-			defer wg.Done()
+		wg.Go(func() {
 			if !rwctx.tryPushMetadataInternal(mms) {
 				rwctx.pushFailures.Inc()
 				if forceDropSamplesOnFailure {
@@ -553,7 +549,7 @@ func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.Metr
 				}
 				anyPushFailed.Store(true)
 			}
-		}(rwctx)
+		})
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
@@ -585,15 +581,13 @@ func tryPushTimeSeriesToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prom
 	// Push tssBlock to remote storage systems in parallel to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
-	wg.Add(len(rwctxs))
 	var anyPushFailed atomic.Bool
 	for _, rwctx := range rwctxs {
-		go func(rwctx *remoteWriteCtx) {
-			defer wg.Done()
+		wg.Go(func() {
 			if !rwctx.TryPushTimeSeries(tssBlock, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
-		}(rwctx)
+		})
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
@@ -615,13 +609,11 @@ func tryShardingTimeSeriesAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock
 		if len(shard) == 0 {
 			continue
 		}
-		wg.Add(1)
-		go func(rwctx *remoteWriteCtx, tss []prompb.TimeSeries) {
-			defer wg.Done()
-			if !rwctx.TryPushTimeSeries(tss, forceDropSamplesOnFailure) {
+		wg.Go(func() {
+			if !rwctx.TryPushTimeSeries(shard, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
-		}(rwctx, shard)
+		})
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()

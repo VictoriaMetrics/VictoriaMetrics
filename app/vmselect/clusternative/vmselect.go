@@ -146,14 +146,13 @@ type workItem struct {
 
 func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutil.Deadline) *blockIterator {
 	bi := getBlockIterator()
-	bi.wg.Add(1)
 	workers, processBlocks := netstorage.PrepareProcessRawBlocks(qt, denyPartialResponse, sq, deadline)
 	bi.workCh = make(chan workItem, workers)
 	bi.wis = slicesutil.SetLength(bi.wis, workers)
 	for i := range bi.wis {
 		bi.wis[i].doneCh = make(chan struct{})
 	}
-	go func() {
+	bi.wg.Go(func() {
 		_, err := processBlocks(func(mb []byte, workerID uint) error {
 			wi := bi.wis[workerID]
 			wi.rawMetricBlock = mb
@@ -163,8 +162,7 @@ func newBlockIterator(qt *querytracer.Tracer, denyPartialResponse bool, sq *stor
 		})
 		close(bi.workCh)
 		bi.err = err
-		bi.wg.Done()
-	}()
+	})
 	return bi
 }
 

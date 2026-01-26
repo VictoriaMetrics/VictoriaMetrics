@@ -150,11 +150,7 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 		replicas = len(sns)
 	}
 
-	sn.readOnlyCheckerWG.Add(1)
-	go func() {
-		defer sn.readOnlyCheckerWG.Done()
-		sn.readOnlyChecker()
-	}()
+	sn.readOnlyCheckerWG.Go(sn.readOnlyChecker)
 	defer sn.readOnlyCheckerWG.Wait()
 
 	d := timeutil.AddJitterToDuration(time.Millisecond * 200)
@@ -622,11 +618,9 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 	}
 
 	for idx, sn := range sns {
-		wg.Add(1)
-		go func(sn *storageNode, idx int) {
+		wg.Go(func() {
 			sn.run(snb, idx)
-			wg.Done()
-		}(sn, idx)
+		})
 	}
 
 	return snb

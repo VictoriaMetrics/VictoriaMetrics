@@ -94,15 +94,13 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 	}
 
 	// concurrent return connections to pool.
-	wg := sync.WaitGroup{}
-	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
+	var wg sync.WaitGroup
+	for range concurrency {
+		wg.Go(func() {
 			conn := <-connChan
 			time.Sleep(time.Millisecond * 10)
 			cp.Put(conn)
-			wg.Done()
-		}()
+		})
 	}
 	wg.Wait()
 }

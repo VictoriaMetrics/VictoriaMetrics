@@ -71,11 +71,7 @@ func NewVMInsertServer(addr string, connectionTimeout time.Duration, listenerNam
 		vminsertMetadataRead: metrics.GetOrCreateCounter(`vm_vminsert_metadata_read_total`),
 	}
 	s.connsMap.Init(listenerName)
-	s.wg.Add(1)
-	go func() {
-		s.run()
-		s.wg.Done()
-	}()
+	s.wg.Go(s.run)
 	return s, nil
 }
 
@@ -99,12 +95,10 @@ func (s *VMInsertServer) run() {
 			return
 		}
 		s.vminsertConns.Inc()
-		s.wg.Add(1)
-		go func() {
+		s.wg.Go(func() {
 			defer func() {
 				s.connsMap.Delete(c)
 				s.vminsertConns.Dec()
-				s.wg.Done()
 			}()
 
 			// There is no need in response compression, since
@@ -145,7 +139,7 @@ func (s *VMInsertServer) run() {
 				logger.Errorf("cannot process vminsert conn from %s: %s", c.RemoteAddr(), err)
 				return
 			}
-		}()
+		})
 	}
 }
 

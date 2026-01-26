@@ -226,15 +226,13 @@ func Stop(addrs []string) error {
 		if addr == "" {
 			continue
 		}
-		wg.Add(1)
-		go func(addr string) {
+		wg.Go(func() {
 			if err := stop(addr); err != nil {
 				errGlobalLock.Lock()
 				errGlobal = err
 				errGlobalLock.Unlock()
 			}
-			wg.Done()
-		}(addr)
+		})
 	}
 	wg.Wait()
 

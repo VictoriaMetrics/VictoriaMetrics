@@ -310,11 +310,9 @@ func forEachConnPool(f func(cp *ConnPool)) {
 	connPoolsMu.Lock()
 	var wg sync.WaitGroup
 	for _, cp := range connPools {
-		wg.Add(1)
-		go func(cp *ConnPool) {
-			defer wg.Done()
+		wg.Go(func() {
 			f(cp)
-		}(cp)
+		})
 	}
 	wg.Wait()
 	connPoolsMu.Unlock()

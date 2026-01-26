@@ -66,10 +66,8 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	errCh := make(chan error)
 
 	var wg sync.WaitGroup
-	wg.Add(rrp.cc)
-	for i := 0; i < rrp.cc; i++ {
-		go func() {
-			defer wg.Done()
+	for range rrp.cc {
+		wg.Go(func() {
 			for r := range rangeC {
 				if err := rrp.do(ctx, r); err != nil {
 					errCh <- fmt.Errorf("request failed for: %s", err)
@@ -77,7 +75,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 				}
 				bar.Increment()
 			}
-		}()
+		})
 	}
 
 	for _, r := range ranges {

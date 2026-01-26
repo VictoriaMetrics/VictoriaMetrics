@@ -767,9 +767,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		}
 	}
 	f()
-	s.freeDiskSpaceWatcherWG.Add(1)
-	go func() {
-		defer s.freeDiskSpaceWatcherWG.Done()
+	s.freeDiskSpaceWatcherWG.Go(func() {
 		d := timeutil.AddJitterToDuration(time.Second)
 		ticker := time.NewTicker(d)
 		defer ticker.Stop()
@@ -781,7 +779,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 				f()
 			}
 		}
-	}()
+	})
 }
 
 func (s *Storage) notifyReadWriteMode() {
@@ -790,19 +788,11 @@ func (s *Storage) notifyReadWriteMode() {
 }
 
 func (s *Storage) startCurrHourMetricIDsUpdater() {
-	s.currHourMetricIDsUpdaterWG.Add(1)
-	go func() {
-		s.currHourMetricIDsUpdater()
-		s.currHourMetricIDsUpdaterWG.Done()
-	}()
+	s.currHourMetricIDsUpdaterWG.Go(s.currHourMetricIDsUpdater)
 }
 
 func (s *Storage) startNextDayMetricIDsUpdater() {
-	s.nextDayMetricIDsUpdaterWG.Add(1)
-	go func() {
-		s.nextDayMetricIDsUpdater()
-		s.nextDayMetricIDsUpdaterWG.Done()
-	}()
+	s.nextDayMetricIDsUpdaterWG.Go(s.nextDayMetricIDsUpdater)
 }
 
 func (s *Storage) currHourMetricIDsUpdater() {
@@ -1192,12 +1182,10 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 		for i, idb := range idbs {
 			searchTR := s.adjustTimeRange(tr, idb.tr)
 			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-			wg.Add(1)
-			go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
-				defer wg.Done()
-				defer qt.Done()
-				data[i], errs[i] = search(qt, idb, tr)
-			}(qtChild, i, idb, searchTR)
+			wg.Go(func() {
+				data[i], errs[i] = search(qtChild, idb, searchTR)
+				qtChild.Done()
+			})
 		}
 		wg.Wait()
 		qtSearch.Done()
