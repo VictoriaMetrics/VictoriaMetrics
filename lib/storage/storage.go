@@ -1074,6 +1074,12 @@ func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
 	s.metricNameCache.Set(key[:], metricName)
 }
 
+// indexDBWithType holds together the indexDB and its type.
+//
+// This type is used in searchAndMerge() to organize the code so that golang
+// profiles (cpu, mem, etc) could distinguish between searching pt-index, legacy
+// prev, and legacy curr indexDBs. Such profiles should significantly simplify
+// debugging index search performance issues.
 type indexDBWithType struct {
 	idb        *indexDB
 	legacyPrev bool
@@ -1147,6 +1153,9 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 			go func(qt *querytracer.Tracer, i int, idb indexDBWithType, tr TimeRange) {
 				defer wg.Done()
 				defer qt.Done()
+				// Intentionally repeat the same search code for each indexDB
+				// type so that profiles (cpu, mem, etc) could show how many
+				// resources have been consumed by each indexDB type.
 				if idb.pt {
 					data[i], errs[i] = search(qt, idb.idb, tr)
 				} else if idb.legacyPrev {
