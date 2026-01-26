@@ -76,11 +76,14 @@ func (t *Type) ValidateExpr(expr string) error {
 		if err != nil {
 			return fmt.Errorf("bad LogsQL expr: %q, err: %w", expr, err)
 		}
-		fields, _ := q.GetStatsByFields()
-		for i := range fields {
+		labels, err := q.GetStatsLabels()
+		if err != nil {
+			return fmt.Errorf("cannot obtain labels from LogsQL expr: %q, err: %w", expr, err)
+		}
+		for i := range labels {
 			// VictoriaLogs inserts `_time` field as a label in result when query with `stats by (_time:step)`,
 			// making the result meaningless and may lead to cardinality issues.
-			if fields[i] == "_time" {
+			if labels[i] == "_time" {
 				return fmt.Errorf("bad LogsQL expr: %q, err: cannot contain time buckets stats pipe `stats by (_time:step)`", expr)
 			}
 		}

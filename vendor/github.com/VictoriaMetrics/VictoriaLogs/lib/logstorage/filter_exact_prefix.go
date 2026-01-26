@@ -45,6 +45,11 @@ func (fep *filterExactPrefix) initTokens() {
 	fep.tokensHashes = appendTokensHashes(nil, fep.tokens)
 }
 
+func (fep *filterExactPrefix) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fep.fieldName)
+	return matchExactPrefix(v, fep.prefix)
+}
+
 func (fep *filterExactPrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(br, bm, fep.fieldName, fep.prefix, matchExactPrefix)
 }

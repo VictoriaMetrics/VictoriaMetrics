@@ -626,7 +626,7 @@
           "refId": "A"
         }
       ],
-      "title": "Log errors (30m)",
+      "title": "Log messages (30m)",
       "type": "stat"
     },
     {

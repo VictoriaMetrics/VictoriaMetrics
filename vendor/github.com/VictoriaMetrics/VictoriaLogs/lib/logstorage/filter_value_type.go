@@ -24,6 +24,15 @@ func (fv *filterValueType) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter(fv.fieldName)
 }
 
+func (fv *filterValueType) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fv.fieldName)
+
+	// Assume all the fields have string type, since we cannot determine the real type of the value at the given field.
+	vt := valueTypeString
+
+	return v == vt.String()
+}
+
 func (fv *filterValueType) applyToBlockResult(br *blockResult, bm *bitmap) {
 	var typ string
 	c := br.getColumnByName(fv.fieldName)

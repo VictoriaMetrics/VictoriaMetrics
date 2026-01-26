@@ -12,6 +12,9 @@ type filter interface {
 	// updateNeededFields must update pf with fields needed for the filter
 	updateNeededFields(pf *prefixfilter.Filter)
 
+	// matchRow must return true if the current filter matches a row with the given fields
+	matchRow(fields []Field) bool
+
 	// applyToBlockSearch must update bm according to the filter applied to the given bs block
 	applyToBlockSearch(bs *blockSearch, bm *bitmap)
 

@@ -16,6 +16,10 @@ func (fn *filterNoop) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }
 
+func (fn *filterNoop) matchRow(fields []Field) bool {
+	return true
+}
+
 func (fn *filterNoop) applyToBlockResult(_ *blockResult, _ *bitmap) {
 	// nothing to do
 }
