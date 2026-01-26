@@ -78,7 +78,7 @@ func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Fun
 		connKeepAliveInterval: defaultConnKeepAliveInterval,
 		dialTimeout:           dialTimeout,
 	}
-	//cp.checkAvailability(true)
+	cp.checkAvailability(true)
 	_ = ms.NewGauge(fmt.Sprintf(`vm_tcpdialer_conns_idle{name=%q, addr=%q}`, name, addr), func() float64 {
 		cp.mu.Lock()
 		n := len(cp.conns)
