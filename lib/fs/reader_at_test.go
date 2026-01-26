@@ -19,7 +19,7 @@ func testReaderAt(t *testing.T, bufSize int) {
 	data := make([]byte, fileSize)
 	MustWriteSync(path, data)
 	defer MustRemovePath(path)
-	r := MustOpenReaderAt(path)
+	r := OpenReaderAt(path)
 	defer r.MustClose()
 
 	buf := make([]byte, bufSize)

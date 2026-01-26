@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
@@ -95,10 +96,9 @@ func (r *bloomValuesReader) totalBytesRead() uint64 {
 	return r.bloom.bytesRead + r.values.bytesRead
 }
 
-func (r *bloomValuesReader) appendClosers(dst []fs.MustCloser) []fs.MustCloser {
-	dst = append(dst, &r.bloom)
-	dst = append(dst, &r.values)
-	return dst
+func (r *bloomValuesReader) appendCloserTasks(pe *fsutil.ParallelExecutor) {
+	pe.Add(fs.NewCloserTask(&r.bloom))
+	pe.Add(fs.NewCloserTask(&r.values))
 }
 
 type bloomValuesStreamReader struct {
@@ -181,23 +181,22 @@ func (sr *streamReaders) totalBytesRead() uint64 {
 func (sr *streamReaders) MustClose() {
 	// Close files in parallel in order to reduce the time needed for this operation
 	// on high-latency storage systems such as NFS or Ceph.
-	cs := []fs.MustCloser{
-		&sr.columnNamesReader,
-		&sr.columnIdxsReader,
-		&sr.metaindexReader,
-		&sr.indexReader,
-		&sr.columnsHeaderIndexReader,
-		&sr.columnsHeaderReader,
-		&sr.timestampsReader,
-	}
+	var pe fsutil.ParallelExecutor
+	pe.Add(fs.NewCloserTask(&sr.columnNamesReader))
+	pe.Add(fs.NewCloserTask(&sr.columnIdxsReader))
+	pe.Add(fs.NewCloserTask(&sr.metaindexReader))
+	pe.Add(fs.NewCloserTask(&sr.indexReader))
+	pe.Add(fs.NewCloserTask(&sr.columnsHeaderIndexReader))
+	pe.Add(fs.NewCloserTask(&sr.columnsHeaderReader))
+	pe.Add(fs.NewCloserTask(&sr.timestampsReader))
 
-	cs = sr.messageBloomValuesReader.appendClosers(cs)
-	cs = sr.oldBloomValuesReader.appendClosers(cs)
+	sr.messageBloomValuesReader.appendCloserTasks(&pe)
+	sr.oldBloomValuesReader.appendCloserTasks(&pe)
 	for i := range sr.bloomValuesShards {
-		cs = sr.bloomValuesShards[i].appendClosers(cs)
+		sr.bloomValuesShards[i].appendCloserTasks(&pe)
 	}
 
-	fs.MustCloseParallel(cs)
+	pe.Run()
 }
 
 func (sr *streamReaders) getBloomValuesReaderForColumnName(name string) *bloomValuesReader {
@@ -355,63 +354,63 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	// Open data readers in parallel in order to reduce the time for this operation
 	// on high-latency storage systems such as NFS or Ceph.
 
-	var pfo filestream.ParallelFileOpener
+	var pe fsutil.ParallelExecutor
 
 	var columnNamesReader filestream.ReadCloser
 	if bsr.ph.FormatVersion >= 1 {
-		pfo.Add(columnNamesPath, &columnNamesReader, nocache)
+		pe.Add(filestream.NewFileOpenerTask(columnNamesPath, &columnNamesReader, nocache))
 	}
 
 	var columnIdxsReader filestream.ReadCloser
 	if bsr.ph.FormatVersion >= 3 {
-		pfo.Add(columnIdxsPath, &columnIdxsReader, nocache)
+		pe.Add(filestream.NewFileOpenerTask(columnIdxsPath, &columnIdxsReader, nocache))
 	}
 
 	var metaindexReader filestream.ReadCloser
-	pfo.Add(metaindexPath, &metaindexReader, nocache)
+	pe.Add(filestream.NewFileOpenerTask(metaindexPath, &metaindexReader, nocache))
 
 	var indexReader filestream.ReadCloser
-	pfo.Add(indexPath, &indexReader, nocache)
+	pe.Add(filestream.NewFileOpenerTask(indexPath, &indexReader, nocache))
 
 	var columnsHeaderIndexReader filestream.ReadCloser
 	if bsr.ph.FormatVersion >= 1 {
-		pfo.Add(columnsHeaderIndexPath, &columnsHeaderIndexReader, nocache)
+		pe.Add(filestream.NewFileOpenerTask(columnsHeaderIndexPath, &columnsHeaderIndexReader, nocache))
 	}
 
 	var columnsHeaderReader filestream.ReadCloser
-	pfo.Add(columnsHeaderPath, &columnsHeaderReader, nocache)
+	pe.Add(filestream.NewFileOpenerTask(columnsHeaderPath, &columnsHeaderReader, nocache))
 
 	var timestampsReader filestream.ReadCloser
-	pfo.Add(timestampsPath, &timestampsReader, nocache)
+	pe.Add(filestream.NewFileOpenerTask(timestampsPath, &timestampsReader, nocache))
 
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
 	var messageBloomValuesReader bloomValuesStreamReader
-	pfo.Add(messageBloomFilterPath, &messageBloomValuesReader.bloom, nocache)
-	pfo.Add(messageValuesPath, &messageBloomValuesReader.values, nocache)
+	pe.Add(filestream.NewFileOpenerTask(messageBloomFilterPath, &messageBloomValuesReader.bloom, nocache))
+	pe.Add(filestream.NewFileOpenerTask(messageValuesPath, &messageBloomValuesReader.values, nocache))
 
 	var oldBloomValuesReader bloomValuesStreamReader
 	var bloomValuesShards []bloomValuesStreamReader
 	if bsr.ph.FormatVersion < 1 {
 		bloomPath := filepath.Join(path, oldBloomFilename)
-		pfo.Add(bloomPath, &oldBloomValuesReader.bloom, nocache)
+		pe.Add(filestream.NewFileOpenerTask(bloomPath, &oldBloomValuesReader.bloom, nocache))
 
 		valuesPath := filepath.Join(path, oldValuesFilename)
-		pfo.Add(valuesPath, &oldBloomValuesReader.values, nocache)
+		pe.Add(filestream.NewFileOpenerTask(valuesPath, &oldBloomValuesReader.values, nocache))
 	} else {
 		bloomValuesShards = make([]bloomValuesStreamReader, bsr.ph.BloomValuesShardsCount)
 		for i := range bloomValuesShards {
 			shard := &bloomValuesShards[i]
 
 			bloomPath := getBloomFilePath(path, uint64(i))
-			pfo.Add(bloomPath, &shard.bloom, nocache)
+			pe.Add(filestream.NewFileOpenerTask(bloomPath, &shard.bloom, nocache))
 
 			valuesPath := getValuesFilePath(path, uint64(i))
-			pfo.Add(valuesPath, &shard.values, nocache)
+			pe.Add(filestream.NewFileOpenerTask(valuesPath, &shard.values, nocache))
 		}
 	}
 
-	pfo.Run()
+	pe.Run()
 
 	// Initialize streamReaders
 	bsr.streamReaders.init(bsr.ph.FormatVersion, columnNamesReader, columnIdxsReader, metaindexReader, indexReader,

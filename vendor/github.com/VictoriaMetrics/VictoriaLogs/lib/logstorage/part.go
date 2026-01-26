@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -54,10 +55,9 @@ type bloomValuesReaderAt struct {
 	values fs.MustReadAtCloser
 }
 
-func (r *bloomValuesReaderAt) appendClosers(dst []fs.MustCloser) []fs.MustCloser {
-	dst = append(dst, r.bloom)
-	dst = append(dst, r.values)
-	return dst
+func (r *bloomValuesReaderAt) appendCloserTasks(pe *fsutil.ParallelExecutor) {
+	pe.Add(fs.NewCloserTask(r.bloom))
+	pe.Add(fs.NewCloserTask(r.values))
 }
 
 func mustOpenInmemoryPart(pt *partition, mp *inmemoryPart) *part {
@@ -137,36 +137,36 @@ func mustOpenFilePart(pt *partition, path string) *part {
 	mrs.MustClose()
 
 	// Open data files
-	p.indexFile = fs.MustOpenReaderAt(indexPath)
+	p.indexFile = fs.OpenReaderAt(indexPath)
 	if p.ph.FormatVersion >= 1 {
-		p.columnsHeaderIndexFile = fs.MustOpenReaderAt(columnsHeaderIndexPath)
+		p.columnsHeaderIndexFile = fs.OpenReaderAt(columnsHeaderIndexPath)
 	}
-	p.columnsHeaderFile = fs.MustOpenReaderAt(columnsHeaderPath)
-	p.timestampsFile = fs.MustOpenReaderAt(timestampsPath)
+	p.columnsHeaderFile = fs.OpenReaderAt(columnsHeaderPath)
+	p.timestampsFile = fs.OpenReaderAt(timestampsPath)
 
 	// Open files with bloom filters and column values
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
-	p.messageBloomValues.bloom = fs.MustOpenReaderAt(messageBloomFilterPath)
+	p.messageBloomValues.bloom = fs.OpenReaderAt(messageBloomFilterPath)
 
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
-	p.messageBloomValues.values = fs.MustOpenReaderAt(messageValuesPath)
+	p.messageBloomValues.values = fs.OpenReaderAt(messageValuesPath)
 
 	if p.ph.FormatVersion < 1 {
 		bloomPath := filepath.Join(path, oldBloomFilename)
-		p.oldBloomValues.bloom = fs.MustOpenReaderAt(bloomPath)
+		p.oldBloomValues.bloom = fs.OpenReaderAt(bloomPath)
 
 		valuesPath := filepath.Join(path, oldValuesFilename)
-		p.oldBloomValues.values = fs.MustOpenReaderAt(valuesPath)
+		p.oldBloomValues.values = fs.OpenReaderAt(valuesPath)
 	} else {
 		p.bloomValuesShards = make([]bloomValuesReaderAt, p.ph.BloomValuesShardsCount)
 		for i := range p.bloomValuesShards {
 			shard := &p.bloomValuesShards[i]
 
 			bloomPath := getBloomFilePath(path, uint64(i))
-			shard.bloom = fs.MustOpenReaderAt(bloomPath)
+			shard.bloom = fs.OpenReaderAt(bloomPath)
 
 			valuesPath := getValuesFilePath(path, uint64(i))
-			shard.values = fs.MustOpenReaderAt(valuesPath)
+			shard.values = fs.OpenReaderAt(valuesPath)
 		}
 	}
 
@@ -176,25 +176,25 @@ func mustOpenFilePart(pt *partition, path string) *part {
 func mustClosePart(p *part) {
 	// Close files in parallel in order to speed up this operation
 	// on high-latency storage systems such as NFS and Ceph.
-	var cs []fs.MustCloser
+	var pe fsutil.ParallelExecutor
 
-	cs = append(cs, p.indexFile)
+	pe.Add(fs.NewCloserTask(p.indexFile))
 	if p.ph.FormatVersion >= 1 {
-		cs = append(cs, p.columnsHeaderIndexFile)
+		pe.Add(fs.NewCloserTask(p.columnsHeaderIndexFile))
 	}
-	cs = append(cs, p.columnsHeaderFile)
-	cs = append(cs, p.timestampsFile)
-	cs = p.messageBloomValues.appendClosers(cs)
+	pe.Add(fs.NewCloserTask(p.columnsHeaderFile))
+	pe.Add(fs.NewCloserTask(p.timestampsFile))
+	p.messageBloomValues.appendCloserTasks(&pe)
 
 	if p.ph.FormatVersion < 1 {
-		cs = p.oldBloomValues.appendClosers(cs)
+		p.oldBloomValues.appendCloserTasks(&pe)
 	} else {
 		for i := range p.bloomValuesShards {
-			cs = p.bloomValuesShards[i].appendClosers(cs)
+			p.bloomValuesShards[i].appendCloserTasks(&pe)
 		}
 	}
 
-	fs.MustCloseParallel(cs)
+	pe.Run()
 
 	p.pt = nil
 }

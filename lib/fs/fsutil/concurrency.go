@@ -15,8 +15,8 @@ func getDefaultConcurrency() int {
 	return n
 }
 
-// GetConcurrencyCh returns a channel for limiting the concurrency of operations with files.
-func GetConcurrencyCh() chan struct{} {
+// getConcurrencyCh returns a channel for limiting the concurrency of operations with files.
+func getConcurrencyCh() chan struct{} {
 	concurrencyChOnce.Do(initConcurrencyCh)
 	return concurrencyCh
 }
@@ -27,3 +27,39 @@ func initConcurrencyCh() {
 
 var concurrencyChOnce sync.Once
 var concurrencyCh chan struct{}
+
+type parallelTask interface {
+	Run()
+}
+
+// ParallelExecutor is used for parallel files operations
+//
+// ParallelExecutor is needed for speeding up files operations on high-latency storage systems such as NFS or Ceph.
+type ParallelExecutor struct {
+	tasks []parallelTask
+}
+
+// Add registers a task for parallel file operations
+//
+// Tasks are executed in parallel on Run() call.
+func (pe *ParallelExecutor) Add(task parallelTask) {
+	pe.tasks = append(pe.tasks, task)
+}
+
+func (pe *ParallelExecutor) Run() {
+	var wg sync.WaitGroup
+	concurrencyCh := getConcurrencyCh()
+	for _, task := range pe.tasks {
+		concurrencyCh <- struct{}{}
+		wg.Add(1)
+
+		go func(task parallelTask) {
+			defer func() {
+				wg.Done()
+				<-concurrencyCh
+			}()
+			task.Run()
+		}(task)
+	}
+	wg.Wait()
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 )
 
 // inmemoryPart is an in-memory part.
@@ -120,26 +121,26 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 
-	var psw filestream.ParallelStreamWriter
+	var pe fsutil.ParallelExecutor
 
-	psw.Add(columnNamesPath, &mp.columnNames)
-	psw.Add(columnIdxsPath, &mp.columnIdxs)
-	psw.Add(metaindexPath, &mp.metaindex)
-	psw.Add(indexPath, &mp.index)
-	psw.Add(columnsHeaderIndexPath, &mp.columnsHeaderIndex)
-	psw.Add(columnsHeaderPath, &mp.columnsHeader)
-	psw.Add(timestampsPath, &mp.timestamps)
+	pe.Add(filestream.NewStreamWriterTask(columnNamesPath, &mp.columnNames))
+	pe.Add(filestream.NewStreamWriterTask(columnIdxsPath, &mp.columnIdxs))
+	pe.Add(filestream.NewStreamWriterTask(metaindexPath, &mp.metaindex))
+	pe.Add(filestream.NewStreamWriterTask(indexPath, &mp.index))
+	pe.Add(filestream.NewStreamWriterTask(columnsHeaderIndexPath, &mp.columnsHeaderIndex))
+	pe.Add(filestream.NewStreamWriterTask(columnsHeaderPath, &mp.columnsHeader))
+	pe.Add(filestream.NewStreamWriterTask(timestampsPath, &mp.timestamps))
 
-	psw.Add(messageBloomFilterPath, &mp.messageBloomValues.bloom)
-	psw.Add(messageValuesPath, &mp.messageBloomValues.values)
+	pe.Add(filestream.NewStreamWriterTask(messageBloomFilterPath, &mp.messageBloomValues.bloom))
+	pe.Add(filestream.NewStreamWriterTask(messageValuesPath, &mp.messageBloomValues.values))
 
 	bloomPath := getBloomFilePath(path, 0)
-	psw.Add(bloomPath, &mp.fieldBloomValues.bloom)
+	pe.Add(filestream.NewStreamWriterTask(bloomPath, &mp.fieldBloomValues.bloom))
 
 	valuesPath := getValuesFilePath(path, 0)
-	psw.Add(valuesPath, &mp.fieldBloomValues.values)
+	pe.Add(filestream.NewStreamWriterTask(valuesPath, &mp.fieldBloomValues.values))
 
-	psw.Run()
+	pe.Run()
 
 	mp.ph.mustWriteMetadata(path)
 
