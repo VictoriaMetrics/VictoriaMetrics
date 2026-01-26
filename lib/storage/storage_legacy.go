@@ -369,3 +369,40 @@ func (s *Storage) legacyMustCloseIndexDBs() {
 		legacyIDBs.idbCurr.MustClose()
 	}
 }
+
+func (s *Storage) legacyGetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	legacyIDBs := s.getLegacyIndexDBs()
+	defer s.putLegacyIndexDBs(legacyIDBs)
+
+	if legacyIDBs.getIDBCurr() != nil {
+		idbName := legacyIDBs.getIDBCurr().name
+		qt.Printf("collect TSDB status in current legacy indexDB %s", idbName)
+		res, err := legacyIDBs.getIDBCurr().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+		if res.hasEntries() {
+			qt.Printf("collected TSDB status in current legacy indexDB %s", idbName)
+			return res, nil
+		} else {
+			qt.Printf("TSDB status was not found in current legacy indexDB %s", idbName)
+		}
+	}
+
+	if legacyIDBs.getIDBPrev() != nil {
+		idbName := legacyIDBs.getIDBPrev().name
+		qt.Printf("collect TSDB status in previous legacy indexDB %s", idbName)
+		res, err := legacyIDBs.getIDBPrev().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+		if res.hasEntries() {
+			qt.Printf("collected TSDB status in previous legacy indexDB %s", idbName)
+			return res, nil
+		} else {
+			qt.Printf("TSDB status was not found in previous legacy indexDB %s", idbName)
+		}
+	}
+
+	return &TSDBStatus{}, nil
+}

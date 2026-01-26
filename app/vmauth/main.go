@@ -24,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -40,27 +41,38 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
-		"See also -maxConcurrentRequests")
-	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
+	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
+	idleConnTimeout        = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
 		"It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services")
 	responseTimeout = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 
-	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
-		"'429 Too Many Requests' http status code. See also -maxQueueDuration, -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
-	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
-		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxQueueDuration and -maxConcurrentRequests command-line options "+
-		"and max_concurrent_requests option in per-user config")
-	maxQueueDuration = flag.Duration("maxQueueDuration", 10*time.Second, "The maximum duration the request waits for execution when the number of concurrently executed "+
-		"requests reach -maxConcurrentRequests or -maxConcurrentPerUserRequests before returning '429 Too Many Requests' error. "+
-		"This allows graceful handling of short spikes in the number of concurrent requests")
+	requestBufferSize = flagutil.NewBytes("requestBufferSize", 32*1024, "The size of the buffer for reading the request body before proxying the request to backends. "+
+		"This allows reducing the comsumption of backend resources when processing requests from clients connected via slow networks. "+
+		"Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering")
+	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size to buffer in memory for potential retries at other backends. "+
+		"Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. "+
+		"See also -requestBufferSize")
+
+	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process simultaneously. "+
+		"Requests exceeding this limit are queued for up to -maxQueueDuration and then rejected with '429 Too Many Requests' http status code if the limit is still reached. "+
+		"This protects vmauth itself from overloading and out-of-memory (OOM) failures. See also -maxConcurrentPerUserRequests "+
+		"and https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting")
+	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 100, "The maximum number of concurrent requests vmauth can process per each configured user. "+
+		"Requests exceeding this limit are queued for up to -maxQueueDuration and then rejected with '429 Too Many Requests' http status code if the limit is still reached. "+
+		"This provides fairness and isolation between users, preventing a single user from consuming all the available resources. "+
+		"It works in conjunction with -maxConcurrentRequests, which sets the global limit across all users. "+
+		"This default can be overridden for individual users via max_concurrent_requests option in per-user config. "+
+		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting")
+	maxQueueDuration = flag.Duration("maxQueueDuration", 10*time.Second, "The maximum duration to wait before rejecting incoming requests if concurrency limit "+
+		"specified via -maxConcurrentRequests or -maxConcurrentPerUserRequests command-line flags is reached. "+
+		"Requests are rejected with '429 Too Many Requests' http status code if the limit is still reached after the -maxQueueDuration duration. "+
+		"This allows graceful handling of short spikes in concurrent requests. See https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting")
 
 	reloadAuthKey        = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
-	failTimeout               = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
-	maxRequestBodySizeToRetry = flagutil.NewBytes("maxRequestBodySizeToRetry", 16*1024, "The maximum request body size, which can be cached and re-tried at other backends. "+
-		"Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests")
+	failTimeout = flag.Duration("failTimeout", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend")
+
 	backendTLSInsecureSkipVerify = flag.Bool("backend.tlsInsecureSkipVerify", false, "Whether to skip TLS verification when connecting to backends over HTTPS. "+
 		"See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup")
 	backendTLSCAFile = flag.String("backend.TLSCAFile", "", "Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. "+
@@ -215,46 +227,119 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	ctx, cancel := context.WithTimeout(r.Context(), *maxQueueDuration)
 	defer cancel()
 
-	// Limit the concurrency of requests to backends
+	// Acquire global concurrency limit.
+	if err := beginConcurrencyLimit(ctx); err != nil {
+		handleConcurrencyLimitError(w, r, err)
+		return
+	}
+	defer endConcurrencyLimit()
+
+	// Set read deadline for reading the initial chunk for the request body.
+	rc := http.NewResponseController(w)
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		logger.Panicf("BUG: expecting valid deadline for the context")
+	}
+	if err := rc.SetReadDeadline(deadline); err != nil {
+		logger.Panicf("BUG: cannot set read deadline: %s", err)
+	}
+
+	// Read the initial chunk for the request body.
+	userName := ui.name()
+	if userName == "" {
+		userName = "unauthorized"
+	}
+	bb, err := bufferRequestBody(ctx, r.Body, userName)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	r.Body = bb
+
+	// Disable the read deadline for the rest of the request body.
+	if err := rc.SetReadDeadline(time.Time{}); err != nil {
+		logger.Panicf("BUG: cannot reset read deadline: %s", err)
+	}
+
+	// Acquire concurrency limit for the given user.
+	if err := ui.beginConcurrencyLimit(ctx); err != nil {
+		handleConcurrencyLimitError(w, r, err)
+		return
+	}
+	defer ui.endConcurrencyLimit()
+
+	// Process the request.
+	processRequest(w, r, ui)
+}
+
+func beginConcurrencyLimit(ctx context.Context) error {
 	concurrencyLimitOnce.Do(concurrencyLimitInit)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
-		if err := ui.beginConcurrencyLimit(ctx); err != nil {
-			handleConcurrencyLimitError(w, r, err)
-			<-concurrencyLimitCh
-			return
-		}
+		return nil
 	default:
 		// The -maxConcurrentRequests are executed. Wait until some of the requests are finished,
 		// so the current request could be executed.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
 		select {
 		case concurrencyLimitCh <- struct{}{}:
-			if err := ui.beginConcurrencyLimit(ctx); err != nil {
-				handleConcurrencyLimitError(w, r, err)
-				<-concurrencyLimitCh
-				return
-			}
+			return nil
 		case <-ctx.Done():
 			err := ctx.Err()
-
-			concurrentRequestsLimitReached.Inc()
-
 			if errors.Is(err, context.DeadlineExceeded) {
-				err = fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because -maxConcurrentRequests=%d concurrent requests are executed",
+				// The current request couldn't be executed until the request timeout.
+				concurrentRequestsLimitReached.Inc()
+				return fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because -maxConcurrentRequests=%d concurrent requests are executed",
 					*maxQueueDuration, cap(concurrencyLimitCh))
-				handleConcurrencyLimitError(w, r, err)
-				return
 			}
-
-			err = fmt.Errorf("cannot start executing the request because -maxConcurrentRequests=%d concurrent requests are executed: %w", cap(concurrencyLimitCh), err)
-			handleConcurrencyLimitError(w, r, err)
-			return
+			return fmt.Errorf("cannot start executing the request because -maxConcurrentRequests=%d concurrent requests are executed: %w", cap(concurrencyLimitCh), err)
 		}
 	}
-	processRequest(w, r, ui)
-	ui.endConcurrencyLimit()
+}
+
+func endConcurrencyLimit() {
 	<-concurrencyLimitCh
+}
+
+func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (io.ReadCloser, error) {
+	if r == nil {
+		// This is a GET request with nil reader.
+		return nil, nil
+	}
+
+	maxBufSize := max(requestBufferSize.IntN(), maxRequestBodySizeToRetry.IntN())
+	if maxBufSize <= 0 {
+		return r, nil
+	}
+
+	lr := ioutil.GetLimitedReader(r, int64(maxBufSize))
+	defer ioutil.PutLimitedReader(lr)
+
+	start := time.Now()
+	buf, err := io.ReadAll(lr)
+	bufferRequestBodyDuration.UpdateDuration(start)
+
+	if err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			rejectSlowClientRequests.Inc()
+
+			d := time.Since(start)
+
+			return nil, &httpserver.ErrorWithStatusCode{
+				Err: fmt.Errorf("reject request from the user %s because the request body couldn't be read in -maxQueueDuration=%s; read %d bytes in %s",
+					userName, *maxQueueDuration, len(buf), d.Truncate(time.Second)),
+				StatusCode: http.StatusBadRequest,
+			}
+		}
+
+		return nil, &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot read request body: %w", err),
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	bb := newBufferedBody(r, buf, maxBufSize)
+	return bb, nil
 }
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
@@ -282,9 +367,6 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		isDefault = true
 	}
 
-	rtb := newReadTrackingBody(r.Body, maxRequestBodySizeToRetry.IntN())
-	r.Body = rtb
-
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getBackendURL()
@@ -292,18 +374,19 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			break
 		}
 		targetURL := bu.url
-		// Don't change path and add request_path query param for default route.
 		if isDefault {
+			// Don't change path and add request_path query param for default route.
 			query := targetURL.Query()
 			query.Set("request_path", u.String())
 			targetURL.RawQuery = query.Encode()
-		} else { // Update path for regular routes.
+		} else {
+			// Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		}
 
 		wasLocalRetry := false
 	again:
-		ok, needLocalRetry := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui)
+		ok, needLocalRetry := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui, bu)
 		if needLocalRetry && !wasLocalRetry {
 			wasLocalRetry = true
 			goto again
@@ -313,6 +396,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		if ok {
 			return
 		}
+
 		bu.setBroken()
 		ui.backendErrors.Inc()
 	}
@@ -324,7 +408,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	ui.requestErrors.Inc()
 }
 
-func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo) (bool, bool) {
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, hc HeadersConf, retryStatusCodes []int, ui *UserInfo, bu *backendURL) (bool, bool) {
 	ui.backendRequests.Inc()
 	req := sanitizeRequestHeaders(r)
 
@@ -339,30 +423,19 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 		}
 	}
 
-	rtb, rtbOK := req.Body.(*readTrackingBody)
+	bb, bbOK := req.Body.(*bufferedBody)
+	canRetry := !bbOK || bb.canRetry()
+
 	res, err := ui.rt.RoundTrip(req)
 
-	if ctxErr := r.Context().Err(); ctxErr != nil {
-		// Override the error returned by the RoundTrip with the context error if it isn't non-nil
-		// This makes sure the proper logging for canceled and timed out requests - log the real cause of the error
-		// instead of the random error, which could be returned from RoundTrip because of canceled or timed out request.
-		err = ctxErr
+	if errors.Is(r.Context().Err(), context.Canceled) {
+		// Do not retry canceled requests.
+		clientCanceledRequests.Inc()
+		return true, false
 	}
+
 	if err != nil {
-		// Do not retry canceled
-		if errors.Is(err, context.Canceled) {
-			clientCanceledRequests.Inc()
-			return true, false
-		}
-		// Do not retry timed out requests
-		if errors.Is(err, context.DeadlineExceeded) {
-			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-			requestURI := httpserver.GetRequestURI(r)
-			// Timed out request must be counted as errors, since this usually means that the backend is slow.
-			logger.Warnf("remoteAddr: %s; requestURI: %s; timeout while proxying the response from %s: %s", remoteAddr, requestURI, targetURL, err)
-			return false, false
-		}
-		if !rtbOK || !rtb.canRetry() {
+		if !canRetry {
 			// Request body cannot be re-sent to another backend. Return the error to the client then.
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        fmt.Errorf("cannot proxy the request to %s: %w", targetURL, err),
@@ -371,27 +444,32 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			httpserver.Errorf(w, r, "%s", err)
 			ui.backendErrors.Inc()
 			ui.requestErrors.Inc()
+			bu.setBroken()
 			return true, false
 		}
 		if netutil.IsTrivialNetworkError(err) {
 			// Retry request at the same backend on trivial network errors, such as proxy idle timeout misconfiguration or socket close by OS
+			if bbOK {
+				bb.resetReader()
+			}
 			return false, true
 		}
 
-		// Request body wasn't read yet, this usually means that the backend isn't reachable; retry the request at another backend
+		// Retry the request at another backend
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		// NOTE: do not use httpserver.GetRequestURI
-		// it explicitly reads request body, which may fail retries.
-		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed: %s, retrying the request at another backend", remoteAddr, req.URL, targetURL, err)
+		requestURI := httpserver.GetRequestURI(r)
+		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed: %s, retrying the request at another backend", remoteAddr, requestURI, targetURL, err)
+		if bbOK {
+			bb.resetReader()
+		}
 		return false, false
 	}
 	if slices.Contains(retryStatusCodes, res.StatusCode) {
-		_ = res.Body.Close()
-		if !rtbOK || !rtb.canRetry() {
+		if !canRetry {
 			// If we get an error from the retry_status_codes list, but cannot execute retry,
 			// we consider such a request an error as well.
 			err := &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("got response status code=%d from %s, but cannot retry the request at another backend, because the request has been already consumed",
+				Err: fmt.Errorf("got response status code=%d from %s, but cannot retry the request at another backend, because the request body has been already consumed",
 					res.StatusCode, targetURL),
 				StatusCode: http.StatusServiceUnavailable,
 			}
@@ -400,13 +478,16 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			ui.requestErrors.Inc()
 			return true, false
 		}
+
 		// Retry requests at other backends if it matches retryStatusCodes.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4893
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		// NOTE: do not use httpserver.GetRequestURI
-		// it explicitly reads request body, which may fail retries.
+		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; request to %s failed, retrying the request at another backend because response status code=%d belongs to retry_status_codes=%d",
-			remoteAddr, req.URL, targetURL, res.StatusCode, retryStatusCodes)
+			remoteAddr, requestURI, targetURL, res.StatusCode, retryStatusCodes)
+		if bbOK {
+			bb.resetReader()
+		}
 		return false, false
 	}
 	removeHopHeaders(res.Header)
@@ -416,13 +497,16 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 
 	err = copyStreamToClient(w, res.Body)
 	_ = res.Body.Close()
-	if errors.Is(err, context.Canceled) {
+
+	if errors.Is(r.Context().Err(), context.Canceled) {
+		// Do not retry canceled requests.
 		clientCanceledRequests.Inc()
 		return true, false
-	} else if err != nil && !netutil.IsTrivialNetworkError(err) {
+	}
+
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
-
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
 		ui.requestErrors.Inc()
 		return true, false
@@ -553,6 +637,9 @@ var (
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 	clientCanceledRequests   = metrics.NewCounter(`vmauth_http_request_errors_total{reason="client_canceled"}`)
+	rejectSlowClientRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="reject_slow_client"}`)
+
+	bufferRequestBodyDuration = metrics.NewSummary(`vmauth_buffer_request_body_duration_seconds`)
 )
 
 func newRoundTripper(caFileOpt, certFileOpt, keyFileOpt, serverNameOpt string, insecureSkipVerifyP *bool) (http.RoundTripper, error) {
@@ -636,8 +723,7 @@ func handleMissingAuthorizationError(w http.ResponseWriter) {
 }
 
 func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
-	ctx := r.Context()
-	if errors.Is(ctx.Err(), context.Canceled) {
+	if errors.Is(r.Context().Err(), context.Canceled) {
 		// Do not return any response for the request canceled by the client,
 		// since the connection to the client is already closed.
 		clientCanceledRequests.Inc()
@@ -652,121 +738,76 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 	httpserver.Errorf(w, r, "%s", err)
 }
 
-// readTrackingBody must be obtained via getReadTrackingBody()
-type readTrackingBody struct {
-	// maxBodySize is the maximum body size to cache in buf.
+// bufferedBody serves two purposes:
+//  1. Enables request retries when the body size does not exceed maxBodySize
+//     by fully buffering the body in memory.
+//  2. Prevents slow clients from reducing effective server capacity by
+//     buffering the request body before acquiring a per-user concurrency slot.
+//
+// See bufferRequestBody for details on how bufferedBody is used.
+type bufferedBody struct {
+	// r contains reader for reading the data after buf is read.
 	//
-	// Bigger bodies cannot be retried.
-	maxBodySize int
-
-	// r contains reader for initial data reading
+	// r is nil if buf contains all the data.
 	r io.ReadCloser
 
-	// buf is a buffer for data read from r. Buf size is limited by maxBodySize.
-	// If more than maxBodySize is read from r, then cannotRetry is set to true.
+	// buf contains the initial buffer read from r.
 	buf []byte
 
-	// readBuf points to the cached data at buf, which must be read in the next call to Read().
-	readBuf []byte
+	// bufOffset is the offset at buf for already read bytes.
+	bufOffset int
 
-	// cannotRetry is set to true when more than maxBodySize bytes are read from r.
-	// In this case the read data cannot fit buf, so it cannot be re-read from buf.
+	// cannotRetry is set to true after Close() call on non-nil r.
 	cannotRetry bool
-
-	// bufComplete is set to true when buf contains complete request body read from r.
-	bufComplete bool
 }
 
-func newReadTrackingBody(r io.ReadCloser, maxBodySize int) *readTrackingBody {
-	// do not use sync.Pool there
-	// since http.RoundTrip may still use request body after return
-	// See this issue for details https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051
-	rtb := &readTrackingBody{}
-	if maxBodySize < 0 {
-		maxBodySize = 0
+func newBufferedBody(r io.ReadCloser, buf []byte, maxBufSize int) *bufferedBody {
+	// Do not use sync.Pool here, since http.RoundTrip may still use request body after return.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051
+
+	if len(buf) < maxBufSize {
+		// Read the full request body into buf.
+		r = nil
 	}
-	rtb.maxBodySize = maxBodySize
 
-	if r == nil {
-		// This is GET request without request body
-		r = (*zeroReader)(nil)
+	return &bufferedBody{
+		r:   r,
+		buf: buf,
 	}
-	rtb.r = r
-	return rtb
-}
-
-type zeroReader struct{}
-
-func (r *zeroReader) Read(_ []byte) (int, error) {
-	return 0, io.EOF
-}
-
-func (r *zeroReader) Close() error {
-	return nil
 }
 
 // Read implements io.Reader interface.
-func (rtb *readTrackingBody) Read(p []byte) (int, error) {
-	if len(rtb.readBuf) > 0 {
-		n := copy(p, rtb.readBuf)
-		rtb.readBuf = rtb.readBuf[n:]
+func (bb *bufferedBody) Read(p []byte) (int, error) {
+	if bb.cannotRetry {
+		return 0, fmt.Errorf("cannot read already closed body")
+	}
+	if bb.bufOffset < len(bb.buf) {
+		n := copy(p, bb.buf[bb.bufOffset:])
+		bb.bufOffset += n
 		return n, nil
 	}
-
-	if rtb.r == nil {
-		if rtb.bufComplete {
-			return 0, io.EOF
-		}
-		return 0, fmt.Errorf("cannot read client request body after closing client reader")
+	if bb.r == nil {
+		return 0, io.EOF
 	}
-
-	n, err := rtb.r.Read(p)
-	if rtb.cannotRetry {
-		return n, err
-	}
-
-	if len(rtb.buf)+n > rtb.maxBodySize {
-		rtb.cannotRetry = true
-		return n, err
-	}
-	rtb.buf = append(rtb.buf, p[:n]...)
-	if err == io.EOF {
-		rtb.bufComplete = true
-	}
-	return n, err
+	return bb.r.Read(p)
 }
 
-func (rtb *readTrackingBody) canRetry() bool {
-	if rtb.cannotRetry {
-		return false
-	}
-	if rtb.bufComplete {
-		return true
-	}
-	return rtb.r != nil
+func (bb *bufferedBody) canRetry() bool {
+	return bb.r == nil
 }
 
 // Close implements io.Closer interface.
-func (rtb *readTrackingBody) Close() error {
-	if !rtb.cannotRetry {
-		rtb.readBuf = rtb.buf
-	} else {
-		rtb.readBuf = nil
+func (bb *bufferedBody) Close() error {
+	bb.resetReader()
+	if bb.r != nil {
+		bb.cannotRetry = true
+		return bb.r.Close()
 	}
-
-	// Close rtb.r only if the request body is completely read or if it is too big.
-	// http.Roundtrip performs body.Close call even without any Read calls,
-	// so this hack allows us to reuse request body.
-	if rtb.bufComplete || rtb.cannotRetry {
-		if rtb.r == nil {
-			return nil
-		}
-		err := rtb.r.Close()
-		rtb.r = nil
-		return err
-	}
-
 	return nil
+}
+
+func (bb *bufferedBody) resetReader() {
+	bb.bufOffset = 0
 }
 
 func debugInfo(u *url.URL, r *http.Request) string {

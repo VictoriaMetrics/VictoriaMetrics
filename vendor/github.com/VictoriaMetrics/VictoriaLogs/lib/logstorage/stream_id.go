@@ -52,7 +52,7 @@ func (sid *streamID) String() string {
 
 // less returns true if a is less than sid.
 func (sid *streamID) less(a *streamID) bool {
-	if !sid.tenantID.equal(&a.tenantID) {
+	if !sid.tenantID.Equal(&a.tenantID) {
 		return sid.tenantID.less(&a.tenantID)
 	}
 	return sid.id.less(&a.id)
@@ -60,7 +60,7 @@ func (sid *streamID) less(a *streamID) bool {
 
 // equal returns true if sid equals to a.
 func (sid *streamID) equal(a *streamID) bool {
-	if !sid.tenantID.equal(&a.tenantID) {
+	if !sid.tenantID.Equal(&a.tenantID) {
 		return false
 	}
 	return sid.id.equal(&a.id)

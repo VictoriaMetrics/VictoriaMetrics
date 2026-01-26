@@ -27,6 +27,11 @@ func (fr *filterLenRange) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter(fr.fieldName)
 }
 
+func (fr *filterLenRange) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fr.fieldName)
+	return matchLenRange(v, fr.minLen, fr.maxLen)
+}
+
 func (fr *filterLenRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 	minLen := fr.minLen
 	maxLen := fr.maxLen

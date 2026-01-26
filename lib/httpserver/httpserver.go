@@ -617,6 +617,13 @@ func (rwa *responseWriterWithAbort) Flush() {
 	flusher.Flush()
 }
 
+// Unwrap returns the original ResponseWriter wrapped by rwa.
+//
+// This is needed for the net/http.ResponseController - see https://pkg.go.dev/net/http#NewResponseController
+func (rwa *responseWriterWithAbort) Unwrap() http.ResponseWriter {
+	return rwa.ResponseWriter
+}
+
 // abort aborts the client connection associated with rwa.
 //
 // The last http chunk in the response stream is intentionally written incorrectly,
