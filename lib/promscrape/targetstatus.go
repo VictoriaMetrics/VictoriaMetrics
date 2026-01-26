@@ -327,7 +327,10 @@ func (ts *targetStatus) getSizeFromLastScrape() string {
 	if ts.scrapeResponseSize <= 0 {
 		return "never scraped"
 	}
-	return fmt.Sprintf("%.3fKiB", float64(ts.scrapeResponseSize)/1024)
+	if ts.scrapeResponseSize < 1024 {
+		return fmt.Sprintf("%dB", ts.scrapeResponseSize)
+	}
+	return fmt.Sprintf("%dKiB", (ts.scrapeResponseSize+1023)/1024)
 }
 
 type droppedTargets struct {

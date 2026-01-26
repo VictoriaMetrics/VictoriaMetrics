@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improved scrape size display. Sizes below 1024 bytes are now shown in `B`, and larger sizes are shown as whole `KiB` (rounded up). This prevents confusion where values like 123.456 KiB were interpreted as 123456 KiB, while the actual size was only 123 KiB. See [#10307](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10307).
+
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): allow buffering request bodies before proxying them to backends. This reduces load on backends when processing requests from slow clients such as IoT devices connected to `vmauth` via slow networks. See [#10309](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10309) and [these docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering).
 * FEATURE: [monitoring](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#monitoring): take into account all the generated log messages at `vm_log_messages_total` metric, including suppressed logs if the `-loggerLevel` command-line flag is set to values other than `INFO`. Add `is_printed` label to the `vm_log_messages_total` metric in order to understand whether the log at the given code `location` was suppressed or not. This simplifies troubleshooting of VictoriaMetrics components when logs aren't available. See [#10304](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10304).
 
