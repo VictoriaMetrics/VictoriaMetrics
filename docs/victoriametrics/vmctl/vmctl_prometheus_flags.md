@@ -6,7 +6,7 @@ build:
 sitemap:
   disable: true
 ---
-<!-- The file should not be updated manually. Run make docs-update-flags while preparing a new release. -->
+<!-- The file should not be updated manually. Run make docs-update-flags while preparing a new release to sync flags in docs from actual binaries. -->
 ```shellhelp
 NAME:
    vmctl prometheus - Migrate time series from Prometheus
