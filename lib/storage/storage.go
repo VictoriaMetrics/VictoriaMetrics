@@ -1139,21 +1139,19 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 		for i, idb := range idbs {
 			searchTR := s.adjustTimeRange(tr, idb.idb.tr)
 			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name(), &searchTR)
-			wg.Add(1)
-			go func(qt *querytracer.Tracer, i int, idb indexDBWithType, tr TimeRange) {
-				defer wg.Done()
-				defer qt.Done()
+			wg.Go(func() {
 				// Intentionally repeat the same search code for each indexDB
 				// type so that profiles (cpu, mem, etc) could show how many
 				// resources have been consumed by each indexDB type.
 				if idb.pt {
-					data[i], errs[i] = search(qt, idb.idb, tr)
+					data[i], errs[i] = search(qt, idb.idb, searchTR)
 				} else if idb.legacyPrev {
-					data[i], errs[i] = search(qt, idb.idb, tr)
+					data[i], errs[i] = search(qt, idb.idb, searchTR)
 				} else if idb.legacyCurr {
-					data[i], errs[i] = search(qt, idb.idb, tr)
+					data[i], errs[i] = search(qt, idb.idb, searchTR)
 				}
-			}(qtChild, i, idb, searchTR)
+				qtChild.Done()
+			})
 		}
 		wg.Wait()
 		qtSearch.Done()
