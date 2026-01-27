@@ -493,3 +493,19 @@ for VictoriaMetrics components will notify about issues and provide recommendati
 
 Internally, we heavily rely both on dashboards and alerts, and constantly improve them.
 It is important to stay up to date with such changes.
+
+
+## Filesystem read corruption on ZFS
+
+On some ZFS filesystems, mixing reads from memory-mapped files (`mmap`) with usage of the `mincore()` syscall can trigger a bug in the ZFS in-memory cache (ARC), potentially resulting in **data read corruption** in VictoriaMetrics processes. This scenario has been observed when VictoriaMetrics instances access data directories on ZFS.
+
+Symptoms:
+- Unexpected read errors when accessing data on ZFS.
+- Corrupted or inconsistent query results.
+- Crashes or panics in storage/query components when reading from ZFS.
+
+It could be mitigated with `--fs.disableMincore` flag:
+
+```text
+./bin/victoria-metrics --storageDataPath /path/to/zfs/data --fs.disableMincore
+```

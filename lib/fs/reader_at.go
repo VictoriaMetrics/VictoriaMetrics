@@ -17,6 +17,11 @@ var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread(
 	"By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. "+
 	"mmap() is usually faster for reading small data chunks than pread()")
 
+var disableMincore = flag.Bool("fs.disableMincore", false, "Whether to disable the mincore() syscall for checking mmap()ed files. "+
+	"By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. "+
+	"Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. "+
+	"See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10327 for details.")
+
 // Disable mmap for architectures with 32-bit pointers in order to be able to work with files exceeding 2^32 bytes.
 const is32BitPtr = (^uintptr(0) >> 32) == 0
 
@@ -344,3 +349,7 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 }
 
 var mmappedFiles = metrics.NewCounter("vm_mmapped_files")
+
+func hasMincore() bool {
+	return supportsMincore() && !*disableMincore
+}
