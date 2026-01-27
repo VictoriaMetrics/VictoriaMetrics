@@ -110,7 +110,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	topByAvgMemoryConsumption := qst.getTopByAvgMemoryBytesConsumption(topN, maxLifetime)
 	for i, r := range topByAvgMemoryConsumption {
 		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"avgMemoryBytes":%d,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.memoryEstimatedBytes, r.count)
-		if i+1 < len(topBySumDuration) {
+		if i+1 < len(topByAvgMemoryConsumption) {
 			fmt.Fprintf(w, `,`)
 		}
 	}
