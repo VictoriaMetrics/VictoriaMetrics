@@ -94,7 +94,7 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Wait until next rotation.
 		// curr metricIDs will be moved to prev.
-		time.Sleep(15 * time.Minute)
+		time.Sleep(9 * time.Minute)
 		assertStats(t, c, metricIDCacheStats{
 			Size:           100_000,
 			SyncsCount:     128,
@@ -103,7 +103,7 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Wait until another rotation.
 		// The cache now should be empty.
-		time.Sleep(15 * time.Minute)
+		time.Sleep(8 * time.Minute)
 		assertStats(t, c, metricIDCacheStats{
 			SyncsCount:     128,
 			RotationsCount: 256,
