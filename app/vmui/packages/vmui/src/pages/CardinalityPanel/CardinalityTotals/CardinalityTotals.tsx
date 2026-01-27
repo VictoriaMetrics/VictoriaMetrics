@@ -23,7 +23,6 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   totalSeries = 0,
   totalSeriesPrev = 0,
   totalSeriesAll = 0,
-  seriesCountByMetricName = [],
   metricNameStats,
   isPrometheus,
 }) => {
@@ -34,7 +33,7 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   const focusLabel = searchParams.get("focusLabel");
   const isMetric = /__name__/.test(match || "");
 
-  const progress = seriesCountByMetricName[0]?.value / totalSeriesAll * 100;
+  const progress = totalSeries / totalSeriesAll * 100;
   const diff = totalSeries - totalSeriesPrev;
   const dynamic = Math.abs(diff) / totalSeriesPrev * 100;
 
