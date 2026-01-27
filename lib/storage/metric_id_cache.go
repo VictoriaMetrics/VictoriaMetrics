@@ -28,7 +28,9 @@ func fnvUint64(x uint64) uint64 {
 }
 
 const (
-	metricIdCacheShardNum = 128
+	metricIdCacheShardNum          = 128
+	metricIdCacheRotationGroupSize = 16
+	metricIdCacheRotationGroupNum  = (metricIdCacheShardNum + metricIdCacheRotationGroupSize - 1) / metricIdCacheRotationGroupSize
 )
 
 // metricIDCache stores metricIDs that have been added to the index. It is used
@@ -85,23 +87,29 @@ func (c *metricIDCache) Set(metricID uint64) {
 	c.shards[shardIdx].Set(metricID)
 }
 
-func (c *metricIDCache) rotate() {
+func (c *metricIDCache) rotate(rotationGroup int) {
 	for i := 0; i < metricIdCacheShardNum; i++ {
-		c.shards[i].rotate()
+		if i/metricIdCacheRotationGroupSize == rotationGroup {
+			c.shards[i].rotate()
+		}
 	}
 }
 
 func (c *metricIDCache) startRotation() {
-	d := timeutil.AddJitterToDuration(10 * time.Minute)
+	d := timeutil.AddJitterToDuration(1 * time.Minute)
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
+	rotationGroup := 0
 	for {
 		select {
 		case <-c.stopCh:
 			close(c.rotationStoppedCh)
 			return
 		case <-ticker.C:
-			c.rotate()
+			// each tick rotate only subset of size metricIdCacheRotationGroupSize
+			// to avoid slow access for all shards at once
+			rotationGroup = (rotationGroup + 1) % metricIdCacheRotationGroupNum
+			c.rotate(rotationGroup)
 		}
 	}
 }

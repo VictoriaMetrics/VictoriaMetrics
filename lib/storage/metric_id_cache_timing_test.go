@@ -21,7 +21,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 			}
 		}
 		if rotate {
-			c.rotate()
+			c.rotate(0)
 		}
 		b.ResetTimer()
 
