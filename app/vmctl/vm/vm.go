@@ -156,15 +156,13 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 		cfg.BatchSize = 1e5
 	}
 
-	im.wg.Add(int(cfg.Concurrency))
-	for i := 0; i < int(cfg.Concurrency); i++ {
+	for i := range int(cfg.Concurrency) {
 		pbPrefix := fmt.Sprintf(`{{ green "VM worker %d:" }}`, i)
 		bar := barpool.AddWithTemplate(pbPrefix+pbTpl, 0)
 
-		go func(bar barpool.Bar) {
-			defer im.wg.Done()
+		im.wg.Go(func() {
 			im.startWorker(ctx, bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
-		}(bar)
+		})
 	}
 	im.ResetStats()
 	return im, nil

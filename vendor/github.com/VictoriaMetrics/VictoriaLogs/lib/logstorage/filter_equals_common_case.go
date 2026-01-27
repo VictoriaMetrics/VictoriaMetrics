@@ -47,6 +47,10 @@ func (fi *filterEqualsCommonCase) updateNeededFields(pf *prefixfilter.Filter) {
 	fi.equalsAny.updateNeededFields(pf)
 }
 
+func (fi *filterEqualsCommonCase) matchRow(fields []Field) bool {
+	return fi.equalsAny.matchRow(fields)
+}
+
 func (fi *filterEqualsCommonCase) applyToBlockResult(br *blockResult, bm *bitmap) {
 	fi.equalsAny.applyToBlockResult(br, bm)
 }

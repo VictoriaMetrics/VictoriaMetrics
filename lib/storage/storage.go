@@ -746,9 +746,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 		}
 	}
 	f()
-	s.freeDiskSpaceWatcherWG.Add(1)
-	go func() {
-		defer s.freeDiskSpaceWatcherWG.Done()
+	s.freeDiskSpaceWatcherWG.Go(func() {
 		d := timeutil.AddJitterToDuration(time.Second)
 		ticker := time.NewTicker(d)
 		defer ticker.Stop()
@@ -760,7 +758,7 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 				f()
 			}
 		}
-	}()
+	})
 }
 
 func (s *Storage) notifyReadWriteMode() {
@@ -769,19 +767,11 @@ func (s *Storage) notifyReadWriteMode() {
 }
 
 func (s *Storage) startCurrHourMetricIDsUpdater() {
-	s.currHourMetricIDsUpdaterWG.Add(1)
-	go func() {
-		s.currHourMetricIDsUpdater()
-		s.currHourMetricIDsUpdaterWG.Done()
-	}()
+	s.currHourMetricIDsUpdaterWG.Go(s.currHourMetricIDsUpdater)
 }
 
 func (s *Storage) startNextDayMetricIDsUpdater() {
-	s.nextDayMetricIDsUpdaterWG.Add(1)
-	go func() {
-		s.nextDayMetricIDsUpdater()
-		s.nextDayMetricIDsUpdaterWG.Done()
-	}()
+	s.nextDayMetricIDsUpdaterWG.Go(s.nextDayMetricIDsUpdater)
 }
 
 func (s *Storage) currHourMetricIDsUpdater() {
@@ -1074,6 +1064,32 @@ func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
 	s.metricNameCache.Set(key[:], metricName)
 }
 
+// indexDBWithType holds together the indexDB and its type.
+//
+// This type is used in searchAndMerge() to organize the code so that golang
+// profiles (cpu, mem, etc) could distinguish between searching pt-index, legacy
+// prev, and legacy curr indexDBs. Such profiles should significantly simplify
+// debugging index search performance issues.
+type indexDBWithType struct {
+	idb        *indexDB
+	legacyPrev bool
+	legacyCurr bool
+	pt         bool
+}
+
+func (idb indexDBWithType) name() string {
+	var idbType string
+	if idb.legacyPrev {
+		idbType = "legacy prev"
+	} else if idb.legacyCurr {
+		idbType = "legacy curr"
+	} else if idb.pt {
+		idbType = "pt"
+	}
+
+	return fmt.Sprintf("%s (%s)", idb.idb.name, idbType)
+}
+
 // searchAndMerge concurrently performs a search operation on all partition
 // IndexDBs that overlap with the given time range and optionally legacy current
 // and previous IndexDBs. The individual search results are then merged.
@@ -1085,12 +1101,16 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
 	defer qt.Done()
 
-	var idbs []*indexDB
+	var idbs []indexDBWithType
 
 	ptws := s.tb.GetPartitions(tr)
 	defer s.tb.PutPartitions(ptws)
 	for _, ptw := range ptws {
-		idbs = append(idbs, ptw.pt.idb)
+		idb := indexDBWithType{
+			idb: ptw.pt.idb,
+			pt:  true,
+		}
+		idbs = append(idbs, idb)
 	}
 
 	legacyIDBs := s.getLegacyIndexDBs()
@@ -1109,22 +1129,29 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	if len(idbs) == 1 {
 		// It is faster to process one indexDB without spawning goroutines.
 		idb := idbs[0]
-		searchTR := s.adjustTimeRange(tr, idb.tr)
-		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-		data[0], errs[0] = search(qtChild, idb, searchTR)
+		searchTR := s.adjustTimeRange(tr, idb.idb.tr)
+		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name(), &searchTR)
+		data[0], errs[0] = search(qtChild, idb.idb, searchTR)
 		qtChild.Done()
 	} else {
 		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
 		var wg sync.WaitGroup
 		for i, idb := range idbs {
-			searchTR := s.adjustTimeRange(tr, idb.tr)
-			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-			wg.Add(1)
-			go func(qt *querytracer.Tracer, i int, idb *indexDB, tr TimeRange) {
-				defer wg.Done()
-				defer qt.Done()
-				data[i], errs[i] = search(qt, idb, tr)
-			}(qtChild, i, idb, searchTR)
+			searchTR := s.adjustTimeRange(tr, idb.idb.tr)
+			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name(), &searchTR)
+			wg.Go(func() {
+				// Intentionally repeat the same search code for each indexDB
+				// type so that profiles (cpu, mem, etc) could show how many
+				// resources have been consumed by each indexDB type.
+				if idb.pt {
+					data[i], errs[i] = search(qt, idb.idb, searchTR)
+				} else if idb.legacyPrev {
+					data[i], errs[i] = search(qt, idb.idb, searchTR)
+				} else if idb.legacyCurr {
+					data[i], errs[i] = search(qt, idb.idb, searchTR)
+				}
+				qtChild.Done()
+			})
 		}
 		wg.Wait()
 		qtSearch.Done()
@@ -1458,28 +1485,58 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // indexDB and legacy indexDB statuses is non-trivial and not many users use
 // this status for historical data.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
+	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
+	defer qt.Done()
+
 	timestamp := int64(date) * msecPerDay
 	ptw := s.tb.GetPartition(timestamp)
 	if ptw == nil {
+		// If no partition is found for the given date, then both partition and
+		// legacy index do not have status for that date, therefore returning
+		// early.
+		qt.Printf("%s is outside the database retention period", dateToString(date))
 		return &TSDBStatus{}, nil
 	}
 	defer s.tb.PutPartition(ptw)
 
 	if s.disablePerDayIndex {
+		// Use special date to instruct indexDB to search global index since
+		// per-day index is disabled.
 		date = globalIndexDate
 	}
 
-	res, err := ptw.pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	var (
+		res *TSDBStatus
+		err error
+	)
+	idbName := ptw.pt.idb.name
+	qt.Printf("collect TSDB status in indexDB %s", idbName)
+	res, err = ptw.pt.idb.GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
+	if res.hasEntries() {
+		qt.Printf("collected TSDB status in indexDB %s", idbName)
+	} else {
+		qt.Printf("TSDB status was not found in indexDB %s", idbName)
+		// fallback to the legacy indexDBs search
+		// since after migration monthly partition may not have stats for time range covered
+		// by partition index.
+		res, err = s.legacyGetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if s.metricsTracker != nil && len(res.SeriesCountByMetricName) > 0 {
 		// for performance reason always check if metricsTracker is configured
+		qt.Printf("update TSDB status with metric name usage stats")
 		names := make([]string, len(res.SeriesCountByMetricName))
 		for idx, mns := range res.SeriesCountByMetricName {
 			names[idx] = mns.Name
 		}
 		res.SeriesQueryStatsByMetricName = s.metricsTracker.GetStatRecordsForNames(0, 0, names)
+		qt.Printf("updated TSDB status with usage stats for %d metric names", len(names))
 	}
 	return res, nil
 }

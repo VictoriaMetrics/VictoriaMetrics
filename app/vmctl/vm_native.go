@@ -249,9 +249,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	var wg sync.WaitGroup
 	for i := 0; i < p.cc; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for f := range filterCh {
 				if !p.disablePerMetricRequests {
 					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
@@ -266,7 +264,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 					}
 				}
 			}
-		}()
+		})
 	}
 
 	// any error breaks the import

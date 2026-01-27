@@ -210,10 +210,8 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 
 	// Start readers
 	var readersWG sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		readersWG.Add(1)
-		go func() {
-			defer readersWG.Done()
+	for range 10 {
+		readersWG.Go(func() {
 			for {
 				data, ok := fq.MustReadBlock(nil)
 				if !ok {
@@ -226,22 +224,20 @@ func TestFastQueueReadWriteConcurrent(t *testing.T) {
 				delete(blocksMap, string(data))
 				blocksMapLock.Unlock()
 			}
-		}()
+		})
 	}
 
 	// Start writers
 	blocksCh := make(chan string)
 	var writersWG sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		writersWG.Add(1)
-		go func() {
-			defer writersWG.Done()
+	for range 10 {
+		writersWG.Go(func() {
 			for block := range blocksCh {
 				if !fq.TryWriteBlock([]byte(block)) {
 					panic(fmt.Errorf("TryWriteBlock must return true in this context"))
 				}
 			}
-		}()
+		})
 	}
 
 	// feed writers

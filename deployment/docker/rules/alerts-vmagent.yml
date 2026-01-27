@@ -170,3 +170,35 @@ groups:
           summary: "Deduplication \"{{ $labels.job }}\" (instance {{ $labels.instance }}) can't be finished within configured deduplication interval."
           description: "Deduplication process can't keep up with the load and might produce incorrect results. Check docs https://docs.victoriametrics.com/victoriametrics/stream-aggregation/#deduplication and logs for more details.
             Possible solutions: increase deduplication interval; deduplicate smaller number of series; reduce samples' ingestion rate."
+
+      - alert: PersistentQueueRunsOutOfSpaceIn12Hours
+        expr: |
+          (
+            (sum(vm_persistentqueue_free_disk_space_bytes) by (job, instance, path)) /
+            (sum(deriv(vm_persistentqueue_bytes_pending[1m])) by (job, instance, path) > 0)
+          ) * 
+          on(job, instance, path) group_left(url)
+          (vmagent_remotewrite_pending_data_bytes * 0 + 1) < 12 * 3600 >0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Persistent Queue (url {{ $labels.url }}) of {{ $labels.instance }} (job:{{ $labels.job }}) will run out of space in 12 hours."
+          description: "RemoteWrite destination ({{ $labels.url }}) is unavailable or unable to receive data in a timely manner, so the persistent queue size is growing. 
+            Once the available space is exhausted, some samples will be discarded and cause incident. Please check the health of remoteWrite destination ({{ $labels.url }})."
+
+      - alert: PersistentQueueRunsOutOfSpaceIn4Hours
+        expr: |
+          (
+            (sum(vm_persistentqueue_free_disk_space_bytes) by (job, instance, path)) /
+            (sum(deriv(vm_persistentqueue_bytes_pending[1m])) by (job, instance, path) > 0)
+          ) * 
+          on(job, instance, path) group_left(url)
+          (vmagent_remotewrite_pending_data_bytes * 0 + 1) < 4 * 3600 >0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Persistent Queue (url {{ $labels.url }}) of {{ $labels.instance }} (job:{{ $labels.job }}) will run out of space in 4 hours."
+          description: "RemoteWrite destination ({{ $labels.url }}) is unavailable or unable to receive data in a timely manner, so the persistent queue size is growing. 
+            Once the available space is exhausted, some samples will be discarded and cause incident. Please check the health of remoteWrite destination ({{ $labels.url }})."

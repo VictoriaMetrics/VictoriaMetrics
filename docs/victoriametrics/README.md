@@ -1347,10 +1347,6 @@ If multiple raw samples have **the same timestamp** on the given `-dedup.minScra
 then the sample with **the biggest value** is kept.
 Numerical values are preferred over [stale markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers).
 
-[Prometheus staleness markers](https://docs.victoriametrics.com/victoriametrics/vmagent/#prometheus-staleness-markers) are processed as any other value during de-duplication.
-If raw sample with the biggest timestamp on `-dedup.minScrapeInterval` contains a stale marker, then it is kept after the deduplication.
-This allows properly preserving staleness markers during the de-duplication.
-
 Please note, [labels](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels) of raw samples should be identical
 in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/victoriametrics/vmagent/#high-availability)
 needs to be identically configured.
@@ -1850,7 +1846,7 @@ command-line to them. See [these docs](https://cloud.google.com/stackdriver/docs
 VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way similar to Prometheus - see [these Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts the following optional query args at `/api/v1/status/tsdb` page:
 
 * `topN=N` where `N` is the number of top entries to return in the response. By default, top 10 entries are returned.
-* `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default, the stats is collected for the current day. Pass `date=1970-01-01` in order to collect global stats across all the days.
+* `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default, the stats is collected for the current day.
 * `focusLabel=LABEL_NAME` returns label values with the highest number of time series for the given `LABEL_NAME` in the `seriesCountByFocusLabelValue` list.
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.

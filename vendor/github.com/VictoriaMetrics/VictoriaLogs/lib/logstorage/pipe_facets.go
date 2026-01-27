@@ -66,6 +66,7 @@ func (pf *pipeFacets) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
 	psLocalStr := fmt.Sprintf(`stats by (field_name, field_value) sum(hits) as hits
 	        | total_stats by (field_name) count() as field_values_count
 		| filter field_values_count:<=%d
+		| delete field_values_count
 		| sort by (hits desc) limit %d partition by (field_name)
 		| sort by (field_name, hits desc)`, pf.maxValuesPerField, pf.limit)
 	psLocal := mustParsePipes(psLocalStr, timestamp)

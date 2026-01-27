@@ -1996,13 +1996,12 @@ func TestIndexSearchLegacyContainsTimeRange_Concurrent(t *testing.T) {
 	concurrency := int64(100)
 	var wg sync.WaitGroup
 	for i := range concurrency {
-		wg.Add(1)
-		go func(ts int64) {
+		ts := minTimestamp + msecPerDay*i
+		wg.Go(func() {
 			is := idb.getIndexSearch(noDeadline)
 			_ = is.legacyContainsTimeRange(TimeRange{ts, ts})
 			idb.putIndexSearch(is)
-			wg.Done()
-		}(minTimestamp + msecPerDay*i)
+		})
 	}
 	wg.Wait()
 

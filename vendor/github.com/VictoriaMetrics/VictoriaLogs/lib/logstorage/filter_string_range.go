@@ -30,6 +30,11 @@ func (fr *filterStringRange) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter(fr.fieldName)
 }
 
+func (fr *filterStringRange) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fr.fieldName)
+	return matchStringRange(v, fr.minValue, fr.maxValue)
+}
+
 func (fr *filterStringRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 	minValue := fr.minValue
 	maxValue := fr.maxValue

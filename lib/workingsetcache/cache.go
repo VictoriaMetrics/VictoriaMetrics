@@ -152,23 +152,13 @@ func newCacheInternal(curr, prev *fastcache.Cache, mode, maxBytes int, expireDur
 }
 
 func (c *Cache) runWatchers(expireDuration time.Duration) {
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
+	c.wg.Go(func() {
 		c.expirationWatcher(expireDuration)
-	}()
+	})
 
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-		c.prevCacheWatcher()
-	}()
+	c.wg.Go(c.prevCacheWatcher)
 
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-		c.cacheSizeWatcher()
-	}()
+	c.wg.Go(c.cacheSizeWatcher)
 }
 
 func (c *Cache) expirationWatcher(expireDuration time.Duration) {
