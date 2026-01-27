@@ -322,7 +322,9 @@ func (pcp *pipeStreamContextProcessor) executeQuery(streamID, qStr string, neede
 	if !ok {
 		logger.Panicf("BUG: cannot obtain tenantID from streamID %q", streamID)
 	}
-	qctx := NewQueryContext(ctxWithCancel, pcp.pc.qctx.QueryStats, []TenantID{tenantID}, q, pcp.pc.qctx.AllowPartialResponse)
+
+	qctxOrig := pcp.pc.qctx
+	qctx := NewQueryContext(ctxWithCancel, qctxOrig.QueryStats, []TenantID{tenantID}, q, qctxOrig.AllowPartialResponse, qctxOrig.HiddenFieldsFilters)
 	if err := pcp.pc.runQuery(qctx, writeBlock); err != nil {
 		return nil, 0, err
 	}

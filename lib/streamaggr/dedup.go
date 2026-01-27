@@ -124,18 +124,14 @@ func (ctx *dedupFlushCtx) reset() {
 
 func (da *dedupAggr) flush(f aggrPushFunc, deleteDeadline int64, isGreen bool) {
 	var wg sync.WaitGroup
-	for i := range da.shards {
+	for shardIdx := range da.shards {
 		flushConcurrencyCh <- struct{}{}
-		wg.Add(1)
-		go func(shard *dedupAggrShard) {
-			defer func() {
-				<-flushConcurrencyCh
-				wg.Done()
-			}()
+		wg.Go(func() {
 			ctx := getDedupFlushCtx(deleteDeadline, isGreen)
-			shard.flush(ctx, f)
+			da.shards[shardIdx].flush(ctx, f)
 			putDedupFlushCtx(ctx)
-		}(&da.shards[i])
+			<-flushConcurrencyCh
+		})
 	}
 	wg.Wait()
 }

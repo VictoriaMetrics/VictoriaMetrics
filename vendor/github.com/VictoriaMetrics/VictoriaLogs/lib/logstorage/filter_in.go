@@ -26,6 +26,13 @@ func (fi *filterIn) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter(fi.fieldName)
 }
 
+func (fi *filterIn) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fi.fieldName)
+	stringValues := fi.values.getStringValues()
+	_, ok := stringValues[v]
+	return ok
+}
+
 func (fi *filterIn) applyToBlockResult(br *blockResult, bm *bitmap) {
 	if fi.values.isEmpty() {
 		bm.resetBits()

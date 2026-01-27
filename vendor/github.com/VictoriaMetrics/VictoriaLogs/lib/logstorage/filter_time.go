@@ -28,6 +28,11 @@ func (ft *filterTime) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter("_time")
 }
 
+func (ft *filterTime) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, "_time")
+	return ft.matchTimestampString(v)
+}
+
 func (ft *filterTime) applyToBlockResult(br *blockResult, bm *bitmap) {
 	if ft.minTimestamp > ft.maxTimestamp {
 		bm.resetBits()

@@ -421,11 +421,7 @@ func (tb *table) getMinMaxTimestamps() (int64, int64) {
 }
 
 func (tb *table) startRetentionWatcher() {
-	tb.retentionWatcherWG.Add(1)
-	go func() {
-		tb.retentionWatcher()
-		tb.retentionWatcherWG.Done()
-	}()
+	tb.retentionWatcherWG.Go(tb.retentionWatcher)
 }
 
 func (tb *table) retentionWatcher() {
@@ -469,11 +465,7 @@ func (tb *table) retentionWatcher() {
 }
 
 func (tb *table) startHistoricalMergeWatcher() {
-	tb.historicalMergeWatcherWG.Add(1)
-	go func() {
-		tb.historicalMergeWatcher()
-		tb.historicalMergeWatcherWG.Done()
-	}()
+	tb.historicalMergeWatcherWG.Go(tb.historicalMergeWatcher)
 }
 
 func (tb *table) historicalMergeWatcher() {
@@ -655,14 +647,9 @@ func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath stri
 	var wg sync.WaitGroup
 	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
 	for ptName := range ptNames {
-		wg.Add(1)
 		concurrencyLimiterCh <- struct{}{}
-		go func(ptName string) {
-			defer func() {
-				<-concurrencyLimiterCh
-				wg.Done()
-			}()
 
+		wg.Go(func() {
 			smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
 			bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
 			indexDBPartsPath := filepath.Join(indexDBPath, ptName)
@@ -671,7 +658,9 @@ func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath stri
 			ptsLock.Lock()
 			pts = append(pts, pt)
 			ptsLock.Unlock()
-		}(ptName)
+
+			<-concurrencyLimiterCh
+		})
 	}
 	wg.Wait()
 

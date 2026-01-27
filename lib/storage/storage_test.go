@@ -2634,13 +2634,18 @@ func TestStorageGetTSDBStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetTSDBStatus() failed unexpectedly: %v", err)
 	}
-	want = &TSDBStatus{
-		SeriesCountByMetricName:      []TopHeapEntry{},
-		SeriesCountByLabelName:       []TopHeapEntry{},
-		SeriesCountByFocusLabelValue: []TopHeapEntry{},
-		SeriesCountByLabelValuePair:  []TopHeapEntry{},
-		LabelValueCountByLabelName:   []TopHeapEntry{},
+	want = &TSDBStatus{}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected label values (-want, +got):\n%s", diff)
 	}
+
+	// With partition index we can no longer support zero date to report stats
+	// for the entire retention period. Expect empty status.
+	got, err = s.GetTSDBStatus(nil, nil, globalIndexDate, "", 6, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus() failed unexpectedly: %v", err)
+	}
+	want = &TSDBStatus{}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("unexpected label values (-want, +got):\n%s", diff)
 	}
@@ -3701,13 +3706,11 @@ func testDoConcurrently(s *Storage, op func(s *Storage, mrs []MetricRow), concur
 	var wg sync.WaitGroup
 	mrsCh := make(chan []MetricRow)
 	for range concurrency {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			for mrs := range mrsCh {
 				op(s, mrs)
 			}
-			wg.Done()
-		}()
+		})
 	}
 
 	n := 1

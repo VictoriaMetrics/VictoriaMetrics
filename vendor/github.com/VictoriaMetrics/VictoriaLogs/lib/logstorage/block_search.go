@@ -19,8 +19,8 @@ type blockSearchWork struct {
 	// p is the part where the block belongs to.
 	p *part
 
-	// so contains search options for the block search.
-	so *searchOptions
+	// pso contains search options for the block search.
+	pso *partitionSearchOptions
 
 	// bh is the header of the block to search.
 	bh blockHeader
@@ -28,7 +28,7 @@ type blockSearchWork struct {
 
 func (bsw *blockSearchWork) reset() {
 	bsw.p = nil
-	bsw.so = nil
+	bsw.pso = nil
 	bsw.bh.reset()
 }
 
@@ -61,12 +61,12 @@ func putBlockSearchWorkBatch(bswb *blockSearchWorkBatch) {
 
 var blockSearchWorkBatchPool sync.Pool
 
-func (bswb *blockSearchWorkBatch) appendBlockSearchWork(p *part, so *searchOptions, bh *blockHeader) bool {
+func (bswb *blockSearchWorkBatch) appendBlockSearchWork(p *part, pso *partitionSearchOptions, bh *blockHeader) bool {
 	bsws := bswb.bsws
 
 	bsws = append(bsws, blockSearchWork{
-		p:  p,
-		so: so,
+		p:   p,
+		pso: pso,
 	})
 	bsw := &bsws[len(bsws)-1]
 	bsw.bh.copyFrom(bh)
@@ -217,7 +217,7 @@ func (bs *blockSearch) search(qs *QueryStats, bsw *blockSearchWork, bm *bitmap) 
 	// search rows matching the given filter
 	bm.init(int(bsw.bh.rowsCount))
 	bm.setBits()
-	bs.bsw.so.filter.applyToBlockSearch(bs, bm)
+	bs.bsw.pso.filter.applyToBlockSearch(bs, bm)
 
 	if bm.isZero() {
 		// The filter doesn't match any logs in the current block.
@@ -227,15 +227,22 @@ func (bs *blockSearch) search(qs *QueryStats, bsw *blockSearchWork, bm *bitmap) 
 	bs.br.mustInit(bs, bm)
 
 	// fetch the requested columns to bs.br.
-	bs.br.initColumns(bsw.so.fieldsFilter)
+	bs.br.initColumns(bsw.pso.fieldsFilter)
 }
 
 func (bs *blockSearch) partFormatVersion() uint {
 	return bs.bsw.p.ph.FormatVersion
 }
 
+func (bs *blockSearch) isHiddenField(name string) bool {
+	return bs.bsw.pso.hiddenFieldsFilter.MatchString(name)
+}
+
 func (bs *blockSearch) getConstColumnValue(name string) string {
 	name = getCanonicalFieldName(name)
+	if bs.isHiddenField(name) {
+		return ""
+	}
 
 	if bs.partFormatVersion() < 1 {
 		csh := bs.getColumnsHeader()
@@ -282,6 +289,9 @@ func (bs *blockSearch) getConstColumnValue(name string) string {
 
 func (bs *blockSearch) getColumnHeader(name string) *columnHeader {
 	name = getCanonicalFieldName(name)
+	if bs.isHiddenField(name) {
+		return nil
+	}
 
 	if bs.partFormatVersion() < 1 {
 		csh := bs.getColumnsHeader()
@@ -604,20 +614,7 @@ func (bs *blockSearch) getStreamStrSlow() string {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	bb.B = bs.bsw.p.pt.idb.appendStreamTagsByStreamID(bb.B[:0], &bs.bsw.bh.streamID)
-	if len(bb.B) == 0 {
-		// Couldn't find stream tags by sid. This may be the case when the corresponding log stream
-		// was recently registered and its tags aren't visible to search yet.
-		// The stream tags must become visible in a few seconds.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6042
-		return ""
-	}
-
-	st := GetStreamTags()
-	streamTagsCanonical := bytesutil.ToUnsafeString(bb.B)
-	mustUnmarshalStreamTags(st, streamTagsCanonical)
-	bb.B = st.marshalString(bb.B[:0])
-	PutStreamTags(st)
+	bb.B = bs.bsw.p.pt.idb.appendStreamString(bb.B[:0], &bs.bsw.bh.streamID)
 
 	return string(bb.B)
 }

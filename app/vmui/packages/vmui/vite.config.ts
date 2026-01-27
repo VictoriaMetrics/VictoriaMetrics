@@ -4,7 +4,7 @@ import { defineConfig, ProxyOptions } from "vite";
 import preact from "@preact/preset-vite";
 
 const getProxy = (): Record<string, ProxyOptions> | undefined => {
-  const playground = process.env.PLAYGROUND.toLowerCase();
+  const playground = process.env.PLAYGROUND?.toLowerCase();
 
   if (playground !== "true") {
     return undefined;

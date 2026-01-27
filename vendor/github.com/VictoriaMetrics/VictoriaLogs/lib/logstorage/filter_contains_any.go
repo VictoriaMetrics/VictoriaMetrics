@@ -27,6 +27,11 @@ func (fi *filterContainsAny) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter(fi.fieldName)
 }
 
+func (fi *filterContainsAny) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fi.fieldName)
+	return matchAnyPhrase(v, fi.values.values)
+}
+
 func (fi *filterContainsAny) applyToBlockResult(br *blockResult, bm *bitmap) {
 	if fi.values.isEmpty() {
 		bm.resetBits()

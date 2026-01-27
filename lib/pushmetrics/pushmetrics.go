@@ -80,20 +80,18 @@ func StopAndPush() {
 	extraLabels := strings.Join(*pushExtraLabel, ",")
 	for _, pu := range *pushURL {
 		// push to all destinations in parallel to speed up shutdown
-		wg.Add(1)
-		go func(pushURL string) {
+		wg.Go(func() {
 			ctxLocal, cancel := context.WithTimeout(context.Background(), *pushInterval)
 			opts := &metrics.PushOptions{
 				ExtraLabels:        extraLabels,
 				Headers:            *pushHeader,
 				DisableCompression: *disableCompression,
 			}
-			if err := metrics.PushMetricsExt(ctxLocal, pushURL, appmetrics.WritePrometheusMetrics, opts); err != nil {
-				logger.Errorf("failed to push metrics to %q: %s", pushURL, err)
+			if err := metrics.PushMetricsExt(ctxLocal, pu, appmetrics.WritePrometheusMetrics, opts); err != nil {
+				logger.Errorf("failed to push metrics to %q: %s", pu, err)
 			}
 			cancel()
-			wg.Done()
-		}(pu)
+		})
 	}
 	wg.Wait()
 	logger.Infof("pushing metrics on shutdown finished in %.3f seconds", time.Since(startTime).Seconds())

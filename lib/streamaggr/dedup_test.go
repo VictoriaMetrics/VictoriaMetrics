@@ -63,9 +63,7 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for i := 0; i < 10; i++ {
 				samples := make([]pushSample, seriesCount)
 				for j := range samples {
@@ -75,7 +73,7 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 				}
 				da.pushSamples(samples, 0, false)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

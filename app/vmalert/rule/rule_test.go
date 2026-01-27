@@ -65,17 +65,15 @@ func TestRule_stateConcurrent(_ *testing.T) {
 	r := &AlertingRule{state: &ruleState{entries: make([]StateEntry, 20)}}
 	const workers = 50
 	const iterations = 100
-	wg := sync.WaitGroup{}
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func() {
-			defer wg.Done()
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Go(func() {
 			for i := 0; i < iterations; i++ {
 				r.state.add(StateEntry{At: time.Now()})
 				r.state.getAll()
 				r.state.getLast()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

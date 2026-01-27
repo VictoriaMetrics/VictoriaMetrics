@@ -1,6 +1,8 @@
 package promscrape
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"sort"
 	"strings"
@@ -157,6 +159,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		timeseriesExpected := parseData(dataExpected)
 
 		var sw scrapeWork
+		cfg.MaxScrapeSize = maxScrapeSize.N
 		sw.Config = cfg
 
 		readDataCalls := 0
@@ -609,6 +612,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		t.Helper()
 
 		var sw scrapeWork
+		cfg.MaxScrapeSize = maxScrapeSize.N
 		sw.Config = cfg
 
 		readDataCalls := 0
@@ -697,6 +701,52 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   4000,
 	}, 3, 4015, 2, 50)
+}
+
+func TestScrapeWorkScrapeInternalWithMaxScrapeSize(t *testing.T) {
+	originData := `
+		up 0 123
+		scrape_samples_scraped 0 123
+		scrape_response_size_bytes 0 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 0 123
+		scrape_series_added 0 123
+		scrape_timeout_seconds 42 123
+`
+	var compressedData bytes.Buffer
+	gz := gzip.NewWriter(&compressedData)
+
+	_, _ = gz.Write([]byte(originData))
+	_ = gz.Close()
+
+	var sw scrapeWork
+	sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {}
+	timestamp := int64(123000)
+	sw.Config = &ScrapeWork{}
+	tsmGlobal.Register(&sw)
+
+	// case 1: The size of origin data exceeds MaxScrapeSize
+	// The MaxScrapeSize check should be applied to the origin data size rather than compressed data size. So this scrape should fail.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9481 for more details.
+	sw.Config.MaxScrapeSize = int64(len(originData) - 1)
+	sw.ReadData = func(buf *chunkedbuffer.Buffer) (bool, error) {
+		_, _ = buf.Write(compressedData.Bytes())
+		return true, nil
+	}
+	err := sw.scrapeInternal(timestamp, timestamp)
+	if err == nil {
+		t.Fatalf("expecting unsuccess scrape due to exceed MaxScrapeSize")
+	}
+	if !strings.Contains(err.Error(), "exceeds -promscrape.maxScrapeSize") {
+		t.Fatalf("expecting exceed MaxScrapeSize error, but got: %s", err)
+	}
+
+	// case 2: The size of origin data doesn't exceed MaxScrapeSize
+	sw.Config.MaxScrapeSize = int64(len(originData) + 1)
+	if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
+		t.Fatalf("expecting success scrape; got %s", err)
+	}
+	tsmGlobal.Unregister(&sw)
 }
 
 func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {

@@ -29,11 +29,7 @@ func newBandwidthLimiter(perSecondLimit int) *bandwidthLimiter {
 	var mu sync.Mutex
 	bl.c = sync.NewCond(&mu)
 	bl.stopCh = make(chan struct{})
-	bl.wg.Add(1)
-	go func() {
-		defer bl.wg.Done()
-		bl.perSecondUpdater()
-	}()
+	bl.wg.Go(bl.perSecondUpdater)
 	return &bl
 }
 
