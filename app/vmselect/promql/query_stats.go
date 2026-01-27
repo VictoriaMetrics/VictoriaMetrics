@@ -13,6 +13,8 @@ type QueryStats struct {
 	ExecutionDuration atomic.Pointer[time.Duration]
 	// SeriesFetched contains the number of series fetched from storage or cache.
 	SeriesFetched atomic.Int64
+	// MemoryEstimatedBytes contains the estimated memory consumption of the query
+	MemoryEstimatedBytes atomic.Int64
 
 	at *auth.Token
 

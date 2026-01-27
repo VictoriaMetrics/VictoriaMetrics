@@ -15,7 +15,8 @@ import (
 var (
 	lastQueriesCount = flag.Int("search.queryStats.lastQueriesCount", 20000, "Query stats for /api/v1/status/top_queries is tracked on this number of last queries. "+
 		"Zero value disables query stats tracking")
-	minQueryDuration = flag.Duration("search.queryStats.minQueryDuration", time.Millisecond, "The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats")
+	minQueryDuration               = flag.Duration("search.queryStats.minQueryDuration", time.Millisecond, "The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats")
+	minQueryMemoryBytesConsumption = flag.Int64("search.queryStats.minQueryMemoryBytesConsumption", 1024, "The minimum memory bytes consumption for queries to track in query stats at /api/v1/status/top_queries. Queries with lower memory bytes consumption are ignored in query stats")
 )
 
 var (
@@ -31,9 +32,9 @@ func Enabled() bool {
 // RegisterQuery registers the query on the given timeRangeMsecs, which has been started at startTime.
 //
 // RegisterQuery must be called when the query is finished.
-func RegisterQuery(query string, timeRangeMsecs int64, startTime time.Time) {
+func RegisterQuery(query string, timeRangeMsecs int64, startTime time.Time, memoryEstimatedBytes int64) {
 	initOnce.Do(initQueryStats)
-	qsTracker.registerQuery(query, timeRangeMsecs, startTime)
+	qsTracker.registerQuery(query, timeRangeMsecs, startTime, memoryEstimatedBytes)
 }
 
 // WriteJSONQueryStats writes query stats to given writer in json format.
@@ -50,10 +51,11 @@ type queryStatsTracker struct {
 }
 
 type queryStatRecord struct {
-	query         string
-	timeRangeSecs int64
-	registerTime  time.Time
-	duration      time.Duration
+	query                string
+	timeRangeSecs        int64
+	registerTime         time.Time
+	duration             time.Duration
+	memoryEstimatedBytes int64
 }
 
 type queryStatKey struct {
@@ -66,8 +68,8 @@ func initQueryStats() {
 	if recordsCount <= 0 {
 		recordsCount = 1
 	} else {
-		logger.Infof("enabled query stats tracking at `/api/v1/status/top_queries` with -search.queryStats.lastQueriesCount=%d, -search.queryStats.minQueryDuration=%s",
-			*lastQueriesCount, *minQueryDuration)
+		logger.Infof("enabled query stats tracking at `/api/v1/status/top_queries` with -search.queryStats.lastQueriesCount=%d, -search.queryStats.minQueryDuration=%s, -search.queryStats.minQueryMemoryBytesConsumption=%s",
+			*lastQueriesCount, *minQueryDuration, *minQueryMemoryBytesConsumption)
 	}
 	qsTracker = &queryStatsTracker{
 		a: make([]queryStatRecord, recordsCount),
@@ -78,6 +80,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	fmt.Fprintf(w, `{"topN":"%d","maxLifetime":"%s",`, topN, maxLifetime)
 	fmt.Fprintf(w, `"search.queryStats.lastQueriesCount":%d,`, *lastQueriesCount)
 	fmt.Fprintf(w, `"search.queryStats.minQueryDuration":"%s",`, *minQueryDuration)
+	fmt.Fprintf(w, `"search.queryStats.minQueryMemoryBytesConsumption":"%s",`, *minQueryMemoryBytesConsumption)
 	fmt.Fprintf(w, `"topByCount":[`)
 	topByCount := qst.getTopByCount(topN, maxLifetime)
 	for i, r := range topByCount {
@@ -102,13 +105,26 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 			fmt.Fprintf(w, `,`)
 		}
 	}
+
+	fmt.Fprintf(w, `],"topByAvgMemoryBytesConsumption":[`)
+	topByAvgMemoryConsumption := qst.getTopByAvgMemoryBytesConsumption(topN, maxLifetime)
+	for i, r := range topByAvgMemoryConsumption {
+		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"avgMemoryBytes":%d,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.memoryEstimatedBytes, r.count)
+		if i+1 < len(topBySumDuration) {
+			fmt.Fprintf(w, `,`)
+		}
+	}
+
 	fmt.Fprintf(w, `]}`)
 }
 
-func (qst *queryStatsTracker) registerQuery(query string, timeRangeMsecs int64, startTime time.Time) {
+func (qst *queryStatsTracker) registerQuery(query string, timeRangeMsecs int64, startTime time.Time, memoryEstimatedBytes int64) {
 	registerTime := time.Now()
 	duration := registerTime.Sub(startTime)
 	if duration < *minQueryDuration {
+		return
+	}
+	if memoryEstimatedBytes < *minQueryMemoryBytesConsumption {
 		return
 	}
 
@@ -126,6 +142,7 @@ func (qst *queryStatsTracker) registerQuery(query string, timeRangeMsecs int64, 
 	r.timeRangeSecs = timeRangeMsecs / 1000
 	r.registerTime = registerTime
 	r.duration = duration
+	r.memoryEstimatedBytes = memoryEstimatedBytes
 }
 
 func (r *queryStatRecord) matches(currentTime time.Time, maxLifetime time.Duration) bool {
@@ -251,6 +268,50 @@ func (qst *queryStatsTracker) getTopBySumDuration(topN int, maxLifetime time.Dur
 	}
 	sort.Slice(a, func(i, j int) bool {
 		return a[i].duration > a[j].duration
+	})
+	if len(a) > topN {
+		a = a[:topN]
+	}
+	return a
+}
+
+type queryStatByMemory struct {
+	query                string
+	timeRangeSecs        int64
+	memoryEstimatedBytes int64
+	count                int
+}
+
+func (qst *queryStatsTracker) getTopByAvgMemoryBytesConsumption(topN int, maxLifetime time.Duration) []queryStatByMemory {
+	currentTime := time.Now()
+	qst.mu.Lock()
+	type countSum struct {
+		count int
+		sum   int64
+	}
+	m := make(map[queryStatKey]countSum)
+	for _, r := range qst.a {
+		if r.matches(currentTime, maxLifetime) {
+			k := r.key()
+			ks := m[k]
+			ks.count++
+			ks.sum += r.memoryEstimatedBytes
+			m[k] = ks
+		}
+	}
+	qst.mu.Unlock()
+
+	var a []queryStatByMemory
+	for k, ks := range m {
+		a = append(a, queryStatByMemory{
+			query:                k.query,
+			timeRangeSecs:        k.timeRangeSecs,
+			memoryEstimatedBytes: ks.sum / int64(ks.count),
+			count:                ks.count,
+		})
+	}
+	sort.Slice(a, func(i, j int) bool {
+		return a[i].memoryEstimatedBytes > a[j].memoryEstimatedBytes
 	})
 	if len(a) > topN {
 		a = a[:topN]
