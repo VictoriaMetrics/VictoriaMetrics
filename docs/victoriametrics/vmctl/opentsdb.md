@@ -145,19 +145,5 @@ during migration.
 See general [vmctl migration tips](https://docs.victoriametrics.com/victoriametrics/vmctl/#migration-tips).
 
 See `./vmctl opentsdb --help` for details and full list of flags:
-```shellhelp
-   --otsdb-addr value                                     OpenTSDB server addr (default: "http://localhost:4242")
-   --otsdb-concurrency value                              Number of concurrently running fetch queries to OpenTSDB per metric (default: 1)
-   --otsdb-retentions value [ --otsdb-retentions value ]  Retentions patterns to collect on. Each pattern should describe the aggregation performed for the query, the row size (in HBase) that will define how long each individual query is, and the time range to query for. e.g. sum-1m-avg:1h:3d. The first time range defined should be a multiple of the row size in HBase. e.g. if the row size is 2 hours, 4h is good, 5h less so. We want each query to land on unique rows.
-   --otsdb-filters value [ --otsdb-filters value ]        Filters to process for discovering metrics in OpenTSDB (default: "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z")
-   --otsdb-offset-days value                              Days to offset our 'starting' point for collecting data from OpenTSDB (default: 0)
-   --otsdb-hard-ts-start value                            A specific timestamp to start from, will override using an offset (default: 0)
-   --otsdb-query-limit value                              Result limit on meta queries to OpenTSDB (affects both metric name and tag value queries, recommended to use a value exceeding your largest series) (default: 100000000)
-   --otsdb-msecstime                                      Whether OpenTSDB is writing values in milliseconds or seconds (default: false)
-   --otsdb-normalize                                      Whether to normalize all data received to lower case before forwarding to VictoriaMetrics (default: false)
-   --otsdb-cert-file value                                Optional path to client-side TLS certificate file to use when connecting to -otsdb-addr
-   --otsdb-key-file value                                 Optional path to client-side TLS key to use when connecting to -otsdb-addr
-   --otsdb-CA-file value                                  Optional path to TLS CA file to use for verifying connections to -otsdb-addr. By default, system CA is used
-   --otsdb-server-name value                              Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from -otsdb-addr is used
-   --otsdb-insecure-skip-verify                           Whether to skip tls verification when connecting to -otsdb-addr (default: false)
-```
+
+{{% content "vmctl_opentsdb_flags.md" %}}
