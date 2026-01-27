@@ -44,7 +44,8 @@ func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries
 
 	for i := range tss {
 		m := &metadatas[i]
-		m.MetricName = "UNKNOWN"
+		m.MetricName = "UNKNOWN" // we expect that the metricname should always be assigned, this default is to catch bugs
+		m.ShardIdx = 0
 		m.FixedLabelValue1 = ""
 		m.FixedLabelValue2 = ""
 		for _, label := range tss[i].Labels {
