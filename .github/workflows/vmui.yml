@@ -34,40 +34,39 @@ jobs:
       - name: Code checkout
         uses: actions/checkout@v6
 
-      - name: Restore node_modules cache
-        id: cache-restore
-        uses: actions/cache/restore@v5
+      - name: Cache node_modules
+        id: cache
+        uses: actions/cache@v5
         with:
           path: app/vmui/packages/vmui/node_modules
-          key: vmui-deps-${{ runner.os }}-${{ hashFiles('app/vmui/packages/vmui/package-lock.json') }}
+          key: vmui-deps-${{ runner.os }}-${{ hashFiles('app/vmui/packages/vmui/package-lock.json', 'app/vmui/Dockerfile-build') }}
           restore-keys: |
             vmui-deps-${{ runner.os }}-
 
       - name: Install dependencies
-        if: steps.cache-restore.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true'
         run: make vmui-install
-
-      - name: Save node_modules cache
-        if: steps.cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: app/vmui/packages/vmui/node_modules
-          key: vmui-deps-${{ runner.os }}-${{ hashFiles('app/vmui/packages/vmui/package-lock.json') }}
 
       - name: Run lint
         id: lint
         run: make vmui-lint
         continue-on-error: true
+        env:
+          VMUI_SKIP_INSTALL: true
 
       - name: Run tests
         id: test
         run: make vmui-test
         continue-on-error: true
+        env:
+          VMUI_SKIP_INSTALL: true
 
       - name: Run typecheck
         id: typecheck
         run: make vmui-typecheck
         continue-on-error: true
+        env:
+          VMUI_SKIP_INSTALL: true
 
       - name: Annotate Code Linting Results
         uses: ataylorme/eslint-annotate-action@v3

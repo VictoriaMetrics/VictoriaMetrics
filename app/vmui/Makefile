@@ -11,7 +11,7 @@ vmui-run-npm-command: vmui-package-base-image
 		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
 		-w /build/packages/vmui \
 		--entrypoint=/bin/bash \
-		vmui-builder-image -c "npm i && $(NPM_COMMAND)"
+		vmui-builder-image -c "[ \"$$VMUI_SKIP_INSTALL\" = \"true\" ] || npm ci; $(NPM_COMMAND)"
 
 vmui-install:
 	NPM_COMMAND="true" $(MAKE) vmui-run-npm-command
