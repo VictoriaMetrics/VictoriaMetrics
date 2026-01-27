@@ -63,10 +63,8 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 	ip.im.ResetStats()
 
 	var wg sync.WaitGroup
-	wg.Add(ip.cc)
-	for i := 0; i < ip.cc; i++ {
-		go func() {
-			defer wg.Done()
+	for range ip.cc {
+		wg.Go(func() {
 			for s := range seriesCh {
 				if err := ip.do(s); err != nil {
 					errCh <- fmt.Errorf("request failed for %q.%q: %s", s.Measurement, s.Field, err)
@@ -74,7 +72,7 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 				}
 				bar.Increment()
 			}
-		}()
+		})
 	}
 
 	// any error breaks the import

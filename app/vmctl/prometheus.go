@@ -124,10 +124,8 @@ func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
 	pp.im.ResetStats()
 
 	var wg sync.WaitGroup
-	wg.Add(pp.cc)
-	for i := 0; i < pp.cc; i++ {
-		go func() {
-			defer wg.Done()
+	for range pp.cc {
+		wg.Go(func() {
 			for br := range blockReadersCh {
 				if err := pp.do(br); err != nil {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
@@ -135,7 +133,7 @@ func (pp *prometheusProcessor) processBlocks(blocks []tsdb.BlockReader) error {
 				}
 				bar.Increment()
 			}
-		}()
+		})
 	}
 	// any error breaks the import
 	for _, br := range blocks {

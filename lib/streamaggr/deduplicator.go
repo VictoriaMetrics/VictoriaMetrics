@@ -80,11 +80,9 @@ func NewDeduplicator(pushFunc PushFunc, enableWindows bool, interval time.Durati
 
 	metrics.RegisterSet(ms)
 
-	d.wg.Add(1)
-	go func() {
-		defer d.wg.Done()
+	d.wg.Go(func() {
 		d.runFlusher(pushFunc)
-	}()
+	})
 
 	return d
 }

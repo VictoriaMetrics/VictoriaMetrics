@@ -430,7 +430,7 @@ func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 	}
 
 	var bb bytesutil.ByteBuffer
-	err = readFromBuffer(&bb, cb, isGzipped)
+	err = readFromBuffer(&bb, cb, isGzipped, sw.Config)
 	return bb.B, err
 }
 
@@ -458,7 +458,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// the parsed results to remote storage.
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	if err == nil {
-		err = readFromBuffer(body, cb, isGzipped)
+		err = readFromBuffer(body, cb, isGzipped, sw.Config)
 	}
 	chunkedbuffer.Put(cb)
 
@@ -487,20 +487,25 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 
 var processScrapedDataConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
-func readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuffer.Buffer, isGzipped bool) error {
+func readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuffer.Buffer, isGzipped bool, scrapeWorkConfig *ScrapeWork) error {
 	if !isGzipped {
 		src.MustWriteTo(dst)
-		return nil
+	} else {
+		reader, err := protoparserutil.GetUncompressedReader(src.NewReader(), "gzip")
+		if err != nil {
+			return fmt.Errorf("cannot decompress response body: %w", err)
+		}
+		_, err = dst.ReadFrom(reader)
+		protoparserutil.PutUncompressedReader(reader)
+		if err != nil {
+			return fmt.Errorf("cannot read gzipped response body: %w", err)
+		}
 	}
-
-	reader, err := protoparserutil.GetUncompressedReader(src.NewReader(), "gzip")
-	if err != nil {
-		return fmt.Errorf("cannot decompress response body: %w", err)
-	}
-	_, err = dst.ReadFrom(reader)
-	protoparserutil.PutUncompressedReader(reader)
-	if err != nil {
-		return fmt.Errorf("cannot read gzipped response body: %w", err)
+	if scrapeWorkConfig != nil && int64(dst.Len()) > scrapeWorkConfig.MaxScrapeSize {
+		maxScrapeSizeExceeded.Inc()
+		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
+			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
+			"increase max_scrape_size value in scrape config for the given target", scrapeWorkConfig.ScrapeURL, scrapeWorkConfig.MaxScrapeSize)
 	}
 	return nil
 }

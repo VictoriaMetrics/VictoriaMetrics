@@ -103,15 +103,13 @@ func testIncrementalParallelAggr(iafc *incrementalAggrFuncContext, tssSrc, tssEx
 	workersCount := netstorage.MaxWorkers()
 	tsCh := make(chan *timeseries)
 	var wg sync.WaitGroup
-	wg.Add(workersCount)
-	for i := 0; i < workersCount; i++ {
-		go func(workerID uint) {
-			defer wg.Done()
+	for workerID := range workersCount {
+		wg.Go(func() {
 			for ts := range tsCh {
 				runtime.Gosched() // allow other goroutines performing the work
-				iafc.updateTimeseries(ts, workerID)
+				iafc.updateTimeseries(ts, uint(workerID))
 			}
-		}(uint(i))
+		})
 	}
 	for _, ts := range tssSrc {
 		tsCh <- ts

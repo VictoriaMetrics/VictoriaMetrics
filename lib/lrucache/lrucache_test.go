@@ -128,12 +128,10 @@ func TestCacheConcurrentAccess(_ *testing.T) {
 
 	workers := 5
 	var wg sync.WaitGroup
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func(worker int) {
-			defer wg.Done()
+	for worker := range workers {
+		wg.Go(func() {
 			testCacheSetGet(c, worker)
-		}(i)
+		})
 	}
 	wg.Wait()
 }

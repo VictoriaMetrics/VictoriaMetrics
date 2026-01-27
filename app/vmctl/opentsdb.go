@@ -89,10 +89,8 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 			bar.Finish()
 		}(bar)
 		var wg sync.WaitGroup
-		wg.Add(op.otsdbcc)
-		for i := 0; i < op.otsdbcc; i++ {
-			go func() {
-				defer wg.Done()
+		for range op.otsdbcc {
+			wg.Go(func() {
 				for s := range seriesCh {
 					if err := op.do(s); err != nil {
 						errCh <- fmt.Errorf("couldn't retrieve series for %s : %s", metric, err)
@@ -100,7 +98,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 					}
 					bar.Increment()
 				}
-			}()
+			})
 		}
 		/*
 			Loop through all series for this metric, processing all retentions and time ranges

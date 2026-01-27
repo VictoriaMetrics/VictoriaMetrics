@@ -540,13 +540,10 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 	lns := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
-		wg.Add(1)
 		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
-		go func(date uint64) {
-			defer func() {
-				qtChild.Done()
-				wg.Done()
-			}()
+		wg.Go(func() {
+			defer qtChild.Done()
+
 			isLocal := is.db.getIndexSearch(is.deadline)
 			lnsLocal, err := isLocal.searchLabelNamesWithFiltersOnDate(qtChild, tfss, date, maxLabelNames, maxMetrics)
 			is.db.putIndexSearch(isLocal)
@@ -565,7 +562,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 			for k := range lnsLocal {
 				lns[k] = struct{}{}
 			}
-		}(date)
+		})
 	}
 	wg.Wait()
 	putWaitGroup(wg)
@@ -801,13 +798,10 @@ func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labe
 	lvs := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
-		wg.Add(1)
 		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
-		go func(date uint64) {
-			defer func() {
-				qtChild.Done()
-				wg.Done()
-			}()
+		wg.Go(func() {
+			defer qtChild.Done()
+
 			isLocal := is.db.getIndexSearch(is.deadline)
 			lvsLocal, err := isLocal.searchLabelValuesOnDate(qtChild, labelName, tfss, date, maxLabelValues, maxMetrics)
 			is.db.putIndexSearch(isLocal)
@@ -826,7 +820,7 @@ func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labe
 			for v := range lvsLocal {
 				lvs[v] = struct{}{}
 			}
-		}(date)
+		})
 	}
 	wg.Wait()
 	putWaitGroup(wg)
@@ -997,9 +991,8 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tr TimeRange, tagKey, 
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
 	tvss := make(map[string]struct{})
 	for minDate <= maxDate {
-		wg.Add(1)
-		go func(date uint64) {
-			defer wg.Done()
+		date := minDate
+		wg.Go(func() {
 			isLocal := is.db.getIndexSearch(is.deadline)
 			tvssLocal, err := isLocal.searchTagValueSuffixesForDate(date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 			is.db.putIndexSearch(isLocal)
@@ -1018,7 +1011,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tr TimeRange, tagKey, 
 			for k := range tvssLocal {
 				tvss[k] = struct{}{}
 			}
-		}(minDate)
+		})
 		minDate++
 	}
 	wg.Wait()
@@ -2478,13 +2471,11 @@ func (is *indexSearch) updateMetricIDsForDateRange(qt *querytracer.Tracer, metri
 	var errGlobal error
 	var mu sync.Mutex // protects metricIDs + errGlobal vars from concurrent access below
 	for minDate <= maxDate {
-		qtChild := qt.NewChild("parallel thread for date=%s", dateToString(minDate))
-		wg.Add(1)
-		go func(date uint64) {
-			defer func() {
-				qtChild.Done()
-				wg.Done()
-			}()
+		date := minDate
+		qtChild := qt.NewChild("parallel thread for date=%s", dateToString(date))
+		wg.Go(func() {
+			defer qtChild.Done()
+
 			isLocal := is.db.getIndexSearch(is.deadline)
 			m, err := isLocal.getMetricIDsForDateAndFilters(qtChild, date, tfs, maxMetrics)
 			is.db.putIndexSearch(isLocal)
@@ -2501,7 +2492,7 @@ func (is *indexSearch) updateMetricIDsForDateRange(qt *querytracer.Tracer, metri
 			if metricIDs.Len() < maxMetrics {
 				metricIDs.UnionMayOwn(m)
 			}
-		}(minDate)
+		})
 		minDate++
 	}
 	wg.Wait()

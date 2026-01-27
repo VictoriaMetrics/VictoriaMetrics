@@ -37,17 +37,13 @@ func (pro *ParallelReaderAtOpener) Run() {
 	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, task := range pro.tasks {
 		concurrencyCh <- struct{}{}
-		wg.Add(1)
 
-		go func(path string, rc *MustReadAtCloser, fileSize *uint64) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
+		wg.Go(func() {
+			*task.rc = MustOpenReaderAt(task.path)
+			*task.fileSize = MustFileSize(task.path)
 
-			*rc = MustOpenReaderAt(path)
-			*fileSize = MustFileSize(path)
-		}(task.path, task.rc, task.fileSize)
+			<-concurrencyCh
+		})
 	}
 	wg.Wait()
 }
@@ -66,14 +62,10 @@ func MustCloseParallel(cs []MustCloser) {
 	concurrencyCh := fsutil.GetConcurrencyCh()
 	for _, c := range cs {
 		concurrencyCh <- struct{}{}
-		wg.Add(1)
-		go func(c MustCloser) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
+		wg.Go(func() {
 			c.MustClose()
-		}(c)
+			<-concurrencyCh
+		})
 	}
 	wg.Wait()
 }

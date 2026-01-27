@@ -1140,18 +1140,16 @@ func testLegacyRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage))
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
 	for range 100 {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			for {
 				select {
 				case <-stop:
-					wg.Done()
 					return
 				default:
 				}
 				op(s)
 			}
-		}()
+		})
 	}
 
 	for range 10 {

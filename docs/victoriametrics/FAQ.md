@@ -487,7 +487,7 @@ The query engine may behave differently for some functions. Please see [this art
 
 ## If downsampling and deduplication are enabled how will this work?
 
-[Deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling
+[Deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling.
 
 ## How to upgrade or downgrade VictoriaMetrics without downtime?
 
