@@ -80,7 +80,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	fmt.Fprintf(w, `{"topN":"%d","maxLifetime":"%s",`, topN, maxLifetime)
 	fmt.Fprintf(w, `"search.queryStats.lastQueriesCount":%d,`, *lastQueriesCount)
 	fmt.Fprintf(w, `"search.queryStats.minQueryDuration":"%s",`, *minQueryDuration)
-	fmt.Fprintf(w, `"search.queryStats.minQueryMemoryBytesConsumption":"%s",`, *minQueryMemoryBytesConsumption)
+	fmt.Fprintf(w, `"search.queryStats.minQueryMemoryBytesConsumption":"%d",`, *minQueryMemoryBytesConsumption)
 	fmt.Fprintf(w, `"topByCount":[`)
 	topByCount := qst.getTopByCount(topN, maxLifetime)
 	for i, r := range topByCount {
