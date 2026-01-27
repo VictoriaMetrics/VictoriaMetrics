@@ -374,7 +374,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 	g.infof("started")
 
-	eval := func(ctx context.Context, ts time.Time) {
+	eval := func(ctx context.Context, ts time.Time) time.Time {
 		g.metrics.iterationTotal.Inc()
 
 		start := time.Now()
@@ -382,7 +382,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 		if len(g.Rules) < 1 {
 			g.metrics.iterationDuration.UpdateDuration(start)
 			g.LastEvaluation = start
-			return
+			return ts
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
@@ -396,6 +396,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
 		g.LastEvaluation = start
+		return ts
 	}
 
 	evalCtx, cancel := context.WithCancel(ctx)
@@ -404,7 +405,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	g.mu.Unlock()
 	defer g.evalCancel()
 
-	eval(evalCtx, evalTS)
+	realEvalTS := eval(evalCtx, evalTS)
 
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
@@ -412,7 +413,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	// restore the rules state after the first evaluation
 	// so only active alerts can be restored.
 	if rr != nil {
-		err := g.restore(ctx, rr, evalTS, *remoteReadLookBack)
+		err := g.restore(ctx, rr, realEvalTS, *remoteReadLookBack)
 		if err != nil {
 			logger.Errorf("error while restoring ruleState for group %q: %s", g.Name, err)
 		}
