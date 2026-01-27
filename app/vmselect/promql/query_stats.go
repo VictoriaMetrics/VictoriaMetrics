@@ -55,3 +55,17 @@ func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
 	d := time.Since(startTime)
 	qs.ExecutionDuration.Store(&d)
 }
+
+func (qs *QueryStats) addMemoryEstimatedBytes(memoryEstimatedBytes int64) {
+	if qs == nil {
+		return
+	}
+	qs.MemoryEstimatedBytes.Store(memoryEstimatedBytes)
+}
+
+func (qs *QueryStats) memoryEstimatedBytes() int64 {
+	if qs == nil {
+		return 0
+	}
+	return qs.MemoryEstimatedBytes.Load()
+}
