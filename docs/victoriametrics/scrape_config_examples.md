@@ -324,7 +324,6 @@ scrape_configs:
     ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
   metrics_path: /metrics/cadvisor
   relabel_configs:
-    # Cadvisor metrics are best scraped via Kubernetes API server proxy.
     # There is no need to add container, pod and node labels to the scraped metrics,
     # since cadvisor adds these labels on itself.
     #

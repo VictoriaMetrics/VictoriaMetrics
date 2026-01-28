@@ -126,6 +126,8 @@ server:
           relabel_configs:
             - action: labelmap
               regex: __meta_kubernetes_node_label_(.+)
+            - source_labels: [__metrics_path__]
+              target_label: metrics_path
           metric_relabel_configs:
             - action: replace
               source_labels: [pod]
