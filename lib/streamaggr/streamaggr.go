@@ -1175,6 +1175,10 @@ type flushCtx struct {
 	tss     []prompb.TimeSeries
 	labels  []prompb.Label
 	samples []prompb.Sample
+
+	// Reusable slices for parallel processing
+	workerResults [][]prompb.TimeSeries
+	auxToReturn   []*promutil.Labels
 }
 
 func (ctx *flushCtx) reset() {
@@ -1185,6 +1189,16 @@ func (ctx *flushCtx) reset() {
 	ctx.isLast = false
 	ctx.flushTimestamp = 0
 	ctx.resetSeries()
+
+	// Reset worker slices but keep capacity
+	for i := range ctx.workerResults {
+		if ctx.workerResults[i] != nil {
+			ctx.workerResults[i] = ctx.workerResults[i][:0]
+		}
+	}
+	for i := range ctx.auxToReturn {
+		ctx.auxToReturn[i] = nil
+	}
 }
 
 func (ctx *flushCtx) resetSeries() {
@@ -1217,26 +1231,107 @@ func (ctx *flushCtx) flushSeries() {
 	}
 
 	// Slow path - apply output relabeling and then push the output metrics.
-	auxLabels := promutil.GetLabels()
-	dstLabels := auxLabels.Labels[:0]
 	dst := tss[:0]
-	for _, ts := range tss {
-		dstLabelsLen := len(dstLabels)
-		dstLabels = append(dstLabels, ts.Labels...)
-		dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
-		if len(dstLabels) == dstLabelsLen {
-			// The metric has been deleted by the relabeling
-			continue
+	numCPUs := cgroup.AvailableCPUs()
+
+	// Process directly without worker pool for small batches
+	if len(tss) <= numCPUs*10 {
+		auxLabels := promutil.GetLabels()
+		dstLabels := auxLabels.Labels[:0]
+
+		for _, ts := range tss {
+			dstLabelsLen := len(dstLabels)
+
+			dstLabels = append(dstLabels, ts.Labels...)
+			dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
+			if len(dstLabels) == dstLabelsLen {
+				// The metric has been deleted by relabeling
+				continue
+			}
+			ts.Labels = dstLabels[dstLabelsLen:]
+			dst = append(dst, ts)
 		}
-		ts.Labels = dstLabels[dstLabelsLen:]
-		dst = append(dst, ts)
+
+		if ctx.pushFunc != nil {
+			ctx.pushFunc(dst)
+			ctx.ao.outputSamples.Add(len(dst))
+		}
+		promutil.PutLabels(auxLabels)
+	} else { // Use worker pool for large batches
+		// Direct slice partitioning to avoid channel allocations
+		batchSize := (len(tss) + numCPUs - 1) / numCPUs
+
+		// Reuse slices from flushCtx to avoid allocations
+		if ctx.workerResults == nil {
+			ctx.workerResults = make([][]prompb.TimeSeries, numCPUs)
+			ctx.auxToReturn = make([]*promutil.Labels, numCPUs)
+		}
+		results := ctx.workerResults
+		auxToReturn := ctx.auxToReturn
+		wg := sync.WaitGroup{}
+
+		for i := 0; i < numCPUs; i++ {
+			start := i * batchSize
+			end := start + batchSize
+			if end > len(tss) {
+				end = len(tss)
+			}
+			if start >= len(tss) {
+				break
+			}
+
+			wg.Add(1)
+			go func(workerIdx int, batch []prompb.TimeSeries) {
+				defer wg.Done()
+				auxLabels := promutil.GetLabels()
+				auxToReturn[workerIdx] = auxLabels
+				dstLabels := auxLabels.Labels[:0]
+
+				// Pre-allocate result slice to minimize grows
+				localResult := make([]prompb.TimeSeries, 0, len(batch))
+
+				for j := range batch {
+					ts := &batch[j] // Direct slice element reference
+					dstLabelsLen := len(dstLabels)
+
+					dstLabels = append(dstLabels, ts.Labels...)
+					dstLabels = outputRelabeling.Apply(dstLabels, dstLabelsLen)
+					if len(dstLabels) == dstLabelsLen {
+						// The metric has been deleted by relabeling
+						continue
+					}
+					ts.Labels = dstLabels[dstLabelsLen:]
+					localResult = append(localResult, *ts)
+				}
+
+				results[workerIdx] = localResult
+			}(i, tss[start:end])
+		}
+
+		wg.Wait()
+		// Before collecting results, calculate total capacity
+		totalCap := 0
+		for _, result := range results {
+			totalCap += len(result)
+		}
+		if cap(dst) < totalCap {
+			dst = make([]prompb.TimeSeries, 0, totalCap)
+		}
+		for i := range results {
+			dst = append(dst, results[i]...)
+		}
+
+		// Push the results first, then return auxLabels to pool
+		if ctx.pushFunc != nil {
+			ctx.pushFunc(dst)
+			ctx.ao.outputSamples.Add(len(dst))
+		}
+		for i := range auxToReturn {
+			if auxToReturn[i] != nil {
+				promutil.PutLabels(auxToReturn[i])
+			}
+		}
 	}
-	if ctx.pushFunc != nil {
-		ctx.pushFunc(dst)
-		ctx.ao.outputSamples.Add(len(dst))
-	}
-	auxLabels.Labels = dstLabels
-	promutil.PutLabels(auxLabels)
 }
 
 func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
