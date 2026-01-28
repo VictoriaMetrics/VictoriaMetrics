@@ -2120,6 +2120,7 @@ func rollupChanges(rfa *rollupFuncArg) float64 {
 		} else {
 			n++
 			prevValue = values[0]
+			values = values[1:]
 		}
 	}
 	for _, v := range values {
