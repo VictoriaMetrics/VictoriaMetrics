@@ -11,7 +11,7 @@ build:
 sitemap:
   disable: true
 ---
-<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used peridically to ensure the flags in sync. -->
+<!-- The file should not be updated manually. Run make docs-update-flags while preparing a new release to sync flags in docs from actual binaries. -->
 ```shellhelp
 endef
 export FLAGS_HEADER
@@ -241,6 +241,49 @@ docs-update-vmstorage-flags:
 	sed -i '/The maximum number of concurrent vmselect requests the vmstorage can process at./ s/(default [0-9]\+)/(default 2*cgroup.AvailableCPUs())/' docs/victoriametrics/vmstorage_common_flags.md
 	sed -i '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default fsutil.getDefaultConcurrency())/' docs/victoriametrics/vmstorage_common_flags.md
 
+docs-update-vmctl-flags:
+	(cd /tmp/vm-opensource-single-node && make vmctl)
+	(cd /tmp/vm-opensource-single-node && ./bin/vmctl -help 2>&1) > /tmp/vm-opensource-single-node/vmctl_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmctl opentsdb -help 2>&1) > /tmp/vm-opensource-single-node/vmctl_opentsdb_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmctl influx -help 2>&1) > /tmp/vm-opensource-single-node/vmctl_influx_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmctl remote-read -help 2>&1) > /tmp/vm-opensource-single-node/vmctl_remote-read_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmctl prometheus -help 2>&1) > /tmp/vm-opensource-single-node/vmctl_prometheus_flags_tmp.md
+	(cd /tmp/vm-opensource-single-node && ./bin/vmctl vm-native -help 2>&1) > /tmp/vm-opensource-single-node/vmctl_vm-native_flags_tmp.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_flags.md
+	cat /tmp/vm-opensource-single-node/vmctl_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmctl/vmctl_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_opentsdb_flags.md
+	cat /tmp/vm-opensource-single-node/vmctl_opentsdb_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_opentsdb_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmctl/vmctl_opentsdb_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_influx_flags.md
+	cat /tmp/vm-opensource-single-node/vmctl_influx_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_influx_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmctl/vmctl_influx_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_remote-read_flags.md
+	cat /tmp/vm-opensource-single-node/vmctl_remote-read_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_remote-read_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmctl/vmctl_remote-read_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_prometheus_flags.md
+	cat /tmp/vm-opensource-single-node/vmctl_prometheus_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_prometheus_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmctl/vmctl_prometheus_flags.md
+
+	echo "$$FLAGS_HEADER" > docs/victoriametrics/vmctl/vmctl_vm-native_flags.md
+	cat /tmp/vm-opensource-single-node/vmctl_vm-native_flags_tmp.md >> docs/victoriametrics/vmctl/vmctl_vm-native_flags.md
+	printf -- '```\n' >> docs/victoriametrics/vmctl/vmctl_vm-native_flags.md
+
+	# remove Total time line from all vmctl flag files to reduce diffs noise
+	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_flags.md
+	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_opentsdb_flags.md
+	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_influx_flags.md
+	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_remote-read_flags.md
+	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_prometheus_flags.md
+	sed -i '/Total time:/d' docs/victoriametrics/vmctl/vmctl_vm-native_flags.md
+
+	# remove Version line and the actual version line from vmctl_flags.md to reduce diffs noise
+	sed -i '/^VERSION:/,+1d' docs/victoriametrics/vmctl/vmctl_flags.md
 
 # docs-update-flags updates flags in the documentation using the actual binaries compiled
 # from the latest enterprise-single-node and enterprise-cluster branches (hardcoded for now).
@@ -280,6 +323,7 @@ docs-update-flags:
 	git worktree remove /tmp/vm-opensource-single-node || true
 	git worktree add /tmp/vm-opensource-single-node opensource/master
 
+	make docs-update-vmctl-flags
 	make docs-update-vmsingle-flags
 	make docs-update-vmalert-flags
 	make docs-update-vmauth-flags
