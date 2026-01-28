@@ -40,6 +40,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): correctly return tenants results for `/admin/tenants` when `start` or `end` are specified. See [#10312](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10312). Thanks to @Defined2014 for the contribution.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix "Percentage from total" calculation on the Cardinality Explorer page when multiple metrics match the filter. See [#10323](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10323). Thanks to @PleasingFungus for the contribution.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): apply `-promscrape.maxScrapeSize` check to decompressed data instead of compressed data. See [#9481](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9481).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): disallow setting the `-notifier.url` command-line flag to a null value. See [#10355](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10355).
 
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
