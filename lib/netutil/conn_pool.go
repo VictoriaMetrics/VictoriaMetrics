@@ -241,8 +241,8 @@ func (cp *ConnPool) closeIdleConns() {
 	var closeConns []connWithTimestamp
 	cp.mu.Lock()
 
-	// fast path, if there are less than 3 connections in the pool.
-	if len(cp.conns) < 3 {
+	// fast path, if there are less than 2 connections in the pool.
+	if len(cp.conns) < 2 {
 		cp.mu.Unlock()
 		return
 	}
@@ -256,7 +256,7 @@ func (cp *ConnPool) closeIdleConns() {
 		}
 	}
 	for _, c := range closeConns {
-		if len(activeConns) < 3 {
+		if len(activeConns) < 1 {
 			activeConns = append(activeConns, c)
 			continue
 		}
