@@ -322,16 +322,12 @@ scrape_configs:
   bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
   tls_config:
     ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-
+  metrics_path: /metrics/cadvisor
   relabel_configs:
-    # Cadvisor metrics are better to scrape from Kubernetes API server proxy.
+    # Cadvisor metrics are best scraped via Kubernetes API server proxy.
     # There is no need to add container, pod and node labels to the scraped metrics,
     # since cadvisor adds these labels on itself.
     #
-  - source_labels: [__meta_kubernetes_node_name]
-    target_label: __address__
-    regex: '(.+)'
-    replacement: https://kubernetes.default.svc/api/v1/nodes/$1/proxy/metrics/cadvisor
   - source_labels: [__meta_kubernetes_node_name]
     target_label: instance
 ```
