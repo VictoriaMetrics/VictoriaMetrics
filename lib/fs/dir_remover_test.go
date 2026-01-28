@@ -7,14 +7,9 @@ import (
 )
 
 func TestIsPartiallyRemovedDir(t *testing.T) {
-	t.Helper()
-
-	tmpDir := t.TempDir()
-	defer os.RemoveAll(tmpDir)
-
 	f := func(dirName, filename string, want bool) {
 		t.Helper()
-		dirPath := filepath.Join(tmpDir, dirName)
+		dirPath := filepath.Join(t.TempDir(), dirName)
 		if err := os.Mkdir(dirPath, os.ModePerm); err != nil {
 			t.Fatalf("cannot create directory=%q: %s", dirPath, err)
 		}
