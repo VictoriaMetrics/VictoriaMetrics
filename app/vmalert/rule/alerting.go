@@ -818,7 +818,9 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 	expr := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
 		alertForStateMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
 
-	res, _, err := q.Query(ctx, expr, ts)
+	// query ALERTS_FOR_STATE at `ts-1s` instead `ts` to avoid retrieving data written in the current run,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10335
+	res, _, err := q.Query(ctx, expr, ts.Add(-1*time.Second))
 	if err != nil {
 		return fmt.Errorf("failed to execute restore query %q: %w ", expr, err)
 	}
