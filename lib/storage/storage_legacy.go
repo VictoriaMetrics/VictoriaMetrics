@@ -53,18 +53,18 @@ func (dbs *legacyIndexDBs) appendTo(dst []indexDBWithType) []indexDBWithType {
 	}
 
 	if dbs.idbPrev != nil {
-		idb := indexDBWithType{
-			idb:        dbs.idbPrev.idb,
-			legacyPrev: true,
+		idbt := indexDBWithType{
+			idb: dbs.idbPrev.idb,
+			t:   indexDBTypeLegacyPrev,
 		}
-		dst = append(dst, idb)
+		dst = append(dst, idbt)
 	}
 	if dbs.idbCurr != nil {
-		idb := indexDBWithType{
-			idb:        dbs.idbCurr.idb,
-			legacyCurr: true,
+		idbt := indexDBWithType{
+			idb: dbs.idbCurr.idb,
+			t:   indexDBTypeLegacyCurr,
 		}
-		dst = append(dst, idb)
+		dst = append(dst, idbt)
 	}
 	return dst
 }
