@@ -7,35 +7,44 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
-)
-
-const (
-	metricIDCacheShardNum          = 128
-	metricIDCacheRotationGroupSize = 16
-	metricIDCacheRotationGroupNum  = (metricIDCacheShardNum + metricIDCacheRotationGroupSize - 1) / metricIDCacheRotationGroupSize
 )
 
 // metricIDCache stores metricIDs that have been added to the index. It is used
 // during data ingestion to decide whether a new entry needs to be added to the
 // global index.
 //
-// The cache avoids synchronization on the read path if possible to reduce
-// contention. Based on dateMetricIDCache ideas.
+// The cache consists of multiple shards and avoids synchronization on the read
+// path if possible to reduce contention.
 type metricIDCache struct {
-	shards [metricIDCacheShardNum]metricIDCacheShard
+	shards []metricIDCacheShard
+
+	// The shards are rotated in groups, one group at a time and
+	// numRotationGroups tells how many groups to rotate.
+	numRotationGroups int
 
 	stopCh            chan struct{}
 	rotationStoppedCh chan struct{}
 }
 
 func newMetricIDCache() *metricIDCache {
+	// Shards per cpu are taken from lib/blockcache/blockcache.go.
+	numCPUs := cgroup.AvailableCPUs()
+	numRotationGroups := numCPUs
+	if numRotationGroups > 16 {
+		numRotationGroups = 16
+	}
+	numShards := numCPUs * numRotationGroups
+
 	c := metricIDCache{
+		shards:            make([]metricIDCacheShard, numShards),
+		numRotationGroups: numRotationGroups,
 		stopCh:            make(chan struct{}),
 		rotationStoppedCh: make(chan struct{}),
 	}
-	for i := 0; i < metricIDCacheShardNum; i++ {
+	for i := range numShards {
 		c.shards[i].prev = &uint64set.Set{}
 		c.shards[i].next = &uint64set.Set{}
 		c.shards[i].curr.Store(&uint64set.Set{})
@@ -49,9 +58,21 @@ func (c *metricIDCache) MustStop() {
 	<-c.rotationStoppedCh
 }
 
+func (c *metricIDCache) numShards() uint64 {
+	return uint64(len(c.shards))
+}
+
+func (c *metricIDCache) groupRotationPeriod() time.Duration {
+	return 1 * time.Minute
+}
+
+func (c *metricIDCache) fullRotationPeriod() time.Duration {
+	return time.Duration(c.numRotationGroups) * c.groupRotationPeriod()
+}
+
 func (c *metricIDCache) Stats() metricIDCacheStats {
-	stats := metricIDCacheStats{}
-	for i := 0; i < metricIDCacheShardNum; i++ {
+	var stats metricIDCacheStats
+	for i := range len(c.shards) {
 		s := c.shards[i].Stats()
 		stats.Size += s.Size
 		stats.SizeBytes += s.SizeBytes
@@ -62,25 +83,25 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 }
 
 func (c *metricIDCache) Has(metricID uint64) bool {
-	shardIdx := fastHashUint64(metricID) % metricIDCacheShardNum
+	shardIdx := fastHashUint64(metricID) % uint64(len(c.shards))
 	return c.shards[shardIdx].Has(metricID)
 }
 
 func (c *metricIDCache) Set(metricID uint64) {
-	shardIdx := fastHashUint64(metricID) % metricIDCacheShardNum
+	shardIdx := fastHashUint64(metricID) % uint64(len(c.shards))
 	c.shards[shardIdx].Set(metricID)
 }
 
 func (c *metricIDCache) rotate(rotationGroup int) {
-	for i := 0; i < metricIDCacheShardNum; i++ {
-		if i/metricIDCacheRotationGroupSize == rotationGroup {
+	for i := range len(c.shards) {
+		if i/c.numRotationGroups == rotationGroup {
 			c.shards[i].rotate()
 		}
 	}
 }
 
 func (c *metricIDCache) startRotation() {
-	d := timeutil.AddJitterToDuration(1 * time.Minute)
+	d := timeutil.AddJitterToDuration(c.groupRotationPeriod())
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 	rotationGroup := 0
@@ -92,7 +113,7 @@ func (c *metricIDCache) startRotation() {
 		case <-ticker.C:
 			// each tick rotate only subset of size metricIDCacheRotationGroupSize
 			// to avoid slow access for all shards at once
-			rotationGroup = (rotationGroup + 1) % metricIDCacheRotationGroupNum
+			rotationGroup = (rotationGroup + 1) % c.numRotationGroups
 			c.rotate(rotationGroup)
 		}
 	}

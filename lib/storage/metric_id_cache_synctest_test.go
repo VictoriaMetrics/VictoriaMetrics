@@ -16,9 +16,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
+		time.Sleep(3 * c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -30,12 +28,11 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(5 * time.Minute)
+		time.Sleep(c.groupRotationPeriod() - time.Second)
 		if !c.Has(123) {
 			t.Fatalf("entry not in cache")
 		}
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
+		time.Sleep(2 * c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -48,7 +45,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		defer c.MustStop()
 		c.Set(123)
 		for range 10_000 {
-			time.Sleep(5 * time.Minute)
+			time.Sleep(c.groupRotationPeriod() - time.Second)
 			if !c.Has(123) {
 				t.Fatalf("entry not in cache")
 			}
@@ -89,24 +86,24 @@ func TestMetricIDCache_Stats(t *testing.T) {
 		}
 		assertStats(t, c, metricIDCacheStats{
 			Size:       100_000,
-			SyncsCount: 128,
+			SyncsCount: c.numShards(),
 		})
 
-		// Wait until next rotation.
+		// Wait until all groups are rotated.
 		// curr metricIDs will be moved to prev.
-		time.Sleep(9 * time.Minute)
+		time.Sleep(c.fullRotationPeriod() + c.groupRotationPeriod())
 		assertStats(t, c, metricIDCacheStats{
 			Size:           100_000,
-			SyncsCount:     128,
-			RotationsCount: 128,
+			SyncsCount:     c.numShards(),
+			RotationsCount: c.numShards(),
 		})
 
-		// Wait until another rotation.
+		// Wait until all groups are rotated.
 		// The cache now should be empty.
-		time.Sleep(8 * time.Minute)
+		time.Sleep(c.fullRotationPeriod() + c.groupRotationPeriod())
 		assertStats(t, c, metricIDCacheStats{
-			SyncsCount:     128,
-			RotationsCount: 256,
+			SyncsCount:     c.numShards(),
+			RotationsCount: 2 * c.numShards(),
 		})
 	})
 }
