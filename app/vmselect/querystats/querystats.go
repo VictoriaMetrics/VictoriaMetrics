@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
@@ -16,7 +17,7 @@ var (
 	lastQueriesCount = flag.Int("search.queryStats.lastQueriesCount", 20000, "Query stats for /api/v1/status/top_queries is tracked on this number of last queries. "+
 		"Zero value disables query stats tracking")
 	minQueryDuration               = flag.Duration("search.queryStats.minQueryDuration", time.Millisecond, "The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats")
-	minQueryMemoryBytesConsumption = flag.Int64("search.queryStats.minQueryMemoryBytesConsumption", 1024, "The minimum memory bytes consumption for queries to track in query stats at /api/v1/status/top_queries. Queries with lower memory bytes consumption are ignored in query stats")
+	minQueryMemoryBytesConsumption = flagutil.NewBytes("search.queryStats.minQueryMemoryBytesConsumption", 1024, "The minimum memory bytes consumption for queries to track in query stats at /api/v1/status/top_queries. Queries with lower memory bytes consumption are ignored in query stats")
 )
 
 var (
@@ -69,7 +70,7 @@ func initQueryStats() {
 		recordsCount = 1
 	} else {
 		logger.Infof("enabled query stats tracking at `/api/v1/status/top_queries` with -search.queryStats.lastQueriesCount=%d, -search.queryStats.minQueryDuration=%s, -search.queryStats.minQueryMemoryBytesConsumption=%s",
-			*lastQueriesCount, *minQueryDuration, *minQueryMemoryBytesConsumption)
+			*lastQueriesCount, *minQueryDuration, minQueryMemoryBytesConsumption)
 	}
 	qsTracker = &queryStatsTracker{
 		a: make([]queryStatRecord, recordsCount),
@@ -80,7 +81,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	fmt.Fprintf(w, `{"topN":"%d","maxLifetime":"%s",`, topN, maxLifetime)
 	fmt.Fprintf(w, `"search.queryStats.lastQueriesCount":%d,`, *lastQueriesCount)
 	fmt.Fprintf(w, `"search.queryStats.minQueryDuration":"%s",`, *minQueryDuration)
-	fmt.Fprintf(w, `"search.queryStats.minQueryMemoryBytesConsumption":"%d",`, *minQueryMemoryBytesConsumption)
+	fmt.Fprintf(w, `"search.queryStats.minQueryMemoryBytesConsumption":"%s",`, minQueryMemoryBytesConsumption)
 	fmt.Fprintf(w, `"topByCount":[`)
 	topByCount := qst.getTopByCount(topN, maxLifetime)
 	for i, r := range topByCount {
@@ -124,7 +125,7 @@ func (qst *queryStatsTracker) registerQuery(query string, timeRangeMsecs int64, 
 	if duration < *minQueryDuration {
 		return
 	}
-	if memoryEstimatedBytes < *minQueryMemoryBytesConsumption {
+	if memoryEstimatedBytes < int64(minQueryMemoryBytesConsumption.IntN()) {
 		return
 	}
 
