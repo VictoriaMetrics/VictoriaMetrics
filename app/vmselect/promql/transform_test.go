@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"math/rand"
 	"reflect"
 	"strconv"
 	"strings"
@@ -278,6 +279,88 @@ func timeseriesToPromMetrics(tss []*timeseries) string {
 		}
 	}
 	return strings.Join(a, "\n")
+}
+
+func TestTransformFuncSort(t *testing.T) {
+	f := func(isDesc bool, metrics, expectedMetrics string) {
+		t.Helper()
+
+		tss := promMetricsToTimeseries(metrics)
+
+		// Input tss order is not stable in VictoriaMetrics
+		// Shuffle tss to reflect that
+		rand.Shuffle(len(tss), func(i, j int) {
+			tss[i], tss[j] = tss[j], tss[i]
+		})
+
+		sortFunc := newTransformFuncSort(isDesc)
+		sorted, err := sortFunc(&transformFuncArg{
+			args: [][]*timeseries{tss},
+		})
+		if err != nil {
+			t.Fatalf("sort failed: %s", err)
+		}
+
+		result := timeseriesToPromMetrics(sorted)
+		if result != expectedMetrics {
+			t.Fatalf("unexpected sort result:\ngot\n%s\nwant\n%s", result, expectedMetrics)
+		}
+	}
+
+	// Test asc sort with different values
+	f(
+		false,
+		`foo{label="a"} 3 123
+foo{label="b"} 2 123
+foo{label="c"} 1 123`,
+		`foo{label="c"} 1 123
+foo{label="b"} 2 123
+foo{label="a"} 3 123`,
+	)
+
+	// Test desc sort with different values
+	f(
+		true,
+		`foo{label="a"} 3 123
+foo{label="b"} 2 123
+foo{label="c"} 1 123`,
+		`foo{label="a"} 3 123
+foo{label="b"} 2 123
+foo{label="c"} 1 123`,
+	)
+
+	// Test asc sort with mixed values
+	f(
+		false,
+		`foo{label="a"} 1 123
+	foo{label="b"} 1 123
+	foo{label="c"} 2 123
+	foo{label="d"} 2 123
+	foo{label="e"} 3 123
+	`,
+		`foo{label="a"} 1 123
+foo{label="b"} 1 123
+foo{label="c"} 2 123
+foo{label="d"} 2 123
+foo{label="e"} 3 123`,
+	)
+
+	// Test desc sort with mixed values
+	f(
+		true,
+		`foo{label="a"} 1 123
+	foo{label="b"} 1 123
+	foo{label="c"} 2 123
+	foo{label="d"} 2 123
+	foo{label="e"} 3 123
+	`,
+		`foo{label="e"} 3 123
+foo{label="d"} 2 123
+foo{label="c"} 2 123
+foo{label="b"} 1 123
+foo{label="a"} 1 123
+`,
+	)
 }
 
 func TestGetNumPrefix(t *testing.T) {
