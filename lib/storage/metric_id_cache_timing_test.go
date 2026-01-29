@@ -7,11 +7,29 @@ import (
 	"time"
 )
 
+type benchCacheState int
+
+const (
+	benchCacheStateCold benchCacheState = iota
+	benchCacheStateWarm
+	benchCacheStateRotated
+)
+
+var benchCacheStates = [...]benchCacheState{benchCacheStateCold, benchCacheStateWarm, benchCacheStateRotated}
+
+func (s benchCacheState) String() string {
+	return [...]string{"   cold", "   warm", "rotated"}[s]
+}
+
 func BenchmarkMetricIDCache_Has(b *testing.B) {
-	f := func(b *testing.B, numMetricIDs, distance int64, hitsOnly, warmUp, rotate bool) {
+	f := func(b *testing.B, numMetricIDs, distance int64, hitsOnly bool, state benchCacheState) {
 		b.Helper()
 		c := newMetricIDCache()
 		defer c.MustStop()
+
+		warmUp := state == benchCacheStateWarm || state == benchCacheStateRotated
+		rotate := state == benchCacheStateRotated
+
 		metricIDMin := time.Now().UnixNano()
 		metricIDMax := metricIDMin + numMetricIDs*distance
 		for metricID := metricIDMin; metricID <= metricIDMax; metricID += distance {
@@ -21,7 +39,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 			}
 		}
 		if rotate {
-			c.rotate(0)
+			c.rotate(rand.Intn(metricIdCacheRotationGroupNum))
 		}
 		b.ResetTimer()
 
@@ -49,37 +67,24 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 			}
 		})
 		b.ReportAllocs()
+		b.ReportMetric(float64(c.Stats().SizeBytes), "sizeBytes")
 	}
 
-	subB := func(numMetricIDs, distance int64, hitsOnly, warmUp, rotate bool) {
-		hitsOrMisses := "hitsss"
+	subB := func(numMetricIDs, distance int64, hitsOnly bool, state benchCacheState) {
+		hitsOrMisses := "  hits-only"
 		if !hitsOnly {
-			hitsOrMisses = "misses"
+			hitsOrMisses = "misses-only"
 		}
-		coldOrWarm := "cold"
-		if warmUp {
-			coldOrWarm = "warm"
-		}
-		rotateOrNot := "not"
-		if rotate {
-			rotateOrNot = "rot"
-		}
-		name := fmt.Sprintf("%s/%s/%s/n%d/d%d", hitsOrMisses, coldOrWarm, rotateOrNot, numMetricIDs, distance)
+		name := fmt.Sprintf("%s/%s/n%d/d%d", hitsOrMisses, state, numMetricIDs, distance)
 		b.Run(name, func(b *testing.B) {
-			f(b, numMetricIDs, distance, hitsOnly, warmUp, rotate)
+			f(b, numMetricIDs, distance, hitsOnly, state)
 		})
 	}
 	for _, hitsOnly := range []bool{true, false} {
-		for _, warmUp := range []bool{false, true} {
+		for _, state := range benchCacheStates {
 			for _, numMetricIDs := range []int64{100_000, 1_000_000, 10_000_000} {
 				for _, distance := range []int64{1, 10, 100} {
-					for _, rotate := range []bool{true, false} {
-						if !warmUp && rotate {
-							// cannot rotate cold cache
-							continue
-						}
-						subB(numMetricIDs, distance, hitsOnly, warmUp, rotate)
-					}
+					subB(numMetricIDs, distance, hitsOnly, state)
 				}
 			}
 		}
