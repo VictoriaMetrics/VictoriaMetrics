@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -229,6 +230,9 @@ func notifiersFromFlags(gen AlertURLGenerator) ([]Notifier, error) {
 			Headers: []string{headers.GetOptionalArg(i)},
 		}
 
+		if err := httputil.CheckURL(addr); err != nil {
+			return nil, fmt.Errorf("invalid notifier.url %q: %w", addr, err)
+		}
 		addr = strings.TrimSuffix(addr, "/")
 		am, err := NewAlertManager(addr+alertManagerPath, gen, authCfg, nil, sendTimeout.GetOptionalArg(i))
 		if err != nil {
@@ -266,7 +270,7 @@ func GetTargets() map[TargetType][]Target {
 	if getActiveNotifiers == nil {
 		return nil
 	}
-	var targets = make(map[TargetType][]Target)
+	targets := make(map[TargetType][]Target)
 	// use cached targets from configWatcher instead of getActiveNotifiers for the extra target labels
 	if cw != nil {
 		cw.targetsMu.RLock()
