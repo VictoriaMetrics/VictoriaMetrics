@@ -21,28 +21,32 @@ import (
 type metricIDCache struct {
 	shards []metricIDCacheShard
 
-	// The shards are rotated in groups, one group at a time and
-	// numRotationGroups tells how many groups to rotate.
-	numRotationGroups int
+	// The shards are rotated in groups, one group at a time.
+	// rotationGroupSize tells the number of shards in one group and
+	// rotationGroupCount tells how many groups to rotate.
+	rotationGroupSize  int
+	rotationGroupCount int
 
 	stopCh            chan struct{}
 	rotationStoppedCh chan struct{}
 }
 
 func newMetricIDCache() *metricIDCache {
-	// Shards per cpu are taken from lib/blockcache/blockcache.go.
-	numCPUs := cgroup.AvailableCPUs()
-	numRotationGroups := numCPUs
-	if numRotationGroups > 16 {
-		numRotationGroups = 16
+	// Shards based on the number of CPUs are taken from
+	// lib/blockcache/blockcache.go.
+	rotationGroupSize := cgroup.AvailableCPUs()
+	rotationGroupCount := cgroup.AvailableCPUs()
+	if rotationGroupCount > 16 {
+		rotationGroupCount = 16
 	}
-	numShards := numCPUs * numRotationGroups
+	numShards := rotationGroupSize * rotationGroupCount
 
 	c := metricIDCache{
-		shards:            make([]metricIDCacheShard, numShards),
-		numRotationGroups: numRotationGroups,
-		stopCh:            make(chan struct{}),
-		rotationStoppedCh: make(chan struct{}),
+		shards:             make([]metricIDCacheShard, numShards),
+		rotationGroupSize:  rotationGroupSize,
+		rotationGroupCount: rotationGroupCount,
+		stopCh:             make(chan struct{}),
+		rotationStoppedCh:  make(chan struct{}),
 	}
 	for i := range numShards {
 		c.shards[i].prev = &uint64set.Set{}
@@ -67,7 +71,7 @@ func (c *metricIDCache) groupRotationPeriod() time.Duration {
 }
 
 func (c *metricIDCache) fullRotationPeriod() time.Duration {
-	return time.Duration(c.numRotationGroups) * c.groupRotationPeriod()
+	return time.Duration(c.rotationGroupCount) * c.groupRotationPeriod()
 }
 
 func (c *metricIDCache) Stats() metricIDCacheStats {
@@ -94,7 +98,7 @@ func (c *metricIDCache) Set(metricID uint64) {
 
 func (c *metricIDCache) rotate(rotationGroup int) {
 	for i := range len(c.shards) {
-		if i/c.numRotationGroups == rotationGroup {
+		if i/c.rotationGroupSize == rotationGroup {
 			c.shards[i].rotate()
 		}
 	}
@@ -113,7 +117,7 @@ func (c *metricIDCache) startRotation() {
 		case <-ticker.C:
 			// each tick rotate only subset of size metricIDCacheRotationGroupSize
 			// to avoid slow access for all shards at once
-			rotationGroup = (rotationGroup + 1) % c.numRotationGroups
+			rotationGroup = (rotationGroup + 1) % c.rotationGroupCount
 			c.rotate(rotationGroup)
 		}
 	}
