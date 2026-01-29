@@ -236,7 +236,7 @@ func (cp *ConnPool) closeIdleConns() {
 	// Close connections, which were idle for more than 120 seconds.
 	// This should reduce the number of connections after sudden spikes in query rate.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2508
-	deadline := fasttime.UnixTimestamp() - 120
+	deadline := fasttime.UnixTimestamp() - 60
 	var activeConns []connWithTimestamp
 	var closeConns []connWithTimestamp
 	cp.mu.Lock()
@@ -256,6 +256,9 @@ func (cp *ConnPool) closeIdleConns() {
 		}
 	}
 	for _, c := range closeConns {
+		// It can limit the number of broken connections remaining after the idle timeout to 1,
+		// preventing failed requests and partial responses caused by too many broken connections after the idle timeout.
+		// Please see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314.
 		if len(activeConns) < 1 {
 			activeConns = append(activeConns, c)
 			continue
