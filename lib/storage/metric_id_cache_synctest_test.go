@@ -28,7 +28,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(c.groupRotationPeriod() - time.Second)
+		time.Sleep(c.rotationGroupPeriod - time.Second)
 		if !c.Has(123) {
 			t.Fatalf("entry not in cache")
 		}
@@ -45,7 +45,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		defer c.MustStop()
 		c.Set(123)
 		for range 10_000 {
-			time.Sleep(c.groupRotationPeriod() - time.Second)
+			time.Sleep(c.rotationGroupPeriod - time.Second)
 			if !c.Has(123) {
 				t.Fatalf("entry not in cache")
 			}
@@ -91,7 +91,7 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Wait until all groups are rotated.
 		// curr metricIDs will be moved to prev.
-		time.Sleep(c.fullRotationPeriod() + c.groupRotationPeriod())
+		time.Sleep(c.fullRotationPeriod() + time.Second)
 		assertStats(t, c, metricIDCacheStats{
 			Size:           100_000,
 			SyncsCount:     c.numShards(),
@@ -100,7 +100,7 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Wait until all groups are rotated.
 		// The cache now should be empty.
-		time.Sleep(c.fullRotationPeriod() + c.groupRotationPeriod())
+		time.Sleep(c.fullRotationPeriod())
 		assertStats(t, c, metricIDCacheStats{
 			SyncsCount:     c.numShards(),
 			RotationsCount: 2 * c.numShards(),

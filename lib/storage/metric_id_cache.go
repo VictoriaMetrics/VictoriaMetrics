@@ -22,10 +22,12 @@ type metricIDCache struct {
 	shards []metricIDCacheShard
 
 	// The shards are rotated in groups, one group at a time.
-	// rotationGroupSize tells the number of shards in one group and
-	// rotationGroupCount tells how many groups to rotate.
-	rotationGroupSize  int
-	rotationGroupCount int
+	// rotationGroupSize tells the number of shards in one group,
+	// rotationGroupCount tells how many groups to rotate, and
+	// rotationGroupPeriod tells how often a group is rotated.
+	rotationGroupSize   int
+	rotationGroupCount  int
+	rotationGroupPeriod time.Duration
 
 	stopCh            chan struct{}
 	rotationStoppedCh chan struct{}
@@ -42,11 +44,12 @@ func newMetricIDCache() *metricIDCache {
 	numShards := rotationGroupSize * rotationGroupCount
 
 	c := metricIDCache{
-		shards:             make([]metricIDCacheShard, numShards),
-		rotationGroupSize:  rotationGroupSize,
-		rotationGroupCount: rotationGroupCount,
-		stopCh:             make(chan struct{}),
-		rotationStoppedCh:  make(chan struct{}),
+		shards:              make([]metricIDCacheShard, numShards),
+		rotationGroupSize:   rotationGroupSize,
+		rotationGroupCount:  rotationGroupCount,
+		rotationGroupPeriod: timeutil.AddJitterToDuration(1 * time.Minute),
+		stopCh:              make(chan struct{}),
+		rotationStoppedCh:   make(chan struct{}),
 	}
 	for i := range numShards {
 		c.shards[i].prev = &uint64set.Set{}
@@ -66,12 +69,8 @@ func (c *metricIDCache) numShards() uint64 {
 	return uint64(len(c.shards))
 }
 
-func (c *metricIDCache) groupRotationPeriod() time.Duration {
-	return 1 * time.Minute
-}
-
 func (c *metricIDCache) fullRotationPeriod() time.Duration {
-	return time.Duration(c.rotationGroupCount) * c.groupRotationPeriod()
+	return time.Duration(c.rotationGroupCount) * c.rotationGroupPeriod
 }
 
 func (c *metricIDCache) Stats() metricIDCacheStats {
@@ -105,8 +104,7 @@ func (c *metricIDCache) rotate(rotationGroup int) {
 }
 
 func (c *metricIDCache) startRotation() {
-	d := timeutil.AddJitterToDuration(c.groupRotationPeriod())
-	ticker := time.NewTicker(d)
+	ticker := time.NewTicker(c.rotationGroupPeriod)
 	defer ticker.Stop()
 	rotationGroup := 0
 	for {
