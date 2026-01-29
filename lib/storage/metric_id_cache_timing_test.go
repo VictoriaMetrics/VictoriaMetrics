@@ -39,7 +39,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 			}
 		}
 		if rotate {
-			c.rotate(rand.Intn(metricIdCacheRotationGroupNum))
+			c.rotate(rand.Intn(metricIDCacheRotationGroupNum))
 		}
 		b.ResetTimer()
 

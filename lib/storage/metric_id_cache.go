@@ -28,9 +28,9 @@ func fnvUint64(x uint64) uint64 {
 }
 
 const (
-	metricIdCacheShardNum          = 128
-	metricIdCacheRotationGroupSize = 16
-	metricIdCacheRotationGroupNum  = (metricIdCacheShardNum + metricIdCacheRotationGroupSize - 1) / metricIdCacheRotationGroupSize
+	metricIDCacheShardNum          = 128
+	metricIDCacheRotationGroupSize = 16
+	metricIDCacheRotationGroupNum  = (metricIDCacheShardNum + metricIDCacheRotationGroupSize - 1) / metricIDCacheRotationGroupSize
 )
 
 // metricIDCache stores metricIDs that have been added to the index. It is used
@@ -40,7 +40,7 @@ const (
 // The cache avoids synchronization on the read path if possible to reduce
 // contention. Based on dateMetricIDCache ideas.
 type metricIDCache struct {
-	shards [metricIdCacheShardNum]metricIDCacheShard
+	shards [metricIDCacheShardNum]metricIDCacheShard
 
 	stopCh            chan struct{}
 	rotationStoppedCh chan struct{}
@@ -51,7 +51,7 @@ func newMetricIDCache() *metricIDCache {
 		stopCh:            make(chan struct{}),
 		rotationStoppedCh: make(chan struct{}),
 	}
-	for i := 0; i < metricIdCacheShardNum; i++ {
+	for i := 0; i < metricIDCacheShardNum; i++ {
 		c.shards[i].prev = &uint64set.Set{}
 		c.shards[i].next = &uint64set.Set{}
 		c.shards[i].curr.Store(&uint64set.Set{})
@@ -67,7 +67,7 @@ func (c *metricIDCache) MustStop() {
 
 func (c *metricIDCache) Stats() metricIDCacheStats {
 	stats := metricIDCacheStats{}
-	for i := 0; i < metricIdCacheShardNum; i++ {
+	for i := 0; i < metricIDCacheShardNum; i++ {
 		s := c.shards[i].Stats()
 		stats.Size += s.Size
 		stats.SizeBytes += s.SizeBytes
@@ -78,18 +78,18 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 }
 
 func (c *metricIDCache) Has(metricID uint64) bool {
-	shardIdx := fnvUint64(metricID) % metricIdCacheShardNum
+	shardIdx := fnvUint64(metricID) % metricIDCacheShardNum
 	return c.shards[shardIdx].Has(metricID)
 }
 
 func (c *metricIDCache) Set(metricID uint64) {
-	shardIdx := fnvUint64(metricID) % metricIdCacheShardNum
+	shardIdx := fnvUint64(metricID) % metricIDCacheShardNum
 	c.shards[shardIdx].Set(metricID)
 }
 
 func (c *metricIDCache) rotate(rotationGroup int) {
-	for i := 0; i < metricIdCacheShardNum; i++ {
-		if i/metricIdCacheRotationGroupSize == rotationGroup {
+	for i := 0; i < metricIDCacheShardNum; i++ {
+		if i/metricIDCacheRotationGroupSize == rotationGroup {
 			c.shards[i].rotate()
 		}
 	}
@@ -106,9 +106,9 @@ func (c *metricIDCache) startRotation() {
 			close(c.rotationStoppedCh)
 			return
 		case <-ticker.C:
-			// each tick rotate only subset of size metricIdCacheRotationGroupSize
+			// each tick rotate only subset of size metricIDCacheRotationGroupSize
 			// to avoid slow access for all shards at once
-			rotationGroup = (rotationGroup + 1) % metricIdCacheRotationGroupNum
+			rotationGroup = (rotationGroup + 1) % metricIDCacheRotationGroupNum
 			c.rotate(rotationGroup)
 		}
 	}
