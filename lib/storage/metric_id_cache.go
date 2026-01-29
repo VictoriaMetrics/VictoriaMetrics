@@ -11,22 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
-// copy-paste from go sources: internal/bisect/bisect.go
-const (
-	offset64 uint64 = 14695981039346656037
-	prime64  uint64 = 1099511628211
-)
-
-func fnvUint64(x uint64) uint64 {
-	h := offset64
-	for range 8 {
-		h ^= x & 0xFF
-		x >>= 8
-		h *= prime64
-	}
-	return h
-}
-
 const (
 	metricIDCacheShardNum          = 128
 	metricIDCacheRotationGroupSize = 16
@@ -78,12 +62,12 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 }
 
 func (c *metricIDCache) Has(metricID uint64) bool {
-	shardIdx := fnvUint64(metricID) % metricIDCacheShardNum
+	shardIdx := fastHashUint64(metricID) % metricIDCacheShardNum
 	return c.shards[shardIdx].Has(metricID)
 }
 
 func (c *metricIDCache) Set(metricID uint64) {
-	shardIdx := fnvUint64(metricID) % metricIDCacheShardNum
+	shardIdx := fastHashUint64(metricID) % metricIDCacheShardNum
 	c.shards[shardIdx].Set(metricID)
 }
 
