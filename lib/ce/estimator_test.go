@@ -2,7 +2,6 @@ package ce
 
 import (
 	"fmt"
-	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,11 +9,10 @@ import (
 
 func Test_ShardIterator(t *testing.T) {
 
-	n := 10
-	ce := NewCardinalityEstimatorWithSettings(n, math.MaxUint64, 1)
+	ce := NewCardinalityEstimator()
 
 	correct := []int{}
-	for i := range n {
+	for i := range ce.Shards {
 		correct = append(correct, i)
 	}
 

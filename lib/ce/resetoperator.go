@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	estimatorResetInterval = flag.Duration("estimator.resetInterval", 24*time.Hour, "Interval for resetting the cardinality estimator. Intervals are offset from 0:00 UTC. Set to '0s' to disable.")
+	estimatorResetInterval = flag.Duration("ce.resetInterval", 24*time.Hour, "Interval for resetting the cardinality estimator. Intervals are offset from 0:00 UTC. Set to '0s' to disable.")
 )
 
 type ResetOperator struct {

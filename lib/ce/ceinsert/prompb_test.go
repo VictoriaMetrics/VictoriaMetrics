@@ -14,7 +14,7 @@ import (
 )
 
 func Test_HLLAccuracy(t *testing.T) {
-	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxInt64, 1) // 64 shards, unlimited hlls
+	estimator := ce.NewCardinalityEstimator()
 
 	// Target unique instances
 	numInstances := 1_000_000
@@ -72,7 +72,7 @@ func Test_HLLAccuracy(t *testing.T) {
 }
 
 func Test_MarshalUnmarshalBinary(t *testing.T) {
-	estimator := ce.NewCardinalityEstimatorWithSettings(4, math.MaxUint64, 1)
+	estimator := ce.NewCardinalityEstimator()
 
 	testTimeSeries := []prompb.TimeSeries{
 		{
@@ -102,7 +102,7 @@ func Test_MarshalUnmarshalBinary(t *testing.T) {
 	assert.NoError(t, err)
 
 	// unmarshal
-	newCe := ce.NewCardinalityEstimatorWithSettings(4, math.MaxUint64, 1)
+	newCe := ce.NewCardinalityEstimator()
 	err = newCe.UnmarshalBinary(marshaledData)
 	assert.NoError(t, err)
 
@@ -122,47 +122,11 @@ func Test_MarshalUnmarshalBinary(t *testing.T) {
 	assert.Equal(t, estimator.Allocator.Max(), newCe.Allocator.Max())
 }
 
-func generateUniqueTimeseriesPrompb(count int, metricNameGen func() string) []prompb.TimeSeries {
-	timeseries := []prompb.TimeSeries{}
-
-	randGen := rand.New(rand.NewSource(123))
-
-	if metricNameGen == nil {
-		metricNameGen = func() string {
-			return fmt.Sprintf("test_metric_%d", randGen.Int63n(30000))
-		}
-	}
-
-	for i := range count {
-		name := metricNameGen()
-
-		ts := prompb.TimeSeries{
-			Labels: []prompb.Label{
-				{Name: "__name__", Value: name},
-				{Name: "instance", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
-				{Name: "region", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
-				{Name: "dc", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
-				{Name: "label1", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
-				{Name: "label2", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
-				{Name: "label3", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
-				{Name: "label4", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
-				{Name: "label5", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
-			},
-			Samples: []prompb.Sample{
-				{Value: float64(i), Timestamp: time.Now().UnixMilli()},
-			},
-		}
-		timeseries = append(timeseries, ts)
-	}
-
-	return timeseries
-}
-
 // Benchmark_CardinalityEstimator_Insert benchmarks the full end-to-end flow
 // using the CardinalityEstimator with realistic batch sizes and concurrent access patterns.
 func Benchmark_CardinalityEstimator_Insert(b *testing.B) {
 	// Setup: create a fresh estimator with default settings
-	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+	estimator := ce.NewCardinalityEstimator()
 
 	// Generate test data: 10k timeseries across 100 metrics
 	timeseries := generateUniqueTimeseriesPrompb(10000, func() string {
@@ -199,7 +163,7 @@ func Benchmark_CardinalityEstimator_Insert(b *testing.B) {
 // simulating multiple concurrent remote write requests.
 func Benchmark_CardinalityEstimator_Insert_Concurrent(b *testing.B) {
 	// Setup: create a fresh estimator with default settings
-	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+	estimator := ce.NewCardinalityEstimator()
 
 	// Generate test data: 10k timeseries across 100 metrics
 	timeseries := generateUniqueTimeseriesPrompb(10000, func() string {
@@ -255,7 +219,7 @@ func Benchmark_CardinalityEstimator_Insert_Concurrent(b *testing.B) {
 // MAKE SURE THIS BENCHMARK RETURNS 0 ALLOCS/OP
 func Benchmark_CardinalityEstimator_Insert_SingleBatch(b *testing.B) {
 	// Setup: create a fresh estimator with default settings
-	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+	estimator := ce.NewCardinalityEstimator()
 
 	// Generate a single batch of 500 timeseries (typical remote write batch size)
 	batch := generateUniqueTimeseriesPrompb(500, func() string {
@@ -285,7 +249,7 @@ func Benchmark_CardinalityEstimator_Insert_SingleBatch(b *testing.B) {
 // 3. Insert into CE
 func Benchmark_EndToEnd_BatchInsert(b *testing.B) {
 	// Setup: create a fresh estimator with default settings
-	estimator := ce.NewCardinalityEstimatorWithSettings(64, math.MaxUint64, 1)
+	estimator := ce.NewCardinalityEstimator()
 
 	// Create a WriteRequest with 500 timeseries (typical remote write batch size)
 	wr := generateWriteRequest(500)
@@ -331,6 +295,42 @@ func Benchmark_EndToEnd_BatchInsert(b *testing.B) {
 	// Report throughput
 	b.ReportMetric(float64(len(wr.Timeseries)), "timeseries/op")
 	b.ReportMetric(float64(len(protoData)), "bytes/op")
+}
+
+func generateUniqueTimeseriesPrompb(count int, metricNameGen func() string) []prompb.TimeSeries {
+	timeseries := []prompb.TimeSeries{}
+
+	randGen := rand.New(rand.NewSource(123))
+
+	if metricNameGen == nil {
+		metricNameGen = func() string {
+			return fmt.Sprintf("test_metric_%d", randGen.Int63n(30000))
+		}
+	}
+
+	for i := range count {
+		name := metricNameGen()
+
+		ts := prompb.TimeSeries{
+			Labels: []prompb.Label{
+				{Name: "__name__", Value: name},
+				{Name: "instance", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
+				{Name: "region", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
+				{Name: "dc", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
+				{Name: "label1", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
+				{Name: "label2", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
+				{Name: "label3", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
+				{Name: "label4", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
+				{Name: "label5", Value: fmt.Sprintf("onlytwentycharacters%d", randGen.Int63n(math.MaxInt))},
+			},
+			Samples: []prompb.Sample{
+				{Value: float64(i), Timestamp: time.Now().UnixMilli()},
+			},
+		}
+		timeseries = append(timeseries, ts)
+	}
+
+	return timeseries
 }
 
 // generateWriteRequest creates a WriteRequest with the specified number of timeseries

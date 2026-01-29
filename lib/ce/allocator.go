@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	hllsCreatedTotal = metrics.NewCounter("ce_hlls_created_total")
+	hllsCreatedTotal = metrics.NewCounter("vm_ce_hlls_created_total")
 )
 
 var (
