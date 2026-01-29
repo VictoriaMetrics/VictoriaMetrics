@@ -43,6 +43,8 @@ Backup schedule is controlled by the following flags:
 * `-disableMonthly` - disable monthly run. Default false
 
 By default, all flags are turned on and Backup Manager backups data every hour for every interval (hourly, daily, weekly and monthly).
+Note that if all intervals are disabled, the `vmbackupmanager` will create latest backups every 24 hours.
+Using `-disableScheduledBackups`{{% available_from "#" %}} allows completely disabling scheduled backups. In this mode API can be used to trigger backups and restores on demand.
 
 The backup manager creates the following directory hierarchy at `-dst`:
 
@@ -537,6 +539,8 @@ command-line flags:
      Disable hourly run. Default false
   -disableMonthly
      Disable monthly run. Default false
+  -disableScheduledBackups
+     Disable all scheduled backups. This is useful in order to run vmbackupmanager in API only mode to allow requesting restore and performing manual backups. Default false
   -disableWeekly
      Disable weekly run. Default false
   -dst string
