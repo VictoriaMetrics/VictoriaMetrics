@@ -13,6 +13,8 @@ type QueryStats struct {
 	ExecutionDuration atomic.Pointer[time.Duration]
 	// SeriesFetched contains the number of series fetched from storage or cache.
 	SeriesFetched atomic.Int64
+	// MemoryEstimatedBytes contains the estimated memory consumption of the query
+	MemoryEstimatedBytes atomic.Int64
 
 	at *auth.Token
 
@@ -52,4 +54,18 @@ func (qs *QueryStats) addExecutionTimeMsec(startTime time.Time) {
 	}
 	d := time.Since(startTime)
 	qs.ExecutionDuration.Store(&d)
+}
+
+func (qs *QueryStats) addMemoryEstimatedBytes(memoryEstimatedBytes int64) {
+	if qs == nil {
+		return
+	}
+	qs.MemoryEstimatedBytes.Store(memoryEstimatedBytes)
+}
+
+func (qs *QueryStats) memoryEstimatedBytes() int64 {
+	if qs == nil {
+		return 0
+	}
+	return qs.MemoryEstimatedBytes.Load()
 }
