@@ -44,6 +44,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): disallow setting the `-notifier.url` command-line flag to a null value. See [#10355](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10355).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): fix [alert restore](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerts-state-on-restarts) when a group contains many rules and is slow to complete evaluation. Previously, the restore process might not retrieve the correct previous alert state. See [#10335](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10335).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix `changes()` function when gaps between samples exceed the lookbehind window. Previously, it could yield a non-zero value even when the sample value remained unchanged. See [#10280](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10280).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Limit the minimum number of idle connections from 3 to 1. It helps prevent broken connections from remaining for too long and causing failed requests and partial responses during `vmstorage` rolling restart period. See [#10314](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314)
 
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
