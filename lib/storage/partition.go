@@ -1657,6 +1657,7 @@ func (pt *partition) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper,
 	removedBigParts := 0
 
 	func() {
+		// // Prevent from deadlock mentioned at https://github.com/VictoriaMetrics/VictoriaLogs/issues/1020#issuecomment-3763912067
 		pt.partsLock.Lock()
 		defer pt.partsLock.Unlock()
 

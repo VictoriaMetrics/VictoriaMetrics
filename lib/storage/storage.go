@@ -1064,6 +1064,33 @@ func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
 	s.metricNameCache.Set(key[:], metricName)
 }
 
+type indexDBType int
+
+const (
+	indexDBTypePt indexDBType = iota
+	indexDBTypeLegacyPrev
+	indexDBTypeLegacyCurr
+)
+
+func (t indexDBType) String() string {
+	return [...]string{"pt", "legacy_prev", "legacy_curr"}[t]
+}
+
+// indexDBWithType holds together the indexDB and its type.
+//
+// This type is used in searchAndMerge() to organize the code so that golang
+// profiles (cpu, mem, etc) could distinguish between searching pt-index, legacy
+// prev, and legacy curr indexDBs. Such profiles should significantly simplify
+// debugging index search performance issues.
+type indexDBWithType struct {
+	idb *indexDB
+	t   indexDBType
+}
+
+func (idbt indexDBWithType) String() string {
+	return fmt.Sprintf("%s (%s)", idbt.idb.name, idbt.t)
+}
+
 // searchAndMerge concurrently performs a search operation on all partition
 // IndexDBs that overlap with the given time range and optionally legacy current
 // and previous IndexDBs. The individual search results are then merged.
@@ -1075,42 +1102,56 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 	qt = qt.NewChild("search indexDBs: timeRange=%v", &tr)
 	defer qt.Done()
 
-	var idbs []*indexDB
+	var idbts []indexDBWithType
 
 	ptws := s.tb.GetPartitions(tr)
 	defer s.tb.PutPartitions(ptws)
 	for _, ptw := range ptws {
-		idbs = append(idbs, ptw.pt.idb)
+		idbt := indexDBWithType{
+			idb: ptw.pt.idb,
+			t:   indexDBTypePt,
+		}
+		idbts = append(idbts, idbt)
 	}
 
 	legacyIDBs := s.getLegacyIndexDBs()
 	defer s.putLegacyIndexDBs(legacyIDBs)
-	idbs = legacyIDBs.appendTo(idbs)
+	idbts = legacyIDBs.appendTo(idbts)
 
-	if len(idbs) == 0 {
+	if len(idbts) == 0 {
 		qt.Printf("no indexDBs found")
 		var zeroValue T
 		return zeroValue, nil
 	}
 
-	data := make([]T, len(idbs))
-	errs := make([]error, len(idbs))
+	data := make([]T, len(idbts))
+	errs := make([]error, len(idbts))
 
-	if len(idbs) == 1 {
+	if len(idbts) == 1 {
 		// It is faster to process one indexDB without spawning goroutines.
-		idb := idbs[0]
-		searchTR := s.adjustTimeRange(tr, idb.tr)
-		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
-		data[0], errs[0] = search(qtChild, idb, searchTR)
+		idbt := idbts[0]
+		searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
+		qtChild := qt.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
+		data[0], errs[0] = search(qtChild, idbt.idb, searchTR)
 		qtChild.Done()
 	} else {
-		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbs))
+		qtSearch := qt.NewChild("search %d indexDBs in parallel", len(idbts))
 		var wg sync.WaitGroup
-		for i, idb := range idbs {
-			searchTR := s.adjustTimeRange(tr, idb.tr)
-			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idb.name, &searchTR)
+		for i, idbt := range idbts {
+			searchTR := s.adjustTimeRange(tr, idbt.idb.tr)
+			qtChild := qtSearch.NewChild("search indexDB %s: timeRange=%v", idbt, &searchTR)
 			wg.Go(func() {
-				data[i], errs[i] = search(qtChild, idb, searchTR)
+				// Intentionally repeat the same search code for each indexDB
+				// type so that profiles (cpu, mem, etc) could show how many
+				// resources have been consumed by each indexDB type.
+				switch idbt.t {
+				case indexDBTypePt:
+					data[i], errs[i] = search(qt, idbt.idb, searchTR)
+				case indexDBTypeLegacyPrev:
+					data[i], errs[i] = search(qt, idbt.idb, searchTR)
+				case indexDBTypeLegacyCurr:
+					data[i], errs[i] = search(qt, idbt.idb, searchTR)
+				}
 				qtChild.Done()
 			})
 		}

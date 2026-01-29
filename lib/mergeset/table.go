@@ -1366,6 +1366,7 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 	removedFileParts := 0
 
 	func() {
+		// Prevent from deadlock mentioned at https://github.com/VictoriaMetrics/VictoriaLogs/issues/1020#issuecomment-3763912067
 		tb.partsLock.Lock()
 		defer tb.partsLock.Unlock()
 
