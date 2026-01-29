@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/ce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadogsketches"
@@ -31,7 +32,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/zabbixconnector"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -99,7 +99,31 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	ce.InitDefaultCardinalityEstimator()
+	if ce.IsDefaultCardinalityEstimatorAggrEnabled() {
+		ce.InitDefaultCardinalityEstimatorAggr()
+
+		listenAddrs := *httpListenAddrs
+		if len(listenAddrs) == 0 {
+			listenAddrs = []string{":8480"}
+		}
+		go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{UseProxyProtocol: useProxyProtocol})
+
+		sig := procutil.WaitForSigterm()
+		logger.Infof("service received signal %s", sig)
+
+		logger.Infof("gracefully shutting down http service at %q", listenAddrs)
+		startTime := time.Now()
+		if err := httpserver.Stop(listenAddrs); err != nil {
+			logger.Fatalf("cannot stop http service: %s", err)
+		}
+		logger.Infof("successfully shut down http service in %.3f seconds", time.Since(startTime).Seconds())
+
+		return
+	}
+
+	if *ce.EstimatorDefaultEnabled {
+		ce.InitDefaultCardinalityEstimator()
+	}
 
 	logger.Infof("initializing netstorage for storageNodes %s...", *storageNodes)
 	startTime := time.Now()
@@ -193,10 +217,19 @@ func main() {
 
 	relabel.Stop()
 
-	logger.Infof("shutting down cardinality estimator...")
-	startTime = time.Now()
-	ce.MustStopDefaultCardinalityEstimator()
-	logger.Infof("successfully stopped cardinality estimator in %.3f seconds", time.Since(startTime).Seconds())
+	if *ce.EstimatorDefaultEnabled {
+		logger.Infof("shutting down cardinality estimator...")
+		startTime = time.Now()
+		ce.MustStopDefaultCardinalityEstimator()
+		logger.Infof("successfully stopped cardinality estimator in %.3f seconds", time.Since(startTime).Seconds())
+	}
+
+	if ce.IsDefaultCardinalityEstimatorAggrEnabled() {
+		logger.Infof("shutting down cardinality estimator aggregator...")
+		startTime = time.Now()
+		ce.MustStopDefaultCardinalityEstimatorAggr()
+		logger.Infof("successfully stopped cardinality estimator aggregator in %.3f seconds", time.Since(startTime).Seconds())
+	}
 
 	logger.Infof("the vminsert has been stopped")
 }
@@ -415,7 +448,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "ce/binary":
 		ce.HandleCeGetBinary(w, r)
 		return true
-	case "ce/configure":
+	case "ce/updateResetSchedule":
 		ce.HandleUpdateCeResetSchedule(w, r)
 		return true
 	case "ce/estimate":
@@ -424,6 +457,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "ce/reset":
 		ce.HandleCeReset(w, r)
 		return true
+	case "ceaggr/binary":
+		ce.HandleCeAggrGetBinary(w, r)
+		return true
+	case "ceaggr/estimate":
+		ce.HandleCeAggrGetCardinality(w, r)
+		return true
+
 	default:
 		// This is not our link
 		return false

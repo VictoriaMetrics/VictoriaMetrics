@@ -21,6 +21,9 @@ var (
 
 const (
 	CE_MAX_SHARDS = 64
+
+	CE_DEFAULT_FIXED_LABEL_1 = "job"
+	CE_DEFAULT_FIXED_LABEL_2 = "region"
 )
 
 type CardinalityEstimator struct {
@@ -32,16 +35,13 @@ type CardinalityEstimator struct {
 		Estimators    map[string]*MetricCardinalityEstimator
 		InsertCounter *metrics.Counter
 	}
-	SampleRate int
-
 	InsertSequences [][]int
+	Allocator       *Allocator
 
-	// READONLY FOR PUBLIC USE
-	Allocator *Allocator
-}
-
-func NewCardinalityEstimator() *CardinalityEstimator {
-	return NewCardinalityEstimatorWithSettings(CE_MAX_SHARDS, math.MaxUint64, 1)
+	SampleRate   int    // Sampling rate for inserts. 1 == no sampling, 2 == 1/2 sampling, 3 == 1/3 sampling  etc.
+	FixedLabel1  string // First fixed label for cardinality estimation.
+	FixedLabel2  string // Second fixed label for cardinality estimation.
+	MaxHllsInuse int    // Maximum number of HLLs to have inuse. Primarily used to avoid OOMs.
 }
 
 // CardinalityEstimator provides a concurrency-safe API for inserting timeseries and estimating cardinalities, across all metrics.
@@ -53,16 +53,8 @@ func NewCardinalityEstimator() *CardinalityEstimator {
 // Why Shards?
 // To optimize for throughput, we need some mechanism to partition the workload across parallel threads. We use sharding by MetricName to achieve this.
 // For performance reasons, we avoid using channels here as they become expensive compared to other synchronization primitives when called very frequently.
-func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64, sampleRate int) *CardinalityEstimator {
-	if shards <= 0 {
-		log.Panicf("BUG: invalid estimator shards value %d, must be > 0", shards)
-	}
-	if sampleRate <= 0 {
-		log.Panicf("BUG: invalid estimator sampleRate value %d, must be > 0", sampleRate)
-	}
-	if shards > CE_MAX_SHARDS {
-		log.Panicf("BUG: too many estimator shards: %d; max allowed is %d", shards, CE_MAX_SHARDS)
-	}
+func NewCardinalityEstimator(opts ...EstimatorOption) *CardinalityEstimator {
+	shards := CE_MAX_SHARDS
 
 	ret := &CardinalityEstimator{
 		Shards: make([]*struct {
@@ -70,10 +62,22 @@ func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64, sample
 			Estimators    map[string]*MetricCardinalityEstimator
 			InsertCounter *metrics.Counter
 		}, shards),
-		SampleRate:      sampleRate,
 		InsertSequences: make([][]int, 10_000),
-		Allocator:       NewAllocator(maxHllsInuse),
+		Allocator:       nil,
+
+		SampleRate:   1,
+		FixedLabel1:  CE_DEFAULT_FIXED_LABEL_1,
+		FixedLabel2:  CE_DEFAULT_FIXED_LABEL_2,
+		MaxHllsInuse: math.MaxInt,
 	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(ret)
+	}
+
+	// initialize allocator
+	ret.Allocator = NewAllocator(uint64(ret.MaxHllsInuse))
 
 	// intialize shards
 	for i := range ret.Shards {
@@ -84,7 +88,7 @@ func NewCardinalityEstimatorWithSettings(shards int, maxHllsInuse uint64, sample
 		}{
 			Lock:          &sync.Mutex{},
 			Estimators:    make(map[string]*MetricCardinalityEstimator),
-			InsertCounter: metrics.GetOrCreateCounter(fmt.Sprintf("ce_timeseries_inserted_by_shard_total{shard=\"%d\"}", i)),
+			InsertCounter: metrics.GetOrCreateCounter(fmt.Sprintf("vm_ce_timeseries_inserted_by_shard_total{shard=\"%d\"}", i)),
 		}
 	}
 
@@ -320,5 +324,39 @@ func (ce *CardinalityEstimator) RandomShardIterator() func(yield func(int) bool)
 				return
 			}
 		}
+	}
+}
+
+type EstimatorOption func(*CardinalityEstimator)
+
+func WithEstimatorMaxHllsInuse(maxHllsInuse uint64) EstimatorOption {
+	if maxHllsInuse <= 0 {
+		log.Panicf("BUG: invalid maxHllsInuse value %d, must be > 0", maxHllsInuse)
+	}
+
+	return func(ce *CardinalityEstimator) {
+		ce.Allocator = NewAllocator(maxHllsInuse)
+	}
+}
+
+func WithEstimatorSampleRate(sampleRate int) EstimatorOption {
+	if sampleRate <= 0 {
+		log.Panicf("BUG: invalid estimator sampleRate value %d, must be > 0", sampleRate)
+	}
+
+	return func(ce *CardinalityEstimator) {
+		ce.SampleRate = sampleRate
+	}
+}
+
+func WithEstimatorFixedLabel1(fixedLabel1 string) EstimatorOption {
+	return func(ce *CardinalityEstimator) {
+		ce.FixedLabel1 = fixedLabel1
+	}
+}
+
+func WithEstimatorFixedLabel2(fixedLabel2 string) EstimatorOption {
+	return func(ce *CardinalityEstimator) {
+		ce.FixedLabel2 = fixedLabel2
 	}
 }

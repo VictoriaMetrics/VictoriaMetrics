@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	metricEstimatorsCreated = metrics.NewCounter("ce_metric_estimators_created_total")
+	metricEstimatorsCreated = metrics.NewCounter("vm_ce_metric_estimators_created_total")
 )
 
 // An HLL counts the number of distinct elements in a stream. Given a stream of timeseries, we are interested in the cardinality of the

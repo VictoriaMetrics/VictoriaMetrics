@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/ce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce/ceinsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"

@@ -53,9 +53,9 @@ func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries
 			case "__name__":
 				m.MetricName = label.Value
 				m.ShardIdx = estimator.ShardIdx(label.Value)
-			case *ce.EstimatorFixedLabel1:
+			case estimator.FixedLabel1:
 				m.FixedLabelValue1 = label.Value
-			case *ce.EstimatorFixedLabel2:
+			case estimator.FixedLabel2:
 				m.FixedLabelValue2 = label.Value
 			}
 		}
