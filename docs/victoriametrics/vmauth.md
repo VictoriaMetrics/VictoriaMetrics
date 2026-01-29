@@ -738,7 +738,7 @@ See also [request body buffering](https://docs.victoriametrics.com/victoriametri
 
 ## Request body buffering
 
-`vmauth` can buffer request bodies before proxying the requests to backends. This prevent slow-writing clients from occupying connections to backends.
+`vmauth` can buffer request bodies {{% available_from "#" %}} before proxying the requests to backends. This prevent slow-writing clients from occupying connections to backends.
 This is especially important when clients send requests over unreliable or low-bandwidth networks (for example, [IoT](https://en.wikipedia.org/wiki/Internet_of_things) devices over EDGE networks),
 where slow uploads can exhaust concurrency limits, increase latency, reduce ingestion rate, and trigger `429 Too Many Requests` responses even when backend resources are not saturated.
 
