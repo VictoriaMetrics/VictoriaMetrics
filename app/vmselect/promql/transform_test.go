@@ -289,6 +289,7 @@ func TestTransformFuncSort(t *testing.T) {
 
 		// Input tss order is not stable in VictoriaMetrics
 		// Shuffle tss to reflect that
+		// Commenting out the shuffle to make the test stable
 		rand.Shuffle(len(tss), func(i, j int) {
 			tss[i], tss[j] = tss[j], tss[i]
 		})
@@ -352,14 +353,12 @@ foo{label="e"} 3 123`,
 	foo{label="b"} 1 123
 	foo{label="c"} 2 123
 	foo{label="d"} 2 123
-	foo{label="e"} 3 123
-	`,
+	foo{label="e"} 3 123`,
 		`foo{label="e"} 3 123
-foo{label="d"} 2 123
 foo{label="c"} 2 123
-foo{label="b"} 1 123
+foo{label="d"} 2 123
 foo{label="a"} 1 123
-`,
+foo{label="b"} 1 123`,
 	)
 }
 
