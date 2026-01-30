@@ -107,8 +107,8 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 		}
 	}
 
-	fmt.Fprintf(w, `],"topByAvgMemoryBytesConsumption":[`)
-	topByAvgMemoryConsumption := qst.getTopByAvgMemoryBytesConsumption(topN, maxLifetime)
+	fmt.Fprintf(w, `],"topByAvgMemoryUsage":[`)
+	topByAvgMemoryConsumption := qst.getTopByAvgMemoryUsage(topN, maxLifetime)
 	for i, r := range topByAvgMemoryConsumption {
 		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"avgMemoryBytes":%d,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.memoryUsage, r.count)
 		if i+1 < len(topByAvgMemoryConsumption) {
@@ -283,7 +283,7 @@ type queryStatByMemory struct {
 	count         int
 }
 
-func (qst *queryStatsTracker) getTopByAvgMemoryBytesConsumption(topN int, maxLifetime time.Duration) []queryStatByMemory {
+func (qst *queryStatsTracker) getTopByAvgMemoryUsage(topN int, maxLifetime time.Duration) []queryStatByMemory {
 	currentTime := time.Now()
 	qst.mu.Lock()
 	type countSum struct {
