@@ -121,7 +121,8 @@ func (mlr *MultiLineRegex) MarshalYAML() (any, error) {
 
 // ParsedConfigs represents parsed relabel configs.
 type ParsedConfigs struct {
-	prcs []*parsedRelabelConfig
+	prcs   []*parsedRelabelConfig
+	ifSize int
 }
 
 // Len returns the number of relabel configs in pcs.
@@ -152,6 +153,26 @@ func (pcs *ParsedConfigs) String() string {
 		a = append(a, s)
 	}
 	return strings.Join(a, "")
+}
+
+// GetIfFilterSize returns the number of filters in all `if` expressions in pcs.
+func (pcs *ParsedConfigs) GetIfFilterSize() int {
+
+	if pcs == nil {
+		return 0
+	}
+	//pre-computed
+	if pcs.ifSize != 0 {
+		return pcs.ifSize
+	}
+	total := 0
+	for _, prc := range pcs.prcs {
+		if prc.If != nil {
+			total += prc.If.Len()
+		}
+	}
+	pcs.ifSize = total
+	return total
 }
 
 // LoadRelabelConfigs loads relabel configs from the given path.
