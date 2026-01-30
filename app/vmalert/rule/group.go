@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -756,6 +757,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		return fmt.Errorf("rule %q: failed to execute: %w", r, err)
 	}
 
+	var errG vmalertutil.ErrGroup
 	if e.Rw != nil {
 		pushToRW := func(tss []prompb.TimeSeries) error {
 			var lastErr error
@@ -767,20 +769,26 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 			return lastErr
 		}
 		if err := pushToRW(tss); err != nil {
-			return err
+			errG.Add(err)
 		}
 	}
 
 	ar, ok := r.(*AlertingRule)
 	if !ok {
-		return nil
+		return errG.Err()
 	}
 
 	alerts := ar.alertsToSend(resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
-		return nil
+		return errG.Err()
 	}
 
-	errGr := notifier.Send(ctx, alerts, e.notifierHeaders)
-	return errGr.Err()
+	notifierErr := notifier.Send(ctx, alerts, e.notifierHeaders)
+	for err := range notifierErr {
+		if err != nil {
+			errG.Add(fmt.Errorf("rule %q: notifier failure: %w", r, err))
+		}
+	}
+
+	return errG.Err()
 }

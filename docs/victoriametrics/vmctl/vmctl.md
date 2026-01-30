@@ -169,6 +169,71 @@ see `--vm-concurrency` flag.
 Please note, you can also use [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
+### Monitoring the migration process
+
+`vmctl` can push internal metrics {{% available_from "#" %}} to a remote storage for monitoring migration progress and performance.
+This is especially useful for long-running migrations where you want to track progress, detect issues,
+or build dashboards to visualize the migration status.
+
+Example usage with VictoriaMetrics as the metrics destination:
+
+```sh
+./vmctl influx \
+  --influx-addr=http://localhost:8086 \
+  --influx-database=mydb \
+  --vm-addr=http://localhost:8428 \
+  --pushmetrics.url=http://localhost:8428/api/v1/import/prometheus \
+  --pushmetrics.extraLabel='job="vmctl"' \
+  --pushmetrics.extraLabel='instance="migration-1"'
+```
+
+#### Available metrics
+
+The following metrics are exposed by `vmctl`:
+
+General metrics (available for all migration modes):
+
+| Metric | Description |
+|--------|-------------|
+| `vmctl_backoff_retries_total` | Total number of retry attempts across all operations |
+| `vmctl_limiter_bytes_processed_total` | Total bytes processed through rate limiter (when `--vm-rate-limit` is set) |
+| `vmctl_limiter_throttle_events_total` | Number of times rate limiting caused a pause |
+
+Mode-specific metrics:
+
+Each migration mode exposes its own set of metrics with the mode name embedded in the metric name:
+
+| Mode | Metrics |
+|------|---------|
+| `influx` | `vmctl_influx_migration_series_total`, `vmctl_influx_migration_series_processed`, `vmctl_influx_migration_errors_total` |
+| `prometheus` | `vmctl_prometheus_migration_blocks_total`, `vmctl_prometheus_migration_blocks_processed`, `vmctl_prometheus_migration_errors_total` |
+| `opentsdb` | `vmctl_opentsdb_migration_series_total`, `vmctl_opentsdb_migration_series_processed`, `vmctl_opentsdb_migration_errors_total` |
+| `remote-read` | `vmctl_remote_read_migration_ranges_total`, `vmctl_remote_read_migration_ranges_processed`, `vmctl_remote_read_migration_errors_total` |
+| `vm-native` | `vmctl_vm_native_migration_metrics_total`, `vmctl_vm_native_migration_metrics_processed`, `vmctl_vm_native_migration_requests_planned`, `vmctl_vm_native_migration_requests_completed`, `vmctl_vm_native_migration_tenants_total`, `vmctl_vm_native_migration_tenants_processed`, `vmctl_vm_native_migration_bytes_transferred_total`, `vmctl_vm_native_migration_errors_total` |
+
+#### Example PromQL queries
+
+Monitor migration progress:
+```promql
+# Migration completion percentage for influx mode
+vmctl_influx_migration_series_processed / vmctl_influx_migration_series_total * 100
+
+# Migration completion percentage for vm-native mode
+vmctl_vm_native_migration_metrics_processed / vmctl_vm_native_migration_metrics_total * 100
+
+# Retry rate
+rate(vmctl_backoff_retries_total[5m])
+
+# Rate limiter throttling events per second
+rate(vmctl_limiter_throttle_events_total[5m])
+
+# Data transfer speed in bytes per second (when rate limiting is enabled)
+rate(vmctl_limiter_bytes_processed_total[5m])
+
+# Data transfer speed in MB per second for vm-native mode
+rate(vmctl_vm_native_migration_bytes_transferred_total[5m]) / 1Mb
+```
+
 ## Verifying exported blocks from VictoriaMetrics
 
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via
