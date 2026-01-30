@@ -205,7 +205,7 @@ func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr g
 			select {
 			case seriesCh <- s:
 			case <-t.C:
-				logger.Errorf("reach timeout when processing the %s (full query: %s), it can be due to the amount of storageNodes configured at vmselect is more than vmselect’s CPU count "+
+				logger.Errorf("reach timeout when processing the %s (full query: %s), it can be due to the amount of storageNodes configured at vmselect is more than vmselect’s available CPU count "+
 					"or vmselect is heavy loaded. Consider increasing `-search.maxQueryDuration` or `timeout` parameter in the query.",
 					expr.AppendString(nil), ec.originalQuery)
 			}
