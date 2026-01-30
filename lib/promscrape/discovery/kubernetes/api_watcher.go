@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -286,7 +285,6 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 
 func newHTTPTransport(enableHTTP2 bool) *http.Transport {
 	tr := httputil.NewTransport(enableHTTP2, "vm_promscrape_discovery_kubernetes")
-	tr.DialContext = netutil.Dialer.DialContext
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.IdleConnTimeout = *apiServerTimeout
 	tr.MaxIdleConnsPerHost = 100
