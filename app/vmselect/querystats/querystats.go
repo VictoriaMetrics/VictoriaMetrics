@@ -110,7 +110,7 @@ func (qst *queryStatsTracker) writeJSONQueryStats(w io.Writer, topN int, maxLife
 	fmt.Fprintf(w, `],"topByAvgMemoryBytesConsumption":[`)
 	topByAvgMemoryConsumption := qst.getTopByAvgMemoryBytesConsumption(topN, maxLifetime)
 	for i, r := range topByAvgMemoryConsumption {
-		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"avgMemoryBytes":%d,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.memoryEstimatedBytes, r.count)
+		fmt.Fprintf(w, `{"query":%s,"timeRangeSeconds":%d,"avgMemoryBytes":%d,"count":%d}`, stringsutil.JSONString(r.query), r.timeRangeSecs, r.memoryUsage, r.count)
 		if i+1 < len(topByAvgMemoryConsumption) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -277,10 +277,10 @@ func (qst *queryStatsTracker) getTopBySumDuration(topN int, maxLifetime time.Dur
 }
 
 type queryStatByMemory struct {
-	query                string
-	timeRangeSecs        int64
-	memoryEstimatedBytes int64
-	count                int
+	query         string
+	timeRangeSecs int64
+	memoryUsage   int64
+	count         int
 }
 
 func (qst *queryStatsTracker) getTopByAvgMemoryBytesConsumption(topN int, maxLifetime time.Duration) []queryStatByMemory {
@@ -296,7 +296,7 @@ func (qst *queryStatsTracker) getTopByAvgMemoryBytesConsumption(topN int, maxLif
 			k := r.key()
 			ks := m[k]
 			ks.count++
-			ks.sum += r.memoryEstimatedBytes
+			ks.sum += r.memoryUsage
 			m[k] = ks
 		}
 	}
@@ -305,14 +305,14 @@ func (qst *queryStatsTracker) getTopByAvgMemoryBytesConsumption(topN int, maxLif
 	var a []queryStatByMemory
 	for k, ks := range m {
 		a = append(a, queryStatByMemory{
-			query:                k.query,
-			timeRangeSecs:        k.timeRangeSecs,
-			memoryEstimatedBytes: ks.sum / int64(ks.count),
-			count:                ks.count,
+			query:         k.query,
+			timeRangeSecs: k.timeRangeSecs,
+			memoryUsage:   ks.sum / int64(ks.count),
+			count:         ks.count,
 		})
 	}
 	sort.Slice(a, func(i, j int) bool {
-		return a[i].memoryEstimatedBytes > a[j].memoryEstimatedBytes
+		return a[i].memoryUsage > a[j].memoryUsage
 	})
 	if len(a) > topN {
 		a = a[:topN]
