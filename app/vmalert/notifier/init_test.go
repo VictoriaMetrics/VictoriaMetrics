@@ -205,7 +205,9 @@ alert_relabel_configs:
 		},
 	}
 	errG := Send(context.Background(), firingAlerts, nil)
-	if errG.Err() != nil {
-		t.Fatalf("unexpected error when sending alerts: %s", err)
+	for err := range errG {
+		if err != nil {
+			t.Errorf("unexpected error when sending alerts: %s", err)
+		}
 	}
 }
