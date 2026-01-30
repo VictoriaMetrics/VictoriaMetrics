@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 )
@@ -255,4 +256,50 @@ func TestCalculateMaxMetricsLimitByResource(t *testing.T) {
 	f(0, int(math.Round(4*1024*1024*1024*0.4)), 2e9)
 	f(4, 0, 0)
 
+}
+
+func TestGetExportParamsDefaultTimeRange(t *testing.T) {
+	// Test that getExportParams properly handles missing start parameter
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10326
+
+	f := func(urlStr string, startExpected int64) {
+		t.Helper()
+		r, err := http.NewRequest(http.MethodGet, urlStr, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in NewRequest(%q): %s", urlStr, err)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("unexpected error in ParseForm: %s", err)
+		}
+
+		now := time.Now()
+		cp, err := getExportParams(r, now)
+		if err != nil {
+			t.Fatalf("unexpected error in getExportParams: %s", err)
+		}
+
+		if startExpected == -1 {
+			// When start is not provided, it should be adjusted to end - defaultStep
+			// and should NOT be 0
+			if cp.start == 0 {
+				t.Fatalf("expected start to be adjusted from 0, but got 0")
+			}
+			expectedStart := cp.end - defaultStep
+			if cp.start != expectedStart {
+				t.Fatalf("unexpected start; got %d; want %d", cp.start, expectedStart)
+			}
+		} else {
+			// When start is explicitly provided, verify it matches expected value
+			if cp.start != startExpected {
+				t.Fatalf("unexpected start; got %d; want %d", cp.start, startExpected)
+			}
+		}
+	}
+
+	// Test: missing start parameter should trigger adjustment (use -1 as sentinel)
+	f("http://localhost/api/v1/export?match[]={__name__!=\"\"}", -1)
+
+	// Test: with explicit start parameter (Unix timestamp in seconds: 2024-01-01 00:00:00 UTC)
+	// The value is converted to milliseconds internally
+	f("http://localhost/api/v1/export?match[]={__name__!=\"\"}&start=1704067200", 1704067200*1000)
 }
