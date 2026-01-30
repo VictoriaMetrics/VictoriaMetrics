@@ -2,9 +2,6 @@
 copy-metricsql-docs:
 	cp docs/victoriametrics/MetricsQL.md app/vmui/packages/vmui/src/assets/MetricsQL.md
 
-vmui-package-base-image:
-	docker build -t vmui-builder-image -f app/vmui/Dockerfile-build ./app/vmui
-
 vmui-run-npm-command: vmui-package-base-image
 	docker run --rm \
 		--user $(shell id -u):$(shell id -g) \
