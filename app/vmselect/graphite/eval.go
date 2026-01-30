@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphiteql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -181,7 +181,7 @@ func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr g
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
-	seriesCh := make(chan *series, cgroup.AvailableCPUs())
+	seriesCh := make(chan *series)
 	errCh := make(chan error, 1)
 	go func() {
 		err := rss.RunParallel(nil, func(rs *netstorage.Result, _ uint) error {
@@ -196,12 +196,17 @@ func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr g
 				pathExpression: safePathExpression(expr),
 			}
 			s.summarize(aggrAvg, ec.startTime, ec.endTime, ec.storageStep, 0)
-			t := timerpool.Get(30 * time.Second)
+
+			// A negative or zero duration will cause timer.C to return immediately
+			remainingTimeout := ec.deadline.Deadline() - fasttime.UnixTimestamp()
+			t := timerpool.Get(time.Duration(remainingTimeout) * time.Second)
 			defer timerpool.Put(t)
+
 			select {
 			case seriesCh <- s:
 			case <-t.C:
-				logger.Errorf("resource leak when processing the %s (full query: %s); please report this error to VictoriaMetrics developers",
+				logger.Errorf("reach timeout when processing the %s (full query: %s), it can be due to the amount of storageNodes configured at vmselect is more than vmselect’s available CPU count "+
+					"or vmselect is heavy loaded. Consider increasing `-search.maxQueryDuration` or `timeout` parameter in the query.",
 					expr.AppendString(nil), ec.originalQuery)
 			}
 			return nil
