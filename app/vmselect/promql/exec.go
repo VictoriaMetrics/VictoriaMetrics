@@ -44,7 +44,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 				return
 			}
 			at := ec.AuthTokens[0]
-			querystats.RegisterQuery(at.AccountID, at.ProjectID, q, ec.End-ec.Start, startTime)
+			querystats.RegisterQuery(at.AccountID, at.ProjectID, q, ec.End-ec.Start, startTime, ec.QueryStats.memoryUsage())
 		}()
 	}
 
