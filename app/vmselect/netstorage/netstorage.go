@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -624,21 +625,21 @@ func equalSamplesPrefix(a, b *sortBlock) int {
 }
 
 func equalTimestampsPrefix(a, b []int64) int {
-	for i, v := range a {
-		if i >= len(b) || v != b[i] {
+	for i := range min(len(a), len(b)) {
+		if a[i] != b[i] {
 			return i
 		}
 	}
-	return len(a)
+	return min(len(a), len(b))
 }
 
 func equalValuesPrefix(a, b []float64) int {
-	for i, v := range a {
-		if i >= len(b) || v != b[i] {
+	for i := range min(len(a), len(b)) {
+		if math.Float64bits(a[i]) != math.Float64bits(b[i]) {
 			return i
 		}
 	}
-	return len(a)
+	return min(len(a), len(b))
 }
 
 func binarySearchTimestamps(timestamps []int64, ts int64) int {
