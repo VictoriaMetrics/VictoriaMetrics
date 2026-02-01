@@ -36,7 +36,7 @@ type metricIDCache struct {
 func newMetricIDCache() *metricIDCache {
 	// Shards based on the number of CPUs are taken from
 	// lib/blockcache/blockcache.go.
-	rotationGroupSize := cgroup.AvailableCPUs()
+	rotationGroupSize := 1
 	rotationGroupCount := cgroup.AvailableCPUs()
 	if rotationGroupCount > 16 {
 		rotationGroupCount = 16
