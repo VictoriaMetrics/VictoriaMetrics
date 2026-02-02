@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly expose `kubernetes_sd` discovery network dialer metrics `vm_promscrape_discovery_kubernetes_conn_*`. See [#10382](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10382).
+
 ## [v1.135.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.135.0)
 
 Released at 2026-01-30
