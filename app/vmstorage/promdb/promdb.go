@@ -219,15 +219,15 @@ func getSearchTimeRange(sq *storage.SearchQuery) (int64, int64) {
 	return minTime, maxTime
 }
 
-func convertPromLabelsToMetricName(dst *storage.MetricName, labels []labels.Label) {
+func convertPromLabelsToMetricName(dst *storage.MetricName, ls labels.Labels) {
 	dst.Reset()
-	for _, label := range labels {
+	ls.Range(func(label labels.Label) {
 		if label.Name == "__name__" {
 			dst.MetricGroup = append(dst.MetricGroup[:0], label.Value...)
 		} else {
 			dst.AddTag(label.Name, label.Value)
 		}
-	}
+	})
 }
 
 func convertTagFiltersToMatchers(tfs []storage.TagFilter) ([]*labels.Matcher, error) {
