@@ -37,7 +37,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	if querystats.Enabled() {
 		startTime := time.Now()
 		defer func() {
-			querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
+			querystats.RegisterQuery(q, ec.End-ec.Start, startTime, ec.QueryStats.memoryUsage())
 			ec.QueryStats.addExecutionTimeMsec(startTime)
 		}()
 	}

@@ -50,6 +50,29 @@ func Init() {
 	}
 }
 
+type Config struct {
+	URLs               []string
+	Interval           time.Duration
+	ExtraLabels        []string
+	Headers            []string
+	DisableCompression bool
+}
+
+// InitWith must be called after logger.Init
+// Supersedes command-line flags related to pushmetrics and initializes pushmetrics with the given config.
+// This is needed for vmctl integration, see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10375
+func InitWith(c *Config) {
+	*pushURL = c.URLs
+	*pushExtraLabel = c.ExtraLabels
+	*pushHeader = c.Headers
+	*disableCompression = c.DisableCompression
+	if c.Interval > 0 {
+		*pushInterval = c.Interval
+	}
+
+	Init()
+}
+
 // Stop stops the periodic push of metrics.
 // It is important to stop the push of metrics before disposing resources
 // these metrics attached to. See related https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5548

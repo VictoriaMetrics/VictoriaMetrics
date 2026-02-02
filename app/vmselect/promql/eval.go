@@ -1713,6 +1713,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		return nil, err
 	}
 	defer rml.Put(uint64(rollupMemorySize))
+	qs.addMemoryUsage(rollupMemorySize)
 	qt.Printf("the rollup evaluation needs an estimated %d bytes of RAM for %d series and %d points per series (summary %d points)",
 		rollupMemorySize, timeseriesLen, pointsPerSeries, rollupPoints)
 

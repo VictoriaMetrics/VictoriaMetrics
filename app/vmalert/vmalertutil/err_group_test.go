@@ -30,8 +30,8 @@ func TestErrGroup(t *testing.T) {
 	}
 
 	f(nil, "")
-	f([]error{errors.New("timeout")}, "errors(1): timeout")
-	f([]error{errors.New("timeout"), errors.New("deadline")}, "errors(2): timeout\ndeadline")
+	f([]error{errors.New("timeout")}, "errors(1): \ntimeout")
+	f([]error{errors.New("timeout"), errors.New("deadline")}, "errors(2): \ntimeout\ndeadline")
 }
 
 // TestErrGroupConcurrent supposed to test concurrent

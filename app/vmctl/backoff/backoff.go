@@ -7,6 +7,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -55,6 +57,7 @@ func (b *Backoff) Retry(ctx context.Context, cb retryableFunc) (uint64, error) {
 			return attempt, err // fail fast if not recoverable
 		}
 		attempt++
+		retriesTotal.Inc()
 		backoff := float64(b.minDuration) * math.Pow(b.factor, float64(i))
 		dur := time.Duration(backoff)
 		logger.Errorf("got error: %s on attempt: %d; will retry in %v", err, attempt, dur)
@@ -74,3 +77,7 @@ func (b *Backoff) Retry(ctx context.Context, cb retryableFunc) (uint64, error) {
 	}
 	return attempt, fmt.Errorf("execution failed after %d retry attempts", b.retries)
 }
+
+var (
+	retriesTotal = metrics.NewCounter(`vmctl_backoff_retries_total`)
+)

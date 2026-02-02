@@ -15,10 +15,15 @@ USAGE:
    vmctl vm-native [command options]
 
 OPTIONS:
-   -s                              Whether to run in silent mode. If set to true no confirmation prompts will appear. (default: false)
-   --verbose                       Whether to enable verbosity in logs output. (default: false)
-   --disable-progress-bar          Whether to disable progress bar during the import. (default: false)
-   --vm-native-filter-match value  Time series selector to match series for export. For example, select {instance!="localhost"} will match all series with "instance" label different to "localhost".
+   -s                                                                 Whether to run in silent mode. If set to true no confirmation prompts will appear. (default: false)
+   --verbose                                                          Whether to enable verbosity in logs output. (default: false)
+   --disable-progress-bar                                             Whether to disable progress bar during the import. (default: false)
+   --pushmetrics.url value [ --pushmetrics.url value ]                Optional URL to push metrics. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics
+   --pushmetrics.interval value                                       Interval for pushing metrics to every -pushmetrics.url (default: 10s)
+   --pushmetrics.extraLabel value [ --pushmetrics.extraLabel value ]  Extra labels to add to pushed metrics. In case of collision, label value defined by flag will have priority. Flag can be set multiple times, to add few additional labels. For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
+   --pushmetrics.header value [ --pushmetrics.header value ]          Optional HTTP headers to add to pushed metrics. Flag can be set multiple times, to add few additional headers.
+   --pushmetrics.disableCompression                                   Whether to disable compression when pushing metrics. (default: false)
+   --vm-native-filter-match value                                     Time series selector to match series for export. For example, select {instance!="localhost"} will match all series with "instance" label different to "localhost".
        See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format (default: "{__name__!=\"\"}")
    --vm-native-filter-time-start value  The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
    --vm-native-filter-time-end value    The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats
@@ -51,7 +56,7 @@ OPTIONS:
    --vm-native-dst-ca-file value                      Optional path to TLS CA file to use for verifying connections to --vm-native-dst-addr. By default, system CA is used
    --vm-native-dst-server-name value                  Optional TLS server name to use for connections to --vm-native-dst-addr. By default, the server name from --vm-native-dst-addr is used
    --vm-native-dst-insecure-skip-verify               Whether to skip TLS certificate verification when connecting to --vm-native-dst-addr (default: false)
-   --vm-extra-label value [ --vm-extra-label value ]  Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flagwill have priority. Flag can be set multiple times, to add few additional labels.
+   --vm-extra-label value [ --vm-extra-label value ]  Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flag will have priority. Flag can be set multiple times, to add few additional labels.
    --vm-rate-limit value                              Optional data transfer rate limit in bytes per second.
       By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases. 
       Rate limit is applied per worker, see --vm-concurrency. (default: 0)
@@ -60,7 +65,7 @@ OPTIONS:
        TenantID will be appended automatically after discovering tenants from src. (default: false)
    --vm-concurrency value                    Number of workers concurrently performing import requests to VM (default: 2)
    --vm-native-disable-per-metric-migration  Defines whether to disable per-metric migration and migrate all data via one connection. In this mode, vmctl makes less export/import requests, but can't provide a progress bar or retry failed requests. (default: false)
-   --vm-native-disable-binary-protocol       Whether to use https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-json-line-format instead of https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format API.Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks.Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side. (default: false)
+   --vm-native-disable-binary-protocol       Whether to use https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-json-line-format instead of https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-export-data-in-native-format API. Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks. Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side. (default: false)
    --vm-native-backoff-retries value         How many export/import retries to perform before giving up. (default: 10)
    --vm-native-backoff-factor value          Factor to multiply the base duration after each failed export/import retry. Must be greater than 1.0 (default: 1.8)
    --vm-native-backoff-min-duration value    Minimum duration to wait before the first export/import retry. Each subsequent export/import retry will be multiplied by the '--vm-native-backoff-factor'. (default: 2s)

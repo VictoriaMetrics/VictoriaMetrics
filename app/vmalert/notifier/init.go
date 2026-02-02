@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -291,7 +290,7 @@ func GetTargets() map[TargetType][]Target {
 }
 
 // Send sends alerts to all active notifiers
-func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) *vmalertutil.ErrGroup {
+func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) chan error {
 	alertsToSend := make([]Alert, 0, len(alerts))
 	lblss := make([][]prompb.Label, 0, len(alerts))
 	// apply global relabel config first without modifying original alerts in alerts
@@ -304,17 +303,18 @@ func Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string
 		lblss = append(lblss, lbls)
 	}
 
-	errGr := new(vmalertutil.ErrGroup)
 	wg := sync.WaitGroup{}
 	activeNotifiers := getActiveNotifiers()
+	errCh := make(chan error, len(activeNotifiers))
+	defer close(errCh)
 	for i := range activeNotifiers {
 		nt := activeNotifiers[i]
 		wg.Go(func() {
 			if err := nt.Send(ctx, alertsToSend, lblss, notifierHeaders); err != nil {
-				errGr.Add(fmt.Errorf("failed to send alerts to addr %q: %w", nt.Addr(), err))
+				errCh <- fmt.Errorf("failed to send alerts to addr %q: %w", nt.Addr(), err)
 			}
 		})
 	}
 	wg.Wait()
-	return errGr
+	return errCh
 }

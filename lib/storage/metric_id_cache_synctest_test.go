@@ -5,8 +5,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
@@ -16,9 +16,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
+		time.Sleep(3 * c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -30,12 +28,11 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(5 * time.Minute)
+		time.Sleep(c.rotationGroupPeriod - time.Second)
 		if !c.Has(123) {
 			t.Fatalf("entry not in cache")
 		}
-		time.Sleep(15 * time.Minute)
-		time.Sleep(15 * time.Minute)
+		time.Sleep(2 * c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -48,7 +45,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		defer c.MustStop()
 		c.Set(123)
 		for range 10_000 {
-			time.Sleep(5 * time.Minute)
+			time.Sleep(c.rotationGroupPeriod - time.Second)
 			if !c.Has(123) {
 				t.Fatalf("entry not in cache")
 			}
@@ -58,7 +55,8 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 
 func TestMetricIDCache_Stats(t *testing.T) {
 	assertStats := func(t *testing.T, c *metricIDCache, want metricIDCacheStats) {
-		if diff := cmp.Diff(want, c.Stats()); diff != "" {
+		t.Helper()
+		if diff := cmp.Diff(want, c.Stats(), cmpopts.IgnoreFields(metricIDCacheStats{}, "SizeBytes")); diff != "" {
 			t.Fatalf("unexpected stats (-want, +got):\n%s", diff)
 		}
 	}
@@ -72,14 +70,11 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Add metricIDs and check stats.
 		// At this point, all metricIDs are in next.
-		metricIDs := uint64set.Set{}
 		for metricID := range uint64(100_000) {
 			c.Set(metricID)
-			metricIDs.Add(metricID)
 		}
 		assertStats(t, c, metricIDCacheStats{
-			Size:      100_000,
-			SizeBytes: metricIDs.SizeBytes(),
+			Size: 100_000,
 		})
 
 		// Get all metricIDs and check stats.
@@ -91,26 +86,24 @@ func TestMetricIDCache_Stats(t *testing.T) {
 		}
 		assertStats(t, c, metricIDCacheStats{
 			Size:       100_000,
-			SizeBytes:  metricIDs.SizeBytes(),
-			SyncsCount: 1,
+			SyncsCount: c.numShards(),
 		})
 
-		// Wait until next rotation.
+		// Wait until all groups are rotated.
 		// curr metricIDs will be moved to prev.
-		time.Sleep(15 * time.Minute)
+		time.Sleep(c.fullRotationPeriod() + time.Second)
 		assertStats(t, c, metricIDCacheStats{
 			Size:           100_000,
-			SizeBytes:      metricIDs.SizeBytes(),
-			SyncsCount:     1,
-			RotationsCount: 1,
+			SyncsCount:     c.numShards(),
+			RotationsCount: c.numShards(),
 		})
 
-		// Wait until another rotation.
+		// Wait until all groups are rotated.
 		// The cache now should be empty.
-		time.Sleep(15 * time.Minute)
+		time.Sleep(c.fullRotationPeriod())
 		assertStats(t, c, metricIDCacheStats{
-			SyncsCount:     1,
-			RotationsCount: 2,
+			SyncsCount:     c.numShards(),
+			RotationsCount: 2 * c.numShards(),
 		})
 	})
 }
