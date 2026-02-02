@@ -13,17 +13,6 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// End of support notice: Beginning October 1, 2025, Amazon S3 will stop returning
-// DisplayName . Update your applications to use canonical IDs (unique identifier
-// for Amazon Web Services accounts), Amazon Web Services account ID (12 digit
-// identifier) or IAM ARNs (full resource naming) as a direct replacement of
-// DisplayName .
-//
-// This change affects the following Amazon Web Services Regions: US East (N.
-// Virginia) Region, US West (N. California) Region, US West (Oregon) Region, Asia
-// Pacific (Singapore) Region, Asia Pacific (Sydney) Region, Asia Pacific (Tokyo)
-// Region, Europe (Ireland) Region, and South America (São Paulo) Region.
-//
 // This operation lists in-progress multipart uploads in a bucket. An in-progress
 // multipart upload is a multipart upload that has been initiated by the
 // CreateMultipartUpload request, but has not yet been completed or aborted.
@@ -109,6 +98,10 @@ import (
 // [ListParts]
 //
 // [AbortMultipartUpload]
+//
+// You must URL encode any signed header values that contain spaces. For example,
+// if your header value is my file.txt , containing two spaces after my , you must
+// URL encode this value to my%20%20file.txt .
 //
 // [Uploading Objects Using Multipart Upload]: https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html
 // [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
@@ -477,40 +470,7 @@ func (c *Client) addOperationListMultipartUploadsMiddlewares(stack *middleware.S
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

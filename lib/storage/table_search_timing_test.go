@@ -75,9 +75,8 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	timestamp.Store(uint64(startTimestamp))
 
 	var wg sync.WaitGroup
-	for k := 0; k < cgroup.AvailableCPUs(); k++ {
-		wg.Add(1)
-		go func(n int) {
+	for n := range cgroup.AvailableCPUs() {
+		wg.Go(func() {
 			rng := rand.New(rand.NewSource(int64(n)))
 			rows := make([]rawRow, rowsPerInsert)
 			value := float64(100)
@@ -94,8 +93,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 				}
 				tb.MustAddRows(rows)
 			}
-			wg.Done()
-		}(k)
+		})
 	}
 	wg.Wait()
 

@@ -6,7 +6,7 @@ build:
 sitemap:
   disable: true
 ---
-<!-- The file has to be manually updated during feature work in PR, make docs-update-flags command could be used peridically to ensure the flags in sync. -->
+<!-- The file should not be updated manually. Run make docs-update-flags while preparing a new release to sync flags in docs from actual binaries. -->
 ```shellhelp
 
 vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
@@ -124,15 +124,15 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentPerUserRequests int
-     The maximum number of concurrent requests vmauth can process per each configured user. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxQueueDuration and -maxConcurrentRequests command-line options and max_concurrent_requests option in per-user config (default 300)
+     The maximum number of concurrent requests vmauth can process per each configured user. Requests exceeding this limit are queued for up to -maxQueueDuration and then rejected with '429 Too Many Requests' http status code if the limit is still reached. This provides fairness and isolation between users, preventing a single user from consuming all the available resources. It works in conjunction with -maxConcurrentRequests, which sets the global limit across all users. This default can be overridden for individual users via max_concurrent_requests option in per-user config. See https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting (default 100)
   -maxConcurrentRequests int
-     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxQueueDuration, -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options (default 1000)
+     The maximum number of concurrent requests vmauth can process simultaneously. Requests exceeding this limit are queued for up to -maxQueueDuration and then rejected with '429 Too Many Requests' http status code if the limit is still reached. This protects vmauth itself from overloading and out-of-memory (OOM) failures. See also -maxConcurrentPerUserRequests and https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting (default 1000)
   -maxIdleConnsPerBackend int
-     The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
+     The maximum number of idle connections vmauth can open per each backend host (default 100)
   -maxQueueDuration duration
-     The maximum duration the request waits for execution when the number of concurrently executed requests reach -maxConcurrentRequests or -maxConcurrentPerUserRequests before returning '429 Too Many Requests' error. This allows graceful handling of short spikes in the number of concurrent requests (default 10s)
+     The maximum duration to wait before rejecting incoming requests if concurrency limit specified via -maxConcurrentRequests or -maxConcurrentPerUserRequests command-line flags is reached. Requests are rejected with '429 Too Many Requests' http status code if the limit is still reached after the -maxQueueDuration duration. This allows graceful handling of short spikes in concurrent requests. See https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting (default 10s)
   -maxRequestBodySizeToRetry size
-     The maximum request body size, which can be cached and re-tried at other backends. Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests
+     The maximum request body size to buffer in memory for potential retries at other backends. Request bodies larger than this size cannot be retried if the backend fails. Zero or negative value disables request body buffering and retries. See also -requestBufferSize
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
@@ -175,6 +175,9 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
      Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -removeXFFHTTPHeaderValue
      Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. Recommended when vmauth is exposed to the internet.
+  -requestBufferSize size
+     The size of the buffer for reading the request body before proxying the request to backends. This allows reducing the comsumption of backend resources when processing requests from clients connected via slow networks. Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 32768)
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)
   -retryStatusCodes array

@@ -13,10 +13,9 @@ interface LineTooltipHook {
   metrics: MetricResult[];
   series: uPlotSeries[];
   unit?: string;
-  isAnomalyView?: boolean;
 }
 
-const useLineTooltip = ({ u, metrics, series, unit, isAnomalyView }: LineTooltipHook) => {
+const useLineTooltip = ({ u, metrics, series, unit }: LineTooltipHook) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipIdx, setTooltipIdx] = useState({ seriesIdx: -1, dataIdx: -1 });
   const [stickyTooltips, setStickyToolTips] = useState<ChartTooltipProps[]>([]);
@@ -79,7 +78,7 @@ const useLineTooltip = ({ u, metrics, series, unit, isAnomalyView }: LineTooltip
       point,
       u: u,
       id: `${seriesIdx}_${dataIdx}`,
-      title: groups.size > 1 && !isAnomalyView ? `Query ${group}` : "",
+      title: groups.size > 1 ? `Query ${group}` : "",
       dates: [date ? dayjs(date * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT) : "-"],
       value: formatPrettyNumber(value, min, max),
       info: getMetricName(metricItem, seriesItem),
@@ -87,7 +86,7 @@ const useLineTooltip = ({ u, metrics, series, unit, isAnomalyView }: LineTooltip
       marker: `${seriesItem?.stroke}`,
       duplicateCount,
     };
-  }, [u, tooltipIdx, metrics, series, unit, isAnomalyView]);
+  }, [u, tooltipIdx, metrics, series, unit]);
 
   const handleClick = useCallback(() => {
     if (!showTooltip) return;

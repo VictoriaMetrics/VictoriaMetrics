@@ -718,7 +718,7 @@ users:
 `vmauth` responds with `429 Too Many Requests` HTTP error when the number of concurrent requests exceeds the configured limits for the duration
 exceeding the `-maxQueueDuration` command-line flag value.
 
-The following [metrics](#monitoring) related to concurrency limits are exposed by `vmauth`:
+The following [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring) related to concurrency limits are exposed by `vmauth`:
 
 * `vmauth_concurrent_requests_capacity` - the global limit on the number of concurrent requests `vmauth` can serve.
   It is set via `-maxConcurrentRequests` command-line flag.
@@ -733,6 +733,27 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 * `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
 * `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
+
+See also [request body buffering](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering).
+
+## Request body buffering
+
+`vmauth` can buffer request bodies {{% available_from "v1.135.0" %}} before proxying the requests to backends. This prevent slow-writing clients from occupying connections to backends.
+This is especially important when clients send requests over unreliable or low-bandwidth networks (for example, [IoT](https://en.wikipedia.org/wiki/Internet_of_things) devices over EDGE networks),
+where slow uploads can exhaust concurrency limits, increase latency, reduce ingestion rate, and trigger `429 Too Many Requests` responses even when backend resources are not saturated.
+
+Request body buffering can be configured with the `-requestBufferSize` command-line flag, which defines the maximum number of bytes to buffer from the request body
+before proxying the request to the backend. If buffering takes longer than the duration specified via `-maxQueueDuration` command-line flag, then the request is rejected.
+
+Request bodies are buffered before applying per-user [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting).
+
+The following [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring) related to request buffering are exposed by `vmauth`:
+
+* `vmauth_http_request_errors_total{reason="reject_slow_client"}` - the number of rejected requests because the request body couldn't be read during `-maxQueueDuration`.
+* `vmauth_buffer_request_body_duration_seconds` - the [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) for the request body buffering duration.
+  Use this metric to understand buffering performance and identify slow clients.
+
+See also [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limits).
 
 ## Backend TLS setup
 
@@ -1076,7 +1097,7 @@ It is recommended to protect the following endpoints with authKeys:
 
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
 * `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users couldn't get command-line flag values.
-* `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](#monitoring).
+* `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
 
 As an alternative, it's possible to serve internal API routes at the different listen address with command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "v1.111.0" %}}

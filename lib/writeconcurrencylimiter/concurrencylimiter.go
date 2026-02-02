@@ -39,7 +39,7 @@ type Reader struct {
 //
 // The PutReader() must be called when the returned Reader is no longer needed.
 func GetReader(r io.Reader) (*Reader, error) {
-	if err := incConcurrency(); err != nil {
+	if err := IncConcurrency(); err != nil {
 		return nil, err
 	}
 
@@ -60,18 +60,18 @@ func PutReader(r *Reader) {
 	r.r = nil
 	readerPool.Put(r)
 
-	decConcurrency()
+	DecConcurrency()
 }
 
 var readerPool sync.Pool
 
 // Read implements io.Reader.
 func (r *Reader) Read(p []byte) (int, error) {
-	decConcurrency()
+	DecConcurrency()
 
 	n, err := r.r.Read(p)
 
-	if errC := incConcurrency(); errC != nil {
+	if errC := IncConcurrency(); errC != nil {
 		return n, errC
 	}
 
@@ -94,7 +94,10 @@ var (
 	concurrencyLimitChOnce sync.Once
 )
 
-func incConcurrency() error {
+// IncConcurrency obtains a concurrency token from -maxConcurrentInserts.
+//
+// The obtained token must be returned back via DecConcurrency() call.
+func IncConcurrency() error {
 	concurrencyLimitChOnce.Do(initConcurrencyLimitCh)
 
 	select {
@@ -121,7 +124,8 @@ func incConcurrency() error {
 	}
 }
 
-func decConcurrency() {
+// DecConcurrency returns the token obtained via IncConcurrency(), so other goroutines could obtain it.
+func DecConcurrency() {
 	<-concurrencyLimitCh
 }
 

@@ -35,8 +35,8 @@ scrape_configs:
 After you created the `scrape.yaml` file, download and unpack [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the same directory:
 
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.133.0/victoria-metrics-linux-amd64-v1.133.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.133.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.134.0/victoria-metrics-linux-amd64-v1.134.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.134.0.tar.gz
 ```
 
 Then start VictoriaMetrics and instruct it to scrape targets defined in `scrape.yaml` and save scraped metrics
@@ -150,8 +150,8 @@ Then start [single-node VictoriaMetrics](https://docs.victoriametrics.com/victor
 
 ```yaml
 # Download and unpack single-node VictoriaMetrics
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.133.0/victoria-metrics-linux-amd64-v1.133.0.tar.gz
-tar xzf victoria-metrics-linux-amd64-v1.133.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.134.0/victoria-metrics-linux-amd64-v1.134.0.tar.gz
+tar xzf victoria-metrics-linux-amd64-v1.134.0.tar.gz
 
 # Run single-node VictoriaMetrics with the given scrape.yaml
 ./victoria-metrics-prod -promscrape.config=scrape.yaml
@@ -322,16 +322,11 @@ scrape_configs:
   bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
   tls_config:
     ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-
+  metrics_path: /metrics/cadvisor
   relabel_configs:
-    # Cadvisor metrics are better to scrape from Kubernetes API server proxy.
     # There is no need to add container, pod and node labels to the scraped metrics,
     # since cadvisor adds these labels on itself.
     #
-  - source_labels: [__meta_kubernetes_node_name]
-    target_label: __address__
-    regex: '(.+)'
-    replacement: https://kubernetes.default.svc/api/v1/nodes/$1/proxy/metrics/cadvisor
   - source_labels: [__meta_kubernetes_node_name]
     target_label: instance
 ```

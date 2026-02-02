@@ -627,6 +627,21 @@ type BlobHTTPHeaders struct {
 	BlobContentType *string
 }
 
+// BlobModifiedAccessConditions contains a group of parameters for the BlobClient.GetTags method.
+type BlobModifiedAccessConditions struct {
+	// Specify an ETag value to operate only on blobs with a matching value.
+	IfMatch *azcore.ETag
+
+	// Specify this header value to operate only on a blob if it has been modified since the specified date/time.
+	IfModifiedSince *time.Time
+
+	// Specify an ETag value to operate only on blobs without a matching value.
+	IfNoneMatch *azcore.ETag
+
+	// Specify this header value to operate only on a blob if it has not been modified since the specified date/time.
+	IfUnmodifiedSince *time.Time
+}
+
 // BlockBlobClientCommitBlockListOptions contains the optional parameters for the BlockBlobClient.CommitBlockList method.
 type BlockBlobClientCommitBlockListOptions struct {
 	// Optional. Used to set blob tags in various blob operations.
@@ -990,6 +1005,10 @@ type ContainerClientListBlobFlatSegmentOptions struct {
 	// analytics logging is enabled.
 	RequestID *string
 
+	// Specifies the relative path to list paths from. For non-recursive list, only one entity level is supported; For recursive
+	// list, multiple entity levels are supported. (Inclusive)
+	StartFrom *string
+
 	// The timeout parameter is expressed in seconds. For more information, see Setting Timeouts for Blob Service Operations.
 	// [https://learn.microsoft.com/rest/api/storageservices/setting-timeouts-for-blob-service-operations]
 	Timeout *int32
@@ -1021,6 +1040,10 @@ type ContainerClientListBlobHierarchySegmentOptions struct {
 	// Provides a client-generated, opaque value with a 1 KB character limit that is recorded in the analytics logs when storage
 	// analytics logging is enabled.
 	RequestID *string
+
+	// Specifies the relative path to list paths from. For non-recursive list, only one entity level is supported; For recursive
+	// list, multiple entity levels are supported. (Inclusive)
+	StartFrom *string
 
 	// The timeout parameter is expressed in seconds. For more information, see Setting Timeouts for Blob Service Operations.
 	// [https://learn.microsoft.com/rest/api/storageservices/setting-timeouts-for-blob-service-operations]

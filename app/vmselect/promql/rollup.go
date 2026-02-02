@@ -534,7 +534,10 @@ type rollupFuncArg struct {
 	timestamps []int64
 
 	// Real value preceding values.
-	// Is populated if preceding value is within the rc.LookbackDelta.
+	// Is populated if the preceding sample falls within the rc.LookbackDelta range, or if rc.LookbackDelta is not set.
+	//
+	// It provides an additional check and value for rollup functions such as increase(), changes(),
+	// when the prevValue is NaN due to a gap or a small lookback window.
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -713,7 +716,11 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
-	// Use step as the scrape interval for instant queries (when start == end).
+	// Set maxPrevInterval for subsequent rfa.prevValue calculations in rollupFunc:
+	// For instant queries, use rc.Step directly as maxPrevInterval.
+	// For range queries, rc.Step is typically too small to serve as the lookback window between two rollup points.
+	// Instead, estimate the scrape interval from raw sample timestamps (using the 0.6 quantile of the last 20 intervals)
+	// and slightly inflate the scrape interval to set maxPrevInterval, allowing for some tolerance to jitter.
 	maxPrevInterval := rc.Step
 	if rc.Start < rc.End {
 		scrapeInterval := getScrapeInterval(timestamps, rc.Step)
@@ -729,22 +736,21 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 	}
 	window := rc.Window
+	// Adjust lookbehind window only if it isn't set explicitly, e.g. rate(foo).
+	// In the case of missing lookbehind window it should be adjusted in order to return non-empty graph
+	// when the window doesn't cover at least two raw samples (this is what most users expect).
+	//
+	// If the user explicitly sets the lookbehind window to some fixed value, e.g. rate(foo[1s]),
+	// then it is expected he knows what he is doing. Do not adjust the lookbehind window then.
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3483
 	if window <= 0 {
 		window = rc.Step
 		if rc.MayAdjustWindow && window < maxPrevInterval {
-			// Adjust lookbehind window only if it isn't set explicitly, e.g. rate(foo).
-			// In the case of missing lookbehind window it should be adjusted in order to return non-empty graph
-			// when the window doesn't cover at least two raw samples (this is what most users expect).
-			//
-			// If the user explicitly sets the lookbehind window to some fixed value, e.g. rate(foo[1s]),
-			// then it is expected he knows what he is doing. Do not adjust the lookbehind window then.
-			//
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3483
 			window = maxPrevInterval
 		}
+		// Artificial window cannot exceed explicit rc.LookbackDelta, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784
 		if rc.isDefaultRollup && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
-			// Implicit window exceeds -search.maxStalenessInterval, so limit it to -search.maxStalenessInterval
-			// according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784
 			window = rc.LookbackDelta
 		}
 	}
@@ -2107,9 +2113,15 @@ func rollupChanges(rfa *rollupFuncArg) float64 {
 		if len(values) == 0 {
 			return nan
 		}
-		prevValue = values[0]
-		values = values[1:]
-		n++
+		// Assume that the value didn't change during the current gap
+		// if realPrevValue exists.
+		if !math.IsNaN(rfa.realPrevValue) {
+			prevValue = rfa.realPrevValue
+		} else {
+			n++
+			prevValue = values[0]
+			values = values[1:]
+		}
 	}
 	for _, v := range values {
 		if v != prevValue {

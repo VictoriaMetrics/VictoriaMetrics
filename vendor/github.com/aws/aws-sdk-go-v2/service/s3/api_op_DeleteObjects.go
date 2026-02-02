@@ -66,17 +66,22 @@ import (
 //     versioning-enabled bucket, you must specify the s3:DeleteObjectVersion
 //     permission.
 //
-//   - Directory bucket permissions - To grant access to this API operation on a
-//     directory bucket, we recommend that you use the [CreateSession]CreateSession API operation
-//     for session-based authorization. Specifically, you grant the
-//     s3express:CreateSession permission to the directory bucket in a bucket policy
-//     or an IAM identity-based policy. Then, you make the CreateSession API call on
-//     the bucket to obtain a session token. With the session token in your request
-//     header, you can make API requests to this operation. After the session token
-//     expires, you make another CreateSession API call to generate a new session
-//     token for use. Amazon Web Services CLI or SDKs create session and refresh the
-//     session token automatically to avoid service interruptions when a session
-//     expires. For more information about authorization, see [CreateSession]CreateSession .
+// If the s3:DeleteObject or s3:DeleteObjectVersion permissions are explicitly
+//
+//	denied in your bucket policy, attempts to delete any unversioned objects result
+//	in a 403 Access Denied error.
+//
+//	- Directory bucket permissions - To grant access to this API operation on a
+//	directory bucket, we recommend that you use the [CreateSession]CreateSession API operation
+//	for session-based authorization. Specifically, you grant the
+//	s3express:CreateSession permission to the directory bucket in a bucket policy
+//	or an IAM identity-based policy. Then, you make the CreateSession API call on
+//	the bucket to obtain a session token. With the session token in your request
+//	header, you can make API requests to this operation. After the session token
+//	expires, you make another CreateSession API call to generate a new session
+//	token for use. Amazon Web Services CLI or SDKs create session and refresh the
+//	session token automatically to avoid service interruptions when a session
+//	expires. For more information about authorization, see [CreateSession]CreateSession .
 //
 // Content-MD5 request header
 //
@@ -104,15 +109,20 @@ import (
 //
 // [AbortMultipartUpload]
 //
+// You must URL encode any signed header values that contain spaces. For example,
+// if your header value is my file.txt , containing two spaces after my , you must
+// URL encode this value to my%20%20file.txt .
+//
 // [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [AbortMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html
 // [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
-// [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
 // [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 // [MFA Delete]: https://docs.aws.amazon.com/AmazonS3/latest/dev/Versioning.html#MultiFactorAuthenticationDelete
 // [CreateMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html
+//
+// [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 func (c *Client) DeleteObjects(ctx context.Context, params *DeleteObjectsInput, optFns ...func(*Options)) (*DeleteObjectsOutput, error) {
 	if params == nil {
 		params = &DeleteObjectsInput{}
@@ -402,40 +412,7 @@ func (c *Client) addOperationDeleteObjectsMiddlewares(stack *middleware.Stack, o
 	if err = addInterceptAttempt(stack, options); err != nil {
 		return err
 	}
-	if err = addInterceptExecution(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSerialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterSigning(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptTransmit(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptBeforeDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addInterceptAfterDeserialization(stack, options); err != nil {
-		return err
-	}
-	if err = addSpanInitializeStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanInitializeEnd(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestStart(stack); err != nil {
-		return err
-	}
-	if err = addSpanBuildRequestEnd(stack); err != nil {
+	if err = addInterceptors(stack, options); err != nil {
 		return err
 	}
 	return nil

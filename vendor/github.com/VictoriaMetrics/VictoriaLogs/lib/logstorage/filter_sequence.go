@@ -70,6 +70,12 @@ func (fs *filterSequence) initNonEmptyPhrases() {
 	fs.nonEmptyPhrases = result
 }
 
+func (fs *filterSequence) matchRow(fields []Field) bool {
+	phrases := fs.getNonEmptyPhrases()
+	v := getFieldValueByName(fields, fs.fieldName)
+	return matchSequence(v, phrases)
+}
+
 func (fs *filterSequence) applyToBlockResult(br *blockResult, bm *bitmap) {
 	phrases := fs.getNonEmptyPhrases()
 	if len(phrases) == 0 {

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
@@ -82,12 +84,18 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 		if !prompt(ctx, question) {
 			return nil
 		}
+		migrationTenantsTotal.Set(uint64(len(tenants)))
 	}
 
 	for _, tenantID := range tenants {
 		err := p.runBackfilling(ctx, tenantID, ranges)
 		if err != nil {
+			migrationErrorsTotal.Inc()
 			return fmt.Errorf("migration failed: %s", err)
+		}
+
+		if p.interCluster {
+			migrationTenantsProcessed.Inc()
 		}
 	}
 
@@ -156,6 +164,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	p.s.bytes += uint64(written)
 	p.s.requests++
 	p.s.Unlock()
+	migrationBytesTransferredTotal.AddInt64(written)
 
 	if err := pw.Close(); err != nil {
 		return err
@@ -199,7 +208,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	var foundSeriesMsg string
 	var requestsToMake int
-	var metrics = map[string][][]time.Time{
+	var metricsMap = map[string][][]time.Time{
 		"": ranges,
 	}
 
@@ -211,11 +220,11 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	if !p.disablePerMetricRequests {
 		format = fmt.Sprintf(nativeWithBackoffTpl, barPrefix)
-		metrics, err = p.explore(ctx, p.src, tenantID, ranges)
+		metricsMap, err = p.explore(ctx, p.src, tenantID, ranges)
 		if err != nil {
 			return fmt.Errorf("failed to explore metric names: %s", err)
 		}
-		if len(metrics) == 0 {
+		if len(metricsMap) == 0 {
 			errMsg := "no metrics found"
 			if tenantID != "" {
 				errMsg = fmt.Sprintf("%s for tenant id: %s", errMsg, tenantID)
@@ -223,10 +232,14 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 			log.Println(errMsg)
 			return nil
 		}
-		for _, m := range metrics {
+		for _, m := range metricsMap {
 			requestsToMake += len(m)
 		}
-		foundSeriesMsg = fmt.Sprintf("Found %d unique metric names to import. Total import/export requests to make %d", len(metrics), requestsToMake)
+		foundSeriesMsg = fmt.Sprintf("Found %d unique metric names to import. Total import/export requests to make %d", len(metricsMap), requestsToMake)
+
+		migrationMetricsTotal.Add(len(metricsMap))
+	} else {
+		requestsToMake = len(ranges)
 	}
 
 	if !p.interCluster {
@@ -240,6 +253,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		log.Print(foundSeriesMsg)
 	}
 
+	migrationRequestsPlanned.Add(requestsToMake)
 	bar := barpool.NewSingleProgress(format, requestsToMake)
 	bar.Start()
 	defer bar.Finish()
@@ -249,9 +263,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	var wg sync.WaitGroup
 	for i := 0; i < p.cc; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for f := range filterCh {
 				if !p.disablePerMetricRequests {
 					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
@@ -265,12 +277,13 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 						return
 					}
 				}
+				migrationRequestsCompleted.Inc()
 			}
-		}()
+		})
 	}
 
 	// any error breaks the import
-	for mName, mRanges := range metrics {
+	for mName, mRanges := range metricsMap {
 		match, err := buildMatchWithFilter(p.filter.Match, mName)
 		if err != nil {
 			logger.Errorf("failed to build filter %q for metric name %q: %s", p.filter.Match, mName, err)
@@ -289,6 +302,9 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 				TimeEnd:   times[1].Format(time.RFC3339),
 			}:
 			}
+		}
+		if !p.disablePerMetricRequests {
+			migrationMetricsProcessed.Inc()
 		}
 	}
 
@@ -398,3 +414,18 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 	match := "{" + strings.Join(filters, " or ") + "}"
 	return match, nil
 }
+
+var (
+	migrationMetricsTotal     = metrics.NewCounter(`vmctl_vm_native_migration_metrics_total`)
+	migrationMetricsProcessed = metrics.NewCounter(`vmctl_vm_native_migration_metrics_processed`)
+
+	migrationRequestsPlanned   = metrics.NewCounter(`vmctl_vm_native_migration_requests_planned`)
+	migrationRequestsCompleted = metrics.NewCounter(`vmctl_vm_native_migration_requests_completed`)
+
+	migrationErrorsTotal = metrics.NewCounter(`vmctl_vm_native_migration_errors_total`)
+
+	migrationTenantsTotal     = metrics.NewCounter(`vmctl_vm_native_migration_tenants_total`)
+	migrationTenantsProcessed = metrics.NewCounter(`vmctl_vm_native_migration_tenants_processed`)
+
+	migrationBytesTransferredTotal = metrics.NewCounter(`vmctl_vm_native_migration_bytes_transferred_total`)
+)

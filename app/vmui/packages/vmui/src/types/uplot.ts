@@ -1,15 +1,5 @@
 import { Axis, Series } from "uplot";
 
-export enum ForecastType {
-    yhat = "yhat",
-    yhatUpper = "yhat_upper",
-    yhatLower = "yhat_lower",
-    anomaly = "vmui_anomalies_points",
-    training = "vmui_training_data",
-    actual = "actual",
-    anomalyScore = "anomaly_score",
-}
-
 export interface SeriesItemStatsFormatted {
     min: string,
     max: string,
@@ -20,8 +10,6 @@ export interface SeriesItem extends Series {
     freeFormFields: {[key: string]: string};
     statsFormatted: SeriesItemStatsFormatted;
     median: number;
-    forecast?: ForecastType | null;
-    forecastGroup?: string;
     hasAlias?: boolean;
 }
 
@@ -30,7 +18,6 @@ export interface HideSeriesArgs {
     legend: LegendItemType,
     metaKey: boolean,
     series: Series[],
-    isAnomalyView?: boolean,
 }
 
 export type MinMax = { min: number, max: number }

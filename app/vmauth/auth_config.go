@@ -113,10 +113,8 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 	case ui.concurrencyLimitCh <- struct{}{}:
 		return nil
 	default:
-		ui.concurrencyLimitReached.Inc()
-
-		// The per-user limit for the number of concurrent requests is reached.
-		// Wait until the currently executed requests are finished, so the current request could be executed.
+		// The number of concurrently executed requests for the given user equals the limt.
+		// Wait until some of the currently executed requests are finished, so the current request could be executed.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
 		select {
 		case ui.concurrencyLimitCh <- struct{}{}:
@@ -124,6 +122,8 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 		case <-ctx.Done():
 			err := ctx.Err()
 			if errors.Is(err, context.DeadlineExceeded) {
+				// The current request couldn't be executed until the request timeout.
+				ui.concurrencyLimitReached.Inc()
 				return fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because %d concurrent requests from the user %s are executed",
 					*maxQueueDuration, ui.getMaxConcurrentRequests(), ui.name())
 			}
@@ -150,12 +150,22 @@ func (ui *UserInfo) stopHealthChecks() {
 	if ui == nil {
 		return
 	}
-	if ui.URLPrefix == nil {
-		return
-	}
 
-	bus := ui.URLPrefix.bus.Load()
-	bus.stopHealthChecks()
+	if ui.URLPrefix != nil {
+		bus := ui.URLPrefix.bus.Load()
+		bus.stopHealthChecks()
+	}
+	if ui.DefaultURL != nil {
+		bus := ui.DefaultURL.bus.Load()
+		bus.stopHealthChecks()
+	}
+	for i := range ui.URLMaps {
+		um := &ui.URLMaps[i]
+		if um.URLPrefix != nil {
+			bus := um.URLPrefix.bus.Load()
+			bus.stopHealthChecks()
+		}
+	}
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
@@ -363,12 +373,10 @@ func (bu *backendURL) isBroken() bool {
 
 func (bu *backendURL) setBroken() {
 	if bu.broken.CompareAndSwap(false, true) {
-		bu.healthCheckWG.Add(1)
-		go func() {
-			defer bu.healthCheckWG.Done()
+		bu.healthCheckWG.Go(func() {
 			bu.runHealthCheck()
 			bu.broken.Store(false)
-		}()
+		})
 	}
 }
 
@@ -733,11 +741,9 @@ func initAuthConfig() {
 	configTimestamp.Set(fasttime.UnixTimestamp())
 
 	stopCh = make(chan struct{})
-	authConfigWG.Add(1)
-	go func() {
-		defer authConfigWG.Done()
+	authConfigWG.Go(func() {
 		authConfigReloader(sighupCh)
-	}()
+	})
 }
 
 func stopAuthConfig() {

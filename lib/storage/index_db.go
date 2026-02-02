@@ -247,20 +247,20 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
 	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
 
-	// Report only once and either for the first met indexDB instance or whose
-	// tagFiltersCache is utilized the most.
-	//
-	// In case of tagFiltersCache, use TagFiltersToMetricIDsCacheRequests as an
-	// indicator that this is the first indexDB instance whose metrics are being
-	// collected because this cache may be reset too often.
+	// aggregate per-indexdb metrics
+	// counters must be summed
+	// while gauges could only use max value
+
+	// Report only once and for either the first met indexDB instance or whose
+	// tagFiltersToMetricIDsCache is utilized the most.
 	if m.TagFiltersToMetricIDsCacheRequests == 0 || db.tagFiltersToMetricIDsCache.SizeBytes() > m.TagFiltersToMetricIDsCacheSizeBytes {
 		m.TagFiltersToMetricIDsCacheSize = uint64(db.tagFiltersToMetricIDsCache.Len())
 		m.TagFiltersToMetricIDsCacheSizeBytes = db.tagFiltersToMetricIDsCache.SizeBytes()
 		m.TagFiltersToMetricIDsCacheSizeMaxBytes = db.tagFiltersToMetricIDsCache.SizeMaxBytes()
-		m.TagFiltersToMetricIDsCacheRequests = db.tagFiltersToMetricIDsCache.Requests()
-		m.TagFiltersToMetricIDsCacheMisses = db.tagFiltersToMetricIDsCache.Misses()
-		m.TagFiltersToMetricIDsCacheResets = db.tagFiltersToMetricIDsCache.Resets()
 	}
+	m.TagFiltersToMetricIDsCacheRequests += db.tagFiltersToMetricIDsCache.Requests()
+	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
+	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
 
 	// Report only once and for either the first met indexDB instance or whose
 	// metricIDCache is utilized the most.
@@ -268,9 +268,9 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	if m.MetricIDCacheSizeBytes == 0 || mcs.SizeBytes > m.MetricIDCacheSizeBytes {
 		m.MetricIDCacheSize = mcs.Size
 		m.MetricIDCacheSizeBytes = mcs.SizeBytes
-		m.MetricIDCacheSyncsCount = mcs.SyncsCount
-		m.MetricIDCacheRotationsCount = mcs.RotationsCount
 	}
+	m.MetricIDCacheSyncsCount += mcs.SyncsCount
+	m.MetricIDCacheRotationsCount += mcs.RotationsCount
 
 	// Report only once and for either the first met indexDB instance or whose
 	// dateMetricIDCache is utilized the most.
@@ -278,9 +278,9 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	if m.DateMetricIDCacheSizeBytes == 0 || dmcs.SizeBytes > m.DateMetricIDCacheSizeBytes {
 		m.DateMetricIDCacheSize = dmcs.Size
 		m.DateMetricIDCacheSizeBytes = dmcs.SizeBytes
-		m.DateMetricIDCacheSyncsCount = dmcs.SyncsCount
-		m.DateMetricIDCacheRotationsCount = dmcs.RotationsCount
 	}
+	m.DateMetricIDCacheSyncsCount += dmcs.SyncsCount
+	m.DateMetricIDCacheRotationsCount += dmcs.RotationsCount
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
 	m.DateRangeSearchHits += db.dateRangeSearchHits.Load()
@@ -540,13 +540,10 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 	lns := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label names: filters=%s, timeRange=%s", tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
-		wg.Add(1)
 		qtChild := qt.NewChild("search for label names: filters=%s, date=%s", tfss, dateToString(date))
-		go func(date uint64) {
-			defer func() {
-				qtChild.Done()
-				wg.Done()
-			}()
+		wg.Go(func() {
+			defer qtChild.Done()
+
 			isLocal := is.db.getIndexSearch(is.deadline)
 			lnsLocal, err := isLocal.searchLabelNamesWithFiltersOnDate(qtChild, tfss, date, maxLabelNames, maxMetrics)
 			is.db.putIndexSearch(isLocal)
@@ -565,7 +562,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tr
 			for k := range lnsLocal {
 				lns[k] = struct{}{}
 			}
-		}(date)
+		})
 	}
 	wg.Wait()
 	putWaitGroup(wg)
@@ -801,13 +798,10 @@ func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labe
 	lvs := make(map[string]struct{})
 	qt = qt.NewChild("parallel search for label values: labelName=%q, filters=%s, timeRange=%s", labelName, tfss, &tr)
 	for date := minDate; date <= maxDate; date++ {
-		wg.Add(1)
 		qtChild := qt.NewChild("search for label values: filters=%s, date=%s", tfss, dateToString(date))
-		go func(date uint64) {
-			defer func() {
-				qtChild.Done()
-				wg.Done()
-			}()
+		wg.Go(func() {
+			defer qtChild.Done()
+
 			isLocal := is.db.getIndexSearch(is.deadline)
 			lvsLocal, err := isLocal.searchLabelValuesOnDate(qtChild, labelName, tfss, date, maxLabelValues, maxMetrics)
 			is.db.putIndexSearch(isLocal)
@@ -826,7 +820,7 @@ func (is *indexSearch) searchLabelValuesOnTimeRange(qt *querytracer.Tracer, labe
 			for v := range lvsLocal {
 				lvs[v] = struct{}{}
 			}
-		}(date)
+		})
 	}
 	wg.Wait()
 	putWaitGroup(wg)
@@ -997,9 +991,8 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tr TimeRange, tagKey, 
 	var mu sync.Mutex // protects tvss + errGlobal from concurrent access below.
 	tvss := make(map[string]struct{})
 	for minDate <= maxDate {
-		wg.Add(1)
-		go func(date uint64) {
-			defer wg.Done()
+		date := minDate
+		wg.Go(func() {
 			isLocal := is.db.getIndexSearch(is.deadline)
 			tvssLocal, err := isLocal.searchTagValueSuffixesForDate(date, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 			is.db.putIndexSearch(isLocal)
@@ -1018,7 +1011,7 @@ func (is *indexSearch) searchTagValueSuffixesForTimeRange(tr TimeRange, tagKey, 
 			for k := range tvssLocal {
 				tvss[k] = struct{}{}
 			}
-		}(minDate)
+		})
 		minDate++
 	}
 	wg.Wait()
@@ -1291,7 +1284,7 @@ func (is *indexSearch) getSeriesCount() (uint64, error) {
 
 // GetTSDBStatus returns topN entries for tsdb status for the given tfss, date and focusLabel.
 func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	qt = qt.NewChild("collect TSDB status: filters=%s, date=%d, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, date, focusLabel, topN, maxMetrics)
+	qt = qt.NewChild("collect TSDB status: filters=%s, date=%s, focusLabel=%q, topN=%d, maxMetrics=%d", tfss, dateToString(date), focusLabel, topN, maxMetrics)
 	defer qt.Done()
 
 	is := db.getIndexSearch(deadline)
@@ -2478,13 +2471,11 @@ func (is *indexSearch) updateMetricIDsForDateRange(qt *querytracer.Tracer, metri
 	var errGlobal error
 	var mu sync.Mutex // protects metricIDs + errGlobal vars from concurrent access below
 	for minDate <= maxDate {
-		qtChild := qt.NewChild("parallel thread for date=%s", dateToString(minDate))
-		wg.Add(1)
-		go func(date uint64) {
-			defer func() {
-				qtChild.Done()
-				wg.Done()
-			}()
+		date := minDate
+		qtChild := qt.NewChild("parallel thread for date=%s", dateToString(date))
+		wg.Go(func() {
+			defer qtChild.Done()
+
 			isLocal := is.db.getIndexSearch(is.deadline)
 			m, err := isLocal.getMetricIDsForDateAndFilters(qtChild, date, tfs, maxMetrics)
 			is.db.putIndexSearch(isLocal)
@@ -2501,7 +2492,7 @@ func (is *indexSearch) updateMetricIDsForDateRange(qt *querytracer.Tracer, metri
 			if metricIDs.Len() < maxMetrics {
 				metricIDs.UnionMayOwn(m)
 			}
-		}(minDate)
+		})
 		minDate++
 	}
 	wg.Wait()

@@ -226,15 +226,13 @@ func Stop(addrs []string) error {
 		if addr == "" {
 			continue
 		}
-		wg.Add(1)
-		go func(addr string) {
+		wg.Go(func() {
 			if err := stop(addr); err != nil {
 				errGlobalLock.Lock()
 				errGlobal = err
 				errGlobalLock.Unlock()
 			}
-			wg.Done()
-		}(addr)
+		})
 	}
 	wg.Wait()
 
@@ -615,6 +613,13 @@ func (rwa *responseWriterWithAbort) Flush() {
 		logger.Panicf("BUG: it is expected http.ResponseWriter (%T) supports http.Flusher interface", rwa.ResponseWriter)
 	}
 	flusher.Flush()
+}
+
+// Unwrap returns the original ResponseWriter wrapped by rwa.
+//
+// This is needed for the net/http.ResponseController - see https://pkg.go.dev/net/http#NewResponseController
+func (rwa *responseWriterWithAbort) Unwrap() http.ResponseWriter {
+	return rwa.ResponseWriter
 }
 
 // abort aborts the client connection associated with rwa.

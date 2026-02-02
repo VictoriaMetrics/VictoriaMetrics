@@ -27,14 +27,12 @@ func StartUnmarshalWorkers() {
 	}
 	gomaxprocs := cgroup.AvailableCPUs()
 	unmarshalWorkCh = make(chan UnmarshalWork, gomaxprocs)
-	unmarshalWorkersWG.Add(gomaxprocs)
-	for i := 0; i < gomaxprocs; i++ {
-		go func() {
-			defer unmarshalWorkersWG.Done()
+	for range gomaxprocs {
+		unmarshalWorkersWG.Go(func() {
 			for uw := range unmarshalWorkCh {
 				uw.Unmarshal()
 			}
-		}()
+		})
 	}
 }
 

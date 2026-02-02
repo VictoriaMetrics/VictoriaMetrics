@@ -2,44 +2,40 @@ import * as path from "path";
 
 import { defineConfig, ProxyOptions } from "vite";
 import preact from "@preact/preset-vite";
-import dynamicIndexHtmlPlugin from "./config/plugins/dynamicIndexHtml";
 
 const getProxy = (): Record<string, ProxyOptions> | undefined => {
-  const playground = process.env.PLAYGROUND;
+  const playground = process.env.PLAYGROUND?.toLowerCase();
 
-  switch (playground) {
-    case "METRICS": {
-      return {
-        "^/(api|vmalert)/.*": {
-          target: "https://play.victoriametrics.com/select/0/prometheus",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("error", (err) => {
-              console.error("[proxy error]", err.message);
-            });
-          },
-        },
-        "/vmui/config.json": {
-          target: "https://play.victoriametrics.com/select/0",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("error", (err) => {
-              console.error("[proxy error]", err.message);
-            });
-          },
-        },
-      };
-    }
-    default: {
-      return undefined;
-    }
+  if (playground !== "true") {
+    return undefined;
   }
+
+  return {
+    "^/(api|vmalert)/.*": {
+      target: "https://play.victoriametrics.com/select/0/prometheus",
+      changeOrigin: true,
+      configure: (proxy) => {
+        proxy.on("error", (err) => {
+          console.error("[proxy error]", err.message);
+        });
+      },
+    },
+    "/prometheus/vmui/config.json": {
+      target: "https://play.victoriametrics.com/select/0",
+      changeOrigin: true,
+      configure: (proxy) => {
+        proxy.on("error", (err) => {
+          console.error("[proxy error]", err.message);
+        });
+      },
+    },
+  };
 };
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(() => {
   return {
     base: "",
-    plugins: [preact(), dynamicIndexHtmlPlugin({ mode })],
+    plugins: [preact()],
     assetsInclude: ["**/*.md"],
     server: {
       open: true,

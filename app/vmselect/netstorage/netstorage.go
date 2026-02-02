@@ -297,14 +297,12 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 
 	// Start workers and wait until they finish the work.
 	var wg sync.WaitGroup
-	for i := range workChs {
-		wg.Add(1)
-		qtChild := qt.NewChild("worker #%d", i)
-		go func(workerID uint) {
-			timeseriesWorker(qtChild, workChs, workerID)
+	for workerID := range workChs {
+		qtChild := qt.NewChild("worker #%d", workerID)
+		wg.Go(func() {
+			timeseriesWorker(qtChild, workChs, uint(workerID))
 			qtChild.Done()
-			wg.Done()
-		}(uint(i))
+		})
 	}
 	wg.Wait()
 
@@ -534,12 +532,10 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 
 	// Start workers and wait until they finish the work.
 	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func(workerID uint) {
-			unpackWorker(workChs, workerID)
-			wg.Done()
-		}(uint(i))
+	for workerID := range workers {
+		wg.Go(func() {
+			unpackWorker(workChs, uint(workerID))
+		})
 	}
 	wg.Wait()
 
@@ -1100,12 +1096,10 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		mustStop      atomic.Bool
 	)
 	var wg sync.WaitGroup
-	wg.Add(gomaxprocs)
-	for i := 0; i < gomaxprocs; i++ {
-		go func(workerID uint) {
-			defer wg.Done()
+	for workerID := range gomaxprocs {
+		wg.Go(func() {
 			for xw := range workCh {
-				if err := f(&xw.mn, &xw.b, tr, workerID); err != nil {
+				if err := f(&xw.mn, &xw.b, tr, uint(workerID)); err != nil {
 					errGlobalLock.Lock()
 					if errGlobal == nil {
 						errGlobal = err
@@ -1116,7 +1110,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 				xw.reset()
 				exportWorkPool.Put(xw)
 			}
-		}(uint(i))
+		})
 	}
 
 	// Feed workers with work

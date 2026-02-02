@@ -7,6 +7,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
@@ -52,6 +54,7 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 		return nil
 	}
 
+	influxSeriesTotal.Add(len(series))
 	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
 	if err := barpool.Start(); err != nil {
 		return err
@@ -63,18 +66,18 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 	ip.im.ResetStats()
 
 	var wg sync.WaitGroup
-	wg.Add(ip.cc)
-	for i := 0; i < ip.cc; i++ {
-		go func() {
-			defer wg.Done()
+	for range ip.cc {
+		wg.Go(func() {
 			for s := range seriesCh {
 				if err := ip.do(s); err != nil {
+					influxErrorsTotal.Inc()
 					errCh <- fmt.Errorf("request failed for %q.%q: %s", s.Measurement, s.Field, err)
 					return
 				}
+				influxSeriesProcessed.Inc()
 				bar.Increment()
 			}
-		}()
+		})
 	}
 
 	// any error breaks the import
@@ -83,6 +86,7 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 		case infErr := <-errCh:
 			return fmt.Errorf("influx error: %s", infErr)
 		case vmErr := <-ip.im.Errors():
+			influxErrorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, ip.isVerbose))
 		case seriesCh <- s:
 		}
@@ -95,6 +99,7 @@ func (ip *influxProcessor) run(ctx context.Context) error {
 	// drain import errors channel
 	for vmErr := range ip.im.Errors() {
 		if vmErr.Err != nil {
+			influxErrorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, ip.isVerbose))
 		}
 	}
@@ -169,3 +174,9 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 		}
 	}
 }
+
+var (
+	influxSeriesTotal     = metrics.NewCounter(`vmctl_influx_migration_series_total`)
+	influxSeriesProcessed = metrics.NewCounter(`vmctl_influx_migration_series_processed`)
+	influxErrorsTotal     = metrics.NewCounter(`vmctl_influx_migration_errors_total`)
+)

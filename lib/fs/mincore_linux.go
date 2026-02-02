@@ -10,10 +10,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-func hasMincore() bool {
+func supportsMincore() bool {
 	return true
 }
-
 func mincore(ptr *byte) bool {
 	var result [1]byte
 	_, _, err := unix.Syscall(unix.SYS_MINCORE, uintptr(unsafe.Pointer(ptr)), 1, uintptr(unsafe.Pointer(&result[0])))

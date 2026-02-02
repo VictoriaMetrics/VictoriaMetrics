@@ -44,6 +44,15 @@ func (fa *filterAnd) updateNeededFields(pf *prefixfilter.Filter) {
 	}
 }
 
+func (fa *filterAnd) matchRow(fields []Field) bool {
+	for _, f := range fa.filters {
+		if !f.matchRow(fields) {
+			return false
+		}
+	}
+	return true
+}
+
 func (fa *filterAnd) applyToBlockResult(br *blockResult, bm *bitmap) {
 	for _, f := range fa.filters {
 		f.applyToBlockResult(br, bm)

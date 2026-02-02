@@ -474,9 +474,7 @@ func initStaleSnapshotsRemover(strg *storage.Storage) {
 		return
 	}
 	snapshotsMaxAgeDur := snapshotsMaxAge.Duration()
-	staleSnapshotsRemoverWG.Add(1)
-	go func() {
-		defer staleSnapshotsRemoverWG.Done()
+	staleSnapshotsRemoverWG.Go(func() {
 		d := timeutil.AddJitterToDuration(time.Second * 11)
 		t := time.NewTicker(d)
 		defer t.Stop()
@@ -488,7 +486,7 @@ func initStaleSnapshotsRemover(strg *storage.Storage) {
 			}
 			strg.MustDeleteStaleSnapshots(snapshotsMaxAgeDur)
 		}
-	}()
+	})
 }
 
 func stopStaleSnapshotsRemover() {

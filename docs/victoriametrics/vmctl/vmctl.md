@@ -34,9 +34,9 @@ vmctl command-line tool is available as:
 
 Download and unpack vmctl:
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.133.0/vmutils-darwin-arm64-v1.133.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.134.0/vmutils-darwin-arm64-v1.134.0.tar.gz
 
-tar xzf vmutils-darwin-arm64-v1.133.0.tar.gz
+tar xzf vmutils-darwin-arm64-v1.134.0.tar.gz
 ```
 
 Once binary is unpacked, see the full list of supported modes by running the following command:
@@ -169,6 +169,71 @@ see `--vm-concurrency` flag.
 Please note, you can also use [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
+### Monitoring the migration process
+
+`vmctl` can push internal metrics {{% available_from "v1.135.0" %}} to a remote storage for monitoring migration progress and performance.
+This is especially useful for long-running migrations where you want to track progress, detect issues,
+or build dashboards to visualize the migration status.
+
+Example usage with VictoriaMetrics as the metrics destination:
+
+```sh
+./vmctl influx \
+  --influx-addr=http://localhost:8086 \
+  --influx-database=mydb \
+  --vm-addr=http://localhost:8428 \
+  --pushmetrics.url=http://localhost:8428/api/v1/import/prometheus \
+  --pushmetrics.extraLabel='job="vmctl"' \
+  --pushmetrics.extraLabel='instance="migration-1"'
+```
+
+#### Available metrics
+
+The following metrics are exposed by `vmctl`:
+
+General metrics (available for all migration modes):
+
+| Metric | Description |
+|--------|-------------|
+| `vmctl_backoff_retries_total` | Total number of retry attempts across all operations |
+| `vmctl_limiter_bytes_processed_total` | Total bytes processed through rate limiter (when `--vm-rate-limit` is set) |
+| `vmctl_limiter_throttle_events_total` | Number of times rate limiting caused a pause |
+
+Mode-specific metrics:
+
+Each migration mode exposes its own set of metrics with the mode name embedded in the metric name:
+
+| Mode | Metrics |
+|------|---------|
+| `influx` | `vmctl_influx_migration_series_total`, `vmctl_influx_migration_series_processed`, `vmctl_influx_migration_errors_total` |
+| `prometheus` | `vmctl_prometheus_migration_blocks_total`, `vmctl_prometheus_migration_blocks_processed`, `vmctl_prometheus_migration_errors_total` |
+| `opentsdb` | `vmctl_opentsdb_migration_series_total`, `vmctl_opentsdb_migration_series_processed`, `vmctl_opentsdb_migration_errors_total` |
+| `remote-read` | `vmctl_remote_read_migration_ranges_total`, `vmctl_remote_read_migration_ranges_processed`, `vmctl_remote_read_migration_errors_total` |
+| `vm-native` | `vmctl_vm_native_migration_metrics_total`, `vmctl_vm_native_migration_metrics_processed`, `vmctl_vm_native_migration_requests_planned`, `vmctl_vm_native_migration_requests_completed`, `vmctl_vm_native_migration_tenants_total`, `vmctl_vm_native_migration_tenants_processed`, `vmctl_vm_native_migration_bytes_transferred_total`, `vmctl_vm_native_migration_errors_total` |
+
+#### Example PromQL queries
+
+Monitor migration progress:
+```promql
+# Migration completion percentage for influx mode
+vmctl_influx_migration_series_processed / vmctl_influx_migration_series_total * 100
+
+# Migration completion percentage for vm-native mode
+vmctl_vm_native_migration_metrics_processed / vmctl_vm_native_migration_metrics_total * 100
+
+# Retry rate
+rate(vmctl_backoff_retries_total[5m])
+
+# Rate limiter throttling events per second
+rate(vmctl_limiter_throttle_events_total[5m])
+
+# Data transfer speed in bytes per second (when rate limiting is enabled)
+rate(vmctl_limiter_bytes_processed_total[5m])
+
+# Data transfer speed in MB per second for vm-native mode
+rate(vmctl_vm_native_migration_bytes_transferred_total[5m]) / 1Mb
+```
+
 ## Verifying exported blocks from VictoriaMetrics
 
 In this mode, `vmctl` allows verifying correctness and integrity of data exported via
@@ -235,82 +300,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 Run `vmctl -help` in order to see all the available options.
 
-Commands:
-```shellhelp
-  influx
-     Migrate time series from InfluxDB
-  opentsdb
-     Migrate time series from OpenTSDB.
-  prometheus
-     Migrate time series from Prometheus.
-  remote-read
-     Migrate time series via Prometheus remote-read protocol.
-  verify-block
-     Verifies exported block with VictoriaMetrics Native format.
-  vm-native
-     Migrate time series between VictoriaMetrics installations.
-```
-
-Flags available for all commands:
-
-```shellhelp
-  -s
-     Whether to run in silent mode. If set to true no confirmation prompts will appear. (default false)
-  -verbose
-     Whether to enable verbosity in logs output. (default false)
-  -disable-progress-bar
-     Whether to disable progress bar during the import. (default false)
-     
-   --vm-addr vmctl
-     VictoriaMetrics address to perform import requests. 
-     Should be the same as --httpListenAddr value for single-node version or vminsert component. 
-     When importing into the clustered version do not forget to set additionally --vm-account-id flag. 
-     Please note, that vmctl performs initial readiness check for the given address by checking `/health` endpoint. (default: "http://localhost:8428")
-   --vm-user value
-     VictoriaMetrics username for basic auth [$VM_USERNAME]
-   --vm-password value
-     VictoriaMetrics password for basic auth [$VM_PASSWORD]
-   --vm-account-id value
-     AccountID is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). 
-     AccountID is required when importing into the clustered version of VictoriaMetrics. 
-     It is possible to set it as accountID:projectID, where projectID is also arbitrary 32-bit integer. 
-     If projectID isn't set, then it equals to 0
-   --vm-concurrency value
-     Number of workers concurrently performing import requests to VM (default: 2)
-   --vm-compress
-     Whether to apply gzip compression to import requests (default: true)
-   --vm-batch-size value
-     How many samples importer collects before sending the import request to VM (default: 200000)
-   --vm-significant-figures value
-     The number of significant figures to leave in metric values before importing. See https://en.wikipedia.org/wiki/Significant_figures.
-     Zero value saves all the significant figures. This option may be used for increasing on-disk compression level for the stored metrics.
-     See also --vm-round-digits option (default: 0)
-   --vm-round-digits value
-     Round metric values to the given number of decimal digits after the point. This option may be used for increasing 
-     on-disk compression level for the stored metrics (default: 100)
-   --vm-extra-label value [ --vm-extra-label value ]
-     Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flagwill have priority.
-     Flag can be set multiple times, to add few additional labels.
-   --vm-rate-limit value
-     Optional data transfer rate limit in bytes per second.
-     By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination. (default: 0)
-   --vm-cert-file value
-     Optional path to client-side TLS certificate file to use when connecting to '--vmAddr'
-   --vm-key-file value
-     Optional path to client-side TLS key to use when connecting to '--vmAddr'
-   --vm-CA-file value
-     Optional path to TLS CA file to use for verifying connections to '--vmAddr'. By default, system CA is used
-   --vm-server-name value
-     Optional TLS server name to use for connections to '--vmAddr'. By default, the server name from '--vmAddr' is used
-   --vm-insecure-skip-verify
-     Whether to skip tls verification when connecting to '--vmAddr' (default: false)
-   --vm-backoff-retries value
-     How many import retries to perform before giving up. (default: 10)
-   --vm-backoff-factor value
-     Factor to multiply the base duration after each failed import retry. Must be greater than 1.0 (default: 1.8)
-   --vm-backoff-min-duration value
-     Minimum duration to wait before the first import retry. Each subsequent import retry will be multiplied by the '--vm-backoff-factor'. (default: 2s)
-```
+{{% content "vmctl_flags.md" %}}
 
 See list of available cmd-line flags for each command in the corresponding section.
 

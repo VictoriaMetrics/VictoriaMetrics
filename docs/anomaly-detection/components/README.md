@@ -14,16 +14,17 @@ This chapter describes different components, that correspond to respective secti
 - [Writer section](https://docs.victoriametrics.com/anomaly-detection/components/writer/) - Required
 - [Monitoring section](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) -  Optional
 - [Settings section](https://docs.victoriametrics.com/anomaly-detection/components/settings/) - Optional
+- [Server section](https://docs.victoriametrics.com/anomaly-detection/components/server/) - Optional
 
-> Once the service starts, automated config validation is performed{{% available_from "v1.7.2" anomaly %}}. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
+> Once the service starts, automated config validation is performed {{% available_from "v1.7.2" anomaly %}}. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
 
-> Components' class{{% available_from "v1.13.0" anomaly %}} can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
+> Components' class {{% available_from "v1.13.0" anomaly %}} can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
 
-> `preset` modes are available{{% available_from "v1.13.0" anomaly %}} for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
+> `preset` modes are available {{% available_from "v1.13.0" anomaly %}} for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
 
 ## Components interaction
 
-Below, you will find an example illustrating how the components of `vmanomaly` interact with each other and with a single-node VictoriaMetrics setup.
+Below, you will find an example illustrating how the components of `vmanomaly` interact with each other and with a VictoriaMetrics or VictoriaLogs/VictoriaTraces datasource.
 
 > [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) and [Writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) also support [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy), so you can read/write from/to different locations - see `tenant_id` param description.
 
@@ -121,6 +122,15 @@ monitoring:
   push: # Enable pushing self-monitoring metrics
     url: "http://victoriametrics:8428"
     push_frequency: "15m"  # how often to push self-monitoring metrics
+
+# configure vmanomaly server and UI settings
+# https://docs.victoriametrics.com/anomaly-detection/components/server/
+server:
+  port: 8490
+  path_prefix: '/vmanomaly'  # optional path prefix for all HTTP routes
+  max_concurrent_tasks: 4  # maximum number of concurrent anomaly detection tasks processed by backend
+  uvicorn_config:  # optional Uvicorn server configuration
+    log_level: 'warning'
 ```
 
 ## Hot reload

@@ -1,6 +1,6 @@
 services:
   vmagent:
-    image: victoriametrics/vmagent:v1.133.0
+    image: victoriametrics/vmagent:v1.134.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -14,7 +14,7 @@ services:
     restart: always
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.133.0
+    image: victoriametrics/victoria-metrics:v1.134.0
     ports:
       - 8428:8428
     volumes:
@@ -40,7 +40,7 @@ services:
     restart: always
 
   vmalert:
-    image: victoriametrics/vmalert:v1.133.0
+    image: victoriametrics/vmalert:v1.134.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -59,7 +59,7 @@ services:
       - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr": },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
     restart: always
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.28.4
+    image: victoriametrics/vmanomaly:v1.28.5
     depends_on:
       - "victoriametrics"
     ports:

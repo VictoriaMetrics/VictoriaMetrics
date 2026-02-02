@@ -3,7 +3,7 @@ services:
   #  It scrapes targets defined in --promscrape.config
   #  And forward them to --remoteWrite.url
   vmagent:
-    image: victoriametrics/vmagent:v1.133.0
+    image: victoriametrics/vmagent:v1.134.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -18,7 +18,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.133.0
+    image: victoriametrics/victoria-metrics:v1.134.0
     ports:
       - 8428:8428
       - 8089:8089
@@ -54,7 +54,7 @@ services:
 
   # vmalert executes alerting and recording rules
   vmalert:
-    image: victoriametrics/vmalert:v1.133.0
+    image: victoriametrics/vmalert:v1.134.0
     depends_on:
       - "victoriametrics"
       - "alertmanager"

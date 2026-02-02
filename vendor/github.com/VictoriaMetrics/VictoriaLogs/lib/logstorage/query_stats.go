@@ -58,7 +58,6 @@ func (qs *QueryStats) UpdateAtomic(src *QueryStats) {
 	atomic.AddUint64(&qs.BytesReadBloomFilters, src.BytesReadBloomFilters)
 	atomic.AddUint64(&qs.BytesReadValues, src.BytesReadValues)
 	atomic.AddUint64(&qs.BytesReadTimestamps, src.BytesReadTimestamps)
-	atomic.AddUint64(&qs.BytesReadTimestamps, src.BytesReadTimestamps)
 	atomic.AddUint64(&qs.BytesReadBlockHeaders, src.BytesReadBlockHeaders)
 
 	atomic.AddUint64(&qs.BlocksProcessed, src.BlocksProcessed)

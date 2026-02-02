@@ -59,7 +59,7 @@ var (
 		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.disableOnDiskQueue")
 	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. "+
 		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
-	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
+	queues = flagutil.NewArrayInt("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
 		"isn't enough for sending high volume of collected data to remote storage. "+
 		"Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
@@ -176,13 +176,6 @@ func Init() {
 		})
 	}
 
-	if *queues > maxQueues {
-		*queues = maxQueues
-	}
-	if *queues <= 0 {
-		*queues = 1
-	}
-
 	if len(*shardByURLLabels) > 0 && len(*shardByURLIgnoreLabels) > 0 {
 		logger.Fatalf("-remoteWrite.shardByURL.labels and -remoteWrite.shardByURL.ignoreLabels cannot be set simultaneously; " +
 			"see https://docs.victoriametrics.com/victoriametrics/vmagent/#sharding-among-remote-storages")
@@ -215,9 +208,7 @@ func Init() {
 	dropDanglingQueues()
 
 	// Start config reloader.
-	configReloaderWG.Add(1)
-	go func() {
-		defer configReloaderWG.Done()
+	configReloaderWG.Go(func() {
 		for {
 			select {
 			case <-configReloaderStopCh:
@@ -227,7 +218,7 @@ func Init() {
 			reloadRelabelConfigs()
 			reloadStreamAggrConfigs()
 		}
-	}()
+	})
 }
 
 func dropDanglingQueues() {
@@ -267,17 +258,6 @@ func initRemoteWriteCtxs(urls []string) {
 	if len(urls) == 0 {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
-
-	maxInmemoryBlocks := memory.Allowed() / len(urls) / *maxRowsPerBlock / 100
-	if maxInmemoryBlocks / *queues > 100 {
-		// There is no much sense in keeping higher number of blocks in memory,
-		// since this means that the producer outperforms consumer and the queue
-		// will continue growing. It is better storing the queue to file.
-		maxInmemoryBlocks = 100 * *queues
-	}
-	if maxInmemoryBlocks < 2 {
-		maxInmemoryBlocks = 2
-	}
 	rwctxs := make([]*remoteWriteCtx, len(urls))
 	rwctxIdx := make([]int, len(urls))
 	if retryMaxTime.String() != "" {
@@ -292,7 +272,7 @@ func initRemoteWriteCtxs(urls []string) {
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
-		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, sanitizedURL)
 		rwctxIdx[i] = i
 	}
 
@@ -558,11 +538,9 @@ func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.Metr
 	// Push metadata to remote storage systems in parallel to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
-	wg.Add(len(rwctxs))
 	var anyPushFailed atomic.Bool
 	for _, rwctx := range rwctxs {
-		go func(rwctx *remoteWriteCtx) {
-			defer wg.Done()
+		wg.Go(func() {
 			if !rwctx.tryPushMetadataInternal(mms) {
 				rwctx.pushFailures.Inc()
 				if forceDropSamplesOnFailure {
@@ -571,7 +549,7 @@ func tryPushMetadataToRemoteStorages(rwctxs []*remoteWriteCtx, mms []prompb.Metr
 				}
 				anyPushFailed.Store(true)
 			}
-		}(rwctx)
+		})
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
@@ -603,15 +581,13 @@ func tryPushTimeSeriesToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prom
 	// Push tssBlock to remote storage systems in parallel to reduce
 	// the time needed for sending the data to multiple remote storage systems.
 	var wg sync.WaitGroup
-	wg.Add(len(rwctxs))
 	var anyPushFailed atomic.Bool
 	for _, rwctx := range rwctxs {
-		go func(rwctx *remoteWriteCtx) {
-			defer wg.Done()
+		wg.Go(func() {
 			if !rwctx.TryPushTimeSeries(tssBlock, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
-		}(rwctx)
+		})
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
@@ -633,13 +609,11 @@ func tryShardingTimeSeriesAmongRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock
 		if len(shard) == 0 {
 			continue
 		}
-		wg.Add(1)
-		go func(rwctx *remoteWriteCtx, tss []prompb.TimeSeries) {
-			defer wg.Done()
-			if !rwctx.TryPushTimeSeries(tss, forceDropSamplesOnFailure) {
+		wg.Go(func() {
+			if !rwctx.TryPushTimeSeries(shard, forceDropSamplesOnFailure) {
 				anyPushFailed.Store(true)
 			}
-		}(rwctx, shard)
+		})
 	}
 	wg.Wait()
 	return !anyPushFailed.Load()
@@ -848,7 +822,7 @@ type remoteWriteCtx struct {
 	rowsDroppedOnPushFailure     *metrics.Counter
 }
 
-func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
+func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string) *remoteWriteCtx {
 	// strip query params, otherwise changing params resets pq
 	pqURL := *remoteWriteURL
 	pqURL.RawQuery = ""
@@ -863,6 +837,23 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	}
 
 	isPQDisabled := disableOnDiskQueue.GetOptionalArg(argIdx)
+	queuesSize := queues.GetOptionalArg(argIdx)
+	if queuesSize > maxQueues {
+		queuesSize = maxQueues
+	} else if queuesSize <= 0 {
+		queuesSize = 1
+	}
+
+	maxInmemoryBlocks := memory.Allowed() / len(*remoteWriteURLs) / *maxRowsPerBlock / 100
+	if maxInmemoryBlocks/queuesSize > 100 {
+		// There is no much sense in keeping higher number of blocks in memory,
+		// since this means that the producer outperforms consumer and the queue
+		// will continue growing. It is better storing the queue to file.
+		maxInmemoryBlocks = 100 * queuesSize
+	}
+	if maxInmemoryBlocks < 2 {
+		maxInmemoryBlocks = 2
+	}
 	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, isPQDisabled)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
@@ -880,16 +871,16 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	var c *client
 	switch remoteWriteURL.Scheme {
 	case "http", "https":
-		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues)
+		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, queuesSize)
 	default:
 		logger.Fatalf("unsupported scheme: %s for remoteWriteURL: %s, want `http`, `https`", remoteWriteURL.Scheme, sanitizedURL)
 	}
-	c.init(argIdx, *queues, sanitizedURL)
+	c.init(argIdx, queuesSize, sanitizedURL)
 
 	// Initialize pss
 	sf := significantFigures.GetOptionalArg(argIdx)
 	rd := roundDigits.GetOptionalArg(argIdx)
-	pssLen := *queues
+	pssLen := queuesSize
 	if n := cgroup.AvailableCPUs(); pssLen > n {
 		// There is no sense in running more than availableCPUs concurrent pendingSeries,
 		// since every pendingSeries can saturate up to a single CPU.

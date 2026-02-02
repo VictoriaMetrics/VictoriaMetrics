@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	vmetrics "github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/cheggaaa/pb/v3"
@@ -57,6 +59,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 	if !prompt(ctx, question) {
 		return nil
 	}
+
 	op.im.ResetStats()
 	var startTime int64
 	if op.oc.HardTS != 0 {
@@ -84,23 +87,24 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 		seriesCh := make(chan queryObj, op.otsdbcc)
 		errCh := make(chan error)
 		// we're going to make serieslist * queryRanges queries, so we should represent that in the progress bar
+		otsdbSeriesTotal.Add(len(serieslist) * queryRanges)
 		bar := pb.StartNew(len(serieslist) * queryRanges)
 		defer func(bar *pb.ProgressBar) {
 			bar.Finish()
 		}(bar)
 		var wg sync.WaitGroup
-		wg.Add(op.otsdbcc)
-		for i := 0; i < op.otsdbcc; i++ {
-			go func() {
-				defer wg.Done()
+		for range op.otsdbcc {
+			wg.Go(func() {
 				for s := range seriesCh {
 					if err := op.do(s); err != nil {
+						otsdbErrorsTotal.Inc()
 						errCh <- fmt.Errorf("couldn't retrieve series for %s : %s", metric, err)
 						return
 					}
+					otsdbSeriesProcessed.Inc()
 					bar.Increment()
 				}
-			}()
+			})
 		}
 		/*
 			Loop through all series for this metric, processing all retentions and time ranges
@@ -117,6 +121,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 					case otsdbErr := <-errCh:
 						return fmt.Errorf("opentsdb error: %s", otsdbErr)
 					case vmErr := <-op.im.Errors():
+						otsdbErrorsTotal.Inc()
 						return fmt.Errorf("import process failed: %s", wrapErr(vmErr, op.isVerbose))
 					case seriesCh <- queryObj{
 						Tr: tr, StartTime: startTime,
@@ -141,6 +146,7 @@ func (op *otsdbProcessor) run(ctx context.Context) error {
 	op.im.Close()
 	for vmErr := range op.im.Errors() {
 		if vmErr.Err != nil {
+			otsdbErrorsTotal.Inc()
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, op.isVerbose))
 		}
 	}
@@ -171,3 +177,9 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	}
 	return op.im.Input(&ts)
 }
+
+var (
+	otsdbSeriesTotal     = vmetrics.NewCounter(`vmctl_opentsdb_migration_series_total`)
+	otsdbSeriesProcessed = vmetrics.NewCounter(`vmctl_opentsdb_migration_series_processed`)
+	otsdbErrorsTotal     = vmetrics.NewCounter(`vmctl_opentsdb_migration_errors_total`)
+)

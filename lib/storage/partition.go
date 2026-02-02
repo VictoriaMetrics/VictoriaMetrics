@@ -610,21 +610,18 @@ func (pt *partition) flushRowssToInmemoryParts(rowss [][]rawRow) {
 	pws := make([]*partWrapper, 0, len(rowss))
 	wg := getWaitGroup()
 	for _, rows := range rowss {
-		wg.Add(1)
 		inmemoryPartsConcurrencyCh <- struct{}{}
-		go func(rowsChunk []rawRow) {
-			defer func() {
-				<-inmemoryPartsConcurrencyCh
-				wg.Done()
-			}()
 
-			pw := pt.createInmemoryPart(rowsChunk)
+		wg.Go(func() {
+			pw := pt.createInmemoryPart(rows)
 			if pw != nil {
 				pwsLock.Lock()
 				pws = append(pws, pw)
 				pwsLock.Unlock()
 			}
-		}(rows)
+
+			<-inmemoryPartsConcurrencyCh
+		})
 	}
 	wg.Wait()
 	putWaitGroup(wg)
@@ -782,15 +779,14 @@ func (pt *partition) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 	wg := getWaitGroup()
 	for len(pws) > 0 {
 		pwsToMerge, pwsRemaining := getPartsForOptimalMerge(pws)
-		wg.Add(1)
 		inmemoryPartsConcurrencyCh <- struct{}{}
-		go func(pwsChunk []*partWrapper) {
+
+		wg.Go(func() {
 			defer func() {
 				<-inmemoryPartsConcurrencyCh
-				wg.Done()
 			}()
 
-			pw := pt.mustMergeInmemoryPartsFinal(pwsChunk)
+			pw := pt.mustMergeInmemoryPartsFinal(pwsToMerge)
 			if pw == nil {
 				return
 			}
@@ -798,7 +794,7 @@ func (pt *partition) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 			pwsResultLock.Lock()
 			pwsResult = append(pwsResult, pw)
 			pwsResultLock.Unlock()
-		}(pwsToMerge)
+		})
 		pws = pwsRemaining
 	}
 	wg.Wait()
@@ -1018,11 +1014,7 @@ func (pt *partition) startInmemoryPartsMergerLocked() {
 		return
 	default:
 	}
-	pt.wg.Add(1)
-	go func() {
-		pt.inmemoryPartsMerger()
-		pt.wg.Done()
-	}()
+	pt.wg.Go(pt.inmemoryPartsMerger)
 }
 
 func (pt *partition) startSmallPartsMergers() {
@@ -1039,11 +1031,7 @@ func (pt *partition) startSmallPartsMergerLocked() {
 		return
 	default:
 	}
-	pt.wg.Add(1)
-	go func() {
-		pt.smallPartsMerger()
-		pt.wg.Done()
-	}()
+	pt.wg.Go(pt.smallPartsMerger)
 }
 
 func (pt *partition) startBigPartsMergers() {
@@ -1060,35 +1048,19 @@ func (pt *partition) startBigPartsMergerLocked() {
 		return
 	default:
 	}
-	pt.wg.Add(1)
-	go func() {
-		pt.bigPartsMerger()
-		pt.wg.Done()
-	}()
+	pt.wg.Go(pt.bigPartsMerger)
 }
 
 func (pt *partition) startPendingRowsFlusher() {
-	pt.wg.Add(1)
-	go func() {
-		pt.pendingRowsFlusher()
-		pt.wg.Done()
-	}()
+	pt.wg.Go(pt.pendingRowsFlusher)
 }
 
 func (pt *partition) startInmemoryPartsFlusher() {
-	pt.wg.Add(1)
-	go func() {
-		pt.inmemoryPartsFlusher()
-		pt.wg.Done()
-	}()
+	pt.wg.Go(pt.inmemoryPartsFlusher)
 }
 
 func (pt *partition) startStalePartsRemover() {
-	pt.wg.Add(1)
-	go func() {
-		pt.stalePartsRemover()
-		pt.wg.Done()
-	}()
+	pt.wg.Go(pt.stalePartsRemover)
 }
 
 var (
@@ -1250,22 +1222,19 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 	wg := getWaitGroup()
 	for len(pws) > 0 {
 		pwsToMerge, pwsRemaining := getPartsForOptimalMerge(pws)
-		wg.Add(1)
 		concurrencyCh <- struct{}{}
-		go func(pwsChunk []*partWrapper) {
-			defer func() {
-				<-concurrencyCh
-				wg.Done()
-			}()
 
-			if err := pt.mergeParts(pwsChunk, stopCh, true, useSparseCache); err != nil && !errors.Is(err, errForciblyStopped) {
+		wg.Go(func() {
+			if err := pt.mergeParts(pwsToMerge, stopCh, true, useSparseCache); err != nil && !errors.Is(err, errForciblyStopped) {
 				errGlobalLock.Lock()
 				if errGlobal == nil {
 					errGlobal = err
 				}
 				errGlobalLock.Unlock()
 			}
-		}(pwsToMerge)
+
+			<-concurrencyCh
+		})
 		pws = pwsRemaining
 	}
 	wg.Wait()
@@ -1687,35 +1656,37 @@ func (pt *partition) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper,
 	removedSmallParts := 0
 	removedBigParts := 0
 
-	pt.partsLock.Lock()
+	func() {
+		// // Prevent from deadlock mentioned at https://github.com/VictoriaMetrics/VictoriaLogs/issues/1020#issuecomment-3763912067
+		pt.partsLock.Lock()
+		defer pt.partsLock.Unlock()
 
-	pt.inmemoryParts, removedInmemoryParts = removeParts(pt.inmemoryParts, m)
-	pt.smallParts, removedSmallParts = removeParts(pt.smallParts, m)
-	pt.bigParts, removedBigParts = removeParts(pt.bigParts, m)
-	if pwNew != nil {
-		switch dstPartType {
-		case partInmemory:
-			pt.inmemoryParts = append(pt.inmemoryParts, pwNew)
-			pt.startInmemoryPartsMergerLocked()
-		case partSmall:
-			pt.smallParts = append(pt.smallParts, pwNew)
-			pt.startSmallPartsMergerLocked()
-		case partBig:
-			pt.bigParts = append(pt.bigParts, pwNew)
-			pt.startBigPartsMergerLocked()
-		default:
-			logger.Panicf("BUG: unknown partType=%d", dstPartType)
+		pt.inmemoryParts, removedInmemoryParts = removeParts(pt.inmemoryParts, m)
+		pt.smallParts, removedSmallParts = removeParts(pt.smallParts, m)
+		pt.bigParts, removedBigParts = removeParts(pt.bigParts, m)
+		if pwNew != nil {
+			switch dstPartType {
+			case partInmemory:
+				pt.inmemoryParts = append(pt.inmemoryParts, pwNew)
+				pt.startInmemoryPartsMergerLocked()
+			case partSmall:
+				pt.smallParts = append(pt.smallParts, pwNew)
+				pt.startSmallPartsMergerLocked()
+			case partBig:
+				pt.bigParts = append(pt.bigParts, pwNew)
+				pt.startBigPartsMergerLocked()
+			default:
+				logger.Panicf("BUG: unknown partType=%d", dstPartType)
+			}
 		}
-	}
 
-	// Atomically store the updated list of file-based parts on disk.
-	// This must be performed under partsLock in order to prevent from races
-	// when multiple concurrently running goroutines update the list.
-	if removedSmallParts > 0 || removedBigParts > 0 || pwNew != nil && (dstPartType == partSmall || dstPartType == partBig) {
-		mustWritePartNames(pt.smallParts, pt.bigParts, pt.smallPartsPath)
-	}
-
-	pt.partsLock.Unlock()
+		// Atomically store the updated list of file-based parts on disk.
+		// This must be performed under partsLock in order to prevent from races
+		// when multiple concurrently running goroutines update the list.
+		if removedSmallParts > 0 || removedBigParts > 0 || (pwNew != nil && (dstPartType == partSmall || dstPartType == partBig)) {
+			mustWritePartNames(pt.smallParts, pt.bigParts, pt.smallPartsPath)
+		}
+	}()
 
 	removedParts := removedInmemoryParts + removedSmallParts + removedBigParts
 	if removedParts != len(m) {
