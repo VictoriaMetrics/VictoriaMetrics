@@ -268,11 +268,9 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 	if !*useHTTP2Client {
 		// Proxy is not supported for http2 client.
 		// See https://github.com/golang/go/issues/26479
-		var proxy func(*http.Request) (*url.URL, error)
 		if proxyURL != nil {
-			proxy = http.ProxyURL(proxyURL)
+			tr.Proxy = http.ProxyURL(proxyURL)
 		}
-		tr.Proxy = proxy
 	}
 	c := &http.Client{
 		Transport: ac.NewRoundTripper(tr),
