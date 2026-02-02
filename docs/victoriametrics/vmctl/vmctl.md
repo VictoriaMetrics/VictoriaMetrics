@@ -171,7 +171,7 @@ as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag en
 
 ### Monitoring the migration process
 
-`vmctl` can push internal metrics {{% available_from "#" %}} to a remote storage for monitoring migration progress and performance.
+`vmctl` can push internal metrics {{% available_from "v1.135.0" %}} to a remote storage for monitoring migration progress and performance.
 This is especially useful for long-running migrations where you want to track progress, detect issues,
 or build dashboards to visualize the migration status.
 

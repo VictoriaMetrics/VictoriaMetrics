@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.135.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.135.0)
+
+Released at 2026-01-30
+
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improved scrape size display. Sizes below 1024 bytes are now shown in `B`, and larger sizes are shown as whole `KiB` (rounded up). This prevents confusion where values like 123.456 KiB were interpreted as 123456 KiB, while the actual size was only 123 KiB. See [#10307](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10307).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): allow buffering request bodies before proxying them to backends. This reduces load on backends when processing requests from slow clients such as IoT devices connected to `vmauth` via slow networks. See [#10309](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10309) and [request body buffering docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering).
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): allow completely disabling scheduled backups by using `-disableScheduledBackups` command-line flag. This is useful to run `vmbackupmanager` only for on-demand backups and restores triggered via API. See [#10364](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10364).
