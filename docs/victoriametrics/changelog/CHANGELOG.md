@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): optimize the performance of the `or` operation by reducing the marshaling call from `O(m*n)` to `O(m+n)` when large volumes of series are involved. See [#10374](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10374).
+
 ## [v1.135.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.135.0)
 
 Released at 2026-01-30
