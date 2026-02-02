@@ -172,7 +172,7 @@ func getWriteRequestContext() *writeRequestContext {
 }
 
 func putWriteRequestContext(wctx *writeRequestContext) {
-	if 8*len(wctx.labelsBuf) < cap(wctx.labelsBuf) && cap(wctx.labelsBuf) >= 200000 {
+	if 8*len(wctx.labelsBuf) < cap(wctx.labelsBuf) && cap(wctx.labelsBuf) > 200000 {
 		// reset wctx.labelsBuf if current len is a lot smaller than then cap, while the cap is not small.
 		// this should preserve memory usage after processing big request with too many unique series & labels.
 		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10378

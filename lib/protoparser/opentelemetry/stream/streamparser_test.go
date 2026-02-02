@@ -846,14 +846,14 @@ func TestPutBigWriteRequestContext(t *testing.T) {
 	f(1000, 1000, 1000)
 	f(10000000, 10000000, 10000000)
 	f(3000000, 10000000, 10000000) // not fulfilling 8x, no reset
-	f(25000, 200000, 200000)       // just fulfilling 8x, no reset
+	f(25001, 200001, 200001)       // not fulfilling 8x, no reset
 
 	// wctx not using the space, but it's too small: no reset
 	f(1, 10000, 10000)
-	f(1, 199999, 199999)
+	f(1, 200000, 200000)
 
 	// wctx not using the space, and the cap is high: reset
-	f(1, 200000, 1)
+	f(1, 200001, 1)
 	f(1, 1000000, 1)
-	f(24999, 200000, 24999) // diff > 8x
+	f(25000, 200001, 25000) // diff > 8x
 }
