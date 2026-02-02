@@ -1671,7 +1671,7 @@ See [Why IndexDB size is so large?](https://docs.victoriametrics.com/victoriamet
 Downsampling is performed during [background merges](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#storage).
 It cannot be performed if there is not enough of free disk space or if vmstorage is in [read-only mode](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#readonly-mode).
 
-Downsampling period changes `/api/v1/export` API output. During query requests, if export `start` period is not specified and `reduce_mem_usage` param is omited, the biggest `downsampling.period` is applied.
+Downsampling period changes `/api/v1/export` API output. During query requests, if export `start` period is not specified and `reduce_mem_usage` param is omitted, the biggest `downsampling.period` is applied.
 As an example, export request  `/api/v1/export?match[]=series` with `-downsampling.period=30d:1h,180d:24h` will return samples downsampled with `24h` interval.
 
 It's expected that resource usage will temporarily increase when **downsampling with filters** is applied.
