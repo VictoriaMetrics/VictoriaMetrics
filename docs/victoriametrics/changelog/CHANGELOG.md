@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Ensure proper reset of `labelsBuf` size for OpenTelemetry ingestion. Previously, when a small number of requests carried a large volume of time series or labels, `labelsBuf` was expanded and recycled to the pool, resulting in excessive memory usage issue [#10378](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10378).
+
 ## [v1.135.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.135.0)
 
 Released at 2026-01-30

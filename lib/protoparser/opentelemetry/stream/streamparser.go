@@ -172,6 +172,18 @@ func getWriteRequestContext() *writeRequestContext {
 }
 
 func putWriteRequestContext(wctx *writeRequestContext) {
+	if 8*len(wctx.labelsBuf) < cap(wctx.labelsBuf) && cap(wctx.labelsBuf) >= 200000 {
+		// reset wctx.labelsBuf in order to preserve memory usage after processing big request with too many unique series & labels.
+		// if current len is a lot smaller than then cap, while the cap is not small
+		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10378
+		//
+		// note: base on the heap profile, resetting the labelsBuf should be enough. we can leave wctx.samplesBuf
+		// and wctx.tss untouched for not, and resetting them only if they caused memory usage issue.
+		// e.g.:
+		// wctx.samplesBuf = make([]prompb.Sample, 0, 10000)
+		// wctx.tss = make([]prompb.TimeSeries, 0, 10000)
+		wctx.labelsBuf = make([]prompb.Label, 0, len(wctx.labelsBuf))
+	}
 	wctx.reset()
 	wctxPool.Put(wctx)
 }
