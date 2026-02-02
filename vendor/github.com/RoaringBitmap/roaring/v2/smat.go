@@ -78,8 +78,6 @@ type actionRecord struct {
 	PairSnapshots []string // base64-encoded MarshalBinary of each pair's Bitmap
 }
 
-var ()
-
 type smatPair struct {
 	bm *Bitmap
 	bs *bitset.BitSet

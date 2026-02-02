@@ -50,3 +50,53 @@ func (si *reverseIterator) next() uint16 {
 	si.loc--
 	return a
 }
+
+type arrayContainerUnsetIterator struct {
+	content []uint16
+	// pos is the index of the next set bit that is >= nextVal.
+	// When nextVal reaches content[pos], pos is incremented.
+	pos     int
+	nextVal int
+}
+
+func (acui *arrayContainerUnsetIterator) next() uint16 {
+	val := acui.nextVal
+	acui.nextVal++
+	for acui.pos < len(acui.content) && uint16(acui.nextVal) >= acui.content[acui.pos] {
+		acui.nextVal++
+		acui.pos++
+	}
+	return uint16(val)
+}
+
+func (acui *arrayContainerUnsetIterator) hasNext() bool {
+	return acui.nextVal < 65536
+}
+
+func (acui *arrayContainerUnsetIterator) peekNext() uint16 {
+	return uint16(acui.nextVal)
+}
+
+func (acui *arrayContainerUnsetIterator) advanceIfNeeded(minval uint16) {
+	if !acui.hasNext() || acui.peekNext() >= minval {
+		return
+	}
+	acui.nextVal = int(minval)
+	acui.pos = binarySearch(acui.content, minval)
+	if acui.pos < 0 {
+		acui.pos = -acui.pos - 1
+	}
+	for acui.pos < len(acui.content) && uint16(acui.nextVal) >= acui.content[acui.pos] {
+		acui.nextVal++
+		acui.pos++
+	}
+}
+
+func newArrayContainerUnsetIterator(content []uint16) *arrayContainerUnsetIterator {
+	acui := &arrayContainerUnsetIterator{content: content, pos: 0, nextVal: 0}
+	for acui.pos < len(acui.content) && uint16(acui.nextVal) >= acui.content[acui.pos] {
+		acui.nextVal++
+		acui.pos++
+	}
+	return acui
+}

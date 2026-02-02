@@ -743,94 +743,179 @@ func (ii *manyIntIterator) Initialize(a *Bitmap) {
 }
 
 type unsetIterator struct {
-	min, max uint32
-	current  uint64 // use uint64 to avoid overflow
-	it       IntPeekable
-	hasNext  bool
+	containerIndex   int
+	nextKey          int
+	hs               uint32
+	iter             shortPeekable
+	highlowcontainer *roaringArray
+
+	arrayUnsetIter    arrayContainerUnsetIterator
+	runUnsetIter      runUnsetIterator16
+	bitmapUnsetIter   bitmapContainerUnsetIterator
+	emptyContainerVal uint16
+
+	start, end uint64
 }
 
-// Initialize configures the unset iterator to iterate over values in [min, max] that are not in the bitmap
-func (ui *unsetIterator) Initialize(b *Bitmap, min, max uint32) {
-	ui.min = min
-	ui.max = max
-	ui.current = uint64(min)
-	ui.it = b.Iterator()
-	// Advance to first value >= min
-	ui.it.AdvanceIfNeeded(min)
-	ui.updateHasNext()
-}
-
-func (ui *unsetIterator) HasNext() bool {
-	return ui.hasNext
-}
-
-func (ui *unsetIterator) Next() uint32 {
-	if !ui.hasNext {
-		panic("Next() called when HasNext() returns false")
-	}
-
-	result := ui.current
-	ui.current++
-	ui.updateHasNext()
-	return uint32(result)
-}
-
-func (ui *unsetIterator) updateHasNext() {
-	for ui.current <= uint64(ui.max) {
-		if !ui.it.HasNext() {
-			// No more set bits, we have values to yield
-			ui.hasNext = true
-			return
+// HasNext returns true if there are more integers to iterate over
+func (iui *unsetIterator) HasNext() bool {
+	// Skip containers that have no unset bits in our range
+	for iui.nextKey < 65536 && uint64(iui.nextKey)<<16 < iui.end {
+		if iui.iter == nil {
+			// We're in an empty container gap, which has unset bits
+			if uint64(iui.nextKey)<<16|uint64(iui.emptyContainerVal) < iui.end {
+				return true
+			}
+			// Move to next container
+			iui.nextKey++
+			iui.containerIndex++
+			iui.init()
+			continue
 		}
-
-		nextSet := ui.it.PeekNext()
-		if nextSet > ui.max {
-			// Next set bit is beyond our range, we have values to yield
-			ui.hasNext = true
-			return
+		if iui.iter.hasNext() {
+			// Check if next value is within range
+			nextVal := (uint64(iui.nextKey) << 16) | uint64(iui.iter.peekNext())
+			if nextVal < iui.end {
+				return true
+			}
 		}
-
-		if ui.current < uint64(nextSet) {
-			// We have unset values before the next set bit
-			ui.hasNext = true
-			return
-		}
-
-		// Skip the set bit
-		ui.it.Next()
-		ui.current = uint64(nextSet) + 1
+		// Current container has no more unset bits in range, move to next
+		iui.nextKey++
+		iui.containerIndex++
+		iui.init()
 	}
-
-	ui.hasNext = false
+	return false
 }
 
-// PeekNext returns the next value without advancing the iterator
-func (ui *unsetIterator) PeekNext() uint32 {
-	if !ui.hasNext {
-		panic("PeekNext() called when HasNext() returns false")
-	}
-	return uint32(ui.current)
-}
-
-// AdvanceIfNeeded advances the iterator so that the next value is at least minval
-func (ui *unsetIterator) AdvanceIfNeeded(minval uint32) {
-	if minval <= ui.min {
-		return // Already at or before the start of our range
-	}
-
-	if minval > ui.max {
-		// Beyond our range, no more values
-		ui.hasNext = false
+func (iui *unsetIterator) init() {
+	// Check if we've gone past the end range
+	if uint64(iui.nextKey)<<16 >= iui.end {
+		iui.iter = nil
 		return
 	}
 
-	// Set current to minval, but make sure we skip any set bits
-	ui.current = uint64(minval)
+	// Check if we're in an empty container gap
+	if iui.containerIndex >= iui.highlowcontainer.size() ||
+		iui.highlowcontainer.getKeyAtIndex(iui.containerIndex) > uint16(iui.nextKey) {
+		// We're in a gap - iterate through empty container
+		iui.emptyContainerVal = 0
+		// If this container overlaps with start, advance to start
+		if uint64(iui.nextKey)<<16 < iui.start && iui.start < uint64(iui.nextKey+1)<<16 {
+			iui.emptyContainerVal = uint16(iui.start)
+		}
+		iui.iter = nil
+		return
+	}
 
-	// Advance the internal iterator to be at or beyond minval
-	ui.it.AdvanceIfNeeded(minval)
+	// We're in an actual container
+	iui.hs = uint32(iui.nextKey) << 16
+	c := iui.highlowcontainer.getContainerAtIndex(iui.containerIndex)
+	switch t := c.(type) {
+	case *arrayContainer:
+		iui.arrayUnsetIter = *newArrayContainerUnsetIterator(t.content)
+		iui.iter = &iui.arrayUnsetIter
+	case *runContainer16:
+		iui.runUnsetIter = *t.newRunUnsetIterator16()
+		iui.iter = &iui.runUnsetIter
+	case *bitmapContainer:
+		iui.bitmapUnsetIter = *newBitmapContainerUnsetIterator(t)
+		iui.iter = &iui.bitmapUnsetIter
+	}
 
-	ui.updateHasNext()
+	// If this container overlaps with start, advance to the low bits of start
+	if uint64(iui.nextKey)<<16 < iui.start && iui.start < uint64(iui.nextKey+1)<<16 {
+		iui.iter.advanceIfNeeded(uint16(iui.start))
+	}
+}
+
+// Next returns the next integer
+func (iui *unsetIterator) Next() uint32 {
+	if iui.iter == nil {
+		// We're in an empty container gap
+		x := (uint32(iui.nextKey) << 16) | uint32(iui.emptyContainerVal)
+		iui.emptyContainerVal++
+		if iui.emptyContainerVal == 0 || uint64(iui.nextKey)<<16|uint64(iui.emptyContainerVal) >= iui.end {
+			// Wrapped around or reached end, move to next container
+			iui.nextKey++
+			iui.init()
+		}
+		return x
+	}
+
+	x := uint32(iui.iter.next()) | iui.hs
+	if !iui.iter.hasNext() || uint64(iui.nextKey)<<16|uint64(iui.iter.peekNext()) >= iui.end {
+		iui.nextKey++
+		iui.containerIndex++
+		iui.init()
+	}
+	return x
+}
+
+// PeekNext peeks the next value without advancing the iterator
+func (iui *unsetIterator) PeekNext() uint32 {
+	if !iui.HasNext() {
+		panic("PeekNext() called when HasNext() returns false")
+	}
+	if iui.iter == nil {
+		return (uint32(iui.nextKey) << 16) | uint32(iui.emptyContainerVal)
+	}
+	return uint32(iui.iter.peekNext()&maxLowBit) | iui.hs
+}
+
+// AdvanceIfNeeded advances as long as the next value is smaller than minval
+func (iui *unsetIterator) AdvanceIfNeeded(minval uint32) {
+	targetKey := int(minval >> 16)
+
+	for iui.HasNext() && iui.nextKey < targetKey {
+		iui.nextKey++
+		// Find the next container that matches or exceeds nextKey
+		for iui.containerIndex < iui.highlowcontainer.size() &&
+			int(iui.highlowcontainer.getKeyAtIndex(iui.containerIndex)) < iui.nextKey {
+			iui.containerIndex++
+		}
+		iui.init()
+	}
+
+	if iui.HasNext() && iui.nextKey == targetKey {
+		if iui.iter != nil {
+			iui.iter.advanceIfNeeded(lowbits(minval))
+			if !iui.iter.hasNext() || uint64(iui.nextKey)<<16|uint64(iui.iter.peekNext()) >= iui.end {
+				iui.nextKey++
+				iui.containerIndex++
+				iui.init()
+			}
+		} else {
+			lowVal := lowbits(minval)
+			if iui.emptyContainerVal < lowVal {
+				iui.emptyContainerVal = lowVal
+			}
+			if uint64(iui.nextKey)<<16|uint64(iui.emptyContainerVal) >= iui.end {
+				iui.nextKey++
+				iui.containerIndex++
+				iui.init()
+			}
+		}
+	}
+}
+
+// Initialize configures the unset iterator to iterate over values in [start, end) that are not in the bitmap
+func (iui *unsetIterator) Initialize(a *Bitmap, start, end uint64) {
+	if end > 0x100000000 {
+		panic("end > 0x100000000")
+	}
+	iui.start = start
+	iui.end = end
+	iui.containerIndex = 0
+	iui.nextKey = int(start >> 16)
+	iui.highlowcontainer = &a.highlowcontainer
+
+	// Find the first container that matches or exceeds the start key
+	for iui.containerIndex < iui.highlowcontainer.size() &&
+		int(iui.highlowcontainer.getKeyAtIndex(iui.containerIndex)) < iui.nextKey {
+		iui.containerIndex++
+	}
+
+	iui.init()
 }
 
 // String creates a string representation of the Bitmap
@@ -915,11 +1000,11 @@ func (rb *Bitmap) ManyIterator() ManyIntIterable {
 	return p
 }
 
-// UnsetIterator creates a new IntPeekable to iterate over values in the range [min, max] that are NOT contained in the bitmap.
+// UnsetIterator creates a new IntPeekable to iterate over values in the range [start, end) that are NOT contained in the bitmap.
 // The iterator becomes invalid if the bitmap is modified (e.g., with Add or Remove).
-func (rb *Bitmap) UnsetIterator(min, max uint32) IntPeekable {
+func (rb *Bitmap) UnsetIterator(start, end uint64) IntPeekable {
 	p := new(unsetIterator)
-	p.Initialize(rb, min, max)
+	p.Initialize(rb, start, end)
 	return p
 }
 
