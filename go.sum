@@ -52,8 +52,8 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapp
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0/go.mod h1:Mf6O40IAyB9zR/1J8nGDDPirZQQPbYJni8Yisy7NTMc=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
-github.com/RoaringBitmap/roaring/v2 v2.14.0 h1:NjlfrI3SmA9Zm5yM1FV+IR096NyVt2R8wRp56y6I8zU=
-github.com/RoaringBitmap/roaring/v2 v2.14.0/go.mod h1:oMvV6omPWr+2ifRdeZvVJyaz+aoEUopyv5iH0u/+wbY=
+github.com/RoaringBitmap/roaring/v2 v2.14.4 h1:4aKySrrg9G/5oRtJ3TrZLObVqxgQ9f1znCRBwEwjuVw=
+github.com/RoaringBitmap/roaring/v2 v2.14.4/go.mod h1:oMvV6omPWr+2ifRdeZvVJyaz+aoEUopyv5iH0u/+wbY=
 github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20260125191521-bc89d84cd61d h1:KXP2mkLdLJZDNmw4s7SxWBziDEyaWs57EQcgP9r19mc=
 github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20260125191521-bc89d84cd61d/go.mod h1:FWICi4QDCcNA5KoPp1trxCNojzM/ggLADz/B97HwIlY=
 github.com/VictoriaMetrics/easyproto v1.1.3 h1:gRSA3ZQs7n4+5I+SniDWD59jde1jVq4JmgQ9HUUyvk4=

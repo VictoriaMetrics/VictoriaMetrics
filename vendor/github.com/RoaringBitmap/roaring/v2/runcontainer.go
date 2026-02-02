@@ -1980,6 +1980,61 @@ func (rc *runContainer16) getManyIterator() manyIterable {
 	return rc.newManyRunIterator16()
 }
 
+type runUnsetIterator16 struct {
+	rc       *runContainer16
+	curIndex int
+	nextVal  int
+}
+
+func (rc *runContainer16) newRunUnsetIterator16() *runUnsetIterator16 {
+	rui := &runUnsetIterator16{rc: rc, curIndex: 0, nextVal: 0}
+	if len(rc.iv) > 0 && rc.iv[0].start == 0 {
+		rui.nextVal = int(rc.iv[0].start) + int(rc.iv[0].length) + 1
+		rui.curIndex = 1
+	}
+	return rui
+}
+
+func (rui *runUnsetIterator16) hasNext() bool {
+	return rui.nextVal < 65536
+}
+
+func (rui *runUnsetIterator16) next() uint16 {
+	val := rui.nextVal
+	rui.nextVal++
+	if rui.curIndex < len(rui.rc.iv) && uint16(rui.nextVal) >= rui.rc.iv[rui.curIndex].start {
+		rui.nextVal = int(rui.rc.iv[rui.curIndex].start) + int(rui.rc.iv[rui.curIndex].length) + 1
+		rui.curIndex++
+	}
+	return uint16(val)
+}
+
+func (rui *runUnsetIterator16) peekNext() uint16 {
+	return uint16(rui.nextVal)
+}
+
+func (rui *runUnsetIterator16) advanceIfNeeded(minval uint16) {
+	if !rui.hasNext() || rui.peekNext() >= minval {
+		return
+	}
+	rui.nextVal = int(minval)
+	for rui.curIndex < len(rui.rc.iv) {
+		if rui.rc.iv[rui.curIndex].start+rui.rc.iv[rui.curIndex].length < minval {
+			rui.curIndex++
+		} else if rui.rc.iv[rui.curIndex].start <= minval {
+			rui.nextVal = int(rui.rc.iv[rui.curIndex].start) + int(rui.rc.iv[rui.curIndex].length) + 1
+			rui.curIndex++
+			break
+		} else {
+			break
+		}
+	}
+}
+
+func (rc *runContainer16) getUnsetIterator() shortPeekable {
+	return rc.newRunUnsetIterator16()
+}
+
 // add the values in the range [firstOfRange, endx). endx
 // is still abe to express 2^16 because it is an int not an uint16.
 func (rc *runContainer16) iaddRange(firstOfRange, endx int) container {

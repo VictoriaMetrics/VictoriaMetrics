@@ -40,6 +40,7 @@ type container interface {
 	inot(firstOfRange, endx int) container // i stands for inplace, range is [firstOfRange,endx)
 	xor(r container) container
 	getShortIterator() shortPeekable
+	getUnsetIterator() shortPeekable
 	iterate(cb func(x uint16) bool) bool
 	getReverseIterator() shortIterable
 	getManyIterator() manyIterable

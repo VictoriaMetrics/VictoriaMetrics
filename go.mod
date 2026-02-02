@@ -7,7 +7,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.4
-	github.com/RoaringBitmap/roaring/v2 v2.14.0
+	github.com/RoaringBitmap/roaring/v2 v2.14.4
 	github.com/VictoriaMetrics/VictoriaLogs v0.0.0-20260125191521-bc89d84cd61d
 	github.com/VictoriaMetrics/easyproto v1.1.3
 	github.com/VictoriaMetrics/fastcache v1.13.2

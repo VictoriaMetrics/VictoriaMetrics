@@ -262,6 +262,39 @@ func (bc *bitmapContainer) getManyIterator() manyIterable {
 	return newBitmapContainerManyIterator(bc)
 }
 
+type bitmapContainerUnsetIterator struct {
+	ptr *bitmapContainer
+	i   int
+}
+
+func (bcui *bitmapContainerUnsetIterator) next() uint16 {
+	j := bcui.i
+	bcui.i = bcui.ptr.NextUnsetBit(uint(bcui.i) + 1)
+	return uint16(j)
+}
+
+func (bcui *bitmapContainerUnsetIterator) hasNext() bool {
+	return bcui.i >= 0 && bcui.i < 65536
+}
+
+func (bcui *bitmapContainerUnsetIterator) peekNext() uint16 {
+	return uint16(bcui.i)
+}
+
+func (bcui *bitmapContainerUnsetIterator) advanceIfNeeded(minval uint16) {
+	if bcui.hasNext() && bcui.peekNext() < minval {
+		bcui.i = bcui.ptr.NextUnsetBit(uint(minval))
+	}
+}
+
+func newBitmapContainerUnsetIterator(a *bitmapContainer) *bitmapContainerUnsetIterator {
+	return &bitmapContainerUnsetIterator{a, a.NextUnsetBit(0)}
+}
+
+func (bc *bitmapContainer) getUnsetIterator() shortPeekable {
+	return newBitmapContainerUnsetIterator(bc)
+}
+
 func (bc *bitmapContainer) getSizeInBytes() int {
 	return len(bc.bitmap) * 8
 }
@@ -1111,6 +1144,29 @@ func (bc *bitmapContainer) NextSetBit(i uint) int {
 		}
 	}
 	return -1
+}
+
+func (bc *bitmapContainer) NextUnsetBit(i uint) int {
+	var (
+		x      = i / 64
+		length = uint(len(bc.bitmap))
+	)
+	if x >= length {
+		return int(i)
+	}
+	w := bc.bitmap[x]
+	w = w >> uint(i%64)
+	w = ^w
+	if w != 0 {
+		return int(i) + countTrailingZeros(w)
+	}
+	x++
+	for ; x < length; x++ {
+		if bc.bitmap[x] != 0xFFFFFFFFFFFFFFFF {
+			return int(x*64) + countTrailingZeros(^bc.bitmap[x])
+		}
+	}
+	return int(length * 64)
 }
 
 // PrevSetBit returns the previous set bit e.g the previous int packed into the bitmaparray

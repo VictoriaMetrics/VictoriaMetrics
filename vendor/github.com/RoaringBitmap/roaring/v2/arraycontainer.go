@@ -62,6 +62,10 @@ func (ac *arrayContainer) getManyIterator() manyIterable {
 	return &shortIterator{ac.content, 0}
 }
 
+func (ac *arrayContainer) getUnsetIterator() shortPeekable {
+	return newArrayContainerUnsetIterator(ac.content)
+}
+
 func (ac *arrayContainer) minimum() uint16 {
 	return ac.content[0] // assume not empty
 }
