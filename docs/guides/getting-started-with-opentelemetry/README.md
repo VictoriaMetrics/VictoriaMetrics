@@ -55,7 +55,7 @@ kubectl get pods
 # victoria-metrics-victoria-metrics-single-server-0   1/1     Running   0          3m1s
 ```
 
-The VictoriaMetrics helm chart provides the following URL for writing data:
+The VictoriaMetrics Helm chart provides the following URL for writing data:
 
 ```text
 Write URL inside the kubernetes cluster:
@@ -108,7 +108,7 @@ The [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) can be c
 ![OTEL Collector](collector.webp)
 {width="500"}
 
-Before you can install the OpenTelemetry Collector, add the Helm repo:
+Add the OpenTelemetry Collector Helm repo:
 
 ```sh
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
@@ -189,7 +189,8 @@ Visit [http://localhost:8428/vmui/#/?g0.expr=k8s_container_ready&g0.tab=1](http:
 
 ![VictoriaMetrics VMUI showing metric being collected](vmui-k8s_container_ready.webp)
 
-Use the [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) to inspect all available metrics.
+> [!NOTE] Tip
+> Use the [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) to inspect all available metrics.
 
 To confirm that logs are being ingested by the Collector, port forward the VictoriaLogs service with the following command:
 
@@ -211,11 +212,12 @@ In our example, we'll create a web server in [Go](https://go.dev/), with metrics
 
 ### Sending to OpenTelemetry Collector
 
-Download the [example code](app.go-collector.example) and rename it as `main.go`. The example code implements a dice roll web server that uses the OpenTelemetry SDK to send data to the OpenTelemetry Collector at <http://localhost:4318>.
+Download the [example code](app.go-collector.example) and rename it as `main.go`. The example code implements a dice roll web server that uses the OpenTelemetry SDK to send data to the OpenTelemetry Collector at `http://localhost:4318`.
 
-See how to set up and run OpenTelemetry Collector [here](#opentelemetry-collector-with-victoriametrics-and-victorialogs).
+> [!NOTE] Tip
+> See how to set up and run OpenTelemetry Collector [here](#opentelemetry-collector-with-victoriametrics-and-victorialogs).
 
-First, port forward the OpenTelemetry Collector pod in your cluster:
+First, port forward the OpenTelemetry Collector service in your cluster:
 
 ```sh
 kubectl port-forward svc/otel-opentelemetry-collector 4318
@@ -235,7 +237,7 @@ go run .
 ```
 
 By default, the application in the example listens on `http://localhost:8080`. Start sending requests
-to <http://localhost:8080/rolldice> endpoint to generate some metrics.
+to the `http://localhost:8080/rolldice` endpoint to generate some metrics.
 
 Run the following command to send 20 requests to the dice roll example application:
 
@@ -260,7 +262,7 @@ You can send telemetry directly from your application to VictoriaMetrics and Vic
 ![OTEL direct](direct.webp)
 {width="500"}
 
-This time, we'll run a different web server, also in [Go](https://go.dev/), instrument it with metrics and logs, and configure it to send this telemetry data directly to VictoriaMetrics and VictoriaLogs.
+This time, we'll run a different web server, also in [Go](https://go.dev/) and instrumented with metrics and logs. This demo application sends telemetry data directly to VictoriaMetrics and VictoriaLogs services.
 
 Download the [example code](app.go.example) and rename it as `main.go`. In the same directory, execute the following commands:
 
@@ -286,20 +288,19 @@ kubectl port-forward svc/victoria-metrics-victoria-metrics-single-server 8428
 kubectl port-forward svc/victoria-logs-victoria-logs-single-server 9428
 ```
 
-Visit test application links:
+Generate a few HTTP requests to both routes so the application sends metrics and logs to VictoriaMetrics and VictoriaLogs.
 
 ```sh
 for i in `seq 1 20`; do curl http://localhost:8081/fast; done
 for i in `seq 1 5`; do curl http://localhost:8081/slow; done
 ```
 
-Visit both links a few times. The application will generate metrics and logs and will send them to VictoriaMetrics and VictoriaLogs.
-
 After a few seconds, you should start seeing metrics sent to VictoriaMetrics by visiting [http://localhost:8428/vmui/#/?g0.expr=http_requests_total](http://localhost:8428/vmui/#/?g0.expr=http_requests_total).
 
 ![OTEL Metrics VMUI](vmui-direct-metrics.webp)
 
-Check other available metrics by visiting [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) page.
+> [!NOTE] Tip
+> Check other available metrics by visiting the [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) page.
 
 Logs should be available by visiting [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui)
 using query `service.name: unknown_service:otel`.
@@ -309,4 +310,4 @@ using query `service.name: unknown_service:otel`.
 ## Limitations
 
 - VictoriaMetrics and VictoriaLogs do not support experimental JSON encoding [format](https://github.com/open-telemetry/opentelemetry-proto/blob/main/examples/metrics.json).
-- VictoriaMetrics supports only the `AggregationTemporalityCumulative` type for [histogram](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#histogram) and [summary](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#summary-legacy). Either consider using cumulative temporality or use the[`delta-to-cumulative processor`](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/deltatocumulativeprocessor) to convert to cumulative temporality in OpenTelemetry Collector.
+- VictoriaMetrics supports only the `AggregationTemporalityCumulative` type for [histogram](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#histogram) and [summary](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#summary-legacy). Either consider using cumulative temporality or use the [`delta-to-cumulative processor`](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/deltatocumulativeprocessor) to convert to cumulative temporality in OpenTelemetry Collector.
