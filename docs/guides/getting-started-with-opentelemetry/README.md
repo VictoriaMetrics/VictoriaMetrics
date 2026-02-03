@@ -291,8 +291,8 @@ kubectl port-forward svc/victoria-logs-victoria-logs-single-server 9428
 Generate a few HTTP requests to both routes so the application sends metrics and logs to VictoriaMetrics and VictoriaLogs.
 
 ```sh
-for i in `seq 1 20`; do curl http://localhost:8081/fast; done
-for i in `seq 1 5`; do curl http://localhost:8081/slow; done
+for i in `seq 1 20`; do curl http://localhost:8081/api/fast; done
+for i in `seq 1 5`; do curl http://localhost:8081/api/slow; done
 ```
 
 After a few seconds, you should start seeing metrics sent to VictoriaMetrics by visiting [http://localhost:8428/vmui/#/?g0.expr=http_requests_total](http://localhost:8428/vmui/#/?g0.expr=http_requests_total).
