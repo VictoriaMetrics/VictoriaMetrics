@@ -172,7 +172,7 @@ func getWriteRequestContext() *writeRequestContext {
 }
 
 func putWriteRequestContext(wctx *writeRequestContext) {
-	if 8*len(wctx.labelsBuf) < cap(wctx.labelsBuf) && cap(wctx.labelsBuf) > 200000 {
+	if 4*len(wctx.labelsBuf) < cap(wctx.labelsBuf) && cap(wctx.buf) > 128*1024 {
 		// reset wctx.labelsBuf if current len is a lot smaller than then cap, while the cap is not small.
 		// this should preserve memory usage after processing big request with too many unique series & labels.
 		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10378
@@ -182,6 +182,7 @@ func putWriteRequestContext(wctx *writeRequestContext) {
 		// e.g.:
 		// wctx.samplesBuf = make([]prompb.Sample, 0, len(wctx.samplesBuf))
 		// wctx.tss = make([]prompb.TimeSeries, 0, len(wctx.tss))
+		wctx.buf = make([]byte, 0, 128*1024)
 		wctx.labelsBuf = make([]prompb.Label, 0, len(wctx.labelsBuf))
 	}
 	wctx.reset()
