@@ -494,7 +494,7 @@ The config file defines the following settings for Grafana:
 Run the following command to install the Grafana chart with the name `my-grafana`:
 
 ```sh
-helm install my-grafana grafana/grafana -f grafana-cluster-values.yml
+helm install my-grafana grafana-community/grafana -f grafana-cluster-values.yml
 ```
 
 You should get the following output:
