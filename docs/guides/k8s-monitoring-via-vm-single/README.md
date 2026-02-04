@@ -7,18 +7,20 @@ sitemap:
   disable: true
 ---
 
-**This guide covers:**
+This guide walks you through deploying a [VictoriaMetrics Single-Node Instance](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) on Kubernetes using Helm.
 
-- The setup of a [VictoriaMetrics Single-Node Instance](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts.
+At the end of this guide, you will know:
+
+- How to install VictoriaMetrics Single-Node in Kubernetes.
 - How to scrape metrics from Kubernetes components using service discovery.
-- How to visualize stored data.
+- How to visualize stored data with Grafana.
 - How to store metrics in [VictoriaMetrics](https://victoriametrics.com) time series database.
 
 **Precondition**
 
 We will use:
 
-- [Kubernetes cluster 1.34.1-gke.3971001](https://cloud.google.com/kubernetes-engine)
+- [Kubernetes cluster 1.34](https://cloud.google.com/kubernetes-engine)
   > We use a GKE cluster from [GCP](https://cloud.google.com/), but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/) or an on-premises cluster.
 - [Helm 4.1.0+](https://helm.sh/docs/intro/install)
 - [kubectl 1.34.3](https://kubernetes.io/docs/tasks/tools/install-kubectl)
@@ -155,7 +157,7 @@ server:
               replacement: '${1}'
 ```
 
-- With `helm install` we install [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
+- With `helm install`, we install [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
 - By adding `scrape: enabled: true`, we add and enable autodiscovery scraping from the Kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).
 - On line 63 from [https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml), we added a `metric_relabel_configs` section that normalizes labels to correctly show the Kubernetes metrics on the Grafana dashboard.
 
@@ -203,7 +205,7 @@ Read Data:
     http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428
 ```
 
-For us, it’s important to remember the URL of the datasource (copy the lines from the output). In the example above, we need to copy the "datasource URL in Grafana" near the end of the output:
+For us, it’s important to remember the datasource URL (copy the lines from the output). In the example above, we need to copy the "datasource URL in Grafana" near the end of the output:
 
 ```text
 The following URL can be used as the datasource URL in Grafana::
