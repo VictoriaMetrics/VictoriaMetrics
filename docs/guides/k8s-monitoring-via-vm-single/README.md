@@ -229,14 +229,17 @@ vmsingle-victoria-metrics-single-server-0   1/1     Running   0          68s
 Add the Grafana Helm repository.
 
 ```shell
-helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add grafana-community https://grafana-community.github.io/helm-charts
 helm repo update
 ```
 
-Run the following command to install Grafana with the release name `my-grafana`. Paste the URL copied from the previous step into the `url` key in the following chart:
+> [!NOTE] Tip
+> See more information on Grafana in [ArtifactHUB](https://artifacthub.io/packages/helm/grafana-community/grafana)
+
+Create a config file for the Grafana service. Paste the URL copied from the previous step into the `url` key in the following chart:
 
 ```yaml
-cat <<EOF | helm install my-grafana grafana/grafana -f -
+cat <<EOF > grafana-single-values.yml
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -281,12 +284,19 @@ EOF
 > [!NOTE] Tip
 > Grafana Dashboard revisions may change. Check the [VictoriaMetrics Dashboards](https://grafana.com/grafana/dashboards/10229-victoriametrics-single-node/) on Grafana.com to obtain the latest revision number.
 
+Run the following command to install Grafana with the release name `my-grafana`:
+
+```shell
+helm install my-grafana grafana/grafana -f grafana-single-values.yml
+```
+
 By running this command, we:
 
 - Install Grafana from the Helm repository.
 - Provision the VictoriaMetrics datasource with the `url` from the output above, which we copied before.
-- Add [this dashboard](https://grafana.com/grafana/dashboards/10229) for VictoriaMetrics.
-- Add [this dashboard](https://grafana.com/grafana/dashboards/14205) to see Kubernetes cluster metrics.
+- Add two starter dashboards:
+  - [Kubernetes Cluster Monitoring (via Prometheus)](https://grafana.com/grafana/dashboards/14205-kubernetes-cluster-monitoring-via-prometheus/) to show the Kubernetes Cluster metrics.
+  - [VictoriaMetrics - single-node](https://grafana.com/grafana/dashboards/10229-victoriametrics-single-node/) for VictoriaMetrics telemetry ingestion monitoring.
 
 Check the output log in your terminal. You should see the following output:
 
