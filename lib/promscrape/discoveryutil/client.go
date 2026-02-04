@@ -112,7 +112,9 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 	}
 
 	tr := httputil.NewTransport(false, "vm_promscrape_discovery")
-	tr.Proxy = proxyURLFunc
+	if proxyURLFunc != nil {
+		tr.Proxy = proxyURLFunc
+	}
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.MaxIdleConnsPerHost = *maxConcurrency
 	tr.ResponseHeaderTimeout = DefaultClientReadTimeout
@@ -124,7 +126,9 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 	}
 
 	trBlocking := httputil.NewTransport(false, "vm_promscrape_discovery")
-	trBlocking.Proxy = proxyURLFunc
+	if proxyURLFunc != nil {
+		trBlocking.Proxy = proxyURLFunc
+	}
 	trBlocking.TLSHandshakeTimeout = 10 * time.Second
 	trBlocking.MaxIdleConnsPerHost = 1000
 	trBlocking.ResponseHeaderTimeout = BlockingClientReadTimeout
