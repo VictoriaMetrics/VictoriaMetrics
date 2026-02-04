@@ -88,13 +88,23 @@ func (fs *FS) RemoveEmptyDirs() error {
 }
 
 // CopyPart copies the part p from srcFS to fs.
-//
-// srcFS must have *FS type.
 func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
-	src, ok := srcFS.(*FS)
-	if !ok {
-		return fmt.Errorf("cannot perform server-side copying from %s to %s: both of them must be fsremote", srcFS, fs)
+	// Fast path: copy for fsremote to fsremote
+	if src, ok := srcFS.(*FS); ok {
+		return fs.serverSideCopy(src, p)
 	}
+
+	// Cross-type path: download from src and upload to fs
+	srcRemote, ok := srcFS.(common.RemoteFS)
+	if !ok {
+		return fmt.Errorf("cannot copy from %s to %s: source does not support remote operations", srcFS, fs)
+	}
+
+	logger.Infof("cross-type copying %s from %s to %s", &p, srcFS, fs)
+	return common.CrossTypeCopy(srcRemote, fs, p)
+}
+
+func (fs *FS) serverSideCopy(src *FS, p common.Part) error {
 	srcPath := src.path(p)
 	dstPath := fs.path(p)
 	if err := fs.mkdirAll(dstPath); err != nil {

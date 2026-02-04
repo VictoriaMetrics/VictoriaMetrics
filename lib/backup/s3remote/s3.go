@@ -341,10 +341,22 @@ func (fs *FS) RemoveEmptyDirs() error {
 
 // CopyPart copies p from srcFS to fs.
 func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
-	src, ok := srcFS.(*FS)
-	if !ok {
-		return fmt.Errorf("cannot perform server-side copying from %s to %s: both of them must be S3", srcFS, fs)
+	// Fast path: server-side copy for S3 to S3
+	if src, ok := srcFS.(*FS); ok {
+		return fs.serverSideCopy(src, p)
 	}
+
+	// Cross-type path: download from src and upload to fs
+	srcRemote, ok := srcFS.(common.RemoteFS)
+	if !ok {
+		return fmt.Errorf("cannot copy from %s to %s: source does not support remote operations", srcFS, fs)
+	}
+
+	logger.Infof("cross-type copying %s from %s to %s", &p, srcFS, fs)
+	return common.CrossTypeCopy(srcRemote, fs, p)
+}
+
+func (fs *FS) serverSideCopy(src *FS, p common.Part) error {
 	srcPath := src.path(p)
 	dstPath := fs.path(p)
 	copySource := fmt.Sprintf("/%s/%s", src.Bucket, srcPath)

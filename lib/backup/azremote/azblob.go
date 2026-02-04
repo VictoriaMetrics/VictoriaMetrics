@@ -207,11 +207,23 @@ func (fs *FS) RemoveEmptyDirs() error {
 
 // CopyPart copies p from srcFS to fs.
 func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
-	src, ok := srcFS.(*FS)
-	if !ok {
-		return fmt.Errorf("cannot perform server-side copying from %s to %s: both of them must be AZBlob", srcFS, fs)
+	// Fast path: server-side copy for Azure to Azure
+	if src, ok := srcFS.(*FS); ok {
+		return fs.serverSideCopy(src, p)
 	}
 
+	// Cross-type path: download from src and upload to fs
+	srcRemote, ok := srcFS.(common.RemoteFS)
+	if !ok {
+		return fmt.Errorf("cannot copy from %s to %s: source does not support remote operations", srcFS, fs)
+	}
+
+	logger.Infof("cross-type copying %s from %s to %s", &p, srcFS, fs)
+	return common.CrossTypeCopy(srcRemote, fs, p)
+}
+
+// serverSideCopy performs optimized server-side copy within Azure.
+func (fs *FS) serverSideCopy(src *FS, p common.Part) error {
 	sbc := src.client.NewBlobClient(p.RemotePath(src.Dir))
 	dbc := fs.clientForPart(p)
 
