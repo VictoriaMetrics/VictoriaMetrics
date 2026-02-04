@@ -289,7 +289,7 @@ EOF
 Run the following command to install Grafana with the release name `my-grafana`:
 
 ```shell
-helm install my-grafana grafana/grafana -f grafana-single-values.yml
+helm install my-grafana grafana-community/grafana -f grafana-single-values.yml
 ```
 
 By running this command, we:
