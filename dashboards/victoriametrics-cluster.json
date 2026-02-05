@@ -11273,7 +11273,7 @@
               "hide": false,
               "interval": "5m",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "{{instance}} - {{level}}: {{location}}",
               "range": true,
               "refId": "A"
             }
