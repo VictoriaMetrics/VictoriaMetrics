@@ -10,7 +10,7 @@ sitemap:
 This guide walks you through deploying a VictoriaMetrics cluster version on Kubernetes.
 
 > [!NOTE] Important
-> It is important to understand the trade-offs between single-node and cluster versions of VictoriaMetrics. A single node instance can handle [up to 100 million active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics) while being easier to manage and requiring fewer resources. Unless you *really need* horizontal scalability or [features present only in the cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#prominent-features), consider installing the [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/).
+> It is important to understand the trade-offs between single-node and cluster versions of VictoriaMetrics. A single node instance can handle [up to 100 million active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics) while being easier to manage and requiring fewer resources. Unless you **really need** horizontal scalability or [features present only in the cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#prominent-features), consider installing the [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/).
 
 By the end of this guide, you will know:
 
@@ -19,11 +19,9 @@ By the end of this guide, you will know:
 - How to store metrics in [VictoriaMetrics](https://victoriametrics.com) time-series database.
 - How to visualize metrics in Grafana
 
-**Precondition** TODO: use newer GKE
-
 We will use:
 
-- [Kubernetes cluster 1.31.1-gke.1678000](https://cloud.google.com/kubernetes-engine)
+- [Kubernetes cluster 1.34+](https://cloud.google.com/kubernetes-engine)
 - [Helm 4.1+](https://helm.sh/docs/intro/install)
 - [kubectl 1.34+](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
@@ -44,29 +42,13 @@ To verify that everything is set up correctly, you may run this command:
 helm search repo vm/
 ```
 
-The expected output is:
+You should see a list similar to this:
 
 ```text
 NAME                                    CHART VERSION   APP VERSION     DESCRIPTION
-vm/victoria-logs-agent                  0.0.9           v1.44.0         VictoriaLogs Agent - accepts logs from various ...
-vm/victoria-logs-cluster                0.0.26          v1.44.0         The VictoriaLogs cluster Helm chart deploys Vic...
-vm/victoria-logs-collector              0.2.8           v1.44.0         VictoriaLogs Collector - collects logs from Kub...
-vm/victoria-logs-multilevel             0.0.8           v1.44.0         The VictoriaLogs multilevel Helm chart deploys ...
-vm/victoria-logs-single                 0.11.25         v1.44.0         The VictoriaLogs single Helm chart deploys Vict...
-vm/victoria-metrics-agent               0.31.0          v1.135.0        VictoriaMetrics Agent - collects metrics from v...
-vm/victoria-metrics-alert               0.31.0          v1.135.0        VictoriaMetrics Alert - executes a list of give...
-vm/victoria-metrics-anomaly             1.12.9          v1.28.2         VictoriaMetrics Anomaly Detection - a service t...
-vm/victoria-metrics-auth                0.24.0          v1.135.0        VictoriaMetrics Auth - is a simple auth proxy a...
 vm/victoria-metrics-cluster             0.34.0          v1.135.0        VictoriaMetrics Cluster version - high-performa...
-vm/victoria-metrics-common              0.0.46                          VictoriaMetrics Common - contains shared templa...
-vm/victoria-metrics-distributed         0.29.0          v1.135.0        A Helm chart for Running VMCluster on Multiple ...
-vm/victoria-metrics-gateway             0.22.0          v1.135.0        VictoriaMetrics Gateway - Auth & Rate-Limitting...
-vm/victoria-metrics-k8s-stack           0.70.0          v1.135.0        Kubernetes monitoring on VictoriaMetrics stack....
-vm/victoria-metrics-operator            0.58.1          v0.67.0         VictoriaMetrics Operator
-vm/victoria-metrics-operator-crds       0.7.0           v0.67.0         VictoriaMetrics Operator CRDs
-vm/victoria-metrics-single              0.30.0          v1.135.0        VictoriaMetrics Single version - high-performan...
-vm/victoria-traces-cluster              0.0.6           v0.7.0          The VictoriaTraces cluster Helm chart deploys V...
-vm/victoria-traces-single               0.0.6           v0.7.0          The VictoriaTraces single Helm chart deploys Vi...
+vm/victoria-metrics-agent               0.31.0          v1.135.0        VictoriaMetrics Agent - collects metrics from v...
+...(the list continues)...
 ```
 
 ## 2. Install VictoriaMetrics Cluster from the Helm chart
@@ -103,7 +85,7 @@ EOF
 The config file defines two settings for the VictoriaMetrics services:
 
 - `podAnnotations: prometheus.io/scrape: "true"` enables automatic service discovery and metric scraping from the VictoriaMetrics pods.
-- `podAnnotations:prometheus.io/port: "some_port"` defines which port numbers to target for scraping metrics from the VictoriaMetrics pods.
+- `podAnnotations:prometheus.io/port: "<port-number>"` defines which port numbers to target for scraping metrics from the VictoriaMetrics pods.
 
 Next, install VictoriaMetrics cluster version with the following command:
 
@@ -164,8 +146,12 @@ for example - inside the Kubernetes cluster:
     http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
 ```
 
-> [!NOTE] Important
-> Note the URL for the `remote_write`. We will use this value for [Step 3](#id-3-install-vmagent-from-the-helm-chart) and [Step 4](#id-4-install-and-connect-grafana-to-victoriametrics-with-helm).
+Note the URL for the `remote_write` as we will need this value for [Step 3](#id-3-install-vmagent-from-the-helm-chart) and [Step 4](#id-4-install-and-connect-grafana-to-victoriametrics-with-helm). In the example above the URL is:
+
+```text
+    remote_write:
+      - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480/insert/0/prometheus/
+```
 
 Verify that [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) pods are up and running by executing the following command:
 
@@ -173,7 +159,7 @@ Verify that [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriam
 kubectl get pods
 ```
 
-The expected output is:
+You should see a list of pods similar to this:
 
 ```text
 NAME                                                           READY   STATUS    RESTARTS   AGE
@@ -195,228 +181,38 @@ Run the following command to install the `vmagent` service in your cluster:
 helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.com/guides/examples/guide-vmcluster-vmagent-values.yaml
 ```
 
-Here is the full content of `guide-vmcluster-vmagent-values.yaml`
+Here are the key settings in the chart values file `guide-vmcluster-vmagent-values.yaml`:
 
-```yaml
-remoteWrite:
-  - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
+- `remoteWrite` defines the `vminsert` endpoint that receives telemetry from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This value should match exactly the URL for the `remote_write` in the output of [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart).
 
-config:
-  global:
-    scrape_interval: 10s
+    ```yaml
+    remoteWrite:
+      - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
+    ```
 
-  scrape_configs:
-    - job_name: vmagent
-      static_configs:
-        - targets: ["localhost:8429"]
-    - job_name: "kubernetes-apiservers"
-      kubernetes_sd_configs:
-        - role: endpoints
-      scheme: https
-      tls_config:
-        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        insecure_skip_verify: true
-      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-      relabel_configs:
-        - source_labels:
-            [
-              __meta_kubernetes_namespace,
-              __meta_kubernetes_service_name,
-              __meta_kubernetes_endpoint_port_name,
-            ]
-          action: keep
-          regex: default;kubernetes;https
-    - job_name: "kubernetes-nodes"
-      scheme: https
-      tls_config:
-        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        insecure_skip_verify: true
-      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-      kubernetes_sd_configs:
-        - role: node
-      relabel_configs:
-        - action: labelmap
-          regex: __meta_kubernetes_node_label_(.+)
-    - job_name: "kubernetes-nodes-cadvisor"
-      scheme: https
-      tls_config:
-        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        insecure_skip_verify: true
-      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-      kubernetes_sd_configs:
-        - role: node
-      metrics_path: /metrics/cadvisor
-      relabel_configs:
-        - action: labelmap
-          regex: __meta_kubernetes_node_label_(.+)
-        - source_labels: [__metrics_path__]
-          target_label: metrics_path
-      metric_relabel_configs:
-        - action: replace
-          source_labels: [pod]
-          regex: '(.+)'
-          target_label: pod_name
-          replacement: '${1}'
-        - action: replace
-          source_labels: [container]
-          regex: '(.+)'
-          target_label: container_name
-          replacement: '${1}'
-        - action: replace
-          target_label: name
-          replacement: k8s_stub
-        - action: replace
-          source_labels: [id]
-          regex: '^/system\.slice/(.+)\.service$'
-          target_label: systemd_service_name
-          replacement: '${1}'
-    - job_name: "kubernetes-service-endpoints"
-      kubernetes_sd_configs:
-        - role: endpoints
-      relabel_configs:
-        - action: drop
-          source_labels: [__meta_kubernetes_pod_container_init]
-          regex: true
-        - action: keep_if_equal
-          source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
-        - source_labels:
-            [__meta_kubernetes_service_annotation_prometheus_io_scrape]
-          action: keep
-          regex: true
-        - source_labels:
-            [__meta_kubernetes_service_annotation_prometheus_io_scheme]
-          action: replace
-          target_label: __scheme__
-          regex: (https?)
-        - source_labels:
-            [__meta_kubernetes_service_annotation_prometheus_io_path]
-          action: replace
-          target_label: __metrics_path__
-          regex: (.+)
-        - source_labels:
-            [
-              __address__,
-              __meta_kubernetes_service_annotation_prometheus_io_port,
-            ]
-          action: replace
-          target_label: __address__
-          regex: ([^:]+)(?::\d+)?;(\d+)
-          replacement: $1:$2
-        - action: labelmap
-          regex: __meta_kubernetes_service_label_(.+)
-        - source_labels: [__meta_kubernetes_namespace]
-          action: replace
-          target_label: kubernetes_namespace
-        - source_labels: [__meta_kubernetes_service_name]
-          action: replace
-          target_label: kubernetes_name
-        - source_labels: [__meta_kubernetes_pod_node_name]
-          action: replace
-          target_label: kubernetes_node
-    - job_name: "kubernetes-service-endpoints-slow"
-      scrape_interval: 5m
-      scrape_timeout: 30s
-      kubernetes_sd_configs:
-        - role: endpoints
-      relabel_configs:
-        - action: drop
-          source_labels: [__meta_kubernetes_pod_container_init]
-          regex: true
-        - action: keep_if_equal
-          source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
-        - source_labels:
-            [__meta_kubernetes_service_annotation_prometheus_io_scrape_slow]
-          action: keep
-          regex: true
-        - source_labels:
-            [__meta_kubernetes_service_annotation_prometheus_io_scheme]
-          action: replace
-          target_label: __scheme__
-          regex: (https?)
-        - source_labels:
-            [__meta_kubernetes_service_annotation_prometheus_io_path]
-          action: replace
-          target_label: __metrics_path__
-          regex: (.+)
-        - source_labels:
-            [
-              __address__,
-              __meta_kubernetes_service_annotation_prometheus_io_port,
-            ]
-          action: replace
-          target_label: __address__
-          regex: ([^:]+)(?::\d+)?;(\d+)
-          replacement: $1:$2
-        - action: labelmap
-          regex: __meta_kubernetes_service_label_(.+)
-        - source_labels: [__meta_kubernetes_namespace]
-          action: replace
-          target_label: kubernetes_namespace
-        - source_labels: [__meta_kubernetes_service_name]
-          action: replace
-          target_label: kubernetes_name
-        - source_labels: [__meta_kubernetes_pod_node_name]
-          action: replace
-          target_label: kubernetes_node
-    - job_name: "kubernetes-services"
-      metrics_path: /probe
-      params:
-        module: [http_2xx]
-      kubernetes_sd_configs:
-        - role: service
-      relabel_configs:
-        - source_labels:
-            [__meta_kubernetes_service_annotation_prometheus_io_probe]
-          action: keep
-          regex: true
-        - source_labels: [__address__]
-          target_label: __param_target
-        - target_label: __address__
-          replacement: blackbox
-        - source_labels: [__param_target]
-          target_label: instance
-        - action: labelmap
-          regex: __meta_kubernetes_service_label_(.+)
-        - source_labels: [__meta_kubernetes_namespace]
-          target_label: kubernetes_namespace
-        - source_labels: [__meta_kubernetes_service_name]
-          target_label: kubernetes_name
-    - job_name: "kubernetes-pods"
-      kubernetes_sd_configs:
-        - role: pod
-      relabel_configs:
-        - action: drop
-          source_labels: [__meta_kubernetes_pod_container_init]
-          regex: true
-        - action: keep_if_equal
-          source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_container_port_number]
-        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-          action: keep
-          regex: true
-        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-          action: replace
-          target_label: __metrics_path__
-          regex: (.+)
-        - source_labels:
-            [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
-          action: replace
-          regex: ([^:]+)(?::\d+)?;(\d+)
-          replacement: $1:$2
-          target_label: __address__
-        - action: labelmap
-          regex: __meta_kubernetes_pod_label_(.+)
-        - source_labels: [__meta_kubernetes_namespace]
-          action: replace
-          target_label: kubernetes_namespace
-        - source_labels: [__meta_kubernetes_pod_name]
-          action: replace
-          target_label: kubernetes_pod_name
-```
+- `metric_relabel_configs` defines label-rewriting rules that help us show Kubernetes metrics in the Grafana dashboard later on.
 
-The key settings in the configuration file above are:
-
-- `remoteWrite` defines the `vminsert` endpoint that receives telemetry from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This is the exact URL for the `remote_write` in the output of [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart).
-- `metric_relabel_configs` define label rewriting rules that help us show Kubernetes metrics in the Grafana dashboard later on.
+    ```yaml
+          metric_relabel_configs:
+            - action: replace
+              source_labels: [pod]
+              regex: '(.+)'
+              target_label: pod_name
+              replacement: '${1}'
+            - action: replace
+              source_labels: [container]
+              regex: '(.+)'
+              target_label: container_name
+              replacement: '${1}'
+            - action: replace
+              target_label: name
+              replacement: k8s_stub
+            - action: replace
+              source_labels: [id]
+              regex: '^/system\.slice/(.+)\.service$'
+              target_label: systemd_service_name
+              replacement: '${1}'
+    ```
 
 Verify that `vmagent`'s pod is up and running by executing the following command:
 
@@ -424,7 +220,7 @@ Verify that `vmagent`'s pod is up and running by executing the following command
 kubectl get pods | grep vmagent
 ```
 
-The expected output is:
+Check that the pod is in `Running` state:
 
 ```text
 vmagent-victoria-metrics-agent-69974b95b4-mhjph                1/1     Running   0          11m
@@ -432,7 +228,7 @@ vmagent-victoria-metrics-agent-69974b95b4-mhjph                1/1     Running  
 
 ## 4. Install and connect Grafana to VictoriaMetrics with Helm
 
-Add the Grafana Helm repository:
+Add the Grafana Community Helm repository:
 
 ```shell
 helm repo add grafana-community https://grafana-community.github.io/helm-charts
@@ -476,26 +272,20 @@ cat <<EOF > grafana-cluster-values.yml
     default:
       victoriametrics:
         gnetId: 11176
-        revision: 50
         datasource: victoriametrics
       vmagent:
         gnetId: 12683
-        revision: 30
         datasource: victoriametrics
       kubernetes:
         gnetId: 14205
-        revision: 1
         datasource: victoriametrics
 EOF
 ```
 
-> [!NOTE] Tip
-> Grafana Dashboard revisions may change. Check the [VictoriaMetrics Dashboards](https://grafana.com/orgs/victoriametrics) on Grafana.com to obtain the latest revision number.
-
 The config file defines the following settings for Grafana:
 
-- Provides a VictoriaMetrics data source. This is the `remote_write` URL we obtained in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart) during the VictoriaMetrics cluster installation.
-- Add three starter dashboards:
+- Provides a VictoriaMetrics data source. This value must match exaectly the `remote_write` URL we obtained in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart) during the VictoriaMetrics cluster installation.
+- Adds three starter dashboards:
   - [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) for the [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
   - [VictoriaMetrics - vmagent](https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/) for the [VictoriaMetrics agent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
   - [Kubernetes cluster Monitoring (via Prometheus)](https://grafana.com/grafana/dashboards/14205-kubernetes-cluster-monitoring-via-prometheus/) to show Kubernetes cluster metrics.
@@ -553,7 +343,7 @@ kubectl --namespace default port-forward $pod_name 3000
 
 ## 5. Check the result you obtained in your browser
 
-To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from the Kubernetes cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` obtained in the previous step.
+To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from the Kubernetes cluster open in your browser `http://127.0.0.1:3000/dashboards`. Use `admin` for login and `password` obtained in the previous step.
 
 You should see three dashboards installed. Select "Kubernetes Cluster Monitoring".
 
@@ -576,3 +366,13 @@ And vmagent has a separate dashboard to monitor scraping and queue activity:
 - We set up a TimeSeries Database for your Kubernetes cluster.
 - We collected metrics from all running pods, nodes, and services and stored them in a VictoriaMetrics database.
 - We visualized resources used in the Kubernetes cluster by using Grafana dashboards.
+
+Consider reading these resources to complete your setup:
+
+- VictoriaMetrics
+  - [Learn more about the cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
+  - [Migrate existing metric data into VictoriaMetrics with vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/)
+  - [Setup alerts](https://docs.victoriametrics.com/victoriametrics/vmalert/)
+- Grafana
+  - [Enable persistent storage](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#enable-persistent-storage-recommended)
+  - [Configure private TLS authority](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#configure-a-private-ca-certificate-authority)
