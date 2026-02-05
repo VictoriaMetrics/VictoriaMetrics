@@ -114,6 +114,8 @@ The maximum on-disk size for the buffered metrics can be limited with `-remoteWr
 
 `vmagent` can save on network bandwidth usage costs by using [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol).
 
+See [how to optimize index size at VictoriaMetrics for IoT and industrial monitoring](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning-for-low-churn-rate).
+
 ### Drop-in replacement for Prometheus
 
 If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage
