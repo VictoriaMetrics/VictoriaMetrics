@@ -609,7 +609,7 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant). It is possible to set it as `accountID:projectID`,
   where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
-  The `<accountID>` can be set to `multitenant` string, e.g. `http://<vmselect>:8481/select/multitenant/<suffix>` for querying over multiple tenanats (see full the list of [supported multitenant read endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)).
+  The `<accountID>` can be set to `multitenant` string, e.g. `http://<vmselect>:8481/select/multitenant/<suffix>` for querying over multiple tenants (see the full list of [supported multitenant read endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)).
   - `<suffix>` may have the following values:
     - `api/v1/query` - performs [PromQL instant query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query).
     - `api/v1/query_range` - performs [PromQL range query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
