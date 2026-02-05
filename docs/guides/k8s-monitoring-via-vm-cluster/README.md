@@ -7,43 +7,38 @@ sitemap:
   disable: true
 ---
 
-TODO: explain that cluster is not the recommended staring point. single is more performant and sufficient for most setups (look for blog posts and doc page)
+This guide walks you through deploying a VictoriaMetrics cluster version on Kubernetes.
 
-**This guide covers:**
+> [!NOTE] Important
+> It is important to understand the trade-offs between single-node and cluster versions of VictoriaMetrics. A single node instance can handle [up to 100 million active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics) while being easier to manage and requiring fewer resources. Unless you *really need* horizontal scalability or [features present only in the cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#prominent-features), consider installing the [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/).
 
-* The setup of a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) in [Kubernetes](https://kubernetes.io/) via Helm charts
-* How to scrape metrics from Kubernetes components using service discovery
-* How to visualize stored data
-* How to store metrics in [VictoriaMetrics](https://victoriametrics.com) tsdb
+By the end of this guide, you will know:
+
+- How to install and configure [VictoriaMetrics cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) using Helm.
+- How to scrape metrics from Kubernetes components using service discovery.
+- How to store metrics in [VictoriaMetrics](https://victoriametrics.com) time-series database.
+- How to visualize metrics in Grafana
 
 **Precondition** TODO: use newer GKE
 
 We will use:
 
-* [Kubernetes cluster 1.31.1-gke.1678000](https://cloud.google.com/kubernetes-engine)
+- [Kubernetes cluster 1.31.1-gke.1678000](https://cloud.google.com/kubernetes-engine)
+- [Helm 4.1+](https://helm.sh/docs/intro/install)
+- [kubectl 1.34+](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
-> We use GKE cluster from [GCP](https://cloud.google.com/) but this guide is also applied on any Kubernetes cluster. For example [Amazon EKS](https://aws.amazon.com/ru/eks/).
-
-* [Helm 4.1+](https://helm.sh/docs/intro/install)
-* [kubectl 1.34+](https://kubernetes.io/docs/tasks/tools/install-kubectl)
-
-![VMCluster on K8s](scheme.webp)
+> We use a GKE cluster from [GCP](https://cloud.google.com/), but this guide can also be applied to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/) or an on-premises cluster.
 
 ## 1. VictoriaMetrics Helm repository
 
-You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/). You can do this by running the following command:
+To start, add the VictoriaMetrics Helm repository with the following commands:
 
 ```shell
 helm repo add vm https://victoriametrics.github.io/helm-charts/
-```
-
-Update Helm repositories:
-
-```shell
 helm repo update
 ```
 
-To verify that everything is set up correctly you may run this command:
+To verify that everything is set up correctly, you may run this command:
 
 ```shell
 helm search repo vm/
@@ -76,7 +71,15 @@ vm/victoria-traces-single               0.0.6           v0.7.0          The Vict
 
 ## 2. Install VictoriaMetrics Cluster from the Helm chart
 
-First, create a Helm values config file for VictoriaMetrics:
+A [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) consists of three services:
+
+- `vmstorage`: stores raw data and serves queries filtered by time range and labels.
+- `vminsert`: receives incoming metrics and distributes them across `vmstorage` nodes via consistent hashing on metric names and labels.
+- `vmselect`: executes queries by fetching data across all configured `vmstorage` nodes.
+
+![VictoriaMetrics Cluster on Kubernetes](scheme.webp)
+
+To get started, create a config file for the VictoriaMetrics Helm chart:
 
 ```sh
 cat <<EOF >victoria-metrics-cluster-values.yml
@@ -97,18 +100,18 @@ vmstorage:
 EOF
 ```
 
-The config file sets two settings for [vmselect], [vminsert], and [vmstorage]:
+The config file defines two settings for the VictoriaMetrics services:
 
-* `podAnnotations: prometheus.io/scrape: "true"` enables automatic service discovery and metric scraping from the VictoriaMetrics pods.
-* `podAnnotations:prometheus.io/port: "some_port"` defines which port numbers to target for scraping metrics from the VictoriaMetrics pods.
+- `podAnnotations: prometheus.io/scrape: "true"` enables automatic service discovery and metric scraping from the VictoriaMetrics pods.
+- `podAnnotations:prometheus.io/port: "some_port"` defines which port numbers to target for scraping metrics from the VictoriaMetrics pods.
 
-Next, install VictoriaMetrics Cluster with the following command:
+Next, install VictoriaMetrics cluster version with the following command:
 
 ```sh
 helm install vmcluster vm/victoria-metrics-cluster -f victoria-metrics-cluster-values.yml
 ```
 
-As a result of this command you will see the following output:
+The expected output should look like this:
 
 ```text
 NAME: vmcluster
@@ -161,7 +164,8 @@ for example - inside the Kubernetes cluster:
     http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
 ```
 
-Note the URL for the `remote_write`. We are going to use this value for [Step 3](#id-3-install-vmagent-from-the-helm-chart) and [Step 4](#id-4-install-and-connect-grafana-to-victoriametrics-with-helm).
+> [!NOTE] Important
+> Note the URL for the `remote_write`. We will use this value for [Step 3](#id-3-install-vmagent-from-the-helm-chart) and [Step 4](#id-4-install-and-connect-grafana-to-victoriametrics-with-helm).
 
 Verify that [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) pods are up and running by executing the following command:
 
@@ -183,13 +187,15 @@ vmcluster-victoria-metrics-cluster-vmstorage-1                 1/1     Running  
 
 ## 3. Install vmagent from the Helm chart
 
-To scrape metrics from Kubernetes with a [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) we need to install [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) with additional configuration. To do so, please run these commands in your terminal:
+In order to collect metrics from the Kubernetes cluster, we need to install [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This service scrapes, relabels, and sends metrics to the `vminsert` service running in the cluster.
+
+Run the following command to install the `vmagent` service in your cluster:
 
 ```shell
 helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.com/guides/examples/guide-vmcluster-vmagent-values.yaml
 ```
 
-Here is full file content `guide-vmcluster-vmagent-values.yaml`
+Here is the full content of `guide-vmcluster-vmagent-values.yaml`
 
 ```yaml
 remoteWrite:
@@ -407,10 +413,10 @@ config:
           target_label: kubernetes_pod_name
 ```
 
-The key settings in configuration file above are:
+The key settings in the configuration file above are:
 
-* `remoteWrite` defines the `vminsert` endpoint that receives telemetry from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This is the same URL for the `remote_write` in the output of [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart).
-* `metric_relabel_configs` are the label rewriting rules that helps us show Kubernetes metrics in the Grafana dashboard.
+- `remoteWrite` defines the `vminsert` endpoint that receives telemetry from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This is the exact URL for the `remote_write` in the output of [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart).
+- `metric_relabel_configs` define label rewriting rules that help us show Kubernetes metrics in the Grafana dashboard later on.
 
 Verify that `vmagent`'s pod is up and running by executing the following command:
 
@@ -470,11 +476,11 @@ cat <<EOF > grafana-cluster-values.yml
     default:
       victoriametrics:
         gnetId: 11176
-        revision: 18
+        revision: 50
         datasource: victoriametrics
       vmagent:
         gnetId: 12683
-        revision: 7
+        revision: 30
         datasource: victoriametrics
       kubernetes:
         gnetId: 14205
@@ -483,13 +489,16 @@ cat <<EOF > grafana-cluster-values.yml
 EOF
 ```
 
+> [!NOTE] Tip
+> Grafana Dashboard revisions may change. Check the [VictoriaMetrics Dashboards](https://grafana.com/orgs/victoriametrics) on Grafana.com to obtain the latest revision number.
+
 The config file defines the following settings for Grafana:
 
-* Provisions a VictoriaMetrics data source. This is the `remote_write` URL we obtained in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart) when we installed the VictoriaMetrics Cluster.
-* Add three starter dashboards:
-  * [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) for the [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
-  * [VictoriaMetrics - vmagent](https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/) for the [VictoriaMetrics Agent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
-  * [Kubernetes Cluster Monitoring (via Prometheus)](https://grafana.com/grafana/dashboards/14205-kubernetes-cluster-monitoring-via-prometheus/) to show Kubernetes cluster metrics.
+- Provides a VictoriaMetrics data source. This is the `remote_write` URL we obtained in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart) during the VictoriaMetrics cluster installation.
+- Add three starter dashboards:
+  - [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) for the [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
+  - [VictoriaMetrics - vmagent](https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/) for the [VictoriaMetrics agent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
+  - [Kubernetes cluster Monitoring (via Prometheus)](https://grafana.com/grafana/dashboards/14205-kubernetes-cluster-monitoring-via-prometheus/) to show Kubernetes cluster metrics.
 
 Run the following command to install the Grafana chart with the name `my-grafana`:
 
@@ -544,9 +553,7 @@ kubectl --namespace default port-forward $pod_name 3000
 
 ## 5. Check the result you obtained in your browser
 
-To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from the Kubernetes cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard.
-
-Use `admin` for login and `password` obtained in the previous step.
+To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from the Kubernetes cluster open in your browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` obtained in the previous step.
 
 You should see three dashboards installed. Select "Kubernetes Cluster Monitoring".
 
@@ -556,7 +563,7 @@ This is the main dashboard, which shows activity across your Kubernetes cluster:
 
 ![Kubernetes Cluster Dashboard](dashboard.webp)
 
-The VictoriaMetrics Cluster dashboard is also available to monitor telemetry ingestion and resource utilization:
+The VictoriaMetrics cluster dashboard is also available to monitor telemetry ingestion and resource utilization:
 
 ![VMCluster dashboard](grafana-dash-vmcluster.webp)
 
@@ -566,6 +573,6 @@ And vmagent has a separate dashboard to monitor scraping and queue activity:
 
 ## 6. Final thoughts
 
-* We set up TimeSeries Database for your Kubernetes cluster.
-* We collected metrics from all running pods,nodes, … and stored them in a VictoriaMetrics database.
-* We visualized resources used in the Kubernetes cluster by using Grafana dashboards.
+- We set up a TimeSeries Database for your Kubernetes cluster.
+- We collected metrics from all running pods, nodes, and services and stored them in a VictoriaMetrics database.
+- We visualized resources used in the Kubernetes cluster by using Grafana dashboards.
