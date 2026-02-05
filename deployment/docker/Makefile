@@ -7,7 +7,7 @@ ROOT_IMAGE ?= alpine:3.23.2
 ROOT_IMAGE_SCRATCH ?= scratch
 CERTS_IMAGE := alpine:3.23.2
 
-GO_BUILDER_IMAGE := golang:1.25.6
+GO_BUILDER_IMAGE := golang:1.25.7
 
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
