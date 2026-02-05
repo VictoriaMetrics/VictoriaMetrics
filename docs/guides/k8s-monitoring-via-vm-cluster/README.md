@@ -146,7 +146,7 @@ for example - inside the Kubernetes cluster:
     http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.:8481/select/0/prometheus/
 ```
 
-Note the URL for the `remote_write` as we will need this value for [Step 3](#id-3-install-vmagent-from-the-helm-chart) and [Step 4](#id-4-install-and-connect-grafana-to-victoriametrics-with-helm). In the example above the URL is:
+Note the URL for the `remote_write` as we will need this value for [Step 3](#id-3-install-vmagent-from-the-helm-chart) and [Step 4](#id-4-install-and-connect-grafana-to-victoriametrics-with-helm). In the example above, the URL is:
 
 ```text
     remote_write:
@@ -284,7 +284,7 @@ EOF
 
 The config file defines the following settings for Grafana:
 
-- Provides a VictoriaMetrics data source. This value must match exaectly the `remote_write` URL we obtained in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart) during the VictoriaMetrics cluster installation.
+- Provides a VictoriaMetrics data source. This value must match exactly the `remote_write` URL we obtained in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart) during the VictoriaMetrics cluster installation.
 - Adds three starter dashboards:
   - [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) for the [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
   - [VictoriaMetrics - vmagent](https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/) for the [VictoriaMetrics agent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
@@ -343,7 +343,7 @@ kubectl --namespace default port-forward $pod_name 3000
 
 ## 5. Check the result you obtained in your browser
 
-To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from the Kubernetes cluster open in your browser `http://127.0.0.1:3000/dashboards`. Use `admin` for login and `password` obtained in the previous step.
+To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from the Kubernetes cluster, open in your browser `http://127.0.0.1:3000/dashboards`. Use `admin` for login and `password` obtained in the previous step.
 
 You should see three dashboards installed. Select "Kubernetes Cluster Monitoring".
 
