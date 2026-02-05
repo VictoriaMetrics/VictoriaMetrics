@@ -7,7 +7,7 @@ sitemap:
   disable: true
 ---
 
-This guide walks you through deploying a [VictoriaMetrics single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) on Kubernetes using Helm.
+This guide walks you through deploying a [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) on Kubernetes using Helm.
 
 At the end of this guide, you will know:
 
@@ -143,7 +143,7 @@ Read Data:
     http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428
 ```
 
-Take note of the datasource URL for Grafana near the end of the output, as we'll use this value in the next step. In the example above, this is the datasource URL:
+Take note of the Grafana datasource URL near the end of the output, as we'll use it in the next step. In the example above, this is the datasource URL:
 
 ```text
 The following URL can be used as the datasource URL in Grafana::
