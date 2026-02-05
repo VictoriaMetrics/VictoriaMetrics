@@ -286,7 +286,8 @@ Source code for Victoriametrics can be found in the following locations:
 VictoriaMetrics is able to handle data from hundreds of millions of IoT sensors and industrial sensors.
 It supports [high cardinality data](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b),
 perfectly [scales up on a single node](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
-and scales horizontally to multiple nodes.
+and scales horizontally to multiple nodes in [cluster setup](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
+It also supports an option for reducing the index size for IoT data - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning-for-low-churn-rate).
 
 ## What is the difference between single-node and cluster versions of VictoriaMetrics?
 
