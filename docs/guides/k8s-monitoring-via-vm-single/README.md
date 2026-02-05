@@ -310,9 +310,9 @@ The VictoriaMetrics dashboard shows metrics on telemetry ingestion and resource 
 Consider reading these resources to complete your setup:
 
 - VictoriaMetrics
-  - [Learn more about the single-node version](http://localhost:1313/victoriametrics/single-server-victoriametrics/)
-  - [Migrate existing metric data into VictoriaMetrics with vmctl](http://localhost:1313/victoriametrics/vmctl/)
-  - [Setup alerts](http://localhost:1313/victoriametrics/vmalert/)
+  - [Learn more about the single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/)
+  - [Migrate existing metric data into VictoriaMetrics with vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/)
+  - [Setup alerts](https://docs.victoriametrics.com/victoriametrics/vmalert/)
 - Grafana
   - [Enable persistent storage](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#enable-persistent-storage-recommended)
   - [Configure private TLS authority](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#configure-a-private-ca-certificate-authority)
