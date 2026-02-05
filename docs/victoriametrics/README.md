@@ -93,8 +93,10 @@ VictoriaMetrics has the following prominent features:
 * It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) and
   [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
-* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data
-  and various [Enterprise workloads](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+* It ideally works for big amounts of time series with both [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate) (APM, Kubernetes)
+  and low churn rate (IoT sensors, connected cars, industrial telemetry, financial data - see
+  [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning-for-low-churn-rate)),
+  plus various [Enterprise workloads](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 * It has an open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/)
   and [Google Filestore](https://cloud.google.com/filestore).
