@@ -7,37 +7,33 @@ sitemap:
   disable: true
 ---
 
-This guide walks you through deploying a [VictoriaMetrics Single-Node Instance](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) on Kubernetes using Helm.
+This guide walks you through deploying a [VictoriaMetrics single-node version](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) on Kubernetes using Helm.
 
 At the end of this guide, you will know:
 
-- How to install VictoriaMetrics Single-Node in Kubernetes.
+- How to install VictoriaMetrics single node in Kubernetes.
 - How to scrape metrics from Kubernetes components using service discovery.
-- How to visualize stored data with Grafana.
 - How to store metrics in [VictoriaMetrics](https://victoriametrics.com) time series database.
+- How to visualize stored data with Grafana.
 
 **Precondition**
 
 We will use:
 
 - [Kubernetes cluster 1.34](https://cloud.google.com/kubernetes-engine)
-  > We use a GKE cluster from [GCP](https://cloud.google.com/), but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/) or an on-premises cluster.
 - [Helm 4.1.0+](https://helm.sh/docs/intro/install)
 - [kubectl 1.34.3](https://kubernetes.io/docs/tasks/tools/install-kubectl)
+
+  > We use a GKE cluster from [GCP](https://cloud.google.com/), but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/) or an on-premises cluster.
 
 ![VictoriaMetrics Single on Kubernetes cluster](k8s-scheme.webp)
 
 ## 1. VictoriaMetrics Helm repository
 
-You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/). You can do this by running the following command:
+Run the following command to add the VictoriaMetrics Helm repository:
 
 ```shell
 helm repo add vm https://victoriametrics.github.io/helm-charts/
-```
-
-Update Helm repositories:
-
-```shell
 helm repo update
 ```
 
@@ -47,121 +43,63 @@ To verify that everything is set up correctly, you may run this command:
 helm search repo vm/
 ```
 
-The expected output is:
+You should get a list of charts similar to this:
 
 ```text
 NAME                                    CHART VERSION   APP VERSION     DESCRIPTION
-vm/victoria-logs-agent                  0.0.8           v1.44.0         VictoriaLogs Agent - accepts logs from various ...
-vm/victoria-logs-cluster                0.0.26          v1.44.0         The VictoriaLogs cluster Helm chart deploys Vic...
-vm/victoria-logs-collector              0.2.8           v1.44.0         VictoriaLogs Collector - collects logs from Kub...
-vm/victoria-logs-multilevel             0.0.8           v1.44.0         The VictoriaLogs multilevel Helm chart deploys ...
-vm/victoria-logs-single                 0.11.25         v1.44.0         The VictoriaLogs single Helm chart deploys Vict...
+vm/victoria-metrics-single              0.29.0          v1.134.0        VictoriaMetrics Single version - high-performan...
 vm/victoria-metrics-agent               0.30.0          v1.134.0        VictoriaMetrics Agent - collects metrics from v...
 vm/victoria-metrics-alert               0.30.0          v1.134.0        VictoriaMetrics Alert - executes a list of give...
 vm/victoria-metrics-anomaly             1.12.9          v1.28.2         VictoriaMetrics Anomaly Detection - a service t...
-vm/victoria-metrics-auth                0.23.0          v1.134.0        VictoriaMetrics Auth - is a simple auth proxy a...
-vm/victoria-metrics-cluster             0.33.0          v1.134.0        VictoriaMetrics Cluster version - high-performa...
-vm/victoria-metrics-common              0.0.46                          VictoriaMetrics Common - contains shared templa...
-vm/victoria-metrics-distributed         0.28.0          v1.134.0        A Helm chart for Running VMCluster on Multiple ...
-vm/victoria-metrics-gateway             0.21.0          v1.134.0        VictoriaMetrics Gateway - Auth & Rate-Limitting...
-vm/victoria-metrics-Kubernetes-stack    0.69.0          v1.134.0        Kubernetes monitoring on VictoriaMetrics stack....
-vm/victoria-metrics-operator            0.58.1          v0.67.0         VictoriaMetrics Operator
-vm/victoria-metrics-operator-crds       0.7.0           v0.67.0         VictoriaMetrics Operator CRDs
-vm/victoria-metrics-single              0.29.0          v1.134.0        VictoriaMetrics Single version - high-performan...
-vm/victoria-traces-cluster              0.0.6           v0.7.0          The VictoriaTraces cluster Helm chart deploys V...
-vm/victoria-traces-single               0.0.6           v0.7.0          The VictoriaTraces single Helm chart deploys Vi...
+...(list continues)...
 ```
 
-## 2. Install [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) from Helm Chart
+## 2. Install [VictoriaMetrics single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) from Helm Chart
 
-Run this command in your terminal:
+Run this command in your terminal to install [VictoriaMetrics single node](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) in your cluster:
 
 ```shell
 helm install vmsingle vm/victoria-metrics-single -f https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml
 ```
 
-Here is the full file content of [`guide-vmsingle-values.yaml`](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml):
+Below are the key sections in the chart values file [`guide-vmsingle-values.yaml`](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml):
 
-```yaml
-server:
-  scrape:
-    enabled: true
-    configMap: ""
-    config:
-      global:
-        scrape_interval: 15s
-      scrape_configs:
-        - job_name: victoriametrics
-          static_configs:
-            - targets: [ "localhost:8428" ]
-        - job_name: "kubernetes-apiservers"
-          kubernetes_sd_configs:
-            - role: endpoints
-          scheme: https
-          tls_config:
-            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-            insecure_skip_verify: true
-          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-          relabel_configs:
-            - source_labels:
-                [
-                    __meta_kubernetes_namespace,
-                    __meta_kubernetes_service_name,
-                    __meta_kubernetes_endpoint_port_name,
-                ]
-              action: keep
-              regex: default;kubernetes;https
-        - job_name: "kubernetes-nodes"
-          scheme: https
-          tls_config:
-            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-            insecure_skip_verify: true
-          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-          kubernetes_sd_configs:
-            - role: node
-          relabel_configs:
-            - action: labelmap
-              regex: __meta_kubernetes_node_label_(.+)
-        - job_name: "kubernetes-nodes-cadvisor"
-          scheme: https
-          tls_config:
-            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-            insecure_skip_verify: true
-          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-          kubernetes_sd_configs:
-            - role: node
-          metrics_path: /metrics/cadvisor
-          relabel_configs:
-            - action: labelmap
-              regex: __meta_kubernetes_node_label_(.+)
-            - source_labels: [__metrics_path__]
-              target_label: metrics_path
-          metric_relabel_configs:
-            - action: replace
-              source_labels: [pod]
-              regex: '(.+)'
-              target_label: pod_name
-              replacement: '${1}'
-            - action: replace
-              source_labels: [container]
-              regex: '(.+)'
-              target_label: container_name
-              replacement: '${1}'
-            - action: replace
-              target_label: name
-              replacement: k8s_stub
-            - action: replace
-              source_labels: [id]
-              regex: '^/system\.slice/(.+)\.service$'
-              target_label: systemd_service_name
-              replacement: '${1}'
-```
+- With `scrape: enabled: true`, we enable metric autodiscovery for the Kubernetes cluster.
 
-- With `helm install`, we install [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster.
-- By adding `scrape: enabled: true`, we add and enable autodiscovery scraping from the Kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/).
-- On line 63 from [https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml), we added a `metric_relabel_configs` section that normalizes labels to correctly show the Kubernetes metrics on the Grafana dashboard.
+    ```yaml
+    server:
+      scrape:
+        enabled: true
+        ...
+    ```
 
-As a result of the command, you will see the following output:
+- The `metric_relabel_configs` section normalizes Kubernetes metrics labels so they are shown correctly in the Grafana dashboard later on.
+
+    ```yaml
+              ...
+              metric_relabel_configs:
+                - action: replace
+                  source_labels: [pod]
+                  regex: '(.+)'
+                  target_label: pod_name
+                  replacement: '${1}'
+                - action: replace
+                  source_labels: [container]
+                  regex: '(.+)'
+                  target_label: container_name
+                  replacement: '${1}'
+                - action: replace
+                  target_label: name
+                  replacement: k8s_stub
+                - action: replace
+                  source_labels: [id]
+                  regex: '^/system\.slice/(.+)\.service$'
+                  target_label: systemd_service_name
+                  replacement: '${1}'
+              ...
+    ```
+
+The `helm install vmsingle vm/victoria-metrics-single` command should result in the following output:
 
 ```text
 NAME: vmsingle
@@ -205,7 +143,7 @@ Read Data:
     http://vmsingle-victoria-metrics-single-server.default.svc.cluster.local.:8428
 ```
 
-For us, it’s important to remember the datasource URL (copy the lines from the output). In the example above, we need to copy the "datasource URL in Grafana" near the end of the output:
+Take note of the datasource URL for Grafana near the end of the output, as we'll use this value in the next step. In the example above, this is the datasource URL:
 
 ```text
 The following URL can be used as the datasource URL in Grafana::
@@ -238,7 +176,7 @@ helm repo update
 > [!NOTE] Tip
 > See more information on Grafana in [ArtifactHUB](https://artifacthub.io/packages/helm/grafana-community/grafana)
 
-Create a config file for the Grafana service. Paste the URL copied from the previous step into the `url` key in the following chart:
+Create a config file for the Grafana service. Ensure that the `url` value matches the Grafana datasource URL from the previous step:
 
 ```yaml
 cat <<EOF > grafana-single-values.yml
@@ -273,18 +211,12 @@ cat <<EOF > grafana-single-values.yml
     default:
       victoriametrics:
         gnetId: 10229
-        # tip: replace with the latest revision number at https://grafana.com/grafana/dashboards/10229-victoriametrics-single-node/
-        revision: 48
         datasource: victoriametrics
       kubernetes:
         gnetId: 14205
-        revision: 1
         datasource: victoriametrics
 EOF
 ```
-
-> [!NOTE] Tip
-> Grafana Dashboard revisions may change. Check the [VictoriaMetrics Dashboards](https://grafana.com/grafana/dashboards/10229-victoriametrics-single-node/) on Grafana.com to obtain the latest revision number.
 
 Run the following command to install Grafana with the release name `my-grafana`:
 
@@ -295,7 +227,7 @@ helm install my-grafana grafana-community/grafana -f grafana-single-values.yml
 By running this command, we:
 
 - Install Grafana from the Helm repository.
-- Provision the VictoriaMetrics datasource with the `url` from the output above, which we copied before.
+- Configure Grafana to use the VictoriaMetrics datasource URL.
 - Add two starter dashboards:
   - [Kubernetes Cluster Monitoring (via Prometheus)](https://grafana.com/grafana/dashboards/14205-kubernetes-cluster-monitoring-via-prometheus/) to show the Kubernetes Cluster metrics.
   - [VictoriaMetrics - single-node](https://grafana.com/grafana/dashboards/10229-victoriametrics-single-node/) for VictoriaMetrics telemetry ingestion monitoring.
@@ -355,15 +287,17 @@ Now Grafana should be accessible at `http://127.0.0.1:3000`.
 
 ## 4. View the dashboards in your browser
 
-To check that VictoriaMetrics has collected metrics from the Kubernetes cluster, open the browser to `http://127.0.0.1:3000/dashboards` and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` as the username and the password you obtained earlier using `kubectl get secret ...`.
+To check that VictoriaMetrics has collected metrics from the Kubernetes cluster, open the browser to `http://127.0.0.1:3000/dashboards` and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard.
+
+Use `admin` as the username and the password you obtained earlier using `kubectl get secret ...`.
 
 ![Single and Kubernetes dashboards in Grafana](grafana-dashboards.webp)
 
-You will see something like this:
+You should see the metrics for your Kubernetes dashboard:
 
 ![Kubernetes dashboard](grafana-k8s-dashboard.webp)
 
-The VictoriaMetrics dashboard is also available to use:
+The VictoriaMetrics dashboard shows metrics on telemetry ingestion and resource utilization:
 
 ![VictoriaMetrics Single dashboard](grafana.webp)
 
@@ -372,3 +306,13 @@ The VictoriaMetrics dashboard is also available to use:
 - You now have a time series database for your Kubernetes cluster.
 - VictoriaMetrics continuously collects and stores metrics from all running pods and nodes.
 - Grafana dashboards give you a visual view of cluster resources.
+
+Consider reading these resources to complete your setup:
+
+- VictoriaMetrics
+  - [Learn more about the single-node version](http://localhost:1313/victoriametrics/single-server-victoriametrics/)
+  - [Migrate existing metric data into VictoriaMetrics with vmctl](http://localhost:1313/victoriametrics/vmctl/)
+  - [Setup alerts](http://localhost:1313/victoriametrics/vmalert/)
+- Grafana
+  - [Enable persistent storage](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#enable-persistent-storage-recommended)
+  - [Configure private TLS authority](https://grafana.com/docs/grafana/latest/setup-grafana/installation/helm/#configure-a-private-ca-certificate-authority)
