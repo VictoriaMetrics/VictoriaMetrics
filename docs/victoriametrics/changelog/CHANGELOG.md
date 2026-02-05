@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add clickable source code links to the `Logging rate` panel in `Drilldown`. Users can now click on log entries to navigate directly to the source code location that generated those logs, making debugging and code exploration easier. See [#10406](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10406).
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229), [dashboards/cluster](https://grafana.com/grafana/dashboards/11176), [dashboards/vmagent](https://grafana.com/grafana/dashboards/12683): add clickable source code links to the `Logging rate` panel in `Drilldown`. Users can use it to navigate directly to the source code location that generated those logs, making debugging and code exploration easier. See [#10406](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10406).
 
 * BUGFIX: all VictoriaMetrics components: respect default http client proxy env variables (HTTP_PROXY,HTTPS_PROXY,NO_PROXY). See [#10385](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10385). Thanks to @zane-deg for the contribution.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly expose `kubernetes_sd` discovery network dialer metrics `vm_promscrape_discovery_kubernetes_conn_*`. See [#10382](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10382).
