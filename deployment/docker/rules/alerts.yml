@@ -136,3 +136,16 @@ groups:
           description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
             See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
+
+      - alert: MetadataCacheUtilizationIsTooHigh
+        expr: |
+          vm_metrics_metadata_storage_size_bytes / vm_metrics_metadata_storage_max_size_bytes > 0.95
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Metadata cache capacity on {{ $labels.instance }} (job={{ $labels.job }}) is utilized for more than 95% for the last 15min"
+          description: "Metadata cache stores meta information about ingested time series - see https://docs.victoriametrics.com/victoriametrics/#metrics-metadata.
+           When cache is overutilized, the oldest entries will be dropped out automatically. It may result into incomplete
+           response for /api/v1/metadata API calls. It doesn't impact regular queries or alerts. Cache size is controlled
+           via -storage.maxMetadataStorageSize cmd-line flag."
