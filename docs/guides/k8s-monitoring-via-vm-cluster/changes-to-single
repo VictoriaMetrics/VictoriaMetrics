@@ -1,0 +1,39 @@
+> [!NOTE] Tip
+> See more information on Grafana in [ArtifactHUB](https://artifacthub.io/packages/helm/grafana-community/grafana)
+>
+
+- Separate grafana values from helm install
+- Change helm repo add for grafana
+
+```shell
+helm repo add grafana-community https://grafana-community.github.io/helm-charts
+helm repo update
+```
+
+helm install my-grafana grafana-community/grafana
+
+--- 
+
+To cluster
+
+> [!NOTE] Tip
+> Grafana Dashboard revisions may change. Check the [VictoriaMetrics Dashboards](https://grafana.com/grafana/dashboards/10229-victoriametrics-single-node/) on Grafana.com to obtain the latest revision number.
+
+-> Update dashboard screenshot, use arrow and text OK
+
+-> Update revision for dashboard, use the latest one OK
+
+-> New intro
+
+This guide walks you through deploying a [VictoriaMetrics Single-Node Instance](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) on Kubernetes using Helm.
+
+At the end of this guide you will know:
+
+- How to to install VictoriaMetrics Single-Node in Kubernetes.
+- How to scrape metrics from Kubernetes components using service discovery.
+- How to visualize stored data with Grafana.
+- How to store metrics in [VictoriaMetrics](https://victoriametrics.com) time series database.
+
+
+
+

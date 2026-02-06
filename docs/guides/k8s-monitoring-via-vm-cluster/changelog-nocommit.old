@@ -1,0 +1,18 @@
+changelog-nocommit
+
+- Split configuration file creation from Helm install command during VM installation. It's easier explain and you get to keep the config as a local file
+- Updated Grafana repo to use community org (old grafana chart was deprecated
+on Jan 30th -
+[source](https://community.grafana.com/t/helm-repository-migration-grafana-community-charts/160983))
+- Updated grafana dashboards screens
+- Fixed a repeated Grafana dashboard screenshot (VMCluster and VMAgent used the same image
+`grafana-dash.webp`). Now they are correct.
+- Use more modern versions of helm and kubectl
+- Update Helm search output with newer versions of VM components
+- Minor typos, grammar and consistency for terms (k8s vs Kubernetes, etc)
+- Split `guide-vmcluster-vmagent-values.yaml` into more readable chunks with explanations
+- Removed revision from Grafana values for helm chart (confirmed it pulls the latest revision)
+- Added section at the end pointing users where to go next
+- Added note at the beginning advising reader to consider tradeoffs between VM single node and cluster versions
+- Tested on newer GKE cluster
+
