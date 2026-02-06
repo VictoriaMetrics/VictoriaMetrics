@@ -9,9 +9,6 @@ sitemap:
 
 This guide walks you through deploying a VictoriaMetrics cluster version on Kubernetes.
 
-> [!NOTE] Important
-> It is important to understand the trade-offs between single-node and cluster versions of VictoriaMetrics. A single node instance can handle [up to 100 million active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-are-scalability-limits-of-victoriametrics) while being easier to manage and requiring fewer resources. Unless you **really need** horizontal scalability or [features present only in the cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#prominent-features), consider installing the [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/).
-
 By the end of this guide, you will know:
 
 - How to install and configure [VictoriaMetrics cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) using Helm.
