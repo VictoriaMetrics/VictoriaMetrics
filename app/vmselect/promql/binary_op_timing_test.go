@@ -92,6 +92,22 @@ func BenchmarkBinaryOpOr(b *testing.B) {
 		}
 		benchmarkBinaryOpOr(b, bfa)
 	})
+
+	b.Run("tss:1000 or tss:40000: new", func(b *testing.B) {
+		left, right := make([]*timeseries, 1000), make([]*timeseries, 40000)
+		for i := range left {
+			left[i] = ts(fmt.Sprintf(`a{foo="%d"}`, i))
+		}
+		for i := range right {
+			right[i] = ts(fmt.Sprintf(`b{foo="%d"}`, i))
+		}
+		bfa := &binaryOpFuncArg{
+			be:    mustParseMetricsQL("a or b"),
+			left:  left,
+			right: right,
+		}
+		benchmarkBinaryOpOr(b, bfa)
+	})
 }
 
 func benchmarkBinaryOpOr(b *testing.B, bfa *binaryOpFuncArg) {

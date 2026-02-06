@@ -33,6 +33,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): slightly reduce memory usage for [metrics-metadata](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metrics-metadata) ingestion. See [#10392](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10392).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): introduce time‑based manual offset commit for kafka consumer to fix performance degradation with enabled manual commit. After this change, it will commit partition offsets in batch per second to avoid high commit QPS on the Kafka broker. It's no longer recommended to set `enable.auto.commit=true` in `-kafka.consumer.topic.options`, as `vmagent` will automatically manage it. See [#10395](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10395).
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): optimize the performance of the `or` operation by reducing the marshaling call from `O(m*n)` to `O(m+n)` when large volumes of series are involved. See [#10374](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10374).
+
 ## [v1.135.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.135.0)
 
 Released at 2026-01-30

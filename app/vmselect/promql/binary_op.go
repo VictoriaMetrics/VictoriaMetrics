@@ -566,15 +566,24 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		return
 	}
 
-	nameLeft, nameRight := bbPool.Get(), bbPool.Get()
+	// to avoid marshaling the same metric name multiple times, use a slice to store the results and an index to access them.
+	// todo: this may allocate a lot of []byte and could be further optimized.
+	nameRightSlice := make([][]byte, len(tssRight))
+	getRightName := func(idx int) []byte {
+		if nameRightSlice[idx] == nil {
+			nameRightSlice[idx] = marshalMetricNameSorted(nameRightSlice[idx], &tssRight[idx].MetricName)
+		}
+		return nameRightSlice[idx]
+	}
+
+	nameLeft := bbPool.Get()
 	for _, tsLeft := range tssLeft {
 		valuesLeft := tsLeft.Values
 		nameLeft.B = marshalMetricNameSorted(nameLeft.B[:0], &tsLeft.MetricName)
 		for i, v := range valuesLeft {
 			leftIsNaN := math.IsNaN(v)
-			for _, tsRight := range tssRight {
-				nameRight.B = marshalMetricNameSorted(nameRight.B[:0], &tsRight.MetricName)
-				canBeMerged := bytes.Equal(nameLeft.B, nameRight.B)
+			for rIdx, tsRight := range tssRight {
+				canBeMerged := bytes.Equal(nameLeft.B, getRightName(rIdx))
 				valueRight := tsRight.Values[i]
 				if leftIsNaN && canBeMerged {
 					// fill NaNs with valueRight if labels match
@@ -589,7 +598,6 @@ func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
 		}
 	}
 	bbPool.Put(nameLeft)
-	bbPool.Put(nameRight)
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
