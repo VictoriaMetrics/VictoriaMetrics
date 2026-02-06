@@ -521,7 +521,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 * Add `extra_label` GET param to `-remoteWrite.url` address (only works when sending data to VictoriaMetrics components):
 
   ```sh
-  /path/to/vmagent -remoteWrite.url=http://127.0.0.1:8428/api/v1/write&extra_label="env=prod"
+  /path/to/vmagent -remoteWrite.url=http://127.0.0.1:8428/api/v1/write?extra_label="env=prod"
   ```
 
 ## Automatically generated metrics
