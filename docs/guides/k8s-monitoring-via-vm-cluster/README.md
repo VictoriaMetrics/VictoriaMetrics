@@ -55,8 +55,8 @@ vm/victoria-metrics-agent               0.31.0          v1.135.0        Victoria
 
 A [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) consists of three services:
 
-- `vmstorage`: stores raw data and serves queries filtered by time range and labels.
 - `vminsert`: receives incoming metrics and distributes them across `vmstorage` nodes via consistent hashing on metric names and labels.
+- `vmstorage`: stores raw data and serves queries filtered by time range and labels.
 - `vmselect`: executes queries by fetching data across all configured `vmstorage` nodes.
 
 ![VictoriaMetrics Cluster on Kubernetes](scheme.webp)
