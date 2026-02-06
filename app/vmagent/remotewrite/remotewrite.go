@@ -1080,7 +1080,7 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 	}()
 
 	if len(labelsGlobal) > 0 {
-		// Make a copy of tss before adding extra labels in order to prevent
+		// Make a copy of tss before adding extra labels to prevent
 		// from affecting time series for other remoteWrite.url configs.
 		rctx = getRelabelCtx()
 		v = tssPool.Get().(*[]prompb.TimeSeries)
