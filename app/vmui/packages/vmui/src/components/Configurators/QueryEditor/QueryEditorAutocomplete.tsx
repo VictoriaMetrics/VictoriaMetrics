@@ -6,6 +6,7 @@ import { QueryContextType } from "../../../types";
 import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
 import { QueryEditorAutocompleteProps } from "./QueryEditor";
 import { getExprLastPart, getValueByContext, getContext } from "./autocompleteUtils";
+import { extractCurrentLabel, extractLabelMatchers, extractMetric, splitByCursor } from "./utils/parser";
 
 const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   value,
@@ -20,45 +21,39 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   const metricsqlFunctions = useGetMetricsQL(includeFunctions);
 
   const values = useMemo(() => {
-    if (caretPosition[0] !== caretPosition[1]) return { beforeCursor: value, afterCursor: "" };
-    const beforeCursor = value.substring(0, caretPosition[0]);
-    const afterCursor = value.substring(caretPosition[1]);
-    return { beforeCursor, afterCursor };
+    return splitByCursor(value, caretPosition);
   }, [value, caretPosition]);
 
-  const exprLastPart = useMemo(() => getExprLastPart(values.beforeCursor), [values]);
+  const exprLastPart = useMemo(() => {
+    return getExprLastPart(values.beforeCursor);
+  }, [values.beforeCursor]);
 
   const metric = useMemo(() => {
-    const regex1 = /\w+\((?<metricName>[^)]+)\)\s+(by|without|on|ignoring)\s*\(\w*/gi;
-    const matchAlt = [...exprLastPart.matchAll(regex1)];
-    if (matchAlt.length > 0 && matchAlt[0].groups && matchAlt[0].groups.metricName) {
-      return matchAlt[0].groups.metricName;
-    }
-
-    const regex2 = /^\s*\b(?<metricName>[^{}(),\s]+)(?={|$)/g;
-    const match = [...exprLastPart.matchAll(regex2)];
-    if (match.length > 0 && match[0].groups && match[0].groups.metricName) {
-      return match[0].groups.metricName;
-    }
-
-    return "";
+    return extractMetric(exprLastPart);
   }, [exprLastPart]);
 
   const label = useMemo(() => {
-    const regexp = /[a-z_:-][\w\-.:/]*\b(?=\s*(=|!=|=~|!~))/g;
-    const match = exprLastPart.match(regexp);
-    return match ? match[match.length - 1] : "";
+    return extractCurrentLabel(exprLastPart);
   }, [exprLastPart]);
 
-  const context = useMemo(() => getContext(values.beforeCursor, metric, label), [values, metric, label]);
+  const context = useMemo(() => {
+    return getContext(values.beforeCursor, metric, label);
+  }, [values.beforeCursor, metric, label]);
 
-  const valueByContext = useMemo(() => getValueByContext(values.beforeCursor), [values.beforeCursor]);
+  const valueByContext = useMemo(() => {
+    return getValueByContext(values.beforeCursor);
+  }, [values.beforeCursor]);
+
+  const labelMatchers = useMemo(() => {
+    return extractLabelMatchers(values.beforeCursor, label);
+  }, [values.beforeCursor, label]);
 
   const { metrics, labels, labelValues, loading } = useFetchQueryOptions({
     valueByContext,
     metric,
     label,
     context,
+    labelMatchers,
   });
 
   const options = useMemo(() => {
@@ -72,18 +67,18 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
       default:
         return [];
     }
-  }, [context, metrics, labels, labelValues]);
+  }, [context, metrics, labels, labelValues, metricsqlFunctions]);
 
   const handleSelect = useCallback((insert: string) => {
     // Find the start and end of valueByContext in the query string
-    const value = values.beforeCursor;
+    const beforeCursor = values.beforeCursor;
     let valueAfterCursor = values.afterCursor;
-    const startIndexOfValueByContext = value.lastIndexOf(valueByContext, caretPosition[0]);
+    const startIndexOfValueByContext = beforeCursor.lastIndexOf(valueByContext, caretPosition[0]);
     const endIndexOfValueByContext = startIndexOfValueByContext + valueByContext.length;
 
     // Split the original string into parts: before, during, and after valueByContext
-    const beforeValueByContext = value.substring(0, startIndexOfValueByContext);
-    const afterValueByContext = value.substring(endIndexOfValueByContext);
+    const beforeValueByContext = beforeCursor.substring(0, startIndexOfValueByContext);
+    const afterValueByContext = beforeCursor.substring(endIndexOfValueByContext);
 
     // Add quotes around the value if the context is labelValue
     if (context === QueryContextType.labelValue) {
@@ -104,7 +99,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     // Assemble the new value with the inserted text
     const newVal = `${beforeValueByContext}${insert}${afterValueByContext}${valueAfterCursor}`;
     onSelect(newVal, beforeValueByContext.length + insert.length);
-  }, [values]);
+  }, [values.beforeCursor, values.afterCursor, valueByContext, caretPosition, context, onSelect]);
 
   useEffect(() => {
     if (!anchorEl.current) {
@@ -142,7 +137,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
 
     span.remove();
     marker.remove();
-  }, [anchorEl, caretPosition, hasHelperText]);
+  }, [anchorEl, caretPosition, hasHelperText, values.beforeCursor, values.afterCursor]);
 
   return (
     <>

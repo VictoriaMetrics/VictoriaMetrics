@@ -10,25 +10,19 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
     return undefined;
   }
 
+  const commonProxy: ProxyOptions = {
+    target: "https://play.victoriametrics.com/select/0",
+    changeOrigin: true,
+    configure: (proxy) => {
+      proxy.on("error", (err) => {
+        console.error("[proxy error]", err.message);
+      });
+    },
+  };
+
   return {
-    "^/(api|vmalert)/.*": {
-      target: "https://play.victoriametrics.com/select/0/prometheus",
-      changeOrigin: true,
-      configure: (proxy) => {
-        proxy.on("error", (err) => {
-          console.error("[proxy error]", err.message);
-        });
-      },
-    },
-    "/prometheus/vmui/config.json": {
-      target: "https://play.victoriametrics.com/select/0",
-      changeOrigin: true,
-      configure: (proxy) => {
-        proxy.on("error", (err) => {
-          console.error("[proxy error]", err.message);
-        });
-      },
-    },
+    "^/prometheus/(api|vmalert)/.*": { ...commonProxy },
+    "/prometheus/vmui/config.json": { ...commonProxy },
   };
 };
 
