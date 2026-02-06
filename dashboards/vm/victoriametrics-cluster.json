@@ -6501,7 +6501,7 @@
               "refId": "B"
             }
           ],
-          "title": "Concurrent flushes on disk ($instance)",
+          "title": "Concurrent inserts ($instance)",
           "type": "timeseries"
         },
         {
