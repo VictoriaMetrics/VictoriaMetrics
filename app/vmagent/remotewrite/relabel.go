@@ -20,8 +20,7 @@ import (
 )
 
 var (
-	unparsedLabelsGlobal = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
-		"Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage")
+	unparsedLabelsGlobal    = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to all -remoteWrite.url.")
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabeling configs, which are applied "+
 		"to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. "+
 		"The path can point either to local file or to http url. "+
