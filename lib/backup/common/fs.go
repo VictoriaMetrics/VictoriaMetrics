@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bufio"
+	"fmt"
 	"io"
 )
 
@@ -64,4 +66,43 @@ type RemoteFS interface {
 	//
 	// filePath must use / as directory delimiters.
 	ReadFile(filePath string) ([]byte, error)
+}
+
+// CrossTypeCopy downloads part p from src and uploads to dst using streaming.
+// This is used when src and dst are different RemoteFS types (e.g., S3 to GCS).
+// It uses io.Pipe with buffering to allow download to run ahead of upload for better throughput.
+func CrossTypeCopy(src RemoteFS, dst RemoteFS, p Part) error {
+	pr, pw := io.Pipe()
+
+	errCh := make(chan error, 1)
+
+	// Download in goroutine with buffering to prevent lock-step serialization
+	go func() {
+		// Use 1MB buffer to allow download to run ahead of upload
+		buf := bufio.NewWriterSize(pw, 1024*1024)
+		err := src.DownloadPart(p, buf)
+		if err == nil {
+			err = buf.Flush()
+		}
+		// Propagate error to reader if download/flush failed
+		pw.CloseWithError(err)
+		errCh <- err
+	}()
+
+	// Upload from pipe
+	uploadErr := dst.UploadPart(p, pr)
+	pr.Close()
+
+	// Wait for download to complete
+	downloadErr := <-errCh
+
+	// Check upload error first - if upload failed, that's the root cause
+	if uploadErr != nil {
+		return fmt.Errorf("cannot upload %s to %s: %w", &p, dst, uploadErr)
+	}
+	if downloadErr != nil {
+		return fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
+	}
+
+	return nil
 }
