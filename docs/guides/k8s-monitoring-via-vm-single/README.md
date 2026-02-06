@@ -160,7 +160,7 @@ kubectl get pods
 Wait until the STATUS is Running. The expected output is:
 
 ```text
-NAME                                                READY   STATUS    RESTARTS   AGE
+NAME                                        READY   STATUS    RESTARTS   AGE
 vmsingle-victoria-metrics-single-server-0   1/1     Running   0          68s
 ```
 
@@ -292,14 +292,17 @@ To check that VictoriaMetrics has collected metrics from the Kubernetes cluster,
 Use `admin` as the username and the password you obtained earlier using `kubectl get secret ...`.
 
 ![Single and Kubernetes dashboards in Grafana](grafana-dashboards.webp)
+<figcaption style="text-align: center; font-style: italic;">List of pre-installed dashboards in Grafana</figcaption>
 
 You should see the metrics for your Kubernetes dashboard:
 
 ![Kubernetes dashboard](grafana-k8s-dashboard.webp)
+<figcaption style="text-align: center; font-style: italic;">Grafana dashboard showing the Kubernetes cluster metrics</figcaption>
 
 The VictoriaMetrics dashboard shows metrics on telemetry ingestion and resource utilization:
 
 ![VictoriaMetrics Single dashboard](grafana.webp)
+<figcaption style="text-align: center; font-style: italic;">Grafana dashboard for the VictoriaMetrics single-node service</figcaption>
 
 ## 5. Final thoughts
 
