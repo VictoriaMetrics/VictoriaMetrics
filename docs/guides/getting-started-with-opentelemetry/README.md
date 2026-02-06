@@ -187,7 +187,8 @@ kubectl port-forward svc/victoria-metrics-victoria-metrics-single-server 8428
 
 Visit [http://localhost:8428/vmui/#/?g0.expr=k8s_container_ready&g0.tab=1](http://localhost:8428/vmui/#/?g0.expr=k8s_container_ready&g0.tab=1) to check if metric `k8s_container_ready` is present.
 
-![VictoriaMetrics VMUI showing metric being collected](vmui-k8s_container_ready.webp)
+![Screenshot of VMUI confirming that metrics are being collected](vmui-k8s_container_ready.webp)
+<figcaption style="text-align: center; font-style: italic;">VictoriaMetrics UI (VMUI) showing the <code>k8s_container_ready</code> metric</figcaption>
 
 > [!NOTE] Tip
 > Use the [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) to inspect all available metrics.
@@ -200,7 +201,8 @@ kubectl port-forward svc/victoria-logs-victoria-logs-single-server 9428
 
 Visit [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui) to check if logs ingested by Collector are present.
 
-![VMUI for VictoriaLogs showing Collector ingestion is working](vmui-vlogs.webp)
+![Screenshot of VMUI for VictoriaLogs confirming logs are being ingested](vmui-vlogs.webp)
+<figcaption style="text-align: center; font-style: italic;">VMUI for VictoriaLogs showing ingested log entries</figcaption>
 
 See the [OpenTelemetry docs](https://opentelemetry.io/docs/collector/configuration/) for all configuration options.
 
@@ -248,12 +250,14 @@ for i in `seq 1 20`; do curl http://localhost:8080/rolldice; done
 After a few seconds, you should start seeing metrics sent to VictoriaMetrics by visiting [http://localhost:8428/vmui/#/?g0.expr=dice_rolls_total](http://localhost:8428/vmui/#/?g0.expr=dice_rolls_total)
 in your browser or by querying the metric `dice_rolls_total` in the UI interface.
 
-![Dice roll metrics](vmui-dice-roll-metrics.webp)
+![Screenshot of VMUI](vmui-dice-roll-metrics.webp)
+<figcaption style="text-align: center; font-style: italic;">VMUI showing collected metrics for <code>dice_rolls_total</code></figcaption>
 
 Logs should be available by visiting [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui)
 using query `service.name: unknown_service:otel`.
 
-![Dice roll logs](vmui-dice-roll-logs.webp)
+![Screenshot of VMUI for VictoriaLogs](vmui-dice-roll-logs.webp)
+<figcaption style="text-align: center; font-style: italic;">VMUI for VictoriaLogs showing collected logs for <code>service.name: unknown_service:otel</code></figcaption>
 
 ### Sending without OpenTelemetry Collector
 
@@ -297,7 +301,8 @@ for i in `seq 1 5`; do curl http://localhost:8081/api/slow; done
 
 After a few seconds, you should start seeing metrics sent to VictoriaMetrics by visiting [http://localhost:8428/vmui/#/?g0.expr=http_requests_total](http://localhost:8428/vmui/#/?g0.expr=http_requests_total).
 
-![OTEL Metrics VMUI](vmui-direct-metrics.webp)
+![Screenshot of VMUI](vmui-direct-metrics.webp)
+<figcaption style="text-align: center; font-style: italic;">VMUI showing metrics for <code>http_requests_total</code></figcaption>
 
 > [!NOTE] Tip
 > Check other available metrics by visiting the [cardinality explorer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-explorer) page.
@@ -305,7 +310,8 @@ After a few seconds, you should start seeing metrics sent to VictoriaMetrics by 
 Logs should be available by visiting [http://localhost:9428/select/vmui](http://localhost:9428/select/vmui)
 using query `service.name: unknown_service:otel`.
 
-![OTEL Logs VMUI](vmui-direct-logs.webp)
+![Screenshot of VMUI](vmui-direct-logs.webp)
+<figcaption style="text-align: center; font-style: italic;">VMUI for VictoriaLogs showing logs for <code>service.name: unknown_service:otel</code></figcaption>
 
 ## Limitations
 
