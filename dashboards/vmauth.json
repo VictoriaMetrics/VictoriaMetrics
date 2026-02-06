@@ -2786,7 +2786,7 @@
               "refId": "A"
             }
           ],
-          "title": "Client request buffering latency",
+          "title": "Request body buffering latency",
           "type": "timeseries"
         }
       ],
