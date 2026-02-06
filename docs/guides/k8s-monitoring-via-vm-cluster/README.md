@@ -354,18 +354,22 @@ To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics fr
 You should see three dashboards installed. Select "Kubernetes Cluster Monitoring".
 
 ![Dashboards](dashes-agent.webp)
+<figcaption style="text-align: center; font-style: italic;">List of pre-installed dashboards in Grafana</figcaption>
 
 This is the main dashboard, which shows activity across your Kubernetes cluster:
 
 ![Kubernetes Cluster Dashboard](dashboard.webp)
+<figcaption style="text-align: center; font-style: italic;">Grafana dashboard for Kubernetes metrics</figcaption>
 
 The VictoriaMetrics cluster dashboard is also available to monitor telemetry ingestion and resource utilization:
 
 ![VMCluster dashboard](grafana-dash-vmcluster.webp)
+<figcaption style="text-align: center; font-style: italic;">Grafana dashboard for VictoriaMetrics services</figcaption>
 
 And vmagent has a separate dashboard to monitor scraping and queue activity:
 
 ![VMAgent dashboard](grafana-dash-vmagent.webp)
+<figcaption style="text-align: center; font-style: italic;">Grafana dashboard for vmagent ingestion and resource usage</figcaption>
 
 ## 6. Final thoughts
 
