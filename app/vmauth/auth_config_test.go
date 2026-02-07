@@ -621,6 +621,22 @@ unauthorized_user:
 			},
 		},
 	})
+
+	// skip user info with jwt_token, it is parsed by parseJWTUsers
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: http://aaa:343/bbb
+- jwt_token: {skip_verify: true}
+  url_prefix: http://aaa:343/bbb
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("foo", "bar"): {
+			Username:  "foo",
+			Password:  "bar",
+			URLPrefix: mustParseURL("http://aaa:343/bbb"),
+		},
+	}, nil)
 }
 
 func TestParseAuthConfigPassesTLSVerificationConfig(t *testing.T) {
