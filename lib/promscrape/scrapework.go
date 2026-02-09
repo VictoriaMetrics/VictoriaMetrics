@@ -544,12 +544,11 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
-	var parseErrorLogger *parseErrorLogger
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
 	} else {
-		parseErrorLogger = newParseErrorLogger(sw.logError)
+		parseErrorLogger := newParseErrorLogger(sw.logError)
 		if prommetadata.IsEnabled() {
 			wc.rows, wc.metadataRows = parser.UnmarshalWithMetadata(wc.rows, wc.metadataRows, bodyString, parseErrorLogger.logError)
 		} else {
