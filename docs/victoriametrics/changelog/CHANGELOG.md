@@ -28,12 +28,13 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * SECURITY: upgrade Go builder from Go1.25.6 to Go1.25.7. See [the list of issues addressed in Go1.25.7](https://github.com/golang/go/issues?q=milestone%3AGo1.25.7%20label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.9-3.21.6-3.22.3-3.23.3-released.html).
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): limit the number of parse error logged per scrape response. Helps prevent vmagent log spam from misconfigured scrape targets. See [#8856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8856). Thanks to @meroupatate for the contribution.
+
 * BUGFIX: all VictoriaMetrics components: respect default http client proxy env variables (HTTP_PROXY,HTTPS_PROXY,NO_PROXY). See [#10385](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10385). Thanks to @zane-deg for the contribution.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly expose `kubernetes_sd` discovery network dialer metrics `vm_promscrape_discovery_kubernetes_conn_*`. See [#10382](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10382).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): slightly reduce memory usage for [metrics-metadata](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metrics-metadata) ingestion. See [#10392](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10392).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): introduce time‑based manual offset commit for kafka consumer to fix performance degradation with enabled manual commit. After this change, it will commit partition offsets in batch per second to avoid high commit QPS on the Kafka broker. It's no longer recommended to set `enable.auto.commit=true` in `-kafka.consumer.topic.options`, as `vmagent` will automatically manage it. See [#10395](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10395).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): previously the [Graphite render API](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#render-api) used a fixed process timeout that could expire before long queries completed; now the timeout follows the query deadline, so users can extend it via `-search.maxQueryDuration` or the `timeout` [argument in the query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data). See [#8484](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8484).
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): limit the number of parse error logged per scrape response. Helps prevent vmagent log spam from misconfigured scrape targets. See [#8856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8856). Thanks to @meroupatate for the contribution.
 
 ## [v1.135.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.135.0)
 
@@ -121,8 +122,6 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.131.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.131.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11310)
-
-* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): limit the number of parse error logged per scrape response. Helps prevent vmagent log spam from misconfigured scrape targets. See [#8856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8856). Thanks to @meroupatate for the contribution.
 
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 
