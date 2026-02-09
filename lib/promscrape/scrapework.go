@@ -45,7 +45,7 @@ var (
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode")
-	maxParseErrorsPerScrape       = flag.Int("promscrape.maxParseErrorsPerScrape", 10, "The maximum number of errors logged when parsing a single scrape response.")
+	maxParseErrorsPerScrape       = flag.Int("promscrape.maxParseErrorsPerScrape", 10, "The maximum number of parse errors logged per scrape response. Helps prevent vmagent log spam from misconfigured scrape targets.")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
