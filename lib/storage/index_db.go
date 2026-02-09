@@ -173,7 +173,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		logger.Panicf("BUG: Storage must not be nil")
 	}
 
-	tfssCache := lrucache.NewCache(getTagFiltersCacheSize)
+	tfssCache := lrucache.NewCache(getTagFiltersCacheSize, 1*time.Hour)
 	tb := mergeset.MustOpenTable(path, dataFlushInterval, tfssCache.Reset, mergeTagToMetricIDsRows, isReadOnly)
 	db := &indexDB{
 		legacyMinMissingTimestampByKey: make(map[string]int64),
@@ -183,7 +183,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		tb:                             tb,
 		s:                              s,
 		tagFiltersToMetricIDsCache:     tfssCache,
-		loopsPerDateTagFilterCache:     lrucache.NewCache(getTagFiltersLoopsCacheSize),
+		loopsPerDateTagFilterCache:     lrucache.NewCache(getTagFiltersLoopsCacheSize, 1*time.Hour),
 		metricIDCache:                  newMetricIDCache(),
 		dateMetricIDCache:              newDateMetricIDCache(),
 	}

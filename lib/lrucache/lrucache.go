@@ -28,8 +28,12 @@ type Cache struct {
 // NewCache creates new cache.
 //
 // Cache size in bytes is limited by the value returned by getMaxSizeBytes() callback.
+//
+// Entries will be removed from the cache if not accessed longer than ttl
+// duration but not sooner than ~53 seconds (see cleaner() below).
+//
 // Call MustStop() in order to free up resources occupied by Cache.
-func NewCache(getMaxSizeBytes func() uint64) *Cache {
+func NewCache(getMaxSizeBytes func() uint64, ttl time.Duration) *Cache {
 	cpusCount := cgroup.AvailableCPUs()
 	shardsCount := cgroup.AvailableCPUs()
 	// Increase the number of shards with the increased number of available CPU cores.
@@ -45,7 +49,7 @@ func NewCache(getMaxSizeBytes func() uint64) *Cache {
 		return n / uint64(shardsCount)
 	}
 	for i := range shards {
-		shards[i] = newCache(getMaxShardBytes)
+		shards[i] = newCache(getMaxShardBytes, ttl)
 	}
 	c := &Cache{
 		shards:            shards,
@@ -175,6 +179,11 @@ type cache struct {
 	// getMaxSizeBytes() is a callback, which returns the maximum allowed cache size in bytes.
 	getMaxSizeBytes func() uint64
 
+	// ttl is the duration in seconds during which an entry is allowed to stay
+	// in the cache without being retrieved. Once this time passes the entry
+	// will be removed from the cache.
+	ttl uint64
+
 	// mu protects all the fields below.
 	mu sync.Mutex
 
@@ -210,9 +219,10 @@ type cacheEntry struct {
 	e Entry
 }
 
-func newCache(getMaxSizeBytes func() uint64) *cache {
+func newCache(getMaxSizeBytes func() uint64, ttl time.Duration) *cache {
 	var c cache
 	c.getMaxSizeBytes = getMaxSizeBytes
+	c.ttl = uint64(ttl.Seconds())
 	c.m = make(map[string]*cacheEntry)
 	return &c
 }
@@ -231,9 +241,7 @@ func (c *cache) updateSizeBytes(n uint64) {
 }
 
 func (c *cache) cleanByTimeout() {
-	// Delete items accessed more than three minutes ago.
-	// This time should be enough for repeated queries.
-	lastAccessTime := fasttime.UnixTimestamp() - 3*60
+	lastAccessTime := fasttime.UnixTimestamp() - c.ttl
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
