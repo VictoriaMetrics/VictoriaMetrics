@@ -6363,7 +6363,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU (see CPU usage) or disks with more IOPS (see disk writes and reads panels in Resource Usage row).",
+          "description": "Shows the number of ongoing Cluster Native insert API operations sent to `vmstorage`, where:\n* `max` - the maximum number of calls that can be processed in parallel;\n* `current` - Shows the number of ongoing insert operations being processed by the storage.\n\nEach successful API call results in a flush to disk. The `max` value is controlled by the `-maxConcurrentInserts` flag set on the storage (2 * cgroup.AvailableCPUs() by default). \n\nIf `current` consistently reaches `max`, it indicates that the storage is overloaded and likely requires more CPU (see CPU usage) or disks with higher IOPS (see disk read/write panels in the Resource Usage row)",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6500,7 +6500,7 @@
               "refId": "B"
             }
           ],
-          "title": "Concurrent flushes on disk ($instance)",
+          "title": "Concurrent inserts ($instance)",
           "type": "timeseries"
         },
         {
