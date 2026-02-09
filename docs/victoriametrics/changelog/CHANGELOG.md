@@ -122,6 +122,8 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11310)
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): limit the number of parse error logged per scrape response. Helps prevent vmagent log spam from misconfigured scrape targets. See [#8856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8856). Thanks to @meroupatate for the contribution.
+
 ## [v1.130.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.130.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11300)
