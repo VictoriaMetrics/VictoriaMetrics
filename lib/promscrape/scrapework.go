@@ -555,7 +555,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 			wc.rows.UnmarshalWithErrLogger(bodyString, parseErrorLogger.logError)
 		}
 		if suppressedErrors := int(parseErrorLogger.suppressedErrorsCount.Load()); suppressedErrors > 0 {
-			sw.logError(fmt.Sprintf("suppressed %d parse errors after reaching the limit of %d logged errors per scrape", suppressedErrors, *maxParseErrorsPerScrape))
+			logger.Infof("suppressed %d parse errors after reaching the limit of %d logged errors per scrape", suppressedErrors, *maxParseErrorsPerScrape)
 		}
 	}
 	samplesPostRelabeling := 0
@@ -692,7 +692,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		return nil
 	}, parseErrorLogger.logError)
 	if suppressedErrors := int(parseErrorLogger.suppressedErrorsCount.Load()); suppressedErrors > 0 {
-		sw.logError(fmt.Sprintf("suppressed %d parse errors after reaching the limit of %d logged errors per scrape", suppressedErrors, *maxParseErrorsPerScrape))
+		logger.Infof("suppressed %d parse errors after reaching the limit of %d logged errors per scrape", suppressedErrors, *maxParseErrorsPerScrape)
 	}
 
 	sw.prevLabelsLen = int(maxLabelsLen.Load())
