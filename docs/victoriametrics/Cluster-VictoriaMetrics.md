@@ -140,6 +140,7 @@ Currently supported endpoints for `<suffix>` are:
 - `/prometheus/api/v1/status/tsdb`
 - `/prometheus/api/v1/export`
 - `/prometheus/api/v1/export/csv`
+- `/prometheus/api/v1/metadata`
 - `/vmui`
 
 It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
@@ -607,7 +608,9 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
     - `opentsdb/api/put` - for accepting [OpenTSDB HTTP /api/put requests](http://opentsdb.net/docs/build/html/api_http/put.html). This handler is disabled by default. It is exposed on a distinct TCP address set via `-opentsdbHTTPListenAddr` command-line flag. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http) for details.
 
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
-  - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
+  - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant). It is possible to set it as `accountID:projectID`,
+  where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
+  The `<accountID>` can be set to `multitenant` string, e.g. `http://<vmselect>:8481/select/multitenant/<suffix>` for querying over multiple tenants (see the full list of [supported multitenant read endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels)).
   - `<suffix>` may have the following values:
     - `api/v1/query` - performs [PromQL instant query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query).
     - `api/v1/query_range` - performs [PromQL range query](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query).
@@ -623,6 +626,7 @@ Check practical examples of [VictoriaMetrics API](https://docs.victoriametrics.c
     - `api/v1/status/active_queries` - for currently executed active queries. Note that every `vmselect` maintains an independent list of active queries,
       which is returned in the response.
     - `api/v1/status/top_queries` - for listing the most frequently executed queries and queries taking the most duration.
+    - `api/v1/metadata` - for fetching [metrics metadata](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata). See [these docs](#metrics-metadata) for more details.
     - `metric-relabel-debug` - for debugging [relabeling rules](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 - URLs for [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api): `http://<vmselect>:8481/select/<accountID>/graphite/<suffix>`, where:
@@ -1017,10 +1021,18 @@ to ensure query results consistency, even if storage layer didn't complete dedup
 Cluster version of VictoriaMetrics can store metric metadata (TYPE, HELP, UNIT) {{% available_from "v1.130.0" %}}.
 Metadata ingestion is disabled by default. To enable it, set `-enableMetadata=true` on `vminsert` and `vmagent`.
 
-The metadata is stored in memory and can use up to 1% of available memory by default. The size could be adjusted by `-storage.maxMetadataStorageSize` flag.
-Please note that metadata is lost after `vmstorage` restarts. It is ingested independently from metrics, so a metric may exist without metadata, and vice versa.
+The metadata is cached in-memory in a ring buffer and can use up to 1% of available memory by default (see `-storage.maxMetadataStorageSize` cmd-line flag).
+When in-memory size is exceeded, the least updated entries are dropped first. Entries that weren't updated for 1h are cleaned up automatically.
 
-Metadata can be queried via the `/select/0/prometheus/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
+> The following expression helps to understand if metadata cache capacity is utilized for more than 90%: `vm_metrics_metadata_storage_size_bytes / vm_metrics_metadata_storage_max_size_bytes > 0.9`.
+Setup [monitoring](https://docs.victoriametrics.com/victoriametrics/quick-start/#monitoring) and recommended alerting rules
+to get notified about cache capacity issues.
+
+Metadata is ingested independently from metrics, so a metric can exist without metadata, and vice versa.
+Metadata is expected to be ephemeral and constantly updated on ingestion. For this reason, metadata cache isn't
+persisted during storage restarts.
+
+Metadata supports [multitenancy](#multitenancy) and can be queried via the `/select/<accountID>/prometheus/api/v1/metadata` endpoint, which provides a response compatible with the Prometheus [metadata API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-metadata).
 If multiple vmstorage nodes return metadata for the same metric family name, or if multiple tenants have metadata for the same metric family name, vmselect returns only the first matching result. 
 Duplicate metadata entries are not merged or deduplicated across storages or tenants. See [/api/v1/metadata](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1metadata) example.
 
