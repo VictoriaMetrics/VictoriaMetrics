@@ -28,6 +28,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 const (
@@ -124,7 +125,7 @@ type indexDB struct {
 
 	// Cache for (date, tagFilter) -> loopsCount, which is used for reducing
 	// the amount of work when matching a set of filters.
-	loopsPerDateTagFilterCache *lrucache.Cache
+	loopsPerDateTagFilterCache *workingsetcache.Cache
 
 	// A cache that stores metricIDs that have been added to the index.
 	// The cache is not populated on startup nor does it store a complete set of
@@ -162,10 +163,6 @@ func getTagFiltersCacheSize() uint64 {
 	return maxTagFiltersCacheSize
 }
 
-func getTagFiltersLoopsCacheSize() uint64 {
-	return uint64(float64(memory.Allowed()) / 128)
-}
-
 var maxMetricIDsForDirectLabelsLookup int = 100e3
 
 func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isReadOnly *atomic.Bool, noRegisterNewSeries bool) *indexDB {
@@ -183,7 +180,7 @@ func mustOpenIndexDB(id uint64, tr TimeRange, name, path string, s *Storage, isR
 		tb:                             tb,
 		s:                              s,
 		tagFiltersToMetricIDsCache:     tfssCache,
-		loopsPerDateTagFilterCache:     lrucache.NewCache(getTagFiltersLoopsCacheSize),
+		loopsPerDateTagFilterCache:     workingsetcache.New(memory.Allowed() / 128),
 		metricIDCache:                  newMetricIDCache(),
 		dateMetricIDCache:              newDateMetricIDCache(),
 	}
@@ -300,7 +297,7 @@ func (db *indexDB) MustClose() {
 
 	// Free space occupied by caches owned by db.
 	db.tagFiltersToMetricIDsCache.MustStop()
-	db.loopsPerDateTagFilterCache.MustStop()
+	db.loopsPerDateTagFilterCache.Stop()
 	db.metricIDCache.MustStop()
 	db.dateMetricIDCache.MustStop()
 
@@ -2969,32 +2966,25 @@ func (is *indexSearch) getLoopsCountAndTimestampForDateFilter(date uint64, tf *t
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
 	kb := kbPool.Get()
 	defer kbPool.Put(kb)
-	e := is.db.loopsPerDateTagFilterCache.GetEntry(bytesutil.ToUnsafeString(is.kb.B))
-	if e == nil {
+	kb.B = is.db.loopsPerDateTagFilterCache.Get(kb.B[:0], is.kb.B)
+	if len(kb.B) != 3*8 {
 		return 0, 0, 0
 	}
-	v := e.(*tagFiltersLoops)
-	return v.loopsCount, v.filterLoopsCount, v.timestamp
-}
-
-type tagFiltersLoops struct {
-	loopsCount       int64
-	filterLoopsCount int64
-	timestamp        uint64
-}
-
-func (v *tagFiltersLoops) SizeBytes() uint64 {
-	return uint64(unsafe.Sizeof(*v))
+	loopsCount := encoding.UnmarshalInt64(kb.B)
+	filterLoopsCount := encoding.UnmarshalInt64(kb.B[8:])
+	timestamp := encoding.UnmarshalUint64(kb.B[16:])
+	return loopsCount, filterLoopsCount, timestamp
 }
 
 func (is *indexSearch) storeLoopsCountForDateFilter(date uint64, tf *tagFilter, loopsCount, filterLoopsCount int64) {
-	v := tagFiltersLoops{
-		loopsCount:       loopsCount,
-		filterLoopsCount: filterLoopsCount,
-		timestamp:        fasttime.UnixTimestamp(),
-	}
+	currentTimestamp := fasttime.UnixTimestamp()
 	is.kb.B = appendDateTagFilterCacheKey(is.kb.B[:0], is.db.name, date, tf)
-	is.db.loopsPerDateTagFilterCache.PutEntry(string(is.kb.B), &v)
+	kb := kbPool.Get()
+	kb.B = encoding.MarshalInt64(kb.B[:0], loopsCount)
+	kb.B = encoding.MarshalInt64(kb.B, filterLoopsCount)
+	kb.B = encoding.MarshalUint64(kb.B, currentTimestamp)
+	is.db.loopsPerDateTagFilterCache.Set(is.kb.B, kb.B)
+	kbPool.Put(kb)
 }
 
 func appendDateTagFilterCacheKey(dst []byte, indexDBName string, date uint64, tf *tagFilter) []byte {
