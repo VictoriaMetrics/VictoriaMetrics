@@ -11208,7 +11208,13 @@
                   "mode": "off"
                 }
               },
-              "links": [],
+              "links": [
+                {
+                  "targetBlank": true,
+                  "title": "Source Code",
+                  "url": "https://l2s.victoriametrics.com/?app_version=${__field.labels.app_version}&location=${__field.labels.location}"
+                }
+              ],
               "mappings": [],
               "min": 0,
               "thresholds": {
@@ -11263,12 +11269,12 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, location) > 0",
+              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, app_version,location) > 0",
               "format": "time_series",
               "hide": false,
               "interval": "5m",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "{{instance}} ({{job}}) - {{level}}: {{location}}",
               "range": true,
               "refId": "A"
             }
