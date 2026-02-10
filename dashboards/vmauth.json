@@ -56,17 +56,13 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "enable": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
         "hide": false,
-        "iconColor": "yellow",
+        "iconColor": "dark-yellow",
         "name": "restarts",
-        "target": {
-          "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
-          "interval": "",
-          "refId": "Anno"
-        },
         "textFormat": "{{job}} restarted"
       }
     ]
