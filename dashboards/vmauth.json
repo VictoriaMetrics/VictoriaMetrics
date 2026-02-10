@@ -235,7 +235,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "count(count by(username) (vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"}))",
           "interval": "",
           "legendFormat": "",
           "range": true,
