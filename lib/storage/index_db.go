@@ -14,6 +14,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/cespare/xxhash/v2"
 
@@ -200,6 +201,12 @@ type IndexDBMetrics struct {
 	TagFiltersToMetricIDsCacheMisses       uint64
 	TagFiltersToMetricIDsCacheResets       uint64
 
+	LoopsPerDateTagFilterCacheSize         uint64
+	LoopsPerDateTagFilterCacheSizeBytes    uint64
+	LoopsPerDateTagFilterCacheSizeMaxBytes uint64
+	LoopsPerDateTagFilterCacheRequests     uint64
+	LoopsPerDateTagFilterCacheMisses       uint64
+
 	MetricIDCacheSize           uint64
 	MetricIDCacheSizeBytes      uint64
 	MetricIDCacheSyncsCount     uint64
@@ -258,6 +265,18 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheRequests += db.tagFiltersToMetricIDsCache.Requests()
 	m.TagFiltersToMetricIDsCacheMisses += db.tagFiltersToMetricIDsCache.Misses()
 	m.TagFiltersToMetricIDsCacheResets += db.tagFiltersToMetricIDsCache.Resets()
+
+	// Report only once and for either the first met indexDB instance or whose
+	// loopsPerDateTagFilterCache is utilized the most.
+	var cs fastcache.Stats
+	db.loopsPerDateTagFilterCache.UpdateStats(&cs)
+	if cs.BytesSize > m.LoopsPerDateTagFilterCacheSizeBytes {
+		m.LoopsPerDateTagFilterCacheSize = cs.EntriesCount
+		m.LoopsPerDateTagFilterCacheSizeBytes = cs.BytesSize
+		m.LoopsPerDateTagFilterCacheSizeMaxBytes = cs.MaxBytesSize
+	}
+	m.LoopsPerDateTagFilterCacheRequests += cs.GetCalls
+	m.LoopsPerDateTagFilterCacheMisses += cs.Misses
 
 	// Report only once and for either the first met indexDB instance or whose
 	// metricIDCache is utilized the most.
