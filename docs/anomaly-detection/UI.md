@@ -41,7 +41,7 @@ For impactful parameters please refer to [optimize resource usage](#optimize-res
 
 To start exploring the UI, you can use embedded demo with preconfigured queries and models down below on public playgrounds (VictoriaMetrics, VictoriaLogs and VictoriaTraces):
 
-{{% collapse name="Playground on VictoriaMetrics Datasource" open="true" %}}
+{{% collapse name="Playground on VictoriaMetrics Datasource" %}}
 
 <div class="position-relative mb-3">
   <button
@@ -85,7 +85,7 @@ To start exploring the UI, you can use embedded demo with preconfigured queries 
     loading="lazy"
     class="w-100 border rounded"
     style="height: 400px; background: white;"
-    data-src="https://play-vmanomaly.victoriametrics.com/logs/"
+    src="https://play-vmanomaly.victoriametrics.com/logs/"
   ></iframe>
 </div>
 
@@ -111,7 +111,7 @@ To start exploring the UI, you can use embedded demo with preconfigured queries 
     loading="lazy"
     class="w-100 border rounded"
     style="height: 400px; background: white;"
-    data-src="https://play-vmanomaly.victoriametrics.com/traces/"
+    src="https://play-vmanomaly.victoriametrics.com/traces/"
   ></iframe>
 </div>
 

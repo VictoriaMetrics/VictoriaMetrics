@@ -311,7 +311,7 @@ writer:
 > [!TIP]
 Public playgrounds with pre-configured `vmanomaly` instances and VictoriaMetrics/VictoriaLogs/VictoriaTraces datasources are available for interactive experimenting without the need to set up your own instance or getting an enterprise license. You can find them in the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#playgrounds) or access them directly via the links - [metrics](https://play-vmanomaly.victoriametrics.com/metrics/), [logs](https://play-vmanomaly.victoriametrics.com/logs/), [traces](https://play-vmanomaly.victoriametrics.com/traces/) - or embedded versions in the collapsible blocks.
 
-{{% collapse name="Playground on VictoriaMetrics Datasource" open="true" %}}
+{{% collapse name="Playground on VictoriaMetrics Datasource" %}}
 
 <div class="position-relative mb-3">
   <button
