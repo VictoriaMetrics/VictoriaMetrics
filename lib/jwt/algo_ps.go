@@ -5,7 +5,7 @@ import (
 	"crypto/rsa"
 )
 
-// newVerifierPS returns a new RSA-PSS-based signer.
+// newVerifierPS returns a new RSA-PSS-based verifier.
 func newVerifierPS(alg Algorithm, key *rsa.PublicKey) (*psAlg, error) {
 	if key == nil {
 		return nil, ErrNilKey
