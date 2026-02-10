@@ -1233,7 +1233,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.28.6 /config.yaml \
+victoriametrics/vmanomaly:v1.28.7 /config.yaml \
 --licenseFile=/license
 --watch
 ```
