@@ -13,5 +13,6 @@ aliases:
   - /Single-server-VictoriaMetrics.html
   - /single-server-victoriametrics/index.html
   - /single-server-victoriametrics/
+  - /VictoriaMetrics.html
 ---
 {{% content "README.md" %}}

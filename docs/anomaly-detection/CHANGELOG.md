@@ -14,6 +14,18 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.28.7
+Released: 2026-02-09
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.4.2](https://docs.victoriametrics.com/anomaly-detection/ui/#v142) to [v1.4.3](https://docs.victoriametrics.com/anomaly-detection/ui/#v143), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v143) for details.
+
+- BUGFIX: Resolved an issue with `Logs/Traces` datasource type in the vmanomaly UI where the `step` parameter from UI state wasn't properly passed to the backend, sometimes resulting in 422 errors when the backend expected a string (e.g. "10s") but received a number (e.g. 10) instead.
+
+## v1.28.6
+Released: 2026-01-27
+
+- IMPROVEMENT: Support additional backward-compatible [CLI arguments](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) formats, including key-value pairs (`key=value`, `-key=value`, `--key=value`), value shortcuts for boolean flag values (e.g. `dryRun=1`, `-dryRun true`, `--dryRun false`, `--dryRun 0`) and all respective combinations.
+
 ## v1.28.5
 Released: 2026-01-17
 

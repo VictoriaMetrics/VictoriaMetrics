@@ -75,7 +75,7 @@ func readUncompressedData(r io.Reader, maxDataSize *flagutil.Bytes, decompress f
 	return readFull(r, maxDataSize, func(data []byte) error {
 		dbb := decompressedBufPool.Get()
 		defer func() {
-			if cap(dbb.B) > 64*1024 && cap(dbb.B) > 4*len(dbb.B) {
+			if cap(dbb.B) > 1024*1024 && cap(dbb.B) > 4*len(dbb.B) {
 				// Do not store too big dbb to the pool if only a small part of the buffer is used last time.
 				// This should reduce memory waste.
 				return
@@ -102,7 +102,7 @@ func readFull(r io.Reader, maxDataSize *flagutil.Bytes, callback func(data []byt
 
 	bb := fullReaderBufPool.Get()
 	defer func() {
-		if cap(bb.B) > 64*1024 && cap(bb.B) > 4*len(bb.B) {
+		if cap(bb.B) > 1024*1024 && cap(bb.B) > 4*len(bb.B) {
 			// Do not store too big bb to the pool if only a small part of the buffer is used last time.
 			// This should reduce memory waste.
 			return
@@ -241,14 +241,21 @@ func (sr *snappyReader) Reset(r io.Reader) error {
 	// Read the whole data in one go, since it is expected that Snappy data
 	// is compressed in block mode instead of stream mode.
 	// See https://pkg.go.dev/github.com/golang/snappy
+
+	lr := ioutil.GetLimitedReader(r, maxSnappyBlockSize+1)
+	defer ioutil.PutLimitedReader(lr)
+
 	cbb := compressedBufPool.Get()
-	_, err := cbb.ReadFrom(r)
+	defer compressedBufPool.Put(cbb)
+
+	_, err := cbb.ReadFrom(lr)
 	if err != nil {
-		compressedBufPool.Put(cbb)
 		return fmt.Errorf("cannot read snappy-encoded data block: %w", err)
 	}
+	if len(cbb.B) > maxSnappyBlockSize {
+		return fmt.Errorf("cannot read snappy-encoded data block because its' size exceeds %d bytes", maxSnappyBlockSize)
+	}
 	sr.b, err = snappy.Decode(sr.b, cbb.B, maxSnappyBlockSize)
-	compressedBufPool.Put(cbb)
 	sr.offset = 0
 	if err != nil {
 		return fmt.Errorf("cannot decode snappy-encoded data block: %w", err)
