@@ -45,6 +45,7 @@ var (
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/victoriametrics/vmagent/#stream-parsing-mode")
+	maxParseErrorsPerScrape       = flag.Int("promscrape.maxParseErrorsPerScrape", 100, "The maximum number of parse errors logged per scrape response. Helps prevent vmagent log spam from misconfigured scrape targets")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -510,6 +511,27 @@ func readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuffer.Buffer, isGzip
 	return nil
 }
 
+type parseErrorLogger struct {
+	logErrorFunc          func(string)
+	totalErrorsCount      atomic.Int32
+	suppressedErrorsCount atomic.Int32
+}
+
+func newParseErrorLogger(logErrorFunc func(string)) *parseErrorLogger {
+	return &parseErrorLogger{
+		logErrorFunc: logErrorFunc,
+	}
+}
+
+func (l *parseErrorLogger) logError(s string) {
+	totalErrors := l.totalErrorsCount.Add(1)
+	if int(totalErrors) <= *maxParseErrorsPerScrape {
+		l.logErrorFunc(s)
+	} else {
+		l.suppressedErrorsCount.Add(1)
+	}
+}
+
 func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, body []byte, scrapeDurationSeconds float64, err error) error {
 	up := 1
 
@@ -526,10 +548,14 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		up = 0
 		scrapesFailed.Inc()
 	} else {
+		parseErrorLogger := newParseErrorLogger(sw.logError)
 		if prommetadata.IsEnabled() {
-			wc.rows, wc.metadataRows = parser.UnmarshalWithMetadata(wc.rows, wc.metadataRows, bodyString, sw.logError)
+			wc.rows, wc.metadataRows = parser.UnmarshalWithMetadata(wc.rows, wc.metadataRows, bodyString, parseErrorLogger.logError)
 		} else {
-			wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+			wc.rows.UnmarshalWithErrLogger(bodyString, parseErrorLogger.logError)
+		}
+		if suppressedErrors := int(parseErrorLogger.suppressedErrorsCount.Load()); suppressedErrors > 0 {
+			logger.Infof("suppressed %d parse errors after reaching the limit of %d logged errors per scrape", suppressedErrors, *maxParseErrorsPerScrape)
 		}
 	}
 	samplesPostRelabeling := 0
@@ -621,6 +647,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 	cfg := sw.Config
 	areIdenticalSeries := areIdenticalSeries(cfg, lastScrapeStr, bodyString)
 
+	parseErrorLogger := newParseErrorLogger(sw.logError)
 	r := body.NewReader()
 	err := stream.Parse(r, scrapeTimestamp, "", false, prommetadata.IsEnabled(), func(rows []parser.Row, mms []parser.Metadata) error {
 		labelsLen := maxLabelsLen.Load()
@@ -663,7 +690,10 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 
 		sw.pushData(&wc.writeRequest)
 		return nil
-	}, sw.logError)
+	}, parseErrorLogger.logError)
+	if suppressedErrors := int(parseErrorLogger.suppressedErrorsCount.Load()); suppressedErrors > 0 {
+		logger.Infof("suppressed %d parse errors after reaching the limit of %d logged errors per scrape", suppressedErrors, *maxParseErrorsPerScrape)
+	}
 
 	sw.prevLabelsLen = int(maxLabelsLen.Load())
 	scrapedSamples.Update(float64(samplesScraped.Load()))

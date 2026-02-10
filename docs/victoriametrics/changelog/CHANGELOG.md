@@ -28,6 +28,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * SECURITY: upgrade Go builder from Go1.25.6 to Go1.25.7. See [the list of issues addressed in Go1.25.7](https://github.com/golang/go/issues?q=milestone%3AGo1.25.7%20label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.23.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.9-3.21.6-3.22.3-3.23.3-released.html).
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): limit the number of parse error logged per scrape response. Helps prevent vmagent log spam from misconfigured scrape targets. See [#8856](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8856). Thanks to @meroupatate for the contribution.
+
 * BUGFIX: all VictoriaMetrics components: respect default http client proxy env variables (HTTP_PROXY,HTTPS_PROXY,NO_PROXY). See [#10385](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10385). Thanks to @zane-deg for the contribution.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly expose `kubernetes_sd` discovery network dialer metrics `vm_promscrape_discovery_kubernetes_conn_*`. See [#10382](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10382).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): slightly reduce memory usage for [metrics-metadata](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metrics-metadata) ingestion. See [#10392](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10392).
