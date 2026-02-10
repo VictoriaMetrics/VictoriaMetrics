@@ -11274,7 +11274,7 @@
               "hide": false,
               "interval": "5m",
               "intervalFactor": 1,
-              "legendFormat": "{{instance}} - {{level}}: {{location}}",
+              "legendFormat": "{{instance}} ({{job}}) - {{level}}: {{location}}",
               "range": true,
               "refId": "A"
             }
