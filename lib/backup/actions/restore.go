@@ -112,6 +112,9 @@ func (r *Restore) Run(ctx context.Context) error {
 		}
 		offset += p.Size
 	}
+	if offset != pOld.FileSize {
+		return fmt.Errorf("invalid size for %q; got %d; want %d", path, offset, pOld.FileSize)
+	}
 
 	partsToDelete := common.PartsDifference(dstParts, srcParts)
 	deleteSize := uint64(0)
