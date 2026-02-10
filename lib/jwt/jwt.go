@@ -103,7 +103,7 @@ func NewToken(auth string, enforceAuthPrefix bool) (*Token, error) {
 	// it claims to be conformant to the generic syntax defined in https://datatracker.ietf.org/doc/html/rfc2617#section-1.2
 	// which permits case-insensitive auth scheme.
 	// So we should be tolerant to different cases of "Bearer" prefix.
-	if strings.EqualFold(auth[:len(prefix)], prefix) {
+	if len(auth) >= len(prefix) && strings.EqualFold(auth[:len(prefix)], prefix) {
 		auth = auth[len(prefix):]
 	}
 
