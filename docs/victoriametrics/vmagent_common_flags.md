@@ -412,7 +412,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmagent/ .
   -remoteWrite.keepDanglingQueues
      Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.
   -remoteWrite.label array
-     Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage
+     Optional label in the form 'name=value' to add to all the metrics before sending them to all -remoteWrite.url.
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.maxBlockSize size
