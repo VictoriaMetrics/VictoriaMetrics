@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log"
-	"sync/atomic"
+	"sync"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/axiomhq/hyperloglog"
@@ -22,18 +22,20 @@ var (
 // Allocator provides a centralized way to allocate and track HyperLogLog sketches
 // with built-in usage tracking and limits.
 type Allocator struct {
+	lock sync.Mutex
+
 	max uint64
 
-	inuse   atomic.Uint64
-	created atomic.Uint64
+	inuse   uint64
+	created uint64
 }
 
 // NewAllocator creates a new HLL allocator with the specified maximum HLLs in use.
 func NewAllocator(max uint64) *Allocator {
 	alloc := &Allocator{
 		max:     max,
-		inuse:   atomic.Uint64{},
-		created: atomic.Uint64{},
+		inuse:   0,
+		created: 0,
 	}
 	return alloc
 }
@@ -41,8 +43,10 @@ func NewAllocator(max uint64) *Allocator {
 // Allocate creates a new HyperLogLog sketch and tracks it in the allocator.
 // Returns nil if the maximum number of HLLs in use would be exceeded.
 func (alloc *Allocator) Allocate() (*hyperloglog.Sketch, error) {
-	// Check if we can allocate another HLL
-	if alloc.inuse.Load() >= alloc.max {
+	alloc.lock.Lock()
+	defer alloc.lock.Unlock()
+
+	if alloc.inuse >= alloc.max {
 		return nil, ERROR_MAX_HLLS_INUSE
 	}
 
@@ -62,10 +66,8 @@ func (alloc *Allocator) Allocate() (*hyperloglog.Sketch, error) {
 		log.Panicf("BUG: failed to create HLL sketch: %v", err)
 	}
 
-	// Update counters atomically
-	alloc.inuse.Add(1)
-	alloc.created.Add(1)
-
+	alloc.created++
+	alloc.inuse++
 	hllsCreatedTotal.Inc()
 
 	return hll, nil
@@ -73,28 +75,44 @@ func (alloc *Allocator) Allocate() (*hyperloglog.Sketch, error) {
 
 // Inuse returns the current number of HLLs in use.
 func (alloc *Allocator) Inuse() uint64 {
-	return alloc.inuse.Load()
+	alloc.lock.Lock()
+	defer alloc.lock.Unlock()
+
+	return alloc.inuse
 }
 
 // Created returns the total number of HLLs created since allocator creation.
 func (alloc *Allocator) Created() uint64 {
-	return alloc.created.Load()
+	alloc.lock.Lock()
+	defer alloc.lock.Unlock()
+
+	return alloc.created
 }
 
 // Max returns the maximum number of HLLs that can be in use.
 func (alloc *Allocator) Max() uint64 {
+	alloc.lock.Lock()
+	defer alloc.lock.Unlock()
+
 	return alloc.max
 }
 
+// Can be called concurrently.
 func (alloc *Allocator) Merge(other *Allocator) {
-	alloc.inuse.Store(max(alloc.inuse.Load(), other.inuse.Load()))
-	alloc.created.Store(alloc.created.Load() + other.created.Load())
+	alloc.lock.Lock()
+	defer alloc.lock.Unlock()
+
+	alloc.inuse = max(alloc.inuse, other.inuse)
+	alloc.created += other.created
 	alloc.max = max(alloc.max, other.max)
 }
 
 // GobEncode implements gob.GobEncoder to allow Allocator to be encoded
 // without exporting its fields.
 func (alloc *Allocator) GobEncode() ([]byte, error) {
+	alloc.lock.Lock()
+	defer alloc.lock.Unlock()
+
 	// Create an anonymous struct with exported fields for gob encoding
 	anon := struct {
 		Max     uint64
@@ -102,8 +120,8 @@ func (alloc *Allocator) GobEncode() ([]byte, error) {
 		Created uint64
 	}{
 		Max:     alloc.max,
-		Inuse:   alloc.inuse.Load(),
-		Created: alloc.created.Load(),
+		Inuse:   alloc.inuse,
+		Created: alloc.created,
 	}
 
 	var buf bytes.Buffer
@@ -116,6 +134,9 @@ func (alloc *Allocator) GobEncode() ([]byte, error) {
 // GobDecode implements gob.GobDecoder to allow Allocator to be decoded
 // without exporting its fields.
 func (alloc *Allocator) GobDecode(data []byte) error {
+	alloc.lock.Lock()
+	defer alloc.lock.Unlock()
+
 	// Create an anonymous struct with exported fields for gob decoding
 	anon := struct {
 		Max     uint64
@@ -131,8 +152,8 @@ func (alloc *Allocator) GobDecode(data []byte) error {
 
 	// Set the unexported fields
 	alloc.max = anon.Max
-	alloc.inuse.Store(anon.Inuse)
-	alloc.created.Store(anon.Created)
+	alloc.inuse = anon.Inuse
+	alloc.created = anon.Created
 
 	return nil
 }
