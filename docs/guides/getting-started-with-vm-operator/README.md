@@ -307,6 +307,7 @@ Apply the scrape CRDs:
 
 ```sh
 kubectl apply -f vmscrape-config.yml
+```
 
 The expected output is:
 
@@ -392,7 +393,7 @@ EOF
 
 Let's break down the main parts of the config file:
 
-- `datasources: datasources.yaml: datasources: url` defines the URL for the `vminsert` service. This endpoint is the datasource Grafana uses to query the metrics database.
+- `datasources: datasources.yaml: datasources: url` defines the URL for the `vmselect` service. This endpoint is the datasource Grafana uses to query the metrics database.
 - `dashboards: default:` loads three starter dashboards to monitor the Kubernetes cluster, the VictoriaMetrics services, and the `vmagent` service.
 
 Add the Grafana Helm repository with:
