@@ -10,7 +10,7 @@ func TestTokenVerify_Failure(t *testing.T) {
 
 		token, err := NewToken(auth, true)
 		if err != nil {
-			return
+			t.Fatalf("unexpected error parsing token: %s", err)
 		}
 
 		k, err := ParseKey([]byte(key))

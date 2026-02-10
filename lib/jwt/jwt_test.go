@@ -21,7 +21,8 @@ func TestParseJWTHeader_Failure(t *testing.T) {
 			if err.Error() != expectedErr {
 				t.Errorf("unexpected error message: \ngot\n%s\nwant\n%s", err.Error(), expectedErr)
 			}
-			return
+		} else {
+			t.Errorf("expecting non-nil error")
 		}
 	}
 
@@ -97,7 +98,8 @@ func TestParseJWTBody_Failure(t *testing.T) {
 			if err.Error() != expectedErr {
 				t.Errorf("unexpected error message: \ngot\n%s\nwant\n%s", err.Error(), expectedErr)
 			}
-			return
+		} else {
+			t.Errorf("expecting non-nil error")
 		}
 	}
 
@@ -404,10 +406,10 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 			t.Fatalf("NewTokenFromRequest() error: %s", err)
 		}
 		if !reflect.DeepEqual(result.body.VMAccess, resultExpected.body.VMAccess) {
-			t.Fatalf("unxpected token body VMAccess;\ngot\n%v\nwant\n%v", result.body.VMAccess, resultExpected.body.VMAccess)
+			t.Fatalf("unexpected token body VMAccess;\ngot\n%v\nwant\n%v", result.body.VMAccess, resultExpected.body.VMAccess)
 		}
 		if !reflect.DeepEqual(result.header, resultExpected.header) {
-			t.Fatalf("unxpected token header\ngot\n%v\nwant\n%v", result.header, resultExpected.header)
+			t.Fatalf("unexpected token header\ngot\n%v\nwant\n%v", result.header, resultExpected.header)
 		}
 	}
 
@@ -420,6 +422,39 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		},
 	}
 	resultExpected := &Token{
+		body: &body{
+			Exp:   1610889266,
+			Iat:   1610888966,
+			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
+			Scope: "openid email profile",
+			VMAccess: &access{
+				Tenant: TenantID{
+					ProjectID: 5,
+					AccountID: 1,
+				},
+				Labels: map[string]string{
+					"project": "dev",
+					"team":    "mobile",
+				},
+			},
+		},
+		header: &header{
+			Alg: "RS256",
+			Kid: "aAZoCGvuGbFoftWHxQZyRSQen3yX4U0GPlP5oZOQSwc",
+			Typ: "JWT",
+		},
+	}
+	f(r, resultExpected, true)
+
+	// parse ok with non-standard "BEARER" prefix
+	r = &http.Request{
+		Header: map[string][]string{
+			"Authorization": {
+				"BEARER eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJhQVpvQ0d2dUdiRm9mdFdIeFFaeVJTUWVuM3lYNFUwR1BsUDVvWk9RU3djIn0.eyJleHAiOjE2MTA5NzYxODksImlhdCI6MTYxMDk3NTg4OSwiYXV0aF90aW1lIjoxNjEwOTc1ODg5LCJqdGkiOiI5YjE5NDE4Ny02YmI3LTQyNDQtOWQxYi01NTllYWIyZWY3ZjMiLCJpc3MiOiJodHRwczovL2xvY2FsaG9zdDo4NDQzL2F1dGgvcmVhbG1zL3Rlc3QiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiNDYwODU5NDEtYjkyYi00NzFhLWIwNWEtOTU5OWNhMjlkYTFlIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiZ3JhZmFuYSIsInNlc3Npb25fc3RhdGUiOiIxMzc3ZDEwMi03NTJiLTQ0ODYtOTlkYS1jMjA4MjRiODJkMzEiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJ2bV9hY2Nlc3MiOnsiZXh0cmFfbGFiZWxzIjp7InByb2plY3QiOiJkZXYiLCJ0ZWFtIjoibW9iaWxlIn0sInRlbmFudF9pZCI6eyJhY2NvdW50X2lkIjoxLCJwcm9qZWN0X2lkIjo1fX0sImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwibmFtZSI6InRnIHRnIiwicHJvamVjdCI6Im1vYmlsZSIsInByZWZlcnJlZF91c2VybmFtZSI6InRnIiwidGVhbSI6ImRldiIsImdpdmVuX25hbWUiOiJ0ZyIsImZhbWlseV9uYW1lIjoidGciLCJlbWFpbCI6InRnQGZnaHQubmV0In0.XErPkz-qL-EV8BBAR17MoFytc5ajYRz71f9_GOuG1AVcMnUsD6D3x4z5jL1dLyoGGm8OUW_RIVrjMpZf_xOfgQKRVHAMaJi64UtpwS8EF50mlOCDAdKl6wlzAS4laV3dW9W9QrTH7TMetG33WVsJGaD-MIwSYJ5peh6u__oniezsRavw8Qw3nLpZCQPb-NatT3Q1raj1ymLJErJPtUBSk3ieWCVpTMo4ZYKFIQt2wjHeOVOF_3suhPfhgEgXlN6aUq3xeYJ1aAtl_5Ao3pB2pto46kDSXIulQQuGdttsw7bSDOYqZ-tx3y7DBWNdIcghsO_iMvrA805j5hG4Nu84Sw",
+			},
+		},
+	}
+	resultExpected = &Token{
 		body: &body{
 			Exp:   1610889266,
 			Iat:   1610888966,
