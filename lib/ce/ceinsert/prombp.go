@@ -117,7 +117,7 @@ func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries
 					newMce, err := ce.NewMetricCardinalityEstimatorWithAllocator(metricName, estimator.Allocator) // <- this holds a reference to the string
 					if err != nil {
 						if err == ce.ERROR_MAX_HLLS_INUSE {
-							return nil
+							continue
 						}
 
 						return fmt.Errorf("BUG: failed to create MetricCardinalityEstimator for metric %q: %v", metricName, err)
@@ -128,6 +128,10 @@ func InsertRawPrompb(estimator *ce.CardinalityEstimator, tss []prompb.TimeSeries
 				}
 
 				if err := mceInsertPrompb(mce, tss[i], metadatas[i]); err != nil {
+					if err == ce.ERROR_MAX_HLLS_INUSE {
+						continue
+					}
+
 					return err
 				}
 				timeseriesInsertedTotal.Inc()
