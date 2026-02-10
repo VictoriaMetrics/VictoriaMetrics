@@ -7,26 +7,7 @@ sitemap:
   disable: true
 ---
 
-CHANGELOG:
-
-- Add introduction with brief explanation of operator and its benefits as an intro
-- Make some step more explicit, instead of just linking to the VM cluster guide
-- Separate config/chart values files from kubectl apply (instead of using heredoc and in-line yaml)
-- Update screenshots and add figcaptions where needed
-- Update Kubernetes and tools versions to newer releases
-- Remove revision numbers from the Grafana config to install the latest revision
-- Added a section to configure scraping of kubernetes resources (nodes, pods, etc.)
-- Updated guide to more modern Helm and Kubectl versions
-- Tested updated instructions on GKE 1.34.1-gke.3971001 (and a local k3s instance) successfully
-- Removed revision from Grafana values for helm chart (confirmed it pulls the latest revision)
-- Added and updated expected outputs. Some were missing and others were outdated
-- Updated Grafana dashboards screenshots since they changed from the last revision
-- Updated Grafana repo to use community org (old grafana chart was deprecated
-on Jan 30th - [source](https://community.grafana.com/t/helm-repository-migration-grafana-community-charts/160983))
-- Minor corrections and typo fixes. Improved flow
-- Added a section at the end pointing readers where they can go next.
-
-The [VictoriaMetrics Kubernetes Operator](https://docs.victoriametrics.com/operator/) simplifies running every component in the VictoriaMetrics Stack on Kubernetes and OpenShift clusters. It extends the Kubernetes API with [custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) so you can configure and manage VictoriaMetrics components declaratively using YAML manifests.
+The [VictoriaMetrics Kubernetes Operator](https://docs.victoriametrics.com/operator/) simplifies running all components of the VictoriaMetrics Stack on Kubernetes and OpenShift clusters. It extends the Kubernetes API with [custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) so you can configure and manage VictoriaMetrics components declaratively using YAML manifests.
 
 After you read this guide, you'll know:
 
@@ -107,7 +88,7 @@ vmoperator-victoria-metrics-operator-67cff44cd6-s47n6   1/1     Running   0     
 ## 3. Install VictoriaMetrics Cluster
 
 > [!NOTE]
-> For this example, we use default name for the operator (`name: example-vmcluster-persistent`). Change the name to suit your needs.
+> For this example, we use the default name for the operator (`name: example-vmcluster-persistent`). Change the name to suit your needs.
 
 First, create a YAML file to configure the deployment of VictoriaMetrics cluster version:
 
@@ -121,7 +102,7 @@ metadata:
   # define the name of the VM cluster
   name: example-vmcluster-persistent
 spec:
-  # define retention period (i.e. 12 months)
+  # define retention period (i.e., 12 months)
   retentionPeriod: "12"
   # define the number of pods for each of the services in the VM cluster
   vmstorage:
@@ -137,15 +118,15 @@ Let's break down the config file:
 
 - `metadata: name` defines the name for the VictoriaMetrics cluster.
 - `spec: retentionPeriod` defines for how long VictoriaMetrics should keep the metrics. See [retention](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention) for more options.
-- `spec: vmstorage: replicaCount` defines how many pods to run for the `vmstorage` service. A VictoriaMetrics cluster is comprised of three services, `vmstorage`, `vminsert`, and `vmselect`. You can customize the number of replicas for each service separately.
+- `spec: vmstorage: replicaCount` defines how many pods to run for the `vmstorage` service. A VictoriaMetrics cluster comprises three services: `vmstorage`, `vminsert`, and `vmselect`. You can customize the number of replicas for each service separately.
 
 The example configuration above defines these values:
 
 - Cluster name: `example-vmcluster-persistent`
 - Retention period: 12 months
-- Number of replicas: 2 replicas for each the three of VictoriaMetrics services
+- Number of replicas: 2 replicas for each of the three VictoriaMetrics services
 
-Once you have defined on the name, retention period, and number of replicas for your cluster, run the following command to deploy the VictoriaMetrics cluster in the default namespace:
+Once you have defined the name, retention period, and number of replicas for your cluster, run the following command to deploy the VictoriaMetrics cluster in the default namespace:
 
 ```sh
 kubectl apply -f vmcluster-config.yml
@@ -206,7 +187,7 @@ NAME                                    TYPE        CLUSTER-IP     EXTERNAL-IP  
 vminsert-example-vmcluster-persistent   ClusterIP   10.43.42.217   <none>        8480/TCP   2d
 ```
 
-The write URL for the `vminsert` service takes the form of `http://<service-name>.<namespace>.svc.cluster.local:<port-number>`. Thus, in our example the URL is:
+The write URL for the `vminsert` service takes the form of `http://<service-name>.<namespace>.svc.cluster.local:<port-number>`. Thus, in our example, the URL is:
 
 ```text
 http://vminsert-example-vmcluster-persistent.default.svc.cluster.local:8480
@@ -219,7 +200,7 @@ cat <<EOF > vmagent-config.yml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAgent
 metadata:
-  # you may change the name of the vmagent service here
+  # You may change the name of the vmagent service here
   name: example-vmagent
 spec:
   serviceScrapeNamespaceSelector: {}
@@ -239,7 +220,7 @@ EOF
 
 Let's break down the main settings in the config:
 
-- `metadata: name` defines the name of the vmagent service (e.g. `example-vmagent`)
+- `metadata: name` defines the name of the vmagent service (e.g., `example-vmagent`)
 - `spec: remoteWrite: url` defines the fully qualified URL for the `vminsert` service. Ensure the URL is correct and ends with `/insert/0/prometheus/api/v1/write`.
 
 Install `vmagent` with:
@@ -285,14 +266,14 @@ To check that `vmagent` is collecting metrics by browsing `http://127.0.0.1:8429
 ![Screenshot of vmagent status](vmcluster.webp)
 <figcaption style="text-align: center; font-style: italic;">vmagent's status for discovered targets</figcaption>
 
-Notice that only the VictoriaMetrics services are being targeted. By default, `vmagent` does not scrape Kubernetes cluster metrics. The next section explains how to turn on scraping for Kubernetes.
+Notice that only the VictoriaMetrics services are being targeted. By default, `vmagent` does not scrape Kubernetes cluster metrics. The next section explains how to enable scraping in Kubernetes.
 
 ### Enable Kubernetes metrics scraping {#kubernetes-scraping}
 
 > [!NOTE] Tip
 > This step is optional. You can skip to the next section if you don't want to gather telemetry from the Kubernetes cluster system itself.
 
-To enable metric collection from the Kubernetes system, we need to update the configuration of `vmagent` and set up various [Scrape CRDs](https://docs.victoriametrics.com/operator/resources/).
+To enable metric collection from the Kubernetes system, we need to update `vmagent` configuration and set up various [Scrape CRDs](https://docs.victoriametrics.com/operator/resources/).
 
 Update the `vmagent-config.yml` file as follows. Ensure you define `spec: remoteWrite: url:` value is still correct as in the previous step.
 
@@ -319,7 +300,7 @@ Update `vmagent`:
 kubectl apply -f vmagent-config.yml
 ```
 
-Download the [vmscrape-config.yml-example](vmscrape-config.yml-example) file and rename it to `vmscrape-config.yml`. This config set up scrape CRDs for key Kubernetes components such as nodes, pods, APIs, and services.
+Download the [vmscrape-config.yml-example](vmscrape-config.yml-example) file and rename it to `vmscrape-config.yml`. This config sets up scrape CRDs for key Kubernetes components, including nodes, pods, APIs, and services.
 
 Apply the scrape CRDs:
 
@@ -336,7 +317,7 @@ vmscrapeconfig.operator.victoriametrics.com/kubernetes-pods created
 vmscrapeconfig.operator.victoriametrics.com/kubernetes-service-endpoints created
 ```
 
-Go back to the `vmagent` target page by browsing `http://127.0.0.1:8429/targets`. This time, you should find targets such as `nodeScrape/default/kubelet-cadvisor` and `nodeScrape/default/kubelet-metrics` with up status:
+Go back to the `vmagent` target page by browsing `http://127.0.0.1:8429/targets`. This time, you should find targets such as `nodeScrape/default/kubelet-cadvisor` and `nodeScrape/default/kubelet-metrics` with an up status:
 
 ![Screenshot of vmagent status](vmagent-scrape-kubernetes.webp)
 <figcaption style="text-align: center; font-style: italic;">You should find Kubernetes-specific targets now</figcaption>
@@ -357,7 +338,7 @@ NAME                                     TYPE        CLUSTER-IP       EXTERNAL-I
 vmselect-example-vmcluster-persistent    ClusterIP   None             <none>        8481/TCP   7m
 ```
 
-Create a config file for the Grafana Helm chart. The read URL takes the form `http://<service-name>.<namespace>.svc.cluster.local:<port-number>`. Thus, in our example the URL is:
+Create a config file for the Grafana Helm chart. The read URL takes the form `http://<service-name>.<namespace>.svc.cluster.local:<port-number>`. Thus, in our example, the URL is:
 
 ```text
 http://vmselect-example-vmcluster-persistent.default.svc.cluster.local:8481/select/0/prometheus/
@@ -464,7 +445,7 @@ kubectl get secret --namespace default my-grafana -o jsonpath="{.data.admin-pass
 
 ```
 
-The second part of the output shows how to port-forward the Grafana service in order to access it locally on `127.0.0.1:3000`:
+The second part of the output shows how to port-forward the Grafana service to access it locally on `127.0.0.1:3000`:
 
 ```shell
 export pod_name=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=my-grafana" -o jsonpath="{.items[0].metadata.name}")
@@ -474,7 +455,7 @@ kubectl --namespace default port-forward $pod_name 3000
 
 ## 5. Check the result you obtained in your browser
 
-To check that [VictoriaMetrics](https://victoriametrics.com) collecting metrics from the Kubernetes cluster open in your browser `http://127.0.0.1:3000/dashboards` and choose the `VictoriaMetrics - cluster` dashboard. 
+To check that [VictoriaMetrics](https://victoriametrics.com) is collecting metrics from the Kubernetes cluster, open your browser to http://127.0.0.1:3000/dashboards and choose the `VictoriaMetrics - cluster` dashboard. 
 
 Use `admin` for login and the `password` obtained with `kubectl get secret ...`.
 
@@ -486,7 +467,7 @@ The "VictoriaMetrics - cluster" dashboard shows activity of the VictoriaMetrics 
 ![Screenshot of grafana dashboard](vm-cluster-dashboard.webp)
 <figcaption style="text-align: center; font-style: italic;">Grafana dashboard showing metrics for the VictoriaMetrics cluster services</figcaption>
 
-There is a separate dashboard for the activity of the `vmagent` service. This shows ingestion rate and resource utilization.
+There is a separate dashboard for the `vmagent` service's activity. This shows the ingestion rate and resource utilization.
 
 ![Screenshot of Grafana dashboard](vmagent-dashboard.webp)
 <figcaption style="text-align: center; font-style: italic;">Grafana dashboard showing metrics for the vmagent service</figcaption>
@@ -499,7 +480,7 @@ If you [added the scrape configs](#kubernetes-scraping), the Kubernetes dashboar
 
 ## 6. Summary
 
-- We set up Kubernetes Operator for VictoriaMetrics with using CRDs.
+- We set up a Kubernetes Operator for VictoriaMetrics using CRDs.
 - We collected metrics from all running services and stored them in the VictoriaMetrics database.
 - We installed Grafana to visualize metrics
 
