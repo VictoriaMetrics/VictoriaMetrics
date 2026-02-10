@@ -1,0 +1,148 @@
+package jwt
+
+import (
+	"testing"
+)
+
+func TestTokenVerify_Failure(t *testing.T) {
+	f := func(auth, key string) {
+		t.Helper()
+
+		token, err := NewToken(auth, true)
+		if err != nil {
+			return
+		}
+
+		k, err := ParseKey([]byte(key))
+		if err != nil {
+			return
+		}
+		vp, err := NewVerifierPool([]any{k})
+		if err != nil {
+			return
+		}
+		if err := vp.Verify(token); err != nil {
+			return
+		}
+
+		t.Fatalf("expecting some error")
+	}
+
+	// RS256 - fail
+	auth := "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.oa8LNeYBQz7HLvUEBvId2hDEbTZrHUBp1cnjqvJee45zAZ4Yf_UDMnpLIllJ5wsyyveDoIIJN1a6XbzZFbxCycBbmBycVwpow1k4y8JRvV8otjZTLSWeTChUFSGUnYWIuVrLEAX6DIA_N4QgTQj2rZ9Zjj9HgWhTvkCiuhFqg2Mvw9EjH8b2hEqwc50XubPvm34hkfy2ETK9sLvYyOwlMRwpAevikTVQ5TODgqhWp1NlagSHP7Dyw_Fx2zfrWWbS56k8fO_pcWvGxCaffYfclDLxNBfxypdl_CzZpXu3XoIlzSY7s2XZHlv6aqGom2ppyDGsdmnac5QCNzQzmhMvdA_fake"
+	key := "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// RS384 - fail
+	auth = "Bearer eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.fZPteCKEsuGKsrKQQZvXU7pAykIYCPW23TTXDZtellqc5JwtXwFNy7T6uwYXklqUmcAJouoFqePjET2MNUHug6PdA_4WdP2v287LrOS26Eto0ddWixdR-w69CbKC0VsMRpCFqvZOYBWUuBgZp6IiDyIocaJ8gfH3Cigsj9simd_aKGIPzd5bu_TNzZeLfisw_HYxP-v0qEIeU84HwfszTHzJszTFg_32FdvqyUxZwFXPoLMMpHZlkScDrgpl4ja9krLlmj8kWPMA0kJ0O_5FSWtly7wvHe_L31lHqGRAqeykGXDEsuMccgE-1sCfqiDu6EqeorlXBOXIkUiuIPan9w_fake"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// RS512 - fail
+	auth = "Bearer eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.DXQYSz2jx63JROB7Fs9ZD2Sp7b95kzY-vj0VOZczyOSm_j4By42bwkWydxkyfc2jgE4Qmj2Mxq-mNm0BEIChP2Klh4TrmziXQZr1ZzD1KhzoZRqANg4Ngck0_Wm-qynFE8gzPiKhPlgH26PsdCn98-L8oqvqjL40AI92ZgGTDQAQavE0tfFjOamz_LHYXwAd7sJsjaJTCuLbAfzH4F-zKx1WH9fQLEp2cB1kZz6Zaa85xzDk0ndLOtLuVF9HbrMTsvx2xT-a-6sPQ-nwuBcIky4Q2A4_KxOzmfPBOqePiwVJa0Y-icq9xvAwb54WvEk8E_QECwKgrje4c2GjWG2CKA_fake"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// ES256 - fail
+	auth = "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.llgN8-tHQfakAfsTnPBFqmaPRYC5axXEclk_Ajzp6e_61ASwxOwZvgKDvV4po0HKYLqI3sy89M4ZV9_0SEGuKQ_fake"
+	key = "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEVs/o5+uQbTjL3chynL4wXgUg2R9\nq9UU8I5mEovUf86QZ7kOBIjJwqnzD1omageEHWwHdBO6B+dFabmdT9POxg==\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// ES384 - fail
+	auth = "Bearer eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.qbA54n3OJ7TZJ4XFq2AwdRFDLe2aZwfR04j0NvE1TbVGNipMCana5NY-yacgNRJKK3RjR2OsoWQGAHg9_R6VhTm3X7VNmwcR9u7L-BCAm1cFBU35X5a-PCuke9mbaY_fake"
+	key = "-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEC1uWSXj2czCDwMTLWV5BFmwxdM6PX9p+\nPk9Yf9rIf374m5XP1U8q79dBhLSIuaojsvOT39UUcPJROSD1FqYLued0rXiooIii\n1D3jaW6pmGVJFhodzC31cy5sfOYotrzF\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// ES512 - fail
+	auth = "Bearer eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.AVVk7ksNokv6xP0Q1JH6Hbj2AnH3z_o-r56fFASSUFw1Rc1YIYHH_UuMwJi9YkEACKZc0lM8VPfp7h3DXaPGuGJSAKfA7Bezou7Kf1LO5zX0uc2mK-GTyxTiZQysU1JRrQ1bX_Ul7ujtI6FxQjhZw7tPAAssJPUnsB2WpavZgXnsPX_fake"
+	key = "-----BEGIN PUBLIC KEY-----\nMIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBgc4HZz+/fBbC7lmEww0AO3NK9wVZ\nPDZ0VEnsaUFLEYpTzb90nITtJUcPUbvOsdZIZ1Q8fnbquAYgxXL5UgHMoywAib47\n6MkyyYgPk0BXZq3mq4zImTRNuaU9slj9TVJ3ScT3L1bXwVuPJDzpr5GOFpaj+WwM\nAl8G7CqwoJOsW7Kddns=\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// PS256 - fail
+	auth = "Bearer eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.NXHoXwOduNa97qqsLsboHSuZFLT3WZ35A0opO9F_VZUCeLlViVxTwIgTmscaL8qjIqJvFqBn6Yb7PFaaZTfKHvd8q5aOUkN4or2aPajJv7kGADvH6emYmId6wqJU48oh0yhMQZBEB5trWyboUXM6yAsvdU3kFfyHgw4cNDmCY7oYv0LB2T3wiJ6Xi5q8ZjXt_vrilYTDzgwfI0t2Vu01fkXGuezXIyTzLia2saOFRbs6BedyrHXxGJyOvcXCPX2bqh5AQEegp9Q32_p7k6I1X67Dzd2J-2yUVsxQpRWS5ruOVZr4oE5yZBzRpLi4hr5Hwi9rHcSY7AANu-1h3eweqg_fake"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// PS384 - fail
+	auth = "Bearer eyJhbGciOiJQUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.Wj61agr500y4fB0lrd7AJuW8DXoXF09bMZ1yCiqZl8VKbh9me2RHzEAt0orbPV_rSDdqsgvRn4V2asaodyJjf9A6E8cfNFBRJNMqi5-lpdMP7fs2YF5IVGYzGAkalGVB4QPFGf6xDpNAGk-AsAGGu1Tqpo3jawy2r9IAzoVUs9q8PlNpjKhNK06Ugvy9sxeiEQmYO5gwOrT768mU8_au4InnzXkQdQW_BdYnEZ48udtBDe1r_QQ-dLbHUTW8WnApo6xlONuQErCB7HlpTeDLTcEyAcl_8HmOGupQpMUJCJW1p8D7PCjNSDQFAjr-OOHG7eqH0VGFcglRu95nPdJtHg_fake"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// PS512 - fail
+	auth = "Bearer eyJhbGciOiJQUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.JoPjCp97dGl4GGEvvaoVt1-SjQr9Qw29nGAl7NGXm9CCBt56dDTaoW_e42sF9XirSnzCztLT4841MbH-MOr7cWiEV-XHCLGNEpeSSZRcNAgnEmqTZSOJiMOHeqDjNfu5jE90qVvGB5lfpIsE3DRo8V5L4f0V4hMq47v6Jk1w1oV8snl-qbvjAfSXfKAfQNPkFwKowdwIpiZP9VDwxPaFDOg9Iczz1BeaB6kOZdvFnlr5YsnXPu_NZruAxZs4OnsE8XS1pnW3pJJVseLDMJt-Ao9zTTOsXI9P6FyKGgkquiyXQQkvBk4EcthUEu4mxkynYal53EIw3bHfsBb6sYUdKQ_fake"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// HS256 - not supported
+	auth = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFBWm9DR3Z1R2JGb2Z0V0h4UVp5UlNRZW4zeVg0VTBHUGxQNW9aT1FTd2MifQ.eyJleHAiOjE2MTA5NzYxODksImlhdCI6MTYxMDk3NTg4OSwiYXV0aF90aW1lIjoxNjEwOTc1ODg5LCJqdGkiOiI5YjE5NDE4Ny02YmI3LTQyNDQtOWQxYi01NTllYWIyZWY3ZjMiLCJpc3MiOiJodHRwczovL2xvY2FsaG9zdDo4NDQzL2F1dGgvcmVhbG1zL3Rlc3QiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiNDYwODU5NDEtYjkyYi00NzFhLWIwNWEtOTU5OWNhMjlkYTFlIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiZ3JhZmFuYSIsInNlc3Npb25fc3RhdGUiOiIxMzc3ZDEwMi03NTJiLTQ0ODYtOTlkYS1jMjA4MjRiODJkMzEiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJ2bV9hY2Nlc3MiOnsiZXh0cmFfbGFiZWxzIjp7InByb2plY3QiOiJkZXYiLCJ0ZWFtIjoibW9iaWxlIn0sImV4dHJhX2ZpbHRlcnMiOlsie2Vudj1+XCJwcm9kfGRldlwifSIsInt0ZWFtIT1cInRlc3RcIn0iXSwidGVuYW50X2lkIjp7ImFjY291bnRfaWQiOjEsInByb2plY3RfaWQiOjV9fSwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJuYW1lIjoidGcgdGciLCJwcm9qZWN0IjoibW9iaWxlIiwicHJlZmVycmVkX3VzZXJuYW1lIjoidGciLCJ0ZWFtIjoiZGV2IiwiZ2l2ZW5fbmFtZSI6InRnIiwiZmFtaWx5X25hbWUiOiJ0ZyJ9.Nx9An-sqto8ClmNah8Mi6y16mjB6jk-I1kxQdtP0j0c"
+	key = "key"
+	f(auth, key)
+}
+
+func TestTokenVerify_Success(t *testing.T) {
+	f := func(auth, key string) {
+		t.Helper()
+
+		token, err := NewToken(auth, true)
+		if err != nil {
+			t.Fatalf("cannot parse token: %s", err)
+		}
+
+		k, err := ParseKey([]byte(key))
+		if err != nil {
+			t.Fatalf("cannot parse key: %s", err)
+		}
+		vp, err := NewVerifierPool([]any{k})
+		if err != nil {
+			t.Fatalf("NewVerifierPool() error: %s", err)
+		}
+		if err := vp.Verify(token); err != nil {
+			t.Fatalf("Verify() error: %s", err)
+		}
+	}
+
+	// RS256
+	auth := "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.oa8LNeYBQz7HLvUEBvId2hDEbTZrHUBp1cnjqvJee45zAZ4Yf_UDMnpLIllJ5wsyyveDoIIJN1a6XbzZFbxCycBbmBycVwpow1k4y8JRvV8otjZTLSWeTChUFSGUnYWIuVrLEAX6DIA_N4QgTQj2rZ9Zjj9HgWhTvkCiuhFqg2Mvw9EjH8b2hEqwc50XubPvm34hkfy2ETK9sLvYyOwlMRwpAevikTVQ5TODgqhWp1NlagSHP7Dyw_Fx2zfrWWbS56k8fO_pcWvGxCaffYfclDLxNBfxypdl_CzZpXu3XoIlzSY7s2XZHlv6aqGom2ppyDGsdmnac5QCNzQzmhMvdA"
+	key := "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// RS384
+	auth = "Bearer eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.fZPteCKEsuGKsrKQQZvXU7pAykIYCPW23TTXDZtellqc5JwtXwFNy7T6uwYXklqUmcAJouoFqePjET2MNUHug6PdA_4WdP2v287LrOS26Eto0ddWixdR-w69CbKC0VsMRpCFqvZOYBWUuBgZp6IiDyIocaJ8gfH3Cigsj9simd_aKGIPzd5bu_TNzZeLfisw_HYxP-v0qEIeU84HwfszTHzJszTFg_32FdvqyUxZwFXPoLMMpHZlkScDrgpl4ja9krLlmj8kWPMA0kJ0O_5FSWtly7wvHe_L31lHqGRAqeykGXDEsuMccgE-1sCfqiDu6EqeorlXBOXIkUiuIPan9w"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// RS512
+	auth = "Bearer eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.DXQYSz2jx63JROB7Fs9ZD2Sp7b95kzY-vj0VOZczyOSm_j4By42bwkWydxkyfc2jgE4Qmj2Mxq-mNm0BEIChP2Klh4TrmziXQZr1ZzD1KhzoZRqANg4Ngck0_Wm-qynFE8gzPiKhPlgH26PsdCn98-L8oqvqjL40AI92ZgGTDQAQavE0tfFjOamz_LHYXwAd7sJsjaJTCuLbAfzH4F-zKx1WH9fQLEp2cB1kZz6Zaa85xzDk0ndLOtLuVF9HbrMTsvx2xT-a-6sPQ-nwuBcIky4Q2A4_KxOzmfPBOqePiwVJa0Y-icq9xvAwb54WvEk8E_QECwKgrje4c2GjWG2CKA"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// ES256
+	auth = "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.llgN8-tHQfakAfsTnPBFqmaPRYC5axXEclk_Ajzp6e_61ASwxOwZvgKDvV4po0HKYLqI3sy89M4ZV9_0SEGuKQ"
+	key = "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEVs/o5+uQbTjL3chynL4wXgUg2R9\nq9UU8I5mEovUf86QZ7kOBIjJwqnzD1omageEHWwHdBO6B+dFabmdT9POxg==\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// ES384
+	auth = "Bearer eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.qbA54n3OJ7TZJ4XFq2AwdRFDLe2aZwfR04j0NvE1TbVGNipMCana5NY-yacgNRJKK3RjR2OsoWQGAHg9_R6VhTm3X7VNmwcR9u7L-BCAm1cFBU35X5a-PCuke9mbaY7c"
+	key = "-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEC1uWSXj2czCDwMTLWV5BFmwxdM6PX9p+\nPk9Yf9rIf374m5XP1U8q79dBhLSIuaojsvOT39UUcPJROSD1FqYLued0rXiooIii\n1D3jaW6pmGVJFhodzC31cy5sfOYotrzF\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// ES512
+	auth = "Bearer eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.AVVk7ksNokv6xP0Q1JH6Hbj2AnH3z_o-r56fFASSUFw1Rc1YIYHH_UuMwJi9YkEACKZc0lM8VPfp7h3DXaPGuGJSAKfA7Bezou7Kf1LO5zX0uc2mK-GTyxTiZQysU1JRrQ1bX_Ul7ujtI6FxQjhZw7tPAAssJPUnsB2WpavZgXnsPXrW"
+	key = "-----BEGIN PUBLIC KEY-----\nMIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBgc4HZz+/fBbC7lmEww0AO3NK9wVZ\nPDZ0VEnsaUFLEYpTzb90nITtJUcPUbvOsdZIZ1Q8fnbquAYgxXL5UgHMoywAib47\n6MkyyYgPk0BXZq3mq4zImTRNuaU9slj9TVJ3ScT3L1bXwVuPJDzpr5GOFpaj+WwM\nAl8G7CqwoJOsW7Kddns=\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// PS256
+	auth = "Bearer eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.NXHoXwOduNa97qqsLsboHSuZFLT3WZ35A0opO9F_VZUCeLlViVxTwIgTmscaL8qjIqJvFqBn6Yb7PFaaZTfKHvd8q5aOUkN4or2aPajJv7kGADvH6emYmId6wqJU48oh0yhMQZBEB5trWyboUXM6yAsvdU3kFfyHgw4cNDmCY7oYv0LB2T3wiJ6Xi5q8ZjXt_vrilYTDzgwfI0t2Vu01fkXGuezXIyTzLia2saOFRbs6BedyrHXxGJyOvcXCPX2bqh5AQEegp9Q32_p7k6I1X67Dzd2J-2yUVsxQpRWS5ruOVZr4oE5yZBzRpLi4hr5Hwi9rHcSY7AANu-1h3eweqg"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// PS384
+	auth = "Bearer eyJhbGciOiJQUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.Wj61agr500y4fB0lrd7AJuW8DXoXF09bMZ1yCiqZl8VKbh9me2RHzEAt0orbPV_rSDdqsgvRn4V2asaodyJjf9A6E8cfNFBRJNMqi5-lpdMP7fs2YF5IVGYzGAkalGVB4QPFGf6xDpNAGk-AsAGGu1Tqpo3jawy2r9IAzoVUs9q8PlNpjKhNK06Ugvy9sxeiEQmYO5gwOrT768mU8_au4InnzXkQdQW_BdYnEZ48udtBDe1r_QQ-dLbHUTW8WnApo6xlONuQErCB7HlpTeDLTcEyAcl_8HmOGupQpMUJCJW1p8D7PCjNSDQFAjr-OOHG7eqH0VGFcglRu95nPdJtHg"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+
+	// PS512
+	auth = "Bearer eyJhbGciOiJQUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwidm1fYWNjZXNzIjp7fX0.JoPjCp97dGl4GGEvvaoVt1-SjQr9Qw29nGAl7NGXm9CCBt56dDTaoW_e42sF9XirSnzCztLT4841MbH-MOr7cWiEV-XHCLGNEpeSSZRcNAgnEmqTZSOJiMOHeqDjNfu5jE90qVvGB5lfpIsE3DRo8V5L4f0V4hMq47v6Jk1w1oV8snl-qbvjAfSXfKAfQNPkFwKowdwIpiZP9VDwxPaFDOg9Iczz1BeaB6kOZdvFnlr5YsnXPu_NZruAxZs4OnsE8XS1pnW3pJJVseLDMJt-Ao9zTTOsXI9P6FyKGgkquiyXQQkvBk4EcthUEu4mxkynYal53EIw3bHfsBb6sYUdKQ"
+	key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo\n4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u\n+qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh\nkd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ\n0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg\ncKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc\nmwIDAQAB\n-----END PUBLIC KEY-----"
+	f(auth, key)
+}
