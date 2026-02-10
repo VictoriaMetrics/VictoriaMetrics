@@ -24,6 +24,7 @@ The following options are available:
 
 - [To run Docker image](#docker)
 - [To run in Kubernetes with Helm charts](#kubernetes-with-helm-charts)
+- [To run with VM Operator](#vm-operator)
 
 > Anomaly detection models can be kept {{% available_from "v1.13.0" anomaly %}} **on host filesystem after `fit` stage** (instead of default in-memory option); This will drastically reduce RAM for larger configurations. Similar optimization {{% available_from "v1.16.0" anomaly %}} can be applied to data read from VictoriaMetrics TSDB. See instructions of how to enable it [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
@@ -121,7 +122,7 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.5
+docker pull victoriametrics/vmanomaly:v1.28.7
 ```
 
 2. Create the license file with your license key.
@@ -141,7 +142,7 @@ docker run -it \
     -v ./license:/license \
     -v ./config.yaml:/config.yaml \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.28.5 \
+    victoriametrics/vmanomaly:v1.28.7 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -158,7 +159,7 @@ docker run -it \
     -e VMANOMALY_DATA_DUMPS_DIR=/tmp/vmanomaly/data \
     -e VMANOMALY_MODEL_DUMPS_DIR=/tmp/vmanomaly/models \
     -p 8490:8490 \
-    victoriametrics/vmanomaly:v1.28.5 \
+    victoriametrics/vmanomaly:v1.28.7 \
     /config.yaml \
     --licenseFile=/license \
     --loggerLevel=INFO \
@@ -171,7 +172,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.28.4
+    image: victoriametrics/vmanomaly:v1.28.7
     # ...
     restart: always
     volumes:
@@ -307,6 +308,84 @@ writer:
 {{% available_from "v1.26.0" anomaly %}} `vmanomaly`'s built-in web UI can be used for prototyping and interactive experimenting to produce vmanomaly's and vmalert's configuration files. Please refer to the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/) for detailed instructions and examples.
 
 ![vmanomaly-ui-overview](vmanomaly-ui-overview.webp)
+> [!TIP]
+Public playgrounds with pre-configured `vmanomaly` instances and VictoriaMetrics/VictoriaLogs/VictoriaTraces datasources are available for interactive experimenting without the need to set up your own instance or getting an enterprise license. You can find them in the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#playgrounds) or access them directly via the links - [metrics](https://play-vmanomaly.victoriametrics.com/metrics/), [logs](https://play-vmanomaly.victoriametrics.com/logs/), [traces](https://play-vmanomaly.victoriametrics.com/traces/) - or embedded versions in the collapsible blocks.
+
+{{% collapse name="Playground on VictoriaMetrics Datasource" open="true" %}}
+
+<div class="position-relative mb-3">
+  <button
+    type="button"
+    class="btn btn-primary btn-sm position-absolute top-0 end-0 m-2"
+    style="z-index: 2;"
+    onclick="document.getElementById('vmui-playground-vmanomaly-metrics')?.requestFullscreen?.()"
+  >
+    Fullscreen
+  </button>
+
+  <iframe
+    id="vmui-playground-vmanomaly-metrics"
+    title="VictoriaMetrics Anomaly Detection Playground (Metrics)"
+    allow="fullscreen"
+    loading="lazy"
+    class="w-100 border rounded"
+    style="height: 400px; background: white;"
+    src="https://play-vmanomaly.victoriametrics.com/metrics/"
+  ></iframe>
+</div>
+
+{{% /collapse %}}
+
+{{% collapse name="Playground on VictoriaLogs Datasource" %}}
+
+<div class="position-relative mb-3">
+  <button
+    type="button"
+    class="btn btn-primary btn-sm position-absolute top-0 end-0 m-2"
+    style="z-index: 2;"
+    onclick="document.getElementById('vmui-playground-vmanomaly-logs')?.requestFullscreen?.()"
+  >
+    Fullscreen
+  </button>
+
+  <iframe
+    id="vmui-playground-vmanomaly-logs"
+    title="VictoriaLogs Anomaly Detection Playground (Logs)"
+    allow="fullscreen"
+    loading="lazy"
+    class="w-100 border rounded"
+    style="height: 400px; background: white;"
+    src="https://play-vmanomaly.victoriametrics.com/logs/"
+  ></iframe>
+</div>
+
+{{% /collapse %}}
+
+{{% collapse name="Playground on VictoriaTraces Datasource" %}} 
+
+<div class="position-relative mb-3">
+  <button
+    type="button"
+    class="btn btn-primary btn-sm position-absolute top-0 end-0 m-2"
+    style="z-index: 2;"
+    onclick="document.getElementById('vmui-playground-vmanomaly-traces')?.requestFullscreen?.()"
+  >
+    Fullscreen
+  </button>
+
+  <iframe
+    id="vmui-playground-vmanomaly-traces"
+    title="VictoriaTraces Anomaly Detection Playground (Traces)"
+    allowfullscreen
+    allow="fullscreen"
+    loading="lazy"
+    class="w-100 border rounded"
+    style="height: 400px; background: white;"
+    src="https://play-vmanomaly.victoriametrics.com/traces/"
+  ></iframe>
+</div>
+
+{{% /collapse %}}
 
 ### Recommended steps
 
