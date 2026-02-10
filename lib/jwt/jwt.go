@@ -98,8 +98,15 @@ func NewToken(auth string, enforceAuthPrefix bool) (*Token, error) {
 	if enforceAuthPrefix && (len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix)) {
 		return nil, fmt.Errorf("wrong format, prefix: %s is missing", prefix)
 	}
-	// remove prefix if it is present
-	auth = strings.TrimPrefix(auth, prefix)
+
+	// While https://datatracker.ietf.org/doc/html/rfc6750#section-2.1 states that only Bearer prefix is allowed,
+	// it claims to be conformant to the generic syntax defined in https://datatracker.ietf.org/doc/html/rfc2617#section-1.2
+	// which permits case-insensitive auth scheme.
+	// So we should be tolerant to different cases of "Bearer" prefix.
+	if strings.EqualFold(auth[:len(prefix)], prefix) {
+		auth = auth[len(prefix):]
+	}
+
 	jwt := strings.SplitN(auth, ".", 3)
 	if len(jwt) != 3 {
 		return nil, ErrBadTokenFormat
@@ -203,9 +210,9 @@ func parseJWTBody(data string) (*body, error) {
 		// expired at time unix_ts
 		Exp int64 `json:"exp"`
 		// issued at time unix_ts
-		Iat   int64            `json:"iat"`
-		Jti   string           `json:"jti,omitempty"`
-		Scope *json.RawMessage `json:"scope,omitempty"`
+		Iat   int64           `json:"iat"`
+		Jti   string          `json:"jti,omitempty"`
+		Scope json.RawMessage `json:"scope,omitempty"`
 		// store as raw message to support different types
 		VMAccess *json.RawMessage `json:"vm_access"`
 	}
@@ -240,9 +247,9 @@ func parseJWTBody(data string) (*body, error) {
 	// some IDPs encode scope as a string and some as an array
 	var scope string
 	if tb.Scope != nil {
-		if err := json.Unmarshal(*tb.Scope, &scope); err != nil {
+		if err := json.Unmarshal(tb.Scope, &scope); err != nil {
 			var scopeSlice []string
-			if err := json.Unmarshal(*tb.Scope, &scopeSlice); err != nil {
+			if err := json.Unmarshal(tb.Scope, &scopeSlice); err != nil {
 				return nil, fmt.Errorf("cannot parse jwt body scope: %w", err)
 			}
 			scope = strings.Join(scopeSlice, " ")
@@ -262,7 +269,7 @@ func parseJWTBody(data string) (*body, error) {
 func decodeB64(data []byte) ([]byte, error) {
 	idx := bytes.IndexAny(data, "+/")
 	// slow path, std base64 encoding convert it to url encoding
-	if idx > 0 {
+	if idx >= 0 {
 		for idx, c := range data {
 			switch c {
 			case '+':
