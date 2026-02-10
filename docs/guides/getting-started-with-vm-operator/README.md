@@ -11,10 +11,10 @@ The [VictoriaMetrics Kubernetes Operator](https://docs.victoriametrics.com/opera
 
 By the end of this guide, you will be able to:
 
-- How to install and configure [VictoriaMetrics cluster](https://docs.victoriametrics.com/helm/victoria-logs-cluster/) using the Operator.
-- How to scrape metrics from Kubernetes components.
-- How to store metrics in [VictoriaMetrics](https://victoriametrics.com) time-series database.
-- How to visualize metrics in Grafana.
+- Install and configure [VictoriaMetrics cluster](https://docs.victoriametrics.com/helm/victoria-logs-cluster/) using the Operator.
+- Scrape metrics from Kubernetes components.
+- Store metrics in [VictoriaMetrics](https://victoriametrics.com) time-series database.
+- Visualize metrics in Grafana.
 
 **Preconditions**
 
@@ -328,7 +328,7 @@ Go back to the `vmagent` target page by browsing `http://127.0.0.1:8429/targets`
 
 The next step is to install Grafana to visualize collected metrics. But first, we need to determine the URL for the `vmselect` service.
 
-To get the new service name, please run the following command:
+To get the new service name, run the following command:
 ```sh
 kubectl get svc -l app.kubernetes.io/name=vmselect
 ```
