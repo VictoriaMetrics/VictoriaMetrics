@@ -249,6 +249,11 @@ func (ce *CardinalityEstimator) UnmarshalBinary(data []byte) error {
 		if err := decoder.Decode(&shardEstimators); err != nil {
 			return fmt.Errorf("Failed to decode shard %d: %v", i, err)
 		}
+
+		// reassign allocators
+		for _, estimator := range shardEstimators {
+			estimator.Allocator = ce.Allocator
+		}
 		shard.Estimators = shardEstimators
 	}
 
