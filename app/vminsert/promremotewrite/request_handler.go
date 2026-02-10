@@ -2,7 +2,6 @@ package promremotewrite
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/ce"
@@ -10,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ce/ceinsert"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
@@ -36,7 +36,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error {
 		if *ce.EstimatorDefaultEnabled {
 			if err := ceinsert.InsertPrompb(ce.DefaultCardinalityEstimator, tss); err != nil {
-				log.Panicf("BUG: cardinality estimator inserts should never fail: %v", err)
+				logger.Errorf("BUG: cardinality estimator inserts should never fail: %v", err)
 			}
 		}
 
