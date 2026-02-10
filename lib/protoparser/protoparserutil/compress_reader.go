@@ -75,7 +75,7 @@ func readUncompressedData(r io.Reader, maxDataSize *flagutil.Bytes, decompress f
 	return readFull(r, maxDataSize, func(data []byte) error {
 		dbb := decompressedBufPool.Get()
 		defer func() {
-			if cap(dbb.B) > 64*1024 && cap(dbb.B) > 4*len(dbb.B) {
+			if cap(dbb.B) > 1024*1024 && cap(dbb.B) > 4*len(dbb.B) {
 				// Do not store too big dbb to the pool if only a small part of the buffer is used last time.
 				// This should reduce memory waste.
 				return
@@ -102,7 +102,7 @@ func readFull(r io.Reader, maxDataSize *flagutil.Bytes, callback func(data []byt
 
 	bb := fullReaderBufPool.Get()
 	defer func() {
-		if cap(bb.B) > 64*1024 && cap(bb.B) > 4*len(bb.B) {
+		if cap(bb.B) > 1024*1024 && cap(bb.B) > 4*len(bb.B) {
 			// Do not store too big bb to the pool if only a small part of the buffer is used last time.
 			// This should reduce memory waste.
 			return
