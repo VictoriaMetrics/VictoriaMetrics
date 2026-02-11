@@ -637,3 +637,45 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 		s.MustClose()
 	})
 }
+
+func TestStorageLastPartitionMetrics(t *testing.T) {
+	defer testRemoveAll(t)
+	synctest.Run(func() {
+		// Advance current time right before the end of the month.
+		time.Sleep(time.Hour * 24 * 30)
+		ct := time.Now().UTC()
+
+		s := MustOpenStorage(t.Name(), OpenOptions{})
+		defer s.MustClose()
+
+		const numSeries = 1000
+		addRows := func() {
+			t.Helper()
+			rng := rand.New(rand.NewSource(1))
+			tr := TimeRange{
+				MinTimestamp: ct.Add(-time.Hour).UnixMilli(),
+				MaxTimestamp: ct.UnixMilli(),
+			}
+			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
+			s.AddRows(mrs, 1)
+			s.DebugFlush()
+		}
+
+		addRows()
+		if got, want := s.newTimeseriesCreated.Load(), uint64(numSeries); got != want {
+			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
+		}
+		// wait for background job to kick-in
+		time.Sleep(time.Hour)
+		var m Metrics
+		s.UpdateMetrics(&m)
+		// verify last partition metrics report non-empty values
+		lpm := m.TableMetrics.LastPartition
+		if lpm.SmallPartsCount == 0 {
+			t.Errorf("unexpected zero last partition SmallPartsCount")
+		}
+		if lpm.IndexDBMetrics.FileBlocksCount == 0 {
+			t.Errorf("unexpected zero last partition IndexDBMetrics.FileBlocksCount")
+		}
+	})
+}
