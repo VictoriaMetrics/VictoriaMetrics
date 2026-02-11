@@ -133,7 +133,8 @@ func BenchmarkWriteRequestContextPushSample(b *testing.B) {
 			benchmarkWriteRequestContextPushSample(b, wctx, mms[i], labels[i])
 		}
 
-		wctx.flushFunc(wctx.tss, wctx.mms)
+		// since the flushFunc is a no-op so no need to check error response.
+		_ = wctx.flushFunc(wctx.tss, wctx.mms)
 	})
 }
 
