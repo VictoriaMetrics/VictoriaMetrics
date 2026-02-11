@@ -72,6 +72,7 @@ jobs:
             Makefile
             app/**/Makefile
           go-version: stable
+      - run: go version
 
       - name: Build victoria-metrics for ${{ matrix.os }}-${{ matrix.arch }}
         run: make victoria-metrics-${{ matrix.os }}-${{ matrix.arch }}

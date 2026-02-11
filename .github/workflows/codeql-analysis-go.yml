@@ -37,6 +37,7 @@ jobs:
         with:
           cache: false
           go-version: stable
+      - run: go version
 
       - name: Cache Go artifacts
         uses: actions/cache@v4
