@@ -7,7 +7,7 @@ menu:
     parent: integrations-vm
     weight: 11
 ---
-Since VictoriaMetrics is Prometheus-compatible TSDB it's possible to use set of Prometheus plugins for [Perses](https://perses.dev/).
+VictoriaMetrics integrates with [Perses](https://perses.dev/) via [Prometheus plugins](https://perses.dev/plugins/docs/prometheus/).
 
 ![Overview VictoriaMetrics Perses integration](./perses-overview.webp)
 
@@ -17,7 +17,7 @@ Since VictoriaMetrics is Prometheus-compatible TSDB it's possible to use set of 
 
 * Go to `http://<perses-url>/projects/<project-name>/datasources` and click `ADD DATASOURCE`.
 * Fill `Name` field with desired datasource name and select `Prometheus Datasource` in `Source` dropdown.
-* Choose `Proxy` or `Direct access` depending on the public availability of your VictoriaMetrics instance.
+* Choose `Proxy` or `Direct access` depending on the [public availability](https://perses.dev/perses/docs/concepts/proxy/) of your VictoriaMetrics instance.
 * Click `Save` to submit.
 
 ![Prometheus datasource plugin configuration](./perses-datasource.webp)
@@ -28,8 +28,8 @@ Since VictoriaMetrics is Prometheus-compatible TSDB it's possible to use set of 
 * Fill `Name` field with desired variable name.
 * Select `List` in `Type` dropdown.
 * Select `Prometheus Label Values Variable` in `Source` dropdown.
-* Select the Prometheus datasource you created above from the `Prometheus Datasource` dropdown.
-* Type name of label to extract values for in `Label Name` field.
+* Select the Prometheus datasource you previously created from the `Prometheus Datasource` dropdown.
+* Type the name of a label in `Label Name` field.
 * Click `Save` to submit.
 
 ![Prometheus variables plugin configuration](./perses-variable.webp)
@@ -43,7 +43,8 @@ Since VictoriaMetrics is Prometheus-compatible TSDB it's possible to use set of 
 * Select `Time Series Chart` in `Type` dropdown.
 * Select `Prometheus Time Series Query` in `Query Type` dropdown.
 * Select the Prometheus datasource you configured above from the `Prometheus Datasource` dropdown.
-* Type a valid [MetricsQL expression](https://docs.victoriametrics.com/victoriametrics/metricsql/) you want to build a graph for in `PromQL Expression` field. It may reference a variable defined in variables plugin section using `${var-name}` expression or with specific formats like `${var:pipe}` for regex filters or `${var:csv}` for comma-separated values.
+* Type a valid [MetricsQL expression](https://docs.victoriametrics.com/victoriametrics/metricsql/) in `PromQL Expression` field. 
+  It may reference a variable defined in variables plugin section using `${var-name}` expression or with specific formats like `${var:pipe}` for regex filters or `${var:csv}` for comma-separated values.
 * Click `Add` to save a panel.
 
 ![Build Time Series panel using Prometheus plugin](./perses-time-panel.webp)
