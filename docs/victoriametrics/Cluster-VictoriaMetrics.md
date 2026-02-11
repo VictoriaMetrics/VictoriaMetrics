@@ -58,9 +58,7 @@ Each service may scale independently and may run on the most suitable hardware.
 This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-nothing_architecture).
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
-![Cluster Scheme](Cluster-VictoriaMetrics_cluster-scheme.webp)
-
-> Note that `vmselect` despite being stateless still requires some disk space (a few GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
+![Cluster Scheme](Cluster-VictoriaMetrics-components.webp)
 
 ## vmui
 
