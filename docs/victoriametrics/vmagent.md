@@ -22,6 +22,7 @@ or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-p
 See [Quick Start](#quick-start) for details.
 
 ![vmagent](vmagent.webp)
+{width="700"}
 
 ## Motivation
 
