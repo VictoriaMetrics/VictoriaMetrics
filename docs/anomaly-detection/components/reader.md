@@ -12,7 +12,7 @@ aliases:
   - /anomaly-detection/components/reader.html
 ---
 
-VictoriaMetrics Anomaly Detection (`vmanomaly`) has an input of Prometheus-compatible metrics from either [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) accessed with [VmReader](#vm-reader) with [MetricsQL](https://docs.victoriametrics.com/metricsql/) queries or from [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) / [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) accessed with [VLogsReader](#victorialogs-reader) with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries.
+VictoriaMetrics Anomaly Detection (`vmanomaly`) has an input of Prometheus-compatible metrics from either [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) accessed with [VmReader](#vm-reader) with [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries or from [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) / [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) accessed with [VLogsReader](#victorialogs-reader) with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries.
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 
