@@ -121,6 +121,12 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 		jui, ok := js.cache[at]
 		js.cacheMux.Unlock()
 		if ok {
+			if jui.Token.IsExpired(time.Now()) {
+				if *logInvalidAuthTokens {
+					logger.Infof("jwt token is expired")
+				}
+				return nil
+			}
 			return &jui.UserInfo
 		}
 
