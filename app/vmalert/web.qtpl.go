@@ -31,7 +31,7 @@ var (
 )
 
 //line app/vmalert/web.qtpl:15
-func StreamControls(qw422016 *qt422016.Writer, prefix, currentIcon, currentText string, icons, filters map[string]string, search bool) {
+func StreamControls(qw422016 *qt422016.Writer, prefix, currentIcon, currentText string, icons, states map[string]string, search bool) {
 //line app/vmalert/web.qtpl:15
 	qw422016.N().S(`
     <div class="btn-toolbar mb-3" role="toolbar">
@@ -59,7 +59,7 @@ func StreamControls(qw422016 *qt422016.Writer, prefix, currentIcon, currentText 
                 </a>
                 `)
 //line app/vmalert/web.qtpl:31
-	if len(filters) > 0 {
+	if len(states) > 0 {
 //line app/vmalert/web.qtpl:31
 		qw422016.N().S(`
                     <span class="d-none d-md-inline-block">Filter by status:</span>
@@ -68,7 +68,7 @@ func StreamControls(qw422016 *qt422016.Writer, prefix, currentIcon, currentText 
 //line app/vmalert/web.qtpl:34
 		qw422016.E().S(prefix)
 //line app/vmalert/web.qtpl:34
-		qw422016.N().S(`static/icons/icons.svg#filter">
+		qw422016.N().S(`static/icons/icons.svg#state">
                     </svg>
                     <div class="dropdown">
                         <button
@@ -97,7 +97,7 @@ func StreamControls(qw422016 *qt422016.Writer, prefix, currentIcon, currentText 
                         <ul class="dropdown-menu">
                             `)
 //line app/vmalert/web.qtpl:49
-		for key, title := range filters {
+		for key, title := range states {
 //line app/vmalert/web.qtpl:49
 			qw422016.N().S(`
                                 `)
@@ -106,7 +106,7 @@ func StreamControls(qw422016 *qt422016.Writer, prefix, currentIcon, currentText 
 //line app/vmalert/web.qtpl:50
 				qw422016.N().S(`
                                     <li>
-                                        <a class="dropdown-item" onclick="groupFilter('`)
+                                        <a class="dropdown-item" onclick="groupForState('`)
 //line app/vmalert/web.qtpl:52
 				qw422016.E().S(key)
 //line app/vmalert/web.qtpl:52
@@ -176,22 +176,22 @@ func StreamControls(qw422016 *qt422016.Writer, prefix, currentIcon, currentText 
 }
 
 //line app/vmalert/web.qtpl:77
-func WriteControls(qq422016 qtio422016.Writer, prefix, currentIcon, currentText string, icons, filters map[string]string, search bool) {
+func WriteControls(qq422016 qtio422016.Writer, prefix, currentIcon, currentText string, icons, states map[string]string, search bool) {
 //line app/vmalert/web.qtpl:77
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:77
-	StreamControls(qw422016, prefix, currentIcon, currentText, icons, filters, search)
+	StreamControls(qw422016, prefix, currentIcon, currentText, icons, states, search)
 //line app/vmalert/web.qtpl:77
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmalert/web.qtpl:77
 }
 
 //line app/vmalert/web.qtpl:77
-func Controls(prefix, currentIcon, currentText string, icons, filters map[string]string, search bool) string {
+func Controls(prefix, currentIcon, currentText string, icons, states map[string]string, search bool) string {
 //line app/vmalert/web.qtpl:77
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:77
-	WriteControls(qb422016, prefix, currentIcon, currentText, icons, filters, search)
+	WriteControls(qb422016, prefix, currentIcon, currentText, icons, states, search)
 //line app/vmalert/web.qtpl:77
 	qs422016 := string(qb422016.B)
 //line app/vmalert/web.qtpl:77
@@ -324,13 +324,13 @@ func Welcome(r *http.Request) string {
 }
 
 //line app/vmalert/web.qtpl:100
-func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule.ApiGroup, filter string) {
+func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule.ApiGroup, state string) {
 //line app/vmalert/web.qtpl:100
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:102
 	prefix := vmalertutil.Prefix(r.URL.Path)
-	filters := map[string]string{
+	states := map[string]string{
 		"":          "All",
 		"unhealthy": "Unhealthy",
 		"nomatch":   "No Match",
@@ -340,8 +340,8 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
 		"unhealthy": "unhealthy",
 		"nomatch":   "nomatch",
 	}
-	currentText := filters[filter]
-	currentIcon := icons[filter]
+	currentText := states[state]
+	currentIcon := icons[state]
 
 //line app/vmalert/web.qtpl:115
 	qw422016.N().S(`
@@ -352,7 +352,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
 	qw422016.N().S(`
         `)
 //line app/vmalert/web.qtpl:117
-	StreamControls(qw422016, prefix, currentIcon, currentText, icons, filters, true)
+	StreamControls(qw422016, prefix, currentIcon, currentText, icons, states, true)
 //line app/vmalert/web.qtpl:117
 	qw422016.N().S(`
         `)
@@ -371,7 +371,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
 //line app/vmalert/web.qtpl:120
 			qw422016.N().S(`" class="w-100 border-0 flex-column vm-group`)
 //line app/vmalert/web.qtpl:120
-			if g.Unhealthy > 0 {
+			if g.States["unhealthy"] > 0 {
 //line app/vmalert/web.qtpl:120
 				qw422016.N().S(` alert-danger`)
 //line app/vmalert/web.qtpl:120
@@ -418,11 +418,11 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
                             <span class="d-flex gap-2">
                                 `)
 //line app/vmalert/web.qtpl:133
-			if g.Unhealthy > 0 {
+			if g.States["unhealthy"] > 0 {
 //line app/vmalert/web.qtpl:133
 				qw422016.N().S(`<span class="badge bg-danger" title="Number of rules with status Error">`)
 //line app/vmalert/web.qtpl:133
-				qw422016.N().D(g.Unhealthy)
+				qw422016.N().D(g.States["unhealthy"])
 //line app/vmalert/web.qtpl:133
 				qw422016.N().S(`</span> `)
 //line app/vmalert/web.qtpl:133
@@ -431,11 +431,11 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
 			qw422016.N().S(`
                                 `)
 //line app/vmalert/web.qtpl:134
-			if g.NoMatch > 0 {
+			if g.States["nomatch"] > 0 {
 //line app/vmalert/web.qtpl:134
 				qw422016.N().S(`<span class="badge bg-warning" title="Number of rules with status NoMatch">`)
 //line app/vmalert/web.qtpl:134
-				qw422016.N().D(g.NoMatch)
+				qw422016.N().D(g.States["nomatch"])
 //line app/vmalert/web.qtpl:134
 				qw422016.N().S(`</span> `)
 //line app/vmalert/web.qtpl:134
@@ -444,7 +444,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
 			qw422016.N().S(`
                                 <span class="badge bg-success" title="Number of rules with status Ok">`)
 //line app/vmalert/web.qtpl:135
-			qw422016.N().D(g.Healthy)
+			qw422016.N().D(g.States["ok"])
 //line app/vmalert/web.qtpl:135
 			qw422016.N().S(`</span>
                             </span>
@@ -617,7 +617,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
                                                     |
                                                     `)
 //line app/vmalert/web.qtpl:192
-				streamseriesFetchedWarn(qw422016, prefix, r)
+				streamseriesFetchedWarn(qw422016, prefix, &r)
 //line app/vmalert/web.qtpl:192
 				qw422016.N().S(`
                                                     <span><a target="_blank" href="`)
@@ -750,22 +750,22 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []*rule
 }
 
 //line app/vmalert/web.qtpl:234
-func WriteListGroups(qq422016 qtio422016.Writer, r *http.Request, groups []*rule.ApiGroup, filter string) {
+func WriteListGroups(qq422016 qtio422016.Writer, r *http.Request, groups []*rule.ApiGroup, state string) {
 //line app/vmalert/web.qtpl:234
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:234
-	StreamListGroups(qw422016, r, groups, filter)
+	StreamListGroups(qw422016, r, groups, state)
 //line app/vmalert/web.qtpl:234
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmalert/web.qtpl:234
 }
 
 //line app/vmalert/web.qtpl:234
-func ListGroups(r *http.Request, groups []*rule.ApiGroup, filter string) string {
+func ListGroups(r *http.Request, groups []*rule.ApiGroup, state string) string {
 //line app/vmalert/web.qtpl:234
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:234
-	WriteListGroups(qb422016, r, groups, filter)
+	WriteListGroups(qb422016, r, groups, state)
 //line app/vmalert/web.qtpl:234
 	qs422016 := string(qb422016.B)
 //line app/vmalert/web.qtpl:234
@@ -1462,7 +1462,7 @@ func Alert(r *http.Request, alert *rule.ApiAlert) string {
 }
 
 //line app/vmalert/web.qtpl:479
-func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule rule.ApiRule) {
+func StreamRule(qw422016 *qt422016.Writer, r *http.Request, rule rule.ApiRule) {
 //line app/vmalert/web.qtpl:479
 	qw422016.N().S(`
     `)
@@ -1859,22 +1859,22 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule rule.Api
 }
 
 //line app/vmalert/web.qtpl:642
-func WriteRuleDetails(qq422016 qtio422016.Writer, r *http.Request, rule rule.ApiRule) {
+func WriteRule(qq422016 qtio422016.Writer, r *http.Request, rule rule.ApiRule) {
 //line app/vmalert/web.qtpl:642
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:642
-	StreamRuleDetails(qw422016, r, rule)
+	StreamRule(qw422016, r, rule)
 //line app/vmalert/web.qtpl:642
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmalert/web.qtpl:642
 }
 
 //line app/vmalert/web.qtpl:642
-func RuleDetails(r *http.Request, rule rule.ApiRule) string {
+func Rule(r *http.Request, rule rule.ApiRule) string {
 //line app/vmalert/web.qtpl:642
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:642
-	WriteRuleDetails(qb422016, r, rule)
+	WriteRule(qb422016, r, rule)
 //line app/vmalert/web.qtpl:642
 	qs422016 := string(qb422016.B)
 //line app/vmalert/web.qtpl:642
@@ -2015,12 +2015,12 @@ func badgeStabilizing() string {
 }
 
 //line app/vmalert/web.qtpl:664
-func streamseriesFetchedWarn(qw422016 *qt422016.Writer, prefix string, r rule.ApiRule) {
+func streamseriesFetchedWarn(qw422016 *qt422016.Writer, prefix string, r *rule.ApiRule) {
 //line app/vmalert/web.qtpl:664
 	qw422016.N().S(`
 `)
 //line app/vmalert/web.qtpl:665
-	if isNoMatch(r) {
+	if r.IsNoMatch() {
 //line app/vmalert/web.qtpl:665
 		qw422016.N().S(`
 <svg
@@ -2045,7 +2045,7 @@ func streamseriesFetchedWarn(qw422016 *qt422016.Writer, prefix string, r rule.Ap
 }
 
 //line app/vmalert/web.qtpl:675
-func writeseriesFetchedWarn(qq422016 qtio422016.Writer, prefix string, r rule.ApiRule) {
+func writeseriesFetchedWarn(qq422016 qtio422016.Writer, prefix string, r *rule.ApiRule) {
 //line app/vmalert/web.qtpl:675
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/web.qtpl:675
@@ -2056,7 +2056,7 @@ func writeseriesFetchedWarn(qq422016 qtio422016.Writer, prefix string, r rule.Ap
 }
 
 //line app/vmalert/web.qtpl:675
-func seriesFetchedWarn(prefix string, r rule.ApiRule) string {
+func seriesFetchedWarn(prefix string, r *rule.ApiRule) string {
 //line app/vmalert/web.qtpl:675
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/web.qtpl:675
@@ -2068,9 +2068,4 @@ func seriesFetchedWarn(prefix string, r rule.ApiRule) string {
 //line app/vmalert/web.qtpl:675
 	return qs422016
 //line app/vmalert/web.qtpl:675
-}
-
-//line app/vmalert/web.qtpl:678
-func isNoMatch(r rule.ApiRule) bool {
-	return r.LastSamples == 0 && r.LastSeriesFetched != nil && *r.LastSeriesFetched == 0
 }

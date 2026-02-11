@@ -33,6 +33,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): make label value autocomplete context-aware by suggesting values only from series matching already selected label filters. See [#9269](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9269).
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): previously `/api/v1/rules` returned the full rule list without search or pagination; now it supports `search`, `group_limit`, and `page_num` query args to filter and paginate results, reducing response size for large rule sets. See [#9580](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9580).
+
 * BUGFIX: all VictoriaMetrics components: respect default http client proxy env variables (HTTP_PROXY,HTTPS_PROXY,NO_PROXY). See [#10385](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10385). Thanks to @zane-deg for the contribution.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly expose `kubernetes_sd` discovery network dialer metrics `vm_promscrape_discovery_kubernetes_conn_*`. See [#10382](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10382).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): slightly reduce memory usage for [metrics-metadata](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metrics-metadata) ingestion. See [#10392](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10392).
