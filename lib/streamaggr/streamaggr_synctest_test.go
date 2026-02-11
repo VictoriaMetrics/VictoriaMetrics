@@ -1,4 +1,4 @@
-//go:build goexperiment.synctest
+//go:build synctest
 
 package streamaggr
 
@@ -16,7 +16,7 @@ import (
 func TestAggregatorsSuccess(t *testing.T) {
 	f := func(inputMetrics []string, interval time.Duration, outputMetricsExpected, config, matchIdxsStrExpected string) {
 		t.Helper()
-		synctest.Run(func() {
+		synctest.Test(t, func(t *testing.T) {
 			var matchIdxs []uint32
 			var tssOutput []prompb.TimeSeries
 			var tssOutputLock sync.Mutex
