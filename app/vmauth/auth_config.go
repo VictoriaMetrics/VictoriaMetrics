@@ -800,7 +800,8 @@ var (
 	// authUsers contains the currently loaded auth users
 	authUsers atomic.Pointer[map[string]*UserInfo]
 
-	jwtUsers atomic.Pointer[[]*UserInfo]
+	// jwtState contains the currently loaded UserInfo with JWTToken property set
+	jwtState atomic.Pointer[jwtAuthState]
 
 	authConfigWG sync.WaitGroup
 	stopCh       chan struct{}
@@ -845,6 +846,9 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
+	js := &jwtAuthState{
+		users: jui,
+	}
 
 	m, err := parseAuthConfigUsers(ac)
 	if err != nil {
@@ -865,7 +869,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
-	jwtUsers.Store(&jui)
+	jwtState.Store(js)
 
 	return true, nil
 }

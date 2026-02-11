@@ -9,6 +9,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+type jwtAuthState struct {
+	users []*UserInfo
+}
+
 type JWTToken struct {
 	PublicKeys []string `yaml:"public_keys,omitempty"`
 	SkipVerify bool     `yaml:"skip_verify,omitempty"`
@@ -91,7 +95,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 }
 
 func getUserInfoByJWTToken(ats []string) *UserInfo {
-	jus := *jwtUsers.Load()
+	js := *jwtState.Load()
 
 	for _, at := range ats {
 		if strings.Count(at, ".") != 2 {
@@ -114,19 +118,19 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 			continue
 		}
 
-		for _, ju := range jus {
-			if ju.JWTToken.SkipVerify {
-				return ju
+		for _, ui := range js.users {
+			if ui.JWTToken.SkipVerify {
+				return ui
 			}
 
-			if err := ju.JWTToken.verifierPool.Verify(tkn); err != nil {
+			if err := ui.JWTToken.verifierPool.Verify(tkn); err != nil {
 				if *logInvalidAuthTokens {
 					logger.Infof("cannot verify jwt token: %s", err)
 				}
 				continue
 			}
 
-			return ju
+			return ui
 		}
 	}
 
