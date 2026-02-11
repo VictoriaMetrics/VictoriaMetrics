@@ -96,6 +96,9 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 
 func getUserInfoByJWTToken(ats []string) *UserInfo {
 	js := *jwtState.Load()
+	if len(js.users) == 0 {
+		return nil
+	}
 
 	for _, at := range ats {
 		if strings.Count(at, ".") != 2 {
