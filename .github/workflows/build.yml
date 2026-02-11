@@ -66,6 +66,7 @@ jobs:
             Makefile
             app/**/Makefile
           go-version: stable
+      - run: go version
 
       - name: Build vmcluster for ${{ matrix.os }}-${{ matrix.arch }}
         run: make vmcluster-${{ matrix.os }}-${{ matrix.arch }}
