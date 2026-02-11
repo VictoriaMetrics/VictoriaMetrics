@@ -37,7 +37,7 @@ kafka client will automatically commit offset based on value of `auto.commit.int
 
 Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
 
-`vmagent` consumes messages from Kafka topics specified via `-kafka.consumer.topic` command-line flag.
+`vmagent` consumes messages from Kafka topics specified via `-kafka.consumer.topic` command-line flag. 
 Multiple topics can be specified by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
 
 `vmagent` consumes messages from Kafka brokers specified via `-kafka.consumer.topic.brokers` command-line flag.
@@ -88,7 +88,7 @@ See more about [disabling on-disk persistence](https://docs.victoriametrics.com/
 
 See also [how to write metrics to multiple distinct tenants](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy).
 
-### Consumer command-line flags
+### Consumer command-line flags 
 
 ```sh
   -kafka.consumer.topic array
@@ -124,7 +124,7 @@ See also [how to write metrics to multiple distinct tenants](https://docs.victor
 
 ## Writing metrics
 
-`vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka URL.
+`vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka URL. 
 For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`,
 then it will send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`.
 These messages can be read later from Kafka by another `vmagent` - see [how to read metrics from kafka](#reading-metrics).
@@ -134,7 +134,7 @@ sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka option
 
 By default, `vmagent` sends compressed messages using Google's Snappy, as defined in [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol).
 To switch to [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol)
-and reduce network bandwidth, simply set the `-remoteWrite.forceVMProto=true` flag. It is also possible to adjust
+and reduce network bandwidth, simply set the `-remoteWrite.forceVMProto=true` flag. It is also possible to adjust 
 the compression level for the VictoriaMetrics remote write protocol using the `-remoteWrite.vmProtoCompressLevel` command-line flag.
 
 By default, `vmagent` uses a single producer per topic. This can be changed with setting `kafka://localhost:9092/?concurrency=<int>`,
@@ -143,7 +143,7 @@ Or if Kafka brokers located at different region/availability-zone.
 
 ### Estimating message size and rate
 
-If you are migrating from remote write to Kafka, the request rate and request body size of remote write can roughly
+If you are migrating from remote write to Kafka, the request rate and request body size of remote write can roughly 
 correspond to the message rate and size of Kafka.
 
 vmagent organizes scraped/ingested data into **blocks**. A block contains multiple time series and samples.
