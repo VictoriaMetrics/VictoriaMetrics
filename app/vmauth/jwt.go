@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
@@ -10,7 +11,12 @@ import (
 )
 
 type jwtAuthState struct {
+	// users holds UserInfo structs with JWTToken field set.
 	users []*UserInfo
+
+	cacheMux sync.Mutex
+	cache    map[string]*jwtUserInfo
+	cleanT   *time.Ticker
 }
 
 type JWTToken struct {
@@ -18,6 +24,11 @@ type JWTToken struct {
 	SkipVerify bool     `yaml:"skip_verify,omitempty"`
 
 	verifierPool *jwt.VerifierPool
+}
+
+type jwtUserInfo struct {
+	UserInfo
+	Token *jwt.Token
 }
 
 func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
@@ -95,7 +106,9 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 }
 
 func getUserInfoByJWTToken(ats []string) *UserInfo {
-	js := *jwtState.Load()
+	js := jwtState.Load()
+
+	removeExpiredJWTTokens(js)
 
 	for _, at := range ats {
 		if strings.Count(at, ".") != 2 {
@@ -103,6 +116,19 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 		}
 
 		at, _ = strings.CutPrefix(at, `http_auth:`)
+
+		js.cacheMux.Lock()
+		jui, ok := js.cache[at]
+		js.cacheMux.Unlock()
+		if ok {
+			if jui.Token.IsExpired(time.Now()) {
+				if *logInvalidAuthTokens {
+					logger.Infof("jwt token is expired")
+				}
+				return nil
+			}
+			return &jui.UserInfo
+		}
 
 		tkn, err := jwt.NewToken(at, true)
 		if err != nil {
@@ -130,9 +156,38 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 				continue
 			}
 
+			js.cacheMux.Lock()
+			jui, ok := js.cache[at]
+			if ok {
+				js.cacheMux.Unlock()
+				return &jui.UserInfo
+			}
+			js.cache[at] = &jwtUserInfo{
+				UserInfo: *ui,
+				Token:    tkn,
+			}
+			js.cacheMux.Unlock()
+
 			return ui
 		}
 	}
 
 	return nil
+}
+
+func removeExpiredJWTTokens(js *jwtAuthState) {
+	select {
+	case <-js.cleanT.C:
+	default:
+		return
+	}
+
+	now := time.Now()
+	js.cacheMux.Lock()
+	for at, jui := range js.cache {
+		if jui.Token.IsExpired(now) {
+			delete(js.cache, at)
+		}
+	}
+	js.cacheMux.Unlock()
 }
