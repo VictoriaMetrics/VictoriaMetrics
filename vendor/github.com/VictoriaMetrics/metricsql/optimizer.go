@@ -700,7 +700,7 @@ func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
 		return -1
 	case "end", "now", "pi", "ru", "start", "step", "time":
 		return -1
-	case "limit_offset":
+	case "limit_offset", "histogram_fraction":
 		return 2
 	case "buckets_limit", "histogram_quantile", "histogram_share", "range_quantile",
 		"range_trim_outliers", "range_trim_spikes", "range_trim_zscore":
