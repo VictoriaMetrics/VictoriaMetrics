@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
@@ -18,7 +19,7 @@ func TestCache(t *testing.T) {
 	getMaxSize := func() uint64 {
 		return sizeMaxBytes
 	}
-	c := NewCache(getMaxSize)
+	c := NewCache(getMaxSize, 3*time.Minute)
 	defer c.MustStop()
 	if n := c.SizeBytes(); n != 0 {
 		t.Fatalf("unexpected SizeBytes(); got %d; want %d", n, 0)
@@ -123,7 +124,7 @@ func TestCacheConcurrentAccess(_ *testing.T) {
 	getMaxSize := func() uint64 {
 		return sizeMaxBytes
 	}
-	c := NewCache(getMaxSize)
+	c := NewCache(getMaxSize, 3*time.Minute)
 	defer c.MustStop()
 
 	workers := 5

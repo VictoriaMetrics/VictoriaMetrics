@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
@@ -866,7 +867,7 @@ var (
 )
 
 var (
-	regexpCache = lrucache.NewCache(getMaxRegexpCacheSize)
+	regexpCache = lrucache.NewCache(getMaxRegexpCacheSize, 1*time.Hour)
 )
 
 type regexpCacheValue struct {
@@ -921,7 +922,7 @@ var (
 )
 
 var (
-	prefixesCache = lrucache.NewCache(getMaxPrefixesCacheSize)
+	prefixesCache = lrucache.NewCache(getMaxPrefixesCacheSize, 1*time.Hour)
 )
 
 // RegexpPrefixesCacheSize returns the number of cached regexp prefixes for tag filters.
