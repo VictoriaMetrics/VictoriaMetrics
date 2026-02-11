@@ -40,9 +40,9 @@ There is also user-friendly database for logs - [VictoriaLogs](https://docs.vict
 
 > It is recommended to use the [single-node version](https://github.com/VictoriaMetrics/VictoriaMetrics) for ingestion rates
 > lower than a million data points per second. The single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
-with the number of CPU cores, RAM and available storage space and can be set up in [High Availability](https://docs.victoriametrics.com/victoriametrics/#high-availability) mode.
-The single-node version is easier to configure and operate compared to the cluster version, so think twice before choosing the cluster version.
-See [this question](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster) for more details.
+> with the number of CPU cores, RAM and available storage space and can be set up in [High Availability](https://docs.victoriametrics.com/victoriametrics/#high-availability) mode.
+> The single-node version is easier to configure and operate compared to the cluster version, so think twice before choosing the cluster version.
+> See [this question](https://docs.victoriametrics.com/victoriametrics/faq/#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster) for more details.
 
 ## Architecture overview
 
