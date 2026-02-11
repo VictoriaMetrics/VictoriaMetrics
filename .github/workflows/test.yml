@@ -42,13 +42,7 @@ jobs:
             go.sum
             Makefile
             app/**/Makefile
-          # It was pinned to 1.25 (prev value "stable") because Go 1.26 removed SYNCTEST experiment,
-          # and it is used in VictoriaMetrics codebase.
-          # So CI fails:
-          #   GOEXPERIMENT=synctest go vet ./lib/...
-          #   go: unknown GOEXPERIMENT synctest
-          # https://github.com/VictoriaMetrics/VictoriaMetrics/actions/runs/21903996751/job/63239331425?pr=10435
-          go-version: "1.25.7"
+          go-version-file: 'go.mod'
       - run: go version
 
       - name: Cache golangci-lint
@@ -87,13 +81,7 @@ jobs:
             go.sum
             Makefile
             app/**/Makefile
-          # It was pinned to 1.25 (prev value "stable") because Go 1.26 removed SYNCTEST experiment,
-          # and it is used in VictoriaMetrics codebase.
-          # So CI fails:
-          #   GOEXPERIMENT=synctest go vet ./lib/...
-          #   go: unknown GOEXPERIMENT synctest
-          # https://github.com/VictoriaMetrics/VictoriaMetrics/actions/runs/21903996751/job/63239331425?pr=10435
-          go-version: "1.25.7"
+          go-version-file: 'go.mod'
       - run: go version
 
       - name: Run tests
@@ -120,7 +108,7 @@ jobs:
             go.sum
             Makefile
             app/**/Makefile
-          go-version: stable
+          go-version-file: 'go.mod'
       - run: go version
 
       - name: Run integration tests

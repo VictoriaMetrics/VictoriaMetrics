@@ -21,8 +21,9 @@ jobs:
         id: go
         uses: actions/setup-go@v6
         with:
-          go-version: stable
+          go-version-file: 'go.mod'
           cache: false
+
       - run: go version
 
       - name: Cache Go artifacts
