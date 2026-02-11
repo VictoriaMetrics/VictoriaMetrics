@@ -1,4 +1,4 @@
-//go:build goexperiment.synctest
+//go:build synctest
 
 package storage
 
@@ -302,7 +302,7 @@ func TestStorageRotateIndexDBPrefill(t *testing.T) {
 	f := func(t *testing.T, opts OpenOptions, prefillStart time.Duration) {
 		t.Helper()
 
-		synctest.Run(func() {
+		synctest.Test(t, func(t *testing.T) {
 			// Prefill of the next partition indexDB happens during the
 			// (nextMonth-prefillStart, nextMonth] time interval.
 			// Advance current time right before the the beginning of that interval.

@@ -1,3 +1,5 @@
+//go:build synctest
+
 package storage
 
 import (
@@ -8,6 +10,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+func (c *metricIDCache) numShards() uint64 {
+	return uint64(len(c.shards))
+}
+
+func (c *metricIDCache) fullRotationPeriod() time.Duration {
+	return time.Duration(c.rotationGroupCount) * c.rotationGroupPeriod
+}
 
 func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 	// Entries that are added to the cache but then never retrieved will be

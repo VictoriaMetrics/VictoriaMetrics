@@ -84,7 +84,7 @@ func RenderHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	if s := r.FormValue("maxDataPoints"); len(s) > 0 {
 		n, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return fmt.Errorf("cannot parse maxDataPoints=%q: %w", maxDataPoints, err)
+			return fmt.Errorf("cannot parse maxDataPoints=%d: %w", maxDataPoints, err)
 		}
 		if n <= 0 {
 			return fmt.Errorf("maxDataPoints must be greater than 0; got %f", n)
