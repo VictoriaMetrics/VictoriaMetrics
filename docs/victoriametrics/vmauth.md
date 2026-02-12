@@ -255,7 +255,7 @@ JWT tokens are verified using RSA or ECDSA public keys. The following auth confi
 
 ```yaml
 users:
-- jwt_token:
+- jwt:
     public_keys:
     - |
       -----BEGIN PUBLIC KEY-----
@@ -289,7 +289,7 @@ For testing, skip signature verification with `skip_verify: true` (not recommend
 
 ```yaml
 users:
-- jwt_token:
+- jwt:
     skip_verify: true
   url_prefix: "http://victoria-metrics:8428"
 ```

@@ -46,81 +46,81 @@ XOtclIk1uhc03oL9nOQ=
 		t.Fatalf("expecting non-nil error; got %v", users)
 	}
 
-	// unauthorized_user cannot be used with jwt_token
+	// unauthorized_user cannot be used with jwt
 	f(`
 unauthorized_user:
-  jwt_token: {skip_verify: true}
+  jwt: {skip_verify: true}
   url_prefix: http://foo.bar
-`, `field jwt_token can't be specified for unauthorized_user section`)
+`, `field jwt can't be specified for unauthorized_user section`)
 
-	// username and jwt_token in a single config
+	// username and jwt in a single config
 	f(`
 users:
 - username: foo
-  jwt_token: {skip_verify: true}
+  jwt: {skip_verify: true}
   url_prefix: http://foo.bar
-`, `auth_token, bearer_token, username and password cannot be specified if jwt_token is set`)
-	// bearer_token and jwt_token in a single config
+`, `auth_token, bearer_token, username and password cannot be specified if jwt is set`)
+	// bearer_token and jwt in a single config
 	f(`
 users:
 - bearer_token: foo
-  jwt_token: {skip_verify: true}
+  jwt: {skip_verify: true}
   url_prefix: http://foo.bar
-`, `auth_token, bearer_token, username and password cannot be specified if jwt_token is set`)
-	// bearer_token and jwt_token in a single config
+`, `auth_token, bearer_token, username and password cannot be specified if jwt is set`)
+	// bearer_token and jwt in a single config
 	f(`
 users:
 - auth_token: "Foo token"
-  jwt_token: {skip_verify: true}
+  jwt: {skip_verify: true}
   url_prefix: http://foo.bar
-`, `auth_token, bearer_token, username and password cannot be specified if jwt_token is set`)
+`, `auth_token, bearer_token, username and password cannot be specified if jwt is set`)
 
-	// jwt_token public_keys or skip_verify must be set, part 1
+	// jwt public_keys or skip_verify must be set, part 1
 	f(`
 users:
-- jwt_token: {}
+- jwt: {}
   url_prefix: http://foo.bar
-`, `jwt_token must contain at least a single public key, public_key_files or have skip_verify=true`)
+`, `jwt must contain at least a single public key, public_key_files or have skip_verify=true`)
 
-	// jwt_token public_keys or skip_verify must be set, part 2
+	// jwt public_keys or skip_verify must be set, part 2
 	f(`
 users:
-- jwt_token: {public_keys: null}
+- jwt: {public_keys: null}
   url_prefix: http://foo.bar
-`, `jwt_token must contain at least a single public key, public_key_files or have skip_verify=true`)
+`, `jwt must contain at least a single public key, public_key_files or have skip_verify=true`)
 
-	// jwt_token public_keys or skip_verify must be set, part 3
+	// jwt public_keys or skip_verify must be set, part 3
 	f(`
 users:
-- jwt_token: {public_keys: []}
+- jwt: {public_keys: []}
   url_prefix: http://foo.bar
-`, `jwt_token must contain at least a single public key, public_key_files or have skip_verify=true`)
+`, `jwt must contain at least a single public key, public_key_files or have skip_verify=true`)
 
-	// jwt_token public_keys, public_key_files or skip_verify must be set
+	// jwt public_keys, public_key_files or skip_verify must be set
 	f(`
 users:
-- jwt_token: {public_key_files: []}
+- jwt: {public_key_files: []}
   url_prefix: http://foo.bar
-`, `jwt_token must contain at least a single public key, public_key_files or have skip_verify=true`)
+`, `jwt must contain at least a single public key, public_key_files or have skip_verify=true`)
 
 	// invalid public key, part 1
 	f(`
 users:
-- jwt_token: {public_keys: [""]}
+- jwt: {public_keys: [""]}
   url_prefix: http://foo.bar
 `, `failed to parse key "": failed to decode PEM block containing public key`)
 
 	// invalid public key, part 2
 	f(`
 users:
-- jwt_token: {public_keys: ["invalid"]}
+- jwt: {public_keys: ["invalid"]}
   url_prefix: http://foo.bar
 `, `failed to parse key "invalid": failed to decode PEM block containing public key`)
 
 	// invalid public key, part 2
 	f(fmt.Sprintf(`
 users:
-- jwt_token: 
+- jwt: 
     public_keys:
     - %q
     - %q
@@ -128,15 +128,15 @@ users:
   url_prefix: http://foo.bar
 `, validRSAPublicKey, validECDSAPublicKey), `failed to parse key "invalid": failed to decode PEM block containing public key`)
 
-	// several jwt_token users
+	// several jwt users
 	// invalid public key, part 2
 	f(fmt.Sprintf(`
 users:
-- jwt_token: 
+- jwt: 
     public_keys:
     - %q
   url_prefix: http://foo.bar
-- jwt_token:
+- jwt:
     public_keys:
     - %q
   url_prefix: http://foo.bar
@@ -145,7 +145,7 @@ users:
 	// public key file doesn't exist
 	f(`
 users:
-- jwt_token: 
+- jwt: 
     public_key_files: 
     - /path/to/nonexistent/file.pem
   url_prefix: http://foo.bar
@@ -159,7 +159,7 @@ users:
 	}
 	f(`
 users:
-- jwt_token: 
+- jwt: 
     public_key_files: 
     - `+publicKeyFile+`
   url_prefix: http://foo.bar
@@ -199,18 +199,18 @@ XOtclIk1uhc03oL9nOQ=
 		}
 
 		for _, ui := range jui {
-			if ui.JWTToken == nil {
-				t.Fatalf("unexpected nil JWTToken")
+			if ui.JWT == nil {
+				t.Fatalf("unexpected nil JWTConfig")
 			}
 
-			if ui.JWTToken.SkipVerify {
-				if ui.JWTToken.verifierPool != nil {
+			if ui.JWT.SkipVerify {
+				if ui.JWT.verifierPool != nil {
 					t.Fatalf("unexpected non-nil verifier pool for skip_verify=true")
 				}
 				continue
 			}
 
-			if ui.JWTToken.verifierPool == nil {
+			if ui.JWT.verifierPool == nil {
 				t.Fatalf("unexpected nil verifier pool for non-empty public keys")
 			}
 		}
@@ -218,7 +218,7 @@ XOtclIk1uhc03oL9nOQ=
 
 	f(fmt.Sprintf(`
 users:
-- jwt_token:
+- jwt:
     public_keys:
     - %q
   url_prefix: http://foo.bar
@@ -226,7 +226,7 @@ users:
 
 	f(fmt.Sprintf(`
 users:
-- jwt_token:
+- jwt:
     public_keys:
     - %q
   url_prefix: http://foo.bar
@@ -234,7 +234,7 @@ users:
 
 	f(fmt.Sprintf(`
 users:
-- jwt_token:
+- jwt:
     public_keys:
     - %q
     - %q
@@ -243,7 +243,7 @@ users:
 
 	f(`
 users:
-- jwt_token:
+- jwt:
     skip_verify: true
   url_prefix: http://foo.bar
 `)
@@ -255,7 +255,7 @@ users:
   password: bar
   url_prefix: http://foo.bar
 
-- jwt_token:
+- jwt:
     skip_verify: true
   url_prefix: http://foo.bar
 
@@ -275,7 +275,7 @@ users:
 	// Test single public key file
 	f(fmt.Sprintf(`
 users:
-- jwt_token:
+- jwt:
     public_key_files:
     - %q
   url_prefix: http://foo.bar
@@ -284,7 +284,7 @@ users:
 	// Test multiple public key files
 	f(fmt.Sprintf(`
 users:
-- jwt_token:
+- jwt:
     public_key_files:
     - %q
     - %q
@@ -294,7 +294,7 @@ users:
 	// Test combined inline keys and files
 	f(fmt.Sprintf(`
 users:
-- jwt_token:
+- jwt:
     public_keys:
     - %q
     public_key_files:

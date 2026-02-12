@@ -627,7 +627,7 @@ func TestJWTRequestHandler(t *testing.T) {
 
 	simpleCfgStr := fmt.Sprintf(`
 users:
-- jwt_token:
+- jwt:
     public_keys:
     - %q
   url_prefix: {BACKEND}/foo`, string(publicKeyPEM))
@@ -685,7 +685,7 @@ statusCode=200
 /foo/abc`
 	f(`
 users:
-- jwt_token:
+- jwt:
     skip_verify: true
   url_prefix: {BACKEND}/foo`, request, responseExpected)
 
@@ -721,7 +721,7 @@ statusCode=200
 /foo/abc`
 	f(fmt.Sprintf(`
 users:
-- jwt_token:
+- jwt:
     public_key_files:
     - %q
   url_prefix: {BACKEND}/foo`, string(publicKeyFile)), request, responseExpected)
