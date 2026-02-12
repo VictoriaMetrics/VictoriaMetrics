@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -819,4 +820,39 @@ func sortLabels(labels []prompb.Label) {
 
 func ptrTo[T any](v T) *T {
 	return &v
+}
+
+func TestPutBigWriteRequestContext(t *testing.T) {
+	f := func(l, c, expectC int) {
+		t.Helper()
+		// let's reset the whole pool first, as different test case could interfere
+		wctxPool = sync.Pool{}
+
+		wctx := &writeRequestContext{
+			buf: make([]byte, l, c),
+		}
+		putWriteRequestContext(wctx)
+		wctx = getWriteRequestContext()
+
+		if cap(wctx.buf) != expectC {
+			t.Fatalf("unexpected labels buffer length or cap: got len=%d, cap=%d, want cap=%d",
+				len(wctx.buf), cap(wctx.buf), expectC,
+			)
+		}
+	}
+
+	// wctx but actually used the space: no reset
+	f(1, 1, 1)
+	f(1000, 1000, 1000)
+	f(4*1024*1024, 5*1024*1024, 5*1024*1024)     // not fulfilling 4x, no reset
+	f(1024*1024+5, 4*1024*1024+1, 4*1024*1024+1) // not fulfilling 4x, no reset
+
+	// wctx not using the space, but it's too small: no reset
+	f(1, 1024*1024+1, 1024*1024+1)
+	f(1, 4*1024*1024, 4*1024*1024)
+
+	// wctx not using the space, and the cap is high: reset
+	f(1, 4*1024*1024+1, 0)
+	f(1, 4*1024*1024+1, 0)
+	f(1024*1024, 4*1024*1024+1, 0) // diff > 4x
 }
