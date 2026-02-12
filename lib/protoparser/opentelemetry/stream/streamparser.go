@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -54,17 +53,18 @@ func parseData(data []byte, callback func(tss []prompb.TimeSeries, mms []prompb.
 
 	// flush 1 last time before finishing the request. there might be data left.
 	if len(wctx.tss) > 0 {
-		err := wctx.flushFunc(wctx.tss, wctx.mms)
-		if err != nil {
-			wctx.flushErrs = append(wctx.flushErrs, err)
+		if err := wctx.flushFunc(wctx.tss, wctx.mms); err != nil {
+			if wctx.firstErr == nil {
+				wctx.firstErr = err
+			}
 		} else {
 			rowsRead.Add(len(wctx.tss))
 		}
 	}
 
-	if len(wctx.flushErrs) > 0 {
+	if wctx.firstErr != nil {
 		// the request might be partially flushed. the client should be aware of the error and retry.
-		return errors.Join(wctx.flushErrs...)
+		return fmt.Errorf("errors happened during parsing, the first error: %w", wctx.firstErr)
 	}
 
 	// all succeed
@@ -85,14 +85,13 @@ type writeRequestContext struct {
 	buf []byte
 
 	flushFunc func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error
-	flushErrs []error
+	firstErr  error
 }
 
 func (wctx *writeRequestContext) reset() {
 	wctx.resetBuffer()
 
-	clear(wctx.flushErrs)
-	wctx.flushErrs = wctx.flushErrs[:0]
+	wctx.firstErr = nil
 	wctx.flushFunc = nil
 }
 
@@ -157,7 +156,9 @@ func (wctx *writeRequestContext) PushSample(mm *pb.MetricMetadata, suffix string
 	// check if we should flush it right now, if the buf is already huge (2MiB).
 	if len(wctx.buf) > 4*1024*1024 {
 		if err := wctx.flushFunc(wctx.tss, wctx.mms); err != nil {
-			wctx.flushErrs = append(wctx.flushErrs, err)
+			if wctx.firstErr == nil {
+				wctx.firstErr = err
+			}
 		} else {
 			rowsRead.Add(len(wctx.tss))
 		}
