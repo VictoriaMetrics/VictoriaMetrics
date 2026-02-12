@@ -4,16 +4,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
-
-type jwtCache struct {
-	// users contain UserInfo`s from AuthConfig with JWTConfig set
-	users []*UserInfo
-}
 
 type JWTConfig struct {
 	PublicKeys     []string `yaml:"public_keys,omitempty"`
@@ -110,9 +106,15 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 }
 
 func getUserInfoByJWTToken(ats []string) *UserInfo {
-	js := *jwtAuthCache.Load()
-	if len(js.users) == 0 {
+	jc := jwtAuthCache.Load()
+	if len(jc.users) == 0 {
 		return nil
+	}
+
+	jc.removeExpired()
+
+	if jce, found := jc.getFirstVerified(ats); found {
+		return jce.ui
 	}
 
 	for _, at := range ats {
@@ -136,9 +138,9 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 			continue
 		}
 
-		for _, ui := range js.users {
+		for _, ui := range jc.users {
 			if ui.JWT.SkipVerify {
-				return ui
+				return jc.addVerifiedIfNotExist(at, jwtVerified{ui: ui, tkn: tkn}).ui
 			}
 
 			if err := ui.JWT.verifierPool.Verify(tkn); err != nil {
@@ -148,9 +150,81 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 				continue
 			}
 
-			return ui
+			return jc.addVerifiedIfNotExist(at, jwtVerified{ui: ui, tkn: tkn}).ui
 		}
 	}
 
 	return nil
+}
+
+type jwtVerified struct {
+	ui  *UserInfo
+	tkn *jwt.Token
+}
+
+type jwtCache struct {
+	// users contain UserInfo`s from AuthConfig with JWTConfig set
+	users []*UserInfo
+
+	verifiedMux    sync.Mutex
+	verified       map[string]jwtVerified
+	removeExpiredT *time.Ticker
+}
+
+func (jc *jwtCache) getFirstVerified(ats []string) (jwtVerified, bool) {
+	jc.verifiedMux.Lock()
+	defer jc.verifiedMux.Unlock()
+
+	for _, at := range ats {
+		if strings.Count(at, ".") != 2 {
+			continue
+		}
+
+		at, _ = strings.CutPrefix(at, `http_auth:`)
+		jce, ok := jc.verified[at]
+		if !ok {
+			continue
+		}
+
+		if jce.tkn.IsExpired(time.Now()) {
+			if *logInvalidAuthTokens {
+				logger.Infof("jwt token is expired")
+			}
+			continue
+		}
+
+		return jce, true
+	}
+
+	return jwtVerified{}, false
+}
+
+func (jc *jwtCache) addVerifiedIfNotExist(at string, new jwtVerified) jwtVerified {
+	jc.verifiedMux.Lock()
+	defer jc.verifiedMux.Unlock()
+
+	jv, ok := jc.verified[at]
+	if !ok {
+		jc.verified[at] = new
+		jv = new
+	}
+
+	return jv
+}
+
+func (jc *jwtCache) removeExpired() {
+	select {
+	case <-jc.removeExpiredT.C:
+	default:
+		return
+	}
+
+	now := time.Now()
+	jc.verifiedMux.Lock()
+	for at, jui := range jc.verified {
+		if jui.tkn.IsExpired(now) {
+			delete(jc.verified, at)
+		}
+	}
+	jc.verifiedMux.Unlock()
 }

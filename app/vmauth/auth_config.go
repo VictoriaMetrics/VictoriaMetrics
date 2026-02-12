@@ -847,7 +847,13 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
 	jwtc := &jwtCache{
-		users: jui,
+		users:          jui,
+		verified:       make(map[string]jwtVerified),
+		removeExpiredT: time.NewTicker(time.Minute),
+	}
+	jcPrev := jwtAuthCache.Load()
+	if jcPrev != nil {
+		jcPrev.removeExpiredT.Stop()
 	}
 
 	m, err := parseAuthConfigUsers(ac)
