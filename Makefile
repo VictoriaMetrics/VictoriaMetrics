@@ -274,14 +274,11 @@ test-full:
 test-full-386:
 	GOARCH=386 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test:
-	$(MAKE) apptest
-
 apptest:
 	$(MAKE) all vmctl vmbackup vmrestore
 	go test ./apptest/... -skip="^Test(Single|Legacy).*"
 
-integration-test-legacy: all vmbackup vmrestore
+apptest-legacy: all vmbackup vmrestore
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
 	VERSION=v1.132.0; \
