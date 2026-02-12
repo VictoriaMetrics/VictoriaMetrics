@@ -43,6 +43,7 @@ jobs:
             Makefile
             app/**/Makefile
           go-version-file: 'go.mod'
+
       - run: go version
 
       - name: Cache golangci-lint
