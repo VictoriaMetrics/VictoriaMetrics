@@ -851,6 +851,10 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		verified:       make(map[string]jwtVerified),
 		removeExpiredT: time.NewTicker(time.Minute),
 	}
+	jcPrev := jwtAuthCache.Load()
+	if jcPrev != nil {
+		jcPrev.removeExpiredT.Stop()
+	}
 
 	m, err := parseAuthConfigUsers(ac)
 	if err != nil {
