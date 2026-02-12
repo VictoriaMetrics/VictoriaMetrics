@@ -641,41 +641,64 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 func TestStorageLastPartitionMetrics(t *testing.T) {
 	defer testRemoveAll(t)
 	synctest.Test(t, func(t *testing.T) {
-		// Advance current time right before the end of the month.
-		time.Sleep(time.Hour * 24 * 30)
+
+		// Advance current time to the beginning of the last day of the month, 2000-01-31T22:00:00Z.
+		time.Sleep(time.Hour*24*31 - 2*time.Hour)
 		ct := time.Now().UTC()
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
 		defer s.MustClose()
 
-		const numSeries = 1000
-		addRows := func() {
+		assertLastPartitionEmpty := func() {
 			t.Helper()
-			rng := rand.New(rand.NewSource(1))
-			tr := TimeRange{
-				MinTimestamp: ct.Add(-time.Hour).UnixMilli(),
-				MaxTimestamp: ct.UnixMilli(),
+			var m Metrics
+			s.UpdateMetrics(&m)
+			lpm := m.TableMetrics.LastPartition
+			if lpm.SmallPartsCount != 0 {
+				t.Fatalf("unexpected zero last partition SmallPartsCount")
 			}
-			mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
-			s.AddRows(mrs, 1)
-			s.DebugFlush()
+			if lpm.IndexDBMetrics.FileBlocksCount != 0 {
+				t.Fatalf("unexpected zero last partition IndexDBMetrics.FileBlocksCount")
+			}
+		}
+		assertLastPartitionNonEmpty := func() {
+			t.Helper()
+			var m Metrics
+			s.UpdateMetrics(&m)
+			lpm := m.TableMetrics.LastPartition
+			if lpm.SmallPartsCount == 0 {
+				t.Fatalf("unexpected non zero last partition SmallPartsCount: %d", lpm.SmallPartsCount)
+			}
+			if lpm.IndexDBMetrics.FileBlocksCount == 0 {
+				t.Fatalf("unexpected non zero last partition IndexDBMetrics.FileBlocksCount: %d", lpm.IndexDBMetrics.FileBlocksCount)
+			}
 		}
 
-		addRows()
+		// make sure last partition is empty before ingestion
+		assertLastPartitionEmpty()
+
+		const numSeries = 1000
+
+		rng := rand.New(rand.NewSource(1))
+		tr := TimeRange{
+			MinTimestamp: ct.Add(-time.Hour).UnixMilli(),
+			MaxTimestamp: ct.UnixMilli(),
+		}
+		mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric.", tr)
+		s.AddRows(mrs, 1)
+		s.DebugFlush()
 		if got, want := s.newTimeseriesCreated.Load(), uint64(numSeries); got != want {
 			t.Errorf("unexpected number of new timeseries: got %d, want %d", got, want)
 		}
-		// wait for background job to kick-in
-		time.Sleep(time.Hour)
-		var m Metrics
-		s.UpdateMetrics(&m)
-		// verify last partition metrics report non-empty values
-		lpm := m.TableMetrics.LastPartition
-		if lpm.SmallPartsCount == 0 {
-			t.Errorf("unexpected zero last partition SmallPartsCount")
-		}
-		if lpm.IndexDBMetrics.FileBlocksCount == 0 {
-			t.Errorf("unexpected zero last partition IndexDBMetrics.FileBlocksCount")
-		}
+		// wait for merged parts to be attached to the table
+		time.Sleep(time.Minute)
+
+		// last created partition is empty, but we're still at current month
+		assertLastPartitionNonEmpty()
+		// Advance current time to the the next month, 2000-02-01T01:01:00Z.
+		// last partition must be 2000-02 now
+		time.Sleep(2 * time.Hour)
+		// current month partition has no data ingested
+		assertLastPartitionEmpty()
 	})
 }
