@@ -11,26 +11,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-type jwtCache struct {
-	// users contain UserInfo`s from AuthConfig with JWTConfig set
-	users []*UserInfo
-
-	cacheMux sync.Mutex
-	cache    map[string]*jwtUserInfo
-	cleanT   *time.Ticker
-}
-
 type JWTConfig struct {
 	PublicKeys     []string `yaml:"public_keys,omitempty"`
 	PublicKeyFiles []string `yaml:"public_key_files,omitempty"`
 	SkipVerify     bool     `yaml:"skip_verify,omitempty"`
 
 	verifierPool *jwt.VerifierPool
-}
-
-type jwtUserInfo struct {
-	UserInfo
-	Token *jwt.Token
 }
 
 func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
@@ -120,12 +106,16 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 }
 
 func getUserInfoByJWTToken(ats []string) *UserInfo {
-	js := jwtAuthCache.Load()
-	if len(js.users) == 0 {
+	jc := jwtAuthCache.Load()
+	if len(jc.users) == 0 {
 		return nil
 	}
 
-	removeExpiredJWTTokens(js)
+	jc.removeExpired()
+
+	if jce, found := jc.getFirstVerified(ats); found {
+		return jce.ui
+	}
 
 	for _, at := range ats {
 		if strings.Count(at, ".") != 2 {
@@ -133,19 +123,6 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 		}
 
 		at, _ = strings.CutPrefix(at, `http_auth:`)
-
-		js.cacheMux.Lock()
-		jui, ok := js.cache[at]
-		js.cacheMux.Unlock()
-		if ok {
-			if jui.Token.IsExpired(time.Now()) {
-				if *logInvalidAuthTokens {
-					logger.Infof("jwt token is expired")
-				}
-				return nil
-			}
-			return &jui.UserInfo
-		}
 
 		tkn, err := jwt.NewToken(at, true)
 		if err != nil {
@@ -161,9 +138,9 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 			continue
 		}
 
-		for _, ui := range js.users {
+		for _, ui := range jc.users {
 			if ui.JWT.SkipVerify {
-				return ui
+				return jc.addVerifiedIfNotExist(at, jwtVerified{ui: ui, tkn: tkn}).ui
 			}
 
 			if err := ui.JWT.verifierPool.Verify(tkn); err != nil {
@@ -173,38 +150,81 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 				continue
 			}
 
-			js.cacheMux.Lock()
-			jui, ok := js.cache[at]
-			if ok {
-				js.cacheMux.Unlock()
-				return &jui.UserInfo
-			}
-			js.cache[at] = &jwtUserInfo{
-				UserInfo: *ui,
-				Token:    tkn,
-			}
-			js.cacheMux.Unlock()
-
-			return ui
+			return jc.addVerifiedIfNotExist(at, jwtVerified{ui: ui, tkn: tkn}).ui
 		}
 	}
 
 	return nil
 }
 
-func removeExpiredJWTTokens(js *jwtCache) {
+type jwtVerified struct {
+	ui  *UserInfo
+	tkn *jwt.Token
+}
+
+type jwtCache struct {
+	// users contain UserInfo`s from AuthConfig with JWTConfig set
+	users []*UserInfo
+
+	verifiedMux    sync.Mutex
+	verified       map[string]jwtVerified
+	removeExpiredT *time.Ticker
+}
+
+func (jc *jwtCache) getFirstVerified(ats []string) (jwtVerified, bool) {
+	jc.verifiedMux.Lock()
+	defer jc.verifiedMux.Unlock()
+
+	for _, at := range ats {
+		if strings.Count(at, ".") != 2 {
+			continue
+		}
+
+		at, _ = strings.CutPrefix(at, `http_auth:`)
+		jce, ok := jc.verified[at]
+		if !ok {
+			continue
+		}
+
+		if jce.tkn.IsExpired(time.Now()) {
+			if *logInvalidAuthTokens {
+				logger.Infof("jwt token is expired")
+			}
+			continue
+		}
+
+		return jce, true
+	}
+
+	return jwtVerified{}, false
+}
+
+func (jc *jwtCache) addVerifiedIfNotExist(at string, new jwtVerified) jwtVerified {
+	jc.verifiedMux.Lock()
+	defer jc.verifiedMux.Unlock()
+
+	jv, ok := jc.verified[at]
+	if !ok {
+		jc.verified[at] = new
+		jv = new
+	}
+
+	return jv
+}
+
+func (jc *jwtCache) removeExpired() {
 	select {
-	case <-js.cleanT.C:
+	case <-jc.removeExpiredT.C:
 	default:
 		return
 	}
 
 	now := time.Now()
-	js.cacheMux.Lock()
-	for at, jui := range js.cache {
-		if jui.Token.IsExpired(now) {
-			delete(js.cache, at)
+	jc.verifiedMux.Lock()
+	for at, jui := range jc.verified {
+		if jui.tkn.IsExpired(now) {
+			delete(jc.verified, at)
 		}
 	}
-	js.cacheMux.Unlock()
+	jc.verifiedMux.Unlock()
 }
