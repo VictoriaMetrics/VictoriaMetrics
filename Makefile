@@ -251,7 +251,7 @@ fmt:
 	gofmt -l -w -s ./apptest
 
 vet:
-	go vet ./lib/...
+	go vet -tags 'synctest' ./lib/...
 	go vet ./app/...
 	go vet ./apptest/...
 
@@ -332,7 +332,7 @@ install-qtc:
 
 
 golangci-lint: install-golangci-lint
-	golangci-lint run
+	golangci-lint run --build-tags 'synctest'
 
 install-golangci-lint:
 	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)
