@@ -374,7 +374,8 @@ sample duplicates.
 
 * the most frequently executed queries;
 * queries with the biggest average execution duration;
-* queries that took the most summary time for execution.
+* queries that took the most summary time for execution;
+* queries with the highest memory usage.
 
 This information is obtained from the `/api/v1/status/top_queries` HTTP endpoint.
 
