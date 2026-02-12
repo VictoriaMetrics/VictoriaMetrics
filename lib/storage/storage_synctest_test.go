@@ -640,7 +640,7 @@ func TestStorageMustLoadNextDayMetricIDs(t *testing.T) {
 
 func TestStorageLastPartitionMetrics(t *testing.T) {
 	defer testRemoveAll(t)
-	synctest.Run(func() {
+	synctest.Test(t, func(t *testing.T) {
 		// Advance current time right before the end of the month.
 		time.Sleep(time.Hour * 24 * 30)
 		ct := time.Now().UTC()

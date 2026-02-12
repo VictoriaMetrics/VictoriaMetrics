@@ -262,10 +262,9 @@ func (tb *table) UpdateMetrics(m *TableMetrics) {
 	// Collect separate metrics for the last partition.
 	if len(ptws) > 0 {
 		var ptwLast *partitionWrapper
-		var currentMonthTR TimeRange
-		currentMonthTR.fromPartitionTime(time.Now())
+		currentMonthTimestamp := time.Now().UnixMilli()
 		for _, ptw := range ptws {
-			if ptw.pt.tr.MinTimestamp == currentMonthTR.MinTimestamp && ptw.pt.tr.MaxTimestamp == currentMonthTR.MaxTimestamp {
+			if ptw.pt.tr.contains(currentMonthTimestamp) {
 				// select current month partition as last partition
 				// because time range last partition could be empty at the last day of current month
 				// when a partition for the next month is created at updateNextDayMetricIDs
