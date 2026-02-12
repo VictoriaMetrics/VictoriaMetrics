@@ -47,7 +47,7 @@ jobs:
             ~/go/bin
             ~/go/pkg/mod
           key: go-artifacts-${{ runner.os }}-codeql-analyze-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-          restore-keys: go-artifacts-${{ runner.os }}-codeql-analyze-
+          restore-keys: go-artifacts-${{ runner.os }}-codeql-analyze-${{ steps.go.outputs.go-version }}-
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
