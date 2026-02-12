@@ -38,6 +38,7 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) and [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/);
 * Integration with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/);
+* Integration with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) which also uses [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victoriatraces/vmalert/);
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
@@ -778,6 +779,10 @@ to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL 
 ## VictoriaLogs
 
 vmalert supports [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
+
+## VictoriaTraces
+
+vmalert supports [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) as a (`vlogs`) datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victoriatraces/vmalert/) for details.
 
 ## Rules backfilling
 

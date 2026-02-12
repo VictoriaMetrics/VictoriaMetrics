@@ -65,14 +65,6 @@ func (c *metricIDCache) MustStop() {
 	<-c.rotationStoppedCh
 }
 
-func (c *metricIDCache) numShards() uint64 {
-	return uint64(len(c.shards))
-}
-
-func (c *metricIDCache) fullRotationPeriod() time.Duration {
-	return time.Duration(c.rotationGroupCount) * c.rotationGroupPeriod
-}
-
 func (c *metricIDCache) Stats() metricIDCacheStats {
 	var stats metricIDCacheStats
 	for i := range len(c.shards) {

@@ -21,8 +21,9 @@ jobs:
         id: go
         uses: actions/setup-go@v6
         with:
-          go-version: stable
+          go-version-file: 'go.mod'
           cache: false
+
       - run: go version
 
       - name: Cache Go artifacts
@@ -33,7 +34,7 @@ jobs:
             ~/go/pkg/mod
             ~/go/bin
           key: go-artifacts-${{ runner.os }}-check-licenses-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-          restore-keys: go-artifacts-${{ runner.os }}-check-licenses-
+          restore-keys: go-artifacts-${{ runner.os }}-check-licenses-${{ steps.go.outputs.go-version }}-
 
       - name: Check License
         run: make check-licenses

@@ -65,11 +65,11 @@ type AuthConfig struct {
 type UserInfo struct {
 	Name string `yaml:"name,omitempty"`
 
-	BearerToken string    `yaml:"bearer_token,omitempty"`
-	JWTToken    *JWTToken `yaml:"jwt_token,omitempty"`
-	AuthToken   string    `yaml:"auth_token,omitempty"`
-	Username    string    `yaml:"username,omitempty"`
-	Password    string    `yaml:"password,omitempty"`
+	BearerToken string     `yaml:"bearer_token,omitempty"`
+	JWT         *JWTConfig `yaml:"jwt,omitempty"`
+	AuthToken   string     `yaml:"auth_token,omitempty"`
+	Username    string     `yaml:"username,omitempty"`
+	Password    string     `yaml:"password,omitempty"`
 
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
@@ -800,8 +800,8 @@ var (
 	// authUsers contains the currently loaded auth users
 	authUsers atomic.Pointer[map[string]*UserInfo]
 
-	// jwtState contains the currently loaded UserInfo with JWTToken property set
-	jwtState atomic.Pointer[jwtAuthState]
+	// jwt authentication cache
+	jwtAuthCache atomic.Pointer[jwtCache]
 
 	authConfigWG sync.WaitGroup
 	stopCh       chan struct{}
@@ -846,7 +846,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
-	js := &jwtAuthState{
+	jwtc := &jwtCache{
 		users:  jui,
 		cache:  make(map[string]*jwtUserInfo),
 		cleanT: time.NewTicker(time.Minute),
@@ -871,7 +871,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
-	jwtState.Store(js)
+	jwtAuthCache.Store(jwtc)
 
 	return true, nil
 }
@@ -896,8 +896,8 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.BearerToken != "" {
 			return nil, fmt.Errorf("field bearer_token can't be specified for unauthorized_user section")
 		}
-		if ui.JWTToken != nil {
-			return nil, fmt.Errorf("field jwt_token can't be specified for unauthorized_user section")
+		if ui.JWT != nil {
+			return nil, fmt.Errorf("field jwt can't be specified for unauthorized_user section")
 		}
 		if ui.AuthToken != "" {
 			return nil, fmt.Errorf("field auth_token can't be specified for unauthorized_user section")
@@ -947,7 +947,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		ui := &uis[i]
 		// users with jwt tokens are parsed by parseJWTUsers function.
 		// the function also checks that users with jwt tokens do not have auth tokens, bearer tokens, usernames and passwords.
-		if ui.JWTToken != nil {
+		if ui.JWT != nil {
 			continue
 		}
 

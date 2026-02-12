@@ -11,8 +11,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-type jwtAuthState struct {
-	// users holds UserInfo structs with JWTToken field set.
+type jwtCache struct {
+	// users contain UserInfo`s from AuthConfig with JWTConfig set
 	users []*UserInfo
 
 	cacheMux sync.Mutex
@@ -20,7 +20,7 @@ type jwtAuthState struct {
 	cleanT   *time.Ticker
 }
 
-type JWTToken struct {
+type JWTConfig struct {
 	PublicKeys     []string `yaml:"public_keys,omitempty"`
 	PublicKeyFiles []string `yaml:"public_key_files,omitempty"`
 	SkipVerify     bool     `yaml:"skip_verify,omitempty"`
@@ -36,16 +36,16 @@ type jwtUserInfo struct {
 func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 	jui := make([]*UserInfo, 0, len(ac.Users))
 	for _, ui := range ac.Users {
-		jwtToken := ui.JWTToken
+		jwtToken := ui.JWT
 		if jwtToken == nil {
 			continue
 		}
 
 		if ui.AuthToken != "" || ui.BearerToken != "" || ui.Username != "" || ui.Password != "" {
-			return nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt_token is set")
+			return nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt is set")
 		}
 		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify {
-			return nil, fmt.Errorf("jwt_token must contain at least a single public key, public_key_files or have skip_verify=true")
+			return nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files or have skip_verify=true")
 		}
 
 		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
@@ -120,7 +120,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 }
 
 func getUserInfoByJWTToken(ats []string) *UserInfo {
-	js := jwtState.Load()
+	js := jwtAuthCache.Load()
 	if len(js.users) == 0 {
 		return nil
 	}
@@ -162,11 +162,11 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 		}
 
 		for _, ui := range js.users {
-			if ui.JWTToken.SkipVerify {
+			if ui.JWT.SkipVerify {
 				return ui
 			}
 
-			if err := ui.JWTToken.verifierPool.Verify(tkn); err != nil {
+			if err := ui.JWT.verifierPool.Verify(tkn); err != nil {
 				if *logInvalidAuthTokens {
 					logger.Infof("cannot verify jwt token: %s", err)
 				}
@@ -192,7 +192,7 @@ func getUserInfoByJWTToken(ats []string) *UserInfo {
 	return nil
 }
 
-func removeExpiredJWTTokens(js *jwtAuthState) {
+func removeExpiredJWTTokens(js *jwtCache) {
 	select {
 	case <-js.cleanT.C:
 	default:

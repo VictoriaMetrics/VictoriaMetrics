@@ -19,13 +19,13 @@ func CompareRules(t *testing.T, a, b Rule) error {
 	case *AlertingRule:
 		br, ok := b.(*AlertingRule)
 		if !ok {
-			return fmt.Errorf("rule %q supposed to be of type AlertingRule", b.ID())
+			return fmt.Errorf("rule %d supposed to be of type AlertingRule", b.ID())
 		}
 		return compareAlertingRules(t, v, br)
 	case *RecordingRule:
 		br, ok := b.(*RecordingRule)
 		if !ok {
-			return fmt.Errorf("rule %q supposed to be of type RecordingRule", b.ID())
+			return fmt.Errorf("rule %d supposed to be of type RecordingRule", b.ID())
 		}
 		return compareRecordingRules(t, v, br)
 	default:
