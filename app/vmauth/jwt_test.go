@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -78,21 +80,28 @@ users:
 users:
 - jwt_token: {}
   url_prefix: http://foo.bar
-`, `jwt_token must contain at least a single public key or have skip_verify=true`)
+`, `jwt_token must contain at least a single public key, public_key_files or have skip_verify=true`)
 
 	// jwt_token public_keys or skip_verify must be set, part 2
 	f(`
 users:
 - jwt_token: {public_keys: null}
   url_prefix: http://foo.bar
-`, `jwt_token must contain at least a single public key or have skip_verify=true`)
+`, `jwt_token must contain at least a single public key, public_key_files or have skip_verify=true`)
 
 	// jwt_token public_keys or skip_verify must be set, part 3
 	f(`
 users:
 - jwt_token: {public_keys: []}
   url_prefix: http://foo.bar
-`, `jwt_token must contain at least a single public key or have skip_verify=true`)
+`, `jwt_token must contain at least a single public key, public_key_files or have skip_verify=true`)
+
+	// jwt_token public_keys, public_key_files or skip_verify must be set
+	f(`
+users:
+- jwt_token: {public_key_files: []}
+  url_prefix: http://foo.bar
+`, `jwt_token must contain at least a single public key, public_key_files or have skip_verify=true`)
 
 	// invalid public key, part 1
 	f(`
@@ -132,6 +141,29 @@ users:
     - %q
   url_prefix: http://foo.bar
 `, validRSAPublicKey, validECDSAPublicKey), `multiple users with JWT tokens are not supported; found 2 users`)
+
+	// public key file doesn't exist
+	f(`
+users:
+- jwt_token: 
+    public_key_files: 
+    - /path/to/nonexistent/file.pem
+  url_prefix: http://foo.bar
+`, "cannot read public key from file \"/path/to/nonexistent/file.pem\": open /path/to/nonexistent/file.pem: no such file or directory")
+
+	// public key file invalid
+	// auth with key from file
+	publicKeyFile := filepath.Join(t.TempDir(), "a_public_key.pem")
+	if err := os.WriteFile(publicKeyFile, []byte(`invalidPEM`), 0o644); err != nil {
+		t.Fatalf("failed to write public key file: %s", err)
+	}
+	f(`
+users:
+- jwt_token: 
+    public_key_files: 
+    - `+publicKeyFile+`
+  url_prefix: http://foo.bar
+`, "cannot parse public key from file \""+publicKeyFile+"\": failed to parse key \"invalidPEM\": failed to decode PEM block containing public key")
 }
 
 func TestJWTParseAuthConfigSuccess(t *testing.T) {
@@ -230,4 +262,43 @@ users:
 - bearer_token: foo
   url_prefix: http://foo.bar
 `)
+
+	rsaKeyFile := filepath.Join(t.TempDir(), "rsa_public_key.pem")
+	if err := os.WriteFile(rsaKeyFile, []byte(validRSAPublicKey), 0o644); err != nil {
+		t.Fatalf("failed to write RSA key file: %s", err)
+	}
+	ecdsaKeyFile := filepath.Join(t.TempDir(), "ecdsa_public_key.pem")
+	if err := os.WriteFile(ecdsaKeyFile, []byte(validECDSAPublicKey), 0o644); err != nil {
+		t.Fatalf("failed to write ECDSA key file: %s", err)
+	}
+
+	// Test single public key file
+	f(fmt.Sprintf(`
+users:
+- jwt_token:
+    public_key_files:
+    - %q
+  url_prefix: http://foo.bar
+`, rsaKeyFile))
+
+	// Test multiple public key files
+	f(fmt.Sprintf(`
+users:
+- jwt_token:
+    public_key_files:
+    - %q
+    - %q
+  url_prefix: http://foo.bar
+`, rsaKeyFile, ecdsaKeyFile))
+
+	// Test combined inline keys and files
+	f(fmt.Sprintf(`
+users:
+- jwt_token:
+    public_keys:
+    - %q
+    public_key_files:
+    - %q
+  url_prefix: http://foo.bar
+`, validECDSAPublicKey, rsaKeyFile))
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -20,8 +21,9 @@ type jwtAuthState struct {
 }
 
 type JWTToken struct {
-	PublicKeys []string `yaml:"public_keys,omitempty"`
-	SkipVerify bool     `yaml:"skip_verify,omitempty"`
+	PublicKeys     []string `yaml:"public_keys,omitempty"`
+	PublicKeyFiles []string `yaml:"public_key_files,omitempty"`
+	SkipVerify     bool     `yaml:"skip_verify,omitempty"`
 
 	verifierPool *jwt.VerifierPool
 }
@@ -42,18 +44,30 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 		if ui.AuthToken != "" || ui.BearerToken != "" || ui.Username != "" || ui.Password != "" {
 			return nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt_token is set")
 		}
-		if len(jwtToken.PublicKeys) == 0 && !jwtToken.SkipVerify {
-			return nil, fmt.Errorf("jwt_token must contain at least a single public key or have skip_verify=true")
+		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify {
+			return nil, fmt.Errorf("jwt_token must contain at least a single public key, public_key_files or have skip_verify=true")
 		}
 
-		if len(jwtToken.PublicKeys) > 0 {
-			keys := make([]any, 0, len(jwtToken.PublicKeys))
+		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
+			keys := make([]any, 0, len(jwtToken.PublicKeys)+len(jwtToken.PublicKeyFiles))
+
 			for i := range jwtToken.PublicKeys {
 				k, err := jwt.ParseKey([]byte(jwtToken.PublicKeys[i]))
 				if err != nil {
 					return nil, err
 				}
+				keys = append(keys, k)
+			}
 
+			for _, filePath := range jwtToken.PublicKeyFiles {
+				keyData, err := os.ReadFile(filePath)
+				if err != nil {
+					return nil, fmt.Errorf("cannot read public key from file %q: %w", filePath, err)
+				}
+				k, err := jwt.ParseKey(keyData)
+				if err != nil {
+					return nil, fmt.Errorf("cannot parse public key from file %q: %w", filePath, err)
+				}
 				keys = append(keys, k)
 			}
 
@@ -107,6 +121,9 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 
 func getUserInfoByJWTToken(ats []string) *UserInfo {
 	js := jwtState.Load()
+	if len(js.users) == 0 {
+		return nil
+	}
 
 	removeExpiredJWTTokens(js)
 

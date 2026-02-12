@@ -15,6 +15,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -706,6 +708,23 @@ users:
 - password: a-password
   username: a-user
   url_prefix: {BACKEND}/foo`, request, responseExpected)
+
+	// auth with key from file
+	publicKeyFile := filepath.Join(t.TempDir(), "a_public_key.pem")
+	if err := os.WriteFile(publicKeyFile, []byte(publicKeyPEM), 0o644); err != nil {
+		t.Fatalf("failed to write public key file: %s", err)
+	}
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+defaultVMAccessClaimToken)
+	responseExpected = `
+statusCode=200
+/foo/abc`
+	f(fmt.Sprintf(`
+users:
+- jwt_token:
+    public_key_files:
+    - %q
+  url_prefix: {BACKEND}/foo`, string(publicKeyFile)), request, responseExpected)
 }
 
 type fakeResponseWriter struct {
