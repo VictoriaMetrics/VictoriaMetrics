@@ -16,7 +16,7 @@
   <img src="docs/victoriametrics/logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
 
-VictoriaMetrics is a fast, cost-saving, and scalable solution for monitoring and managing time series data. It delivers high performance and reliability, making it an ideal choice for businesses of all sizes.
+VictoriaMetrics is a fast, cost-effective, and scalable solution for monitoring and managing time series data. It delivers high performance and reliability, making it an ideal choice for businesses of all sizes.
 
 Here are some resources and information about VictoriaMetrics:
 
