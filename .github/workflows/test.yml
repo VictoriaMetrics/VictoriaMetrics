@@ -93,8 +93,8 @@ jobs:
         with:
           files: ./coverage.txt
 
-  integration:
-    name: integration
+  apptest:
+    name: apptest
     runs-on: ubuntu-latest
 
     steps:
@@ -112,5 +112,5 @@ jobs:
           go-version-file: 'go.mod'
       - run: go version
 
-      - name: Run integration tests
-        run: make integration-test
+      - name: Run app tests
+        run: make apptest
