@@ -34,7 +34,7 @@ jobs:
             ~/go/pkg/mod
             ~/go/bin
           key: go-artifacts-${{ runner.os }}-check-licenses-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.sum', 'Makefile', 'app/**/Makefile') }}
-          restore-keys: go-artifacts-${{ runner.os }}-check-licenses-
+          restore-keys: go-artifacts-${{ runner.os }}-check-licenses-${{ steps.go.outputs.go-version }}-
 
       - name: Check License
         run: make check-licenses

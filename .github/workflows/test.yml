@@ -51,7 +51,7 @@ jobs:
           path: |
             ~/.cache/golangci-lint
             ~/go/bin
-          key: golangci-lint-${{ runner.os }}-${{ hashFiles('.golangci.yml') }}
+          key: golangci-lint-${{ runner.os }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('.golangci.yml') }}
 
       - name: Run check-all
         run: |
