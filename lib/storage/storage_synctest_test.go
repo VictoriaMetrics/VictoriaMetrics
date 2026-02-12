@@ -695,9 +695,9 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 
 		// last created partition is empty, but we're still at current month
 		assertLastPartitionNonEmpty()
-		// Advance current time to the the next month, 2000-02-01T01:01:00Z.
+		// Advance current time to the the next month, 2000-02-01T00:30:00Z.
 		// last partition must be 2000-02 now
-		time.Sleep(2 * time.Hour)
+		time.Sleep(2*time.Hour + time.Minute*30)
 		// current month partition has no data ingested
 		assertLastPartitionEmpty()
 	})
