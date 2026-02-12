@@ -44,6 +44,18 @@
         "name": "version",
         "textFormat": "{{version}}",
         "titleFormat": "Version change"
+      },
+      {
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+        "hide": false,
+        "iconColor": "dark-yellow",
+        "name": "restarts",
+        "textFormat": "{{job}} restarted"
       }
     ]
   },

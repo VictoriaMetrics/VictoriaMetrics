@@ -259,7 +259,7 @@ func compareGroups(t *testing.T, a, b *rule.Group) {
 	for i, r := range a.Rules {
 		got, want := r, b.Rules[i]
 		if a.CreateID() != b.CreateID() {
-			t.Fatalf("expected to have rule %q; got %q", want.ID(), got.ID())
+			t.Fatalf("expected to have rule %d; got %d", want.ID(), got.ID())
 		}
 		if err := rule.CompareRules(t, want, got); err != nil {
 			t.Fatalf("comparison error: %s", err)

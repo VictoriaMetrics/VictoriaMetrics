@@ -1,5 +1,4 @@
-// package gzkp provides gzip compression through github.com/klauspost/compress/gzip.
-
+// Package gzkp provides gzip compression through github.com/klauspost/compress/gzip.
 package gzkp
 
 import (

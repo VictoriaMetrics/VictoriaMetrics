@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/leveledbytebufferpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -430,7 +431,7 @@ func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 	}
 
 	var bb bytesutil.ByteBuffer
-	err = readFromBuffer(&bb, cb, isGzipped, sw.Config)
+	err = sw.readFromBuffer(&bb, cb, isGzipped)
 	return bb.B, err
 }
 
@@ -458,7 +459,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// the parsed results to remote storage.
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	if err == nil {
-		err = readFromBuffer(body, cb, isGzipped, sw.Config)
+		err = sw.readFromBuffer(body, cb, isGzipped)
 	}
 	chunkedbuffer.Put(cb)
 
@@ -487,25 +488,32 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 
 var processScrapedDataConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
-func readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuffer.Buffer, isGzipped bool, scrapeWorkConfig *ScrapeWork) error {
+func (sw *scrapeWork) readFromBuffer(dst *bytesutil.ByteBuffer, src *chunkedbuffer.Buffer, isGzipped bool) error {
 	if !isGzipped {
 		src.MustWriteTo(dst)
-	} else {
-		reader, err := protoparserutil.GetUncompressedReader(src.NewReader(), "gzip")
-		if err != nil {
-			return fmt.Errorf("cannot decompress response body: %w", err)
-		}
-		_, err = dst.ReadFrom(reader)
-		protoparserutil.PutUncompressedReader(reader)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped response body: %w", err)
-		}
+		return nil
 	}
-	if scrapeWorkConfig != nil && int64(dst.Len()) > scrapeWorkConfig.MaxScrapeSize {
+
+	r := src.NewReader()
+	reader, err := protoparserutil.GetUncompressedReader(r, "gzip")
+	if err != nil {
+		return fmt.Errorf("cannot decompress response body from %s: %w", sw.Config.ScrapeURL, err)
+	}
+
+	lr := ioutil.GetLimitedReader(reader, sw.Config.MaxScrapeSize+1)
+	_, err = dst.ReadFrom(lr)
+	ioutil.PutLimitedReader(lr)
+
+	protoparserutil.PutUncompressedReader(reader)
+	if err != nil {
+		return fmt.Errorf("cannot read gzipped response body from %s: %w", sw.Config.ScrapeURL, err)
+	}
+
+	if int64(dst.Len()) > sw.Config.MaxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
-		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
+		return fmt.Errorf("the uncompressed response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
 			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
-			"increase max_scrape_size value in scrape config for the given target", scrapeWorkConfig.ScrapeURL, scrapeWorkConfig.MaxScrapeSize)
+			"increase max_scrape_size value in scrape config for the given target", sw.Config.ScrapeURL, sw.Config.MaxScrapeSize)
 	}
 	return nil
 }

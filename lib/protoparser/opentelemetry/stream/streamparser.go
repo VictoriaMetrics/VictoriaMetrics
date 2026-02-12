@@ -44,16 +44,30 @@ func parseData(data []byte, callback func(tss []prompb.TimeSeries, mms []prompb.
 	wctx := getWriteRequestContext()
 	defer putWriteRequestContext(wctx)
 
+	// the flushFunc will be called multiple time if the request is big, to avoid over allocating memory for such request.
+	wctx.flushFunc = callback
+
 	if err := pb.DecodeMetricsData(data, wctx); err != nil {
 		return fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
 	}
 
-	if err := callback(wctx.tss, wctx.mms); err != nil {
-		return fmt.Errorf("error when processing OpenTelemetry data: %w", err)
+	// flush 1 last time before finishing the request. there might be data left.
+	if len(wctx.tss) > 0 {
+		if err := wctx.flushFunc(wctx.tss, wctx.mms); err != nil {
+			if wctx.firstErr == nil {
+				wctx.firstErr = err
+			}
+		} else {
+			rowsRead.Add(len(wctx.tss))
+		}
 	}
 
-	rowsRead.Add(len(wctx.tss))
+	if wctx.firstErr != nil {
+		// the request might be partially flushed. the client should be aware of the error and retry.
+		return fmt.Errorf("errors happened during parsing, the first error: %w", wctx.firstErr)
+	}
 
+	// all succeed
 	return nil
 }
 
@@ -69,9 +83,20 @@ type writeRequestContext struct {
 	mms []prompb.MetricMetadata
 
 	buf []byte
+
+	flushFunc func(tss []prompb.TimeSeries, mms []prompb.MetricMetadata) error
+	firstErr  error
 }
 
 func (wctx *writeRequestContext) reset() {
+	wctx.resetBuffer()
+
+	wctx.firstErr = nil
+	wctx.flushFunc = nil
+}
+
+// resetBuffer only resets the buffer and labels while leaving error and flushFunc still in place.
+func (wctx *writeRequestContext) resetBuffer() {
 	clear(wctx.samplesBuf)
 	wctx.samplesBuf = wctx.samplesBuf[:0]
 
@@ -127,6 +152,18 @@ func (wctx *writeRequestContext) PushSample(mm *pb.MetricMetadata, suffix string
 		Labels:  wctx.labelsBuf[labelsBufLen:],
 		Samples: wctx.samplesBuf[len(wctx.samplesBuf)-1:],
 	})
+
+	// check if we should flush it right now, if the buf is already huge (2MiB).
+	if len(wctx.buf) > 4*1024*1024 {
+		if err := wctx.flushFunc(wctx.tss, wctx.mms); err != nil {
+			if wctx.firstErr == nil {
+				wctx.firstErr = err
+			}
+		} else {
+			rowsRead.Add(len(wctx.tss))
+		}
+		wctx.resetBuffer()
+	}
 }
 
 func (wctx *writeRequestContext) PushMetricMetadata(mm *pb.MetricMetadata) {
@@ -172,6 +209,12 @@ func getWriteRequestContext() *writeRequestContext {
 }
 
 func putWriteRequestContext(wctx *writeRequestContext) {
+	if 4*len(wctx.buf) < cap(wctx.buf) && cap(wctx.buf) > 4*1024*1024 {
+		// do not return it to the pool if the actual inuse size is a lot smaller than the cap, which could be
+		// over expanded by previous request.
+		// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10378
+		return
+	}
 	wctx.reset()
 	wctxPool.Put(wctx)
 }

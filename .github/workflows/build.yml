@@ -71,7 +71,7 @@ jobs:
             go.sum
             Makefile
             app/**/Makefile
-          go-version: stable
+          go-version-file: 'go.mod'
       - run: go version
 
       - name: Build victoria-metrics for ${{ matrix.os }}-${{ matrix.arch }}
