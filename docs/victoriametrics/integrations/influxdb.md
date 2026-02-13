@@ -113,6 +113,17 @@ curl -d 'measurement,tag1=value1,tag2=value2 field1=123,field2=1.23' -X POST 'ht
 ```
 
 An arbitrary number of lines delimited by '\n' (aka newline char) can be sent in a single request.
+> **Note:** The above refers to newline characters (`\n`) used as line separators
+> between multiple points. According to the Influx Line Protocol specification,
+> raw newline bytes **must not** appear inside quoted tag or field values. For example:
+>
+> ```text
+> SystemProperties.line.separator="
+> "
+> ```
+>
+> A raw newline inside a quoted value will result in a parsing error.
+
 After that the data may be read via [/api/v1/export](https://docs.victoriametrics.com/victoriametrics/#how-to-export-data-in-json-line-format) endpoint:
 ```sh
 curl -G 'http://<victoriametrics-addr>:8428/api/v1/export' -d 'match={__name__=~"measurement_.*"}'
