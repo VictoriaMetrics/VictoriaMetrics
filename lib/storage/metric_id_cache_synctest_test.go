@@ -16,7 +16,7 @@ func (c *metricIDCache) numShards() uint64 {
 }
 
 func (c *metricIDCache) fullRotationPeriod() time.Duration {
-	return time.Duration(c.rotationGroupCount) * c.rotationGroupPeriod
+	return metricIDCacheShardCount * c.rotationPeriod
 }
 
 func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
@@ -41,7 +41,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(c.rotationGroupPeriod)
+		time.Sleep(c.fullRotationPeriod())
 		if !c.Has(123) {
 			t.Fatalf("entry not in cache")
 		}
