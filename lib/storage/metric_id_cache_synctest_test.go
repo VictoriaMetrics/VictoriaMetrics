@@ -26,7 +26,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(3 * c.fullRotationPeriod())
+		time.Sleep(c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -71,6 +71,8 @@ func TestMetricIDCache_Stats(t *testing.T) {
 		}
 	}
 
+	const numMetricIDs = 16 * 65536
+
 	synctest.Test(t, func(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
@@ -80,22 +82,22 @@ func TestMetricIDCache_Stats(t *testing.T) {
 
 		// Add metricIDs and check stats.
 		// At this point, all metricIDs are in next.
-		for metricID := range uint64(100_000) {
+		for metricID := range uint64(numMetricIDs) {
 			c.Set(metricID)
 		}
 		assertStats(t, c, metricIDCacheStats{
-			Size: 100_000,
+			Size: numMetricIDs,
 		})
 
 		// Get all metricIDs and check stats.
 		// All metricIDs will be sync'ed from next to curr.
-		for metricID := range uint64(100_000) {
+		for metricID := range uint64(numMetricIDs) {
 			if !c.Has(metricID) {
 				t.Fatalf("metricID not in cache: %d", metricID)
 			}
 		}
 		assertStats(t, c, metricIDCacheStats{
-			Size:       100_000,
+			Size:       numMetricIDs,
 			SyncsCount: c.numShards(),
 		})
 
@@ -103,7 +105,7 @@ func TestMetricIDCache_Stats(t *testing.T) {
 		// curr metricIDs will be moved to prev.
 		time.Sleep(c.fullRotationPeriod() + time.Second)
 		assertStats(t, c, metricIDCacheStats{
-			Size:           100_000,
+			Size:           numMetricIDs,
 			SyncsCount:     c.numShards(),
 			RotationsCount: c.numShards(),
 		})

@@ -7,7 +7,6 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
@@ -34,13 +33,8 @@ type metricIDCache struct {
 }
 
 func newMetricIDCache() *metricIDCache {
-	// Shards based on the number of CPUs are taken from
-	// lib/blockcache/blockcache.go.
 	rotationGroupSize := 1
-	rotationGroupCount := cgroup.AvailableCPUs()
-	if rotationGroupCount > 16 {
-		rotationGroupCount = 16
-	}
+	rotationGroupCount := 16
 	numShards := rotationGroupSize * rotationGroupCount
 
 	c := metricIDCache{
@@ -78,12 +72,12 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 }
 
 func (c *metricIDCache) Has(metricID uint64) bool {
-	shardIdx := fastHashUint64(metricID) % uint64(len(c.shards))
+	shardIdx := (metricID / 65536) % uint64(len(c.shards))
 	return c.shards[shardIdx].Has(metricID)
 }
 
 func (c *metricIDCache) Set(metricID uint64) {
-	shardIdx := fastHashUint64(metricID) % uint64(len(c.shards))
+	shardIdx := (metricID / 65536) % uint64(len(c.shards))
 	c.shards[shardIdx].Set(metricID)
 }
 
