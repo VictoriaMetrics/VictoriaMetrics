@@ -92,17 +92,18 @@ func (c *metricIDCache) rotate(rotationGroup int) {
 func (c *metricIDCache) startRotation() {
 	ticker := time.NewTicker(c.rotationGroupPeriod)
 	defer ticker.Stop()
-	rotationGroup := 0
+	var rotationGroup int
 	for {
 		select {
 		case <-c.stopCh:
 			close(c.rotationStoppedCh)
 			return
 		case <-ticker.C:
-			// each tick rotate only subset of size metricIDCacheRotationGroupSize
-			// to avoid slow access for all shards at once
-			rotationGroup = (rotationGroup + 1) % c.rotationGroupCount
+			// Each tick rotate only one shard group at a time to avoid slow
+			// access for all shards at once.
+			rotationGroup %= c.rotationGroupCount
 			c.rotate(rotationGroup)
+			rotationGroup++
 		}
 	}
 }

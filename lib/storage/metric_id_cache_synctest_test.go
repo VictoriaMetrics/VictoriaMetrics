@@ -26,7 +26,10 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(c.fullRotationPeriod())
+		// It takes 3 full rotation cycles for an entry to be evicted from the
+		// cache:
+		// [in next] -rotation1-> [in curr] -rotation2-> [in prev] -rotation3-> evicted.
+		time.Sleep(3 * c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -38,11 +41,11 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		c := newMetricIDCache()
 		defer c.MustStop()
 		c.Set(123)
-		time.Sleep(c.rotationGroupPeriod - time.Second)
+		time.Sleep(c.rotationGroupPeriod)
 		if !c.Has(123) {
 			t.Fatalf("entry not in cache")
 		}
-		time.Sleep(2 * c.fullRotationPeriod())
+		time.Sleep(3 * c.fullRotationPeriod())
 		if c.Has(123) {
 			t.Fatalf("entry is still in cache")
 		}
@@ -55,7 +58,7 @@ func TestMetricIDCache_ClearedWhenUnused(t *testing.T) {
 		defer c.MustStop()
 		c.Set(123)
 		for range 10_000 {
-			time.Sleep(c.rotationGroupPeriod - time.Second)
+			time.Sleep(c.fullRotationPeriod())
 			if !c.Has(123) {
 				t.Fatalf("entry not in cache")
 			}
