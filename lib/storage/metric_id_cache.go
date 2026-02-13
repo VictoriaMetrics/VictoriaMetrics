@@ -52,7 +52,7 @@ func (c *metricIDCache) MustStop() {
 
 func (c *metricIDCache) Stats() metricIDCacheStats {
 	var stats metricIDCacheStats
-	for i := range len(c.shards) {
+	for i := range metricIDCacheShardCount {
 		s := c.shards[i].Stats()
 		stats.Size += s.Size
 		stats.SizeBytes += s.SizeBytes
@@ -63,12 +63,12 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 }
 
 func (c *metricIDCache) Has(metricID uint64) bool {
-	shardIdx := (metricID / 65536) % uint64(len(c.shards))
+	shardIdx := (metricID / 65536) % metricIDCacheShardCount
 	return c.shards[shardIdx].Has(metricID)
 }
 
 func (c *metricIDCache) Set(metricID uint64) {
-	shardIdx := (metricID / 65536) % uint64(len(c.shards))
+	shardIdx := (metricID / 65536) % metricIDCacheShardCount
 	c.shards[shardIdx].Set(metricID)
 }
 
