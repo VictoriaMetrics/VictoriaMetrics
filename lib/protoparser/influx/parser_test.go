@@ -113,6 +113,32 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f("foo,bar")
 	f("foo,bar baz")
 	f("foo,bar=123, 123")
+
+	// Missing field value
+	f("foo bar")
+	f("foo bar=")
+	f("foo bar=,baz=23 123")
+	f("foo bar=1, 123")
+	f(`foo bar=" 123`)
+	f(`foo bar="123`)
+	f(`foo bar=",123`)
+	f(`foo bar=a"", 123`)
+
+	// Missing field name
+	f("foo =123")
+	f("foo =123\nbar")
+
+	// Invalid timestamp
+	f("foo bar=123 baz")
+
+	// Invalid field value
+	f("foo bar=1abci")
+	f("foo bar=-2abci")
+	f("foo bar=3abcu")
+
+	// HTTP request line
+	f("GET /foo HTTP/1.1")
+	f("GET /foo?bar=baz HTTP/1.0")
 }
 
 func TestParseFieldValue_MissingClosingQuoteWithRawNewlineHint(t *testing.T) {
