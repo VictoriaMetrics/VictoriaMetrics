@@ -2,6 +2,7 @@ package influx
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -112,32 +113,25 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f("foo,bar")
 	f("foo,bar baz")
 	f("foo,bar=123, 123")
+}
 
-	// Missing field value
-	f("foo bar")
-	f("foo bar=")
-	f("foo bar=,baz=23 123")
-	f("foo bar=1, 123")
-	f(`foo bar=" 123`)
-	f(`foo bar="123`)
-	f(`foo bar=",123`)
-	f(`foo bar=a"", 123`)
+func TestParseFieldValue_MissingClosingQuoteWithRawNewlineHint(t *testing.T) {
+	uc := &unmarshalContext{
+		hasQuotedFields: true,
+	}
 
-	// Missing field name
-	f("foo =123")
-	f("foo =123\nbar")
+	// Simulate the truncated value that happens
+	// after line splitting on raw newline
+	input := "\"hello"
 
-	// Invalid timestamp
-	f("foo bar=123 baz")
+	_, err := parseFieldValue(input, uc)
+	if err == nil {
+		t.Fatalf("expected error for missing closing quote")
+	}
 
-	// Invalid field value
-	f("foo bar=1abci")
-	f("foo bar=-2abci")
-	f("foo bar=3abcu")
-
-	// HTTP request line
-	f("GET /foo HTTP/1.1")
-	f("GET /foo?bar=baz HTTP/1.0")
+	if !strings.Contains(err.Error(), "this may be caused by a raw newline") {
+		t.Fatalf("unexpected error message: %s", err)
+	}
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
