@@ -642,8 +642,8 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 	defer testRemoveAll(t)
 	synctest.Test(t, func(t *testing.T) {
 
-		// Advance current time to the beginning of the last day of the month, 2000-01-31T22:00:00Z.
-		time.Sleep(time.Hour*24*31 - 2*time.Hour)
+		// Advance current time to 2h before the next month, 2000-01-31T22:00:00Z.
+		time.Sleep(31*24*time.Hour - 2*time.Hour)
 		ct := time.Now().UTC()
 
 		s := MustOpenStorage(t.Name(), OpenOptions{})
@@ -655,10 +655,10 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 			s.UpdateMetrics(&m)
 			lpm := m.TableMetrics.LastPartition
 			if lpm.SmallPartsCount != 0 {
-				t.Fatalf("unexpected zero last partition SmallPartsCount")
+				t.Fatalf("unexpected last partition SmallPartsCount: got %d, want 0", lpm.SmallPartsCount)
 			}
 			if lpm.IndexDBMetrics.FileBlocksCount != 0 {
-				t.Fatalf("unexpected zero last partition IndexDBMetrics.FileBlocksCount")
+				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got %d, want 0", lpm.IndexDBMetrics.FileBlocksCount)
 			}
 		}
 		assertLastPartitionNonEmpty := func() {
@@ -667,10 +667,10 @@ func TestStorageLastPartitionMetrics(t *testing.T) {
 			s.UpdateMetrics(&m)
 			lpm := m.TableMetrics.LastPartition
 			if lpm.SmallPartsCount == 0 {
-				t.Fatalf("unexpected non zero last partition SmallPartsCount: %d", lpm.SmallPartsCount)
+				t.Fatalf("unexpected last partition SmallPartsCount: got 0, want > 0")
 			}
 			if lpm.IndexDBMetrics.FileBlocksCount == 0 {
-				t.Fatalf("unexpected non zero last partition IndexDBMetrics.FileBlocksCount: %d", lpm.IndexDBMetrics.FileBlocksCount)
+				t.Fatalf("unexpected last partition IndexDBMetrics.FileBlocksCount: got 0, want > 0")
 			}
 		}
 
