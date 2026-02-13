@@ -6,36 +6,22 @@ build:
 sitemap:
   disable: true
 ---
-VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and time series database.
+VictoriaMetrics is a fast, cost-effective, and scalable solution for monitoring and managing time series data. It delivers high performance and reliability, making it an ideal choice for businesses of all sizes.
 
 ![README-components.webp](README-components.webp)
-{width="700"}
+{width="600"}
 
-VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-Docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags), [source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
-
-Documentation for the cluster version of VictoriaMetrics is available on [VictoriaMetrics Cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
-
-Learn more about [key concepts](https://docs.victoriametrics.com/victoriametrics/keyconcepts/) of VictoriaMetrics and follow the
-[quick start guide](https://docs.victoriametrics.com/victoriametrics/quick-start/) for a better experience.
-
-If you have questions about VictoriaMetrics, then feel free asking them in the [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/),
-you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
-
-[Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics.
-See [features available in enterprise package](https://docs.victoriametrics.com/victoriametrics/enterprise/).
-Enterprise binaries can be downloaded and evaluated for free
-from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-You can also request a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
-
-VictoriaMetrics is developed at a fast pace, so it is recommended to check the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/) periodically,
-and to perform [regular upgrades](#how-to-upgrade-victoriametrics).
-
-[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) provides long-term support lines of releases (LTS releases) -
-see [these docs](https://docs.victoriametrics.com/victoriametrics/lts-releases/).
-
-VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services.
-We apply strict security measures in everything we do. See [Security page](https://victoriametrics.com/security/) for more details.
+- **Case studies**: [Grammarly, Roblox, Wix, Spotify,...](https://docs.victoriametrics.com/victoriametrics/casestudies/).
+- **Available**: [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), Docker images on [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics), [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics).
+- **Deployment types**: [Single-node version](https://docs.victoriametrics.com/) and [Cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) under [Apache License 2.0](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE).
+- **Getting started:** Read [key concepts](https://docs.victoriametrics.com/victoriametrics/keyconcepts/) and follow the
+  [quick start guide](https://docs.victoriametrics.com/victoriametrics/quick-start/).
+- **Community**: [Slack](https://slack.victoriametrics.com/)(join via [Slack Inviter](https://slack.victoriametrics.com/)), [X (Twitter)](https://x.com/VictoriaMetrics), [YouTube](https://www.youtube.com/@VictoriaMetrics). See full list [here](https://docs.victoriametrics.com/victoriametrics/#community-and-contributions).
+- **Changelog**: Project evolves fast - check the [CHANGELOG](https://docs.victoriametrics.com/victoriametrics/changelog/), and [How to upgrade](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-upgrade-victoriametrics).
+- **Enterprise support:** [Contact us](mailto:info@victoriametrics.com) for commercial support with additional [enterprise features](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+- **Enterprise releases:** Enterprise and [long-term support releases (LTS)](https://docs.victoriametrics.com/victoriametrics/lts-releases/) are publicly available and can be evaluated for free
+  using a [free trial license](https://victoriametrics.com/products/enterprise/trial/).
+- **Security:** we achieved [security certifications](https://victoriametrics.com/security/) for Database Software Development and Software-Based Monitoring Services.
 
 ## Prominent features
 
@@ -374,7 +360,8 @@ sample duplicates.
 
 * the most frequently executed queries;
 * queries with the biggest average execution duration;
-* queries that took the most summary time for execution.
+* queries that took the most summary time for execution;
+* queries with the highest memory usage.
 
 This information is obtained from the `/api/v1/status/top_queries` HTTP endpoint.
 

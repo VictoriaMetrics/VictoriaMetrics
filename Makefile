@@ -443,7 +443,7 @@ fmt:
 	gofmt -l -w -s ./apptest
 
 vet:
-	go vet ./lib/...
+	go vet -tags 'synctest' ./lib/...
 	go vet ./app/...
 	go vet ./apptest/...
 
@@ -466,14 +466,11 @@ test-full:
 test-full-386:
 	GOARCH=386 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
-integration-test:
-	$(MAKE) apptest
-
 apptest:
 	$(MAKE) victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
 	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
 
-integration-test-legacy: victoria-metrics vmbackup vmrestore
+apptest-legacy: victoria-metrics vmbackup vmrestore
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
 	VERSION=v1.132.0; \
@@ -524,7 +521,7 @@ install-qtc:
 
 
 golangci-lint: install-golangci-lint
-	golangci-lint run
+	golangci-lint run --build-tags 'synctest'
 
 install-golangci-lint:
 	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)
