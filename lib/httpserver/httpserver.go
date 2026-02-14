@@ -349,6 +349,14 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		r.URL.Path = path
 	}
 
+	if r.Method == http.MethodOptions {
+		EnableCORS(w, r)
+		w.Header().Set("Access-Control-Allow-Methods", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	w = &responseWriterWithAbort{
 		ResponseWriter: w,
 	}

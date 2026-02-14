@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics binaries: implemented proper CORS preflight handling. See [#5563](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5563).
+
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
 
 Released at 2026-02-13
