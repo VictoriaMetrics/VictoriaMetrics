@@ -349,6 +349,12 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		r.URL.Path = path
 	}
 
+	if r.Method == http.MethodOptions {
+		EnableCORS(w, r)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	w = &responseWriterWithAbort{
 		ResponseWriter: w,
 	}
@@ -506,6 +512,8 @@ func EnableCORS(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
 }
 
 func pprofHandler(profileName string, w http.ResponseWriter, r *http.Request) {
