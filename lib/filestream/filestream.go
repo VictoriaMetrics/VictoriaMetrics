@@ -208,7 +208,7 @@ func (w *Writer) Path() string {
 	return w.f.Name()
 }
 
-// OpenWriterAt opens the file at path in nocache mode for writing at the given offset.
+// OpenWriterAt opens the file at path in nocache modt for writing at the given offset.
 //
 // The file at path is created if it is missing.
 //
@@ -255,17 +255,13 @@ func newWriter(f *os.File, nocache bool) *Writer {
 
 // MustClose syncs the underlying file to storage and then closes it.
 func (w *Writer) MustClose() {
-	if err := w.bw.Flush(); err != nil {
-		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
-	}
+	w.flush()
+
 	putBufioWriter(w.bw)
 	w.bw = nil
 
-	if !fsutil.IsFsyncDisabled() {
-		if err := w.f.Sync(); err != nil {
-			logger.Panicf("FATAL: cannot sync file %q: %s", w.f.Name(), err)
-		}
-	}
+	w.sync()
+
 	if err := w.st.close(); err != nil {
 		logger.Panicf("FATAL: cannot close streamTracker for file %q: %s", w.f.Name(), err)
 	}
@@ -277,13 +273,35 @@ func (w *Writer) MustClose() {
 	writersCount.Dec()
 }
 
+func (w *Writer) flush() {
+	if err := w.bw.Flush(); err != nil {
+		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
+	}
+}
+
+func (w *Writer) sync() {
+	if !fsutil.IsFsyncDisabled() {
+		startTime := time.Now()
+		if err := w.f.Sync(); err != nil {
+			logger.Panicf("FATAL: cannot sync file %q: %s", w.f.Name(), err)
+		}
+		d := time.Since(startTime).Seconds()
+		fsyncDuration.Add(d)
+		fsyncCalls.Inc()
+	}
+}
+
 var (
-	writeDuration        = metrics.NewFloatCounter(`vm_filestream_write_duration_seconds_total`)
+	writeDuration        = metrics.NewFloatCounter `vm_filestream_write_duration_seconds_total`)
 	writeCallsBuffered   = metrics.NewCounter(`vm_filestream_buffered_write_calls_total`)
 	writeCallsReal       = metrics.NewCounter(`vm_filestream_real_write_calls_total`)
 	writtenBytesBuffered = metrics.NewCounter(`vm_filestream_buffered_written_bytes_total`)
-	writtenBytesReal     = metrics.NewCounter(`vm_filestream_real_written_bytes_total`)
+	writtenBytesReal     = metrics.NewCounter `vm_filestream_real_written_bytes_total`)
 	writersCount         = metrics.NewCounter(`vm_filestream_writers`)
+
+	fsyncDuration        = metrics.NewFloatCounter `vm_filestream_fsync_duration_seconds_total`)
+	fsyncCalls           = metrics.NewCounter(`vm_filestream_fsync_calls_total`)
+	writeSyscallDuration = metrics.NewFloatCounter(`vm_filestream_write_syscall_duration_seconds_total`)
 )
 
 // Write writes p to the underlying file.
@@ -304,18 +322,9 @@ func (w *Writer) Write(p []byte) (int, error) {
 //
 // if isSync is true, then the flushed data is fsynced to the underlying storage.
 func (w *Writer) MustFlush(isSync bool) {
-	startTime := time.Now()
-	defer func() {
-		d := time.Since(startTime).Seconds()
-		writeDuration.Add(d)
-	}()
-	if err := w.bw.Flush(); err != nil {
-		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
-	}
+	w.flush()
 	if isSync {
-		if err := w.f.Sync(); err != nil {
-			logger.Panicf("FATAL: cannot fsync data to the underlying storage for file %q: %s", w.f.Name(), err)
-		}
+		w.sync()
 	}
 }
 
@@ -329,6 +338,7 @@ func (sw *statWriter) Write(p []byte) (int, error) {
 	n, err := sw.File.Write(p)
 	d := time.Since(startTime).Seconds()
 	writeDuration.Add(d)
+	writeSyscallDuration.Add(d)
 	writtenBytesReal.Add(n)
 	return n, err
 }
