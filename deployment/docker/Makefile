@@ -15,6 +15,23 @@ ORAS_VERSION ?= 1.2.2
 SBOM_FORMAT ?= cyclonedx-json
 SBOM_MEDIA_TYPE ?= application/vnd.cyclonedx+json
 
+# Host platform detection for checksum lookup
+HOST_OS   := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+HOST_ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+# SHA256 checksums for syft and oras binaries (update when changing versions)
+SYFT_SHA256_darwin_amd64 := 2eae0b76a208c5916cf02847b94e861024c7a5a6c1e2e606f5436f97747b1f76
+SYFT_SHA256_darwin_arm64 := 00435a3fe2ae940203708ee2eae9976d1719982c628d30b2b78aacd36133ec6b
+SYFT_SHA256_linux_amd64  := 4f3e84f9467080c876deb0fa968da54309c6d21fb8c00fd3a4e547eb9f006835
+SYFT_SHA256_linux_arm64  := ed3915cbc9c039f0501cb49d4485125befbd729acc263e767f70a18de3fec10d
+ORAS_SHA256_darwin_amd64 := e953c3c5580a317ba30871ee77f39a37e5bcb030edf01c5e9a83ebddcec7cf8a
+ORAS_SHA256_darwin_arm64 := fcac22adaf1cfe7854738859d0f4705d1cd75a23edaef5ee2e9aba66cfff2315
+ORAS_SHA256_linux_amd64  := bff970346470e5ef888e9f2c0bf7f8ee47283f5a45207d6e7a037da1fb0eae0d
+ORAS_SHA256_linux_arm64  := edd7195cbb8ba56c29ede413eefa10c8026201d63326017cd315841b4063aa56
+
+SYFT_SHA256 := $(SYFT_SHA256_$(HOST_OS)_$(HOST_ARCH))
+ORAS_SHA256 := $(ORAS_SHA256_$(HOST_OS)_$(HOST_ARCH))
+
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -160,11 +177,11 @@ publish-via-docker-latest:
 install-syft:
 	@which syft >/dev/null 2>&1 || { \
 		echo "Installing syft $(SYFT_VERSION)..."; \
-		INSTALL_OS=$$(uname -s | tr '[:upper:]' '[:lower:]') && \
-		INSTALL_ARCH=$$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+		if [ -z "$(SYFT_SHA256)" ]; then echo "ERROR: No syft checksum for $(HOST_OS)_$(HOST_ARCH)"; exit 1; fi && \
 		SYFT_TMP=$$(mktemp -d) && \
-		curl -sSfL "https://github.com/anchore/syft/releases/download/v$(SYFT_VERSION)/syft_$(SYFT_VERSION)_$${INSTALL_OS}_$${INSTALL_ARCH}.tar.gz" \
+		curl -sSfL "https://github.com/anchore/syft/releases/download/v$(SYFT_VERSION)/syft_$(SYFT_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz" \
 			-o "$$SYFT_TMP/syft.tar.gz" && \
+		echo "$(SYFT_SHA256)  $$SYFT_TMP/syft.tar.gz" | sha256sum -c - && \
 		tar -xzf "$$SYFT_TMP/syft.tar.gz" -C "$$SYFT_TMP" syft && \
 		sudo install "$$SYFT_TMP/syft" /usr/local/bin/syft && \
 		rm -rf "$$SYFT_TMP" && \
@@ -174,11 +191,11 @@ install-syft:
 install-oras:
 	@which oras >/dev/null 2>&1 || { \
 		echo "Installing oras $(ORAS_VERSION)..."; \
-		INSTALL_OS=$$(uname -s | tr '[:upper:]' '[:lower:]') && \
-		INSTALL_ARCH=$$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+		if [ -z "$(ORAS_SHA256)" ]; then echo "ERROR: No oras checksum for $(HOST_OS)_$(HOST_ARCH)"; exit 1; fi && \
 		ORAS_TMP=$$(mktemp -d) && \
-		curl -sSfL "https://github.com/oras-project/oras/releases/download/v$(ORAS_VERSION)/oras_$(ORAS_VERSION)_$${INSTALL_OS}_$${INSTALL_ARCH}.tar.gz" \
+		curl -sSfL "https://github.com/oras-project/oras/releases/download/v$(ORAS_VERSION)/oras_$(ORAS_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz" \
 			-o "$$ORAS_TMP/oras.tar.gz" && \
+		echo "$(ORAS_SHA256)  $$ORAS_TMP/oras.tar.gz" | sha256sum -c - && \
 		tar -xzf "$$ORAS_TMP/oras.tar.gz" -C "$$ORAS_TMP" oras && \
 		sudo install "$$ORAS_TMP/oras" /usr/local/bin/oras && \
 		rm -rf "$$ORAS_TMP" && \

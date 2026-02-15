@@ -86,8 +86,8 @@ fi
 
 echo "Pulling SBOM with digest: ${SBOM_DIGEST}"
 
-# Extract registry/repo by removing only the tag (last colon-separated segment without slashes)
-REPO_REF=$(echo "${IMAGE}" | sed 's/:[^/:]*$//')
+# Extract registry/repo by stripping digest (@sha256:...) or tag (last :segment without slashes)
+REPO_REF=$(echo "${IMAGE}" | sed 's/@sha256:.*$//' | sed 's/:[^/:]*$//')
 if ! oras pull --output "${SBOM_TMPDIR}" \
     --distribution-spec v1.1-referrers-tag \
     "${REPO_REF}@${SBOM_DIGEST}" 2>&1; then
@@ -132,10 +132,11 @@ echo ""
 echo "--- Step 3: Trivy integration check ---"
 if command -v trivy >/dev/null 2>&1; then
     echo "Running: trivy image --sbom-sources oci ${IMAGE}"
-    if trivy image --sbom-sources oci "${IMAGE}"; then
+    trivy image --sbom-sources oci "${IMAGE}" && rc=0 || rc=$?
+    if [ "$rc" -eq 0 ]; then
         echo "Trivy successfully discovered and used the OCI SBOM"
     else
-        echo "ERROR: Trivy failed to scan the image using the OCI SBOM (exit code: $?)"
+        echo "ERROR: Trivy failed to scan the image using the OCI SBOM (exit code: ${rc})"
         exit 1
     fi
 else
