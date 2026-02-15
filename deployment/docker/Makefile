@@ -9,6 +9,12 @@ CERTS_IMAGE := alpine:3.23.3
 
 GO_BUILDER_IMAGE := golang:1.26.0
 
+# SBOM generation settings
+SYFT_VERSION ?= 1.26.1
+ORAS_VERSION ?= 1.2.2
+SBOM_FORMAT ?= cyclonedx-json
+SBOM_MEDIA_TYPE ?= application/vnd.cyclonedx+json
+
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER ?= docker
@@ -123,6 +129,7 @@ publish-via-docker:
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
 		bin
+	-$(MAKE) publish-sbom
 	cd bin && rm -rf \
 		$(APP_NAME)-linux-amd64-prod \
 		$(APP_NAME)-linux-arm-prod \
@@ -142,11 +149,83 @@ publish-via-docker-from-rc:
 			docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-fips $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(EXTRA_DOCKER_TAG_SUFFIX)-fips; \
 		) \
 	fi
+	-$(MAKE) publish-sbom-from-rc
 
 publish-via-docker-latest:
 	$(foreach registry,$(DOCKER_REGISTRIES),\
 		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG); \
 	)
+	-$(MAKE) publish-sbom-latest
+
+install-syft:
+	@which syft >/dev/null 2>&1 || { \
+		echo "Installing syft $(SYFT_VERSION)..."; \
+		INSTALL_OS=$$(uname -s | tr '[:upper:]' '[:lower:]') && \
+		INSTALL_ARCH=$$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+		SYFT_TMP=$$(mktemp -d) && \
+		curl -sSfL "https://github.com/anchore/syft/releases/download/v$(SYFT_VERSION)/syft_$(SYFT_VERSION)_$${INSTALL_OS}_$${INSTALL_ARCH}.tar.gz" \
+			-o "$$SYFT_TMP/syft.tar.gz" && \
+		tar -xzf "$$SYFT_TMP/syft.tar.gz" -C "$$SYFT_TMP" syft && \
+		sudo install "$$SYFT_TMP/syft" /usr/local/bin/syft && \
+		rm -rf "$$SYFT_TMP" && \
+		echo "syft $(SYFT_VERSION) installed"; \
+	}
+
+install-oras:
+	@which oras >/dev/null 2>&1 || { \
+		echo "Installing oras $(ORAS_VERSION)..."; \
+		INSTALL_OS=$$(uname -s | tr '[:upper:]' '[:lower:]') && \
+		INSTALL_ARCH=$$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+		ORAS_TMP=$$(mktemp -d) && \
+		curl -sSfL "https://github.com/oras-project/oras/releases/download/v$(ORAS_VERSION)/oras_$(ORAS_VERSION)_$${INSTALL_OS}_$${INSTALL_ARCH}.tar.gz" \
+			-o "$$ORAS_TMP/oras.tar.gz" && \
+		tar -xzf "$$ORAS_TMP/oras.tar.gz" -C "$$ORAS_TMP" oras && \
+		sudo install "$$ORAS_TMP/oras" /usr/local/bin/oras && \
+		rm -rf "$$ORAS_TMP" && \
+		echo "oras $(ORAS_VERSION) installed"; \
+	}
+
+# generate-and-attach-sbom: Generate SBOM for a single image and attach it via ORAS.
+# Required vars: SBOM_IMAGE (full image ref, e.g. docker.io/victoriametrics/vmagent:v1.100.0)
+generate-and-attach-sbom: install-syft install-oras
+	@SBOM_TMPDIR=$$(mktemp -d) && \
+	trap 'rm -rf "$$SBOM_TMPDIR"' EXIT && \
+	SBOM_FILE="sbom.cdx.json" && \
+	echo "Generating SBOM for $(SBOM_IMAGE)..." && \
+	syft "$(SBOM_IMAGE)" -o "$(SBOM_FORMAT)"="$$SBOM_TMPDIR/$$SBOM_FILE" && \
+	echo "Validating SBOM..." && \
+	jq -e '.bomFormat' "$$SBOM_TMPDIR/$$SBOM_FILE" >/dev/null 2>&1 && \
+	echo "Attaching SBOM to $(SBOM_IMAGE)..." && \
+	cd "$$SBOM_TMPDIR" && \
+	oras attach --artifact-type "$(SBOM_MEDIA_TYPE)" \
+		--distribution-spec v1.1-referrers-tag \
+		"$(SBOM_IMAGE)" \
+		"$$SBOM_FILE":"$(SBOM_MEDIA_TYPE)" && \
+	echo "SBOM attached successfully to $(SBOM_IMAGE)" || \
+	echo "WARNING: SBOM generation/attachment failed for $(SBOM_IMAGE)"
+
+publish-sbom:
+	$(foreach registry,$(DOCKER_REGISTRIES),\
+		SBOM_IMAGE=$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_DOCKER_TAG_SUFFIX) $(MAKE) generate-and-attach-sbom || true; \
+		SBOM_IMAGE=$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_DOCKER_TAG_SUFFIX)-scratch $(MAKE) generate-and-attach-sbom || true; \
+	)
+
+publish-sbom-from-rc:
+	$(foreach registry,$(DOCKER_REGISTRIES),\
+		SBOM_IMAGE=$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG) $(MAKE) generate-and-attach-sbom || true; \
+		SBOM_IMAGE=$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-scratch $(MAKE) generate-and-attach-sbom || true; \
+	)
+
+publish-sbom-latest:
+	$(foreach registry,$(DOCKER_REGISTRIES),\
+		SBOM_IMAGE=$(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):latest $(MAKE) generate-and-attach-sbom || true; \
+	)
+
+verify-sbom: install-oras
+	@echo "Verifying SBOM for $(SBOM_IMAGE)..."
+	@oras discover --artifact-type "$(SBOM_MEDIA_TYPE)" "$(SBOM_IMAGE)" | grep -q "$(SBOM_MEDIA_TYPE)" \
+		&& echo "SBOM found for $(SBOM_IMAGE)" \
+		|| (echo "ERROR: No SBOM found for $(SBOM_IMAGE)" && exit 1)
 
 run-via-docker: package-via-docker
 	$(DOCKER_RUN) -it --rm \
