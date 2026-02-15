@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry): add a `-opentelemetry.usePermissiveLabelSanitization` flag to allow labels starting with a single underscore to pass through without being prefixed when `-opentelemetry.usePrometheusNaming` is active. See [#9663](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9663).
+
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
 
 Released at 2026-02-13
