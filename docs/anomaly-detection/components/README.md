@@ -46,37 +46,38 @@ settings:
 # how and when to run the models is defined by schedulers
 # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/
 schedulers:
-  periodic_1d:  # alias
+  periodic_online:  # alias
     class: 'periodic' # scheduler class
-    infer_every: "30s"
-    fit_every: "1d"
-    fit_window: "24h"
+    infer_every: "30s"  # how often to produce anomaly scores for new data
+    fit_every: "365d"  # how often to re-fit the models, for online models used effectively once, then they are updated with new data and won't require re-fit
+    fit_window: "3d"  # how much historical data to use for fit stage
     start_from: "00:00"  # start from specified time, i.e. 00:00 given timezone and do daily fits as `fit_every` is 1 day
     tz: "Europe/Kyiv"  # timezone to use for start_from
-  periodic_1w:
+  periodic_offline_1w:
     class: 'periodic'
     infer_every: "15m"
-    fit_every: "1h"
-    fit_window: "7d"
+    fit_every: "24h"
+    fit_window: "14d"
     # if no start_from is specified, jobs will start immediately after service starts
 
 # what model types and with what hyperparams to run on your data
 # https://docs.victoriametrics.com/anomaly-detection/components/models/
 models:
   zscore:  # we can set up alias for model
-    class: 'zscore'  # model class
+    class: 'zscore_online'  # model class
     z_threshold: 3.5
-    provide_series: ['anomaly_score']  # what series to produce
+    decay: 0.99  # weight for data points value should be in (0, 1], 1 means to give equal weight to all data
+    provide_series: ['anomaly_score', 'y', 'yhat', 'yhat_upper']  # what series to produce as output of the model
     queries: ['host_network_receive_errors']  # what queries to run particular model on
-    schedulers: ['periodic_1d']  # will be attached to 1-day schedule, fit every 10m and infer every 30s
+    schedulers: ['periodic_online']  # will be fit once, used for infer every 30s
     min_dev_from_expected: 0.0  # turned off. if |y - yhat| < min_dev_from_expected, anomaly score will be 0
     detection_direction: 'above_expected' # detect anomalies only when y > yhat, "peaks"
     clip_predictions: True  # clip predictions to expected data range, i.e. [0, inf] for this query `host_network_receive_errors
-  prophet: # we can set up alias for model
+  prophet_weekly: # we can set up alias for model
     class: 'prophet'
-    provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    provide_series: ['anomaly_score', 'y', 'yhat', 'yhat_lower', 'yhat_upper']
     queries: ['cpu_seconds_total']
-    schedulers: ['periodic_1w']  # will be attached to 1-week schedule, fit every 1h and infer every 15m
+    schedulers: ['periodic_offline_1w']  # will be attached to 1-week scheduler, re-fit every 24h and infer every 15m
     min_dev_from_expected: [0.01, 0.01]  # minimum deviation from expected value to be even considered as anomaly
     anomaly_score_outside_data_range: 1.5  # override default anomaly score outside expected data range
     detection_direction: 'above_expected'
@@ -111,13 +112,18 @@ reader:
 writer:
   datasource_url: "http://victoriametrics:8428/"
   # tenant_id: "0:0"  # for VictoriaMetrics cluster, can support "multitenant"
+  # https://docs.victoriametrics.com/anomaly-detection/components/writer/#metrics-formatting
+  metric_format:
+    __name__: $VAR
+    for: $QUERY_KEY
+    
 
 # enable self-monitoring in pull and/or push mode
 # https://docs.victoriametrics.com/anomaly-detection/components/monitoring/
 monitoring:
-  pull: # Enable /metrics endpoint.
-    addr: "0.0.0.0"
-    port: 8490
+  # pull: # Enable /metrics endpoint.
+  #   addr: "0.0.0.0"
+  #   port: 8490
 
   push: # Enable pushing self-monitoring metrics
     url: "http://victoriametrics:8428"

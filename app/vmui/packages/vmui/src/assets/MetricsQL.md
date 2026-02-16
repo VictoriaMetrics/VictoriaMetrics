@@ -12,6 +12,7 @@ aliases:
 - /MetricsQL.html
 - /metricsql/index.html
 - /metricsql/
+- /MetricsQL/
 ---
 [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) implements MetricsQL -
 query language inspired by [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/).

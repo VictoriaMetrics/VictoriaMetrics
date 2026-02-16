@@ -81,7 +81,9 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	}
 
 	tr := httputil.NewTransport(false, "vm_promscrape")
-	tr.Proxy = proxyURLFunc
+	if proxyURLFunc != nil {
+		tr.Proxy = proxyURLFunc
+	}
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.IdleConnTimeout = 2 * sw.ScrapeInterval
 	tr.DisableKeepAlives = *disableKeepAlive || sw.DisableKeepAlive
@@ -175,6 +177,12 @@ func (c *client) ReadData(dst *chunkedbuffer.Buffer) (bool, error) {
 			scrapesTimedout.Inc()
 		}
 		return false, fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
+	}
+	if int64(dst.Len()) > c.maxScrapeSize {
+		maxScrapeSizeExceeded.Inc()
+		return false, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+
+			"Possible solutions are: reduce the response size for the target, increase -promscrape.maxScrapeSize command-line flag, "+
+			"increase max_scrape_size value in scrape config for the given target", c.scrapeURL, c.maxScrapeSize)
 	}
 
 	isGzipped := resp.Header.Get("Content-Encoding") == "gzip"

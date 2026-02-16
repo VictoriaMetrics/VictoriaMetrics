@@ -44,6 +44,18 @@
         "name": "version",
         "textFormat": "{{version}}",
         "titleFormat": "Version change"
+      },
+      {
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+        "hide": false,
+        "iconColor": "dark-yellow",
+        "name": "restarts",
+        "textFormat": "{{job}} restarted"
       }
     ]
   },
@@ -1509,8 +1521,8 @@
           "links": [
             {
               "targetBlank": true,
-              "title": "asd",
-              "url": "asd"
+              "title": "Drilldown",
+              "url": "/d/wNf0q_kZk_vm?viewPanel=154&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -8532,8 +8544,8 @@
               "links": [
                 {
                   "targetBlank": true,
-                  "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=154&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "title": "Source Code",
+                  "url": "https://l2s.victoriametrics.com/?app_version=${__field.labels.app_version}&location=${__field.labels.location}"
                 }
               ],
               "mappings": [],
@@ -8590,11 +8602,11 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, location) > 0",
+              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, instance, level, app_version, location) > 0",
               "format": "time_series",
               "interval": "5m",
               "intervalFactor": 1,
-              "legendFormat": "__auto",
+              "legendFormat": "{{instance}} ({{job}}) - {{level}}: {{location}}",
               "range": true,
               "refId": "A"
             }

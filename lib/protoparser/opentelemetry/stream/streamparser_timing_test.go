@@ -1,10 +1,12 @@
 package stream
 
 import (
+	"fmt"
 	"io"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
@@ -84,4 +86,58 @@ func (br *benchReader) Read(p []byte) (int, error) {
 		return 0, io.EOF
 	}
 	return n, nil
+}
+
+const (
+	benchPushSampleTimestampNano = uint64(1770773711000000000)
+	benchPushSampleValue         = float64(1)
+	benchPushSampleFlags         = uint32(0)
+)
+
+// BenchmarkWriteRequestContextPushSample is to see how many memory is allocated (used) when handling large OTLP request.
+// go test -bench=BenchmarkWriteRequestContextPushSample -benchmem -memprofile=streamparser_WriteRequestContextPushSample.out
+//
+// see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10378
+func BenchmarkWriteRequestContextPushSample(b *testing.B) {
+	// called multiple times with different *promutil.Labels but same *wctx.
+	timeSeriesCount := 100000
+	labels := make([]*promutil.Labels, 0, timeSeriesCount)
+	mms := make([]*pb.MetricMetadata, 0, timeSeriesCount)
+	for i := 0; i < timeSeriesCount; i++ {
+		lbs := &promutil.Labels{}
+		for j := 0; j < 20; j++ {
+			lbs.Labels = append(lbs.Labels, prompb.Label{
+				Name:  fmt.Sprintf("some_super_long_label_%d", j),
+				Value: fmt.Sprintf("some_super_super_super_super_super_super_long_label_%d", j),
+			})
+		}
+		labels = append(labels, lbs)
+
+		mms = append(mms, &pb.MetricMetadata{
+			Name: fmt.Sprintf("some_super_long_metric_name_%d", i),
+			Unit: "seconds",
+			Type: prompb.MetricTypeCounter,
+		})
+	}
+
+	b.Run("WriteRequestContextPushSample_10k_series", func(b *testing.B) {
+		wctx := getWriteRequestContext()
+		defer putWriteRequestContext(wctx)
+
+		wctx.flushFunc = func(_ []prompb.TimeSeries, _ []prompb.MetricMetadata) error {
+			// let's use a no-op here.
+			return nil
+		}
+
+		for i := 0; i < timeSeriesCount; i++ {
+			benchmarkWriteRequestContextPushSample(b, wctx, mms[i], labels[i])
+		}
+
+		// since the flushFunc is a no-op so no need to check error response.
+		_ = wctx.flushFunc(wctx.tss, wctx.mms)
+	})
+}
+
+func benchmarkWriteRequestContextPushSample(b *testing.B, wctx *writeRequestContext, mm *pb.MetricMetadata, labels *promutil.Labels) {
+	wctx.PushSample(mm, "", labels, benchPushSampleTimestampNano, benchPushSampleValue, benchPushSampleFlags)
 }
