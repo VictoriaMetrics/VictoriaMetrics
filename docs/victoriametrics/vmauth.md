@@ -48,6 +48,7 @@ Feel free to [contact us](mailto:info@victoriametrics.com) if you need customize
 * [TLS termination proxy](#tls-termination-proxy)
 * [Basic Auth proxy](#basic-auth-proxy)
 * [Bearer Token auth proxy](#bearer-token-auth-proxy)
+* [JWT Token auth proxy](#jwt-token-auth-proxy)
 * [Per-tenant authorization](#per-tenant-authorization)
 * [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
@@ -247,6 +248,56 @@ users:
 
 See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
+### JWT Token auth proxy
+
+`vmauth` can authorize access to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header. 
+JWT tokens are verified using RSA or ECDSA public keys. The following auth config proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) if they contain a valid JWT token:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+JWT tokens must contain a `vm_access` claim with tenant information:
+```json
+{
+  "exp": 2770832322,
+  "vm_access": {
+    "tenant_id": {
+      "account_id": 0,
+      "project_id": 0
+    }
+  }
+}
+```
+
+The empty `vm_access` claim is also allowed and means access to Tenant `0:0` will be provided.
+```json
+{
+  "exp": 2770832322,
+  "vm_access": {}
+}
+```
+
+For testing, skip signature verification with `skip_verify: true` (not recommended for production).
+
+```yaml
+users:
+- jwt:
+    skip_verify: true
+  url_prefix: "http://victoria-metrics:8428"
+```
+
+JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
+
+See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+
 ### Per-tenant authorization
 
 The following [`-auth.config`](#auth-config) instructs proxying `insert` and `select` requests from the [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) user `tenant1` to the [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) `1`, while requests from the user `tenant2` are sent to tenant `2`:
@@ -356,6 +407,7 @@ unauthorized_user:
 * [No authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#simple-http-proxy)
 * [Basic Auth](https://docs.victoriametrics.com/victoriametrics/vmauth/#basic-auth-proxy)
 * [Bearer token](https://docs.victoriametrics.com/victoriametrics/vmauth/#bearer-token-auth-proxy)
+* [JWT token](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy)
 * [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing)
 * [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#reading-auth-tokens-from-other-http-headers)
 
