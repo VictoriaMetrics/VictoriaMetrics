@@ -7,43 +7,45 @@ import (
 	"time"
 )
 
-type benchMetricIDCacheState int
+type benchDateMetricIDCacheState int
 
 const (
-	benchMetricIDCacheStateCold benchMetricIDCacheState = iota
-	benchMetricIDCacheStateWarm
-	benchMetricIDCacheStateRotated
+	benchDateMetricIDCacheStateCold benchDateMetricIDCacheState = iota
+	benchDateMetricIDCacheStateWarm
+	benchDateMetricIDCacheStateRotated
 )
 
-var benchMetricIDCacheStates = [...]benchMetricIDCacheState{
-	benchMetricIDCacheStateCold,
-	benchMetricIDCacheStateWarm,
-	benchMetricIDCacheStateRotated,
+var benchDateMetricIDCacheStates = [...]benchDateMetricIDCacheState{
+	benchDateMetricIDCacheStateCold,
+	benchDateMetricIDCacheStateWarm,
+	benchDateMetricIDCacheStateRotated,
 }
 
-func (s benchMetricIDCacheState) String() string {
+func (s benchDateMetricIDCacheState) String() string {
 	return [...]string{"   cold", "   warm", "rotated"}[s]
 }
 
-func BenchmarkMetricIDCache_Has(b *testing.B) {
-	f := func(b *testing.B, numMetricIDs, distance int64, hitsOnly bool, state benchMetricIDCacheState) {
+func BenchmarkDateMetricIDCache_Has(b *testing.B) {
+	f := func(b *testing.B, numMetricIDs, distance int64, hitsOnly bool, state benchDateMetricIDCacheState) {
 		b.Helper()
-		c := newMetricIDCache()
+		c := newDateMetricIDCache()
 		defer c.MustStop()
 
-		warmUp := state == benchMetricIDCacheStateWarm || state == benchMetricIDCacheStateRotated
-		rotate := state == benchMetricIDCacheStateRotated
+		const date = 12345
+
+		warmUp := state == benchDateMetricIDCacheStateWarm || state == benchDateMetricIDCacheStateRotated
+		rotate := state == benchDateMetricIDCacheStateRotated
 
 		metricIDMin := time.Now().UnixNano()
 		metricIDMax := metricIDMin + numMetricIDs*distance
 		for metricID := metricIDMin; metricID <= metricIDMax; metricID += distance {
-			c.Set(uint64(metricID))
-			if warmUp && !c.Has(uint64(metricID)) {
+			c.Set(date, uint64(metricID))
+			if warmUp && !c.Has(date, uint64(metricID)) {
 				b.Fatalf("metricID not in cache: %d", metricID)
 			}
 		}
 		if rotate {
-			c.shards[rand.Intn(metricIDCacheShardCount)].rotate()
+			c.rotate()
 		}
 		b.ResetTimer()
 
@@ -51,7 +53,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 			if hitsOnly {
 				metricID := metricIDMin + rand.Int63n(numMetricIDs)*distance
 				for pb.Next() {
-					if !c.Has(uint64(metricID)) {
+					if !c.Has(date, uint64(metricID)) {
 						b.Fatalf("metricID not in cache: %d", metricID)
 					}
 					metricID += distance
@@ -63,7 +65,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 				// misses only
 				metricID := metricIDMax + distance
 				for pb.Next() {
-					if c.Has(uint64(metricID)) {
+					if c.Has(date, uint64(metricID)) {
 						b.Fatalf("metricID is in cache: %d", metricID)
 					}
 					metricID += distance
@@ -74,7 +76,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 		b.ReportMetric(float64(c.Stats().SizeBytes), "sizeBytes")
 	}
 
-	subB := func(numMetricIDs, distance int64, hitsOnly bool, state benchMetricIDCacheState) {
+	subB := func(numMetricIDs, distance int64, hitsOnly bool, state benchDateMetricIDCacheState) {
 		hitsOrMisses := "  hits-only"
 		if !hitsOnly {
 			hitsOrMisses = "misses-only"
@@ -85,7 +87,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 		})
 	}
 	for _, hitsOnly := range []bool{true, false} {
-		for _, state := range benchMetricIDCacheStates {
+		for _, state := range benchDateMetricIDCacheStates {
 			for _, numMetricIDs := range []int64{100_000, 1_000_000, 10_000_000} {
 				for _, distance := range []int64{1, 10, 100} {
 					subB(numMetricIDs, distance, hitsOnly, state)
