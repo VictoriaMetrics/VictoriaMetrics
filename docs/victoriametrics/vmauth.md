@@ -638,6 +638,7 @@ unauthorized_user:
 users:
   - username: "foo"
     password: "bar"
+    # dump request details on errors (can contain sensetive information)   
     dump_request_on_errors: true
     url_map:
       - src_paths: ["/select/.*"]
@@ -646,7 +647,6 @@ users:
           - "ProjectID: 0"
         url_prefix:
           - "http://backend:9428/"
-
 ```
 
 `vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
@@ -1014,7 +1014,9 @@ users:
   #
   # Regular expressions are allowed in `src_paths` and `src_hosts` entries.
 - username: "foobar"
-  # log requests that failed url_map rules, for debugging purposes
+  # log requests that failed url_map rules in the following form:
+  #   statusCode=<SC> remoteAddr: "<IP>, X-Forwarded-For: <IP>"; requestURI: <URI>; missing route for <URL>"(host: <HOST>; path: <PATH>; args: <ARGS>; headers: <HEADERS>)
+  # May contain sensetive information and is recommended to use only for debugging purposes.
   dump_request_on_errors: true
   url_map:
   - src_paths:
