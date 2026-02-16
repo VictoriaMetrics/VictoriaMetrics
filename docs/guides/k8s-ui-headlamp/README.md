@@ -13,14 +13,11 @@ This guide shows how to point Headlamp’s Prometheus integration at VictoriaMet
 
 ## 1. Install VictoriaMetrics
 
-The VictoriaMetrics time-series database must be running in your Kubernetes cluster.
+VictoriaMetrics must be running in your Kubernetes cluster.
 
-Install either of these versions:
+This guide is compatible with both [single-node](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/) and [cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/) versions of VictoriaMetrics.
 
-- VictoriaMetrics single-node: [Kubernetes monitoring via VictoriaMetrics Single](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-single/)
-- VictoriaMetrics cluster: [Kubernetes monitoring with VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/)
-
-Once installed and running, note the `NAME`, `PORT`, and the namespace where the service is running.
+Once VictoriaMetrics is running, note the `NAME`, `PORT`, and the namespace where the service is running.
 
 - For the single-node version:
 
