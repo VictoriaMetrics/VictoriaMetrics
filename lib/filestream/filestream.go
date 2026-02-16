@@ -208,7 +208,7 @@ func (w *Writer) Path() string {
 	return w.f.Name()
 }
 
-// OpenWriterAt opens the file at path in nocache modt for writing at the given offset.
+// OpenWriterAt opens the file at path in nocache mode for writing at the given offset.
 //
 // The file at path is created if it is missing.
 //
@@ -292,14 +292,14 @@ func (w *Writer) sync() {
 }
 
 var (
-	writeDuration        = metrics.NewFloatCounter `vm_filestream_write_duration_seconds_total`)
+	writeDuration        = metrics.NewFloatCounter(`vm_filestream_write_duration_seconds_total`)
 	writeCallsBuffered   = metrics.NewCounter(`vm_filestream_buffered_write_calls_total`)
 	writeCallsReal       = metrics.NewCounter(`vm_filestream_real_write_calls_total`)
 	writtenBytesBuffered = metrics.NewCounter(`vm_filestream_buffered_written_bytes_total`)
-	writtenBytesReal     = metrics.NewCounter `vm_filestream_real_written_bytes_total`)
+	writtenBytesReal     = metrics.NewCounter(`vm_filestream_real_written_bytes_total`)
 	writersCount         = metrics.NewCounter(`vm_filestream_writers`)
 
-	fsyncDuration        = metrics.NewFloatCounter `vm_filestream_fsync_duration_seconds_total`)
+	fsyncDuration        = metrics.NewFloatCounter(`vm_filestream_fsync_duration_seconds_total`)
 	fsyncCalls           = metrics.NewCounter(`vm_filestream_fsync_calls_total`)
 	writeSyscallDuration = metrics.NewFloatCounter(`vm_filestream_write_syscall_duration_seconds_total`)
 )
