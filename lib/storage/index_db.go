@@ -839,6 +839,14 @@ func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, er
 			tenant := fmt.Sprintf("%d:%d", accountID, projectID)
 			tenants[tenant] = struct{}{}
 		}
+		if date != 0 && keyDate < date {
+			// Seek for the given date for the current (accountID, projectID)
+			is.accountID = accountID
+			is.projectID = projectID
+			kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
+			ts.Seek(kb.B)
+			continue
+		}
 		// Seek for the next (accountID, projectID)
 		projectID++
 		if projectID == 0 {
