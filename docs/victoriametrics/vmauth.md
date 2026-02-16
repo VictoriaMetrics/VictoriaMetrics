@@ -1016,7 +1016,7 @@ users:
 - username: "foobar"
   # log requests that failed url_map rules in the following form:
   #   statusCode=<SC> remoteAddr: "<IP>, X-Forwarded-For: <IP>"; requestURI: <URI>; missing route for <URL>"(host: <HOST>; path: <PATH>; args: <ARGS>; headers: <HEADERS>)
-  # May contain sensetive information and is recommended to use only for debugging purposes.
+  # May contain sensitive information and is recommended to use only for debugging purposes.
   dump_request_on_errors: true
   url_map:
   - src_paths:
