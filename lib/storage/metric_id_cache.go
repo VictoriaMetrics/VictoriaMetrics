@@ -7,10 +7,11 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
+
+const metricIDCacheShardCount = 16
 
 // metricIDCache stores metricIDs that have been added to the index. It is used
 // during data ingestion to decide whether a new entry needs to be added to the
@@ -19,39 +20,23 @@ import (
 // The cache consists of multiple shards and avoids synchronization on the read
 // path if possible to reduce contention.
 type metricIDCache struct {
-	shards []metricIDCacheShard
+	shards [metricIDCacheShardCount]metricIDCacheShard
 
-	// The shards are rotated in groups, one group at a time.
-	// rotationGroupSize tells the number of shards in one group,
-	// rotationGroupCount tells how many groups to rotate, and
-	// rotationGroupPeriod tells how often a group is rotated.
-	rotationGroupSize   int
-	rotationGroupCount  int
-	rotationGroupPeriod time.Duration
+	// The shards are rotated, one shard at a time. rotationPeriod defines the
+	// time interval between two successive rotations.
+	rotationPeriod time.Duration
 
 	stopCh            chan struct{}
 	rotationStoppedCh chan struct{}
 }
 
 func newMetricIDCache() *metricIDCache {
-	// Shards based on the number of CPUs are taken from
-	// lib/blockcache/blockcache.go.
-	rotationGroupSize := 1
-	rotationGroupCount := cgroup.AvailableCPUs()
-	if rotationGroupCount > 16 {
-		rotationGroupCount = 16
-	}
-	numShards := rotationGroupSize * rotationGroupCount
-
 	c := metricIDCache{
-		shards:              make([]metricIDCacheShard, numShards),
-		rotationGroupSize:   rotationGroupSize,
-		rotationGroupCount:  rotationGroupCount,
-		rotationGroupPeriod: timeutil.AddJitterToDuration(1 * time.Minute),
-		stopCh:              make(chan struct{}),
-		rotationStoppedCh:   make(chan struct{}),
+		rotationPeriod:    timeutil.AddJitterToDuration(1 * time.Minute),
+		stopCh:            make(chan struct{}),
+		rotationStoppedCh: make(chan struct{}),
 	}
-	for i := range numShards {
+	for i := range metricIDCacheShardCount {
 		c.shards[i].prev = &uint64set.Set{}
 		c.shards[i].next = &uint64set.Set{}
 		c.shards[i].curr.Store(&uint64set.Set{})
@@ -65,17 +50,9 @@ func (c *metricIDCache) MustStop() {
 	<-c.rotationStoppedCh
 }
 
-func (c *metricIDCache) numShards() uint64 {
-	return uint64(len(c.shards))
-}
-
-func (c *metricIDCache) fullRotationPeriod() time.Duration {
-	return time.Duration(c.rotationGroupCount) * c.rotationGroupPeriod
-}
-
 func (c *metricIDCache) Stats() metricIDCacheStats {
 	var stats metricIDCacheStats
-	for i := range len(c.shards) {
+	for i := range metricIDCacheShardCount {
 		s := c.shards[i].Stats()
 		stats.Size += s.Size
 		stats.SizeBytes += s.SizeBytes
@@ -86,37 +63,30 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 }
 
 func (c *metricIDCache) Has(metricID uint64) bool {
-	shardIdx := fastHashUint64(metricID) % uint64(len(c.shards))
+	shardIdx := (metricID / 65536) % metricIDCacheShardCount
 	return c.shards[shardIdx].Has(metricID)
 }
 
 func (c *metricIDCache) Set(metricID uint64) {
-	shardIdx := fastHashUint64(metricID) % uint64(len(c.shards))
+	shardIdx := (metricID / 65536) % metricIDCacheShardCount
 	c.shards[shardIdx].Set(metricID)
 }
 
-func (c *metricIDCache) rotate(rotationGroup int) {
-	for i := range len(c.shards) {
-		if i/c.rotationGroupSize == rotationGroup {
-			c.shards[i].rotate()
-		}
-	}
-}
-
 func (c *metricIDCache) startRotation() {
-	ticker := time.NewTicker(c.rotationGroupPeriod)
+	ticker := time.NewTicker(c.rotationPeriod)
 	defer ticker.Stop()
-	rotationGroup := 0
+	var shardIdx int
 	for {
 		select {
 		case <-c.stopCh:
 			close(c.rotationStoppedCh)
 			return
 		case <-ticker.C:
-			// each tick rotate only subset of size metricIDCacheRotationGroupSize
-			// to avoid slow access for all shards at once
-			rotationGroup = (rotationGroup + 1) % c.rotationGroupCount
-			c.rotate(rotationGroup)
+			// Each tick rotate only one shard at a time to avoid slow access
+			// for all shards at once.
+			shardIdx %= metricIDCacheShardCount
+			c.shards[shardIdx].rotate()
+			shardIdx++
 		}
 	}
 }
