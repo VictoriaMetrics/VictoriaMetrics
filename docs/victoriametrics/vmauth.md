@@ -638,7 +638,7 @@ unauthorized_user:
 users:
   - username: "foo"
     password: "bar"
-    # dump request details on errors (can contain sensetive information)   
+    # dump request details on errors (can contain sensitive information)
     dump_request_on_errors: true
     url_map:
       - src_paths: ["/select/.*"]
