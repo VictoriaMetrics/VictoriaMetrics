@@ -178,6 +178,17 @@ const TopQueries: FC = () => {
               { key: "count" }
             ]}
           />
+          <TopQueryPanel
+            rows={data.topByAvgMemoryUsage}
+            title={"Queries with most memory to execute"}
+            columns={[
+              { key: "query" },
+              { key: "avgMemoryBytes", title: "avg memory usage, bytes" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
+              { key: "count" }
+            ]}
+            defaultOrderBy={"avgMemoryBytes"}
+          />
         </div>
       </>)}
     </div>

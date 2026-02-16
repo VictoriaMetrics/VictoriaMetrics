@@ -1146,11 +1146,11 @@ func searchAndMerge[T any](qt *querytracer.Tracer, s *Storage, tr TimeRange, sea
 				// resources have been consumed by each indexDB type.
 				switch idbt.t {
 				case indexDBTypePt:
-					data[i], errs[i] = search(qt, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
 				case indexDBTypeLegacyPrev:
-					data[i], errs[i] = search(qt, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
 				case indexDBTypeLegacyCurr:
-					data[i], errs[i] = search(qt, idbt.idb, searchTR)
+					data[i], errs[i] = search(qtChild, idbt.idb, searchTR)
 				}
 				qtChild.Done()
 			})

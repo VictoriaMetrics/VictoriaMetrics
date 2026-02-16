@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -578,6 +579,7 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		return
 	}
 	heap.Init(sbh)
+	var dedupSamples int
 	for {
 		sbs := sbh.sbs
 		top := sbs[0]
@@ -593,6 +595,7 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		if n := equalSamplesPrefix(top, sbNext); n > 0 && dedupInterval > 0 {
 			// Skip n replicated samples at top if deduplication is enabled.
 			top.NextIdx = topNextIdx + n
+			dedupSamples += n
 		} else {
 			// Copy samples from top to dst with timestamps not exceeding tsNext.
 			top.NextIdx = topNextIdx + binarySearchTimestamps(top.Timestamps[topNextIdx:], tsNext)
@@ -607,8 +610,8 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		}
 	}
 	timestamps, values := storage.DeduplicateSamples(dst.Timestamps, dst.Values, dedupInterval)
-	dedups := len(dst.Timestamps) - len(timestamps)
-	dedupsDuringSelect.Add(dedups)
+	dedupSamples += len(dst.Timestamps) - len(timestamps)
+	dedupsDuringSelect.Add(dedupSamples)
 	dst.Timestamps = timestamps
 	dst.Values = values
 }
@@ -634,7 +637,7 @@ func equalTimestampsPrefix(a, b []int64) int {
 
 func equalValuesPrefix(a, b []float64) int {
 	for i, v := range a {
-		if i >= len(b) || v != b[i] {
+		if i >= len(b) || math.Float64bits(v) != math.Float64bits(b[i]) {
 			return i
 		}
 	}

@@ -52,6 +52,18 @@
           "type": "dashboard"
         },
         "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+        "hide": false,
+        "iconColor": "dark-yellow",
+        "name": "restarts",
+        "textFormat": "{{job}} restarted"
       }
     ]
   },
@@ -235,7 +247,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "count(count by(username) (vmauth_user_concurrent_requests_capacity{job=~\"$job\", instance=~\"$instance\"}))",
           "interval": "",
           "legendFormat": "",
           "range": true,

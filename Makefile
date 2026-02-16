@@ -17,7 +17,7 @@ EXTRA_GO_BUILD_TAGS ?=
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
-GOLANGCI_LINT_VERSION := 2.7.2
+GOLANGCI_LINT_VERSION := 2.9.0
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -443,7 +443,7 @@ fmt:
 	gofmt -l -w -s ./apptest
 
 vet:
-	GOEXPERIMENT=synctest go vet ./lib/...
+	go vet -tags 'synctest' ./lib/...
 	go vet ./app/...
 	go vet ./apptest/...
 
@@ -452,28 +452,25 @@ check-all: fmt vet golangci-lint govulncheck
 clean-checkers: remove-golangci-lint remove-govulncheck
 
 test:
-	GOEXPERIMENT=synctest go test ./lib/... ./app/...
+	go test -tags 'synctest' ./lib/... ./app/...
 
 test-race:
-	GOEXPERIMENT=synctest go test -race ./lib/... ./app/...
+	go test -tags 'synctest' -race ./lib/... ./app/...
 
 test-pure:
-	GOEXPERIMENT=synctest CGO_ENABLED=0 go test ./lib/... ./app/...
+	CGO_ENABLED=0 go test -tags 'synctest' ./lib/... ./app/...
 
 test-full:
-	GOEXPERIMENT=synctest go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 test-full-386:
-	GOEXPERIMENT=synctest GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
-
-integration-test:
-	$(MAKE) apptest
+	GOARCH=386 go test -tags 'synctest' -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 apptest:
 	$(MAKE) victoria-metrics vmagent vmalert vmauth vmctl vmbackup vmrestore
 	go test ./apptest/... -skip="^Test(Cluster|Legacy).*"
 
-integration-test-legacy: victoria-metrics vmbackup vmrestore
+apptest-legacy: victoria-metrics vmbackup vmrestore
 	OS=$$(uname | tr '[:upper:]' '[:lower:]'); \
 	ARCH=$$(uname -m | tr '[:upper:]' '[:lower:]' | sed 's/x86_64/amd64/'); \
 	VERSION=v1.132.0; \
@@ -490,17 +487,17 @@ integration-test-legacy: victoria-metrics vmbackup vmrestore
 	go test ./apptest/tests -run="^TestLegacySingle.*"
 
 benchmark:
-	GOEXPERIMENT=synctest go test -bench=. ./lib/...
-	go test -bench=. ./app/...
+	go test -run=NO_TESTS -bench=. ./lib/...
+	go test -run=NO_TESTS -bench=. ./app/...
 
 benchmark-pure:
-	GOEXPERIMENT=synctest CGO_ENABLED=0 go test -bench=. ./lib/...
-	CGO_ENABLED=0 go test -bench=. ./app/...
+	CGO_ENABLED=0 go test -run=NO_TESTS -bench=. ./lib/...
+	CGO_ENABLED=0 go test -run=NO_TESTS -bench=. ./app/...
 
 vendor-update:
 	go get -u ./lib/...
 	go get -u ./app/...
-	go mod tidy -compat=1.24
+	go mod tidy -compat=1.26
 	go mod vendor
 
 app-local:
@@ -524,7 +521,7 @@ install-qtc:
 
 
 golangci-lint: install-golangci-lint
-	GOEXPERIMENT=synctest golangci-lint run
+	golangci-lint run --build-tags 'synctest'
 
 install-golangci-lint:
 	which golangci-lint && (golangci-lint --version | grep -q $(GOLANGCI_LINT_VERSION)) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v$(GOLANGCI_LINT_VERSION)

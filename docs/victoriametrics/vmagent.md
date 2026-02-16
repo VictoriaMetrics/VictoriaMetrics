@@ -22,6 +22,7 @@ or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-p
 See [Quick Start](#quick-start) for details.
 
 ![vmagent](vmagent.webp)
+{width="700"}
 
 ## Motivation
 
@@ -286,15 +287,15 @@ flowchart TB
       %% Left branch
       G --> H1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
       H1 --> H2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
-      H2 --> H3[per-url extra labels<br><b>-remoteWrite.label</b>]
-      H3 --> H4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      H2 --> H3["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      H3 --> H4[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
       H4 --> H5[[push to <b>-remoteWrite.url</b>]]
 
       %% Right branch
       G --> R1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
       R1 --> R2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
-      R2 --> R3[per-url extra labels<br><b>-remoteWrite.label</b>]
-      R3 --> R4["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      R2 --> R3["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
+      R3 --> R4[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
       R4 --> R5[[push to <b>-remoteWrite.url</b>]]
 ```
 
@@ -511,15 +512,20 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 
 * The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured
   in the `-promscrape.config` file. They aren't added to metrics collected via other [data ingestion protocols](#how-to-push-data-to-vmagent).
-* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`.
+* The `-remoteWrite.label` command-line flag. These labels are added **to all the collected metrics** before sending them **to all configured `-remoteWrite.url`**.
   For example, the following command starts `vmagent`, which adds `{datacenter="foobar"}` label to all the metrics pushed
-  to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
+  to all the configured `-remoteWrite.url` destinations:
 
   ```sh
   /path/to/vmagent -remoteWrite.label=datacenter=foobar ...
   ```
 
-* Via relabeling. See [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
+* Via relabeling. Relabeling can be applied globally and per each configured `-remoteWrite.url` destination. See [Relabeling Cookbook](https://docs.victoriametrics.com/victoriametrics/relabeling/).
+* Add `extra_label` GET param to `-remoteWrite.url` address (only works when sending data to VictoriaMetrics components):
+
+  ```sh
+  /path/to/vmagent -remoteWrite.url=http://127.0.0.1:8428/api/v1/write?extra_label="env=prod"
+  ```
 
 ## Automatically generated metrics
 

@@ -42,8 +42,9 @@ jobs:
             go.sum
             Makefile
             app/**/Makefile
-          go-version: stable
+          go-version-file: 'go.mod'
 
+      - run: go version
 
       - name: Cache golangci-lint
         uses: actions/cache@v4
@@ -51,7 +52,7 @@ jobs:
           path: |
             ~/.cache/golangci-lint
             ~/go/bin
-          key: golangci-lint-${{ runner.os }}-${{ hashFiles('.golangci.yml') }}
+          key: golangci-lint-${{ runner.os }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('.golangci.yml') }}
 
       - name: Run check-all
         run: |
@@ -81,7 +82,8 @@ jobs:
             go.sum
             Makefile
             app/**/Makefile
-          go-version: stable
+          go-version-file: 'go.mod'
+      - run: go version
 
       - name: Run tests
         run: GOGC=10 make ${{ matrix.scenario}}
@@ -91,8 +93,8 @@ jobs:
         with:
           files: ./coverage.txt
 
-  integration:
-    name: integration
+  apptest:
+    name: apptest
     runs-on: ubuntu-latest
 
     steps:
@@ -107,7 +109,8 @@ jobs:
             go.sum
             Makefile
             app/**/Makefile
-          go-version: stable
+          go-version-file: 'go.mod'
+      - run: go version
 
-      - name: Run integration tests
-        run: make integration-test
+      - name: Run app tests
+        run: make apptest

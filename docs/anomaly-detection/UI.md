@@ -37,6 +37,86 @@ server:
 
 For impactful parameters please refer to [optimize resource usage](#optimize-resource-usage) section of this page.
 
+## Playgrounds
+
+To start exploring the UI, you can use embedded demo with preconfigured queries and models down below on public playgrounds (VictoriaMetrics, VictoriaLogs and VictoriaTraces):
+
+{{% collapse name="Playground on VictoriaMetrics Datasource" %}}
+
+<div class="position-relative mb-3">
+  <button
+    type="button"
+    class="btn btn-primary btn-sm position-absolute top-0 end-0 m-2"
+    style="z-index: 2;"
+    onclick="document.getElementById('vmui-playground-vmanomaly-metrics')?.requestFullscreen?.()"
+  >
+    Fullscreen
+  </button>
+
+  <iframe
+    id="vmui-playground-vmanomaly-metrics"
+    title="VictoriaMetrics Anomaly Detection Playground (Metrics)"
+    allow="fullscreen"
+    loading="lazy"
+    class="w-100 border rounded"
+    style="height: 400px; background: white;"
+    src="https://play-vmanomaly.victoriametrics.com/metrics/"
+  ></iframe>
+</div>
+
+{{% /collapse %}}
+
+{{% collapse name="Playground on VictoriaLogs Datasource" %}}
+
+<div class="position-relative mb-3">
+  <button
+    type="button"
+    class="btn btn-primary btn-sm position-absolute top-0 end-0 m-2"
+    style="z-index: 2;"
+    onclick="document.getElementById('vmui-playground-vmanomaly-logs')?.requestFullscreen?.()"
+  >
+    Fullscreen
+  </button>
+
+  <iframe
+    id="vmui-playground-vmanomaly-logs"
+    title="VictoriaMetrics Anomaly Detection Playground (Logs)"
+    allow="fullscreen"
+    loading="lazy"
+    class="w-100 border rounded"
+    style="height: 400px; background: white;"
+    src="https://play-vmanomaly.victoriametrics.com/logs/"
+  ></iframe>
+</div>
+
+{{% /collapse %}}
+
+{{% collapse name="Playground on VictoriaTraces Datasource" %}}
+
+<div class="position-relative mb-3">
+  <button
+    type="button"
+    class="btn btn-primary btn-sm position-absolute top-0 end-0 m-2"
+    style="z-index: 2;"
+    onclick="document.getElementById('vmui-playground-vmanomaly-traces')?.requestFullscreen?.()"
+  >
+    Fullscreen
+  </button>
+
+  <iframe
+    id="vmui-playground-vmanomaly-traces"
+    title="VictoriaMetrics Anomaly Detection Playground (Traces)"
+    allowfullscreen
+    allow="fullscreen"
+    loading="lazy"
+    class="w-100 border rounded"
+    style="height: 400px; background: white;"
+    src="https://play-vmanomaly.victoriametrics.com/traces/"
+  ></iframe>
+</div>
+
+{{% /collapse %}}
+
 ## Authentication
 
 {{% available_from "v1.27.0" anomaly %}} The vmanomaly UI supports proxying authentication headers from [v1.1.0](#v110) and onwards.
@@ -421,6 +501,15 @@ If the **results** look good and the **model configuration should be deployed in
 
 ## Changelog
 
+### v1.4.3
+Released: 2026-02-09
+
+vmanomaly version: [v1.28.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1287)
+
+- Update color palette in dark theme for more contrast and better visibility of anomalies and confidence intervals in the Visualization Panel.
+
+- Align Model Panel content to improve layout for smaller screens and embedded documentation.
+
 ### v1.4.2
 Released: 2026-01-17
 
@@ -483,7 +572,6 @@ vmanomaly version: [v1.27.0](https://docs.victoriametrics.com/anomaly-detection/
 - IMPROVEMENT: anomaly threshold element on [Model Panel](#model-panel) is now reactive - no need to refit a model ("Detect Anomalies" button) to see the effect from changed anomaly threshold value.
 
 - IMPROVEMENT: datasource value is initialized from the server reader config (on the first UI initialization) if [mixed mode is used](#mixed-usage). Can be reset to the default value anytime by hitting the "Reset to Default" button next to the datasource field in the [Settings Panel](#settings-panel).
-
 
 ### v1.0.0
 Released: 2025-10-02

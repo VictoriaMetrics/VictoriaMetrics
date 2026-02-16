@@ -12,12 +12,21 @@ aliases:
   - /anomaly-detection/components/reader.html
 ---
 
-VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling.
+VictoriaMetrics Anomaly Detection (`vmanomaly`) has an input of Prometheus-compatible metrics from either [VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/) accessed with [VmReader](#vm-reader) with [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) queries or from [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) / [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) accessed with [VLogsReader](#victorialogs-reader) with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries.
 
 Future updates will introduce additional readers, expanding the range of data sources `vmanomaly` can work with.
 
+## Playgrounds
+
+To ease the development and testing of queries for `vmanomaly`'s input data, following playgrounds can be used for experimenting with MetricsQL and LogsQL queries:
+
+Please see respective sections below for specific reader:
+- [MetricsQL playground](#metricsql-playground) for `VmReader`
+- [LogsQL playground](#logsql-playground) for `VLogsReader`
 
 ## VM reader
+
+{{% collapse name="Queries format migration (to v1.13.0+)" %}}
 
 > There is backward-compatible change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
 
@@ -51,10 +60,11 @@ reader:
       tz: 'UTC'  # by default, tz-free data is used throughout the model lifecycle
       # new query-level arguments will be added in backward-compatible way in future releases
 ```
+{{% /collapse %}}
 
 ### Per-query parameters
 
-There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg format. Now each query alias supports the next (sub)fields, which *override reader-level parameters*, if set:
+There is change {{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg format. Now each query alias supports the next (sub)fields, which *override reader-level parameters*, if set:
 
 - `expr` (string): MetricsQL/PromQL expression that defines an input for VmReader. As accepted by `/query_range?query=%s`. i.e. `avg(vm_blocks)`
 
@@ -418,7 +428,8 @@ Optional argument{{% available_from "v1.25.3" anomaly %}} allows specifying a ti
 </table>
 
 <br>
-Config section example:
+
+**Config section example**:
 
 ```yaml
 reader:
@@ -440,6 +451,35 @@ reader:
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'
 ```
+
+### MetricsQL Playground
+
+To experiment with MetricsQL queries for `VmReader`, you can use the [VictoriaMetrics MetricsQL Playground](https://play.victoriametrics.com/), which provides an interactive environment to test and visualize your queries against sample data. You can also access embedded version of the playground below:
+
+{{% collapse name="VictoriaMetrics Playground" %}}
+
+<div class="position-relative mb-3">
+  <button
+    type="button"
+    class="btn btn-primary btn-sm position-absolute top-0 end-0 m-2"
+    style="z-index: 2;"
+    onclick="document.getElementById('vmui-playground-metricsql')?.requestFullscreen?.()"
+  >
+    Fullscreen
+  </button>
+
+  <iframe
+    id="vmui-playground-metricsql"
+    title="VictoriaMetrics MetricsQL Playground"
+    allow="fullscreen"
+    loading="lazy"
+    class="w-100 border rounded"
+    style="height: 400px; background: white;"
+    src="https://play.victoriametrics.com/select/0/vmui/?#/?g0.range_input=24h&g0.end_input=2026-02-09T09%3A57%3A57&g0.relative_time=last_24_hours&g0.tab=0&g0.step_input=30m&g0.expr=sum%28%28rate%28node_cpu_seconds_total%7Bmode%21%3D%22idle%22%7D%5B5m%5D%29%29%29+by+%28service%29&legend_view=table&legend_hide_duplicates=true"
+  ></iframe>
+</div>
+
+{{% /collapse %}}
 
 ### mTLS protection
 
@@ -474,7 +514,6 @@ reader:
 # other config sections, like models, schedulers, writer, ...
 ```
 
-
 ### Healthcheck metrics
 
 `VmReader` exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics).
@@ -482,11 +521,11 @@ reader:
 
 ## VictoriaLogs reader
 
-{{% available_from "v1.26.0" anomaly %}} `vmanomaly` adds support for reading data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows quering and analyzing log data stored in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), enabling anomaly detection on metrics generated from logs. **Querying [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) is supported with the same reader, as the endpoints for both are equivalent.**
+{{% available_from "v1.26.0" anomaly %}} `vmanomaly` can read data from [VictoriaLogs stats queries](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats) endpoint with `VLogsReader`. This reader allows quering and analyzing log data stored in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), enabling anomaly detection on metrics generated from logs. **Querying [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) is supported with the same reader, as the endpoints for both are equivalent.**
 
-Its queries should be expressed in a subset of [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/), which is similar to MetricsQL/PromQL but adapted for log data.
+Its queries should be expressed in [LogsQL*](https://docs.victoriametrics.com/victorialogs/logsql/) language that both VictoriaLogs and VictoriaTraces support, with the focus on using [stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) functions to calculate metrics from logs.
 
-> Please be aware that `VLogsReader` is designed to work with a `/select/stats_query_range` endpoint of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), so the `<query>` expressions must contain `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) (see [query-examples](#query-examples) section below). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe, where `stats_func*` is any of the supported [stats function subset](#valid-stats-functions) of [available stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions), while the `result_name*` is the name of the log field to store the result of the corresponding stats function. The `as` keyword is optional.
+> Please be aware that `VLogsReader` is designed to work with a `/select/stats_query_range` endpoint of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), so the `<query>` expressions must ends with `stats` [pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) (see [query-examples](#query-examples) section below). The calculated stats is converted into metrics with labels from `by(...)` clause of the `| stats by(...)` pipe, where `stats_func*` is any of the supported [stats function subset](#valid-stats-functions) of [available stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions), while the `result_name*` is the name of the log field to store the result of the corresponding stats function. The `as` keyword is optional.
 
 ### Valid stats functions
 `VLogsReader` relies on [stats pipe functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) that return **numeric values**, which can be used for anomaly detection on timeseries (metrics). The future addition of similar stats functions in VictoriaLogs will be supported automatically, as long as they return **numeric values**.
@@ -508,21 +547,109 @@ The supported stats functions currently include:
 
 ### Query Examples
 
-> You can test your LogsQL queries with stats pipe functions using our [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/) or [VictoriaTraces playground](https://play-vtraces.victoriametrics.com/). Use either UI to access graphical results or the `/select/logsql/stats_query_range` endpoint to run your queries and see the raw results, e.g. as this [sample query](https://play-vmlogs.victoriametrics.com/select/logsql/stats_query_range?query=_time%3A5m%20%7C%20stats%20by%20%28_stream%29%20count%28%29%20as%20sample_row&step=1m).
+#### VictoriaLogs
 
-Here are examples of simple valid LogsQL queries with stats pipe functions that can be used with `VLogsReader`.
+Here are examples of simple [valid LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries with stats pipe functions that can be used with `VLogsReader`.
 
-The following query returns the average value for the duration field over logs matching the [filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters) for `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word):
-
+1. Ingestion volume - good baseline time series, for detecting dropouts/spikes without depending on any schema.
+```shellhelp
+* | stats count() as logs
 ```
-error | stats avg(duration) as avg_error_duration
-``` 
 
-It is possible to calculate the average over fields with common prefix via `avg(prefix*)` syntax. For example, the following query calculates the number of logs with `foo` prefix having `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word):
+2. Ingestion rate (normalized) - good for detecting dropouts/spikes without depending on any schema, and also for detecting changes in log volume trends.
+```shellhelp
+* | stats rate() as logs_per_sec
+```
 
+3. Per-stream rate - good for detecting dropouts/spikes on individual streams, and also for detecting changes in log volume trends on stream level.
+```shellhelp
+* | stats by (_stream) rate() as logs_per_sec
 ```
-error | stats count(foo*) as foo_error_count
+
+4. Active stream churn - good for detecting changes in the number of active streams. Catches "new sources exploded"/"sources disappeared" patterns.
+```shellhelp
+* | stats count_uniq(_stream) as active_streams
 ```
+
+5. Avg logs per stream - good for detecting changes in log volume trends on stream level, without depending on the number of streams (sources). Catches "new sources exploded"/"sources disappeared" patterns, as well as changes in log volume on stream level.
+```shellhelp
+* | stats count() as logs, count_uniq(_stream_id) as streams | math (logs / max(streams, 1)) as logs_per_stream
+```
+
+6. Max message size - good for detecting changes in log message size patterns, which can be an indicator of changes in log structure or content.
+```shellhelp
+* | len(_msg) as msg_len | stats max(msg_len) as max_msg_len
+```
+
+7. P90 word per message - good for detecting changes in the distribution of words per message, which can indicate changes in log content or structure.
+```shellhelp
+* | unpack_words as words drop_duplicates | json_array_len(words) as words_count | stats quantile(0.9, words_count) as p90_words_per_msg
+```
+
+#### VictoriaTraces
+
+> [!TIP]
+Almost identical to VictoriaLogs, but in VictoriaTraces you'll need to exclude index entries. Basically replace `*` with a filter, e.g. `{"resource_attr:service.name"!=""}` to select only spans with non-empty `service.name` resource attribute.
+
+1. Ingestion volume - good baseline time series, for detecting dropouts/spikes without depending on any schema.
+```
+{"resource_attr:service.name"!=""} | stats count() as spans
+```
+or for the rate:
+```shellhelp
+{"resource_attr:service.name"!=""} | stats rate() as spans_per_sec
+```
+
+2. Error volume - good for detecting dropouts/spikes in error spans, without depending on any schema. In VictoriaLogs you can use similar query with `status_code` field, if it exists in your logs.
+```
+# spans with `status_code=2`, see: https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/trace/v1/trace.proto#L323
+{"resource_attr:service.name"!=""} AND status_code := "2" | stats count() as error_spans
+```
+or for the rate:
+```shellhelp
+{"resource_attr:service.name"!=""} AND status_code := "2" | stats rate() as error_spans_per_sec
+```
+
+> [!TIP]
+[The stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaTraces means "service_name & span_name" combination.
+
+```shellhelp
+{"resource_attr:service.name"!=""} | stats count_uniq(_stream) as active_streams
+```
+
+### LogsQL playground
+
+To experiment with LogsQL queries for `VLogsReader`, you can use the [VictoriaLogs LogsQL Playground](https://play-vmlogs.victoriametrics.com/), which provides an interactive environment to test and visualize your queries against sample log data.
+
+Similarly, [VictoriaTraces LogsQL Playground](https://play-vtraces.victoriametrics.com/) can be used for testing LogsQL queries against sample trace data.
+
+You can also access **embedded version of the playground below** (VictoriaLogs datasource):
+
+{{% collapse name="VictoriaLogs LogsQL Playground" %}}
+
+<div class="position-relative mb-3">
+  <button
+    type="button"
+    class="btn btn-primary btn-sm position-absolute top-0 end-0 m-2"
+    style="z-index: 2;"
+    onclick="document.getElementById('vmui-playground-logsql')?.requestFullscreen?.()"
+  >
+    Fullscreen
+  </button>
+
+  <iframe
+    id="vmui-playground-logsql"
+    title="VictoriaLogs LogsQL Playground"
+    allow="fullscreen"
+    loading="lazy"
+    class="w-100 border rounded"
+    style="height: 400px; background: white;"
+    src="https://play-vmlogs.victoriametrics.com/select/vmui/?#/?query=*+%7C+stats+rate%28%29+as+logs_per_sec&g0.range_input=30m&g0.end_input=2026-02-09T10%3A01%3A26&g0.relative_time=last_30_minutes&graph_mode=stats&limit=100&bars_count=48"
+  ></iframe>
+</div>
+
+{{% /collapse %}}
+
 
 ### Config parameters
 
