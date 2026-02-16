@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add JWT token authentication support with signature verification based on provided `public_keys`. Read more about configuration in [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) documentation. See [#10445](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10445).
+* FEATURE: all VictoriaMetrics components: expose `process_cpu_seconds_total`, `process_resident_memory_bytes`, and other process-level metrics when running on macOS. See [metrics#75](https://github.com/VictoriaMetrics/metrics/issues/75).
 
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
 
