@@ -14,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
+	"github.com/prometheus/common/model"
 	"github.com/valyala/fastjson/fastfloat"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -527,6 +528,14 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 		return err
 	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
+	
+	if strings.HasPrefix(labelName, "U__") {
+		// This label seems to be Unicode-encoded according to the Prometheus spec.
+		// See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
+		// Spec: https://github.com/prometheus/proposals/blob/main/proposals/0028-utf8.md
+		labelName = model.UnescapeName(labelName, model.ValueEncodingEscaping)
+	}
+
 	labelValues, err := netstorage.LabelValues(qt, labelName, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
