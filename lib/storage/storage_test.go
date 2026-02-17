@@ -1011,6 +1011,7 @@ func TestStorageSearchTenantsOnDate(t *testing.T) {
 	date2 := baseDate + msecPerDay
 	date3 := baseDate + 2*msecPerDay
 	date5 := baseDate + 5*msecPerDay
+	date6 := baseDate + 6*msecPerDay
 	date7 := baseDate + 7*msecPerDay
 
 	tr := TimeRange{MinTimestamp: date1, MaxTimestamp: date1}
@@ -1024,10 +1025,13 @@ func TestStorageSearchTenantsOnDate(t *testing.T) {
 	tr = TimeRange{MinTimestamp: date3, MaxTimestamp: date3}
 	s.AddRows(generateMetricRows(2, 21, tr), defaultPrecisionBits)
 
-	// special case create series at 1:0 tenant for 7 date only
-	// and a second set of series for 1000:5 tenant for date range 5-7
-	s.AddRows(generateMetricRows(1, 0, TimeRange{MinTimestamp: date7, MaxTimestamp: date7}), defaultPrecisionBits)
+	// special case for multi date ingestion
+	// date5 - 500:100,1000:5
+	// date6 - 500:100,1000:5
+	// date7 - 1:0,1000:5
+	s.AddRows(generateMetricRows(500, 100, TimeRange{MinTimestamp: date5, MaxTimestamp: date6}), defaultPrecisionBits)
 	s.AddRows(generateMetricRows(1000, 5, TimeRange{MinTimestamp: date5, MaxTimestamp: date7}), defaultPrecisionBits)
+	s.AddRows(generateMetricRows(1, 0, TimeRange{MinTimestamp: date7, MaxTimestamp: date7}), defaultPrecisionBits)
 
 	// flush all rows
 	s.DebugFlush()
@@ -1041,7 +1045,7 @@ func TestStorageSearchTenantsOnDate(t *testing.T) {
 		slices.Sort(got)
 		slices.Sort(expected)
 		if !reflect.DeepEqual(got, expected) {
-			t.Fatalf("unexpected tenants for %v;\ngot %v\nwant %v", tr, strings.Join(got, ","), strings.Join(expected, ","))
+			t.Fatalf("unexpected tenants for %q;\ngot %q\nwant %q", tr.String(), strings.Join(got, ","), strings.Join(expected, ","))
 		}
 	}
 
@@ -1067,7 +1071,7 @@ func TestStorageSearchTenantsOnDate(t *testing.T) {
 
 	// global index time range
 	tr = TimeRange{MinTimestamp: baseDate, MaxTimestamp: math.MaxInt64}
-	f(tr, []string{"1:0", "1:10", "1:11", "2:20", "2:21", "3:30", "1000:5"})
+	f(tr, []string{"1:0", "1:10", "1:11", "2:20", "2:21", "3:30", "500:100", "1000:5"})
 }
 
 func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
