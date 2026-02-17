@@ -810,9 +810,9 @@ func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, er
 	is.accountID = 0
 	is.projectID = 0
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
-	prefixNeeded := byte(nsPrefixDateTagToMetricIDs)
-	if date == globalIndexDate {
-		prefixNeeded = nsPrefixTagToMetricIDs
+	_, prefixNeeded, _, _, err := unmarshalCommonPrefix(kb.B)
+	if err != nil {
+		logger.Panicf("BUG: cannot unmarshal common prefix from %q: %s", kb.B, err)
 	}
 	ts.Seek(kb.B)
 	for ts.NextItem() {
@@ -822,7 +822,7 @@ func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, er
 			}
 		}
 		loopsPaceLimiter++
-		tail, prefix, accountID, projectID, err := unmarshalCommonPrefix(ts.Item)
+		_, prefix, itemDate, accountID, projectID, err := unmarshalCommonPrefixForDate(ts.Item, date)
 		if err != nil {
 			return nil, err
 		}
@@ -830,25 +830,15 @@ func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, er
 			// Reached the end of entries with the needed prefix.
 			break
 		}
-		if prefix == nsPrefixDateTagToMetricIDs {
-			// search for exact date
-			if len(tail) < 8 {
-				return nil, fmt.Errorf("cannot unmarshal date from tail: %d", len(tail))
-			}
-			keyDate := encoding.UnmarshalUint64(tail)
-			if keyDate < date {
-				// Seek for the given date for the current (accountID, projectID)
-				is.accountID = accountID
-				is.projectID = projectID
-				kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
-				ts.Seek(kb.B)
-				continue
-			}
-			if keyDate == date {
-				tenant := fmt.Sprintf("%d:%d", accountID, projectID)
-				tenants[tenant] = struct{}{}
-			}
-		} else {
+		if date != 0 && itemDate < date {
+			// Seek for the given date for the current (accountID, projectID)
+			is.accountID = accountID
+			is.projectID = projectID
+			kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
+			ts.Seek(kb.B)
+			continue
+		}
+		if date == 0 || itemDate == date {
 			tenant := fmt.Sprintf("%d:%d", accountID, projectID)
 			tenants[tenant] = struct{}{}
 		}
@@ -3257,6 +3247,24 @@ func (is *indexSearch) marshalCommonPrefixForDate(dst []byte, date uint64) []byt
 	// Per-day index
 	dst = is.marshalCommonPrefix(dst, nsPrefixDateTagToMetricIDs)
 	return encoding.MarshalUint64(dst, date)
+}
+
+func unmarshalCommonPrefixForDate(src []byte, date uint64) ([]byte, byte, uint64, uint32, uint32, error) {
+	tail, prefix, accountID, projectID, err := unmarshalCommonPrefix(src)
+	if err != nil {
+		return nil, 0, 0, 0, 0, err
+	}
+	if date == globalIndexDate {
+		// Global index
+		return tail, prefix, 0, accountID, projectID, nil
+	}
+	// Per-day index
+	if len(tail) < 8 {
+		return nil, 0, 0, 0, 0, fmt.Errorf("cannot unmarshal date from %d bytes; need at least %d bytes; data=%X", len(src), 8, src)
+	}
+	itemDate := encoding.UnmarshalUint64(tail)
+	return src[commonPrefixLen:], prefix, itemDate, accountID, projectID, nil
+
 }
 
 func unmarshalCommonPrefix(src []byte) ([]byte, byte, uint32, uint32, error) {
