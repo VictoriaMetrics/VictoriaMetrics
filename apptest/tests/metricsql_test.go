@@ -242,16 +242,17 @@ func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQueri
 }
 
 func testLabelValuesWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+
 	data := prompb.WriteRequest{
 		Timeseries: []prompb.TimeSeries{
 			{
 				Labels: []prompb.Label{
 					{Name: "__name__", Value: "labelvals"},
-					{Name: "kubernetes.something/special&'chars", Value: "漢©®€£"},
+					{Name: "kubernetes_something/special&' chars", Value: "漢©®€£"},
 					{Name: "3👋tfにちは", Value: "漢©®€£"},
 				},
 				Samples: []prompb.Sample{
-					{Value: 1, Timestamp: millis("2024-01-01T00:01:00Z")},
+					{Value: 1, Timestamp: millis("2026-02-17T00:01:00Z")},
 				},
 			},
 		},
@@ -265,12 +266,11 @@ func testLabelValuesWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerie
 	// encoded via prometheus model.EscapeName(string,model.ValueEncodingEscaping)
 	want := map[string][]string{
 		"__name__": {"labelvals"},
-		"U__kubernetes_2e_something_2f_special_26__27_chars": {"漢©®€£"},
+		"U__kubernetes__something_2f_special_26__27__20_chars": {"漢©®€£"},
 		"U___33__1f44b_tf_306b__3061__306f_":                 {"漢©®€£"},
 	}
 	for labelName, expected := range want {
 		got := sut.PrometheusAPIV1LabelValues(t, labelName, `{__name__="labelvals"}`, apptest.QueryOpts{})
-		fmt.Println(got)
 		if diff := cmp.Diff(expected, got.Data, cmpOptions...); diff != "" {
 			t.Errorf("unexpected response (-want, +got):\n%s", diff)
 		}
