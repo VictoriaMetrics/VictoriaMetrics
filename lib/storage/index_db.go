@@ -810,9 +810,9 @@ func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, er
 	is.accountID = 0
 	is.projectID = 0
 	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
-	_, prefixNeeded, _, _, err := unmarshalCommonPrefix(kb.B)
-	if err != nil {
-		logger.Panicf("BUG: cannot unmarshal common prefix from %q: %s", kb.B, err)
+	prefixNeeded := byte(nsPrefixDateTagToMetricIDs)
+	if date == globalIndexDate {
+		prefixNeeded = nsPrefixTagToMetricIDs
 	}
 	ts.Seek(kb.B)
 	for ts.NextItem() {
@@ -827,26 +827,32 @@ func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, er
 			return nil, err
 		}
 		if prefix != prefixNeeded {
-			// Reached the end of enteris with the needed prefix.
+			// Reached the end of entries with the needed prefix.
 			break
 		}
-		// unmarshal date.
-		keyDate := uint64(0)
-		if len(tail) >= 8 {
-			keyDate = encoding.UnmarshalUint64(tail)
-		}
-		if date == 0 || keyDate == date {
+		if prefix == nsPrefixDateTagToMetricIDs {
+			// search for exact date
+			if len(tail) < 8 {
+				return nil, fmt.Errorf("cannot unmarshal date from tail: %d", len(tail))
+			}
+			keyDate := encoding.UnmarshalUint64(tail)
+			if keyDate < date {
+				// Seek for the given date for the current (accountID, projectID)
+				is.accountID = accountID
+				is.projectID = projectID
+				kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
+				ts.Seek(kb.B)
+				continue
+			}
+			if keyDate == date {
+				tenant := fmt.Sprintf("%d:%d", accountID, projectID)
+				tenants[tenant] = struct{}{}
+			}
+		} else {
 			tenant := fmt.Sprintf("%d:%d", accountID, projectID)
 			tenants[tenant] = struct{}{}
 		}
-		if date != 0 && keyDate < date {
-			// Seek for the given date for the current (accountID, projectID)
-			is.accountID = accountID
-			is.projectID = projectID
-			kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
-			ts.Seek(kb.B)
-			continue
-		}
+
 		// Seek for the next (accountID, projectID)
 		projectID++
 		if projectID == 0 {
