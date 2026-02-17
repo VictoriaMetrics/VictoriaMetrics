@@ -15,7 +15,7 @@ aliases:
 
 ## PreRequisites
 
-1. Make sure you have these tools installed `golang`, `docker`, `make`, `git`, `gcc`, `ca-certificates`, `curl`, `zip`:
+1. Make sure you have these tools installed `golang`, `docker`, `make`, `git`, `gcc`, `ca-certificates`, `curl`, `zip`, `jq`:
 1. Make sure you have `enterprise` remote configured
 
    ```sh
@@ -135,6 +135,11 @@ and the candidate is deployed to the sandbox environment.
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
+   * c) Generate and attach [CycloneDX](https://cyclonedx.org/) SBOMs (Software Bill of Materials) to each published Docker image
+      using [syft](https://github.com/anchore/syft) and [oras](https://oras.land/). SBOMs are attached to both Alpine and scratch
+      image variants across all registries (docker.io, quay.io). SBOM failures are non-blocking and will not stop the release.
+      SBOMs can be verified with `oras discover --artifact-type application/vnd.cyclonedx+json <image-ref>` or consumed
+      by vulnerability scanners such as [Trivy](https://github.com/aquasecurity/trivy) via `trivy image --sbom-sources oci <image-ref>`.
 
 1. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
 
@@ -167,7 +172,7 @@ Issues included in the release are closed, with the comment.
 
 1. Review the performance of the release candidate in the sandbox environment.
    If any issues are found, they must be addressed, and the release process restarted from [Step 1](#step-1) with an incremented release candidate version.
-1. Run `TAG=v1.xx.y EXTRA_DOCKER_TAG_SUFFIX=-rc1 make publish-final-images`. This command publishes the final release images from release candidate image for given `EXTRA_DOCKER_TAG_SUFFIX` and updates  `latest` Docker image tag for the given `TAG`.
+1. Run `TAG=v1.xx.y EXTRA_DOCKER_TAG_SUFFIX=-rc1 make publish-final-images`. This command publishes the final release images from release candidate image for given `EXTRA_DOCKER_TAG_SUFFIX`, generates and attaches SBOMs to each final image, and updates `latest` Docker image tag for the given `TAG`.
    This command must be run only for the latest officially published release. It must be skipped when publishing other releases such as
    [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) or some test releases.
 1. Deploy the final images to the sandbox environment and perform a quick smoke test to verify basic functionality works.

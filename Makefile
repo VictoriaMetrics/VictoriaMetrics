@@ -209,6 +209,40 @@ vmutils-crossbuild: \
 	vmutils-openbsd-amd64 \
 	vmutils-windows-amd64
 
+publish-sboms: \
+	publish-sbom-victoria-metrics \
+	publish-sbom-vmagent \
+	publish-sbom-vmalert \
+	publish-sbom-vmalert-tool \
+	publish-sbom-vmauth \
+	publish-sbom-vmbackup \
+	publish-sbom-vmrestore \
+	publish-sbom-vmctl
+
+publish-sbom-victoria-metrics:
+	APP_NAME=victoria-metrics $(MAKE) publish-sbom
+
+publish-sbom-vmagent:
+	APP_NAME=vmagent $(MAKE) publish-sbom
+
+publish-sbom-vmalert:
+	APP_NAME=vmalert $(MAKE) publish-sbom
+
+publish-sbom-vmalert-tool:
+	APP_NAME=vmalert-tool $(MAKE) publish-sbom
+
+publish-sbom-vmauth:
+	APP_NAME=vmauth $(MAKE) publish-sbom
+
+publish-sbom-vmbackup:
+	APP_NAME=vmbackup $(MAKE) publish-sbom
+
+publish-sbom-vmrestore:
+	APP_NAME=vmrestore $(MAKE) publish-sbom
+
+publish-sbom-vmctl:
+	APP_NAME=vmctl $(MAKE) publish-sbom
+
 publish-final-images:
 	PKG_TAG=$(TAG) APP_NAME=victoria-metrics $(MAKE) publish-via-docker-from-rc && \
 	PKG_TAG=$(TAG) APP_NAME=vmagent $(MAKE) publish-via-docker-from-rc && \
