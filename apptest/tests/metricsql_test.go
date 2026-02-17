@@ -241,6 +241,9 @@ func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQueri
 	}
 }
 
+// This test checks that label values are decoded from UTF-8 according to Prometheus spec.
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10446
+// Spec: https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
 func testLabelValuesWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 
 	data := prompb.WriteRequest{
