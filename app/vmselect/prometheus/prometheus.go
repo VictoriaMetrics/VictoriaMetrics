@@ -528,7 +528,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 		return err
 	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
-	
+
 	if strings.HasPrefix(labelName, "U__") {
 		// This label seems to be Unicode-encoded according to the Prometheus spec.
 		// See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
