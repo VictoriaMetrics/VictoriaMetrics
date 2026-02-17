@@ -11,7 +11,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
-const metricIDCacheShardCount = 16
+const (
+	metricIDCacheShardCount = 16
+
+	// The number of consecutive metricIDs that will be stored in a single cache
+	// shard. This is 2^16 and corresponds to the size of a 16-bit bucket of the
+	// uint64set. That way the metricIDs end up in one uint64set bucket instead
+	// of being spread across multiple buckets. This reduces the memory size of
+	// the cache and allows for faster access.
+	metricIDCacheShardBucketSize = 65536
+)
 
 // metricIDCache stores metricIDs that have been added to the index. It is used
 // during data ingestion to decide whether a new entry needs to be added to the
@@ -63,12 +72,12 @@ func (c *metricIDCache) Stats() metricIDCacheStats {
 }
 
 func (c *metricIDCache) Has(metricID uint64) bool {
-	shardIdx := (metricID / 65536) % metricIDCacheShardCount
+	shardIdx := (metricID / metricIDCacheShardBucketSize) % metricIDCacheShardCount
 	return c.shards[shardIdx].Has(metricID)
 }
 
 func (c *metricIDCache) Set(metricID uint64) {
-	shardIdx := (metricID / 65536) % metricIDCacheShardCount
+	shardIdx := (metricID / metricIDCacheShardBucketSize) % metricIDCacheShardCount
 	c.shards[shardIdx].Set(metricID)
 }
 
