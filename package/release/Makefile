@@ -92,7 +92,7 @@ github-get-release: github-token-check github-tag-check
 		"https://api.github.com/repos/VictoriaMetrics/VictoriaMetrics/releases?per_page=5" \
 		| jq '.[] | select(.draft == true and .tag_name == "$(TAG)")' > "$(GITHUB_RELEASE_SPEC_FILE)"
 	@if [ ! -s "$(GITHUB_RELEASE_SPEC_FILE)" ]; then \
-		echo "Error: Release file is empty"; \
+		echo "Could not find draft release $(TAG)"; \
 		exit 1; \
 	fi
-	@echo "Release data stored in $(GITHUB_RELEASE_SPEC_FILE)"
+	@echo "Release data was stored in $(GITHUB_RELEASE_SPEC_FILE)"
