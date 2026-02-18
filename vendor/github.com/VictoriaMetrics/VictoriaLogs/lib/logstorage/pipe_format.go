@@ -62,6 +62,10 @@ func (pf *pipeFormat) canReturnLastNResults() bool {
 	return pf.resultField != "_time"
 }
 
+func (pf *pipeFormat) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pf *pipeFormat) updateNeededFields(f *prefixfilter.Filter) {
 	if !f.MatchString(pf.resultField) {
 		return
@@ -140,7 +144,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.rc.name = pf.resultField
 
 	resultColumn := br.getColumnByName(pf.resultField)
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		v := ""
 		if pf.iff == nil || bm.isSetBit(rowIdx) {
 			v = shard.formatRow(pf, br, rowIdx)
@@ -363,7 +367,7 @@ func appendURLDecode(dst []byte, s string) []byte {
 
 func appendURLEncode(dst []byte, s string) []byte {
 	n := len(s)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		c := s[i]
 
 		// See http://www.w3.org/TR/html5/forms.html#form-submission-algorithm
@@ -426,7 +430,7 @@ func appendHexUint64Decode(dst []byte, s string) []byte {
 }
 
 func appendHexEncode(dst []byte, s string) []byte {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		hi := hexCharUpper(c >> 4)
 		lo := hexCharUpper(c & 15)

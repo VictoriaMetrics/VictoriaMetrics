@@ -199,7 +199,7 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		byColumns := slicesutil.SetLength(shard.byColumns, 1)
 		byColumnsIsTime := slicesutil.SetLength(shard.byColumnsIsTime, 1)
 		bb := bbPool.Get()
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		for rowIdx := range br.rowsLen {
 			bb.B = bb.B[:0]
 			for i, values := range byColumnValues {
 				v := values[rowIdx]
@@ -254,7 +254,7 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		if slices.Contains(byColumnsIsTime, true) {
 			timestamps = br.getTimestamps()
 		}
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		for rowIdx := range br.rowsLen {
 			for i, values := range byColumnValues {
 				v := ""
 				if !byColumnsIsTime[i] {
@@ -395,11 +395,9 @@ func (ptp *pipeTopkProcessor) flush() error {
 
 	var wg sync.WaitGroup
 	for _, shard := range shards {
-		wg.Add(1)
-		go func(shard *pipeTopkProcessorShard) {
-			defer wg.Done()
+		wg.Go(func() {
 			shard.sortRows(ptp.stopCh)
-		}(shard)
+		})
 	}
 	wg.Wait()
 
