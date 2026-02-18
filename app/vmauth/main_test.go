@@ -1053,7 +1053,7 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 		if !canRetry {
 			t.Fatalf("canRetry() must return true before reading anything")
 		}
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			data, err := io.ReadAll(rb)
 			if err != nil {
 				t.Fatalf("unexpected error when reading all the data at iteration %d: %s", i, err)
@@ -1111,7 +1111,7 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 		if !canRetry {
 			t.Fatalf("canRetry must return true")
 		}
-		for i := 0; i < len(s); i++ {
+		for i := range len(s) {
 			buf := make([]byte, i)
 			n, err := io.ReadFull(rb, buf)
 			if err != nil {
