@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -832,12 +833,7 @@ func GraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline sea
 }
 
 func hasString(a []string, s string) bool {
-	for _, x := range a {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a, s)
 }
 
 // LabelValues returns label values matching the given labelName and sq until the given deadline.

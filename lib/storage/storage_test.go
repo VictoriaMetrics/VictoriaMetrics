@@ -724,12 +724,7 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 		return fmt.Errorf("unexpected number of label names found; got %d; want at least %d; lns=%q, lnsExpected=%v", len(lns), len(lnsExpected), lns, lnsExpected)
 	}
 	hasItem := func(s string, lns []string) bool {
-		for _, labelName := range lns {
-			if s == labelName {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(lns, s)
 	}
 	for labelName := range lnsExpected {
 		if !hasItem(labelName, lns) {

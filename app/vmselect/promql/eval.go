@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -1935,14 +1936,7 @@ func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]flo
 		return values, timestamps
 	}
 	// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.
-	hasStaleSamples := false
-	for _, v := range values {
-		if decimal.IsStaleNaN(v) {
-			hasStaleSamples = true
-			break
-		}
-	}
-	if !hasStaleSamples {
+	if !slices.ContainsFunc(values, decimal.IsStaleNaN) {
 		// Fast path: values have no Prometheus staleness marks.
 		return values, timestamps
 	}
