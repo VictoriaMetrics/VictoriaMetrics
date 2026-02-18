@@ -24,7 +24,7 @@ func TestConnPoolStartStopConcurrent(t *testing.T) {
 	ms := metrics.NewSet()
 	concurrency := 5
 	ch := make(chan struct{})
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		name := fmt.Sprintf("foobar_%d", i)
 		go func() {
 			testConnPoolStartStop(t, name, ms)
@@ -32,7 +32,7 @@ func TestConnPoolStartStopConcurrent(t *testing.T) {
 		}()
 	}
 	tc := time.NewTimer(time.Second * 5)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		select {
 		case <-tc.C:
 			t.Fatalf("timeout")
@@ -47,7 +47,7 @@ func testConnPoolStartStop(t *testing.T, name string, ms *metrics.Set) {
 	dialTimeout := 5 * time.Second
 	compressLevel := 1
 	var cps []*ConnPool
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		addr := fmt.Sprintf("host-%d", i)
 		cp := NewConnPool(ms, name, addr, handshake.VMSelectClient, compressLevel, dialTimeout, 0)
 		cps = append(cps, cp)
@@ -82,7 +82,7 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 	connChan := make(chan *handshake.BufferedConn, concurrency)
 
 	// concurrent create connections
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		go func() {
 			conn, err := cp.Get()
 			if err != nil {

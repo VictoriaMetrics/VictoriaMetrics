@@ -19,7 +19,7 @@ func benchmarkFilterAdd(b *testing.B, maxItems int) {
 		f := newFilter(maxItems)
 		for pb.Next() {
 			h := uint64(0)
-			for i := 0; i < 10000; i++ {
+			for range 10000 {
 				h += uint64(maxItems)
 				f.Add(h)
 			}
@@ -41,13 +41,13 @@ func benchmarkFilterHasHit(b *testing.B, maxItems int) {
 	b.RunParallel(func(pb *testing.PB) {
 		f := newFilter(maxItems)
 		h := uint64(0)
-		for i := 0; i < 10000; i++ {
+		for range 10000 {
 			h += uint64(maxItems)
 			f.Add(h)
 		}
 		for pb.Next() {
 			h = 0
-			for i := 0; i < 10000; i++ {
+			for range 10000 {
 				h += uint64(maxItems)
 				if !f.Has(h) {
 					panic(fmt.Errorf("missing item %d", h))
@@ -71,7 +71,7 @@ func benchmarkFilterHasMiss(b *testing.B, maxItems int) {
 		f := newFilter(maxItems)
 		for pb.Next() {
 			h := uint64(0)
-			for i := 0; i < 10000; i++ {
+			for range 10000 {
 				h += uint64(maxItems)
 				if f.Has(h) {
 					panic(fmt.Errorf("unexpected item %d", h))

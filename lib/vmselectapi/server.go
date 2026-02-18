@@ -614,7 +614,7 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("too many metric names in a single request; got %d; mustn't exceed %d", metricsCount, maxMetricNamesPerRequest)
 	}
 	mrs := make([]storage.MetricRow, metricsCount)
-	for i := 0; i < int(metricsCount); i++ {
+	for i := range int(metricsCount) {
 		if err := ctx.readDataBufBytes(maxMetricNameRawSize); err != nil {
 			return fmt.Errorf("cannot read metricNameRaw: %w", err)
 		}
