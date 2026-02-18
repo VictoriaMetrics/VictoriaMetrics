@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"net/url"
 	"sync"
 	"time"
@@ -97,9 +98,7 @@ type groupMetrics struct {
 // set2 has priority over set1.
 func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[string]string {
 	r := map[string]string{}
-	for k, v := range set1 {
-		r[k] = v
-	}
+	maps.Copy(r, set1)
 	for k, v := range set2 {
 		if prevV, ok := r[k]; ok {
 			logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
