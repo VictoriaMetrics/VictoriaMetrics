@@ -983,7 +983,7 @@ func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
 		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least %d bytes", len(src), 8*mLen)
 	}
 	m := &uint64set.Set{}
-	for i := uint64(0); i < mLen; i++ {
+	for range mLen {
 		metricID := encoding.UnmarshalUint64(src)
 		src = src[8:]
 		m.Add(metricID)

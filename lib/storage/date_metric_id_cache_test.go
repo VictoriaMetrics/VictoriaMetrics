@@ -21,12 +21,12 @@ func TestDateMetricIDCacheConcurrent(t *testing.T) {
 	c := newDateMetricIDCache()
 	defer c.MustStop()
 	ch := make(chan error, 5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		go func() {
 			ch <- testDateMetricIDCache(c, true)
 		}()
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		select {
 		case err := <-ch:
 			if err != nil {
@@ -44,7 +44,7 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 		metricID uint64
 	}
 	m := make(map[dmk]bool)
-	for i := 0; i < 1e5; i++ {
+	for i := range int(1e5) {
 		date := uint64(i) % 2
 		metricID := uint64(i) % 1237
 		if !concurrent && c.Has(date, metricID) {
@@ -72,7 +72,7 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	}
 
 	// Verify fast path after sync.
-	for i := 0; i < 1e5; i++ {
+	for i := range int(1e5) {
 		date := uint64(i) % 2
 		metricID := uint64(i) % 123
 		c.Set(date, metricID)
@@ -80,7 +80,7 @@ func testDateMetricIDCache(c *dateMetricIDCache, concurrent bool) error {
 	c.mu.Lock()
 	c.syncLocked()
 	c.mu.Unlock()
-	for i := 0; i < 1e5; i++ {
+	for i := range int(1e5) {
 		date := uint64(i) % 2
 		metricID := uint64(i) % 123
 		if !concurrent && !c.Has(date, metricID) {

@@ -82,7 +82,7 @@ func TestTSIDMarshalUnmarshal(t *testing.T) {
 	var tsid TSID
 	testTSIDMarshalUnmarshal(t, &tsid)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		initTestTSID(&tsid)
 
 		testTSIDMarshalUnmarshal(t, &tsid)

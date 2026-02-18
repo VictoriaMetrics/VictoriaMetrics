@@ -40,7 +40,7 @@ func BenchmarkStorageAddRows(b *testing.B) {
 			}
 			for pb.Next() {
 				offset := int(globalOffset.Add(uint64(numRows)))
-				for i := 0; i < numRows; i++ {
+				for i := range numRows {
 					mr := &mrs[i]
 					mr.MetricNameRaw = mn.marshalRaw(mr.MetricNameRaw[:0])
 					mr.Timestamp = int64(offset + i)
