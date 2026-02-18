@@ -271,7 +271,7 @@ func testSetBigGetBigStatsInSplitMode(t *testing.T, c *Cache) {
 
 	v := func(seed, size int) []byte {
 		var buf []byte
-		for i := 0; i < size; i++ {
+		for i := range size {
 			buf = append(buf, byte(i+seed))
 		}
 		return buf
@@ -530,7 +530,7 @@ func TestSetBigGetBigStatsInWholeMode_cacheLoadedFromNonEmptyFile(t *testing.T) 
 	synctest.Test(t, func(t *testing.T) {
 		v := func(seed, size int) []byte {
 			var buf []byte
-			for i := 0; i < size; i++ {
+			for i := range size {
 				buf = append(buf, byte(i+seed))
 			}
 			return buf

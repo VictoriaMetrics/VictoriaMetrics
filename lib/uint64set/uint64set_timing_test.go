@@ -216,7 +216,7 @@ func BenchmarkSubtract(b *testing.B) {
 
 func createRangeSet(start uint64, itemsCount int) *Set {
 	var s Set
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		n := start + uint64(i)
 		s.Add(n)
 	}
@@ -235,7 +235,7 @@ func BenchmarkSetAddRandomLastBits(b *testing.B) {
 				for pb.Next() {
 					start := uint64(time.Now().UnixNano())
 					var s Set
-					for i := 0; i < itemsCount; i++ {
+					for range int(itemsCount) {
 						n := start | (uint64(rng.Uint32()) & mask)
 						s.Add(n)
 					}
@@ -257,7 +257,7 @@ func BenchmarkMapAddRandomLastBits(b *testing.B) {
 				for pb.Next() {
 					start := uint64(time.Now().UnixNano())
 					m := make(map[uint64]struct{})
-					for i := 0; i < itemsCount; i++ {
+					for range int(itemsCount) {
 						n := start | (uint64(rng.Uint32()) & mask)
 						m[n] = struct{}{}
 					}
@@ -362,7 +362,7 @@ func BenchmarkSetHasHitRandomLastBits(b *testing.B) {
 			start := uint64(time.Now().UnixNano())
 			var s Set
 			var rng fastrand.RNG
-			for i := 0; i < itemsCount; i++ {
+			for range int(itemsCount) {
 				n := start | (uint64(rng.Uint32()) & mask)
 				s.Add(n)
 			}
@@ -392,7 +392,7 @@ func BenchmarkMapHasHitRandomLastBits(b *testing.B) {
 			start := uint64(time.Now().UnixNano())
 			m := make(map[uint64]struct{})
 			var rng fastrand.RNG
-			for i := 0; i < itemsCount; i++ {
+			for range int(itemsCount) {
 				n := start | (uint64(rng.Uint32()) & mask)
 				m[n] = struct{}{}
 			}

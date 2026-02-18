@@ -31,7 +31,7 @@ func TestRoundToNearestPow2(t *testing.T) {
 }
 
 func TestResizeNoCopyNoOverallocate(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		b := ResizeNoCopyNoOverallocate(nil, i)
 		if len(b) != i {
 			t.Fatalf("invalid b size; got %d; want %d", len(b), i)
@@ -73,7 +73,7 @@ func TestResizeNoCopyNoOverallocate(t *testing.T) {
 }
 
 func TestResizeNoCopyMayOverallocate(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		b := ResizeNoCopyMayOverallocate(nil, i)
 		if len(b) != i {
 			t.Fatalf("invalid b size; got %d; want %d", len(b), i)
@@ -110,7 +110,7 @@ func TestResizeNoCopyMayOverallocate(t *testing.T) {
 }
 
 func TestResizeWithCopyNoOverallocate(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		b := ResizeWithCopyNoOverallocate(nil, i)
 		if len(b) != i {
 			t.Fatalf("invalid b size; got %d; want %d", len(b), i)
@@ -152,7 +152,7 @@ func TestResizeWithCopyNoOverallocate(t *testing.T) {
 }
 
 func TestResizeWithCopyMayOverallocate(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		b := ResizeWithCopyMayOverallocate(nil, i)
 		if len(b) != i {
 			t.Fatalf("invalid b size; got %d; want %d", len(b), i)

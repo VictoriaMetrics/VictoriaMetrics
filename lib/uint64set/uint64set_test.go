@@ -162,7 +162,7 @@ func TestSetOps(t *testing.T) {
 	f([]uint64{0, 2 << 32}, []uint64{1 << 32, 2 << 32, 3 << 32})
 
 	var a []uint64
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		a = append(a, uint64(i))
 	}
 	var b []uint64
@@ -180,10 +180,10 @@ func TestSetOps(t *testing.T) {
 	f(a, b)
 
 	r := rand.New(rand.NewSource(1))
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		a = nil
 		b = nil
-		for j := 0; j < 1000; j++ {
+		for range 1000 {
 			a = append(a, uint64(r.Intn(1e6)))
 			b = append(b, uint64(r.Intn(1e6)))
 		}
@@ -283,7 +283,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 
 	// Verify forward Add
 	itemsCount = (itemsCount / 2) * 2
-	for i := 0; i < itemsCount/2; i++ {
+	for i := range itemsCount / 2 {
 		s.Add(uint64(i) + offset)
 	}
 	if n := s.Len(); n != itemsCount/2 {
@@ -294,7 +294,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	}
 
 	// Verify backward Add
-	for i := 0; i < itemsCount/2; i++ {
+	for i := range itemsCount / 2 {
 		s.Add(uint64(itemsCount-i-1) + offset)
 	}
 	if n := s.Len(); n != itemsCount {
@@ -302,7 +302,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	}
 
 	// Verify repeated Add
-	for i := 0; i < itemsCount/2; i++ {
+	for i := range itemsCount / 2 {
 		s.Add(uint64(i) + offset)
 	}
 	if n := s.Len(); n != itemsCount {
@@ -310,7 +310,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	}
 
 	// Verify Has on existing bits
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		if !s.Has(uint64(i) + offset) {
 			t.Fatalf("missing bit %d", uint64(i)+offset)
 		}
@@ -328,7 +328,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	if n := sCopy.Len(); n != itemsCount {
 		t.Fatalf("unexpected sCopy.Len(); got %d; want %d", n, itemsCount)
 	}
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		if !sCopy.Has(uint64(i) + offset) {
 			t.Fatalf("missing bit %d on sCopy", uint64(i)+offset)
 		}
@@ -373,7 +373,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	for _, x := range a {
 		m[x] = true
 	}
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		if !m[uint64(i)+offset] {
 			t.Fatalf("missing bit %d in the exported bits; array:\n%d", uint64(i)+offset, a)
 		}
@@ -383,7 +383,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	{
 		var s Set
 		m := make(map[uint64]bool)
-		for i := 0; i < itemsCount; i++ {
+		for i := range itemsCount {
 			v := uint64(i) + offset
 			s.Add(v)
 			m[v] = true
@@ -425,7 +425,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	{
 		const unionOffset = 12345
 		var s1, s2 Set
-		for i := 0; i < itemsCount; i++ {
+		for i := range itemsCount {
 			s1.Add(uint64(i) + offset)
 			s2.Add(uint64(i) + offset + unionOffset)
 		}
@@ -457,7 +457,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	{
 		const unionOffset = 12345
 		var s1, s2 Set
-		for i := 0; i < itemsCount; i++ {
+		for i := range itemsCount {
 			s1.Add(uint64(i) + offset)
 			s2.Add(uint64(i) + offset + unionOffset)
 		}
@@ -492,7 +492,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 		for _, intersectOffset := range []uint64{123, 12345, 1<<32 + 4343} {
 			s1 = Set{}
 			s2 = Set{}
-			for i := 0; i < itemsCount; i++ {
+			for i := range itemsCount {
 				s1.Add(uint64(i) + offset)
 				s2.Add(uint64(i) + offset + intersectOffset)
 			}
@@ -529,7 +529,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	{
 		const subtractOffset = 12345
 		var s1, s2 Set
-		for i := 0; i < itemsCount; i++ {
+		for i := range itemsCount {
 			s1.Add(uint64(i) + offset)
 			s2.Add(uint64(i) + offset + subtractOffset)
 		}
@@ -568,7 +568,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	for _, x := range a {
 		m[x] = true
 	}
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		if i >= itemsCount/2 && i < itemsCount-itemsCount/4 {
 			if m[uint64(i)+offset] {
 				t.Fatalf("unexpected bit found after deleting: %d", uint64(i)+offset)
@@ -594,7 +594,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 	if n := sCopy.Len(); n != itemsCount {
 		t.Fatalf("unexpected sCopy.Len(); got %d; want %d", n, itemsCount)
 	}
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		if !sCopy.Has(uint64(i) + offset) {
 			t.Fatalf("missing bit %d on sCopy", uint64(i)+offset)
 		}
@@ -613,7 +613,7 @@ func testSetSparseItems(t *testing.T, itemsCount int) {
 	r := rand.New(rand.NewSource(1))
 	var s Set
 	m := make(map[uint64]bool)
-	for i := 0; i < itemsCount; i++ {
+	for range itemsCount {
 		x := r.Uint64()
 		s.Add(x)
 		m[x] = true
@@ -631,7 +631,7 @@ func testSetSparseItems(t *testing.T, itemsCount int) {
 			t.Fatalf("missing item %d", x)
 		}
 	}
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		x := uint64(i)
 		if m[x] {
 			continue
@@ -743,19 +743,19 @@ func TestAddMulti(t *testing.T) {
 	f([]uint64{0, 1 << 16, 2 << 16, 2<<16 + 1, 1 << 32, 2 << 32, 2<<32 + 1})
 
 	var a []uint64
-	for i := 0; i < 32000; i++ {
+	for i := range 32000 {
 		a = append(a, uint64(i))
 	}
 	f(a)
 
 	a = nil
-	for i := 0; i < 32000; i++ {
+	for i := range 32000 {
 		a = append(a, 1<<16+uint64(i))
 	}
 	f(a)
 
 	a = nil
-	for i := 0; i < 100000; i++ {
+	for i := range 100000 {
 		a = append(a, 1<<32+uint64(i))
 	}
 	f(a)

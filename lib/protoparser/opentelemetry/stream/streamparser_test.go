@@ -32,7 +32,7 @@ func TestParseStream(t *testing.T) {
 				return fmt.Errorf("unexpected time series count; got: %d; want: %d\ntimeseries got:\n%s\ntimeseries want\n%s",
 					len(tss), len(tssExpected), prettifyTimeSeries(tss), prettifyTimeSeries(tssExpected))
 			}
-			for i := 0; i < len(tss); i++ {
+			for i := range tss {
 				ts := tss[i]
 				tsExpected := tssExpected[i]
 				if len(ts.Labels) != len(tsExpected.Labels) {

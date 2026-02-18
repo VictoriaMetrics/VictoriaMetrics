@@ -134,7 +134,7 @@ func float64ToByteSlice(a []float64) []byte {
 var (
 	int64Zeros [8 * 1024]int64
 	int64Ones  = func() (a [8 * 1024]int64) {
-		for i := 0; i < len(a); i++ {
+		for i := range len(a) {
 			a[i] = 1
 		}
 		return a
@@ -142,7 +142,7 @@ var (
 
 	float64Zeros [8 * 1024]float64
 	float64Ones  = func() (a [8 * 1024]float64) {
-		for i := 0; i < len(a); i++ {
+		for i := range len(a) {
 			a[i] = 1
 		}
 		return a
