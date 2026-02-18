@@ -71,7 +71,7 @@ func (l Labels) AsExtraLabels() []string {
 }
 
 type access struct {
-	Tenant TenantID `json:"tenant_id,omitempty"`
+	Tenant TenantID `json:"tenant_id"`
 	Labels Labels   `json:"extra_labels,omitempty"`
 	// promql filters applied to each select query
 	ExtraFilters []string `json:"extra_filters,omitempty"`
