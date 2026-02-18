@@ -26,10 +26,7 @@ func SendRPCRequestToConn(bc *handshake.BufferedConn, rpcName string, buf []byte
 	sizeBuf := sizeBufPool.Get()
 	defer sizeBufPool.Put(sizeBuf)
 
-	timeoutSeconds := len(buf) / 3e5
-	if timeoutSeconds < 60 {
-		timeoutSeconds = 60
-	}
+	timeoutSeconds := max(len(buf)/3e5, 60)
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
 	if err := bc.SetWriteDeadline(deadline); err != nil {
@@ -85,10 +82,7 @@ func SendToConn(bc *handshake.BufferedConn, buf []byte) error {
 	// See checkReadOnlyMode() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4870
 
 	// adjust timeout accordingly to the forwarded buf size
-	timeoutSeconds := len(buf) / 3e5
-	if timeoutSeconds < 60 {
-		timeoutSeconds = 60
-	}
+	timeoutSeconds := max(len(buf)/3e5, 60)
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	deadline := time.Now().Add(timeout)
 	if err := bc.SetWriteDeadline(deadline); err != nil {

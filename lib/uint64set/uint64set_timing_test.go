@@ -84,10 +84,7 @@ func benchmarkAddMulti(b *testing.B, a []uint64) {
 			var s Set
 			n := 0
 			for n < len(a) {
-				m := n + 64
-				if m > len(a) {
-					m = len(a)
-				}
+				m := min(n+64, len(a))
 				s.AddMulti(a[n:m])
 				n = m
 			}

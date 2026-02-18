@@ -177,10 +177,7 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			prc := 100 * float64(n) / float64(uploadSize)
 			speed := float64(n) / elapsed.Seconds()
 			estimatedTotal := time.Duration(float64(uploadSize)/speed) * time.Second
-			eta := estimatedTotal - elapsed
-			if eta < 0 {
-				eta = 0
-			}
+			eta := max(estimatedTotal-elapsed, 0)
 			logger.Infof("uploaded %s out of %s bytes (%.2f%%) from %s to %s in %s; estimated time to completion: %s", uploadedHuman, uploadSizeHuman, prc, src, dst, elapsed, eta)
 		})
 		if err != nil {

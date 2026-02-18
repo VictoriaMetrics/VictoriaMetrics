@@ -539,10 +539,7 @@ func (s *Server) beginConcurrentRequest(ctx *vmselectRequestCtx) error {
 	case s.concurrencyLimitCh <- struct{}{}:
 		return nil
 	default:
-		d := time.Duration(ctx.timeout) * time.Second
-		if d > s.limits.MaxQueueDuration {
-			d = s.limits.MaxQueueDuration
-		}
+		d := min(time.Duration(ctx.timeout)*time.Second, s.limits.MaxQueueDuration)
 		t := timerpool.Get(d)
 		s.concurrencyLimitReached.Inc()
 		select {

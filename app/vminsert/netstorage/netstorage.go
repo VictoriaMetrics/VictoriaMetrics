@@ -601,10 +601,7 @@ func initStorageNodes(unsortedAddrs []string, rpcCall vminsertapi.RPCCall, hashS
 		sns = append(sns, sn)
 	}
 
-	maxBufSizePerStorageNode = memory.Allowed() / 8 / len(sns)
-	if maxBufSizePerStorageNode > consts.MaxInsertPacketSizeForVMInsert {
-		maxBufSizePerStorageNode = consts.MaxInsertPacketSizeForVMInsert
-	}
+	maxBufSizePerStorageNode = min(memory.Allowed()/8/len(sns), consts.MaxInsertPacketSizeForVMInsert)
 
 	metrics.RegisterSet(ms)
 

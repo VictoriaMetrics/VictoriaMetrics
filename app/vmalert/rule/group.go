@@ -494,11 +494,8 @@ func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Dura
 	}
 
 	// otherwise, return a random duration between [0..min(interval, maxDelay)] based on group ID
-	interval := g.Interval
-	if interval > maxDelay {
-		// artificially limit interval, so groups with big intervals could start sooner.
-		interval = maxDelay
-	}
+	// artificially limit interval, so groups with big intervals could start sooner.
+	interval := min(g.Interval, maxDelay)
 	var randSleep time.Duration
 	randSleep = time.Duration(float64(interval) * (float64(g.GetID()) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
