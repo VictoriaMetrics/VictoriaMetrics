@@ -9,6 +9,7 @@ import (
 	nethttputil "net/http/httputil"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -1040,10 +1041,5 @@ func checkDuplicates(arr []string) string {
 }
 
 func hasEmptyValues(arr []string) bool {
-	for _, s := range arr {
-		if s == "" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(arr, "")
 }

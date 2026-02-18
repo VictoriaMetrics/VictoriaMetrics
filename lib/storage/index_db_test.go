@@ -997,12 +997,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 }
 
 func testHasTSID(tsids []TSID, tsid *TSID) bool {
-	for i := range tsids {
-		if tsids[i] == *tsid {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tsids, *tsid)
 }
 
 func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {

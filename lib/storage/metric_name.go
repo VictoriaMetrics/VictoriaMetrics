@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -380,12 +381,7 @@ func (mn *MetricName) setAllTags(prefix string, skipTags []string, src *MetricNa
 }
 
 func containsString(a []string, s string) bool {
-	for _, x := range a {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a, s)
 }
 
 func hasTag(tags []string, key []byte) bool {

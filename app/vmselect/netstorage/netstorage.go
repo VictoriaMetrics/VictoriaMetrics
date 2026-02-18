@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -986,12 +987,7 @@ func GraphiteTags(qt *querytracer.Tracer, accountID, projectID uint32, denyParti
 }
 
 func hasString(a []string, s string) bool {
-	for _, x := range a {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a, s)
 }
 
 // LabelValues returns label values matching the given labelName and sq until the given deadline.
