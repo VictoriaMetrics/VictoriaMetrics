@@ -389,7 +389,7 @@ func (tb *Table) startBackgroundWorkers() {
 
 func (tb *Table) startInmemoryPartsMergers() {
 	tb.partsLock.Lock()
-	for i := 0; i < cap(inmemoryPartsConcurrencyCh); i++ {
+	for range cap(inmemoryPartsConcurrencyCh) {
 		tb.startInmemoryPartsMergerLocked()
 	}
 	tb.partsLock.Unlock()
@@ -406,7 +406,7 @@ func (tb *Table) startInmemoryPartsMergerLocked() {
 
 func (tb *Table) startFilePartsMergers() {
 	tb.partsLock.Lock()
-	for i := 0; i < cap(filePartsConcurrencyCh); i++ {
+	for range cap(filePartsConcurrencyCh) {
 		tb.startFilePartsMergerLocked()
 	}
 	tb.partsLock.Unlock()
@@ -1392,7 +1392,7 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 	}()
 
 	// Update inmemoryPartsLimitCh accordingly to the number of the remaining in-memory parts.
-	for i := 0; i < removedInmemoryParts; i++ {
+	for range removedInmemoryParts {
 		select {
 		case <-tb.inmemoryPartsLimitCh:
 		case <-tb.stopCh:
@@ -1721,7 +1721,7 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutByte
 	var pws []*partWrapper
 	maxM := float64(0)
 	for i := minSrcParts; i <= maxSrcParts; i++ {
-		for j := 0; j <= len(src)-i; j++ {
+		for j := range len(src) - i + 1 {
 			a := src[j : j+i]
 			if a[0].p.size*uint64(len(a)) < a[len(a)-1].p.size {
 				// Do not merge parts with too big difference in size,

@@ -36,13 +36,13 @@ func TestInmemoryBlockAdd(t *testing.T) {
 
 	var ib inmemoryBlock
 
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		var items []string
 		totalLen := 0
 		ib.Reset()
 
 		// Fill ib.
-		for j := 0; j < i*100+1; j++ {
+		for range i*100 + 1 {
 			s := getRandomBytes(r)
 			if !ib.Add(s) {
 				// ib is full.
@@ -73,13 +73,13 @@ func TestInmemoryBlockSort(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	var ib inmemoryBlock
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		var items []string
 		totalLen := 0
 		ib.Reset()
 
 		// Fill ib.
-		for j := 0; j < r.Intn(1500); j++ {
+		for range r.Intn(1500) {
 			s := getRandomBytes(r)
 			if !ib.Add(s) {
 				// ib is full.
@@ -125,7 +125,7 @@ func TestInmemoryBlockMarshalUnmarshal(t *testing.T) {
 
 		// Fill ib.
 		itemsCount := 2 * (r.Intn(i+1) + 1)
-		for j := 0; j < itemsCount/2; j++ {
+		for range itemsCount / 2 {
 			s := getRandomBytes(r)
 			s = []byte("prefix " + string(s))
 			if !ib.Add(s) {
