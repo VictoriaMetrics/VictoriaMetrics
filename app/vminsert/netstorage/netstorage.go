@@ -210,7 +210,7 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, replicas int) bool {
 	usedStorageNodes := make(map[*storageNode]struct{}, replicas)
 	sns := snb.sns
-	for i := 0; i < replicas; i++ {
+	for i := range replicas {
 		idx := snIdx + i
 		attempts := 0
 		for {
