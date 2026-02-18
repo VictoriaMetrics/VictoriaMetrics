@@ -570,7 +570,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 		var mn MetricName
 
 		// Init MetricGroup.
-		mn.MetricGroup = []byte(fmt.Sprintf("metricGroup.%d\x00\x01\x02", i%metricGroups))
+		mn.MetricGroup = fmt.Appendf(nil, "metricGroup.%d\x00\x01\x02", i%metricGroups)
 
 		// Init other tags.
 		tagsCount := r.Intn(10) + 1
