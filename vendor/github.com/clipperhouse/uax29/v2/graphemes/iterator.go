@@ -27,9 +27,18 @@ type Iterator[T ~string | ~[]byte] struct {
 	data  T
 	pos   int
 	start int
-	// AnsiEscapeSequences treats ANSI escape sequences (ECMA-48) as single grapheme
-	// clusters when true. Default is false.
+	// AnsiEscapeSequences treats 7-bit ANSI escape sequences (ECMA-48) as
+	// single grapheme clusters when true. The default is false.
+	//
+	// 8-bit controls are not enabled by this option. See [AnsiEscapeSequences8Bit].
 	AnsiEscapeSequences bool
+	// AnsiEscapeSequences8Bit treats 8-bit C1 ANSI escape sequences (ECMA-48) as single
+	// grapheme clusters when true. The default is false.
+	//
+	// 8-bit control bytes are not UTF-8 encoded, i.e. not valid UTF-8. If you
+	// choose this option, you are choosing to interpret non-UTF-8 data, caveat
+	// emptor.
+	AnsiEscapeSequences8Bit bool
 }
 
 var (
@@ -41,6 +50,9 @@ const (
 	esc = 0x1B
 	cr  = 0x0D
 	bel = 0x07
+	can = 0x18
+	sub = 0x1A
+	st  = 0x9C
 )
 
 // Next advances the iterator to the next grapheme cluster.
@@ -51,16 +63,21 @@ func (iter *Iterator[T]) Next() bool {
 	}
 	iter.start = iter.pos
 
-	if iter.AnsiEscapeSequences && iter.data[iter.pos] == esc {
+	b := iter.data[iter.pos]
+	if iter.AnsiEscapeSequences && b == esc {
 		if a := ansiEscapeLength(iter.data[iter.pos:]); a > 0 {
+			iter.pos += a
+			return true
+		}
+	}
+	if iter.AnsiEscapeSequences8Bit && b >= 0x80 && b <= 0x9F {
+		if a := ansiEscapeLength8Bit(iter.data[iter.pos:]); a > 0 {
 			iter.pos += a
 			return true
 		}
 	}
 
 	// ASCII hot path: any ASCII is one grapheme when next byte is ASCII or end.
-	// Fall through on CR so splitfunc can handle CR+LF as a single cluster.
-	b := iter.data[iter.pos]
 	if b < utf8.RuneSelf && b != cr {
 		if iter.pos+1 >= len(iter.data) || iter.data[iter.pos+1] < utf8.RuneSelf {
 			iter.pos++
@@ -68,7 +85,7 @@ func (iter *Iterator[T]) Next() bool {
 		}
 	}
 
-	// Fall back to actual grapheme parsing
+	// Fall back to UAX29 grapheme parsing
 	remaining := iter.data[iter.pos:]
 	advance, _, err := iter.split(remaining, true)
 	if err != nil {
