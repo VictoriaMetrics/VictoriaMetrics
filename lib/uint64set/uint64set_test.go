@@ -534,10 +534,7 @@ func testSetBasicOps(t *testing.T, itemsCount int) {
 			s2.Add(uint64(i) + offset + subtractOffset)
 		}
 		s1.Subtract(&s2)
-		expectedLen := itemsCount
-		if itemsCount > subtractOffset {
-			expectedLen = subtractOffset
-		}
+		expectedLen := min(itemsCount, subtractOffset)
 		if n := s1.Len(); n != expectedLen {
 			t.Fatalf("unexpected s1.Len() after subtract; got %d; want %d", n, expectedLen)
 		}

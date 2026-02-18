@@ -93,7 +93,7 @@ func TestSearch(t *testing.T) {
 	startTimestamp -= startTimestamp % (1e3 * 60 * 30)
 	blockRowsCount := 0
 	for i := range int(rowsCount) {
-		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i%metricGroupsCount))
+		mn.MetricGroup = fmt.Appendf(nil, "metric_%d", i%metricGroupsCount)
 
 		mr := &mrs[i]
 		mr.MetricNameRaw = mn.marshalRaw(nil)

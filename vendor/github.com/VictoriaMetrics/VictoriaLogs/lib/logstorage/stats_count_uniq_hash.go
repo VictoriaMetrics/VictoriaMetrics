@@ -173,7 +173,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(sf statsFunc, br *
 	sup.columnValues = columnValues
 
 	keyBuf := sup.keyBuf[:0]
-	for i := 0; i < br.rowsLen; i++ {
+	for i := range br.rowsLen {
 		seenKey := true
 		for _, values := range columnValues {
 			if i == 0 || values[i-1] != values[i] {
@@ -547,18 +547,15 @@ func (sup *statsCountUniqHashProcessor) mergeShardssParallel(stopCh <-chan struc
 
 	result := make([]statsCountUniqHashSet, len(shardss[0]))
 	var wg sync.WaitGroup
-	for i := range result {
-		wg.Add(1)
-		go func(cpuIdx int) {
-			defer wg.Done()
-
+	for cpuIdx := range result {
+		wg.Go(func() {
 			sus := &shardss[0][cpuIdx]
 			for _, perCPU := range shardss[1:] {
 				sus.mergeState(&perCPU[cpuIdx], stopCh)
 				perCPU[cpuIdx].reset()
 			}
 			result[cpuIdx] = *sus
-		}(i)
+		})
 	}
 	wg.Wait()
 

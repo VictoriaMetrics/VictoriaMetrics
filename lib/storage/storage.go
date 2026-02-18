@@ -651,10 +651,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	hmCurr := s.currHourMetricIDs.Load()
 	hmPrev := s.prevHourMetricIDs.Load()
-	hourMetricIDsLen := hmPrev.m.Len()
-	if hmCurr.m.Len() > hourMetricIDsLen {
-		hourMetricIDsLen = hmCurr.m.Len()
-	}
+	hourMetricIDsLen := max(hmCurr.m.Len(), hmPrev.m.Len())
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
 	m.HourMetricIDCacheSizeBytes += hmCurr.m.SizeBytes()
 	m.HourMetricIDCacheSizeBytes += hmPrev.m.SizeBytes()
@@ -675,10 +672,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetadataStorageCurrentSizeBytes = mr.CurrentSizeBytes
 	m.MetadataStorageMaxSizeBytes = mr.MaxSizeBytes
 
-	d := s.legacyNextRetentionSeconds()
-	if d < 0 {
-		d = 0
-	}
+	d := max(s.legacyNextRetentionSeconds(), 0)
 	m.NextRetentionSeconds = uint64(d)
 
 	s.tb.UpdateMetrics(&m.TableMetrics)

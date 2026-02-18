@@ -570,7 +570,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int, timestamp i
 		var mn MetricName
 
 		// Init MetricGroup.
-		mn.MetricGroup = []byte(fmt.Sprintf("metricGroup.%d\x00\x01\x02", i%metricGroups))
+		mn.MetricGroup = fmt.Appendf(nil, "metricGroup.%d\x00\x01\x02", i%metricGroups)
 
 		// Init other tags.
 		tagsCount := r.Intn(10) + 1
@@ -922,12 +922,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, tim
 }
 
 func testHasTSID(tsids []TSID, tsid *TSID) bool {
-	for i := range tsids {
-		if tsids[i] == *tsid {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tsids, *tsid)
 }
 
 func TestGetRegexpForGraphiteNodeQuery(t *testing.T) {
