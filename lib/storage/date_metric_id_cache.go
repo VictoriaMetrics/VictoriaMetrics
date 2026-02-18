@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -196,9 +196,7 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		for date := range allDatesMap {
 			dates = append(dates, date)
 		}
-		sort.Slice(dates, func(i, j int) bool {
-			return dates[i] < dates[j]
-		})
+		slices.Sort(dates)
 		if len(dates) > 2 {
 			dates = dates[len(dates)-2:]
 		}

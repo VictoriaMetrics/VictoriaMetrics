@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -348,9 +349,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	for k := range alertEvalTimesMap {
 		alertEvalTimes = append(alertEvalTimes, k)
 	}
-	sort.Slice(alertEvalTimes, func(i, j int) bool {
-		return alertEvalTimes[i] < alertEvalTimes[j]
-	})
+	slices.Sort(alertEvalTimes)
 
 	// sort group eval order according to the given "group_eval_order".
 	sort.Slice(testGroups, func(i, j int) bool {
