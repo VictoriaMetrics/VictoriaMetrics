@@ -388,10 +388,10 @@ func init() {
 
 	// we preset all so that it is safe to use these vals even if the rest of
 	// init fails
-	for i := 0; i < int(PM_COUNT); i++ {
+	for i := range int(PM_COUNT) {
 		pm_val[i] = 0
 	}
-	for i := 0; i < int(FD_COUNT); i++ {
+	for i := range int(FD_COUNT) {
 		pm_fd[i] = -1
 	}
 	pid := os.Getpid()

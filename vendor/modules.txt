@@ -142,10 +142,10 @@ github.com/VictoriaMetrics/easyproto
 # github.com/VictoriaMetrics/fastcache v1.13.2
 ## explicit; go 1.24.0
 github.com/VictoriaMetrics/fastcache
-# github.com/VictoriaMetrics/metrics v1.41.1
+# github.com/VictoriaMetrics/metrics v1.41.2
 ## explicit; go 1.24.0
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.84.10
+# github.com/VictoriaMetrics/metricsql v0.85.0
 ## explicit; go 1.24.2
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
