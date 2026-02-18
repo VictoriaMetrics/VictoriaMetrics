@@ -40,7 +40,7 @@ func TestRule_state(t *testing.T) {
 	}
 
 	var last time.Time
-	for range stateEntriesN*2 {
+	for range stateEntriesN * 2 {
 		last = time.Now()
 		r.state.add(StateEntry{At: last})
 	}
