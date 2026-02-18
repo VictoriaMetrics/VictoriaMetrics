@@ -113,10 +113,7 @@ func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) 
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	rowsPerBench := int64(float64(rowsCount) * float64(tsidsSearch) / float64(tsidsCount))
-	if rowsPerBench > int64(rowsCount) {
-		rowsPerBench = int64(rowsCount)
-	}
+	rowsPerBench := min(int64(float64(rowsCount)*float64(tsidsSearch)/float64(tsidsCount)), int64(rowsCount))
 	b.SetBytes(rowsPerBench)
 	b.RunParallel(func(pb *testing.PB) {
 		var ts tableSearch

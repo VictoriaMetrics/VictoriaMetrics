@@ -3718,10 +3718,7 @@ func testDoConcurrently(s *Storage, op func(s *Storage, mrs []MetricRow), concur
 			step = 1
 		}
 		for begin := 0; begin < len(batch); begin += step {
-			limit := begin + step
-			if limit > len(batch) {
-				limit = len(batch)
-			}
+			limit := min(begin+step, len(batch))
 			mrsCh <- batch[begin:limit]
 		}
 	}

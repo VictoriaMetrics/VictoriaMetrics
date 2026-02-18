@@ -383,10 +383,7 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 		// Return non-OK response during grace period before shutting down the server.
 		// Load balancers must notify these responses and re-route new requests to other servers.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/463 .
-		d := time.Until(time.Unix(0, deadline))
-		if d < 0 {
-			d = 0
-		}
+		d := max(time.Until(time.Unix(0, deadline)), 0)
 		errMsg := fmt.Sprintf("The server is in delayed shutdown mode, which will end in %.3fs", d.Seconds())
 		http.Error(w, errMsg, http.StatusServiceUnavailable)
 		return true

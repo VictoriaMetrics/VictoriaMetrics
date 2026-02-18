@@ -37,13 +37,7 @@ type WriteCloser interface {
 
 func getReadBufferSize() int {
 	readBufferSizeOnce.Do(func() {
-		n := memory.Allowed() / 1024 / 64
-		if n < 4*1024 {
-			n = 4 * 1024
-		}
-		if n > 64*1024 {
-			n = 64 * 1024
-		}
+		n := min(max(memory.Allowed()/1024/64, 4*1024), 64*1024)
 		readBufferSize = n
 	})
 	return readBufferSize
@@ -56,13 +50,7 @@ var (
 
 func getWriteBufferSize() int {
 	writeBufferSizeOnce.Do(func() {
-		n := memory.Allowed() / 1024 / 8
-		if n < 4*1024 {
-			n = 4 * 1024
-		}
-		if n > 128*1024 {
-			n = 128 * 1024
-		}
+		n := min(max(memory.Allowed()/1024/8, 4*1024), 128*1024)
 		writeBufferSize = n
 	})
 	return writeBufferSize

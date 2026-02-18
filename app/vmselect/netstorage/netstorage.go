@@ -492,10 +492,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 	}
 
 	// Prepare worker channels.
-	workers := min(len(upws), gomaxprocs)
-	if workers < 1 {
-		workers = 1
-	}
+	workers := max(min(len(upws), gomaxprocs), 1)
 	itemsPerWorker := (len(upws) + workers - 1) / workers
 	workChs := make([]chan *unpackWork, workers)
 	for i := range workChs {
