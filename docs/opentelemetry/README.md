@@ -83,7 +83,7 @@ Signals can be correlated together if they share the same list of attributes, so
 same system or event. The recommended user interface for correlations is Grafana thanks to its [correlation interfaces](https://grafana.com/docs/grafana/latest/administration/correlations/).
 See below various scenarios of correlating signals in Grafana using VictoriaMetrics, VictoriaLogs and VictoriaTraces as backends.
 
-Depending on the Grafana datasource plugin there could be multiple correlations avaiable:
+Depending on the Grafana datasource plugin there could be multiple correlations available:
 1. Trace to logs, log to trace, log to metrics - see [correlations via VictoriaLogs plugin](https://docs.victoriametrics.com/victorialogs/integrations/grafana/#correlations).
 1. Trace to metrics, metric to logs, metric to traces - see [correlations via VictoriaMetrics plugin](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/datasource/#correlations).
 1. Metrics to logs or traces correlations are possible via Prometheus datasource as well.
