@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -66,9 +66,7 @@ func (l Labels) AsExtraLabels() []string {
 		res = append(res, k+"="+v)
 	}
 	// sort for consistent uri.
-	sort.Slice(res, func(i, j int) bool {
-		return res[i] < res[j]
-	})
+	slices.Sort(res)
 	return res
 }
 

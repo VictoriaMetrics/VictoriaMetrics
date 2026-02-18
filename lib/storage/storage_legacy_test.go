@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -857,9 +856,7 @@ func mustConvertToLegacy(s *Storage, accountID, projectID uint32) *Storage {
 	for _, e := range entries {
 		names = append(names, e.Name())
 	}
-	sort.Slice(names, func(i, j int) bool {
-		return names[i] < names[j]
-	})
+	slices.Sort(names)
 	if len(names) > 2 {
 		for _, name := range names[:len(names)-2] {
 			p := filepath.Join(legacyIDBsPathOrig, name)
