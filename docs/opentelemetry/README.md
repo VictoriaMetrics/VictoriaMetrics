@@ -42,7 +42,7 @@ Once metrics are ingested into VictoriaMetrics, they can be read via the followi
    
 ## Logs (VictoriaLogs)
 
-VictoriaLogs single-node, vlagent and vlinsert components support ingestion of metrics via OpenTelemetry Protocol (OTLP) from [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
+VictoriaLogs single-node, vlagent and vlinsert components support ingestion of logs via OpenTelemetry Protocol (OTLP) from [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/)
 and applications instrumented with [OpenTelemetry SDKs](https://opentelemetry.io/docs/languages/). 
 
 See the detailed description about protocol support [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/).
