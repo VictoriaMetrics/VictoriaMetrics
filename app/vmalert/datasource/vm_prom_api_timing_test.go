@@ -13,7 +13,7 @@ func BenchmarkPromInstantUnmarshal(b *testing.B) {
 
 	// BenchmarkParsePrometheusResponse/Instant_std+fastjson-10                    1760            668959 ns/op          280147 B/op       5781 allocs/op
 	b.Run("Instant std+fastjson", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			var pi promInstant
 			err = pi.Unmarshal(data)
 			if err != nil {
