@@ -29,7 +29,7 @@ type resource struct {
 	Parameters  parameters `json:"parameters"`
 }
 
-type parameters map[string]interface{}
+type parameters map[string]any
 
 // addToLabels add Parameters map to existing labels.
 // See: https://github.com/prometheus/prometheus/blob/685493187ec5f5734777769f595cf8418d49900d/discovery/puppetdb/resources.go#L39
@@ -51,7 +51,7 @@ func (p *parameters) addToLabels(keyPrefix string, m *promutil.Labels) {
 			labelValue = strconv.FormatFloat(value, 'g', -1, 64)
 		case []string:
 			labelValue = separator + strings.Join(value, separator) + separator
-		case []interface{}:
+		case []any:
 			if len(value) == 0 {
 				continue
 			}
@@ -71,7 +71,7 @@ func (p *parameters) addToLabels(keyPrefix string, m *promutil.Labels) {
 				}
 			}
 			labelValue = strings.Join(values, separator)
-		case map[string]interface{}:
+		case map[string]any:
 			subParameter := parameters(value)
 			subParameter.addToLabels(keyPrefix+discoveryutil.SanitizeLabelName(k+"_"), m)
 		default:

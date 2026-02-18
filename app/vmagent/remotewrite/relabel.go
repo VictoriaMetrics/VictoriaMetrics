@@ -38,7 +38,7 @@ var (
 	labelsGlobal []prompb.Label
 
 	remoteWriteRelabelConfigData    atomic.Pointer[[]byte]
-	remoteWriteURLRelabelConfigData atomic.Pointer[[]interface{}]
+	remoteWriteURLRelabelConfigData atomic.Pointer[[]any]
 
 	relabelConfigReloads      *metrics.Counter
 	relabelConfigReloadErrors *metrics.Counter
@@ -90,8 +90,8 @@ func WriteURLRelabelConfigData(w io.Writer) {
 		return
 	}
 	type urlRelabelCfg struct {
-		Url           string      `yaml:"url"`
-		RelabelConfig interface{} `yaml:"relabel_config"`
+		Url           string `yaml:"url"`
+		RelabelConfig any    `yaml:"relabel_config"`
 	}
 	var cs []urlRelabelCfg
 	for i, url := range *remoteWriteURLs {
@@ -144,7 +144,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
 	}
 
-	var urlRelabelCfgs []interface{}
+	var urlRelabelCfgs []any
 	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
@@ -157,7 +157,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		}
 		rcs.perURL[i] = prc
 
-		var parsedCfg interface{}
+		var parsedCfg any
 		_ = yaml.Unmarshal(rawCfg, &parsedCfg)
 		urlRelabelCfgs = append(urlRelabelCfgs, parsedCfg)
 	}
