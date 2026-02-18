@@ -26,9 +26,14 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+**Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): default value of the flag `-promscrape.dropOriginalLabels` changed from `true` to `false`.
+It enables back `Discovered targets` debug UI by default.
+
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add JWT token authentication support with signature verification based on provided `public_keys`. Read more about configuration in [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) documentation. See [#10445](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10445).
 * FEATURE: all VictoriaMetrics components: expose `process_cpu_seconds_total`, `process_resident_memory_bytes`, and other process-level metrics when running on macOS. See [metrics#75](https://github.com/VictoriaMetrics/metrics/issues/75).
 * FEATURE: [dashboards/vmauth](https://grafana.com/grafana/dashboards/21394): add `Request body buffering duration` panel to the `Troubleshooting` section. This panel shows the time spent buffering incoming client request bodies, helping identify slow client uploads and potential concurrency issues. The panel is only available when `-requestBufferSize` is non-zero. See [#10309](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10309).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): reduce CPU and memory usage when `-promscrape.dropOriginalLabels` command-line flag is set. See [#9952](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9952).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): reduce CPU and memory usage when `-promscrape.dropOriginalLabels` command-line flag is set. See [#9952](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9952).
 
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
 
