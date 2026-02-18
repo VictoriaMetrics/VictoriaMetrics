@@ -973,7 +973,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	byTenantLen := encoding.UnmarshalUint64(src)
 	src = src[8:]
 	byTenant := make(map[accountProjectKey]*uint64set.Set, byTenantLen)
-	for i := uint64(0); i < byTenantLen; i++ {
+	for range byTenantLen {
 		if len(src) < 16 {
 			logger.Errorf("discarding %s, since it has broken accountID:projectID prefix; got %d bytes; want %d bytes", path, len(src), 16)
 			return hm
@@ -989,7 +989,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 			return hm
 		}
 		m := &uint64set.Set{}
-		for j := uint64(0); j < mLen; j++ {
+		for range mLen {
 			metricID := encoding.UnmarshalUint64(src)
 			src = src[8:]
 			m.Add(metricID)
@@ -1052,7 +1052,7 @@ func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
 		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least %d bytes", len(src), 8*mLen)
 	}
 	m := &uint64set.Set{}
-	for i := uint64(0); i < mLen; i++ {
+	for range mLen {
 		metricID := encoding.UnmarshalUint64(src)
 		src = src[8:]
 		m.Add(metricID)

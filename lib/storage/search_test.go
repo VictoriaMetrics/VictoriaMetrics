@@ -21,7 +21,7 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 	var buf []byte
 	var sq2 SearchQuery
 
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		v, ok := quick.Value(typ, rnd)
 		if !ok {
 			t.Fatalf("cannot create random SearchQuery via testing/quick.Value")
@@ -104,7 +104,7 @@ func TestSearch(t *testing.T) {
 	startTimestamp := timestampFromTime(time.Now())
 	startTimestamp -= startTimestamp % (1e3 * 60 * 30)
 	blockRowsCount := 0
-	for i := 0; i < rowsCount; i++ {
+	for i := range int(rowsCount) {
 		mn.AccountID = uint32(i % accountsCount)
 		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i%metricGroupsCount))
 
@@ -137,13 +137,13 @@ func TestSearch(t *testing.T) {
 
 	t.Run("concurrent", func(t *testing.T) {
 		ch := make(chan error, 3)
-		for i := 0; i < cap(ch); i++ {
+		for range cap(ch) {
 			go func() {
 				ch <- testSearchInternal(st, tr, mrs, accountsCount)
 			}()
 		}
 		var firstError error
-		for i := 0; i < cap(ch); i++ {
+		for range cap(ch) {
 			select {
 			case err := <-ch:
 				if err != nil && firstError == nil {
@@ -192,7 +192,7 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 }
 
 func testSearchInternal(s *Storage, tr TimeRange, mrs []MetricRow, accountsCount int) error {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		// Prepare TagFilters for search.
 		tfs := NewTagFilters(uint32(i%accountsCount), 0)
 		metricGroupRe := fmt.Sprintf(`metric_\d*%d%d`, i, i)

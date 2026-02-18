@@ -346,7 +346,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	var metricIDs []uint64
 
 	metricIDs = metricIDs[:0]
-	for i := 0; i < maxMetricIDsPerRow-1; i++ {
+	for i := range maxMetricIDsPerRow - 1 {
 		metricIDs = append(metricIDs, uint64(i))
 	}
 	f([]string{
@@ -364,7 +364,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	})
 
 	metricIDs = metricIDs[:0]
-	for i := 0; i < maxMetricIDsPerRow; i++ {
+	for i := range maxMetricIDsPerRow {
 		metricIDs = append(metricIDs, uint64(i))
 	}
 	f([]string{
@@ -380,7 +380,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 	})
 
 	metricIDs = metricIDs[:0]
-	for i := 0; i < 3*maxMetricIDsPerRow; i++ {
+	for i := range 3 * maxMetricIDsPerRow {
 		metricIDs = append(metricIDs, uint64(i))
 	}
 	f([]string{
@@ -410,7 +410,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 
 	// Check for duplicate metricIDs removal
 	metricIDs = metricIDs[:0]
-	for i := 0; i < maxMetricIDsPerRow-1; i++ {
+	for range maxMetricIDsPerRow - 1 {
 		metricIDs = append(metricIDs, 123)
 	}
 	f([]string{
@@ -428,7 +428,7 @@ func TestMergeTagToMetricIDsRows(t *testing.T) {
 
 	// Check fallback to the original items after merging, which result in incorrect ordering.
 	metricIDs = metricIDs[:0]
-	for i := 0; i < maxMetricIDsPerRow-3; i++ {
+	for range maxMetricIDsPerRow - 3 {
 		metricIDs = append(metricIDs, uint64(123))
 	}
 	f([]string{
@@ -492,7 +492,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 
 	var s Storage
 	path := filepath.Join(t.Name(), "2025_01")
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		var isReadOnly atomic.Bool
 		db := mustOpenIndexDB(123, TimeRange{}, "name", path, &s, &isReadOnly, false)
 		db.MustClose()
@@ -542,7 +542,7 @@ func TestIndexDB(t *testing.T) {
 		db := ptw.pt.idb
 
 		ch := make(chan error, 3)
-		for i := 0; i < cap(ch); i++ {
+		for range cap(ch) {
 			go func() {
 				mns, tsid, tenants, err := testIndexDBGetOrCreateTSIDByName(db, accountsCount, projectsCount, metricGroups, timestamp)
 				if err != nil {
@@ -557,7 +557,7 @@ func TestIndexDB(t *testing.T) {
 			}()
 		}
 		deadlineCh := time.After(30 * time.Second)
-		for i := 0; i < cap(ch); i++ {
+		for range cap(ch) {
 			select {
 			case err := <-ch:
 				if err != nil {
@@ -588,7 +588,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	date := uint64(timestamp) / msecPerDay
 
 	var metricNameBuf []byte
-	for i := 0; i < 401; i++ {
+	for i := range 401 {
 		var mn MetricName
 		mn.AccountID = uint32((i + 2) % accountsCount)
 		mn.ProjectID = uint32((i + 1) % projectsCount)
@@ -600,7 +600,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 
 		// Init other tags.
 		tagsCount := r.Intn(10) + 1
-		for j := 0; j < tagsCount; j++ {
+		for j := range tagsCount {
 			key := fmt.Sprintf("key\x01\x02\x00_%d_%d", i, j)
 			value := fmt.Sprintf("val\x01_%d\x00_%d\x02", i, j)
 			mn.AddTag(key, value)
@@ -787,7 +787,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		if err := tfs.Add(nil, mn.MetricGroup, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup: %w", err)
 		}
-		for j := 0; j < len(mn.Tags); j++ {
+		for j := range mn.Tags {
 			t := &mn.Tags[j]
 			if err := tfs.Add(t.Key, t.Value, false, false); err != nil {
 				return fmt.Errorf("cannot create tag filter for tag: %w", err)
@@ -888,7 +888,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		if err := tfs.Add(nil, mn.MetricGroup, false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for MetricGroup: %w", err)
 		}
-		for j := 0; j < len(mn.Tags); j++ {
+		for j := range mn.Tags {
 			t := &mn.Tags[j]
 			if err := tfs.Add(t.Key, append(t.Value, "|foo*."...), false, true); err != nil {
 				return fmt.Errorf("cannot create regexp tag filter for tag: %w", err)
@@ -1037,7 +1037,7 @@ func TestMatchTagFilters(t *testing.T) {
 	mn.AccountID = 123
 	mn.ProjectID = 456
 	mn.MetricGroup = append(mn.MetricGroup, "foobar_metric"...)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		key := fmt.Sprintf("key %d", i)
 		value := fmt.Sprintf("value %d", i)
 		mn.AddTag(key, value)
@@ -1576,10 +1576,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	db := ptw.pt.idb
 	is := db.getIndexSearch(accountID, projectID, noDeadline)
 
-	for day := 0; day < days; day++ {
+	for day := range days {
 		date := baseDate - uint64(day)
 		var metricIDs uint64set.Set
-		for metric := 0; metric < metricsPerDay; metric++ {
+		for metric := range metricsPerDay {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var tsid TSID

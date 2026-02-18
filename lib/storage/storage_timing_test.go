@@ -40,7 +40,7 @@ func BenchmarkStorageAddRows(b *testing.B) {
 			}
 			for pb.Next() {
 				offset := int(globalOffset.Add(uint64(numRows)))
-				for i := 0; i < numRows; i++ {
+				for i := range numRows {
 					mn.AccountID = uint32(i)
 					mn.ProjectID = uint32(i % 3)
 					mr := &mrs[i]

@@ -94,12 +94,12 @@ func TestMetricNameMarshalDuplicateKeys(t *testing.T) {
 }
 
 func TestMetricNameMarshalUnmarshal(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		for tagsCount := 0; tagsCount < 10; tagsCount++ {
+	for i := range 10 {
+		for tagsCount := range 10 {
 			var mn MetricName
 			mn.AccountID = uint32(i)
 			mn.ProjectID = uint32(i + 1)
-			for j := 0; j < tagsCount; j++ {
+			for j := range tagsCount {
 				key := fmt.Sprintf("key_%d_%d_\x00\x01\x02", i, j)
 				value := fmt.Sprintf("\x02\x00\x01value_%d_%d", i, j)
 				mn.AddTag(key, value)
@@ -138,12 +138,12 @@ func TestMetricNameMarshalUnmarshal(t *testing.T) {
 }
 
 func TestMetricNameMarshalUnmarshalRaw(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		for tagsCount := 0; tagsCount < 10; tagsCount++ {
+	for i := range 10 {
+		for tagsCount := range 10 {
 			var mn MetricName
 			mn.AccountID = uint32(i)
 			mn.ProjectID = uint32(tagsCount)
-			for j := 0; j < tagsCount; j++ {
+			for j := range tagsCount {
 				key := fmt.Sprintf("key_%d_%d_\x00\x01\x02", i, j)
 				value := fmt.Sprintf("\x02\x00\x01value_%d_%d", i, j)
 				mn.AddTag(key, value)

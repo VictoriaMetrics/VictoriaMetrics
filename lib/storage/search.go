@@ -546,7 +546,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	src = src[nSize:]
 	sq.TagFilterss = slicesutil.SetLength(sq.TagFilterss, int(tfssCount))
 
-	for i := 0; i < int(tfssCount); i++ {
+	for i := range int(tfssCount) {
 		tfsCount, nSize := encoding.UnmarshalVarUint64(src)
 		if nSize <= 0 {
 			return src, fmt.Errorf("cannot unmarshal the count of TagFilters from uvarint")
@@ -555,7 +555,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 
 		tagFilters := sq.TagFilterss[i]
 		tagFilters = slicesutil.SetLength(tagFilters, int(tfsCount))
-		for j := 0; j < int(tfsCount); j++ {
+		for j := range int(tfsCount) {
 			tail, err := tagFilters[j].Unmarshal(src)
 			if err != nil {
 				return tail, fmt.Errorf("cannot unmarshal TagFilter #%d: %w", j, err)

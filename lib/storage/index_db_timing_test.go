@@ -83,7 +83,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, timestamp int64, startOffset, recordsPerLoop int) {
 	date := uint64(timestamp) / msecPerDay
-	for i := 0; i < recordsPerLoop; i++ {
+	for i := range recordsPerLoop {
 		mn.MetricGroup = strconv.AppendUint(mn.MetricGroup[:0], uint64(i+startOffset), 10)
 		for j := range mn.Tags {
 			mn.Tags[j].Value = strconv.AppendUint(mn.Tags[j].Value[:0], uint64(i*j), 16)
@@ -121,9 +121,9 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		generateTSID(&tsid, &mn)
 		createAllIndexesForMetricName(db, &mn, &tsid, date)
 	}
-	for n := 0; n < 10; n++ {
+	for n := range 10 {
 		ns := strconv.Itoa(n)
-		for i := 0; i < 100000; i++ {
+		for i := range 100000 {
 			ix := strconv.Itoa(i)
 			addSeries("i", ix, "n", ns, "j", "foo")
 			// Have some series that won't be matched, to properly test inverted matches.
@@ -143,7 +143,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		// Use special globalIndexTimeRange to instruct indexDB to search global
 		// index instead of per-day index.
 		tr := globalIndexTimeRange
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			is := db.getIndexSearch(tfs.accountID, tfs.projectID, noDeadline)
 			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
 			db.putIndexSearch(is)
@@ -283,7 +283,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	// Fill the db with recordsCount records.
 	var mn MetricName
 	mn.MetricGroup = []byte("rps")
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		key := fmt.Sprintf("key_%d", i)
 		value := fmt.Sprintf("value_%d", i)
 		mn.AddTag(key, value)
@@ -293,7 +293,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	var tsid TSID
 	date := uint64(timestamp) / msecPerDay
 
-	for i := 0; i < recordsCount; i++ {
+	for i := range int(recordsCount) {
 		mn.AccountID = uint32(i % accountsCount)
 		mn.ProjectID = uint32(i % projectsCount)
 		generateTSID(&tsid, &mn)
@@ -312,7 +312,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		mnLocal.sortTags()
 		for pb.Next() {
 			is := db.getIndexSearch(0, 0, noDeadline)
-			for i := 0; i < recordsPerLoop; i++ {
+			for i := range recordsPerLoop {
 				mnLocal.AccountID = uint32(i % accountsCount)
 				mnLocal.ProjectID = uint32(i % projectsCount)
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])

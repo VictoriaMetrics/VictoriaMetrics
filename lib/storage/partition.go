@@ -1002,7 +1002,7 @@ func (pt *partition) DebugFlush() {
 
 func (pt *partition) startInmemoryPartsMergers() {
 	pt.partsLock.Lock()
-	for i := 0; i < cap(inmemoryPartsConcurrencyCh); i++ {
+	for range cap(inmemoryPartsConcurrencyCh) {
 		pt.startInmemoryPartsMergerLocked()
 	}
 	pt.partsLock.Unlock()
@@ -1019,7 +1019,7 @@ func (pt *partition) startInmemoryPartsMergerLocked() {
 
 func (pt *partition) startSmallPartsMergers() {
 	pt.partsLock.Lock()
-	for i := 0; i < cap(smallPartsConcurrencyCh); i++ {
+	for range cap(smallPartsConcurrencyCh) {
 		pt.startSmallPartsMergerLocked()
 	}
 	pt.partsLock.Unlock()
@@ -1036,7 +1036,7 @@ func (pt *partition) startSmallPartsMergerLocked() {
 
 func (pt *partition) startBigPartsMergers() {
 	pt.partsLock.Lock()
-	for i := 0; i < cap(bigPartsConcurrencyCh); i++ {
+	for range cap(bigPartsConcurrencyCh) {
 		pt.startBigPartsMergerLocked()
 	}
 	pt.partsLock.Unlock()
@@ -1877,7 +1877,7 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutByte
 	var pws []*partWrapper
 	maxM := float64(0)
 	for i := minSrcParts; i <= maxSrcParts; i++ {
-		for j := 0; j <= len(src)-i; j++ {
+		for j := range len(src) - i + 1 {
 			a := src[j : j+i]
 			if a[0].p.size*uint64(len(a)) < a[len(a)-1].p.size {
 				// Do not merge parts with too big difference in size,

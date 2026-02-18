@@ -686,7 +686,7 @@ func TestGetCommonPrefix(t *testing.T) {
 func TestGetRegexpFromCache(t *testing.T) {
 	f := func(s string, orValuesExpected, expectedMatches, expectedMismatches []string, suffixExpected string) {
 		t.Helper()
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			rcv, err := getRegexpFromCache(s)
 			if err != nil {
 				t.Fatalf("unexpected error for s=%q: %s", s, err)

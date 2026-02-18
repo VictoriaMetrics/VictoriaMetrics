@@ -128,7 +128,7 @@ func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange,
 	// Generate tsids to search.
 	var tsids []TSID
 	var tsid TSID
-	for i := 0; i < 25; i++ {
+	for range 25 {
 		tsid.MetricID = uint64(rng.Intn(tsidsCount * 2))
 		tsids = append(tsids, tsid)
 	}
@@ -144,13 +144,13 @@ func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange,
 	var ptr TimeRange
 	ptr.fromPartitionTimestamp(trData.MinTimestamp)
 	var rowss [][]rawRow
-	for i := 0; i < partitionsCount; i++ {
+	for range partitionsCount {
 		partsCount := rng.Intn(maxPartsPerPartition) + 1
-		for j := 0; j < partsCount; j++ {
+		for range partsCount {
 			var rows []rawRow
 			timestamp := ptr.MinTimestamp
 			rowsCount := rng.Intn(maxRowsPerPart) + 1
-			for k := 0; k < rowsCount; k++ {
+			for range rowsCount {
 				r.TSID.MetricID = uint64(rng.Intn(tsidsCount))
 				r.Timestamp = timestamp
 				r.Value = float64(int(rng.NormFloat64() * 1e5))
@@ -211,12 +211,12 @@ func testTableSearch(t *testing.T, tb *table, tsids []TSID, tr TimeRange, rbsExp
 	}
 
 	ch := make(chan error, 5)
-	for i := 0; i < cap(ch); i++ {
+	for range cap(ch) {
 		go func() {
 			ch <- testTableSearchSerial(tb, tsids, tr, rbsExpected, rowsCountExpected)
 		}()
 	}
-	for i := 0; i < cap(ch); i++ {
+	for range cap(ch) {
 		select {
 		case err := <-ch:
 			if err != nil {

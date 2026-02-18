@@ -3376,7 +3376,7 @@ func (mp *tagToMetricIDsRowParser) ParseMetricIDs() {
 	mp.MetricIDs = slicesutil.SetLength(mp.MetricIDs, n)
 	metricIDs := mp.MetricIDs
 	_ = metricIDs[n-1]
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if len(tail) < 8 {
 			logger.Panicf("BUG: tail cannot be smaller than 8 bytes; got %d bytes; tail=%X", len(tail), tail)
 			return
