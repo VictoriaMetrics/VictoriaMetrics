@@ -253,7 +253,7 @@ func TestRollupResultCache(t *testing.T) {
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			}
-			ts.MetricName.MetricGroup = []byte(fmt.Sprintf("metric %d", i))
+			ts.MetricName.MetricGroup = fmt.Appendf(nil, "metric %d", i)
 			tss = append(tss, ts)
 		}
 		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)

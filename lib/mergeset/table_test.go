@@ -104,7 +104,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	// Write a lot of items into the table, so background merges would start.
 	const itemsCount = 3e5
 	for i := range int(itemsCount) {
-		item := []byte(fmt.Sprintf("item %d", i))
+		item := fmt.Appendf(nil, "item %d", i)
 		tb.AddItems([][]byte{item})
 	}
 
@@ -129,7 +129,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	ts1.Init(tb1, false)
 	ts2.Init(tb2, false)
 	for i := range int(itemsCount) {
-		key := []byte(fmt.Sprintf("item %d", i))
+		key := fmt.Appendf(nil, "item %d", i)
 		if err := ts.FirstItemWithPrefix(key); err != nil {
 			t.Fatalf("cannot find item[%d]=%q in the original table: %s", i, key, err)
 		}
