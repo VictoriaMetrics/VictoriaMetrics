@@ -51,9 +51,9 @@ func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expecte
 
 func newTestWriteRequest(seriesCount, labelsCount int) *prompb.WriteRequest {
 	var wr prompb.WriteRequest
-	for i := 0; i < seriesCount; i++ {
+	for i := range seriesCount {
 		var labels []prompb.Label
-		for j := 0; j < labelsCount; j++ {
+		for j := range labelsCount {
 			labels = append(labels, prompb.Label{
 				Name:  fmt.Sprintf("label_%d_%d", i, j),
 				Value: fmt.Sprintf("value_%d_%d", i, j),
