@@ -40,7 +40,7 @@ func TestRule_state(t *testing.T) {
 	}
 
 	var last time.Time
-	for i := 0; i < stateEntriesN*2; i++ {
+	for range stateEntriesN*2 {
 		last = time.Now()
 		r.state.add(StateEntry{At: last})
 	}
@@ -68,7 +68,7 @@ func TestRule_stateConcurrent(_ *testing.T) {
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				r.state.add(StateEntry{At: time.Now()})
 				r.state.getAll()
 				r.state.getLast()
