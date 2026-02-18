@@ -14,21 +14,21 @@ func TestInitStopNodes(t *testing.T) {
 	if err := flag.Set("vmstorageDialTimeout", "1ms"); err != nil {
 		t.Fatalf("cannot set vmstorageDialTimeout flag: %s", err)
 	}
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		Init([]string{"host1", "host2"})
 		runtime.Gosched()
 		MustStop()
 	}
 
 	// Try initializing the netstorage with bigger number of nodes
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		Init([]string{"host1", "host2", "host3"})
 		runtime.Gosched()
 		MustStop()
 	}
 
 	// Try initializing the netstorage with smaller number of nodes
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		Init([]string{"host1"})
 		runtime.Gosched()
 		MustStop()

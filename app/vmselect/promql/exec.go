@@ -319,7 +319,7 @@ func escapeDots(s string) string {
 		return s
 	}
 	result := make([]byte, 0, len(s)+2*dotsCount)
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == '.' && (i == 0 || s[i-1] != '\\') && (i+1 == len(s) || i+1 < len(s) && s[i+1] != '*' && s[i+1] != '+' && s[i+1] != '{') {
 			// Escape a dot if the following conditions are met:
 			// - if it isn't escaped already, i.e. if there is no `\` char before the dot.

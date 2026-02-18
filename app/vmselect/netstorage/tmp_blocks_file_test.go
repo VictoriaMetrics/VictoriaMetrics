@@ -32,14 +32,14 @@ func TestTmpBlocksFileSerial(t *testing.T) {
 func TestTmpBlocksFileConcurrent(t *testing.T) {
 	concurrency := 3
 	ch := make(chan error, concurrency)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		go func() {
 			ch <- testTmpBlocksFile()
 		}()
 	}
 	timer := time.NewTimer(30 * time.Second)
 	defer timer.Stop()
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		select {
 		case err := <-ch:
 			if err != nil {
@@ -56,7 +56,7 @@ func testTmpBlocksFile() error {
 		rowsCount := rand.Intn(8000) + 1
 		var timestamps, values []int64
 		ts := int64(rand.Intn(1023434))
-		for i := 0; i < rowsCount; i++ {
+		for i := range rowsCount {
 			ts += int64(rand.Intn(1000) + 1)
 			timestamps = append(timestamps, ts)
 			values = append(values, int64(i*i+rand.Intn(20)))
@@ -109,7 +109,7 @@ func testTmpBlocksFile() error {
 			concurrency := 2
 			workCh := make(chan int)
 			doneCh := make(chan error)
-			for i := 0; i < concurrency; i++ {
+			for range concurrency {
 				go func() {
 					doneCh <- func() error {
 						var b1 storage.Block
@@ -144,7 +144,7 @@ func testTmpBlocksFile() error {
 				workCh <- i
 			}
 			close(workCh)
-			for i := 0; i < concurrency; i++ {
+			for range concurrency {
 				select {
 				case err := <-doneCh:
 					if err != nil {

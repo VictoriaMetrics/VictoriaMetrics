@@ -214,7 +214,7 @@ func parseInterval(s string) (int64, error) {
 	s = strings.TrimSpace(s)
 	prefix := s
 	var suffix string
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		ch := s[i]
 		if ch != '-' && ch != '+' && ch != '.' && (ch < '0' || ch > '9') {
 			prefix = s[:i]

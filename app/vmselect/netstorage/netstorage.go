@@ -2088,8 +2088,7 @@ func (snr *storageNodesRequest) finishQueryTracer(qt *querytracer.Tracer, msg st
 }
 
 func (snr *storageNodesRequest) collectAllResults(f func(result any) error) error {
-	sns := snr.sns
-	for i := 0; i < len(sns); i++ {
+	for range snr.sns {
 		result := <-snr.resultsCh
 		if err := f(result.data); err != nil {
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
@@ -2856,7 +2855,7 @@ func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, acc
 		return nil, fmt.Errorf("cannot read the number of tag value suffixes: %w", err)
 	}
 	suffixes := make([]string, 0, suffixesCount)
-	for i := 0; i < int(suffixesCount); i++ {
+	for i := range int(suffixesCount) {
 		buf, err = readBytes(buf[:0], bc, maxLabelValueSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read tag value suffix #%d: %w", i+1, err)
@@ -2948,7 +2947,7 @@ func readTopHeapEntries(bc *handshake.BufferedConn) ([]storage.TopHeapEntry, err
 	}
 	var a []storage.TopHeapEntry
 	var buf []byte
-	for i := uint64(0); i < n; i++ {
+	for range n {
 		buf, err = readBytes(buf[:0], bc, maxLabelNameSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read label name: %w", err)
@@ -3022,7 +3021,7 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 		return nil, fmt.Errorf("cannot read metricNamesCount: %w", err)
 	}
 	metricNames := make([]string, metricNamesCount)
-	for i := int64(0); i < int64(metricNamesCount); i++ {
+	for i := range int64(metricNamesCount) {
 		buf, err = readBytes(buf[:0], bc, maxMetricNameSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read metricName #%d: %w", i+1, err)
