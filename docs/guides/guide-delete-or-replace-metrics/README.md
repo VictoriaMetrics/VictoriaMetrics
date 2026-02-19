@@ -46,9 +46,9 @@ Below are the API endpoints for the single-node version of VictoriaMetrics.
 | Type            | Endpoint                                                          | 
 |-----------------|-------------------------------------------------------------------|
 | `series`          | http://localhost:8428/prometheus/api/v1/series                    | 
-| `export`          | http://localhost:8428/prometheus/api/v1/export                    | 
-| `import`          | http://localhost:8428/prometheus/api/v1/import                    |
-| `delete_series`   | http://localhost:8428/prometheus/api/v1/admin/tsdb/delete_series  |
+| `export`          | http://localhost:8428/api/v1/export                    | 
+| `import`          | http://localhost:8428/api/v1/import                    |
+| `delete_series`   | http://localhost:8428/api/v1/admin/tsdb/delete_series  |
 | `force_merge`     | http://localhost:8428/internal/force_merge                        |
 
 The table assumes that:
@@ -88,7 +88,7 @@ To select, import, export, and delete series from a VictoriaMetrics cluster, you
 
 
 The table assumes that:
-- The [Tenant ID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is 0; adjust this value as needed
+- The [Account/Tenant ID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is 0; adjust this value as needed
 - You are logged into the machine running the VictoriaMetrics processes
 - or, if on Kubernetes, that you have port-forwarded the VictoriaMetrics services to localhost
 
@@ -124,10 +124,10 @@ The [delete API](https://docs.victoriametrics.com/victoriametrics/single-server-
 - `match[]=process_cpu_cores_available` selects the entire time series in VictoriaMetrics (including all label combinations)
 - `match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}` selects only the time series with the provided labels
 
-As a first step, query the `series` endpoint to confirm the series selector before deleting anything. For example, if we want to retrieve the `process_cpu_cores_available` series in a single-node VictoriaMetrics, send a GET request as follows:
+As a first step, query the `series` endpoint to confirm the series selector before deleting anything. For example, to retrieve the `process_cpu_cores_available` series in a single-node VictoriaMetrics use:
 
 ```sh
-curl -s 'http://localhost:8428/prometheus/api/v1/series' -d 'match[]=process_cpu_cores_available' | jq
+curl -s -X POST 'http://localhost:8428/prometheus/api/v1/series' -d 'match[]=process_cpu_cores_available' | jq
 ```
 
 > [!NOTE] Warning
@@ -136,13 +136,13 @@ curl -s 'http://localhost:8428/prometheus/api/v1/series' -d 'match[]=process_cpu
 To do the same on the cluster version:
 
 ```sh
-curl -s 'http://localhost:8481/select/0/prometheus/api/v1/series' -d 'match[]=process_cpu_cores_available' | jq
+curl -s -X 'http://localhost:8481/select/0/prometheus/api/v1/series' -d 'match[]=process_cpu_cores_available' | jq
 ```
 
 If no records are returned, you should increase the time window (by default, only the last 5 minutes of data are returned). The following example adds `-d 'start=-30d'` to show the last 30 days:
 
 ```sh
-curl -s 'http://localhost:8428/prometheus/api/v1/series' \
+curl -s -X POST 'http://localhost:8428/prometheus/api/v1/series' \
   -d 'match[]=process_cpu_cores_available' \
   -d 'start=-30d' | jq
 ```
@@ -182,7 +182,7 @@ If you are using VictoriaMetrics Cloud, you need to:
 The following example works with VictoriaMetrics Cloud single:
 
 ```sh
-curl -s -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   'https://<xxxx>.cloud.victoriametrics.com/prometheus/api/v1/series' \
    -d 'match[]=process_cpu_cores_available' | jq
 ```
@@ -191,14 +191,14 @@ curl -s -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 ### Delete data
 
 > [!NOTE] Warning
-> This operation cannot be undone. Consider [exporting your metrics](#export-metrics) for backup purposes.
+> The `delete_series` handler accepts any HTTP method, so sending a GET request to `/api/v1/admin/tsdb/delete_series` will result in the deletion of the time series.
 
-Once you have confirmed the time series selector, send a POST request to the `delete_series` endpoint and supply the selector with the format [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
+Once you have confirmed the time series selector, send a POST request to the `delete_series` endpoint and supply the selector with the format [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This operation cannot be undone, so consider [exporting your metrics](#export-metrics) for backup purposes.
 
 For example, to delete the `process_cpu_cores_available` time series in single-node VictoriaMetrics:
 
 ```sh
-curl -s -X POST 'http://localhost:8428/prometheus/api/v1/admin/tsdb/delete_series' -d 'match[]=process_cpu_cores_available'
+curl -s -X POST 'http://localhost:8428/api/v1/admin/tsdb/delete_series' -d 'match[]=process_cpu_cores_available'
 ```
 
 To do the same on the cluster version:
@@ -211,7 +211,7 @@ On VictoriaMetrics Cloud single node, the command is:
 
 ```sh
 curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  'https://YOUR_CLOUD_ENDPOINT.victoriametrics.com/prometheus/api/v1/admin/tsdb/delete_series' \
+  'https://<xxxxx>.cloud.victoriametrics.com/api/v1/admin/tsdb/delete_series' \
    -d 'match[]=process_cpu_cores_available'
 ```
 
@@ -246,13 +246,13 @@ VictoriaMetrics doesn't provide a mechanism for replacing or updating data. As a
 
 ### Export metrics
 
-For example, let's export metric for `node_memory_MemTotal_bytes` with labels `instance="node-exporter:9100"` and `job="hostname.com"`.
+For example, let's export the time series for `node_memory_MemTotal_bytes` with labels `instance="node-exporter:9100"` and `job="hostname.com"`.
 
 For the single-node version, run:
 
 ```sh
 curl -s -X POST -g \
-  http://localhost:8428/prometheus/api/v1/export \
+  http://localhost:8428/api/v1/export \
   -d 'match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}' > data.jsonl
 ```
 
@@ -268,7 +268,7 @@ On VictoriaMetrics Cloud single, the command is:
 
 ```sh
 curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  'https://YOUR_CLOUD_ENDPOINT.victoriametrics.com/prometheus/api/v1/export' \
+  'https://<xxxxx>.cloud.victoriametrics.com/api/v1/export' \
    -d 'match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}' > data.jsonl
 
 ```
@@ -279,7 +279,7 @@ You can use [jq](https://stedolan.github.io/jq/download/) to more easily verify 
 jq < data.jsonl
 ```
 
-The expected output will look like the following:
+The output should look like:
 
 ```json
 {
@@ -303,7 +303,7 @@ The expected output will look like the following:
 }
 
 ```
-We can replace the value of `node_memory_MemTotal_bytes` from `33604390912` to `17179869184` (from 32GB to 16GB) using [sed](https://linux.die.net/man/1/sed) or any other text-processing tool:
+We can replace the value of `node_memory_MemTotal_bytes` from `33604390912` to `17179869184` (from ~32GB to ~16GB) using [sed](https://linux.die.net/man/1/sed) or any other text-processing tool:
 
 ```sh
 sed -i 's/33604390912/17179869184/g' data.jsonl
@@ -315,7 +315,7 @@ Check the changes in `data.jsonl`:
 jq < data.jsonl
 ```
 
-The expected output should look like this:
+The output should look like this:
 
 ```json
 {
@@ -350,7 +350,7 @@ VictoriaMetrics supports several [ingestion protocols](https://docs.victoriametr
 The next command imports metrics from `data.jsonl` to VictoriaMetrics single node:
 
 ```sh
-curl -v -X POST http://localhost:8428/prometheus/api/v1/import -T data.jsonl
+curl -v -X POST http://localhost:8428/api/v1/import -T data.jsonl
 ```
 
 On the cluster version, the command is:
@@ -363,7 +363,7 @@ For VictoriaMetrics Cloud single node, the command is:
 
 ```sh
 curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  'https://YOUR_CLOUD_ENDPOINT.victoriametrics.com/prometheus/api/v1/import' \
+  'https://<xxxxx>.cloud.victoriametrics.com/api/v1/import' \
    -T data.jsonl
 ```
 
@@ -376,7 +376,7 @@ The final step is to validate that the data was imported correctly.
 To query the series on a single-node VictoriaMetrics:
 
 ```sh
-curl -s -X POST -g 'http://localhost:8428/prometheus/api/v1/export' \
+curl -s -X POST -g 'http://localhost:8428/api/v1/export' \
   -d 'match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}' | jq
 ```
 
@@ -391,7 +391,7 @@ On VictoriaMetrics Cloud single node, use:
 
 ```sh
 curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  'https://YOUR_CLOUD_ENDPOINT.victoriametrics.com/prometheus/api/v1/export' \
+  'https://<xxxxx>.cloud.victoriametrics.com/api/v1/export' \
    -d 'match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}' | jq
 ```
 
@@ -421,10 +421,9 @@ The output should look like:
 
 ## Troubleshooting
 
-If you have problems interacting with the API, try the following:
+If you have problems interacting with the API, try these steps:
 - Remove the `-s` from the curl command to see any errors
 - Add `-v` to the curl command for verbose output
-- Check that curl is sending the correct HTTP request: all requests except [series](#endpoints) should use POST
 - Check that you are using the correct endpoint and port for your VictoriaMetrics deployment
 - On Kubernetes, you might need to port-forward the services in order to reach the API endpoints 
 
