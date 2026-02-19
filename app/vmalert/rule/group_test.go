@@ -405,7 +405,8 @@ func TestGroupStart(t *testing.T) {
 
 		var cur uint64
 		prev := g.metrics.iterationTotal.Get()
-		for i := 0; ; i++ {
+		i := 0
+		for {
 			if i > 40 {
 				t.Fatalf("group wasn't able to perform %d evaluations during %d eval intervals", n, i)
 			}
@@ -414,6 +415,7 @@ func TestGroupStart(t *testing.T) {
 				return
 			}
 			time.Sleep(interval)
+			i++
 		}
 	}
 

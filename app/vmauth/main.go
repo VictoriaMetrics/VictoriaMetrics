@@ -181,29 +181,32 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	ui := getUserInfoByAuthTokens(ats)
-	if ui == nil {
-		uu := authConfig.Load().UnauthorizedUser
-		if uu != nil {
-			processUserRequest(w, r, uu)
-			return true
-		}
-
-		invalidAuthTokenRequests.Inc()
-		if *logInvalidAuthTokens {
-			err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
-			err = &httpserver.ErrorWithStatusCode{
-				Err:        err,
-				StatusCode: http.StatusUnauthorized,
-			}
-			httpserver.Errorf(w, r, "%s", err)
-		} else {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		}
+	if ui := getUserInfoByAuthTokens(ats); ui != nil {
+		processUserRequest(w, r, ui)
+		return true
+	}
+	if ui := getUserInfoByJWTToken(ats); ui != nil {
+		processUserRequest(w, r, ui)
 		return true
 	}
 
-	processUserRequest(w, r, ui)
+	uu := authConfig.Load().UnauthorizedUser
+	if uu != nil {
+		processUserRequest(w, r, uu)
+		return true
+	}
+
+	invalidAuthTokenRequests.Inc()
+	if *logInvalidAuthTokens {
+		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
+		err = &httpserver.ErrorWithStatusCode{
+			Err:        err,
+			StatusCode: http.StatusUnauthorized,
+		}
+		httpserver.Errorf(w, r, "%s", err)
+	} else {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
 	return true
 }
 
@@ -368,7 +371,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 
 	maxAttempts := up.getBackendsCount()
-	for i := 0; i < maxAttempts; i++ {
+	for range maxAttempts {
 		bu := up.getBackendURL()
 		if bu == nil {
 			break

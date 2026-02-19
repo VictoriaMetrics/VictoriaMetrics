@@ -68,7 +68,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 
 	// Verify constant encoding.
 	va := []int64{}
-	for i := 0; i < 1024; i++ {
+	for range 1024 {
 		va = append(va, 9876543210123)
 	}
 	testMarshalUnmarshalInt64NearestDelta(t, va, 4)
@@ -77,7 +77,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	// Verify encoding for monotonically incremented va.
 	v := int64(-35)
 	va = []int64{}
-	for i := 0; i < 1024; i++ {
+	for range 1024 {
 		v += 8
 		va = append(va, v)
 	}
@@ -87,7 +87,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	// Verify encoding for monotonically decremented va.
 	v = 793
 	va = []int64{}
-	for i := 0; i < 1024; i++ {
+	for range 1024 {
 		v -= 16
 		va = append(va, v)
 	}
@@ -97,7 +97,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	// Verify encoding for quadratically incremented va.
 	v = -1234567
 	va = []int64{}
-	for i := 0; i < 1024; i++ {
+	for i := range 1024 {
 		v += 32 + int64(i)
 		va = append(va, v)
 	}
@@ -106,7 +106,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	// Verify encoding for decremented va with norm-float noise.
 	v = 787933
 	va = []int64{}
-	for i := 0; i < 1024; i++ {
+	for range 1024 {
 		v -= 25 + int64(r.NormFloat64()*2)
 		va = append(va, v)
 	}
@@ -115,7 +115,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	// Verify encoding for incremented va with random noise.
 	v = 943854
 	va = []int64{}
-	for i := 0; i < 1024; i++ {
+	for range 1024 {
 		v += 30 + r.Int63n(5)
 		va = append(va, v)
 	}
@@ -124,7 +124,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	// Verify encoding for constant va with norm-float noise.
 	v = -12345
 	va = []int64{}
-	for i := 0; i < 1024; i++ {
+	for range 1024 {
 		v += int64(r.NormFloat64() * 10)
 		va = append(va, v)
 	}
@@ -133,7 +133,7 @@ func TestMarshalUnmarshalInt64NearestDelta(t *testing.T) {
 	// Verify encoding for constant va with random noise.
 	v = -12345
 	va = []int64{}
-	for i := 0; i < 1024; i++ {
+	for range 1024 {
 		v += r.Int63n(15) - 1
 		va = append(va, v)
 	}

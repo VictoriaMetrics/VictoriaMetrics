@@ -137,7 +137,7 @@ func TestCacheConcurrentAccess(_ *testing.T) {
 }
 
 func testCacheSetGet(c *Cache, worker int) {
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		e := testEntry{}
 		k := fmt.Sprintf("key_%d_%d", worker, i)
 		c.PutEntry(k, &e)

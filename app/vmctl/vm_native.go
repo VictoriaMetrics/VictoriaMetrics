@@ -262,7 +262,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	errCh := make(chan error, p.cc)
 
 	var wg sync.WaitGroup
-	for i := 0; i < p.cc; i++ {
+	for range p.cc {
 		wg.Go(func() {
 			for f := range filterCh {
 				if !p.disablePerMetricRequests {

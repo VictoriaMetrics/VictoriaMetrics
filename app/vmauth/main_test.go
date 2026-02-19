@@ -3,11 +3,20 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -506,6 +515,218 @@ requested_url={BACKEND}/path2/foo/?de=fg`
 	}
 }
 
+func TestJWTRequestHandler(t *testing.T) {
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("cannot generate RSA key: %s", err)
+	}
+
+	// Generate public key PEM
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		t.Fatalf("cannot marshal public key: %s", err)
+	}
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	})
+
+	genToken := func(t *testing.T, body map[string]any, valid bool) string {
+		t.Helper()
+
+		headerJSON, err := json.Marshal(map[string]any{
+			"alg": "RS256",
+			"typ": "JWT",
+		})
+		if err != nil {
+			t.Fatalf("cannot marshal header: %s", err)
+		}
+		headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+
+		bodyJSON, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("cannot marshal body: %s", err)
+		}
+		bodyB64 := base64.RawURLEncoding.EncodeToString(bodyJSON)
+
+		payload := headerB64 + "." + bodyB64
+
+		var signatureB64 string
+		if valid {
+			// Create real RSA signature
+			hash := crypto.SHA256
+			h := hash.New()
+			h.Write([]byte(payload))
+			digest := h.Sum(nil)
+
+			signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
+			if err != nil {
+				t.Fatalf("cannot sign token: %s", err)
+			}
+			signatureB64 = base64.RawURLEncoding.EncodeToString(signature)
+		} else {
+			signatureB64 = base64.RawURLEncoding.EncodeToString([]byte("invalid_signature"))
+		}
+
+		return payload + "." + signatureB64
+	}
+	genToken(t, nil, false)
+
+	f := func(cfgStr string, r *http.Request, responseExpected string) {
+		t.Helper()
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if _, err := w.Write([]byte(r.RequestURI + "\n")); err != nil {
+				panic(fmt.Errorf("cannot write response: %w", err))
+			}
+			if v := r.Header.Get(`extra_label`); v != "" {
+				if _, err := w.Write([]byte(`extra_label=` + v + "\n")); err != nil {
+					panic(fmt.Errorf("cannot write response: %w", err))
+				}
+			}
+			if v := r.Header.Get(`extra_filters`); v != "" {
+				if _, err := w.Write([]byte(`extra_filters=` + v + "\n")); err != nil {
+					panic(fmt.Errorf("cannot write response: %w", err))
+				}
+			}
+		}))
+		defer ts.Close()
+
+		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
+		responseExpected = strings.ReplaceAll(responseExpected, "{BACKEND}", ts.URL)
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			_, err := reloadAuthConfigData(cfgOrig)
+			if err != nil {
+				t.Fatalf("cannot load the original config: %s", err)
+			}
+		}()
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false is returned from requestHandler")
+		}
+
+		response := w.getResponse()
+		response = strings.ReplaceAll(response, "\r\n", "\n")
+		response = strings.TrimSpace(response)
+		responseExpected = strings.TrimSpace(responseExpected)
+		if response != responseExpected {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
+		}
+	}
+
+	simpleCfgStr := fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM))
+	noVMAccessClaimToken := genToken(t, nil, true)
+	defaultVMAccessClaimToken := genToken(t, map[string]any{
+		"exp":       time.Now().Add(10 * time.Minute).Unix(),
+		"vm_access": map[string]any{},
+	}, true)
+	expiredToken := genToken(t, map[string]any{
+		"exp":       10,
+		"vm_access": map[string]any{},
+	}, true)
+	invalidSignatureToken := genToken(t, map[string]any{
+		"exp":       time.Now().Add(10 * time.Minute).Unix(),
+		"vm_access": map[string]any{},
+	}, false)
+
+	// missing authorization
+	request := httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	responseExpected := `
+statusCode=401
+Www-Authenticate: Basic realm="Restricted"
+missing 'Authorization' request header`
+	f(simpleCfgStr, request, responseExpected)
+
+	// token without vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+noVMAccessClaimToken)
+	responseExpected = `
+statusCode=401
+Unauthorized`
+	f(simpleCfgStr, request, responseExpected)
+
+	// expired token
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+expiredToken)
+	responseExpected = `
+statusCode=401
+Unauthorized`
+	f(simpleCfgStr, request, responseExpected)
+
+	// invalid signature token
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+invalidSignatureToken)
+	responseExpected = `
+statusCode=401
+Unauthorized`
+	f(simpleCfgStr, request, responseExpected)
+
+	// invalid signature token and skip verify
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+invalidSignatureToken)
+	responseExpected = `
+statusCode=200
+/foo/abc`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  url_prefix: {BACKEND}/foo`, request, responseExpected)
+
+	// token with default valid vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+defaultVMAccessClaimToken)
+	responseExpected = `
+statusCode=200
+/foo/abc`
+	f(simpleCfgStr, request, responseExpected)
+
+	// jwt token used but no matching user with JWT token in config
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+defaultVMAccessClaimToken)
+	responseExpected = `
+statusCode=401
+Unauthorized`
+	f(`
+users:
+- password: a-password
+  username: a-user
+  url_prefix: {BACKEND}/foo`, request, responseExpected)
+
+	// auth with key from file
+	publicKeyFile := filepath.Join(t.TempDir(), "a_public_key.pem")
+	if err := os.WriteFile(publicKeyFile, []byte(publicKeyPEM), 0o644); err != nil {
+		t.Fatalf("failed to write public key file: %s", err)
+	}
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+defaultVMAccessClaimToken)
+	responseExpected = `
+statusCode=200
+/foo/abc`
+	f(fmt.Sprintf(`
+users:
+- jwt:
+    public_key_files:
+    - %q
+  url_prefix: {BACKEND}/foo`, string(publicKeyFile)), request, responseExpected)
+}
+
 type fakeResponseWriter struct {
 	h http.Header
 
@@ -832,7 +1053,7 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 		if !canRetry {
 			t.Fatalf("canRetry() must return true before reading anything")
 		}
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			data, err := io.ReadAll(rb)
 			if err != nil {
 				t.Fatalf("unexpected error when reading all the data at iteration %d: %s", i, err)
@@ -890,7 +1111,7 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 		if !canRetry {
 			t.Fatalf("canRetry must return true")
 		}
-		for i := 0; i < len(s); i++ {
+		for i := range len(s) {
 			buf := make([]byte, i)
 			n, err := io.ReadFull(rb, buf)
 			if err != nil {

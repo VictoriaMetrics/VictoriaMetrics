@@ -67,7 +67,7 @@ func TestExecSuccess(t *testing.T) {
 			Deadline:           searchutil.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			result, err := Exec(nil, ec, q, false)
 			if err != nil {
 				t.Fatalf(`unexpected error when executing %q: %s`, q, err)
@@ -9827,7 +9827,7 @@ func TestExecError(t *testing.T) {
 			Deadline:           searchutil.NewDeadline(time.Now(), time.Minute, ""),
 			RoundDigits:        100,
 		}
-		for i := 0; i < 4; i++ {
+		for range 4 {
 			rv, err := Exec(nil, ec, q, false)
 			if err == nil {
 				t.Fatalf(`expecting non-nil error on %q`, q)

@@ -33,13 +33,13 @@ func PopulateTimeTpl(b []byte, tGlobal time.Time) []byte {
 		}
 		switch strings.TrimSpace(parts[0]) {
 		case `TIME_S`:
-			return []byte(fmt.Sprintf("%d", t.Unix()))
+			return fmt.Appendf(nil, "%d", t.Unix())
 		case `TIME_MSZ`:
-			return []byte(fmt.Sprintf("%d", t.Unix()*1e3))
+			return fmt.Appendf(nil, "%d", t.Unix()*1e3)
 		case `TIME_MS`:
-			return []byte(fmt.Sprintf("%d", timeToMillis(t)))
+			return fmt.Appendf(nil, "%d", timeToMillis(t))
 		case `TIME_NS`:
-			return []byte(fmt.Sprintf("%d", t.UnixNano()))
+			return fmt.Appendf(nil, "%d", t.UnixNano())
 		default:
 			log.Fatalf("unknown time pattern %s in %s", parts[0], repl)
 		}

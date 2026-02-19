@@ -44,7 +44,7 @@ func TestClient_Push(t *testing.T) {
 
 	r := rand.New(rand.NewSource(1))
 	const rowsN = int(1e4)
-	for i := 0; i < rowsN; i++ {
+	for range rowsN {
 		s := prompb.TimeSeries{
 			Samples: []prompb.Sample{{
 				Value:     r.Float64(),
@@ -102,7 +102,7 @@ func TestClient_run_maxBatchSizeDuringShutdown(t *testing.T) {
 		}
 
 		// push time series to the client.
-		for i := 0; i < pushCnt; i++ {
+		for range pushCnt {
 			if err = rwClient.Push(prompb.TimeSeries{}); err != nil {
 				t.Fatalf("cannot time series to the client: %s", err)
 			}
