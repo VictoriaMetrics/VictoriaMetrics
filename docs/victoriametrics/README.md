@@ -1371,7 +1371,7 @@ see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggrega
 ## Metrics Metadata
 
 Single-node VictoriaMetrics can store metric metadata (`TYPE`, `HELP`, `UNIT`) {{% available_from "v1.130.0" %}}.
-Metadata ingestion and querying are disabled by default. To enable them, set `-enableMetadata=true`.
+Metadata ingestion and querying are enabled by default{{% available_from "#" %}}. To disable them, set `-enableMetadata=false`.
 
 The metadata is cached in-memory in a ring buffer and can use up to 1% of available memory by default (see `-storage.maxMetadataStorageSize` cmd-line flag).
 When in-memory size is exceeded, the least updated entries are dropped first. Entries that weren't updated for 1h are cleaned up automatically.
