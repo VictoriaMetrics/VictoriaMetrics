@@ -205,6 +205,62 @@ func TestParseJWTBody_Failure(t *testing.T) {
 		`cannot parse jwt body: json: cannot unmarshal string into Go struct field tbody.exp of type int64`,
 		true,
 	)
+
+	// invalid metrics metrics_account_id claim value type
+	f(
+		`{"vm_access": {"metrics_account_id": "1"}}`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		true,
+	)
+
+	// invalid metrics metrics_project_id claim value type
+	f(
+		`{"vm_access": {"metrics_project_id": "1"}}`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		true,
+	)
+
+	// invalid metrics metrics_extra_labels claim value type
+	f(
+		`{"vm_access": {"metrics_extra_labels": "aString"}}`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		true,
+	)
+
+	// invalid metrics metrics_extra_filters claim value type
+	f(
+		`{"vm_access": {"metrics_extra_filters": "aString"}}`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		true,
+	)
+
+	// invalid metrics logs_account_id claim value type
+	f(
+		`{"vm_access": {"logs_account_id": "1"}}`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		true,
+	)
+
+	// invalid metrics logs_project_id claim value type
+	f(
+		`{"vm_access": {"logs_project_id": "1"}}`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		true,
+	)
+
+	// invalid metrics logs_extra_filters claim value type
+	f(
+		`{"vm_access": {"logs_extra_filters": "aString"}}`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		true,
+	)
+
+	// invalid metrics logs_extra_stream_filters claim value type
+	f(
+		`{"vm_access": {"logs_extra_stream_filters": "aString"}}`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		true,
+	)
 }
 
 func TestParseJWTBody_Success(t *testing.T) {
@@ -243,10 +299,10 @@ func TestParseJWTBody_Success(t *testing.T) {
 	}
 
 	f(`{"vm_access": {}}`, &body{
-		VMAccess: &access{},
+		VMAccess: &VMAccessClaim{},
 	})
 	f(`{"vm_access": {"tenant_id": {}}}`, &body{
-		VMAccess: &access{},
+		VMAccess: &VMAccessClaim{},
 	})
 
 	f(
@@ -260,7 +316,7 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
@@ -280,7 +336,7 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Labels: Labels{
 					"project": "dev",
 					"team":    "mobile",
@@ -300,7 +356,7 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				ExtraFilters: []string{
 					`{project="dev"}`,
 					`{team=~"mobile"}`,
@@ -328,7 +384,7 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
@@ -359,7 +415,67 @@ func TestParseJWTBody_Success(t *testing.T) {
 			Iat:      1610975889,
 			Jti:      "9b194187-6bb7-4244-9d1b-559eab2ef7f3",
 			Scope:    "openid email profile",
-			VMAccess: &access{},
+			VMAccess: &VMAccessClaim{},
+		},
+	)
+
+	// metrics vm_access claim
+	f(
+		`
+{
+    "vm_access": {
+        "metrics_account_id": 1,
+        "metrics_project_id": 5,
+        "metrics_extra_labels": [
+            "project=dev",
+            "team=mobile"
+        ],
+        "metrics_extra_filters": [
+            "{project=\"dev\"}"
+        ]
+    }
+}`,
+		&body{
+			VMAccess: &VMAccessClaim{
+				MetricsAccountID: 1,
+				MetricsProjectID: 5,
+				MetricsExtraLabels: []string{
+					"project=dev",
+					"team=mobile",
+				},
+				MetricsExtraFilters: []string{
+					`{project="dev"}`,
+				},
+			},
+		},
+	)
+
+	// logs vm_access claim
+	f(
+		`
+{
+    "vm_access": {
+        "logs_account_id": 1,
+        "logs_project_id": 5,
+        "logs_extra_filters": [
+            "{\"namespace\":\"my-app\",\"env\":\"prod\"}"
+        ],
+        "logs_extra_stream_filters": [
+            "{project=\"dev\"}"
+        ]
+    }
+}`,
+		&body{
+			VMAccess: &VMAccessClaim{
+				LogsAccountID: 1,
+				LogsProjectID: 5,
+				LogsExtraFilters: []string{
+					`{"namespace":"my-app","env":"prod"}`,
+				},
+				LogsExtraStreamFilters: []string{
+					`{project="dev"}`,
+				},
+			},
 		},
 	)
 }
@@ -427,7 +543,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 			Iat:   1610888966,
 			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
 			Scope: "openid email profile",
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
@@ -460,7 +576,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 			Iat:   1610888966,
 			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
 			Scope: "openid email profile",
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
@@ -489,7 +605,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 	}
 	resultExpected = &Token{
 		body: &body{
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 0,
 					AccountID: 1,
@@ -517,7 +633,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 	}
 	resultExpected = &Token{
 		body: &body{
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 0,
 					AccountID: 1,
@@ -549,7 +665,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 			Iat:   1610888966,
 			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
 			Scope: "openid email profile",
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
@@ -583,7 +699,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 			Iat:   1610888966,
 			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
 			Scope: "openid email profile",
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
@@ -616,7 +732,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		body: &body{
 			Exp: 1725629232,
 			Iat: 1725625332,
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
@@ -644,7 +760,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		body: &body{
 			Exp: 1725629232,
 			Iat: 1725625332,
-			VMAccess: &access{
+			VMAccess: &VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,

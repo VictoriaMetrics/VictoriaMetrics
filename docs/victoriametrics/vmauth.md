@@ -296,6 +296,112 @@ users:
 
 JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
 
+#### JWT claim-based request templating
+
+`vmauth` can dynamically rewrite upstream URLs and request headers using values from the JWT `vm_access` claim. 
+This enables routing different users to different backends or tenants based solely on the JWT token, 
+without maintaining separate user configs per tenant.
+
+Placeholders are written directly into `url_prefix` and `headers` values in the auth config. 
+At request time each placeholder is replaced with the corresponding value from the `vm_access` claim of the incoming JWT token.
+
+The following placeholders are supported:
+
+| Placeholder | JWT claim field |
+|-------------|-----------------|
+| `{{.MetricsTenant}}` | `metrics_account_id`, `metrics_project_id` |
+| `{{.MetricsExtraLabels}}` | `metrics_extra_labels` |
+| `{{.MetricsExtraFilters}}` | `metrics_extra_filters` |
+| `{{.LogsAccountID}}` | `logs_account_id` |
+| `{{.LogsProjectID}}` | `logs_project_id` |
+| `{{.LogsExtraFilters}}` | `logs_extra_filters` |
+| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` |
+
+Placeholders are supported in the following locations:
+
+- **URL path** — only `{{.MetricsTenant}}`, `{{.LogsAccountID}}` and `{{.LogsProjectID}}` are allowed in path segments.
+- **URL query parameters** — any placeholder may be used as the full value of a query parameter (e.g. `?extra_filters={{.MetricsExtraFilters}}`).
+- **Request headers** — any placeholder may be used as the full value of a request header (e.g. `AccountID: {{.LogsAccountID}}`).
+
+Placeholders are **not** supported in response headers. 
+They are also only valid for JWT-authenticated users — using them in configs for `username`/`password` or `bearer_token` users causes a configuration error.
+
+Example: valid jwt token body with `vm_access` claim:
+
+```json
+{
+  "exp": 1771953418,
+  "vm_access": {
+    "metrics_account_id": 1,
+    "metrics_project_id": 2,
+    "metrics_extra_labels": ["dev=team","env=prod"],
+    "metrics_extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
+
+    "logs_account_id": 2,
+    "logs_project_id": 3,
+    "logs_extra_filters": ["{\"namespace\":\"my-app\",\"env\":\"prod\"}"],
+    "logs_extra_stream_filters": []
+  }
+}
+```
+
+Example: route requests to the VictoriaMetrics single-node:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_prefix: "http://vminsert:8480/prometheus/?extra_filters={{.MetricsExtraFilters}}&extra_label={{.MetricsExtraLabels}}"
+```
+
+Example: route requests to the VictoriaMetrics cluster:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "http://vminsert:8480/insert/{{.MetricsTenant}}/prometheus/"
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    url_prefix: "http://vmselect:8481/select/{{.MetricsTenant}}/prometheus/"
+```
+
+Example: route requests to the VictoriaLogs cluster:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+      - |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+        -----END PUBLIC KEY-----
+  headers:
+  - "AccountID: {{.LogsAccountID}}"
+  - "ProjectID: {{.LogsProjectID}}"
+  url_map:
+  - src_paths:
+      - "/select/.*"
+    url_prefix:
+      - http://vlselect:9428
+  - src_paths:
+      - "/insert/.*"
+    url_prefix:
+      - http://vlinsert:9428
+```
+
 See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Per-tenant authorization
