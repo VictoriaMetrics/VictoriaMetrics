@@ -93,6 +93,10 @@ func (ps *pipeSort) canReturnLastNResults() bool {
 	return false
 }
 
+func (ps *pipeSort) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (ps *pipeSort) updateNeededFields(pf *prefixfilter.Filter) {
 	if pf.MatchNothing() {
 		// There is no need in fetching any fields, since all of them are ignored by the caller.
@@ -268,7 +272,7 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 		shard.stateSizeBudget -= len(valuesEncoded) * int(unsafe.Sizeof(valuesEncoded[0]))
 
 		bb := bbPool.Get()
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		for rowIdx := range br.rowsLen {
 			// Marshal all the columns per each row into a single string
 			// and sort rows by the resulting string.
 			bb.B = bb.B[:0]
@@ -366,7 +370,7 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 	blockIdx := len(shard.blocks) - 1
 	rowRefs := shard.rowRefs
 	rowRefsLen := len(rowRefs)
-	for i := 0; i < br.rowsLen; i++ {
+	for i := range br.rowsLen {
 		rowRefs = append(rowRefs, sortRowRef{
 			blockIdx: blockIdx,
 			rowIdx:   i,
@@ -464,10 +468,7 @@ func (psp *pipeSortProcessor) flush() error {
 
 	var wg sync.WaitGroup
 	for _, shard := range shards {
-		wg.Add(1)
-		go func(shard *pipeSortProcessorShard) {
-			defer wg.Done()
-
+		wg.Go(func() {
 			// TODO: interrupt long sorting when psp.stopCh is closed.
 
 			if sort.IsSorted(shard) {
@@ -476,7 +477,7 @@ func (psp *pipeSortProcessor) flush() error {
 				return
 			}
 			sort.Sort(shard)
-		}(shard)
+		})
 	}
 	wg.Wait()
 
