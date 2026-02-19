@@ -524,11 +524,23 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got45min, got30min)
 		}
 
+		time.Sleep(14 * time.Minute) // 2000-01-01T23:59:00Z
+		mrs5 := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric5", TimeRange{
+			MinTimestamp: time.Now().Add(-15 * time.Minute).UnixMilli(),
+			MaxTimestamp: time.Now().UnixMilli(),
+		})
+		s.AddRows(mrs5, defaultPrecisionBits)
+		s.DebugFlush()
+		got59min := countMetricIDs(t, s, "metric5", nextDay)
+		if got59min < got45min {
+			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got59min, got59min)
+		}
+
 		// Sleep until the next day
 		// do not close storage, it resets dataMetricID cache and it will result into slow inserts
 		// since dateMetricID cache is not persisted on-disk
 
-		time.Sleep(35 * time.Minute) // 2000-01-02T00:20:00Z
+		time.Sleep(2 * time.Minute) // 2000-01-02T00:01:00Z
 		synctest.Wait()
 
 		// Ingest data for the next day, it must hit dateMetricID cache and
@@ -536,12 +548,12 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		var m Metrics
 		s.UpdateMetrics(&m)
 		currDaySlowInserts := m.SlowPerDayIndexInserts
-		mrs3NextDay := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric3", TimeRange{
-			MinTimestamp: time.Now().Add(-5 * time.Minute).UnixMilli(),
+		mrs5NextDay := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric5", TimeRange{
+			MinTimestamp: time.Now().Add(-1 * time.Minute).UnixMilli(),
 			MaxTimestamp: time.Now().UnixMilli(),
 		})
 
-		s.AddRows(mrs3NextDay, defaultPrecisionBits)
+		s.AddRows(mrs5NextDay, defaultPrecisionBits)
 		s.DebugFlush()
 		m.Reset()
 		s.UpdateMetrics(&m)

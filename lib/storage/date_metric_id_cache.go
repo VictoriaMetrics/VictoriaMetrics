@@ -41,7 +41,7 @@ type dateMetricIDCache struct {
 
 func newDateMetricIDCache() *dateMetricIDCache {
 	c := dateMetricIDCache{
-		rotationPeriod:    timeutil.AddJitterToDuration(1 * time.Hour),
+		rotationPeriod:    timeutil.AddJitterToDuration(1 * time.Minute),
 		stopCh:            make(chan struct{}),
 		rotationStoppedCh: make(chan struct{}),
 	}
