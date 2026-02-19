@@ -803,6 +803,23 @@ func (is *indexSearch) searchTenantsOnTimeRange(qt *querytracer.Tracer, tr TimeR
 }
 
 func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, error) {
+	unmarshalCommonPrefixWithDate := func(src []byte) (byte, uint32, uint32, uint64, error) {
+		tail, prefix, accountID, projectID, err := unmarshalCommonPrefix(src)
+		if err != nil {
+			return 0, 0, 0, 0, err
+		}
+		if prefix == nsPrefixTagToMetricIDs {
+			// Global index
+			return prefix, accountID, projectID, 0, nil
+		}
+		// Per-day index
+		if len(tail) < 8 {
+			return 0, 0, 0, 0, fmt.Errorf("cannot unmarshal date from %d bytes; need at least %d bytes; data=%X", len(src), 8, src)
+		}
+		itemDate := encoding.UnmarshalUint64(tail)
+		return prefix, accountID, projectID, itemDate, nil
+
+	}
 	tenants := make(map[string]struct{})
 	loopsPaceLimiter := 0
 	ts := &is.ts
@@ -822,7 +839,7 @@ func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, er
 			}
 		}
 		loopsPaceLimiter++
-		_, prefix, itemDate, accountID, projectID, err := unmarshalCommonPrefixForDate(ts.Item, date)
+		prefix, accountID, projectID, itemDate, err := unmarshalCommonPrefixWithDate(ts.Item)
 		if err != nil {
 			return nil, err
 		}
@@ -3247,24 +3264,6 @@ func (is *indexSearch) marshalCommonPrefixForDate(dst []byte, date uint64) []byt
 	// Per-day index
 	dst = is.marshalCommonPrefix(dst, nsPrefixDateTagToMetricIDs)
 	return encoding.MarshalUint64(dst, date)
-}
-
-func unmarshalCommonPrefixForDate(src []byte, date uint64) ([]byte, byte, uint64, uint32, uint32, error) {
-	tail, prefix, accountID, projectID, err := unmarshalCommonPrefix(src)
-	if err != nil {
-		return nil, 0, 0, 0, 0, err
-	}
-	if date == globalIndexDate {
-		// Global index
-		return tail, prefix, 0, accountID, projectID, nil
-	}
-	// Per-day index
-	if len(tail) < 8 {
-		return nil, 0, 0, 0, 0, fmt.Errorf("cannot unmarshal date from %d bytes; need at least %d bytes; data=%X", len(src), 8, src)
-	}
-	itemDate := encoding.UnmarshalUint64(tail)
-	return src[commonPrefixLen:], prefix, itemDate, accountID, projectID, nil
-
 }
 
 func unmarshalCommonPrefix(src []byte) ([]byte, byte, uint32, uint32, error) {

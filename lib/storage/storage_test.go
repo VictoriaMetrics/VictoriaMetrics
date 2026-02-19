@@ -1014,64 +1014,63 @@ func TestStorageSearchTenantsOnDate(t *testing.T) {
 	date6 := baseDate + 6*msecPerDay
 	date7 := baseDate + 7*msecPerDay
 
-	tr := TimeRange{MinTimestamp: date1, MaxTimestamp: date1}
-	s.AddRows(generateMetricRows(1, 10, tr), defaultPrecisionBits)
-	s.AddRows(generateMetricRows(2, 20, tr), defaultPrecisionBits)
+	tr1 := TimeRange{MinTimestamp: date1, MaxTimestamp: date1}
+	tr2 := TimeRange{MinTimestamp: date2, MaxTimestamp: date2}
+	tr3 := TimeRange{MinTimestamp: date3, MaxTimestamp: date3}
+	tr13 := TimeRange{MinTimestamp: date1, MaxTimestamp: date3}
+	tr56 := TimeRange{MinTimestamp: date5, MaxTimestamp: date6}
+	tr57 := TimeRange{MinTimestamp: date5, MaxTimestamp: date7}
+	tr7 := TimeRange{MinTimestamp: date7, MaxTimestamp: date7}
 
-	tr = TimeRange{MinTimestamp: date2, MaxTimestamp: date2}
-	s.AddRows(generateMetricRows(1, 11, tr), defaultPrecisionBits)
-	s.AddRows(generateMetricRows(3, 30, tr), defaultPrecisionBits)
+	s.AddRows(generateMetricRows(1, 10, tr1), defaultPrecisionBits)
+	s.AddRows(generateMetricRows(2, 20, tr1), defaultPrecisionBits)
 
-	tr = TimeRange{MinTimestamp: date3, MaxTimestamp: date3}
-	s.AddRows(generateMetricRows(2, 21, tr), defaultPrecisionBits)
+	s.AddRows(generateMetricRows(1, 11, tr2), defaultPrecisionBits)
+	s.AddRows(generateMetricRows(3, 30, tr2), defaultPrecisionBits)
+
+	s.AddRows(generateMetricRows(2, 21, tr3), defaultPrecisionBits)
 
 	// special case for multi date ingestion
 	// date5 - 500:100,1000:5
 	// date6 - 500:100,1000:5
 	// date7 - 1:0,1000:5
-	s.AddRows(generateMetricRows(500, 100, TimeRange{MinTimestamp: date5, MaxTimestamp: date6}), defaultPrecisionBits)
-	s.AddRows(generateMetricRows(1000, 5, TimeRange{MinTimestamp: date5, MaxTimestamp: date7}), defaultPrecisionBits)
-	s.AddRows(generateMetricRows(1, 0, TimeRange{MinTimestamp: date7, MaxTimestamp: date7}), defaultPrecisionBits)
+	s.AddRows(generateMetricRows(500, 100, tr56), defaultPrecisionBits)
+	s.AddRows(generateMetricRows(1000, 5, tr57), defaultPrecisionBits)
+	s.AddRows(generateMetricRows(1, 0, tr7), defaultPrecisionBits)
 
 	// flush all rows
 	s.DebugFlush()
 
-	f := func(tr TimeRange, expected []string) {
+	f := func(tr TimeRange, want []string) {
 		t.Helper()
 		got, err := s.SearchTenants(nil, tr, noDeadline)
 		if err != nil {
 			t.Fatalf("unexpected error in SearchTenants(%v): %s", tr, err)
 		}
 		slices.Sort(got)
-		slices.Sort(expected)
-		if !reflect.DeepEqual(got, expected) {
-			t.Fatalf("unexpected tenants for %q;\ngot %q\nwant %q", tr.String(), strings.Join(got, ","), strings.Join(expected, ","))
+		slices.Sort(want)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected tenants for %v (-want, +got):\n%s", &tr, diff)
 		}
 	}
 
 	// single date with multiple tenants
-	tr = TimeRange{MinTimestamp: date1, MaxTimestamp: date1}
-	f(tr, []string{"1:10", "2:20"})
+	f(tr1, []string{"1:10", "2:20"})
 
 	// single date with single tenant
-	tr = TimeRange{MinTimestamp: date3, MaxTimestamp: date3}
-	f(tr, []string{"2:21"})
+	f(tr3, []string{"2:21"})
 
 	// single date with different tenant ingestion ranges
-	tr = TimeRange{MinTimestamp: date7, MaxTimestamp: date7}
-	f(tr, []string{"1:0", "1000:5"})
+	f(tr7, []string{"1:0", "1000:5"})
 
 	// empty result
-	tr = TimeRange{MinTimestamp: baseDate + 10*msecPerDay, MaxTimestamp: baseDate + 11*msecPerDay}
-	f(tr, []string{})
+	f(TimeRange{MinTimestamp: baseDate + 10*msecPerDay, MaxTimestamp: baseDate + 11*msecPerDay}, []string{})
 
 	// multi date time range
-	tr = TimeRange{MinTimestamp: baseDate, MaxTimestamp: date3}
-	f(tr, []string{"1:10", "1:11", "2:20", "2:21", "3:30"})
+	f(tr13, []string{"1:10", "1:11", "2:20", "2:21", "3:30"})
 
 	// global index time range
-	tr = TimeRange{MinTimestamp: baseDate, MaxTimestamp: math.MaxInt64}
-	f(tr, []string{"1:0", "1:10", "1:11", "2:20", "2:21", "3:30", "500:100", "1000:5"})
+	f(TimeRange{MinTimestamp: baseDate, MaxTimestamp: math.MaxInt64}, []string{"1:0", "1:10", "1:11", "2:20", "2:21", "3:30", "500:100", "1000:5"})
 }
 
 func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
