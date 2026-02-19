@@ -122,7 +122,7 @@ func initTestTSID(tsid *TSID) {
 	*tsid = *rndTSID
 }
 
-var tsidType = reflect.TypeOf(&TSID{})
+var tsidType = reflect.TypeFor[*TSID]()
 
 var (
 	rnd     = rand.New(rand.NewSource(1))

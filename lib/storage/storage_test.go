@@ -355,7 +355,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 
 func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	var buf []byte
-	typ := reflect.TypeOf(&MetricRow{})
+	typ := reflect.TypeFor[*MetricRow]()
 	rng := rand.New(rand.NewSource(1))
 
 	for range 1000 {

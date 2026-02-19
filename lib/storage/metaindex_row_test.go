@@ -97,4 +97,4 @@ func initTestMetaindexRow(mr *metaindexRow) {
 	}
 }
 
-var metaindexRowType = reflect.TypeOf(&metaindexRow{})
+var metaindexRowType = reflect.TypeFor[*metaindexRow]()
