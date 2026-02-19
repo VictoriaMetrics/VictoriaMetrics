@@ -296,7 +296,7 @@ func replaceJWTPlaceholders(targetURL *url.URL, rhs []*Header, jwtConf *JWTConfi
 			query.Add(`extra_filters`, v)
 		}
 	}
-	if jwtConf.logsExtraFiltersPlaceholderUsed {
+	if jwtConf.logsExtraStreamFiltersPlaceholderUsed {
 		vals := append([]string{}, query[`extra_filters`]...)
 		query[`extra_filters`] = nil
 		for _, v := range vals {
