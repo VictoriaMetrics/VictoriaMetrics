@@ -268,7 +268,7 @@ func replaceJWTPlaceholders(targetURL *url.URL, rhs []*Header, jwtConf *JWTConfi
 	}
 
 	query := targetURL.Query()
-	if jwtConf.metricsExtraLabelsPlaceholderUsed {
+	if jwtConf.metricsExtraFiltersPlaceholderUsed {
 		vals := append([]string{}, query[`extra_label`]...)
 		query[`extra_label`] = nil
 		for _, v := range vals {
