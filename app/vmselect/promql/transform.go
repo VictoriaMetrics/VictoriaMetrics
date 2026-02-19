@@ -451,7 +451,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		sort.Slice(leGroup, func(i, j int) bool {
 			return leGroup[i].le < leGroup[j].le
 		})
-		for n := 0; n < pointsCount; n++ {
+		for n := range pointsCount {
 			prevValue := float64(0)
 			for i := range leGroup {
 				xx := &leGroup[i]
@@ -1192,7 +1192,7 @@ func transformInterpolate(tfa *transformFuncArg) ([]*timeseries, error) {
 		}
 		prevValue := nan
 		var nextValue float64
-		for i := 0; i < len(values); i++ {
+		for i := range values {
 			if !math.IsNaN(values[i]) {
 				continue
 			}

@@ -1045,7 +1045,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 	goroutines := cgroup.AvailableCPUs()
 	resultCh := make(chan result, len(targetLabels))
 	workCh := make(chan *promutil.Labels, goroutines)
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			for metaLabels := range workCh {
 				target := metaLabels.Get("__address__")
@@ -1158,7 +1158,7 @@ func getClusterMemberNumsForScrapeWork(key string, membersCount, replicasCount i
 		replicasCount = 1
 	}
 	memberNums := make([]int, replicasCount)
-	for i := 0; i < replicasCount; i++ {
+	for i := range replicasCount {
 		memberNums[i] = idx
 		idx++
 		if idx >= membersCount {

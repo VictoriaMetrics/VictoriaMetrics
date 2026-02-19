@@ -32,13 +32,13 @@ func TestPartSearch(t *testing.T) {
 func testPartSearchConcurrent(p *part, items []string) error {
 	const goroutinesCount = 5
 	ch := make(chan error, goroutinesCount)
-	for i := 0; i < goroutinesCount; i++ {
+	for i := range goroutinesCount {
 		go func(n int) {
 			rLocal := rand.New(rand.NewSource(int64(n)))
 			ch <- testPartSearchSerial(rLocal, p, items)
 		}(i)
 	}
-	for i := 0; i < goroutinesCount; i++ {
+	for range goroutinesCount {
 		select {
 		case err := <-ch:
 			if err != nil {
@@ -90,7 +90,7 @@ func testPartSearchSerial(r *rand.Rand, p *part, items []string) error {
 	}
 
 	// Search for inner items
-	for loop := 0; loop < 100; loop++ {
+	for loop := range 100 {
 		idx := r.Intn(len(items))
 		k = append(k[:0], items[idx]...)
 		ps.Seek(k)
@@ -129,7 +129,7 @@ func testPartSearchSerial(r *rand.Rand, p *part, items []string) error {
 	}
 
 	// Search for reversely sorted items
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		item := items[len(items)-i-1]
 		ps.Seek([]byte(item))
 		if !ps.NextItem() {

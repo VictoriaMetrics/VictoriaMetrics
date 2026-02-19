@@ -382,7 +382,7 @@ users:
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
 			MergeQueryArgs:         []string{"foo", "bar"},
-			DropSrcPathPrefixParts: intp(1),
+			DropSrcPathPrefixParts: new(1),
 			DiscoverBackendIPs:     &discoverBackendIPsTrue,
 		},
 	}, nil)
@@ -851,7 +851,7 @@ func TestBrokenBackend(t *testing.T) {
 	bus[1].setBroken()
 
 	// broken backend should never return while there are healthy backends
-	for i := 0; i < 1e3; i++ {
+	for range int(1e3) {
 		b := up.getBackendURL()
 		if b.isBroken() {
 			t.Fatalf("unexpected broken backend %q", b.url)
@@ -981,10 +981,6 @@ func mustParseURLs(us []string) *URLPrefix {
 	up.bus.Store(bus)
 	up.busOriginal = urls
 	return up
-}
-
-func intp(n int) *int {
-	return &n
 }
 
 func mustNewRegex(s string) *Regex {

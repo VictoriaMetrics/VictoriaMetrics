@@ -755,7 +755,7 @@ type leveledWriteRequestCtxPool struct {
 
 func (lwp *leveledWriteRequestCtxPool) Get(labelsLen int) *writeRequestCtx {
 	id, _ := lwp.getPoolIDAndCapacity(labelsLen)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		if id < 0 || id >= len(lwp.pools) {
 			break
 		}

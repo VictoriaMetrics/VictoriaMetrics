@@ -44,7 +44,7 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 	var sizes []uint64
 	maxOutSize := uint64(0)
 	r := rand.New(rand.NewSource(1))
-	for i := 0; i < 1024; i++ {
+	for range 1024 {
 		n := uint64(uint32(r.NormFloat64() * 1e9))
 		n++
 		maxOutSize += n

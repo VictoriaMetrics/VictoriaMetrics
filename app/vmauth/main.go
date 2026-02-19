@@ -371,7 +371,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 
 	maxAttempts := up.getBackendsCount()
-	for i := 0; i < maxAttempts; i++ {
+	for range maxAttempts {
 		bu := up.getBackendURL()
 		if bu == nil {
 			break

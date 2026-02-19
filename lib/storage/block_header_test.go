@@ -19,7 +19,7 @@ func TestMarshaledBlockHeaderSize(t *testing.T) {
 
 func TestBlockHeaderMarshalUnmarshal(t *testing.T) {
 	var bh blockHeader
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		bh.TSID.MetricID = uint64(i + 1)
 		bh.MinTimestamp = int64(-i*1e3 + 2)
 		bh.MaxTimestamp = int64(i*2e3 + 3)

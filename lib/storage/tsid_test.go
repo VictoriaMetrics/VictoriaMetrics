@@ -82,7 +82,7 @@ func TestTSIDMarshalUnmarshal(t *testing.T) {
 	var tsid TSID
 	testTSIDMarshalUnmarshal(t, &tsid)
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		initTestTSID(&tsid)
 
 		testTSIDMarshalUnmarshal(t, &tsid)
@@ -103,7 +103,7 @@ func initTestTSID(tsid *TSID) {
 	*tsid = *rndTSID
 }
 
-var tsidType = reflect.TypeOf(&TSID{})
+var tsidType = reflect.TypeFor[*TSID]()
 
 var (
 	rnd     = rand.New(rand.NewSource(1))

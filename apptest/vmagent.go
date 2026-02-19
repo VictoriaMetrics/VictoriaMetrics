@@ -145,7 +145,7 @@ func (app *Vmagent) ReloadRelabelConfigs(t *testing.T) {
 	}
 
 	var currTotal float64
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		currTotal = app.GetMetric(t, "vmagent_relabel_config_reloads_total")
 		if currTotal > prevTotal {
 			return

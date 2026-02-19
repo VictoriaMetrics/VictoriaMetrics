@@ -2,6 +2,7 @@ package uint64set
 
 import (
 	"math/bits"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -891,12 +892,7 @@ func (b *bucket16) has(x uint16) bool {
 }
 
 func (b *bucket16) hasInSmallPool(x uint16) bool {
-	for _, v := range b.smallPool[:b.smallPoolLen] {
-		if v == x {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(b.smallPool[:b.smallPoolLen], x)
 }
 
 func (b *bucket16) del(x uint16) bool {
