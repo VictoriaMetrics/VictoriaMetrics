@@ -136,7 +136,7 @@ curl -s -X POST 'http://localhost:8428/prometheus/api/v1/series' -d 'match[]=pro
 To do the same on the cluster version:
 
 ```sh
-curl -s -X 'http://localhost:8481/select/0/prometheus/api/v1/series' -d 'match[]=process_cpu_cores_available' | jq
+curl -s -X POST 'http://localhost:8481/select/0/prometheus/api/v1/series' -d 'match[]=process_cpu_cores_available' | jq
 ```
 
 If no records are returned, you should increase the time window (by default, only the last 5 minutes of data are returned). The following example adds `-d 'start=-30d'` to show the last 30 days:
