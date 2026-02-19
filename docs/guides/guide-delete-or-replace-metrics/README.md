@@ -36,7 +36,7 @@ VictoriaMetrics provides the following endpoints to manage metrics:
 - [delete_series](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1admintsdbdelete_series): deletes time series
 - [force_merge](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge): forces data compaction in VictoriaMetrics storage
 
-The [endpoints change depending on whether you are running single-node or cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
+The actual [endpoints depend on whether you are running single-node or cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format
 ). Use the tables below as a reference.
 
 ### Single-node version
@@ -88,7 +88,7 @@ To select, import, export, and delete series from a VictoriaMetrics cluster, you
 
 
 The table assumes that:
-- the [Tenant ID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is 0; adjust this value as needed
+- The [Tenant ID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is 0; adjust this value as needed
 - You are logged into the machine running the VictoriaMetrics processes
 - or, if on Kubernetes, that you have port-forwarded the VictoriaMetrics services to localhost
 
@@ -131,7 +131,7 @@ curl -s 'http://localhost:8428/prometheus/api/v1/series' -d 'match[]=process_cpu
 ```
 
 > [!NOTE] Warning
-> The response can return many metrics, so be careful with the series selector.
+> The response can return a long list of metrics, so be careful with the series selector.
 
 To do the same on the cluster version:
 
@@ -175,9 +175,9 @@ The output should show the matching time series found in VictoriaMetrics:
 ```
 If you are using VictoriaMetrics Cloud, you need to:
 
-- replace the base URL with your [Access Endpoint](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data) (e.g., `https://<xxxx>.cloud.victoriametrics.com`)
-- add an Authorization Header with your [Access Token](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data) 
-- modify the endpoint path based on your [deployment type](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/single-or-cluster/) depending on your Cloud deployment type
+- Replace the base URL with your [Access Endpoint](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data) (e.g., `https://<xxxx>.cloud.victoriametrics.com`)
+- Add an Authorization Header with your [Access Token](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data) 
+- Modify the endpoint path based on your [deployment type](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/single-or-cluster/) depending on your Cloud deployment type
 
 The following example works with VictoriaMetrics Cloud single:
 
@@ -219,7 +219,7 @@ If the operation was successful, the deleted series will stop being [queryable](
 
 ### Storage
 
-The storage used by the deleted time series isn't freed immediately. There is done during [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282), which may never happen for historical data. In this case, you can trigger a [forced merge](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge) to free up storage. After the merge is complete, the data will be permanently deleted from the disk.
+The storage used by the deleted time series isn't freed immediately. This is done during [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282), which may never happen for historical data. In this case, you can trigger a [forced merge](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge) to free up storage. After the merge is complete, the data will be permanently deleted from the disk.
 
 To force a merge on VictoriaMetrics single node, run the following command:
 
@@ -233,11 +233,11 @@ To do the same on the cluster version:
 curl -v -X POST http://localhost:8482/internal/force_merge
 ```
 
-Forced merging is not available on VictoriaMetrics Cloud. If you need help managing storage after deleting a time series, please contact support.
+Forced merging is not available on VictoriaMetrics Cloud. If you need help managing storage after deleting a time series, please get in touch with support.
 
 ## How to update metrics
 
-VictoriaMetrics doesn't provide a mechanism for replacing or updating data. As a workaround, you can  take the following actions:
+VictoriaMetrics doesn't provide a mechanism for replacing or updating data. As a workaround, you can take the following actions:
 
 1. [Export time series to a file](https://docs.victoriametrics.com/victoriametrics/url-examples/#apiv1export)
 2. Change the values in the exported file
@@ -303,7 +303,7 @@ The expected output will look like the following:
 }
 
 ```
-We can replace the value of `node_memory_MemTotal_bytes` from `33604390912` to `17179869184` (from 32Gb to 16Gb) using [sed](https://linux.die.net/man/1/sed) or any other text-processing tool:
+We can replace the value of `node_memory_MemTotal_bytes` from `33604390912` to `17179869184` (from 32GB to 16GB) using [sed](https://linux.die.net/man/1/sed) or any other text-processing tool:
 
 ```sh
 sed -i 's/33604390912/17179869184/g' data.jsonl
@@ -345,7 +345,7 @@ Delete the metrics as explained above in [how to delete metrics](https://docs.vi
 
 ### Import metrics
 
-VictoriaMetrics supports many [ingestion protocols](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data). In this case, we can directly [import from JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
+VictoriaMetrics supports several [ingestion protocols](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-time-series-data). In this case, we can directly [import from JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
 
 The next command imports metrics from `data.jsonl` to VictoriaMetrics single node:
 
