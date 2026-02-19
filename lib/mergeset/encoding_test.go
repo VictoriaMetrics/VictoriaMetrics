@@ -197,4 +197,4 @@ func getRandomBytes(r *rand.Rand) []byte {
 	return iv.Interface().([]byte)
 }
 
-var bytesType = reflect.TypeOf([]byte(nil))
+var bytesType = reflect.TypeFor[[]byte]()
