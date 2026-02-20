@@ -1043,6 +1043,9 @@ Pass `-opentelemetry.usePrometheusNaming` command-line flag to VictoriaMetrics f
 Pass `-opentelemetry.convertMetricNamesToPrometheus` command-line flag to VictoriaMetrics for applying Prometheus-compatible format conversion only for metrics names.
 OpenTelemetry [exponential histogram](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) is automatically converted
 to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
+Exponential histograms with [negative buckets](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) are not supported
+by VictoriaMetrics native histograms and will be dropped during ingestion.
+The number of dropped data points can be monitored via `vm_protoparser_rows_dropped_total{type="opentelemetry",reason="negative_histogram_buckets"}` metric.
 
 Using the following exporter configuration in the OpenTelemetry collector will allow you to send metrics into VictoriaMetrics:
 

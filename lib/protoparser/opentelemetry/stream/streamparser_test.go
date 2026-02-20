@@ -465,6 +465,42 @@ func TestParseStream(t *testing.T) {
 		},
 	)
 
+	// Test exponential histogram with negative buckets is dropped
+	f(
+		[]*pb.Metric{
+			generateExpHistogramWithNegativeBuckets("my-exp-histogram-negative", ""),
+		},
+		// Only metadata is retained
+		[]prompb.TimeSeries{},
+		[]prompb.MetricMetadata{
+			{
+				MetricFamilyName: "my-exp-histogram-negative",
+				Help:             "I'm an exponential histogram with negative buckets",
+				Type:             prompb.MetricTypeHistogram,
+			},
+		},
+	)
+
+	// Test exponential histogram with negative bucket counts all zero is NOT dropped
+	f(
+		[]*pb.Metric{
+			generateExpHistogramWithZeroNegativeBuckets("my-exp-histogram-zero-neg", ""),
+		},
+		[]prompb.TimeSeries{
+			newTimeSeries("my-exp-histogram-zero-neg_count", 15000, 20.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my-exp-histogram-zero-neg_sum", 15000, 4578.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("my-exp-histogram-zero-neg_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.000e+00...2.000e+00")),
+			newTimeSeries("my-exp-histogram-zero-neg_bucket", 15000, 10.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "2.000e+00...4.000e+00")),
+		},
+		[]prompb.MetricMetadata{
+			{
+				MetricFamilyName: "my-exp-histogram-zero-neg",
+				Help:             "I'm an exponential histogram with zero negative buckets",
+				Type:             prompb.MetricTypeHistogram,
+			},
+		},
+	)
+
 	// check translation only for metric name only
 	{
 		*convertMetricNamesToPrometheus = true
@@ -582,6 +618,62 @@ func generateExpHistogram(name, unit string, extraAttributes ...*pb.KeyValue) *p
 	m.ExponentialHistogram.DataPoints[0].Attributes = append(m.ExponentialHistogram.DataPoints[0].Attributes, extraAttributes...)
 
 	return m
+}
+
+func generateExpHistogramWithNegativeBuckets(name, unit string) *pb.Metric {
+	sum := float64(4578)
+	return &pb.Metric{
+		Name:        name,
+		Unit:        unit,
+		Description: "I'm an exponential histogram with negative buckets",
+		ExponentialHistogram: &pb.ExponentialHistogram{
+			DataPoints: []*pb.ExponentialHistogramDataPoint{
+				{
+					Attributes:   attributesFromKV("label1", "value1"),
+					TimeUnixNano: uint64(15 * time.Second),
+					Count:        20,
+					Sum:          &sum,
+					Scale:        7,
+					Positive: &pb.Buckets{
+						Offset:       7,
+						BucketCounts: []uint64{0, 0, 0, 0, 5, 10, 0, 0, 1},
+					},
+					Negative: &pb.Buckets{
+						Offset:       3,
+						BucketCounts: []uint64{0, 2, 0, 1},
+					},
+				},
+			},
+		},
+	}
+}
+
+func generateExpHistogramWithZeroNegativeBuckets(name, unit string) *pb.Metric {
+	sum := float64(4578)
+	return &pb.Metric{
+		Name:        name,
+		Unit:        unit,
+		Description: "I'm an exponential histogram with zero negative buckets",
+		ExponentialHistogram: &pb.ExponentialHistogram{
+			DataPoints: []*pb.ExponentialHistogramDataPoint{
+				{
+					Attributes:   attributesFromKV("label1", "value1"),
+					TimeUnixNano: uint64(15 * time.Second),
+					Count:        20,
+					Sum:          &sum,
+					Scale:        0,
+					Positive: &pb.Buckets{
+						Offset:       0,
+						BucketCounts: []uint64{5, 10},
+					},
+					Negative: &pb.Buckets{
+						Offset:       3,
+						BucketCounts: []uint64{0, 0, 0, 0},
+					},
+				},
+			},
+		},
+	}
 }
 
 func generateGauge(name, unit string, extraAttributes ...*pb.KeyValue) *pb.Metric {
