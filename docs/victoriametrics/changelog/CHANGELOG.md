@@ -33,9 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): enable [ingestion](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) and in-memory [storage](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metrics-metadata) of metrics metadata by default. Metadata ingestion can be disabled with `-enableMetadata=false`. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent panic `error parsing regexp: expression nests too deeply` triggered by large repetition ranges in regex. See [VictoriaLogs#1112](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1112).
-
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix escaping for label names with special characters. See [#10485](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10485).
-
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly search tenants for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) query request. See [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422).
 
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
