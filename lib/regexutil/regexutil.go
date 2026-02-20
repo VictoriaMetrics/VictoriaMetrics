@@ -202,7 +202,11 @@ func simplifyRegex(expr string, keepAnchors bool) (string, string) {
 		// Cannot parse the regexp. Return it all as prefix.
 		return expr, ""
 	}
-	sre = simplifyRegexp(sre, keepAnchors, keepAnchors)
+	sre, ok := simplifyRegexp(sre, keepAnchors, keepAnchors)
+	if !ok {
+		// The regexp is valid but cannot be simplified. Return it all as suffix.
+		return "", expr
+	}
 	if sre == emptyRegexp {
 		return "", ""
 	}
@@ -218,7 +222,10 @@ func simplifyRegex(expr string, keepAnchors bool) (string, string) {
 			if len(sre.Sub) == 0 {
 				return prefix, ""
 			}
-			sre = simplifyRegexp(sre, true, keepAnchors)
+			sreNew, ok := simplifyRegexp(sre, true, keepAnchors)
+			if ok {
+				sre = sreNew
+			}
 		}
 	}
 	if _, err := syntax.Compile(sre); err != nil {
@@ -232,7 +239,7 @@ func simplifyRegex(expr string, keepAnchors bool) (string, string) {
 	return prefix, s
 }
 
-func simplifyRegexp(sre *syntax.Regexp, keepBeginOp, keepEndOp bool) *syntax.Regexp {
+func simplifyRegexp(sre *syntax.Regexp, keepBeginOp, keepEndOp bool) (*syntax.Regexp, bool) {
 	s := sre.String()
 	for {
 		sre = simplifyRegexpExt(sre, keepBeginOp, keepEndOp)
@@ -244,10 +251,19 @@ func simplifyRegexp(sre *syntax.Regexp, keepBeginOp, keepEndOp bool) *syntax.Reg
 		}
 		sNew := sre.String()
 		if sNew == s {
-			return sre
+			return sre, true
 		}
-		sre = mustParseRegexp(sNew)
 		s = sNew
+
+		sreNew, err := parseRegexp(sNew)
+		if err != nil {
+			// Parsing errors can occur due to deep nesting limits or other validation parameters.
+			// This usually happens when the Simplify method returns an optimized regex that is technically valid
+			// but exceeds internal complexity thresholds.
+			// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1112
+			return nil, false
+		}
+		sre = sreNew
 	}
 }
 
