@@ -803,6 +803,23 @@ func (is *indexSearch) searchTenantsOnTimeRange(qt *querytracer.Tracer, tr TimeR
 }
 
 func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, error) {
+	unmarshalCommonPrefixWithDate := func(src []byte) (byte, uint32, uint32, uint64, error) {
+		tail, prefix, accountID, projectID, err := unmarshalCommonPrefix(src)
+		if err != nil {
+			return 0, 0, 0, 0, err
+		}
+		if prefix == nsPrefixTagToMetricIDs {
+			// Global index
+			return prefix, accountID, projectID, 0, nil
+		}
+		// Per-day index
+		if len(tail) < 8 {
+			return 0, 0, 0, 0, fmt.Errorf("cannot unmarshal date from %d bytes; need at least %d bytes; data=%X", len(src), 8, src)
+		}
+		itemDate := encoding.UnmarshalUint64(tail)
+		return prefix, accountID, projectID, itemDate, nil
+
+	}
 	tenants := make(map[string]struct{})
 	loopsPaceLimiter := 0
 	ts := &is.ts
@@ -822,23 +839,27 @@ func (is *indexSearch) searchTenantsOnDate(date uint64) (map[string]struct{}, er
 			}
 		}
 		loopsPaceLimiter++
-		tail, prefix, accountID, projectID, err := unmarshalCommonPrefix(ts.Item)
+		prefix, accountID, projectID, itemDate, err := unmarshalCommonPrefixWithDate(ts.Item)
 		if err != nil {
 			return nil, err
 		}
 		if prefix != prefixNeeded {
-			// Reached the end of enteris with the needed prefix.
+			// Reached the end of entries with the needed prefix.
 			break
 		}
-		// unmarshal date.
-		keyDate := uint64(0)
-		if len(tail) >= 8 {
-			keyDate = encoding.UnmarshalUint64(tail)
+		if date != 0 && itemDate < date {
+			// Seek for the given date for the current (accountID, projectID)
+			is.accountID = accountID
+			is.projectID = projectID
+			kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
+			ts.Seek(kb.B)
+			continue
 		}
-		if date == 0 || keyDate == date {
+		if date == 0 || itemDate == date {
 			tenant := fmt.Sprintf("%d:%d", accountID, projectID)
 			tenants[tenant] = struct{}{}
 		}
+
 		// Seek for the next (accountID, projectID)
 		projectID++
 		if projectID == 0 {
