@@ -59,6 +59,8 @@ Released at 2026-02-13
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): ensure proper reset of `buf` size for OpenTelemetry ingestion, and allow flushing when `buf` size exceeds 4MiB. Previously, when a small number of requests carried a large volume of time series or labels, `buf` was over-expanded and recycled to the pool, resulting in excessive memory usage. See [#10378](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10378).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): correctly display hierarchy of actions in [query trace](https://docs.victoriametrics.com/victoriametrics/#query-tracing) during index searches. Before, search within the specific index was placed out of scope in the trace. See [#10459](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10459).
 
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): optimize the performance of the `or` operation by reducing the marshaling call from `O(m*n)` to `O(m+n)` when large volumes of series are involved. See [#10374](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10374).
+
 ## [v1.135.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.135.0)
 
 Released at 2026-01-30
