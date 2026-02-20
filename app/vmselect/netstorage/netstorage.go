@@ -2505,6 +2505,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	// Repeat the query in the hope the error was temporary.
 	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
+
 	err = sn.execOnConn(qtRetry, funcName, f, deadline)
 	qtRetry.Done()
 	return err
@@ -3246,7 +3247,7 @@ func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *sto
 	addr = normalizedAddr
 
 	// There is no need in requests compression, since vmselect requests are usually very small.
-	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
+	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout, handshake.HealthCheckToVmstroage)
 
 	sn := &storageNode{
 		group:    group,

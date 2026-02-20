@@ -88,6 +88,8 @@ Released at 2026-01-30
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix `changes()` function when gaps between samples exceed the lookbehind window. Previously, it could yield a non-zero value even when the sample value remained unchanged. See [#10280](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10280).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): previously ingestion could hit lock contention that triggered frequent context switches and storage connection saturation spikes; now the contention is removed to keep ingestion steady. See [#10367](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10367).
 
+* FEATURE: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): introduce health check functionality for connection pools, this will help to prevent broken connections from persisting for a long time. See [#10314](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314)
+
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
 Released at 2026-01-16

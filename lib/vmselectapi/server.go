@@ -69,6 +69,7 @@ type Server struct {
 	searchRequests              *metrics.Counter
 	tenantsRequests             *metrics.Counter
 	searchMetadataRequests      *metrics.Counter
+	healthCheckRequests         *metrics.Counter
 
 	metricBlocksRead *metrics.Counter
 }
@@ -139,6 +140,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
 		tenantsRequests:             metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
 		searchMetadataRequests:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetadata",addr=%q}`, addr)),
+		healthCheckRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="healthCheck",addr=%q}`, addr)),
 
 		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
 	}
@@ -591,6 +593,9 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processResetMetricUsageStats(ctx)
 	case "searchMetadata_v1":
 		return s.processSearchMetadata(ctx)
+	case "healthCheck_v1":
+		return s.processHealthCheck(ctx)
+
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", rpcName)
 	}
@@ -1228,6 +1233,14 @@ func (s *Server) processSearchMetadata(ctx *vmselectRequestCtx) error {
 	}
 	if err := writeMetadataRows(ctx, result); err != nil {
 		return fmt.Errorf("cannot write metadata rows: %w", err)
+	}
+	return nil
+}
+
+func (s *Server) processHealthCheck(ctx *vmselectRequestCtx) error {
+	s.healthCheckRequests.Inc()
+	if err := ctx.writeUint64(1); err != nil {
+		return fmt.Errorf("cannot respond to health check from vmselect: %w", err)
 	}
 	return nil
 }
