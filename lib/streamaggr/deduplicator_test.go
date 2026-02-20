@@ -33,7 +33,7 @@ baz_aaa_aaa_fdd{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",n
 
 	dedupInterval := time.Hour
 	d := NewDeduplicator(pushFunc, true, dedupInterval, []string{"node", "instance"}, "global")
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		d.Push(tss)
 	}
 

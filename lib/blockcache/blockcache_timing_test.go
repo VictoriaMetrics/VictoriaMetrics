@@ -29,7 +29,7 @@ func BenchmarkCacheGet(b *testing.B) {
 	defer c.MustStop()
 	const blocksCount = 10000
 	blocks := make([]*testBlock, blocksCount)
-	for i := 0; i < blocksCount; i++ {
+	for i := range blocksCount {
 		blocks[i] = &testBlock{}
 		c.TryPutBlock(Key{Offset: uint64(i)}, blocks[i])
 	}
@@ -38,7 +38,7 @@ func BenchmarkCacheGet(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var k Key
 		for pb.Next() {
-			for i := 0; i < blocksCount; i++ {
+			for i := range blocksCount {
 				k.Offset = uint64(i)
 				b := c.GetBlock(k)
 				if b != blocks[i] {

@@ -195,10 +195,7 @@ func (r *Restore) Run(ctx context.Context) error {
 			prc := 100 * float64(n) / float64(downloadSize)
 			speed := float64(n) / elapsed.Seconds()
 			estimatedTotal := time.Duration(float64(downloadSize)/speed) * time.Second
-			eta := estimatedTotal - elapsed
-			if eta < 0 {
-				eta = 0
-			}
+			eta := max(estimatedTotal-elapsed, 0)
 			logger.Infof("downloaded %s out of %s bytes (%.2f%%) from %s to %s in %s; estimated time to completion: %s", downloadedHuman, downloadSizeHuman, prc, src, dst, elapsed, eta)
 		})
 		if err != nil {

@@ -31,7 +31,7 @@ func BenchmarkConsistentHash(b *testing.B) {
 var benchKeys = func() []uint64 {
 	r := rand.New(rand.NewSource(1))
 	keys := make([]uint64, 10000)
-	for i := 0; i < len(keys); i++ {
+	for i := range keys {
 		keys[i] = r.Uint64()
 	}
 	return keys

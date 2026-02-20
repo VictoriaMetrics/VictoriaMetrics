@@ -240,7 +240,7 @@ func testRollupFunc(t *testing.T, funcName string, args []any, vExpected float64
 	if rollupFuncsRemoveCounterResets[funcName] {
 		removeCounterResets(rfa.values, rfa.timestamps, 0)
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		v := rf(&rfa)
 		if math.IsNaN(vExpected) {
 			if !math.IsNaN(v) {
@@ -1493,7 +1493,7 @@ func TestRollupBigNumberOfValues(t *testing.T) {
 	rc.Timestamps = rc.getTimestamps()
 	srcValues := make([]float64, srcValuesCount)
 	srcTimestamps := make([]int64, srcValuesCount)
-	for i := 0; i < srcValuesCount; i++ {
+	for i := range int(srcValuesCount) {
 		srcValues[i] = float64(i)
 		srcTimestamps[i] = int64(i / 2)
 	}

@@ -7,28 +7,32 @@ import (
 	"time"
 )
 
-type benchCacheState int
+type benchMetricIDCacheState int
 
 const (
-	benchCacheStateCold benchCacheState = iota
-	benchCacheStateWarm
-	benchCacheStateRotated
+	benchMetricIDCacheStateCold benchMetricIDCacheState = iota
+	benchMetricIDCacheStateWarm
+	benchMetricIDCacheStateRotated
 )
 
-var benchCacheStates = [...]benchCacheState{benchCacheStateCold, benchCacheStateWarm, benchCacheStateRotated}
+var benchMetricIDCacheStates = [...]benchMetricIDCacheState{
+	benchMetricIDCacheStateCold,
+	benchMetricIDCacheStateWarm,
+	benchMetricIDCacheStateRotated,
+}
 
-func (s benchCacheState) String() string {
+func (s benchMetricIDCacheState) String() string {
 	return [...]string{"   cold", "   warm", "rotated"}[s]
 }
 
 func BenchmarkMetricIDCache_Has(b *testing.B) {
-	f := func(b *testing.B, numMetricIDs, distance int64, hitsOnly bool, state benchCacheState) {
+	f := func(b *testing.B, numMetricIDs, distance int64, hitsOnly bool, state benchMetricIDCacheState) {
 		b.Helper()
 		c := newMetricIDCache()
 		defer c.MustStop()
 
-		warmUp := state == benchCacheStateWarm || state == benchCacheStateRotated
-		rotate := state == benchCacheStateRotated
+		warmUp := state == benchMetricIDCacheStateWarm || state == benchMetricIDCacheStateRotated
+		rotate := state == benchMetricIDCacheStateRotated
 
 		metricIDMin := time.Now().UnixNano()
 		metricIDMax := metricIDMin + numMetricIDs*distance
@@ -70,7 +74,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 		b.ReportMetric(float64(c.Stats().SizeBytes), "sizeBytes")
 	}
 
-	subB := func(numMetricIDs, distance int64, hitsOnly bool, state benchCacheState) {
+	subB := func(numMetricIDs, distance int64, hitsOnly bool, state benchMetricIDCacheState) {
 		hitsOrMisses := "  hits-only"
 		if !hitsOnly {
 			hitsOrMisses = "misses-only"
@@ -81,7 +85,7 @@ func BenchmarkMetricIDCache_Has(b *testing.B) {
 		})
 	}
 	for _, hitsOnly := range []bool{true, false} {
-		for _, state := range benchCacheStates {
+		for _, state := range benchMetricIDCacheStates {
 			for _, numMetricIDs := range []int64{100_000, 1_000_000, 10_000_000} {
 				for _, distance := range []int64{1, 10, 100} {
 					subB(numMetricIDs, distance, hitsOnly, state)

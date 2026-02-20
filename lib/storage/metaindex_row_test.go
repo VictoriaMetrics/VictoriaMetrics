@@ -32,7 +32,7 @@ func TestMetaindexRowReset(t *testing.T) {
 func TestMetaindexRowMarshalUnmarshal(t *testing.T) {
 	var mr metaindexRow
 
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		initTestMetaindexRow(&mr)
 		testMetaindexRowMarshalUnmarshal(t, &mr)
 	}
@@ -96,4 +96,4 @@ func initTestMetaindexRow(mr *metaindexRow) {
 	}
 }
 
-var metaindexRowType = reflect.TypeOf(&metaindexRow{})
+var metaindexRowType = reflect.TypeFor[*metaindexRow]()

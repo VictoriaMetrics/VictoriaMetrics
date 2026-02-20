@@ -45,7 +45,7 @@ var benchGaugeArray = func() []int64 {
 	r := rand.New(rand.NewSource(1))
 	a := make([]int64, 8*1024)
 	v := int64(0)
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		v += int64(r.NormFloat64() * 100)
 		a[i] = v
 	}
@@ -92,7 +92,7 @@ func BenchmarkUnmarshalDeltaConstArray(b *testing.B) {
 var benchDeltaConstArray = func() []int64 {
 	a := make([]int64, 8*1024)
 	v := int64(0)
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		v += 12345
 		a[i] = v
 	}
@@ -138,7 +138,7 @@ func BenchmarkUnmarshalConstArray(b *testing.B) {
 
 var benchConstArray = func() []int64 {
 	a := make([]int64, 8*1024)
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		a[i] = 1234567890
 	}
 	return a
@@ -234,7 +234,7 @@ var benchInt64Array = func() []int64 {
 	r := rand.New(rand.NewSource(1))
 	var a []int64
 	var v int64
-	for i := 0; i < 8*1024; i++ {
+	for range 8 * 1024 {
 		v += 30e3 + int64(r.NormFloat64()*1e3)
 		a = append(a, v)
 	}

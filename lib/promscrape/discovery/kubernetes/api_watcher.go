@@ -632,10 +632,7 @@ func (uw *urlWatcher) recreateScrapeWorks() {
 		if uw.needRecreateScrapeWorks {
 			uw.needRecreateScrapeWorks = false
 			uw.recreateScrapeWorksLocked(uw.objectsByKey, uw.aws)
-			sleepTime = time.Since(startTime)
-			if sleepTime < minSleepTime {
-				sleepTime = minSleepTime
-			}
+			sleepTime = max(time.Since(startTime), minSleepTime)
 		}
 		gw.mu.Unlock()
 	}

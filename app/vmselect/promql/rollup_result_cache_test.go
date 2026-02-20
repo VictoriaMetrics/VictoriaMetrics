@@ -11,14 +11,14 @@ import (
 
 func TestRollupResultCacheInitStop(t *testing.T) {
 	t.Run("inmemory", func(_ *testing.T) {
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			InitRollupResultCache("")
 			StopRollupResultCache()
 		}
 	})
 	t.Run("file-based", func(_ *testing.T) {
 		cacheFilePath := "test-rollup-result-cache"
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			InitRollupResultCache(cacheFilePath)
 			StopRollupResultCache()
 		}
@@ -241,12 +241,12 @@ func TestRollupResultCache(t *testing.T) {
 	t.Run("big-timeseries", func(t *testing.T) {
 		ResetRollupResultCache()
 		var tss []*timeseries
-		for i := 0; i < 1000; i++ {
+		for i := range 1000 {
 			ts := &timeseries{
 				Timestamps: []int64{1000, 1200, 1400, 1600, 1800, 2000},
 				Values:     []float64{1, 2, 3, 4, 5, 6},
 			}
-			ts.MetricName.MetricGroup = []byte(fmt.Sprintf("metric %d", i))
+			ts.MetricName.MetricGroup = fmt.Appendf(nil, "metric %d", i)
 			tss = append(tss, ts)
 		}
 		rollupResultCacheV.PutSeries(nil, ec, fe, window, tss)
