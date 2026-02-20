@@ -34,6 +34,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent panic `error parsing regexp: expression nests too deeply` triggered by large repetition ranges in regex. See [VictoriaLogs#1112](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1112).
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix escaping for label names with special characters. See [#10485](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10485).
+
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
 
 Released at 2026-02-13
