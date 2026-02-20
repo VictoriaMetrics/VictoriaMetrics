@@ -16,6 +16,9 @@ var (
 		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry")
 	convertMetricNamesToPrometheus = flag.Bool("opentelemetry.convertMetricNamesToPrometheus", false, "Whether to convert only metric names into Prometheus-compatible format for the metrics ingested "+
 		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry")
+	usePermissiveLabelSanitization = flag.Bool("opentelemetry.usePermissiveLabelSanitization", false, "Disables prefixing labels starting with a single underscore with 'key' "+
+		"when -opentelemetry.usePrometheusNaming is enabled. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry")
 )
 
 // unitMap is obtained from https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L19
@@ -97,7 +100,7 @@ func (sctx *sanitizerContext) sanitizePrometheusLabelName(labelName string) stri
 	labelName = promrelabel.SanitizeLabelName(labelName)
 	if labelName[0] >= '0' && labelName[0] <= '9' {
 		return sctx.concatLabel("key_", labelName)
-	} else if strings.HasPrefix(labelName, "_") && !strings.HasPrefix(labelName, "__") {
+	} else if !*usePermissiveLabelSanitization && strings.HasPrefix(labelName, "_") && !strings.HasPrefix(labelName, "__") {
 		return sctx.concatLabel("key", labelName)
 	}
 	return labelName
