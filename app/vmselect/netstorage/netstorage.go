@@ -996,29 +996,14 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	}
 
 	if sq.IsMultiTenant && isTenancyLabel(labelName) {
-		tenants, err := Tenants(qt, sq.GetTimeRange(), deadline)
-		if err != nil {
-			return nil, false, err
-		}
-
-		var idx int
-		switch labelName {
-		case "vm_account_id":
-			idx = 0
-		case "vm_project_id":
-			idx = 1
-		default:
-			logger.Panicf("BUG: unexpected labeName=%q", labelName)
-		}
-
-		labelValues := make([]string, 0, len(tenants))
-		for _, t := range tenants {
-			s := strings.Split(t, ":")
-			if len(s) != 2 {
-				logger.Panicf("BUG: unexpected tenant received from storage: %q", t)
+		// sq.TenantTokens should contain the filtered list of tokens retrieved via GetTenantTokensFromFilters on prev steps.
+		labelValues := make([]string, 0, len(sq.TenantTokens))
+		for _, t := range sq.TenantTokens {
+			v := t.AccountID
+			if labelName == "vm_project_id" {
+				v = t.ProjectID
 			}
-
-			labelValues = append(labelValues, s[idx])
+			labelValues = append(labelValues, fmt.Sprintf("%d", v))
 		}
 
 		labelValues = prepareLabelValues(qt, labelValues, maxLabelValues)
