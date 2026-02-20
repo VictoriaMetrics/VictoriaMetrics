@@ -32,6 +32,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [dashboards/vmauth](https://grafana.com/grafana/dashboards/21394): add `Request body buffering duration` panel to the `Troubleshooting` section. This panel shows the time spent buffering incoming client request bodies, helping identify slow client uploads and potential concurrency issues. The panel is only available when `-requestBufferSize` is non-zero. See [#10309](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10309).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): enable [ingestion](https://docs.victoriametrics.com/victoriametrics/vmagent/#metric-metadata) and in-memory [storage](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#metrics-metadata) of metrics metadata by default. Metadata ingestion can be disabled with `-enableMetadata=false`. See [#2974](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2974).
 
+* FEATURE: [dashboards/operator](https://grafana.com/grafana/dashboards/17869): extract operator version from metrics instead of hardcoded value
+
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
 
 Released at 2026-02-13
