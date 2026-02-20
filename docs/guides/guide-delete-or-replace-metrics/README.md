@@ -121,7 +121,7 @@ kubectl port-forward svc/vmcluster-victoria-metrics-cluster-vmstorage 8482 &
 
 The [delete API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-delete-time-series) expects a [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) to be supplied. For example:
 
-- `match[]=process_cpu_cores_available` selects the entire time series in VictoriaMetrics (including all label combinations)
+- `match[]=process_cpu_cores_available` selects the entire time series with metric name `process_cpu_cores_available` in VictoriaMetrics (including all label combinations)
 - `match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}` selects only the time series with the provided labels
 
 As a first step, query the `series` endpoint to confirm the series selector before deleting anything. For example, to retrieve the `process_cpu_cores_available` series in a single-node VictoriaMetrics use:
