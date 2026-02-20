@@ -86,6 +86,8 @@ Released at 2026-01-30
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/): fix `changes()` function when gaps between samples exceed the lookbehind window. Previously, it could yield a non-zero value even when the sample value remained unchanged. See [#10280](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10280).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): previously ingestion could hit lock contention that triggered frequent context switches and storage connection saturation spikes; now the contention is removed to keep ingestion steady. See [#10367](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10367).
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): apply `metric_relabel_configs` (including global configs) to [auto-generated metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics) such as `scrape_duration_seconds`, `up`, etc. Previously, these metrics bypassed relabeling, causing issues when users needed to drop labels from all metrics including auto-generated ones. See [#10322](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10322).
+
 ## [v1.134.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.134.0)
 
 Released at 2026-01-16
