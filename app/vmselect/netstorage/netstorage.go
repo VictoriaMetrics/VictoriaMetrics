@@ -1001,7 +1001,6 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	}
 
 	if sq.IsMultiTenant && isTenancyLabel(labelName) {
-		// sq.TenantTokens should contain the filtered list of tokens retrieved via GetTenantTokensFromFilters on prev steps.
 		labelValues := make([]string, 0, len(sq.TenantTokens))
 		for _, t := range sq.TenantTokens {
 			v := t.AccountID
