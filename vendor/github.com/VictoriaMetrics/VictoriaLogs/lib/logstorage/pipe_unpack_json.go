@@ -19,6 +19,9 @@ type pipeUnpackJSON struct {
 	// fieldFilters is a list of field filters to extract from json.
 	fieldFilters []string
 
+	// preserveKeys is a list of JSON keys for preserving JSON values.
+	preserveKeys []string
+
 	// resultPrefix is prefix to add to unpacked field names
 	resultPrefix string
 
@@ -39,6 +42,9 @@ func (pu *pipeUnpackJSON) String() string {
 	}
 	if !prefixfilter.MatchAll(pu.fieldFilters) {
 		s += " fields (" + fieldNamesString(pu.fieldFilters) + ")"
+	}
+	if len(pu.preserveKeys) > 0 {
+		s += " preserve_keys (" + fieldNamesString(pu.preserveKeys) + ")"
 	}
 	if pu.resultPrefix != "" {
 		s += " result_prefix " + quoteTokenIfNeeded(pu.resultPrefix)
@@ -64,6 +70,10 @@ func (pu *pipeUnpackJSON) canReturnLastNResults() bool {
 	// TODO: verify that the unpacked fields do not overwrite _time with non-timestamp values.
 
 	return true
+}
+
+func (pu *pipeUnpackJSON) isFixedOutputFieldsOrder() bool {
+	return false
 }
 
 func (pu *pipeUnpackJSON) updateNeededFields(pf *prefixfilter.Filter) {
@@ -95,7 +105,7 @@ func (pu *pipeUnpackJSON) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), p
 			return
 		}
 		p := GetJSONParser()
-		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), math.MaxInt)
+		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), pu.preserveKeys, math.MaxInt)
 		if err != nil {
 			for _, filter := range pu.fieldFilters {
 				if !prefixfilter.IsWildcardFilter(filter) {
@@ -149,7 +159,7 @@ func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 	}
 
 	fromField := "_msg"
-	if !lex.isKeyword("fields", "result_prefix", "keep_original_fields", "skip_empty_results", ")", "|", "") {
+	if !lex.isKeyword("fields", "preserve_keys", "result_prefix", "keep_original_fields", "skip_empty_results", ")", "|", "") {
 		if lex.isKeyword("from") {
 			lex.nextToken()
 		}
@@ -171,6 +181,16 @@ func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 	}
 	if len(fieldFilters) == 0 {
 		fieldFilters = []string{"*"}
+	}
+
+	var preserveKeys []string
+	if lex.isKeyword("preserve_keys") {
+		lex.nextToken()
+		fn, err := parseFieldNamesInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'preserve_keys': %w", err)
+		}
+		preserveKeys = fn
 	}
 
 	resultPrefix := ""
@@ -197,6 +217,7 @@ func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 	pu := &pipeUnpackJSON{
 		fromField:          fromField,
 		fieldFilters:       fieldFilters,
+		preserveKeys:       preserveKeys,
 		resultPrefix:       resultPrefix,
 		keepOriginalFields: keepOriginalFields,
 		skipEmptyResults:   skipEmptyResults,

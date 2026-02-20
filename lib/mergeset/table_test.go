@@ -24,7 +24,7 @@ func TestTableOpenClose(t *testing.T) {
 	tb.MustClose()
 
 	// Re-open created table multiple times.
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 		tb.MustClose()
 	}
@@ -85,7 +85,7 @@ func TestTableAddItemsSerial(t *testing.T) {
 }
 
 func testAddItemsSerial(r *rand.Rand, tb *Table, itemsCount int) {
-	for i := 0; i < itemsCount; i++ {
+	for range itemsCount {
 		item := getRandomBytes(r)
 		if len(item) > maxInmemoryBlockSize {
 			item = item[:maxInmemoryBlockSize]
@@ -103,8 +103,8 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 
 	// Write a lot of items into the table, so background merges would start.
 	const itemsCount = 3e5
-	for i := 0; i < itemsCount; i++ {
-		item := []byte(fmt.Sprintf("item %d", i))
+	for i := range int(itemsCount) {
+		item := fmt.Appendf(nil, "item %d", i)
 		tb.AddItems([][]byte{item})
 	}
 
@@ -128,8 +128,8 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	ts.Init(tb, false)
 	ts1.Init(tb1, false)
 	ts2.Init(tb2, false)
-	for i := 0; i < itemsCount; i++ {
-		key := []byte(fmt.Sprintf("item %d", i))
+	for i := range int(itemsCount) {
+		key := fmt.Appendf(nil, "item %d", i)
 		if err := ts.FirstItemWithPrefix(key); err != nil {
 			t.Fatalf("cannot find item[%d]=%q in the original table: %s", i, key, err)
 		}
@@ -189,7 +189,7 @@ func TestTableAddItemsConcurrentStress(t *testing.T) {
 	testAddItems := func(tb *Table) {
 		itemsBatch := make([][]byte, 0)
 
-		for j := 0; j < blocksNeeded; j++ {
+		for j := range blocksNeeded {
 			item := bytes.Repeat([]byte{byte(j)}, maxInmemoryBlockSize-10)
 			itemsBatch = append(itemsBatch, item)
 		}
@@ -290,7 +290,7 @@ func testAddItemsConcurrent(tb *Table, itemsCount int) {
 func testReopenTable(t *testing.T, path string, itemsCount int) {
 	t.Helper()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		var isReadOnly atomic.Bool
 		tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 		var m TableMetrics

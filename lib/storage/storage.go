@@ -651,10 +651,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	hmCurr := s.currHourMetricIDs.Load()
 	hmPrev := s.prevHourMetricIDs.Load()
-	hourMetricIDsLen := hmPrev.m.Len()
-	if hmCurr.m.Len() > hourMetricIDsLen {
-		hourMetricIDsLen = hmCurr.m.Len()
-	}
+	hourMetricIDsLen := max(hmCurr.m.Len(), hmPrev.m.Len())
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
 	m.HourMetricIDCacheSizeBytes += hmCurr.m.SizeBytes()
 	m.HourMetricIDCacheSizeBytes += hmPrev.m.SizeBytes()
@@ -675,10 +672,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetadataStorageCurrentSizeBytes = mr.CurrentSizeBytes
 	m.MetadataStorageMaxSizeBytes = mr.MaxSizeBytes
 
-	d := s.legacyNextRetentionSeconds()
-	if d < 0 {
-		d = 0
-	}
+	d := max(s.legacyNextRetentionSeconds(), 0)
 	m.NextRetentionSeconds = uint64(d)
 
 	s.tb.UpdateMetrics(&m.TableMetrics)
@@ -983,7 +977,7 @@ func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
 		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least %d bytes", len(src), 8*mLen)
 	}
 	m := &uint64set.Set{}
-	for i := uint64(0); i < mLen; i++ {
+	for range mLen {
 		metricID := encoding.UnmarshalUint64(src)
 		src = src[8:]
 		m.Add(metricID)

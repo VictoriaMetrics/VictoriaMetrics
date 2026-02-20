@@ -2697,6 +2697,109 @@
           ],
           "title": "Restarts ($job)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "This metric helps identify slow-uploading clients. Elevated buffering percentiles together with a drop in incoming request rate, in the absence of CPU, memory, or upstream saturation, usually indicate slow client uploads (for example, a client on EDGE connection).\n\nSlow clients can hold concurrency slots for extended periods, causing vmauth to hit concurrency limits and reject requests even when upstream services have sufficient capacity. Increasing `-requestBufferSize` decouples client upload speed from request processing, reducing concurrency pressure and protecting vmauth and upstream services, at the cost of higher memory usage.\n\nThis metric is available only when `-requestBufferSize` is non-zero (default: 32KiB). The maximum time vmauth waits for the request body to be fully read (or for the buffer to be filled) is controlled by `-maxQueueDuration` (default: 10s).\n\nRead more in [request body buffering](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering) documentation.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 46
+          },
+          "id": 39,
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Request body buffering",
+              "url": "https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(vmauth_buffer_request_body_duration_seconds{job=~\"$job\", instance=~\"$instance\",quantile=\"0.99\"}) by (job)",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Request body buffering duration P99",
+          "type": "timeseries"
         }
       ],
       "title": "Troubleshooting",

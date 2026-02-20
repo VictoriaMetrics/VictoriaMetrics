@@ -109,7 +109,7 @@ func getRows(accountID, projectID uint32, n int) []Row {
 		rows[i] = Row{
 			AccountID:        accountID,
 			ProjectID:        projectID,
-			MetricFamilyName: []byte(fmt.Sprintf("metric_%d_%d", i, n)),
+			MetricFamilyName: fmt.Appendf(nil, "metric_%d_%d", i, n),
 			Type:             prompb.MetricType(i % 3),
 			Help:             []byte("help text for metric"),
 			Unit:             []byte("seconds"),

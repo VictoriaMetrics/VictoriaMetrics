@@ -1002,7 +1002,7 @@ func (pt *partition) DebugFlush() {
 
 func (pt *partition) startInmemoryPartsMergers() {
 	pt.partsLock.Lock()
-	for i := 0; i < cap(inmemoryPartsConcurrencyCh); i++ {
+	for range cap(inmemoryPartsConcurrencyCh) {
 		pt.startInmemoryPartsMergerLocked()
 	}
 	pt.partsLock.Unlock()
@@ -1019,7 +1019,7 @@ func (pt *partition) startInmemoryPartsMergerLocked() {
 
 func (pt *partition) startSmallPartsMergers() {
 	pt.partsLock.Lock()
-	for i := 0; i < cap(smallPartsConcurrencyCh); i++ {
+	for range cap(smallPartsConcurrencyCh) {
 		pt.startSmallPartsMergerLocked()
 	}
 	pt.partsLock.Unlock()
@@ -1036,7 +1036,7 @@ func (pt *partition) startSmallPartsMergerLocked() {
 
 func (pt *partition) startBigPartsMergers() {
 	pt.partsLock.Lock()
-	for i := 0; i < cap(bigPartsConcurrencyCh); i++ {
+	for range cap(bigPartsConcurrencyCh) {
 		pt.startBigPartsMergerLocked()
 	}
 	pt.partsLock.Unlock()
@@ -1310,10 +1310,7 @@ func hasActiveMerges(pws []*partWrapper) bool {
 
 func getMaxInmemoryPartSize() uint64 {
 	// Allocate 10% of allowed memory for in-memory parts.
-	n := uint64(0.1 * float64(memory.Allowed()) / maxInmemoryParts)
-	if n < 1e6 {
-		n = 1e6
-	}
+	n := max(uint64(0.1*float64(memory.Allowed())/maxInmemoryParts), 1e6)
 	return n
 }
 
@@ -1321,10 +1318,7 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 	// Small parts are cached in the OS page cache,
 	// so limit their size by the remaining free RAM.
 	mem := memory.Remaining()
-	n := uint64(mem) / defaultPartsToMerge
-	if n < 10e6 {
-		n = 10e6
-	}
+	n := max(uint64(mem)/defaultPartsToMerge, 10e6)
 	// Make sure the output part fits available disk space for small parts.
 	sizeLimit := getMaxOutBytes(pt.smallPartsPath, cap(smallPartsConcurrencyCh))
 	if n > sizeLimit {
@@ -1346,10 +1340,7 @@ func getMaxOutBytes(path string, workersCount int) uint64 {
 	// since this will result in sub-optimal merges - e.g. many small parts will be left unmerged.
 
 	// Divide free space by the max number of concurrent merges.
-	maxOutBytes := n / uint64(workersCount)
-	if maxOutBytes > maxBigPartSize {
-		maxOutBytes = maxBigPartSize
-	}
+	maxOutBytes := min(n/uint64(workersCount), maxBigPartSize)
 	return maxOutBytes
 }
 
@@ -1864,20 +1855,14 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutByte
 
 	sortPartsForOptimalMerge(src)
 
-	maxSrcParts := maxPartsToMerge
-	if maxSrcParts > len(src) {
-		maxSrcParts = len(src)
-	}
-	minSrcParts := (maxSrcParts + 1) / 2
-	if minSrcParts < 2 {
-		minSrcParts = 2
-	}
+	maxSrcParts := min(maxPartsToMerge, len(src))
+	minSrcParts := max((maxSrcParts+1)/2, 2)
 
 	// Exhaustive search for parts giving the lowest write amplification when merged.
 	var pws []*partWrapper
 	maxM := float64(0)
 	for i := minSrcParts; i <= maxSrcParts; i++ {
-		for j := 0; j <= len(src)-i; j++ {
+		for j := range len(src) - i + 1 {
 			a := src[j : j+i]
 			if a[0].p.size*uint64(len(a)) < a[len(a)-1].p.size {
 				// Do not merge parts with too big difference in size,

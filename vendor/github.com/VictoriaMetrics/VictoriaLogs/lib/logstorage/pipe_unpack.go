@@ -142,7 +142,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 		v := c.valuesEncoded[0]
 		shard.uctx.resetFields()
 		pup.unpackFunc(&shard.uctx, v)
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		for rowIdx := range br.rowsLen {
 			if pup.iff == nil || bm.isSetBit(rowIdx) {
 				shard.wctx.writeRow(rowIdx, shard.uctx.fields)
 			} else {

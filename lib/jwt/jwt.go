@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -66,14 +66,12 @@ func (l Labels) AsExtraLabels() []string {
 		res = append(res, k+"="+v)
 	}
 	// sort for consistent uri.
-	sort.Slice(res, func(i, j int) bool {
-		return res[i] < res[j]
-	})
+	slices.Sort(res)
 	return res
 }
 
 type access struct {
-	Tenant TenantID `json:"tenant_id,omitempty"`
+	Tenant TenantID `json:"tenant_id"`
 	Labels Labels   `json:"extra_labels,omitempty"`
 	// promql filters applied to each select query
 	ExtraFilters []string `json:"extra_filters,omitempty"`

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"net/url"
 	"sync"
 	"time"
@@ -97,9 +98,7 @@ type groupMetrics struct {
 // set2 has priority over set1.
 func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[string]string {
 	r := map[string]string{}
-	for k, v := range set1 {
-		r[k] = v
-	}
+	maps.Copy(r, set1)
 	for k, v := range set2 {
 		if prevV, ok := r[k]; ok {
 			logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
@@ -495,11 +494,8 @@ func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Dura
 	}
 
 	// otherwise, return a random duration between [0..min(interval, maxDelay)] based on group ID
-	interval := g.Interval
-	if interval > maxDelay {
-		// artificially limit interval, so groups with big intervals could start sooner.
-		interval = maxDelay
-	}
+	// artificially limit interval, so groups with big intervals could start sooner.
+	interval := min(g.Interval, maxDelay)
 	var randSleep time.Duration
 	randSleep = time.Duration(float64(interval) * (float64(g.GetID()) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
