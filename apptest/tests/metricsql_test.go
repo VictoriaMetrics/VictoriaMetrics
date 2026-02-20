@@ -283,4 +283,3 @@ func testLabelValuesWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerie
 		}
 	}
 }
-
