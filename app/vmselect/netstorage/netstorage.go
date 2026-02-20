@@ -995,6 +995,11 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 
+	err := populateSqTenantTokensIfNeeded(sq)
+	if err != nil {
+		return nil, false, err
+	}
+
 	if sq.IsMultiTenant && isTenancyLabel(labelName) {
 		// sq.TenantTokens should contain the filtered list of tokens retrieved via GetTenantTokensFromFilters on prev steps.
 		labelValues := make([]string, 0, len(sq.TenantTokens))
@@ -1014,10 +1019,6 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	type nodeResult struct {
 		labelValues []string
 		err         error
-	}
-	err := populateSqTenantTokensIfNeeded(sq)
-	if err != nil {
-		return nil, false, err
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
