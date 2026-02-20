@@ -9,7 +9,7 @@ sitemap:
 
 ## Purpose
 
-Data deletion in VictoriaMetrics should be used only in specific, one-off cases, such as correcting malformed data or satisfying GDPR requirements. VictoriaMetrics architecture is optimized for appending data, not deleting or modifying existing metrics, which can cause a significant performance penalty. As a result, VictoriaMetrics provides a limited API for data deletion.
+[Data deletion](https://docs.victoriametrics.com/victoriametrics/#how-to-delete-time-series) in VictoriaMetrics should be used only in specific, one-off cases, such as correcting malformed data or satisfying GDPR requirements. VictoriaMetrics architecture is optimized for appending data, not deleting or modifying existing metrics, which can cause a significant performance penalty. As a result, VictoriaMetrics provides a limited API for data deletion.
 
 In addition, the data deletion API is not a reliable way to free up storage. You can use storage more efficiently by:
 
@@ -53,7 +53,7 @@ Below are the API endpoints for the single-node version of VictoriaMetrics.
 
 The table assumes that:
 - You are logged into the machine running the single-node VictoriaMetrics process
-- or, if on Kubernetes, that you have port-forwarded the VictoriaMetrics service to `localhost:8428`
+- Or, if on Kubernetes, that you have port-forwarded the VictoriaMetrics service to `localhost:8428`
 
 {{% collapse name="Expand to see how to port-forward the VictoriaMetrics services in Kubernetes" %}}
 
@@ -90,7 +90,7 @@ To select, import, export, and delete series from a VictoriaMetrics cluster, you
 The table assumes that:
 - The [Account/Tenant ID](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) is 0; adjust this value as needed
 - You are logged into the machine running the VictoriaMetrics processes
-- or, if on Kubernetes, that you have port-forwarded the VictoriaMetrics services to localhost
+- Or, if on Kubernetes, that you have port-forwarded the VictoriaMetrics services to localhost
 
 {{% collapse name="Expand to see how to port-forward the VictoriaMetrics cluster services in Kubernetes" %}}
 
@@ -119,7 +119,7 @@ kubectl port-forward svc/vmcluster-victoria-metrics-cluster-vmstorage 8482 &
 
 ### Select data to be deleted
 
-The [delete API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-delete-time-series) expects a [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) to be supplied. For example:
+The [delete API](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-delete-time-series) requires a [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example:
 
 - `match[]=process_cpu_cores_available` selects the entire time series with metric name `process_cpu_cores_available` in VictoriaMetrics (including all label combinations)
 - `match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}` selects only the time series with the provided labels
@@ -177,7 +177,7 @@ If you are using VictoriaMetrics Cloud, you need to:
 
 - Replace the base URL with your [Access Endpoint](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data) (e.g., `https://<xxxx>.cloud.victoriametrics.com`)
 - Add an Authorization Header with your [Access Token](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/#start-writing-and-reading-data) 
-- Modify the endpoint path based on your [deployment type](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/single-or-cluster/) depending on your Cloud deployment type
+- Modify the endpoint path based on your [Cloud deployment type](https://docs.victoriametrics.com/victoriametrics-cloud/deployments/single-or-cluster/)
 
 The following example works with VictoriaMetrics Cloud single:
 
@@ -192,6 +192,7 @@ curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 
 > [!NOTE] Warning
 > The `delete_series` handler accepts any HTTP method, so sending a GET request to `/api/v1/admin/tsdb/delete_series` will result in the deletion of the time series.
+> It's highly recommended to set the `-deleteAuthKey` to [protect the endpoint](https://docs.victoriametrics.com/victoriametrics/#security) from CSRF attacks.
 
 Once you have confirmed the time series selector, send a POST request to the `delete_series` endpoint and supply the selector with the format [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). This operation cannot be undone, so consider [exporting your metrics](#export-metrics) for backup purposes.
 
@@ -215,11 +216,11 @@ curl -s -X POST -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
    -d 'match[]=process_cpu_cores_available'
 ```
 
-If the operation was successful, the deleted series will stop being [queryable](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data). 
+If the operation was successful, the deleted series will no longer be [queryable](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-data). 
 
 ### Storage
 
-The storage used by the deleted time series isn't freed immediately. This is done during [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282), which may never happen for historical data. In this case, you can trigger a [forced merge](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge) to free up storage. After the merge is complete, the data will be permanently deleted from the disk.
+The storage used by the deleted time series isn't freed immediately. This is done during [background data files merges](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282), which may never happen for historical data. In this case, you can trigger a [forced merge](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#forced-merge) to free up storage. After the merge is complete, the data will be permanently deleted from the disk.
 
 To force a merge on VictoriaMetrics single node, run the following command:
 
