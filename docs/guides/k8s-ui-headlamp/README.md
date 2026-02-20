@@ -7,7 +7,7 @@ sitemap:
   disable: true
 ---
 
-Headlamp is a user-friendly Kubernetes UI with a built-in Prometheus plugin that can show metrics from VictoriaMetrics.
+[Headlamp](https://headlamp.dev/) is a user-friendly Kubernetes UI with a built-in Prometheus plugin that can show metrics from VictoriaMetrics.
 
 This guide shows how to point Headlamp’s Prometheus integration at VictoriaMetrics single node or VictoriaMetrics cluster to display CPU, memory, network, and filesystem graphs for your Kubernetes resources directly in the UI.
 
