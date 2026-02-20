@@ -88,7 +88,7 @@ vmoperator-victoria-metrics-operator-67cff44cd6-s47n6   1/1     Running   0     
 ## 3. Install VictoriaMetrics Cluster
 
 > [!NOTE]
-> For this example, we use the default name for the operator (`name: example-vmcluster-persistent`). Change the name to suit your needs.
+> For this example, we use the default name for the cluster (`name: example-vmcluster-persistent`). Change the name to suit your needs.
 
 First, create a YAML file to configure the deployment of VictoriaMetrics cluster version:
 
@@ -125,7 +125,7 @@ Let's break down the main elements of the config file:
 | `spec: vminsert: replicaCount` | vminsert replicas  | 2                            |
 
 > [!NOTE] Tip
-> A VictoriaMetrics cluster runs [three services](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview): `vmstorage`, `vminsert`, and `vmselect`. You can customize the number of replicas for each service independently.
+> A VictoriaMetrics cluster runs [three services](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview): `vmstorage`, `vminsert`, and `vmselect`. You can independently customize the number of replicas for each service.
 
 Once you have defined the name, retention period, and number of replicas for your cluster, run the following command to deploy the VictoriaMetrics cluster in the default namespace:
 
@@ -173,7 +173,7 @@ example-vmcluster-persistent   2              2               2              5m5
 
 ### Install vmagent
 
-In order to send metrics to the VictoriaMetrics database, we need a [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) service, which scrapes metrics, applies relabeling, and forwards them to the `vminsert` service in the cluster.
+In order to send metrics to the VictoriaMetrics database, we need a [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) service. This service scrapes metrics, applies relabeling, and forwards them to the `vminsert` service in the cluster.
 
 First, we need to determine the URL for the `vminsert` service. Run the following command to obtain the service name of the service:
 
@@ -326,9 +326,17 @@ Go back to the `vmagent` target page by browsing `http://127.0.0.1:8429/targets`
 
 ## 4. Verifying VictoriaMetrics cluster
 
-The next step is to install Grafana to visualize collected metrics. But first, we need to determine the URL for the `vmselect` service.
+The next step is to install Grafana to visualize collected metrics. 
 
-To get the new service name, run the following command:
+Add the Grafana Helm repository with:
+
+```sh
+helm repo add grafana-community https://grafana-community.github.io/helm-charts
+helm repo update
+```
+
+Next, we need to determine the URL for the `vmselect` service. To get the service name, run the following command:
+
 ```sh
 kubectl get svc -l app.kubernetes.io/name=vmselect
 ```
@@ -340,7 +348,13 @@ NAME                                     TYPE        CLUSTER-IP       EXTERNAL-I
 vmselect-example-vmcluster-persistent    ClusterIP   None             <none>        8481/TCP   7m
 ```
 
-Create a config file for the Grafana Helm chart. The read URL takes the form `http://<service-name>.<namespace>.svc.cluster.local:<port-number>`. Thus, in our example, the URL is:
+We'll need to supply a datasource URL for Grafana, which in VictoriaMetrics cluster takes the following form:
+
+```text
+http://<service-name>.<namespace>.svc.cluster.local:<port-number>
+```
+
+Thus, in our example, the URL is:
 
 ```text
 http://vmselect-example-vmcluster-persistent.default.svc.cluster.local:8481/select/0/prometheus/
@@ -395,13 +409,6 @@ Let's break down the main parts of the config file:
 
 - `datasources: datasources.yaml: datasources: url` defines the URL for the `vmselect` service. This endpoint is the datasource Grafana uses to query the metrics database.
 - `dashboards: default:` loads three starter dashboards to monitor the Kubernetes cluster, the VictoriaMetrics services, and the `vmagent` service.
-
-Add the Grafana Helm repository with:
-
-```sh
-helm repo add grafana-community https://grafana-community.github.io/helm-charts
-helm repo update
-```
 
 Install Grafana into the Kubernetes cluster with the name `my-grafana` in the default namespace with the following command:
 
