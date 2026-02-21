@@ -992,6 +992,10 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		for _, at := range ats {
 			byAuthToken[at] = ui
 		}
+
+		if err := validateNoPlaceholders(ui); err != nil {
+			return nil, err
+		}
 	}
 	return byAuthToken, nil
 }

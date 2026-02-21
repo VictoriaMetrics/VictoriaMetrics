@@ -164,6 +164,34 @@ users:
     - `+publicKeyFile+`
   url_prefix: http://foo.bar
 `, "cannot parse public key from file \""+publicKeyFile+"\": failed to parse key \"invalidPEM\": failed to decode PEM block containing public key")
+
+	// unsupported placeholder in a header
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  url_prefix: http://foo.bar/{{.UnsupportedPlaceholder}}/foo
+`, "invalid placeholder found in URL or headers; allowed placeholders are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}")
+
+	// unsupported placeholder in a header
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  headers:
+    - "AccountID: {{.UnsupportedPlaceholder}}"
+  url_prefix: http://foo.bar
+`, "invalid placeholder found in URL or headers; allowed placeholders are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}")
+
+	// spaces in templating not allowed
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  headers:
+    - "AccountID: {{ .LogsAccountID }}"
+  url_prefix: http://foo.bar
+`, "invalid placeholder found in URL or headers; allowed placeholders are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}")
 }
 
 func TestJWTParseAuthConfigSuccess(t *testing.T) {
