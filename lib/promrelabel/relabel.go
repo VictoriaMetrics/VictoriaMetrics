@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -77,7 +78,7 @@ func (pcs *ParsedConfigs) ApplyDebug(labels []prompb.Label) ([]prompb.Label, []D
 	var dss []DebugStep
 	if pcs != nil {
 		for _, prc := range pcs.prcs {
-			labels = prc.apply(labels, 0)
+			labels = prc.apply(labels, 0, nil)
 			outStr := LabelsToString(labels)
 			dss = append(dss, DebugStep{
 				Rule: prc.String(),
@@ -110,8 +111,26 @@ func (pcs *ParsedConfigs) ApplyDebug(labels []prompb.Label) ([]prompb.Label, []D
 // stored between len(labels) and cap(labels).
 func (pcs *ParsedConfigs) Apply(labels []prompb.Label, labelsOffset int) []prompb.Label {
 	if pcs != nil {
+		var bf *BloomFilter
+		if pcs.GetIfFilterSize() > 50 || len(labels[labelsOffset:]) > 20 {
+			bf = getBloomFilter()
+			defer putBloomFilter(bf)
+
+			selLabels := labels[labelsOffset:]
+			itemCount := len(selLabels) * 2
+			bf.EnsureSize(itemCount)
+
+			// Batch all tokens into a single slice for efficient insertion
+			tokens := getTokenSlice(itemCount)
+			for _, label := range selLabels {
+				tokens = append(tokens, label.Name, label.Value)
+			}
+			bf.AddTokens(tokens)
+			putTokenSlice(tokens)
+		}
+
 		for _, prc := range pcs.prcs {
-			labels = prc.apply(labels, labelsOffset)
+			labels = prc.apply(labels, labelsOffset, bf)
 			if len(labels) == labelsOffset {
 				// All the labels have been removed.
 				return labels
@@ -120,6 +139,42 @@ func (pcs *ParsedConfigs) Apply(labels []prompb.Label, labelsOffset int) []promp
 	}
 	labels = removeEmptyLabels(labels, labelsOffset)
 	return labels
+}
+
+func getBloomFilter() *BloomFilter {
+	v := bloomFilterPool.Get()
+	if v == nil {
+		return &BloomFilter{}
+	}
+	return v.(*BloomFilter)
+}
+
+func putBloomFilter(bf *BloomFilter) {
+	bf.Reset()
+	bloomFilterPool.Put(bf)
+}
+
+var bloomFilterPool sync.Pool
+
+var tokenSlicePool sync.Pool
+
+func getTokenSlice(capacity int) []string {
+	v := tokenSlicePool.Get()
+	if v == nil {
+		return make([]string, 0, capacity)
+	}
+	tokensPtr := v.(*[]string)
+	tokens := *tokensPtr
+	if cap(tokens) < capacity {
+		// Grow the slice to the needed capacity
+		tokens = tokens[:cap(tokens)]
+		tokens = append(tokens, make([]string, capacity-cap(tokens))...)
+	}
+	return tokens[:0]
+}
+
+func putTokenSlice(tokens []string) {
+	tokenSlicePool.Put(&tokens)
 }
 
 func removeEmptyLabels(labels []prompb.Label, labelsOffset int) []prompb.Label {
@@ -160,9 +215,16 @@ func FinalizeLabels(dst, src []prompb.Label) []prompb.Label {
 // apply applies relabeling according to prc.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int) []prompb.Label {
+func (prc *parsedRelabelConfig) apply(labels []prompb.Label, labelsOffset int, bf *BloomFilter) []prompb.Label {
 	src := labels[labelsOffset:]
-	if !prc.If.Match(src) {
+	var match bool
+	if bf != nil {
+		match = prc.If.MatchWithFilters(src, bf)
+	} else {
+		match = prc.If.Match(src)
+	}
+
+	if !match {
 		if prc.Action == "keep" {
 			// Drop the target on `if` mismatch for `action: keep`
 			return labels[:labelsOffset]
