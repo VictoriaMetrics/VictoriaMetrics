@@ -662,6 +662,9 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 		if math.IsNaN(leReq) || len(xss) == 0 {
 			return nan, nan, nan
 		}
+		if hasOverlappingBuckets(i, xss) {
+			return nan, nan, nan
+		}
 		fixBrokenBuckets(i, xss)
 		if leReq < 0 {
 			return 0, 0, 0
@@ -932,6 +935,9 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		if math.IsNaN(phi) {
 			return nan, nan, nan
 		}
+		if hasOverlappingBuckets(i, xss) {
+			return nan, nan, nan
+		}
 		fixBrokenBuckets(i, xss)
 		vLast := float64(0)
 		if len(xss) > 0 {
@@ -1066,6 +1072,27 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 			vNext = v
 		}
 	}
+}
+
+func hasOverlappingBuckets(i int, xss []leTimeseries) bool {
+	if len(xss) < 2 {
+		return false
+	}
+	vPrev := xss[0].ts.Values[i]
+	if math.IsNaN(vPrev) || vPrev < 0 {
+		vPrev = 0
+	}
+	for j := 1; j < len(xss); j++ {
+		v := xss[j].ts.Values[i]
+		if math.IsNaN(v) || v < 0 {
+			continue
+		}
+		if vPrev > v {
+			return true
+		}
+		vPrev = v
+	}
+	return false
 }
 
 func mergeSameLE(xss []leTimeseries) []leTimeseries {
