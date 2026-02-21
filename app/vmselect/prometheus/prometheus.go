@@ -1175,6 +1175,19 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 		return nil, err
 	}
 	cp.deadline = searchutil.GetDeadlineForExport(r, startTime)
+	if cp.IsDefaultTimeRange() {
+		// Adjust start time when it is missing, so it doesn't lead to
+		// incorrect downsampling due to MinTimestamp defaulting to 0 (epoch).
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10326
+		lookbackDelta, err := getMaxLookback(r)
+		if err != nil {
+			return nil, err
+		}
+		if lookbackDelta <= 0 {
+			lookbackDelta = defaultStep
+		}
+		cp.start = cp.end - lookbackDelta
+	}
 	return cp, nil
 }
 
