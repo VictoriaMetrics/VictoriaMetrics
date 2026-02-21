@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/easyproto"
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -1226,6 +1227,7 @@ type ExponentialHistogramDataPoint struct {
 	Scale         int32
 	ZeroCount     uint64
 	Positive      *Buckets
+	Negative      *Buckets
 	Flags         uint32
 	Min           *float64
 	Max           *float64
@@ -1245,6 +1247,9 @@ func (dp *ExponentialHistogramDataPoint) marshalProtobuf(mm *easyproto.MessageMa
 	mm.AppendFixed64(7, dp.ZeroCount)
 	if dp.Positive != nil {
 		dp.Positive.marshalProtobuf(mm.AppendMessage(8))
+	}
+	if dp.Negative != nil {
+		dp.Negative.marshalProtobuf(mm.AppendMessage(9))
 	}
 	mm.AppendUint32(10, dp.Flags)
 	if dp.Min != nil {
@@ -1267,6 +1272,7 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 	//   sint32 scale = 6;
 	//   fixed64 zero_count = 7;
 	//   Buckets positive = 8;
+	//   Buckets negative = 9;
 	//   uint32 flags = 10;
 	//   optional double min = 12;
 	//   optional double max = 13;
@@ -1325,6 +1331,14 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 			if err := ehctx.positive.decodeBuckets(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Positive: %w", err)
 			}
+		case 9:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read Negative buckets")
+			}
+			if err := ehctx.negative.decodeBuckets(data); err != nil {
+				return fmt.Errorf("cannot unmarshal Negative: %w", err)
+			}
 		case 10:
 			ehctx.flags, ok = fc.Uint32()
 			if !ok {
@@ -1360,6 +1374,7 @@ type exponentialHistogramDataPointContext struct {
 	scale         int32
 	zeroCount     uint64
 	positive      buckets
+	negative      buckets
 	flags         uint32
 	min           float64
 	max           float64
@@ -1373,6 +1388,7 @@ func (ehctx *exponentialHistogramDataPointContext) reset() {
 	ehctx.scale = 0
 	ehctx.zeroCount = 0
 	ehctx.positive.reset()
+	ehctx.negative.reset()
 	ehctx.flags = 0
 	ehctx.min = 0
 	ehctx.max = 0
@@ -1389,7 +1405,23 @@ func (b *buckets) reset() {
 	b.bucketCounts = b.bucketCounts[:0]
 }
 
+var (
+	rowsDroppedNegativeBuckets    = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="negative_histogram_buckets"}`)
+	negativeHistogramBucketLogger = logger.WithThrottler("otlp_negative_histogram_buckets", 5*time.Second)
+)
+
 func (ehctx *exponentialHistogramDataPointContext) pushSamples(dctx *decoderContext) {
+	// VictoriaMetrics native histograms do not support negative values, so drop data points
+	for _, count := range ehctx.negative.bucketCounts {
+		if count > 0 {
+			rowsDroppedNegativeBuckets.Inc()
+			negativeHistogramBucketLogger.Warnf("dropping exponential histogram data point with negative buckets, " +
+				"since VictoriaMetrics native histograms do not support negative values; " +
+				"see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9896")
+			return
+		}
+	}
+
 	dctx.mp.PushSample(&dctx.mm, "_count", &dctx.ls, ehctx.timestamp, float64(ehctx.count), ehctx.flags)
 	dctx.mp.PushSample(&dctx.mm, "_sum", &dctx.ls, ehctx.timestamp, float64(ehctx.sum), ehctx.flags)
 
