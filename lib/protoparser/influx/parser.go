@@ -358,7 +358,10 @@ func parseFieldValue(s string, uc *unmarshalContext) (float64, error) {
 	}
 	if uc.hasQuotedFields && s[0] == '"' {
 		if len(s) < 2 || s[len(s)-1] != '"' {
-			return 0, fmt.Errorf("missing closing quote for quoted field value %s", s)
+			return 0, fmt.Errorf("missing closing quote for quoted field value %s; "+
+				"this may be caused by a raw newline (`\\n`) inside the quoted field value",
+				s,
+			)
 		}
 		// Try converting quoted string to number, since sometimes InfluxDB agents
 		// send numbers as strings.
