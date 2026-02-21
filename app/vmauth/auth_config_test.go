@@ -360,6 +360,8 @@ users:
   url_prefix:
   - http://node1:343/bbb
   - http://srv+node2:343/bbb
+  - unix:///absolute/path.socket
+  - unix:/short/path.socket
   tls_insecure_skip_verify: false
   retry_status_codes: [500, 501]
   load_balancing_policy: first_available
@@ -373,6 +375,8 @@ users:
 			URLPrefix: mustParseURLs([]string{
 				"http://node1:343/bbb",
 				"http://srv+node2:343/bbb",
+				"unix:///absolute/path.socket",
+				"unix:/short/path.socket",
 			}),
 			TLSInsecureSkipVerify:  &insecureSkipVerifyFalse,
 			RetryStatusCodes:       []int{500, 501},
@@ -764,7 +768,7 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 	up := mustParseURLs([]string{
 		"http://node1:343",
 		"http://node2:343",
-		"http://node3:343",
+		"unix://node3/343.socket",
 	})
 	up.loadBalancingPolicy = "least_loaded"
 
@@ -837,7 +841,7 @@ func TestBrokenBackend(t *testing.T) {
 	up := mustParseURLs([]string{
 		"http://node1:343",
 		"http://node2:343",
-		"http://node3:343",
+		"unix://node3/343.socket",
 	})
 	up.loadBalancingPolicy = "least_loaded"
 	pbus := up.bus.Load()

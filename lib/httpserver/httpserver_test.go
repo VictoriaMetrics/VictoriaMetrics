@@ -1,11 +1,15 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
@@ -178,5 +182,53 @@ func TestHandlerWrapper(t *testing.T) {
 	}
 	if got := h.Get("Content-Security-Policy"); got != cspHeader {
 		t.Fatalf("unexpected CSP header; got %q; want %q", got, cspHeader)
+	}
+}
+
+func TestServe(t *testing.T) {
+	hndl := RequestHandler(func(w http.ResponseWriter, r *http.Request) bool {
+		return true
+	})
+	addrs := make([]string, 0, 2)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hndl(w, r) }))
+	ts.Close()
+	addrs = append(addrs, ts.URL)
+	dn, err := os.MkdirTemp("", "httpserver-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dn)
+	addrs = append(addrs, "unix:"+filepath.Join(dn, "socket"))
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	unixtransportRegister(tr)
+	unixClient := &http.Client{Transport: tr}
+
+	// t.Log("addrs:", addrs)
+	for _, addr := range addrs {
+		scheme, _, _ := strings.Cut(addr, ":")
+		t.Run(scheme, func(t *testing.T) {
+			serveAddr := strings.TrimPrefix(addr, "http://")
+			go func() {
+				serve(serveAddr, hndl, 0, ServeOptions{})
+				t.Log("returned")
+			}()
+			defer stop(serveAddr)
+			time.Sleep(100 * time.Millisecond)
+			client := http.DefaultClient
+			if scheme == "unix" {
+				client, addr = unixClient, "http+"+addr
+			}
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			req, err := http.NewRequestWithContext(ctx, "GET", addr, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatalf("%s %s (%s): %+v", req.Method, req.URL, addr, err)
+			}
+			t.Log(resp.Status)
+		})
 	}
 }
