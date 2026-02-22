@@ -506,6 +506,24 @@
                 "value": 200
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Alert"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Alert",
+                    "url": "/alerting/VictoriaMetrics/${__value.text}/find"
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
