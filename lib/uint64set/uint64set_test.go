@@ -972,7 +972,7 @@ func TestUnmarshal_numElementsLessThanLen(t *testing.T) {
 	}
 }
 
-func TestMarshal(t *testing.T) {
+func TestMarshal_emptyDst(t *testing.T) {
 	n := uint64(100_000)
 	want := make([]byte, (n+1)*8)
 	binary.BigEndian.PutUint64(want, n)
@@ -983,6 +983,27 @@ func TestMarshal(t *testing.T) {
 	}
 
 	got := s.Marshal(nil)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected bytes (-want, +got):\n%s", diff)
+	}
+}
+
+func TestMarshal_nonEmptyDst(t *testing.T) {
+	n := uint64(100_000)
+	got := make([]byte, 10)
+	want := make([]byte, 10+(n+1)*8)
+	for i := range 10 {
+		got[i] = byte(i)
+		want[i] = byte(i)
+	}
+	binary.BigEndian.PutUint64(want[10:], n)
+	s := &Set{}
+	for i := range n {
+		binary.BigEndian.PutUint64(want[10+(i+1)*8:], i)
+		s.Add(i)
+	}
+
+	got = s.Marshal(got)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("unexpected bytes (-want, +got):\n%s", diff)
 	}

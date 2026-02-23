@@ -69,6 +69,9 @@ func Unmarshal(src []byte) (*Set, []byte, error) {
 //
 // The first 8 bytes contain the length of the set (number of the elements the
 // set contains). The subsequent bytes are actual uint64 elements.
+//
+// The marshaling result is appended to the end of dst, i.e. the initial dst
+// content is not overwritten.
 func (s *Set) Marshal(dst []byte) []byte {
 	dst = encoding.MarshalUint64(dst, uint64(s.Len()))
 	s.ForEach(func(part []uint64) bool {
