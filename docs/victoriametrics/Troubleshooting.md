@@ -101,7 +101,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
      then use `rate(http_requests_total{job="foo"}[5m])` query.
      Continue adding more specific label filters until the resulting query returns a manageable number of time series.
 
-   - Remove the outer `rate` and execute `http_requests_total`. Add label filters to reduce the number of returned series.
+   - Remove the outer `rate` and execute `http_requests_total`. Add label filters to reduce the number of returned series,
      if needed.
 
    Sometimes the query may be improperly constructed, so it returns unexpected results.
