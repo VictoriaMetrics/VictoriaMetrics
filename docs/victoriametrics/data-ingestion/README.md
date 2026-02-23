@@ -25,6 +25,7 @@ so the urls in the rest of the documentation will look like `https://<victoriame
 - [Vector](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vector/)
 - [vmagent](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/)
 - [Grafana Alloy](https://docs.victoriametrics.com/victoriametrics/data-ingestion/alloy/)
+- [OpenTelemetry Collector](https://docs.victoriametrics.com/victoriametrics/data-ingestion/opentelemetry-collector/)
 - [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/)
 
 

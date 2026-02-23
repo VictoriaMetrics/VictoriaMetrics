@@ -12,6 +12,7 @@ VictoriaMetrics integrates with many popular monitoring solutions as remote stor
 
 * [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/) (read)
 * [Perses](https://docs.victoriametrics.com/victoriametrics/integrations/perses/) (read)
+* [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) (write)
 * [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) (write)
 * [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/) (read, write)
 * [DataDog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/) (write)
