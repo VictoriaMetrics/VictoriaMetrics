@@ -533,7 +533,7 @@ func TestStorageAddRows_nextDayIndexPrefill(t *testing.T) {
 		s.DebugFlush()
 		got59min := countMetricIDs(t, s, "metric5", nextDay)
 		if got59min < got45min {
-			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got59min, got59min)
+			t.Fatalf("unexpected metric id count for next day: got %d, want > %d", got59min, got45min)
 		}
 
 		// Sleep until the next day
