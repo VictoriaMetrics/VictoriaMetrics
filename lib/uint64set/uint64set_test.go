@@ -909,7 +909,7 @@ func TestUnmarshal(t *testing.T) {
 
 	got, gotTail, err := Unmarshal(src)
 	if err != nil {
-		t.Fatalf("unexpecte error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if !got.Equal(want) {
 		diff := cmp.Diff(want.AppendTo(nil), got.AppendTo(nil))
@@ -918,6 +918,26 @@ func TestUnmarshal(t *testing.T) {
 	wantTail := make([]byte, 10)
 	if diff := cmp.Diff(wantTail, gotTail); diff != "" {
 		t.Fatalf("unexpected tail bytes (-want, +got):\n%s", diff)
+	}
+}
+
+func TestUnmarshal_Error(t *testing.T) {
+	n := uint64(10)
+	src := make([]byte, n*8) // contains only 9 elements instead of 10.
+	binary.BigEndian.PutUint64(src, n)
+	for i := range n - 1 {
+		binary.BigEndian.PutUint64(src[(i+1)*8:], i)
+	}
+
+	got, gotTail, err := Unmarshal(src)
+	if err == nil {
+		t.Fatalf("expected error but got nil")
+	}
+	if got != nil {
+		t.Fatalf("unexpected nil set but got: %v", got.AppendTo(nil))
+	}
+	if gotTail != nil {
+		t.Fatalf("unexpected nil tail bytes but got: %v", gotTail)
 	}
 }
 
