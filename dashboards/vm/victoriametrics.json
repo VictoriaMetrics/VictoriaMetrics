@@ -5123,7 +5123,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk_vm?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds${__url_time_range}"
+                  "url": "/d/wNf0q_kZk_vm?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
