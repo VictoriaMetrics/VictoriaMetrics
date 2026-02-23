@@ -48,6 +48,9 @@ func (s *bucket32Sorter) Swap(i, j int) {
 // function will read exactly 8*length bytes and construct an instance of a
 // set. The remaining src bytes will be returned along with the set.
 func Unmarshal(src []byte) (*Set, []byte, error) {
+	if len(src) < 8 {
+		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least %d bytes", len(src), 8)
+	}
 	sLen := encoding.UnmarshalUint64(src)
 	src = src[8:]
 	if uint64(len(src)) < 8*sLen {

@@ -898,7 +898,7 @@ func TestSubtract(t *testing.T) {
 }
 
 func TestUnmarshal(t *testing.T) {
-	n := uint64(10)
+	n := uint64(100_000)
 	src := make([]byte, (n+1)*8+10)
 	binary.BigEndian.PutUint64(src, n)
 	want := &Set{}
@@ -921,7 +921,38 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_Error(t *testing.T) {
+func TestUnmarshal_zeroLenSet(t *testing.T) {
+	src := make([]byte, 8)
+	want := &Set{}
+	got, gotTail, err := Unmarshal(src)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !got.Equal(want) {
+		diff := cmp.Diff(want.AppendTo(nil), got.AppendTo(nil))
+		t.Fatalf("unexpected set (-want, +got):\n%s", diff)
+	}
+	wantTail := []byte{}
+	if diff := cmp.Diff(wantTail, gotTail); diff != "" {
+		t.Fatalf("unexpected tail bytes (-want, +got):\n%s", diff)
+	}
+}
+
+func TestUnmarshal_tooShortToIncludeSetLen(t *testing.T) {
+	src := make([]byte, 7) // set length occupies 8 bytes.
+	got, gotTail, err := Unmarshal(src)
+	if err == nil {
+		t.Fatalf("expected error but got nil")
+	}
+	if got != nil {
+		t.Fatalf("unexpected nil set but got: %v", got.AppendTo(nil))
+	}
+	if gotTail != nil {
+		t.Fatalf("unexpected nil tail bytes but got: %v", gotTail)
+	}
+}
+
+func TestUnmarshal_numElementsLessThanLen(t *testing.T) {
 	n := uint64(10)
 	src := make([]byte, n*8) // contains only 9 elements instead of 10.
 	binary.BigEndian.PutUint64(src, n)
@@ -942,7 +973,7 @@ func TestUnmarshal_Error(t *testing.T) {
 }
 
 func TestMarshal(t *testing.T) {
-	n := uint64(10)
+	n := uint64(100_000)
 	want := make([]byte, (n+1)*8)
 	binary.BigEndian.PutUint64(want, n)
 	s := &Set{}
