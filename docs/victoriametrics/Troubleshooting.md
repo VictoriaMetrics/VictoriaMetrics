@@ -254,7 +254,7 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
    - If the percentage of free memory reaches 0, then the Operating System where VictoriaMetrics components run,
      may not have enough memory for [page cache](https://en.wikipedia.org/wiki/Page_cache).
      VictoriaMetrics relies on page cache for quick queries over recently ingested data.
-     If the operating system has not enough free memory for page cache, then it needs
+     If the operating system does not have enough free memory for page cache, then it needs
      to re-read the requested data from disk. This may **significantly** increase disk read IO
      and slow down both queries and data ingestion.
 
@@ -385,7 +385,7 @@ There are the following most common sources of out of memory (aka OOM) crashes i
 
 ## Cluster instability
 
-VictoriaMetrics cluster may become unstable if there are no enough free resources (CPU, RAM, disk IO, network bandwidth)
+VictoriaMetrics cluster may become unstable if there are not enough free resources (CPU, RAM, disk IO, network bandwidth)
 for processing the current workload.
 
 The most common sources of cluster instability are:
