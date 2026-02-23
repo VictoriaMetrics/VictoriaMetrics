@@ -1521,7 +1521,7 @@
             {
               "targetBlank": true,
               "title": "Drilldown",
-              "url": "/d/wNf0q_kZk?viewPanel=154&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+              "url": "/d/wNf0q_kZk?viewPanel=154&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -1644,12 +1644,12 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown - RSS memory usage",
-                  "url": "/d/wNf0q_kZk?viewPanel=148&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk?viewPanel=148&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 },
                 {
                   "targetBlank": true,
                   "title": "Drilldown - Memory usage breakdown",
-                  "url": "/d/wNf0q_kZk?viewPanel=141&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk?viewPanel=141&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1764,7 +1764,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk?viewPanel=151&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk?viewPanel=151&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1882,7 +1882,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk?viewPanel=149&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk?viewPanel=149&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5122,7 +5122,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk?viewPanel=140&var-job=${__field.labels.job}&var-ds=$ds${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5356,7 +5356,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk?viewPanel=150&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk?viewPanel=150&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5973,7 +5973,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk?viewPanel=153&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk?viewPanel=153&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -6237,7 +6237,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/wNf0q_kZk?viewPanel=152&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/wNf0q_kZk?viewPanel=152&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
