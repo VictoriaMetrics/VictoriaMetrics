@@ -41,6 +41,10 @@ func (pu *pipeUnion) canReturnLastNResults() bool {
 	return false
 }
 
+func (pu *pipeUnion) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pu *pipeUnion) hasFilterInWithQuery() bool {
 	// The pu.q query with possible in(...) filters is processed independently at pu.flush(), so return false here.
 	return false

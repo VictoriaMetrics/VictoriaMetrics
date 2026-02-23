@@ -9,6 +9,7 @@ import (
 	"github.com/klauspost/compress/zlib"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/chunkedbuffer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/snappy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
@@ -100,6 +101,21 @@ func readFull(r io.Reader, maxDataSize *flagutil.Bytes, callback func(data []byt
 	lr := ioutil.GetLimitedReader(r, maxDataSize.N+1)
 	defer ioutil.PutLimitedReader(lr)
 
+	// Use chunkedbuffer for reading the data from potentially slow lr.
+	// This should reduce memory fragmentation and memory usage when reading large amounts of data from slow lr.
+	cb := chunkedbuffer.Get()
+
+	if _, err := cb.ReadFrom(lr); err != nil {
+		chunkedbuffer.Put(cb)
+		return err
+	}
+
+	if int64(cb.Len()) > maxDataSize.N {
+		return fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
+	}
+
+	// The data is read to cb.
+	// Copy it to contiguous bb.B and pass to callback for CPU-bound processing.
 	bb := fullReaderBufPool.Get()
 	defer func() {
 		if cap(bb.B) > 1024*1024 && cap(bb.B) > 4*len(bb.B) {
@@ -110,13 +126,8 @@ func readFull(r io.Reader, maxDataSize *flagutil.Bytes, callback func(data []byt
 		fullReaderBufPool.Put(bb)
 	}()
 
-	if _, err := bb.ReadFrom(lr); err != nil {
-		return err
-	}
-
-	if int64(len(bb.B)) > maxDataSize.N {
-		return fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
-	}
+	cb.MustWriteTo(bb)
+	chunkedbuffer.Put(cb)
 
 	return callback(bb.B)
 }

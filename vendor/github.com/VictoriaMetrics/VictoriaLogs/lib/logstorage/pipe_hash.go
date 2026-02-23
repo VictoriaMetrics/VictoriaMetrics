@@ -39,6 +39,10 @@ func (ph *pipeHash) canReturnLastNResults() bool {
 	return ph.resultField != "_time"
 }
 
+func (ph *pipeHash) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (ph *pipeHash) updateNeededFields(pf *prefixfilter.Filter) {
 	if pf.MatchString(ph.resultField) {
 		pf.AddDenyFilter(ph.resultField)

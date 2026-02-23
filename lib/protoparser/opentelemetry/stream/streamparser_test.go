@@ -32,7 +32,7 @@ func TestParseStream(t *testing.T) {
 				return fmt.Errorf("unexpected time series count; got: %d; want: %d\ntimeseries got:\n%s\ntimeseries want\n%s",
 					len(tss), len(tssExpected), prettifyTimeSeries(tss), prettifyTimeSeries(tssExpected))
 			}
-			for i := 0; i < len(tss); i++ {
+			for i := range tss {
 				ts := tss[i]
 				tsExpected := tssExpected[i]
 				if len(ts.Labels) != len(tsExpected.Labels) {
@@ -371,7 +371,7 @@ func TestParseStream(t *testing.T) {
 								{
 									Key: "label1",
 									Value: &pb.AnyValue{
-										StringValue: ptrTo("value1"),
+										StringValue: new("value1"),
 									},
 								},
 								{
@@ -387,7 +387,7 @@ func TestParseStream(t *testing.T) {
 										ArrayValue: &pb.ArrayValue{
 											Values: []*pb.AnyValue{
 												{
-													StringValue: ptrTo("value5"),
+													StringValue: new("value5"),
 												},
 												{
 													KeyValueList: &pb.KeyValueList{},
@@ -407,7 +407,7 @@ func TestParseStream(t *testing.T) {
 												{
 													Key: "value_top_2",
 													Value: &pb.AnyValue{
-														StringValue: ptrTo("valuetop"),
+														StringValue: new("valuetop"),
 													},
 												},
 												{
@@ -417,15 +417,15 @@ func TestParseStream(t *testing.T) {
 															Values: []*pb.KeyValue{
 																{
 																	Key:   "integer",
-																	Value: &pb.AnyValue{IntValue: ptrTo(int64(15))},
+																	Value: &pb.AnyValue{IntValue: new(int64(15))},
 																},
 																{
 																	Key:   "double",
-																	Value: &pb.AnyValue{DoubleValue: ptrTo(5.1)},
+																	Value: &pb.AnyValue{DoubleValue: new(5.1)},
 																},
 																{
 																	Key:   "string",
-																	Value: &pb.AnyValue{StringValue: ptrTo("value2")},
+																	Value: &pb.AnyValue{StringValue: new("value2")},
 																},
 															},
 														},
@@ -436,7 +436,7 @@ func TestParseStream(t *testing.T) {
 									},
 								},
 							},
-							IntValue:     ptrTo(int64(15)),
+							IntValue:     new(int64(15)),
 							TimeUnixNano: uint64(15 * time.Second),
 						},
 					},
@@ -610,7 +610,7 @@ func generateGaugeUnknown(name, unit string, extraAttributes ...*pb.KeyValue) *p
 	m.Metadata = append(m.Metadata, &pb.KeyValue{
 		Key: "prometheus.type",
 		Value: &pb.AnyValue{
-			StringValue: ptrTo("unknown"),
+			StringValue: new("unknown"),
 		},
 	})
 	return m
@@ -700,13 +700,13 @@ func generateOTLPSamples(srcs []*pb.Metric) *pb.ResourceMetrics {
 		},
 	}
 	scope := &pb.InstrumentationScope{
-		Name:    ptrTo("foo"),
-		Version: ptrTo("bar"),
+		Name:    new("foo"),
+		Version: new("bar"),
 		Attributes: []*pb.KeyValue{
 			{
 				Key: "abc",
 				Value: &pb.AnyValue{
-					StringValue: ptrTo("qwe"),
+					StringValue: new("qwe"),
 				},
 			},
 		},
@@ -816,10 +816,6 @@ func sortLabels(labels []prompb.Label) {
 	sort.Slice(labels, func(i, j int) bool {
 		return labels[i].Name < labels[j].Name
 	})
-}
-
-func ptrTo[T any](v T) *T {
-	return &v
 }
 
 func TestPutBigWriteRequestContext(t *testing.T) {

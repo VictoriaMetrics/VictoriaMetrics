@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
@@ -29,6 +30,10 @@ func (pd *pipeDropEmptyFields) canLiveTail() bool {
 
 func (pd *pipeDropEmptyFields) canReturnLastNResults() bool {
 	return true
+}
+
+func (pd *pipeDropEmptyFields) isFixedOutputFieldsOrder() bool {
+	return false
 }
 
 func (pd *pipeDropEmptyFields) hasFilterInWithQuery() bool {
@@ -91,7 +96,7 @@ func (pdp *pipeDropEmptyFieldsProcessor) writeBlock(workerID uint, br *blockResu
 	shard.wctx.init(workerID, pdp.ppNext)
 
 	fields := shard.fields
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		fields = fields[:0]
 		for i, values := range columnValues {
 			v := values[rowIdx]
@@ -218,10 +223,8 @@ func parsePipeDropEmptyFields(lex *lexer) (pipe, error) {
 
 func hasEmptyValues(columnValues [][]string) bool {
 	for _, values := range columnValues {
-		for _, v := range values {
-			if v == "" {
-				return true
-			}
+		if slices.Contains(values, "") {
+			return true
 		}
 	}
 	return false

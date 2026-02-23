@@ -3,7 +3,7 @@ package storage
 import (
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -114,9 +114,7 @@ func (s *Storage) mustOpenLegacyIndexDBTables(path string) *legacyIndexDBs {
 		}
 		tableNames = append(tableNames, tableName)
 	}
-	sort.Slice(tableNames, func(i, j int) bool {
-		return tableNames[i] < tableNames[j]
-	})
+	slices.Sort(tableNames)
 
 	if len(tableNames) > 3 {
 		// Remove all the tables except the last three tables.

@@ -517,7 +517,7 @@ func (bs *blockSearch) subTimeOffsetToTimestamps(timeOffset int64) {
 
 func subTimeOffset(timestamps []int64, timeOffset int64) {
 	for i := range timestamps {
-		timestamps[i] = subNoOverflowInt64(timestamps[i], timeOffset)
+		timestamps[i] = SubInt64NoOverflow(timestamps[i], timeOffset)
 	}
 }
 

@@ -86,6 +86,10 @@ func (pm *pipeMath) canReturnLastNResults() bool {
 	return true
 }
 
+func (pm *pipeMath) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (me *mathEntry) String() string {
 	s := me.expr.String()
 	if isMathBinaryOp(me.expr.op) {
@@ -311,7 +315,7 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 
 	if me.isConst {
 		r := shard.rs[rIdx]
-		for i := 0; i < br.rowsLen; i++ {
+		for i := range br.rowsLen {
 			r[i] = me.constValue
 		}
 		return
@@ -908,7 +912,11 @@ func mathFuncMod(result []float64, args [][]float64) {
 		yInt := int64(y)
 		if float64(xInt) == x && float64(yInt) == y {
 			// Fast path - integer modulo
-			result[i] = float64(xInt % yInt)
+			if yInt == 0 {
+				result[i] = nan
+			} else {
+				result[i] = float64(xInt % yInt)
+			}
 		} else {
 			// Slow path - floating point modulo
 			result[i] = math.Mod(x, y)
