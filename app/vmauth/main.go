@@ -382,6 +382,10 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			break
 		}
 		targetURL := bu.url
+		if tkn != nil {
+			// for security reasons allow templating only for configured url values and headers
+			targetURL, hc = replaceJWTPlaceholders(bu, hc, tkn.VMAccess())
+		}
 		if isDefault {
 			// Don't change path and add request_path query param for default route.
 			query := targetURL.Query()
@@ -391,11 +395,6 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 			// Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		}
-
-		if tkn != nil {
-			replaceJWTPlaceholders(targetURL, hc.RequestHeaders, ui.JWT, tkn.VMAccess())
-		}
-
 		wasLocalRetry := false
 	again:
 		ok, needLocalRetry := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui, bu)

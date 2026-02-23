@@ -572,7 +572,6 @@ func TestJWTRequestHandler(t *testing.T) {
 
 		return payload + "." + signatureB64
 	}
-	genToken(t, nil, false)
 
 	f := func(cfgStr string, r *http.Request, responseExpected string) {
 		t.Helper()
@@ -1180,6 +1179,63 @@ users:
 		request,
 		responseExpected,
 	)
+
+	// multiple placeholders in url_map for the same param
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_stream_filters={"team":"dev"}
+    tenant_info=static=value
+    tenant_info=345
+    tenant_info=456
+headers:
+    AccountID=345
+    ProjectID=456`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+    - src_paths: ["/query"]
+      headers:
+        - "AccountID: {{.LogsAccountID}}"
+        - "ProjectID: {{.LogsProjectID}}"
+      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}&tenant_info=static=value&tenant_info={{.LogsAccountID}}&tenant_info={{.LogsProjectID}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+	// client request params must be ignored by placeholders
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query?template_attack={{.LogsExtraFilters}}", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	request.Header.Set(`AccountID`, `{{.LogsAccountID}}`)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_stream_filters={"team":"dev"}
+    template_attack={{.LogsExtraFilters}}
+headers:
+    AccountID={{.LogsAccountID}}`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+    - src_paths: ["/query"]
+      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
 }
 
 type fakeResponseWriter struct {

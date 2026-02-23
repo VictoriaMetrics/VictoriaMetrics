@@ -32,14 +32,14 @@ XOtclIk1uhc03oL9nOQ=
 		ac, err := parseAuthConfig([]byte(s))
 		if err != nil {
 			if expErr != err.Error() {
-				t.Fatalf("unexpected error; got %q; want %q", err.Error(), expErr)
+				t.Fatalf("unexpected error; got\n%q\nwant\n%q", err.Error(), expErr)
 			}
 			return
 		}
 		users, err := parseJWTUsers(ac)
 		if err != nil {
 			if expErr != err.Error() {
-				t.Fatalf("unexpected error; got %q; want %q", err.Error(), expErr)
+				t.Fatalf("unexpected error; got\n%q\nwant \n%q", err.Error(), expErr)
 			}
 			return
 		}
@@ -170,9 +170,9 @@ users:
 users:
 - jwt: 
     skip_verify: true
-  url_prefix: http://foo.bar/{{.UnsupportedPlaceholder}}/foo
-`, "invalid placeholder found in URL or headers; allowed placeholders are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}")
-
+  url_prefix: http://foo.bar/{{.UnsupportedPlaceholder}}/foo`,
+		"invalid placeholder found in URL request path: \"/{{.UnsupportedPlaceholder}}/foo\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
 	// unsupported placeholder in a header
 	f(`
 users:
@@ -181,7 +181,9 @@ users:
   headers:
     - "AccountID: {{.UnsupportedPlaceholder}}"
   url_prefix: http://foo.bar
-`, "invalid placeholder found in URL or headers; allowed placeholders are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}")
+`,
+		"request header: \"AccountID\" has unsupported placeholder: \"{{.UnsupportedPlaceholder}}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
 
 	// spaces in templating not allowed
 	f(`
@@ -191,7 +193,9 @@ users:
   headers:
     - "AccountID: {{ .LogsAccountID }}"
   url_prefix: http://foo.bar
-`, "invalid placeholder found in URL or headers; allowed placeholders are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}")
+`,
+		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
 }
 
 func TestJWTParseAuthConfigSuccess(t *testing.T) {

@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"regexp"
-	"strconv"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,6 +21,8 @@ const (
 	logsProjectIDPlaceholder          = `{{.LogsProjectID}}`
 	logsExtraFiltersPlaceholder       = `{{.LogsExtraFilters}}`
 	logsExtraStreamFiltersPlaceholder = `{{.LogsExtraStreamFilters}}`
+
+	placeholderPrefix = `{{`
 )
 
 var allPlaceholders = []string{
@@ -32,6 +33,12 @@ var allPlaceholders = []string{
 	logsProjectIDPlaceholder,
 	logsExtraFiltersPlaceholder,
 	logsExtraStreamFiltersPlaceholder,
+}
+
+var urlPathPlaceHolders = []string{
+	metricsTenantPlaceholder,
+	logsAccountIDPlaceholder,
+	logsProjectIDPlaceholder,
 }
 
 type jwtCache struct {
@@ -45,17 +52,6 @@ type JWTConfig struct {
 	SkipVerify     bool     `yaml:"skip_verify,omitempty"`
 
 	verifierPool *jwt.VerifierPool
-
-	anyPlaceholderUsed bool
-
-	metricsTenantPlaceholderUsed       bool
-	metricsExtraLabelsPlaceholderUsed  bool
-	metricsExtraFiltersPlaceholderUsed bool
-
-	logsAccountIDPlaceholderUsed          bool
-	logsProjectIDPlaceholderUsed          bool
-	logsExtraFiltersPlaceholderUsed       bool
-	logsExtraStreamFiltersPlaceholderUsed bool
 }
 
 func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
@@ -103,6 +99,9 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 
 			jwtToken.verifierPool = vp
 		}
+		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {
+			return nil, err
+		}
 
 		if err := ui.initURLs(); err != nil {
 			return nil, err
@@ -133,14 +132,10 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 		}
 		ui.rt = rt
 
-		if err := validateJWTPlaceholders(&ui); err != nil {
-			return nil, err
-		}
-
 		jui = append(jui, &ui)
 	}
 
-	// the limitation will be lifted once claim based matching will be implemented
+	// TODO: the limitation will be lifted once claim based matching will be implemented
 	if len(jui) > 1 {
 		return nil, fmt.Errorf("multiple users with JWT tokens are not supported; found %d users", len(jui))
 	}
@@ -170,6 +165,8 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 		}
 		if tkn.IsExpired(time.Now()) {
 			if *logInvalidAuthTokens {
+				// TODO: add more context:
+				// token claims with issuer
 				logger.Infof("jwt token is expired")
 			}
 			continue
@@ -194,167 +191,182 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 	return nil, nil
 }
 
-func validateJWTPlaceholders(ui *UserInfo) error {
-	if ui.JWT == nil {
-		logger.Panicf("BUG: validateJWTPlaceholders must be called for users with JWT authentication method defined")
+func replaceJWTPlaceholders(bu *backendURL, hc HeadersConf, vma *jwt.VMAccessClaim) (*url.URL, HeadersConf) {
+	if !bu.hasPlaceHolders && !hc.hasAnyPlaceHolders {
+		return bu.url, hc
+	}
+	targetURL := bu.url
+	data := jwtClaimsData(vma)
+	if bu.hasPlaceHolders {
+		// template url params and request path
+		// make a copy of url
+		uCopy := *bu.url
+		for _, uph := range urlPathPlaceHolders {
+			replacement := data[uph]
+			uCopy.Path = strings.ReplaceAll(uCopy.Path, uph, replacement[0])
+		}
+		query := uCopy.Query()
+		var foundAnyQueryPlaceholder bool
+		var templatedValues []string
+		for param, values := range query {
+			templatedValues = templatedValues[:0]
+			// filter in-place values with placeholders
+			// and accumulate replacements
+			// it will change the order of param values
+			// but it's not guaranteed
+			// and will be changed in any way with multiple arg templates
+			var cnt int
+			for _, value := range values {
+				if dv, ok := data[value]; ok {
+					foundAnyQueryPlaceholder = true
+					templatedValues = append(templatedValues, dv...)
+					continue
+				}
+				cnt++
+			}
+			values = values[:cnt]
+			values = append(values, templatedValues...)
+			query[param] = values
+		}
+		if foundAnyQueryPlaceholder {
+			uCopy.RawQuery = query.Encode()
+		}
+		targetURL = &uCopy
+	}
+	if hc.hasAnyPlaceHolders {
+		// make a copy of headers and update only values with placeholder
+		rhs := make([]*Header, 0, len(hc.RequestHeaders))
+		for _, rh := range hc.RequestHeaders {
+			if dv, ok := data[rh.Value]; ok {
+				rh := &Header{
+					Name:  rh.Name,
+					Value: strings.Join(dv, ","),
+				}
+				rhs = append(rhs, rh)
+				continue
+			}
+			rhs = append(rhs, rh)
+		}
+		hc.RequestHeaders = rhs
 	}
 
-	var s string
+	return targetURL, hc
+}
+
+func jwtClaimsData(vma *jwt.VMAccessClaim) map[string][]string {
+	data := map[string][]string{
+		// TODO: optimize at parsing stage
+		metricsTenantPlaceholder:       {fmt.Sprintf("%d:%d", vma.MetricsAccountID, vma.MetricsProjectID)},
+		metricsExtraLabelsPlaceholder:  vma.MetricsExtraLabels,
+		metricsExtraFiltersPlaceholder: vma.MetricsExtraFilters,
+
+		// TODO: optimize at parsing stage
+		logsAccountIDPlaceholder:          {fmt.Sprintf("%d", vma.LogsAccountID)},
+		logsProjectIDPlaceholder:          {fmt.Sprintf("%d", vma.LogsProjectID)},
+		logsExtraFiltersPlaceholder:       vma.LogsExtraFilters,
+		logsExtraStreamFiltersPlaceholder: vma.LogsExtraStreamFilters,
+	}
+	return data
+}
+
+func parseJWTPlaceholdersForUserInfo(ui *UserInfo, isAllowed bool) error {
 	if ui.URLPrefix != nil {
-		for _, u := range ui.URLPrefix.busOriginal {
-			s += ", " + u.Path
-			s += ", " + u.RawQuery
+		if err := validateJWTPlaceholdersForURL(ui.URLPrefix, isAllowed); err != nil {
+			return err
 		}
 	}
-	for _, rh := range ui.HeadersConf.RequestHeaders {
-		s += ", " + rh.Value
+	if err := parsePlaceholdersForHC(&ui.HeadersConf, isAllowed); err != nil {
+		return err
 	}
-
-	for _, um := range ui.URLMaps {
-		for _, u := range um.URLPrefix.busOriginal {
-			s += ", " + u.Path
-			s += ", " + u.RawQuery
-		}
-		for _, rh := range um.HeadersConf.RequestHeaders {
-			s += ", " + rh.Value
+	if ui.DefaultURL != nil {
+		if err := validateJWTPlaceholdersForURL(ui.DefaultURL, isAllowed); err != nil {
+			return fmt.Errorf("invalid `default_url placeholders: %w", err)
 		}
 	}
+	for i := range ui.URLMaps {
+		e := &ui.URLMaps[i]
+		if e.URLPrefix != nil {
+			if err := validateJWTPlaceholdersForURL(e.URLPrefix, isAllowed); err != nil {
+				return fmt.Errorf("invalid `url_map` `url_prefix` placeholders: %w", err)
+			}
+		}
+		if err := parsePlaceholdersForHC(&e.HeadersConf, isAllowed); err != nil {
+			return fmt.Errorf("invalid `url_map` headers placeholders: %w", err)
+		}
 
-	ui.JWT.metricsTenantPlaceholderUsed = strings.Contains(s, metricsTenantPlaceholder)
-	ui.JWT.metricsExtraLabelsPlaceholderUsed = strings.Contains(s, metricsExtraLabelsPlaceholder)
-	ui.JWT.metricsExtraFiltersPlaceholderUsed = strings.Contains(s, metricsExtraFiltersPlaceholder)
-	ui.JWT.logsAccountIDPlaceholderUsed = strings.Contains(s, logsAccountIDPlaceholder)
-	ui.JWT.logsProjectIDPlaceholderUsed = strings.Contains(s, logsProjectIDPlaceholder)
-	ui.JWT.logsExtraFiltersPlaceholderUsed = strings.Contains(s, logsExtraFiltersPlaceholder)
-	ui.JWT.logsExtraStreamFiltersPlaceholderUsed = strings.Contains(s, logsExtraStreamFiltersPlaceholder)
-
-	ui.JWT.anyPlaceholderUsed = ui.JWT.metricsTenantPlaceholderUsed ||
-		ui.JWT.metricsExtraLabelsPlaceholderUsed ||
-		ui.JWT.metricsExtraFiltersPlaceholderUsed ||
-		ui.JWT.logsAccountIDPlaceholderUsed ||
-		ui.JWT.logsProjectIDPlaceholderUsed ||
-		ui.JWT.logsExtraFiltersPlaceholderUsed ||
-		ui.JWT.logsExtraStreamFiltersPlaceholderUsed
-
-	for _, p := range allPlaceholders {
-		s = strings.ReplaceAll(s, p, ``)
 	}
-	if strings.Contains(s, `{{`) || strings.Contains(s, `}}`) {
-		return fmt.Errorf("invalid placeholder found in URL or headers; allowed placeholders are: %s", strings.Join(allPlaceholders, ", "))
-	}
-
 	return nil
 }
 
-func replaceJWTPlaceholders(targetURL *url.URL, rhs []*Header, jwtConf *JWTConfig, vma *jwt.VMAccessClaim) {
-	if !jwtConf.anyPlaceholderUsed {
-		return
-	}
-
-	if jwtConf.metricsTenantPlaceholderUsed {
-		tenant := fmt.Sprintf("%d:%d", vma.MetricsAccountID, vma.MetricsProjectID)
-		targetURL.Path = strings.ReplaceAll(targetURL.Path, metricsTenantPlaceholder, tenant)
-	}
-
-	if jwtConf.logsAccountIDPlaceholderUsed || jwtConf.logsProjectIDPlaceholderUsed {
-		for _, h := range rhs {
-			if h.Name == `AccountID` && jwtConf.logsAccountIDPlaceholderUsed {
-				h.Value = strings.ReplaceAll(h.Value, logsAccountIDPlaceholder, strconv.FormatInt(vma.LogsAccountID, 10))
+func validateJWTPlaceholdersForURL(up *URLPrefix, isAllowed bool) error {
+	for _, bu := range up.busOriginal {
+		ok := strings.Contains(bu.Path, placeholderPrefix)
+		if ok && !isAllowed {
+			return fmt.Errorf("placeholder: %q is only allowed at JWT token context", bu.Path)
+		}
+		if ok {
+			p := bu.Path
+			for _, ph := range allPlaceholders {
+				p = strings.ReplaceAll(p, ph, ``)
 			}
-			if h.Name == `ProjectID` && jwtConf.logsProjectIDPlaceholderUsed {
-				h.Value = strings.ReplaceAll(h.Value, logsProjectIDPlaceholder, strconv.FormatInt(vma.LogsProjectID, 10))
+			if strings.Contains(p, placeholderPrefix) {
+				return fmt.Errorf("invalid placeholder found in URL request path: %q, supported values are: %s", bu.Path, strings.Join(allPlaceholders, ", "))
+
 			}
 		}
-	}
-
-	query := targetURL.Query()
-	if jwtConf.metricsExtraFiltersPlaceholderUsed {
-		vals := append([]string{}, query[`extra_label`]...)
-		query[`extra_label`] = nil
-		for _, v := range vals {
-			if v == metricsExtraLabelsPlaceholder {
-				for _, label := range vma.MetricsExtraLabels {
-					query.Add(`extra_label`, label)
+		for param, values := range bu.Query() {
+			for _, value := range values {
+				ok := strings.Contains(value, placeholderPrefix)
+				if ok && !isAllowed {
+					return fmt.Errorf("query param: %q with placeholder: %q is only allowed at JWT token context", param, value)
 				}
-				continue
-			}
-
-			query.Add(`extra_label`, v)
-		}
-	}
-	if jwtConf.metricsExtraLabelsPlaceholderUsed {
-		vals := append([]string{}, query[`extra_filters`]...)
-		query[`extra_filters`] = nil
-		for _, v := range vals {
-			if v == metricsExtraFiltersPlaceholder {
-				for _, label := range vma.MetricsExtraFilters {
-					query.Add(`extra_filters`, label)
+				if ok {
+					// possible placeholder
+					if !slices.Contains(allPlaceholders, value) {
+						return fmt.Errorf("query param: %q has unsupported placeholder string: %q, supported values are: %s", param, value, strings.Join(allPlaceholders, ", "))
+					}
 				}
-				continue
 			}
-
-			query.Add(`extra_filters`, v)
 		}
 	}
-	if jwtConf.logsExtraStreamFiltersPlaceholderUsed {
-		vals := append([]string{}, query[`extra_filters`]...)
-		query[`extra_filters`] = nil
-		for _, v := range vals {
-			if v == logsExtraFiltersPlaceholder {
-				for _, label := range vma.LogsExtraFilters {
-					query.Add(`extra_filters`, label)
-				}
-				continue
-			}
-
-			query.Add(`extra_filters`, v)
-		}
-	}
-	if jwtConf.logsExtraFiltersPlaceholderUsed {
-		vals := append([]string{}, query[`extra_stream_filters`]...)
-		query[`extra_stream_filters`] = nil
-		for _, v := range vals {
-			if v == logsExtraStreamFiltersPlaceholder {
-				for _, label := range vma.LogsExtraStreamFilters {
-					query.Add(`extra_stream_filters`, label)
-				}
-				continue
-			}
-
-			query.Add(`extra_stream_filters`, v)
-		}
-	}
-	targetURL.RawQuery = query.Encode()
+	return nil
 }
 
-var placeholderRegexp = regexp.MustCompile(`{{.*?}}`)
-
-func validateNoPlaceholders(ui *UserInfo) error {
-	if ui.URLPrefix != nil {
-		for _, u := range ui.URLPrefix.busOriginal {
-			if placeholderRegexp.MatchString(u.Path) || placeholderRegexp.MatchString(u.RawQuery) {
-				return fmt.Errorf("placeholders are not allowed in URL prefix path or query")
+func parsePlaceholdersForHC(hc *HeadersConf, isAllowed bool) error {
+	for _, rhs := range hc.RequestHeaders {
+		ok := strings.Contains(rhs.Value, placeholderPrefix)
+		if ok && !isAllowed {
+			return fmt.Errorf("request header: %q placeholder: %q is only supported at JWT context", rhs.Name, rhs.Value)
+		}
+		if ok {
+			if !slices.Contains(allPlaceholders, rhs.Value) {
+				return fmt.Errorf("request header: %q has unsupported placeholder: %q, supported values are: %s", rhs.Name, rhs.Value, strings.Join(allPlaceholders, ", "))
 			}
+			hc.hasAnyPlaceHolders = true
 		}
 	}
-	for _, rh := range ui.HeadersConf.RequestHeaders {
-		if placeholderRegexp.MatchString(rh.Value) {
-			return fmt.Errorf("placeholders are not allowed in headers")
+	for _, rhs := range hc.ResponseHeaders {
+		if strings.Contains(rhs.Value, placeholderPrefix) {
+			return fmt.Errorf("response header placeholders are not supported; found placeholder prefix at header: %q with value: %q", rhs.Name, rhs.Value)
 		}
 	}
-
-	for _, um := range ui.URLMaps {
-		for _, u := range um.URLPrefix.busOriginal {
-			if placeholderRegexp.MatchString(u.Path) || placeholderRegexp.MatchString(u.RawQuery) {
-				return fmt.Errorf("placeholders are not allowed in URL prefix path or query")
-			}
-		}
-		for _, rh := range um.HeadersConf.RequestHeaders {
-			if placeholderRegexp.MatchString(rh.Value) {
-				return fmt.Errorf("placeholders are not allowed in headers")
-			}
-		}
-	}
-
 	return nil
+}
+
+func hasAnyPlaceholders(u *url.URL) bool {
+	if strings.Contains(u.Path, placeholderPrefix) {
+		return true
+	}
+	if len(u.Query()) == 0 {
+		return false
+	}
+	for _, values := range u.Query() {
+		for _, value := range values {
+			if strings.HasPrefix(value, placeholderPrefix) {
+				return true
+			}
+		}
+
+	}
+	return false
 }

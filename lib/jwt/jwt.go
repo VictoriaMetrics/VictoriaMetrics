@@ -79,13 +79,15 @@ type VMAccessClaim struct {
 	// 0 = unconfigured - read and write
 	Mode int `json:"mode,omitempty"`
 
-	MetricsAccountID    int64    `json:"metrics_account_id,omitempty"`
-	MetricsProjectID    int64    `json:"metrics_project_id,omitempty"`
+	// TODO: use different claim struct for vmauth and vmgateway
+	// parsing must be dynamic based on provided hint
+	MetricsAccountID    uint32   `json:"metrics_account_id,omitempty"`
+	MetricsProjectID    uint32   `json:"metrics_project_id,omitempty"`
 	MetricsExtraFilters []string `json:"metrics_extra_filters,omitempty"`
 	MetricsExtraLabels  []string `json:"metrics_extra_labels,omitempty"`
 
-	LogsAccountID          int64    `json:"logs_account_id,omitempty"`
-	LogsProjectID          int64    `json:"logs_project_id,omitempty"`
+	LogsAccountID          uint32   `json:"logs_account_id,omitempty"`
+	LogsProjectID          uint32   `json:"logs_project_id,omitempty"`
 	LogsExtraFilters       []string `json:"logs_extra_filters,omitempty"`
 	LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty"`
 }
