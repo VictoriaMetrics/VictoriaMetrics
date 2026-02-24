@@ -351,6 +351,14 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 	}
 }
 
+// clone returns a copy of up with the same busOriginal and vOriginal values.
+func (up *URLPrefix) clone() *URLPrefix {
+	return &URLPrefix{
+		busOriginal: up.busOriginal,
+		vOriginal:   up.vOriginal,
+	}
+}
+
 type backendURLs struct {
 	healthChecksContext context.Context
 	healthChecksCancel  func()
@@ -1040,13 +1048,20 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 func (ui *UserInfo) applyBackendConfig(backend *BackendInfo) {
 	// Apply only if user doesn't have these fields set
 	if ui.URLPrefix == nil && backend.URLPrefix != nil {
-		ui.URLPrefix = backend.URLPrefix
+		ui.URLPrefix = backend.URLPrefix.clone()
 	}
 	if ui.DiscoverBackendIPs == nil && backend.DiscoverBackendIPs != nil {
 		ui.DiscoverBackendIPs = backend.DiscoverBackendIPs
 	}
 	if len(ui.URLMaps) == 0 && len(backend.URLMaps) > 0 {
-		ui.URLMaps = backend.URLMaps
+		urlMaps := make([]URLMap, len(backend.URLMaps))
+		copy(urlMaps, backend.URLMaps)
+		for i := range urlMaps {
+			if urlMaps[i].URLPrefix != nil {
+				urlMaps[i].URLPrefix = urlMaps[i].URLPrefix.clone()
+			}
+		}
+		ui.URLMaps = urlMaps
 	}
 	if !ui.DumpRequestOnErrors && backend.DumpRequestOnErrors {
 		ui.DumpRequestOnErrors = backend.DumpRequestOnErrors
@@ -1061,7 +1076,7 @@ func (ui *UserInfo) applyBackendConfig(backend *BackendInfo) {
 		ui.HeadersConf.KeepOriginalHost = backend.HeadersConf.KeepOriginalHost
 	}
 	if ui.DefaultURL == nil && backend.DefaultURL != nil {
-		ui.DefaultURL = backend.DefaultURL
+		ui.DefaultURL = backend.DefaultURL.clone()
 	}
 	if ui.RetryStatusCodes == nil && backend.RetryStatusCodes != nil {
 		ui.RetryStatusCodes = backend.RetryStatusCodes
