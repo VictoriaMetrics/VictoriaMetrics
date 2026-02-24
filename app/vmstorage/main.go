@@ -70,7 +70,7 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
 		"See also -storage.maxHourlySeries")
 
-	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
+	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 100e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 
 	finalDedupScheduleInterval = flag.Duration("storage.finalDedupScheduleCheckInterval", time.Hour, "The interval for checking when final deduplication process should be started."+
 		"Storage unconditionally adds 25% jitter to the interval value on each check evaluation."+
