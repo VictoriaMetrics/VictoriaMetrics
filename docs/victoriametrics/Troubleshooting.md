@@ -33,7 +33,7 @@ If you encounter an issue or have a question about VictoriaMetrics components, f
    by sending a `SIGINT` signal to it and starting the new version of the component.
 
    In rare cases, upgrades may include breaking changes. These cases are documented in the [changelog](https://docs.victoriametrics.com/victoriametrics/changelog/),
-especially check for **Update notes** near the top of the changelog, as they point out any special actions or considerations to take when upgrading.
+   especially check for **Update notes** near the top of the changelog, as they point out any special actions or considerations to take when upgrading.
 
 1. Review command-line flags passed to VictoriaMetrics components and remove any flags whose impact on your workload is unclear.
    VictoriaMetrics components are optimized to work well with default settings (that is, when flags aren't explicitly set).
@@ -205,7 +205,7 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
    These are the solutions that exist for this issue:
 
    - To increase the available memory on the host where VictoriaMetrics runs until `slow inserts` percentage
-     will become lower than 5%. If you run VictoriaMetrics cluster, then you need increasing total available
+     will become lower than 5%. If you run a VictoriaMetrics cluster, then you need to increase the total available
      memory at all `vmstorage` nodes. This can be done in two ways: either to increase the available memory
      per each existing `vmstorage` node or to add more `vmstorage` nodes to the cluster to spread the load.
 
@@ -220,7 +220,7 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
      This forces the server to normalize label order, though it increases CPU usage during ingestion.
 
 1. [High churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
-   When VictoriaMetrics encounters a sample for new time series, it needs to register the time series
+   When VictoriaMetrics encounters a sample for a new time series, it needs to register the time series
    in the internal index (aka `indexdb`), so it can be quickly located during select queries.
    The process of registering new time series in the internal index is an order of magnitude slower
    than the process of adding new sample to already registered time series.
@@ -273,7 +273,7 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
    contains `connection saturation` panel for `vminsert` components. If this graph reaches 100% (1s),
    then it is likely you have issues with network latency between `vminsert` and `vmstorage`.
    Another possible issue for 100% connection saturation between `vminsert` and `vmstorage`
-   is resource shortage at `vmstorage` nodes. In this case you need to increase amounts
+   is resource shortage at `vmstorage` nodes. In this case, you need to increase the amount
    of available resources (CPU, RAM, disk IO) at `vmstorage` nodes or to add more `vmstorage` nodes to the cluster.
 
 1. Noisy neighbor. Make sure VictoriaMetrics components run in an environment without other resource-hungry apps.
