@@ -222,6 +222,7 @@ func replaceJWTPlaceholders(bu *backendURL, hc HeadersConf, vma *jwt.VMAccessCla
 					templatedValues = append(templatedValues, dv...)
 					continue
 				}
+				values[cnt] = value
 				cnt++
 			}
 			values = values[:cnt]
@@ -280,7 +281,7 @@ func parseJWTPlaceholdersForUserInfo(ui *UserInfo, isAllowed bool) error {
 	}
 	if ui.DefaultURL != nil {
 		if err := validateJWTPlaceholdersForURL(ui.DefaultURL, isAllowed); err != nil {
-			return fmt.Errorf("invalid `default_url placeholders: %w", err)
+			return fmt.Errorf("invalid `default_url` placeholders: %w", err)
 		}
 	}
 	for i := range ui.URLMaps {
