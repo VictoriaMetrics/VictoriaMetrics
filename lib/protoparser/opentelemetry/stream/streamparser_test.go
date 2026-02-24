@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -821,6 +822,11 @@ func sortLabels(labels []prompb.Label) {
 func TestPutBigWriteRequestContext(t *testing.T) {
 	f := func(l, c, expectC int) {
 		t.Helper()
+
+		// disable GC here so the items in pool won't be recycled too fast. reset it after the test.
+		prevPercent := debug.SetGCPercent(-1)
+		defer debug.SetGCPercent(prevPercent)
+
 		// let's reset the whole pool first, as different test case could interfere
 		wctxPool = sync.Pool{}
 
