@@ -429,7 +429,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -rule.evalDelay duration
      Adjustment of the 'time' parameter for rule evaluation requests to compensate intentional data delay from the datasource. Normally, should be equal to '-search.latencyOffset' (cmd-line flag configured for VictoriaMetrics single-node or vmselect). This doesn't apply to groups with eval_offset specified. (default 30s)
   -rule.maxResolveDuration duration
-     Limits the maxiMum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
+     Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
   -rule.resendDelay duration
      MiniMum amount of time to wait before resending an alert to notifier.
   -rule.resultsLimit int
