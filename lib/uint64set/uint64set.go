@@ -1,6 +1,7 @@
 package uint64set
 
 import (
+	"fmt"
 	"math/bits"
 	"slices"
 	"sort"
@@ -8,6 +9,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -36,6 +38,49 @@ func (s *bucket32Sorter) Less(i, j int) bool {
 func (s *bucket32Sorter) Swap(i, j int) {
 	a := *s
 	a[i], a[j] = a[j], a[i]
+}
+
+// Unmarshal creates an instance of a set from bytes.
+//
+// The first 8 src bytes contain the set length (number of the elements in the
+// set). Since each element is 8-byte long, the number of remaining src bytes
+// must be at least 8*length, or else the function will return an error. The
+// function will read exactly 8*length bytes and construct an instance of a
+// set. The remaining src bytes will be returned along with the set.
+func Unmarshal(src []byte) (*Set, []byte, error) {
+	if len(src) < 8 {
+		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least 8 bytes", len(src))
+	}
+	sLen := encoding.UnmarshalUint64(src)
+	src = src[8:]
+	if uint64(len(src)) < 8*sLen {
+		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least %d bytes", len(src), 8*sLen)
+	}
+	s := &Set{}
+	for range sLen {
+		e := encoding.UnmarshalUint64(src)
+		src = src[8:]
+		s.Add(e)
+	}
+	return s, src, nil
+}
+
+// Marshal encodes the set as a sequence of bytes.
+//
+// The first 8 bytes contain the length of the set (number of the elements the
+// set contains). The subsequent bytes are actual uint64 elements.
+//
+// The marshaling result is appended to the end of dst, i.e. the initial dst
+// content is not overwritten.
+func (s *Set) Marshal(dst []byte) []byte {
+	dst = encoding.MarshalUint64(dst, uint64(s.Len()))
+	s.ForEach(func(part []uint64) bool {
+		for _, e := range part {
+			dst = encoding.MarshalUint64(dst, e)
+		}
+		return true
+	})
+	return dst
 }
 
 // Clone returns an independent copy of s.
