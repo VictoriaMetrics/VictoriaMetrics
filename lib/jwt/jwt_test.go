@@ -141,7 +141,7 @@ func TestParseJWTBody_Failure(t *testing.T) {
 	// vm_access claim invalid type
 	f(
 		`{"vm_access": 123}`,
-		"cannot parse jwt body vm_access: json: cannot unmarshal number into Go value of type string",
+		"cannot parse jwt body vm_access: json: cannot unmarshal number into Go value of type jwt.vmAccessClaimJSON",
 		true,
 	)
 
@@ -155,14 +155,14 @@ func TestParseJWTBody_Failure(t *testing.T) {
 	// invalid vm_access: account_id type mismatch
 	f(
 		`{"vm_access": {"tenant_id": {"account_id": "1", "project_id": 5}}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field TenantID.tenant_id.account_id of type int32`,
 		true,
 	)
 
 	// invalid vm_access: project_id type mismatch
 	f(
 		`{"vm_access": {"tenant_id": {"account_id": 1, "project_id": "5"}}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field TenantID.tenant_id.project_id of type int32`,
 		true,
 	)
 
@@ -180,7 +180,7 @@ func TestParseJWTBody_Failure(t *testing.T) {
 		}
 	}
 }`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal array into Go struct field vmAccessClaimJSON.extra_labels of type jwt.Labels`,
 		true,
 	)
 
@@ -195,7 +195,7 @@ func TestParseJWTBody_Failure(t *testing.T) {
 		}
 	}
 }`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go struct field vmAccessClaimJSON.extra_filters of type string`,
 		true,
 	)
 
@@ -209,56 +209,84 @@ func TestParseJWTBody_Failure(t *testing.T) {
 	// invalid metrics metrics_account_id claim value type
 	f(
 		`{"vm_access": {"metrics_account_id": "1"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field vmAccessClaimJSON.metrics_account_id of type int64`,
 		true,
 	)
 
 	// invalid metrics metrics_project_id claim value type
 	f(
 		`{"vm_access": {"metrics_project_id": "1"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field vmAccessClaimJSON.metrics_project_id of type int64`,
 		true,
 	)
 
 	// invalid metrics metrics_extra_labels claim value type
 	f(
 		`{"vm_access": {"metrics_extra_labels": "aString"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field vmAccessClaimJSON.metrics_extra_labels of type []string`,
 		true,
 	)
 
 	// invalid metrics metrics_extra_filters claim value type
 	f(
 		`{"vm_access": {"metrics_extra_filters": "aString"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field vmAccessClaimJSON.metrics_extra_filters of type []string`,
 		true,
 	)
 
 	// invalid metrics logs_account_id claim value type
 	f(
 		`{"vm_access": {"logs_account_id": "1"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field vmAccessClaimJSON.logs_account_id of type int64`,
 		true,
 	)
 
 	// invalid metrics logs_project_id claim value type
 	f(
 		`{"vm_access": {"logs_project_id": "1"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field vmAccessClaimJSON.logs_project_id of type int64`,
 		true,
 	)
 
 	// invalid metrics logs_extra_filters claim value type
 	f(
 		`{"vm_access": {"logs_extra_filters": "aString"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field vmAccessClaimJSON.logs_extra_filters of type []string`,
 		true,
 	)
 
 	// invalid metrics logs_extra_stream_filters claim value type
 	f(
 		`{"vm_access": {"logs_extra_stream_filters": "aString"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`cannot parse jwt body vm_access: json: cannot unmarshal string into Go struct field vmAccessClaimJSON.logs_extra_stream_filters of type []string`,
+		true,
+	)
+
+	// negative metrics_account_id value
+	f(
+		`{"vm_access": {"metrics_account_id": -1}}`,
+		`cannot parse jwt body vm_access: field "metrics_account_id" value -1 is out of uint32 range [0, 4294967295]`,
+		true,
+	)
+
+	// metrics_project_id exceeding uint32 max
+	f(
+		`{"vm_access": {"metrics_project_id": 4294967296}}`,
+		`cannot parse jwt body vm_access: field "metrics_project_id" value 4294967296 is out of uint32 range [0, 4294967295]`,
+		true,
+	)
+
+	// negative logs_account_id value
+	f(
+		`{"vm_access": {"logs_account_id": -100}}`,
+		`cannot parse jwt body vm_access: field "logs_account_id" value -100 is out of uint32 range [0, 4294967295]`,
+		true,
+	)
+
+	// logs_project_id exceeding uint32 max
+	f(
+		`{"vm_access": {"logs_project_id": 5000000000}}`,
+		`cannot parse jwt body vm_access: field "logs_project_id" value 5000000000 is out of uint32 range [0, 4294967295]`,
 		true,
 	)
 }
@@ -295,6 +323,9 @@ func TestParseJWTBody_Success(t *testing.T) {
 		}
 		if !reflect.DeepEqual(result.VMAccess.ExtraFilters, resultExpected.VMAccess.ExtraFilters) {
 			t.Fatalf("unexpected extra_filters; got %v; want %v", result.VMAccess.ExtraFilters, resultExpected.VMAccess.ExtraFilters)
+		}
+		if !reflect.DeepEqual(result.VMAccess, resultExpected.VMAccess) {
+			t.Fatalf("unexpected VMAccess;\ngot\n%+v\nwant\n%+v", result.VMAccess, resultExpected.VMAccess)
 		}
 	}
 
@@ -475,6 +506,27 @@ func TestParseJWTBody_Success(t *testing.T) {
 				LogsExtraStreamFilters: []string{
 					`{project="dev"}`,
 				},
+			},
+		},
+	)
+
+	// uint32 max value for metrics_account_id
+	f(
+		`
+{
+    "vm_access": {
+        "metrics_account_id": 4294967295,
+        "metrics_project_id": 0,
+        "logs_account_id": 4294967295,
+        "logs_project_id": 4294967295
+    }
+}`,
+		&body{
+			VMAccess: &VMAccessClaim{
+				MetricsAccountID: 4294967295,
+				MetricsProjectID: 0,
+				LogsAccountID:    4294967295,
+				LogsProjectID:    4294967295,
 			},
 		},
 	)

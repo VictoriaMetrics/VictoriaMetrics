@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"slices"
 	"strings"
@@ -81,15 +82,83 @@ type VMAccessClaim struct {
 
 	// TODO: use different claim struct for vmauth and vmgateway
 	// parsing must be dynamic based on provided hint
-	MetricsAccountID    uint32   `json:"metrics_account_id,omitempty"`
-	MetricsProjectID    uint32   `json:"metrics_project_id,omitempty"`
+	MetricsAccountID    uint32   `json:"-"`
+	MetricsProjectID    uint32   `json:"-"`
 	MetricsExtraFilters []string `json:"metrics_extra_filters,omitempty"`
 	MetricsExtraLabels  []string `json:"metrics_extra_labels,omitempty"`
 
-	LogsAccountID          uint32   `json:"logs_account_id,omitempty"`
-	LogsProjectID          uint32   `json:"logs_project_id,omitempty"`
+	LogsAccountID          uint32   `json:"-"`
+	LogsProjectID          uint32   `json:"-"`
 	LogsExtraFilters       []string `json:"logs_extra_filters,omitempty"`
 	LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty"`
+}
+
+// UnmarshalJSON implements custom JSON unmarshalling for VMAccessClaim.
+// It deserializes MetricsAccountID, MetricsProjectID, LogsAccountID and LogsProjectID
+// from JSON numbers as int64 first, then performs range-checked conversion to uint32.
+// This maintains backward compatibility with JWT tokens that may carry values
+// representable as int64 but not directly as uint32 (e.g., negative values from
+// previously signed int fields).
+func (vma *VMAccessClaim) UnmarshalJSON(data []byte) error {
+	type vmAccessClaimJSON struct {
+		Tenant TenantID `json:"tenant_id"`
+		Labels Labels   `json:"extra_labels,omitempty"`
+		// promql filters applied to each select query
+		ExtraFilters []string `json:"extra_filters,omitempty"`
+		Mode         int      `json:"mode,omitempty"`
+
+		MetricsAccountID    int64    `json:"metrics_account_id,omitempty"`
+		MetricsProjectID    int64    `json:"metrics_project_id,omitempty"`
+		MetricsExtraFilters []string `json:"metrics_extra_filters,omitempty"`
+		MetricsExtraLabels  []string `json:"metrics_extra_labels,omitempty"`
+
+		LogsAccountID          int64    `json:"logs_account_id,omitempty"`
+		LogsProjectID          int64    `json:"logs_project_id,omitempty"`
+		LogsExtraFilters       []string `json:"logs_extra_filters,omitempty"`
+		LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty"`
+	}
+
+	var raw vmAccessClaimJSON
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	vma.Tenant = raw.Tenant
+	vma.Labels = raw.Labels
+	vma.ExtraFilters = raw.ExtraFilters
+	vma.Mode = raw.Mode
+	vma.MetricsExtraFilters = raw.MetricsExtraFilters
+	vma.MetricsExtraLabels = raw.MetricsExtraLabels
+	vma.LogsExtraFilters = raw.LogsExtraFilters
+	vma.LogsExtraStreamFilters = raw.LogsExtraStreamFilters
+
+	var err error
+	vma.MetricsAccountID, err = safeUint32("metrics_account_id", raw.MetricsAccountID)
+	if err != nil {
+		return err
+	}
+	vma.MetricsProjectID, err = safeUint32("metrics_project_id", raw.MetricsProjectID)
+	if err != nil {
+		return err
+	}
+	vma.LogsAccountID, err = safeUint32("logs_account_id", raw.LogsAccountID)
+	if err != nil {
+		return err
+	}
+	vma.LogsProjectID, err = safeUint32("logs_project_id", raw.LogsProjectID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// safeUint32 converts an int64 JSON value to uint32 with range checking.
+func safeUint32(field string, v int64) (uint32, error) {
+	if v < 0 || v > math.MaxUint32 {
+		return 0, fmt.Errorf("field %q value %d is out of uint32 range [0, %d]", field, v, uint32(math.MaxUint32))
+	}
+	return uint32(v), nil
 }
 
 // TenantID represents tenantID.
@@ -247,10 +316,11 @@ func parseJWTBody(data string) (*body, error) {
 	// some IDPs encode custom claims as a string
 	// try parsing as an object and fallback to a string
 	var a VMAccessClaim
-	if err := json.Unmarshal(*tb.VMAccess, &a); err != nil {
+	if unmarshalErr := json.Unmarshal(*tb.VMAccess, &a); unmarshalErr != nil {
 		var s string
 		if err := json.Unmarshal(*tb.VMAccess, &s); err != nil {
-			return nil, fmt.Errorf("cannot parse jwt body vm_access: %w", err)
+			// raw value is not a string either; return the original object unmarshal error
+			return nil, fmt.Errorf("cannot parse jwt body vm_access: %w", unmarshalErr)
 		}
 
 		if err := json.Unmarshal([]byte(s), &a); err != nil {
