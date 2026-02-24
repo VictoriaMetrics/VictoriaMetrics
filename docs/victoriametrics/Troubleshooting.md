@@ -18,7 +18,7 @@ This document contains troubleshooting guides for the most common issues when wo
 
 If you encounter an issue or have a question about VictoriaMetrics components, follow these steps to quickly find a solution:
 
-1. Check the version of VictoriaMetrics component you are troubleshooting and compare
+1. Check the version of the VictoriaMetrics component you are troubleshooting and compare
    it with [the latest available version](https://docs.victoriametrics.com/victoriametrics/changelog/).
 
    If you are running an older version, the issue may already be fixed. Review the [changelog](https://docs.victoriametrics.com/victoriametrics/changelog/)
@@ -30,10 +30,10 @@ If you encounter an issue or have a question about VictoriaMetrics components, f
    - [How to upgrade VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#updating--reconfiguring-cluster-nodes)
 
    Upgrade procedure for other VictoriaMetrics components is as simple as gracefully stopping the component
-   by sending `SIGINT` signal to it and starting the new version of the component.
+   by sending a `SIGINT` signal to it and starting the new version of the component.
 
    In rare cases, upgrades may include breaking changes. These cases are documented in the [changelog](https://docs.victoriametrics.com/victoriametrics/changelog/),
-   so review it carefully before upgrading.
+especially check for **Update notes** near the top of the changelog, as they point out any special actions or considerations to take when upgrading.
 
 1. Review command-line flags passed to VictoriaMetrics components and remove any flags whose impact on your workload is unclear.
    VictoriaMetrics components are optimized to work well with default settings (that is, when flags aren't explicitly set).
@@ -41,36 +41,36 @@ If you encounter an issue or have a question about VictoriaMetrics components, f
 
 1. Check logs. They often contain useful details about the root cause and possible fixes.
 
-   If the logs don't provide enough information, try searching the error message in Google. In many cases, the issue has
-   already been discussed (in documentation, StackOverflow, or GitHub issues), and a solution may already be available.
+   If the logs don't provide enough information, try searching the error message on Google. In many cases, the issue has
+   already been discussed (in documentation, on Stack Overflow, or in GitHub issues), and a solution may already be available.
 
-1. If VictoriaMetrics logs have no relevant information, then try searching for the issue in Google
+1. If VictoriaMetrics logs do not have relevant information, then try searching for the issue on Google
    via multiple keywords and phrases specific to the issue. In many cases, both the issue and its solution are already documented.
 
 1. Try searching for the issue at [VictoriaMetrics GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
-   The signal/noise quality of search results here is much lower than in Google, but sometimes it may help
-   finding the relevant information about the issue when Google fails to find the needed information.
+   The signal-to-noise quality of search results here is much lower than on Google, but sometimes it can help
+   find the relevant information about the issue when Google fails to find the needed information.
    If you located the relevant GitHub issue, but it misses some information on how to diagnose or troubleshoot it,
    then please provide this information in comments to the issue. This increases the chance that it will be resolved soon.
 
 1. Try searching for information about the issue in [VictoriaMetrics source code](https://github.com/search?q=repo%3AVictoriaMetrics%2FVictoriaMetrics&type=code).
-   GitHub code search may be not very good in some cases, so it is recommended [checking out VictoriaMetrics source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
+   GitHub code search may not be very good in some cases, so it is recommended [checking out VictoriaMetrics source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
    and perform local search in the code.
-   Note that the source code for VictoriaMetrics cluster is located in [the cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) branch.
+   Note that the source code for the VictoriaMetrics cluster is located in [the cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) branch.
 
-1. If steps above didn't help finding the solution to the issue, then please [file a new issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new/choose)
+1. If the steps above didn't help to find the solution to the issue, then please [file a new issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new/choose)
    by providing the maximum details on how to reproduce the issue.
 
    After that you can post the link to the issue to [VictoriaMetrics Slack chat](https://victoriametrics.slack.com),
    so VictoriaMetrics community could help finding the solution to the issue. It is better filing the issue at VictoriaMetrics GitHub
    before posting your question to VictoriaMetrics Slack chat, since GitHub issues are indexed by Google,
-   while Slack messages aren't indexed by Google. This simplifies searching for the solution to the issue for future VictoriaMetrics users.
+   while Slack messages aren't indexed by Google. This simplifies finding a solution to the issue for future VictoriaMetrics users.
 
 1. Pro tip 1: if you see that [VictoriaMetrics docs](https://docs.victoriametrics.com/victoriametrics/) contain incomplete or incorrect information,
-   then please create a pull request with the relevant changes or a new issue explaining the problem. This will help VictoriaMetrics community.
+   then please create a pull request with the relevant changes or a new issue explaining the problem. This will help the VictoriaMetrics community.
 
 1. Pro tip 2: please provide links to existing docs / GitHub issues / StackOverflow questions
-   instead of copy-n-pasting the information from these sources when asking or answering questions
+   instead of copying and pasting the information from these sources when asking or answering questions
    from VictoriaMetrics community. If the linked resources have no enough information,
    then it is better posting the missing information in the web resource before providing links
    to this information in Slack chat. This will simplify searching for this information in the future
@@ -82,7 +82,7 @@ If you encounter an issue or have a question about VictoriaMetrics components, f
    The better answer is a concise message with multiple links to the relevant information.
    The worst answer is a message with misleading or completely wrong information.
 
-1. Pro tip 4: if you can fix the issue on yourself, then please do it and provide the corresponding pull request!
+1. Pro tip 4: If you can fix the issue on your own, then please do it and provide the corresponding pull request!
    We are glad to get pull requests from the VictoriaMetrics community.
 
 ## Unexpected query results
@@ -94,9 +94,9 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    expected results:
 
    - Remove the outer `sum` and execute `rate(http_requests_total[5m])`.
-     Aggregations could hide some missing series, gaps in data or anomalies.
+     Aggregations could hide missing series, data gaps, or anomalies.
      
-   - If query returns too many series, then try adding more specific label filters to it.
+   - If the query returns too many series, then try adding more specific label filters to it.
      For example, if you see that the original query returns unexpected results for the `job="foo"`,
      then use `rate(http_requests_total{job="foo"}[5m])` query.
      Continue adding more specific label filters until the resulting query returns a manageable number of time series.
@@ -104,7 +104,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    - Remove the outer `rate` and execute `http_requests_total`. Add label filters to reduce the number of returned series,
      if needed.
 
-   Sometimes the query may be improperly constructed, so it returns unexpected results.
+   Sometimes the query may be improperly constructed, leading to unexpected results.
    It is recommended reading and understanding [MetricsQL docs](https://docs.victoriametrics.com/victoriametrics/metricsql/),
    especially [subqueries](https://docs.victoriametrics.com/victoriametrics/metricsql/#subqueries)
    and [rollup functions](https://docs.victoriametrics.com/victoriametrics/metricsql/#rollup-functions) sections.
@@ -127,17 +127,17 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 
    cluster: curl http://<vmselect>:8481/select/<tenantID>/prometheus/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...' -d 'reduce_mem_usage=1'
    ```
-   When raising a ticket on GitHub about query issues please also attach raw data, so maintainers could reproduce your case locally.   
+   When raising a GitHub ticket about query issues, please also attach the raw data, so maintainers can reproduce your case locally.   
 
 1. Try executing query with [tracer](https://docs.victoriametrics.com/victoriametrics/#query-tracing) enabled. The trace
    contains a lot of additional information about query execution, series matching, caches, internal modifications.
-   When raising a ticket on GitHub about query issues please also attach the trace, so maintainers could investigate it.
+   When raising a GitHub ticket about query issues, please also attach the trace so maintainers can investigate.
 
 1. If you observe gaps when plotting series it is likely caused by irregular intervals for metrics collection (network delays
    or targets unavailability on scrapes, irregular pushes, irregular timestamps).
    VictoriaMetrics automatically [fills the gaps](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
    based on the median interval between [data samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples).
-   This may work incorrectly for irregular data as median will be skewed. In this case it is recommended to either fix the
+   This may work incorrectly for irregular data, as the median will be skewed. In this case, it is recommended to either fix the
    irregularities, or switch to the static interval for gaps filling by setting `-search.minStalenessInterval=5m` command-line flag (`5m` is
    used by Prometheus by default).
 
@@ -168,13 +168,13 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    since it may lead to incomplete responses when `vmstorage` nodes contain less than `-replicationFactor`
    copies of the requested data.
 
-1. If you observe recently written data is not immediately visible/queryable, then read more about
+1. If you observe that recently written data is not immediately visible/queryable, then read more about
    [query latency](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#query-latency) behavior.
 
 1. Try upgrading to the [latest available version of VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
    and verifying whether the issue is fixed there.
 
-1. Inspect command-line flags passed to VictoriaMetrics components. If you don't understand clearly the purpose
+1. Inspect command-line flags passed to VictoriaMetrics components. If you don't clearly understand the purpose
    or the effect of some flags, then remove them from the list of flags. 
    VictoriaMetrics components are optimized to work well with default settings (that is, when flags aren't explicitly set).
    Unnecessary or poorly understood flags can lead to unexpected behavior, so it's best to remove them unless you clearly understand why they are needed.
@@ -191,7 +191,7 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
 1. Memory shortage for the given amounts of [active time series](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-an-active-time-series).
 
    VictoriaMetrics (or `vmstorage` in cluster version of VictoriaMetrics) maintains an in-memory cache `storage/tsid`
-   for quick search for internal series ids per each incoming metric. VictoriaMetrics automatically determines the maximum 
+   for a quick search for internal series IDs for each incoming metric. VictoriaMetrics automatically determines the maximum 
    size for this cache depending on the available memory on the host where VictoriaMetrics (or `vmstorage`) runs. 
    If the cache size isn't enough for holding all the entries for active time series, then VictoriaMetrics locates the needed data on disk,
    unpacks it, re-constructs the missing entry and puts it into the cache. This takes additional CPU time and disk read IO.
@@ -267,7 +267,7 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
    `vminsert` packs incoming data into batch packets and sends them to `vmstorage` one-by-one.
    It waits until `vmstorage` returns back `ack` response before sending the next packet.
    If the network latency between `vminsert` and `vmstorage` is high (for example, if they run in different datacenters),
-   then this may become limiting factor for data ingestion speed.
+   then this may become a limiting factor for data ingestion speed.
 
    The [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
    contains `connection saturation` panel for `vminsert` components. If this graph reaches 100% (1s),
@@ -277,7 +277,7 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
    of available resources (CPU, RAM, disk IO) at `vmstorage` nodes or to add more `vmstorage` nodes to the cluster.
 
 1. Noisy neighbor. Make sure VictoriaMetrics components run in an environment without other resource-hungry apps.
-   Such apps may steal RAM, CPU, disk IO and network bandwidth, that is needed for VictoriaMetrics components.
+   Such apps may steal RAM, CPU, disk IO, and network bandwidth, which is needed for VictoriaMetrics components.
    Issues like this are hard to catch via [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
    and proper diagnosis would require checking resource usage on the instances where VictoriaMetrics runs.
 
@@ -287,7 +287,7 @@ These are the most commons reasons for slow data ingestion in VictoriaMetrics:
    See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for more details.
 
 1. If you see constant and abnormally high CPU usage of VictoriaMetrics component, check `CPU spent on GC` panel
-   on the corresponding [Grafana dashboard](https://grafana.com/orgs/victoriametrics) in `Resource usage` section. If percentage of CPU time spent on garbage collection
+   on the corresponding [Grafana dashboard](https://grafana.com/orgs/victoriametrics) in `Resource usage` section. If the percentage of CPU time spent on garbage collection
    is high, then CPU usage of the component can be reduced at the cost of higher memory usage by changing [GOGC](https://tip.golang.org/doc/gc-guide#GOGC) environment variable
    to higher values. By default, VictoriaMetrics components use `GOGC=30`. Try running VictoriaMetrics components with `GOGC=100` and see whether this helps reducing CPU usage.
    Note that higher `GOGC` values may increase memory usage.
@@ -314,7 +314,7 @@ These are the solutions that exist for improving the performance of slow queries
   isn't enough to process query fast enough, then migrating `vmselect` to a machine with 4vCPU cores should increase heavy query performance by up to 2x.
   If the line on `concurrent select` graph form the [official Grafana dashboard for VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#monitoring)
   is close to the limit, then prefer adding more `vmselect` nodes to the cluster.
-  Sometimes adding more `vmstorage` nodes also can help improving the speed for slow queries.
+  Sometimes adding more `vmstorage` nodes can also help improve the speed for slow queries.
 
 - Rewriting slow queries, so they become faster.
 
@@ -360,7 +360,7 @@ There are the following most common sources of out of memory (aka OOM) crashes i
 1. Improper command-line flag values. Inspect command-line flags passed to VictoriaMetrics components.
    If you don't understand clearly the purpose or the effect of some flags - remove them
    from the list of flags passed to VictoriaMetrics components. Improper command-line flags values
-   may lead to increased memory and CPU usage. The increased memory usage increases chances for OOM crashes.
+   may lead to increased memory and CPU usage. Increased memory usage increases the risk of OOM crashes.
    VictoriaMetrics is optimized for running with default flag values (e.g. when they aren't set explicitly).
 
    For example, it isn't recommended changing cache sizes in VictoriaMetrics, since it frequently leads to OOM exceptions.
@@ -369,15 +369,15 @@ There are the following most common sources of out of memory (aka OOM) crashes i
    then it is better migrating to a host with more memory instead of trying to tune cache sizes manually.
 
 1. Unexpected heavy queries. The query is considered as heavy if it needs to select and process millions of unique time series.
-   Such a query may lead to OOM exception, since VictoriaMetrics needs to keep some of per-series data in memory.
+   Such a query may lead to an OOM exception, since VictoriaMetrics needs to keep some of the per-series data in memory.
    VictoriaMetrics provides [various settings](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#resource-usage-limits),
    that can help limit resource usage.
    For more context, see [How to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
    VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#query-tracing)
-   to help identify the source of heavy query. Slow queries can be logged with additional details via [Query execution stats](https://docs.victoriametrics.com/victoriametrics/query-stats/). 
+   to help identify the source of heavy queries. Slow queries can be logged with additional details via [Query execution stats](https://docs.victoriametrics.com/victoriametrics/query-stats/). 
 
 1. Lack of free memory for processing workload spikes. If VictoriaMetrics components use almost all the available memory
-   under the current workload, then it is recommended migrating to a host with bigger amounts of memory.
+   under the current workload, then it is recommended migrating to a host with larger amounts of memory.
    This would protect from possible OOM crashes on workload spikes. It is recommended to have at least 50%
    of free memory for graceful handling of possible workload spikes.
    See [capacity planning for single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#capacity-planning)
@@ -416,9 +416,9 @@ The most common sources of cluster instability are:
 
 - Time series sharding. Received time series [are consistently sharded](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview)
   by `vminsert` between configured `vmstorage` nodes. As a sharding key `vminsert` is using time series name and labels,
-  respecting their order. If the order of labels in time series is constantly changing, this could cause wrong sharding
+  respecting their order. If the order of labels in a time series is constantly changing, this could cause wrong sharding
   calculation and result in uneven and suboptimal time series distribution across available vmstorages. It is expected
-  that client that is pushing metrics is responsible for consistent labels order (like `Prometheus` or `vmagent` during scraping).
+  that the client who is pushing metrics is responsible for consistent labels order (like `Prometheus` or `vmagent` during scraping).
   If this can't be guaranteed, set `-sortLabels=true` command-line flag to `vminsert`. Please note, sorting may increase
   CPU usage for `vminsert`.
 
