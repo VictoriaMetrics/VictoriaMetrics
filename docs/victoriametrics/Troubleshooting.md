@@ -129,7 +129,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    ```
    When raising a GitHub ticket about query issues, please also attach the raw data, so maintainers can reproduce your case locally.   
 
-1. Try executing query with [tracer](https://docs.victoriametrics.com/victoriametrics/#query-tracing) enabled. The trace
+1. Try executing the query with [tracer](https://docs.victoriametrics.com/victoriametrics/#query-tracing) enabled. The trace
    contains a lot of additional information about query execution, series matching, caches, internal modifications.
    When raising a GitHub ticket about query issues, please also attach the trace so maintainers can investigate.
 
