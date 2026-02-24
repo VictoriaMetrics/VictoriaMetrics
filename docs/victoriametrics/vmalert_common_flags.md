@@ -431,7 +431,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmalert/ .
   -rule.maxResolveDuration duration
      Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
   -rule.resendDelay duration
-     MiniMum amount of time to wait before resending an alert to notifier.
+     Minium amount of time to wait before resending an alert to notifier.
   -rule.resultsLimit int
      Limits the number of alerts or recording results a single rule can produce. Can be overridden by the limit option under group if specified. If exceeded, the rule will be marked with an error and all its results will be discarded. 0 means no limit.
   -rule.templates array
