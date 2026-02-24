@@ -482,6 +482,7 @@ It is important to stay up to date with such changes.
 On some ZFS filesystems, mixing reads from memory-mapped files (`mmap`) with usage of the `mincore()` syscall can trigger a bug in the ZFS in-memory cache (ARC), potentially resulting in **data read corruption** in VictoriaMetrics processes. This scenario has been observed when VictoriaMetrics instances access data directories on ZFS.
 
 Symptoms:
+   Note that the source code for the VictoriaMetrics cluster is located in [the cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) branch.
 - Unexpected read errors when accessing data on ZFS.
 - Corrupted or inconsistent query results.
 - Crashes or panics in storage/query components when reading from ZFS.
