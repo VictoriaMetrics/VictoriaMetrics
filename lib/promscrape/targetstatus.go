@@ -752,29 +752,30 @@ func newCompressedLabels(src *promutil.Labels) *compressedLabels {
 	bb := compressedLabelsBufPool.Get()
 	bb.Grow(sizeNeeded)
 	// manually craft json in order to reduce memory allocations
-	fmt.Fprintf(bb, `{`)
+	fmt.Fprintf(bb, `{`) //nolint:errcheck
 	var tmpBuf []byte
 	for i, label := range srcLabels {
 		tmpBuf = quicktemplate.AppendJSONString(tmpBuf[:0], label.Name, true)
-		bb.Write(tmpBuf)
-		bb.Write([]byte(`:`))
+		bb.Write(tmpBuf)      //nolint:errcheck
+		bb.Write([]byte(`:`)) //nolint:errcheck
 		tmpBuf = quicktemplate.AppendJSONString(tmpBuf[:0], label.Value, true)
-		bb.Write(tmpBuf)
+		bb.Write(tmpBuf) //nolint:errcheck
 		if i+1 < len(srcLabels) {
-			bb.Write([]byte(`,`))
+			bb.Write([]byte(`,`)) //nolint:errcheck
 		}
 	}
-	fmt.Fprintf(bb, `}`)
+	fmt.Fprint(bb, `}`) //nolint:errcheck
 	dst := zstd.CompressLevel(nil, bb.B, 1)
 
 	compressedLabelsBufPool.Put(bb)
-	return &compressedLabels{
+	cls := &compressedLabels{
 		hashKey:      h,
-		targetID:     fmt.Sprintf("%016x", uintptr(unsafe.Pointer(&dst))),
 		addressLabel: strings.Clone(src.Get("__address__")),
 		jobLabel:     strings.Clone(src.Get("job")),
 		data:         dst,
 	}
+	cls.targetID = fmt.Sprintf("%016x", uintptr(unsafe.Pointer(cls)))
+	return cls
 }
 
 func (cls *compressedLabels) getTargetID() string {
