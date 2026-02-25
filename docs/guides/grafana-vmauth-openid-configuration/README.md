@@ -23,34 +23,30 @@ The identity service must be able to issue JWT tokens with the following `vm_acc
 
 ```json
 {
+  "exp": 1772019469,
   "vm_access": {
-    "tenant_id": {
-      "account_id": 0,
-      "project_id": 0
-    },
-    "query_args": {
-      "vm_extra_label": [
-        "team=dev"
-      ],
-      "vm_extra_filters": [
-        "{env=~\"aws|gcp\",cluster!=\"production\"}"
-      ]
-    }
+    "metrics_account_id": 0,
+    "metrics_project_id": 0,
+    "metrics_extra_labels": [
+      "team=dev"
+    ],
+    "metrics_extra_filters": [
+     "{env=~\"aws|gcp\",cluster!=\"production\"}"
+    ]
   }
 }
 ```
-> Note: if `project_id` is not specified, the default value `0` is used.
+> Note: that all properties inside vm_access are optional and could be omitted. `vm_access: {}` is a valid claim value.
 
-> Note: the `query_args` and `tenant_id` properties are required if you reference them in your `vm-auth.yaml` configuration. If you don't use them, they can be omitted.
-
-Some identity providers only support string claim values. vmauth also supports string claim values:
+Some identity providers support only string-based claim values, and vmauth supports them as well:
 ```json
 {
-  "vm_access": "{\"tenant_id\": {\"account_id\": 0, \"project_id\": 0}}"
+  "exp": 1772019469,
+  "vm_access": "{\"metrics_account_id\": 0, \"metrics_project_id\": 0}"
 }
 ```
 
-See details about all supported options in the [vmauth - oidc authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-authorization).
+See details about all supported options in the [vmauth - JWT token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy).
 
 ### Setup Keycloak
 
@@ -80,11 +76,17 @@ volumes:
   keycloakdata: {}
 ```
 
-Once Keycloak is available at `http://keycloak:3001`, follow the steps below to configure the OIDC client and users for Grafana:
+Start the services:
+```sh
+docker compose up
+```
+
+Once Keycloak is available, follow the steps below to configure the OIDC client and users for Grafana:
 
 ### Create client
 
-1. Log in with admin credentials to your Keycloak instance (if you just configured it using docker compose, Keycloak is available at `http://keycloak:3001`)
+1. Open [http://keycloak:3001](http://keycloak:3001).
+1. Log in with credentials: `admin\change_me`.<br>
 1. Go to `Clients` -> `Create client`.<br>
    Use `OpenID Connect` as `Client Type`.<br>
    Specify `grafana` as `Client ID`.<br>
@@ -95,7 +97,7 @@ Once Keycloak is available at `http://keycloak:3001`, follow the steps below to 
    Direct access is required for testing the token, but it can be disabled in production.<br>
    ![Create client 2](create-client-2.webp)
    Click `Next`.<br>
-1. Add Grafana URL as `Root URL`. For example, `http://grafana:3000/`.<br>
+1. Add Grafana URL as `Root URL`. For example, `http://grafana:3000`.<br>
    ![Create client 3](create-client-3.webp)
    Click `Save`.<br>
 1. Go to `Clients` -> `grafana` -> `Client scopes`.<br>
@@ -119,14 +121,20 @@ Once Keycloak is available at `http://keycloak:3001`, follow the steps below to 
    Specify `vm_access` as `Attribute [Name]`.<br>
    ![User attributes](create-attribute.webp)
    Click `Save`.<br>
-1. Go to `Users` -> select a user to configure.<br>
-   Make sure the user has an email address set and it is verified.<br>
-   Modify the value of the `vm_access` attribute.<br>
-   For this example, we will use 2 users:<br>
-   - For the first user, set the `Value` to `{"tenant_id": {"account_id": 0, "project_id": 0}, "query_args": {"vm_extra_label": ["team=admin"]}}`.
-   - For the second user, set the `Value` to `{"tenant_id": {"account_id": 0, "project_id": 1}, "query_args": {"vm_extra_label": ["team=dev"]}}`.
+1. Go to `Users` -> `Create user`.<br>
+   Specify `test-dev` as `Username`.<br>
+   Specify `test-dev@example.com` as `Email`.<br>
+   Mark email verified.<br>
+   Specify `vm_acess` as `{"metrics_account_id": 1, "metrics_project_id": 2, "metrics_extra_labels": ["team=dev"]}`.<br>
    <br>
    ![User attributes](user-attributes.webp)
+   Click `Save`.<br>
+   Go to `Users` -> `test-dev` user -> `Credentials` tab.<br>
+   Set `New password` to `testpass` and click `Set password`.<brs
+
+1. Go to `Users` -> `admin` user.<br>
+   Make sure the user has an email address set and it is verified.<br>
+   Specify `vm_acess` as `{"metrics_account_id": 1, "metrics_project_id": 2, "metrics_extra_labels": ["team=admin"]}`.<br>
    Click `Save`.
 
 ### Test identity provider
@@ -139,11 +147,6 @@ Gather the following information needed to configure Grafana:
    ![Client secret](client-secret.webp)
    <br>
 
-Start the services:
-```sh
-docker compose up
-```
-
 Test that everything is working by requesting a token using `curl`:
 
 ```sh
@@ -152,7 +155,7 @@ TOKEN=$(curl -s -X POST "http://keycloak:3001/realms/master/protocol/openid-conn
     -d "client_id=grafana" \
     -d "client_secret={CLIENT_SECRET}" \
     -d "grant_type=password" \
-    -d "username=test-dev" \
+    -d "username=dev" \
     -d "password=testpass" | jq -r '.access_token') && echo $TOKEN
 ```
 
@@ -184,19 +187,19 @@ scrape_configs:
       - if: "{instance =~ 'vmauth.*'}"
         action: replace
         target_label: vm_account_id
-        replacement: '0'
+        replacement: '1'
       - if: "{instance =~ 'vmauth.*'}"
         action: replace
         target_label: vm_project_id
-        replacement: '0'
+        replacement: '2'
       - if: "{instance =~ 'vmagent.*'}"
         action: replace
         target_label: vm_account_id
-        replacement: '0'
+        replacement: '1'
       - if: "{instance =~ 'vmagent.*'}"
         action: replace
         target_label: vm_project_id
-        replacement: '1'
+        replacement: '2'
     static_configs:
       - targets:
           - vmagent:8429
@@ -210,29 +213,29 @@ These services will be used to store metrics scraped by vmagent and queried via 
 Relabeling rules will add the `team` label to the scraped metrics in order to test multi-tenant access.
 Metrics from `vmagent` will be labeled with `team=dev` and metrics from `vmauth` will be labeled with `team=admin`.
 
-vmagent will write data into VictoriaMetrics single-node and cluster(with tenant `0:0`).
+vmagent will write data into VictoriaMetrics single-node and cluster(with tenant `1:2`).
 
 ```yaml
 # compose.yaml
 services:
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.124.0
+    image: victoriametrics/victoria-metrics:v1.136.0
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.124.0-cluster
+    image: victoriametrics/vmstorage:v1.136.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.124.0-cluster
+    image: victoriametrics/vminsert:v1.136.0-cluster
     command:
       - -storageNode=vmstorage:8400
 
   vmselect:
-    image: victoriametrics/vmselect:v1.124.0-cluster
+    image: victoriametrics/vmselect:v1.136.0-cluster
     command:
       - -storageNode=vmstorage:8401
 
   vmagent:
-    image: victoriametrics/vmagent:v1.124.0
+    image: victoriametrics/vmagent:v1.136.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -244,45 +247,50 @@ services:
 ### Vmauth
 
 Before we start, let's explore the concept of placeholders supported in vmauth configuration.
-Placeholders can be used inside the `url_prefix` property to restrict access by setting the [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) or [extra query filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements).
+Placeholders can be used inside the `url_prefix` property to restrict access by setting the [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) or [extra filters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements).
 
 A placeholder value is taken from the authenticated JWT token.
 The following placeholders are supported:
-- `{{tenantID}}` placeholder is substituted from `vm_access.tenant` claim property.
-- `{{vm_extra_label}}` placeholder is substituted from `vm_access.query_args.vm_extra_label` claim property.
-- `{{vm_extra_filters}}` placeholder is substituted from `vm_access.query_args.vm_extra_filters` claim property.
+- `{{.MetricsTenant}}` placeholder is a combination of `vm_access.metrics_account_id` and `vm_access.metrics_project_id` delimited by `:`.
+- `{{.MetricsExtraLabels}}` placeholder is substituted from `vm_access.metrics_extra_labels` claim property.
+- `{{.MetricsExtraFilters}}` placeholder is substituted from `vm_access.metrics_extra_filters` claim property.
 
-Now, let's create a vmauth configuration file `vm-auth.yaml` that enables OIDC authorization using the [identity provider](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/#identity-provider).
+Now, let's create a vmauth configuration file `auth.yaml` that enables OIDC authorization using the [identity provider](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/#identity-provider).
 For cluster access, we will use the `{{tenantID}}` placeholder to route requests to a specific tenant.
 For single-node access, we will use `{{vm_extra_label}}`.
 
 ```yaml
-# vm-auth.yaml
-oidc:
-  realms:
-    - name: keycloak
-      issuer_url: http://keycloak:3001/realms/master
-      # It's recommended to enable discovery in production
-      skip_discovery: true
+# auth.yaml
+# todo: not supported yet
+#oidc:
+#  realms:
+#    - name: keycloak
+#      issuer_url: http://keycloak:3001/realms/master
+#      # It's recommended to enable discovery in production
+#      skip_discovery: true
 users:
-  - client:
+  - jwt:
+      # todo: oidc public key discovery not supported yet.
+      # let's disable signature verification for testing purposes, but it should be enabled before merging.
+      skip_verify: true
+      # todo: claim matching not supported yet
       # The value should match "aud" claim from JWT token
       # Use oidc.claims.client_id to change the claim used as client ID
-      client_id: account
-      realm: keycloak
+      #      client_id: account
+      #      realm: keycloak
     url_map:
       - src_paths:
           - "/insert/.*"
         drop_src_path_prefix_parts: 1
-        url_prefix: "http://vminsert:8480/insert/{{tenantID}}/prometheus/"
+        url_prefix: "http://vminsert:8480/insert/{{.MetricsTenant}}/prometheus/"
       - src_paths:
           - "/select/.*"
         drop_src_path_prefix_parts: 1
-        url_prefix: "http://vmselect:8481/select/{{tenantID}}/prometheus/"
+        url_prefix: "http://vmselect:8481/select/{{.MetricsTenant}}/prometheus/"
       - src_paths:
           - "/single/.*"
         drop_src_path_prefix_parts: 1
-        url_prefix: "http://vmsingle:8428?extra_label={{vm_extra_label}}"
+        url_prefix: "http://vmsingle:8428?extra_label={{.MetricsExtraLabels}}"
 ```
 
 Now add the vmauth service to `compose.yaml`:
@@ -291,15 +299,13 @@ Now add the vmauth service to `compose.yaml`:
 # compose.yaml
 services:
   vmauth:
-    image: victoriametrics/vmauth:v1.124.0-enterprise
+    image: docker.io/victoriametrics/vmauth:heads-vmauth-jwt-templating-0-gedc503233b
     ports:
       - 8427:8427
     volumes:
-      - ./vm-license.key:/opt/vm-license.key
-      - ./vm-auth.yaml:/etc/config.yaml
+      - ./auth.yaml:/auth.yaml
     command:
-      - -licenseFile=/opt/vm-license.key
-      - -auth.config=/etc/config.yaml
+      - -auth.config=/auth.yaml
 ```
 
 ### Signature verification
@@ -398,7 +404,7 @@ services:
       GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: true
       GF_AUTH_GENERIC_OAUTH_NAME: keycloak
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
-      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: {CLIENT_SECRET}
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: 
       GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH: email
       GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH: username
       GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH: full_name
@@ -412,7 +418,7 @@ services:
       - grafanadata:/var/lib/grafana/
 
 volumes:
-  grafanadata:
+  grafanadata: {}
 ```
 
 Alternatively, OAuth authentication can be enabled via the `grafana.ini` configuration file.
@@ -437,7 +443,7 @@ api_url = http://keycloak:3001/realms/master/protocol/openid-connect/userinfo
 use_refresh_token = true
 ```
 
-After starting Grafana with the new config you should be able to log in using your [identity provider](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/#identity-provider).
+After starting Grafana with the new config you should be able to log in [http://grafana:3000](http://grafana:3000) using your [identity provider](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/#identity-provider).
 
 ![Grafana login](grafana-login.webp)
 
@@ -460,7 +466,7 @@ The Grafana datasources configuration should be as follows:
 
 Let's log in as a dev user.
 Both data sources should return the same metrics.
-The only difference is the filter: `vmauth-cluster` data source must restrict results by `tenant=0:1`, while `vmauth-single` must apply the `team=dev` label filter instead.
+The only difference is the filter: `vmauth-cluster` data source must restrict results by `tenant=1:2`, while `vmauth-single` must apply the `team=dev` label filter instead.
 
 ![Cluster dev](grafana-cluster-dev.webp)
 
@@ -468,7 +474,7 @@ The only difference is the filter: `vmauth-cluster` data source must restrict re
 
 Let's log in as an admin user.
 Both data sources should return the same metrics but different from the previous user.
-The only difference is the filter: `vmauth-cluster` data source must restrict results by `tenant=0:0`, while `vmauth-single` must apply the `team=admin` label filter instead.
+The only difference is the filter: `vmauth-cluster` data source must restrict results by `tenant=1:2`, while `vmauth-single` must apply the `team=admin` label filter instead.
 
 ![Cluster dev](grafana-cluster-admin.webp)
 
