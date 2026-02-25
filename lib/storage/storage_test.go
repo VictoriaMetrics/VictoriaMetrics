@@ -271,7 +271,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 
 func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	var buf []byte
-	typ := reflect.TypeOf(&MetricRow{})
+	typ := reflect.TypeFor[*MetricRow]()
 	rng := rand.New(rand.NewSource(1))
 
 	for range 1000 {
@@ -375,7 +375,7 @@ func testStorageRandTimestamps(s *Storage) error {
 			{[]byte("instance"), []byte("1.2.3.4")},
 		}
 		for range int(rowsPerAdd) {
-			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rng.Intn(100)))
+			mn.MetricGroup = fmt.Appendf(nil, "metric_%d", rng.Intn(100))
 			metricNameRaw := mn.marshalRaw(nil)
 			timestamp := currentTime - int64((rng.Float64()-0.2)*float64(2*s.retentionMsecs))
 			value := rng.NormFloat64() * 1e11
@@ -599,7 +599,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	const rowsPerMetric = 100
 	const metricsCount = 30
 
-	workerTag := []byte(fmt.Sprintf("workerTag_%d", workerNum))
+	workerTag := fmt.Appendf(nil, "workerTag_%d", workerNum)
 
 	lnsAll := make(map[string]bool)
 	lnsAll["__name__"] = true
@@ -616,7 +616,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		for i := range mn.Tags {
 			lnsAll[string(mn.Tags[i].Key)] = true
 		}
-		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", i, workerNum))
+		mn.MetricGroup = fmt.Appendf(nil, "metric_%d_%d", i, workerNum)
 		metricNameRaw := mn.marshalRaw(nil)
 
 		for range rowsPerMetric {
@@ -702,7 +702,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 
 	// Make sure no more metrics left for the given workerNum
 	tfs := NewTagFilters()
-	if err := tfs.Add(nil, []byte(fmt.Sprintf("metric_.+_%d", workerNum)), false, true); err != nil {
+	if err := tfs.Add(nil, fmt.Appendf(nil, "metric_.+_%d", workerNum), false, true); err != nil {
 		return fmt.Errorf("cannot add regexp tag filter for worker metrics: %w", err)
 	}
 	if n := metricBlocksCount(tfs); n != 0 {
@@ -724,12 +724,7 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 		return fmt.Errorf("unexpected number of label names found; got %d; want at least %d; lns=%q, lnsExpected=%v", len(lns), len(lnsExpected), lns, lnsExpected)
 	}
 	hasItem := func(s string, lns []string) bool {
-		for _, labelName := range lns {
-			if s == labelName {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(lns, s)
 	}
 	for labelName := range lnsExpected {
 		if !hasItem(labelName, lns) {
@@ -1389,7 +1384,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		}
 		now := timestampFromTime(time.Now())
 		for j := range int(metricsPerAdd) {
-			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", j))
+			mn.MetricGroup = fmt.Appendf(nil, "metric_%d", j)
 			metricNameRaw := mn.marshalRaw(nil)
 
 			mr := MetricRow{
@@ -1549,7 +1544,7 @@ func testGenerateMetricRowsWithPrefix(rng *rand.Rand, rows uint64, prefix string
 		{[]byte("instance"), []byte("1.2.3.4")},
 	}
 	for i := range int(rows) {
-		mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefix, i))
+		mn.MetricGroup = fmt.Appendf(nil, "%s_%d", prefix, i)
 		metricNameRaw := mn.marshalRaw(nil)
 		timestamp := rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp
 		value := rng.NormFloat64() * 1e6
@@ -3723,10 +3718,7 @@ func testDoConcurrently(s *Storage, op func(s *Storage, mrs []MetricRow), concur
 			step = 1
 		}
 		for begin := 0; begin < len(batch); begin += step {
-			limit := begin + step
-			if limit > len(batch) {
-				limit = len(batch)
-			}
+			limit := min(begin+step, len(batch))
 			mrsCh <- batch[begin:limit]
 		}
 	}

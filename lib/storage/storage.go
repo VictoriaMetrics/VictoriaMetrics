@@ -651,10 +651,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	hmCurr := s.currHourMetricIDs.Load()
 	hmPrev := s.prevHourMetricIDs.Load()
-	hourMetricIDsLen := hmPrev.m.Len()
-	if hmCurr.m.Len() > hourMetricIDsLen {
-		hourMetricIDsLen = hmCurr.m.Len()
-	}
+	hourMetricIDsLen := max(hmCurr.m.Len(), hmPrev.m.Len())
 	m.HourMetricIDCacheSize += uint64(hourMetricIDsLen)
 	m.HourMetricIDCacheSizeBytes += hmCurr.m.SizeBytes()
 	m.HourMetricIDCacheSizeBytes += hmPrev.m.SizeBytes()
@@ -675,10 +672,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.MetadataStorageCurrentSizeBytes = mr.CurrentSizeBytes
 	m.MetadataStorageMaxSizeBytes = mr.MaxSizeBytes
 
-	d := s.legacyNextRetentionSeconds()
-	if d < 0 {
-		d = 0
-	}
+	d := max(s.legacyNextRetentionSeconds(), 0)
 	m.NextRetentionSeconds = uint64(d)
 
 	s.tb.UpdateMetrics(&m.TableMetrics)
@@ -897,7 +891,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *nextDayMetricIDs {
 	}
 
 	// Unmarshal uint64set
-	m, tail, err := unmarshalUint64Set(src)
+	m, tail, err := uint64set.Unmarshal(src)
 	if err != nil {
 		logger.Infof("discarding %s because cannot load uint64set: %s", path, err)
 		return e
@@ -937,7 +931,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	}
 
 	// Unmarshal uint64set
-	m, tail, err := unmarshalUint64Set(src)
+	m, tail, err := uint64set.Unmarshal(src)
 	if err != nil {
 		logger.Infof("discarding %s because cannot load uint64set: %s", path, err)
 		return hm
@@ -958,7 +952,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *nextDayMetricIDs) {
 	dst = encoding.MarshalUint64(dst, e.date)
 
 	// Marshal metricIDs
-	dst = marshalUint64Set(dst, &e.metricIDs)
+	dst = e.metricIDs.Marshal(dst)
 
 	fs.MustWriteSync(path, dst)
 }
@@ -971,35 +965,9 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	dst = encoding.MarshalUint64(dst, hm.hour)
 
 	// Marshal hm.m
-	dst = marshalUint64Set(dst, hm.m)
+	dst = hm.m.Marshal(dst)
 
 	fs.MustWriteSync(path, dst)
-}
-
-func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
-	mLen := encoding.UnmarshalUint64(src)
-	src = src[8:]
-	if uint64(len(src)) < 8*mLen {
-		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least %d bytes", len(src), 8*mLen)
-	}
-	m := &uint64set.Set{}
-	for range mLen {
-		metricID := encoding.UnmarshalUint64(src)
-		src = src[8:]
-		m.Add(metricID)
-	}
-	return m, src, nil
-}
-
-func marshalUint64Set(dst []byte, m *uint64set.Set) []byte {
-	dst = encoding.MarshalUint64(dst, uint64(m.Len()))
-	m.ForEach(func(part []uint64) bool {
-		for _, metricID := range part {
-			dst = encoding.MarshalUint64(dst, metricID)
-		}
-		return true
-	})
-	return dst
 }
 
 func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) int64 {

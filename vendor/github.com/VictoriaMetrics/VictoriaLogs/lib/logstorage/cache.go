@@ -24,11 +24,7 @@ func newCache() *cache {
 	c.prev.Store(&sync.Map{})
 
 	c.stopCh = make(chan struct{})
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
-		c.runCleaner()
-	}()
+	c.wg.Go(c.runCleaner)
 	return &c
 }
 

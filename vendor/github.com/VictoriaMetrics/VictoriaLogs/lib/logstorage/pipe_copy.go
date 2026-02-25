@@ -45,6 +45,10 @@ func (pc *pipeCopy) canReturnLastNResults() bool {
 	return !prefixfilter.MatchFilters(pc.dstFieldFilters, "_time")
 }
 
+func (pc *pipeCopy) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pc *pipeCopy) updateNeededFields(f *prefixfilter.Filter) {
 	for i := len(pc.srcFieldFilters) - 1; i >= 0; i-- {
 		srcFieldFilter := pc.srcFieldFilters[i]

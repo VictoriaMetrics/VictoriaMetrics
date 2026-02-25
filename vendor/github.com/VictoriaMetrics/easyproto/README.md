@@ -9,7 +9,7 @@ for marshaling and unmarshaling of [protobuf](https://protobuf.dev/) messages wi
 
 - There is no need in [protoc](https://grpc.io/docs/protoc-installation/) or [go generate](https://go.dev/blog/generate) -
   just write simple maintainable code for marshaling and unmarshaling protobuf messages.
-- `easyproto` doesn't increase your binary size by tens of megabytes unlike traditional `protoc`-combiled code may do.
+- `easyproto` doesn't increase your binary size by tens of megabytes unlike traditional `protoc`-compiled code may do.
 - `easyproto` allows writing zero-alloc code for marshaling and unmarshaling of arbitrary complex protobuf messages. See [examples](#examples).
 
 ## Restrictions
@@ -222,4 +222,11 @@ func GetTimeseriesName(src []byte) (name string, err error) {
 
 `easyproto` is used in the following projects:
 
-- [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
+- [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics):
+  - [Prometheus `remote_write` protocol parser](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9bc7a17d80b8fa8e497532b51cf25bbe36ef9c3f/lib/prompb/write_request_unmarshaler.go#L62)
+  - [OpenTelemetry parser for metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/9bc7a17d80b8fa8e497532b51cf25bbe36ef9c3f/lib/protoparser/opentelemetry/pb/pb.go#L76)
+- [VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs):
+  - [Loki protocol parser](https://github.com/VictoriaMetrics/VictoriaLogs/blob/ff579585998fe1506863acd5e3c0307743736f77/app/vlinsert/loki/pb.go#L22)
+  - [OpenTelemetry parser for logs](https://github.com/VictoriaMetrics/VictoriaLogs/blob/ff579585998fe1506863acd5e3c0307743736f77/app/vlinsert/opentelemetry/pb.go#L21)
+- [VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces):
+  - [OpenTelemetry parser for trace spans](https://github.com/VictoriaMetrics/VictoriaTraces/blob/24f90c84665e42a77f07720d79b6667bfaa766b2/lib/protoparser/opentelemetry/pb/traces.go#L46)

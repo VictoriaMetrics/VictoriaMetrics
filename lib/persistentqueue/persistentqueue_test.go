@@ -182,7 +182,7 @@ func TestQueueWriteRead(t *testing.T) {
 	for j := range 5 {
 		var blocks [][]byte
 		for i := range 10 {
-			block := []byte(fmt.Sprintf("block %d+%d", j, i))
+			block := fmt.Appendf(nil, "block %d+%d", j, i)
 			q.MustWriteBlock(block)
 			blocks = append(blocks, block)
 		}
@@ -218,7 +218,7 @@ func TestQueueWriteCloseRead(t *testing.T) {
 	for j := range 5 {
 		var blocks [][]byte
 		for i := range 10 {
-			block := []byte(fmt.Sprintf("block %d+%d", j, i))
+			block := fmt.Appendf(nil, "block %d+%d", j, i)
 			q.MustWriteBlock(block)
 			blocks = append(blocks, block)
 		}

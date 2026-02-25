@@ -145,9 +145,11 @@ func (idb *indexdb) updateStats(d *IndexdbStats) {
 }
 
 func (idb *indexdb) appendStreamString(dst []byte, sid *streamID) []byte {
-	dstLen := len(dst)
-	dst = idb.appendStreamTagsByStreamID(dst, sid)
-	if len(dst) == dstLen {
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	bb.B = idb.appendStreamTagsByStreamID(bb.B, sid)
+	if len(bb.B) == 0 {
 		// Couldn't find stream tags by sid. This may be the case when the corresponding log stream
 		// was recently registered and its tags aren't visible to search yet.
 		// The stream tags must become visible in a few seconds.
@@ -156,9 +158,9 @@ func (idb *indexdb) appendStreamString(dst []byte, sid *streamID) []byte {
 	}
 
 	st := GetStreamTags()
-	streamTagsCanonical := bytesutil.ToUnsafeString(dst[dstLen:])
-	mustUnmarshalStreamTags(st, streamTagsCanonical)
-	dst = st.marshalString(dst[:dstLen])
+	streamTagsCanonical := bytesutil.ToUnsafeString(bb.B)
+	mustUnmarshalStreamTagsInplace(st, streamTagsCanonical)
+	dst = st.marshalString(dst)
 	PutStreamTags(st)
 
 	return dst
@@ -366,8 +368,8 @@ func (is *indexSearch) getStreamIDsForNonEmptyTagValue(tenantID TenantID, tagNam
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToStreamIDs, tenantID)
-	kb.B = marshalTagValue(kb.B, bytesutil.ToUnsafeBytes(tagName))
-	kb.B = marshalTagValue(kb.B, bytesutil.ToUnsafeBytes(tagValue))
+	kb.B = marshalTagValue(kb.B, tagName)
+	kb.B = marshalTagValue(kb.B, tagValue)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for ts.NextItem() {
@@ -430,7 +432,7 @@ func (is *indexSearch) getStreamIDsForTagName(tenantID TenantID, tagName string)
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToStreamIDs, tenantID)
-	kb.B = marshalTagValue(kb.B, bytesutil.ToUnsafeBytes(tagName))
+	kb.B = marshalTagValue(kb.B, tagName)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for ts.NextItem() {
@@ -462,7 +464,7 @@ func (is *indexSearch) getStreamIDsForTagRegexp(tenantID TenantID, tagName strin
 	ts := &is.ts
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixTagToStreamIDs, tenantID)
-	kb.B = marshalTagValue(kb.B, bytesutil.ToUnsafeBytes(tagName))
+	kb.B = marshalTagValue(kb.B, tagName)
 	prefix := kb.B
 	ts.Seek(prefix)
 	for ts.NextItem() {
@@ -533,7 +535,7 @@ func (is *indexSearch) getTenantIDs() []TenantID {
 
 func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical string) {
 	st := GetStreamTags()
-	mustUnmarshalStreamTags(st, streamTagsCanonical)
+	mustUnmarshalStreamTagsInplace(st, streamTagsCanonical)
 	tenantID := streamID.tenantID
 
 	bi := getBatchItems()
@@ -608,7 +610,7 @@ func (idb *indexdb) loadStreamIDsFromCache(tenantIDs []TenantID, sf *StreamFilte
 	}
 	src := data[nSize:]
 	streamIDs := make([]streamID, n)
-	for i := uint64(0); i < n; i++ {
+	for i := range n {
 		tail, err := streamIDs[i].unmarshal(src)
 		if err != nil {
 			logger.Panicf("BUG: unexpected error when unmarshaling streamID #%d: %s", i, err)
@@ -625,7 +627,7 @@ func (idb *indexdb) storeStreamIDsToCache(tenantIDs []TenantID, sf *StreamFilter
 	// marshal streamIDs
 	var b []byte
 	b = encoding.MarshalVarUint64(b, uint64(len(streamIDs)))
-	for i := 0; i < len(streamIDs); i++ {
+	for i := range streamIDs {
 		b = streamIDs[i].marshal(b)
 	}
 
@@ -872,6 +874,9 @@ type tagToStreamIDsRowParser struct {
 	// Tag contains parsed tag after Init call
 	Tag streamTag
 
+	// tagBuf is a buffer used during Tag parsing.
+	tagBuf []byte
+
 	// tail contains the remaining unparsed streamIDs
 	tail []byte
 }
@@ -881,6 +886,7 @@ func (sp *tagToStreamIDsRowParser) Reset() {
 	sp.StreamIDs = sp.StreamIDs[:0]
 	sp.streamIDsParsed = false
 	sp.Tag.reset()
+	sp.tagBuf = sp.tagBuf[:0]
 	sp.tail = nil
 }
 
@@ -897,7 +903,7 @@ func (sp *tagToStreamIDsRowParser) Init(b []byte) error {
 	if nsPrefix != nsPrefixTagToStreamIDs {
 		return fmt.Errorf("invalid prefix for tenantID:name:value -> streamIDs row %q; got %d; want %d", b, nsPrefix, nsPrefixTagToStreamIDs)
 	}
-	tail, err = sp.Tag.indexdbUnmarshal(tail)
+	tail, sp.tagBuf, err = sp.Tag.indexdbUnmarshal(tail, sp.tagBuf[:0])
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal tag from tenantID:name:value -> streamIDs row %q: %w", b, err)
 	}
@@ -959,7 +965,7 @@ func (sp *tagToStreamIDsRowParser) ParseStreamIDs() {
 	sp.StreamIDs = slicesutil.SetLength(sp.StreamIDs, n)
 	streamIDs := sp.StreamIDs
 	_ = streamIDs[n-1]
-	for i := 0; i < n; i++ {
+	for i := range n {
 		var err error
 		tail, err = streamIDs[i].unmarshal(tail)
 		if err != nil {

@@ -5174,7 +5174,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job) > 0",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -7667,7 +7667,7 @@
                 "uid": "${ds}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance)",
+              "expr": "sum(rate(process_major_pagefaults_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job,instance) > 0",
               "legendFormat": "{{instance}} ({{job}})",
               "range": true,
               "refId": "A"

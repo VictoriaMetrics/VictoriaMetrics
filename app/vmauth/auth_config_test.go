@@ -277,6 +277,50 @@ users:
   metric_labels:
     not-prometheus-compatible: value
 `)
+	// placeholder in url_prefix
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
+	// placeholder in a header
+	f(`
+users:
+- username: foo
+  password: bar
+  headers:
+  - 'X-Foo: {{a_placeholder}}'
+  url_prefix: 'http://ahost'
+`)
+	// placeholder in url_prefix
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
+	// placeholder in a header in url_map
+	f(`
+users:
+- username: foo
+  password: bar
+  url_map:
+    - src_paths: ["/select/.*"]
+      headers:
+        - 'X-Foo: {{a_placeholder}}'
+      url_prefix: 'http://ahost'
+`)
+
+	// placeholder in a header in url_map
+	f(`
+users:
+- username: foo
+  password: bar
+  url_map:
+    - src_paths: ["/select/.*"]
+      url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
 }
 
 func TestParseAuthConfigSuccess(t *testing.T) {
@@ -378,7 +422,7 @@ users:
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
 			MergeQueryArgs:         []string{"foo", "bar"},
-			DropSrcPathPrefixParts: intp(1),
+			DropSrcPathPrefixParts: new(1),
 			DiscoverBackendIPs:     &discoverBackendIPsTrue,
 		},
 	}, nil)
@@ -977,10 +1021,6 @@ func mustParseURLs(us []string) *URLPrefix {
 	up.bus.Store(bus)
 	up.busOriginal = urls
 	return up
-}
-
-func intp(n int) *int {
-	return &n
 }
 
 func mustNewRegex(s string) *Regex {

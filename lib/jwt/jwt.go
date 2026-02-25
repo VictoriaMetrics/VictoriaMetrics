@@ -47,10 +47,10 @@ type body struct {
 	// expired at time unix_ts
 	Exp int64 `json:"exp"`
 	// issued at time unix_ts
-	Iat      int64   `json:"iat"`
-	Jti      string  `json:"jti,omitempty"`
-	Scope    string  `json:"scope,omitempty"`
-	VMAccess *access `json:"vm_access"`
+	Iat      int64          `json:"iat"`
+	Jti      string         `json:"jti,omitempty"`
+	Scope    string         `json:"scope,omitempty"`
+	VMAccess *VMAccessClaim `json:"vm_access"`
 }
 
 // Labels defines labels added to filters or incoming time series.
@@ -70,14 +70,26 @@ func (l Labels) AsExtraLabels() []string {
 	return res
 }
 
-type access struct {
-	Tenant TenantID `json:"tenant_id,omitempty"`
+type VMAccessClaim struct {
+	Tenant TenantID `json:"tenant_id"`
 	Labels Labels   `json:"extra_labels,omitempty"`
 	// promql filters applied to each select query
 	ExtraFilters []string `json:"extra_filters,omitempty"`
 	// role can be denied as 1 = read, 2 = write, 3 = read and write
 	// 0 = unconfigured - read and write
 	Mode int `json:"mode,omitempty"`
+
+	// TODO: use different claim struct for vmauth and vmgateway
+	// parsing must be dynamic based on provided hint
+	MetricsAccountID    uint32   `json:"metrics_account_id,omitempty"`
+	MetricsProjectID    uint32   `json:"metrics_project_id,omitempty"`
+	MetricsExtraFilters []string `json:"metrics_extra_filters,omitempty"`
+	MetricsExtraLabels  []string `json:"metrics_extra_labels,omitempty"`
+
+	LogsAccountID          uint32   `json:"logs_account_id,omitempty"`
+	LogsProjectID          uint32   `json:"logs_project_id,omitempty"`
+	LogsExtraFilters       []string `json:"logs_extra_filters,omitempty"`
+	LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty"`
 }
 
 // TenantID represents tenantID.
@@ -175,7 +187,7 @@ func (t *Token) CanRead() bool {
 	return false
 }
 
-// AccessLabels returns access labels for given JWT token,
+// AccessLabels returns vm_access labels for given JWT token,
 // in key=value format.
 func (t *Token) AccessLabels() []string {
 	return t.body.VMAccess.Labels.AsExtraLabels()
@@ -189,6 +201,10 @@ func (t *Token) Tenant() TenantID {
 // ExtraFilters metricsql filters for select queries
 func (t *Token) ExtraFilters() []string {
 	return t.body.VMAccess.ExtraFilters
+}
+
+func (t *Token) VMAccess() *VMAccessClaim {
+	return t.body.VMAccess
 }
 
 func parseJWTHeader(data string) (*header, error) {
@@ -230,7 +246,7 @@ func parseJWTBody(data string) (*body, error) {
 
 	// some IDPs encode custom claims as a string
 	// try parsing as an object and fallback to a string
-	var a access
+	var a VMAccessClaim
 	if err := json.Unmarshal(*tb.VMAccess, &a); err != nil {
 		var s string
 		if err := json.Unmarshal(*tb.VMAccess, &s); err != nil {
