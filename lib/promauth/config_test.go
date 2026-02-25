@@ -683,7 +683,7 @@ func mustGenerateCertificates(t *testing.T) ([]byte, []byte, []byte) {
 	ts := generateCA(t)
 	key, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
 	if err != nil {
-		panic(fmt.Errorf("cannot generate certificate private key: %s", err))
+		t.Fatalf("cannot generate certificate private key: %s", err)
 	}
 	sc := ts.createAndSignCert(t, key)
 	keyPEM := pem.EncodeToMemory(&pem.Block{
