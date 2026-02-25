@@ -241,7 +241,7 @@ func resolveIPAddrs(ctx context.Context, host, port string) []string {
 	}
 	addrs := make([]string, len(ips))
 	for i, ip := range ips {
-		addrs[i] = net.JoinHostPort(ip.String(), port)
+		addrs[i] = joinAddr(ip.String(), port)
 	}
 	sort.Strings(addrs)
 	return deduplicateAddrs(addrs)
