@@ -236,6 +236,8 @@ func parseJWTBody(data string) (*body, error) {
 		// issued at time unix_ts
 		Iat   int64           `json:"iat"`
 		Jti   string          `json:"jti,omitempty"`
+		Sub   string          `json:"sub,omitempty"`
+		Iss   string          `json:"iss,omitempty"`
 		Scope json.RawMessage `json:"scope,omitempty"`
 		// store as raw message to support different types
 		VMAccess *json.RawMessage `json:"vm_access"`
@@ -284,6 +286,8 @@ func parseJWTBody(data string) (*body, error) {
 		Exp:      tb.Exp,
 		Iat:      tb.Iat,
 		Jti:      tb.Jti,
+		Sub:      tb.Sub,
+		Iss:      tb.Iss,
 		Scope:    scope,
 		VMAccess: &a,
 	}
