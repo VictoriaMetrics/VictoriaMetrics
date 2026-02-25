@@ -50,6 +50,8 @@ type body struct {
 	Iat      int64          `json:"iat"`
 	Jti      string         `json:"jti,omitempty"`
 	Scope    string         `json:"scope,omitempty"`
+	Sub      string         `json:"sub,omitempty"`
+	Iss      string         `json:"iss,omitempty"`
 	VMAccess *VMAccessClaim `json:"vm_access"`
 }
 
@@ -205,6 +207,14 @@ func (t *Token) ExtraFilters() []string {
 
 func (t *Token) VMAccess() *VMAccessClaim {
 	return t.body.VMAccess
+}
+
+func (t *Token) Subject() string {
+	return t.body.Sub
+}
+
+func (t *Token) Issuer() string {
+	return t.body.Iss
 }
 
 func parseJWTHeader(data string) (*header, error) {

@@ -188,7 +188,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if ui, tkn := getUserInfoByJWTToken(ats); ui != nil {
 		if tkn == nil {
-			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
+			logger.Panicf("BUG: unexpected nil jwt token for user %q", userName(ui, nil))
 		}
 
 		processUserRequest(w, r, ui, tkn)
@@ -253,7 +253,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 	}
 
 	// Read the initial chunk for the request body.
-	userName := ui.name()
+	userName := userName(ui, tkn)
 	if userName == "" {
 		userName = "unauthorized"
 	}
@@ -412,7 +412,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *j
 		ui.backendErrors.Inc()
 	}
 	err := &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend", up.getBackendsCount(), ui.name()),
+		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend", up.getBackendsCount(), userName(ui, tkn)),
 		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)

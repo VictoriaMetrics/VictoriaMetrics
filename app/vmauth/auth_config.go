@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 	"gopkg.in/yaml.v2"
@@ -127,11 +128,11 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 				// The current request couldn't be executed until the request timeout.
 				ui.concurrencyLimitReached.Inc()
 				return fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because %d concurrent requests from the user %s are executed",
-					*maxQueueDuration, ui.getMaxConcurrentRequests(), ui.name())
+					*maxQueueDuration, ui.getMaxConcurrentRequests(), userName(ui, nil))
 			}
 
 			return fmt.Errorf("cannot start executing the request because %d concurrent requests from the user %s are executed: %w",
-				ui.getMaxConcurrentRequests(), ui.name(), err)
+				ui.getMaxConcurrentRequests(), userName(ui, nil), err)
 		}
 	}
 }
@@ -1010,7 +1011,7 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 var labelNameRegexp = regexp.MustCompile("^[a-zA-Z_:.][a-zA-Z0-9_:.]*$")
 
 func (ui *UserInfo) getMetricLabels() (string, error) {
-	name := ui.name()
+	name := userName(ui, nil)
 	if len(name) == 0 && len(ui.MetricLabels) == 0 {
 		// fast path
 		return "", nil
@@ -1235,4 +1236,37 @@ func sanitizeURLPrefix(urlPrefix *url.URL) (*url.URL, error) {
 		return nil, fmt.Errorf("missing hostname in `url_prefix %q`", urlPrefix.Host)
 	}
 	return urlPrefix, nil
+}
+
+func userName(ui *UserInfo, tkn *jwt.Token) string {
+	if tkn != nil {
+		if sub := tkn.Subject(); sub != "" {
+			return "jwt:sub:" + sub
+		}
+		if iss := tkn.Issuer(); iss != "" {
+			return "jwt:iss:" + iss
+		}
+
+		return "jwt:unknown"
+	}
+
+	if ui.Name != "" {
+		return ui.Name
+	}
+	if ui.Username != "" {
+		return ui.Username
+	}
+	if ui.BearerToken != "" {
+		h := xxhash.Sum64([]byte(ui.BearerToken))
+		return fmt.Sprintf("bearer_token:hash:%016X", h)
+	}
+	if ui.AuthToken != "" {
+		h := xxhash.Sum64([]byte(ui.AuthToken))
+		return fmt.Sprintf("auth_token:hash:%016X", h)
+	}
+	if ui.JWT != nil {
+		return "jwt"
+	}
+
+	return ""
 }
