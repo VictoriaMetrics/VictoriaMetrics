@@ -99,7 +99,7 @@ publish-via-docker:
 		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_DOCKER_TAG_SUFFIX) \
 		) \
 		-o type=image \
-		--provenance=true \
+		--provenance=false \
 		--sbom=true \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
@@ -120,7 +120,7 @@ publish-via-docker:
 		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)$(EXTRA_DOCKER_TAG_SUFFIX)-scratch \
 		) \
 		-o type=image \
-		--provenance=true \
+		--provenance=false \
 		--sbom=true \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
