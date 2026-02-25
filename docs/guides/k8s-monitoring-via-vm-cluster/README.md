@@ -145,14 +145,14 @@ for example - inside the Kubernetes cluster:
 
 Note the following endpoint URLs:
 
-- The `remote_write` URL will be required on [Step 3](#id-3-install-vmagent-from-the-helm-chart) to configure where the `vmagent` service sends telemetry data.
+- The `remote_write` URL will be required on [Step 3](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#id-3-install-vmagent-from-the-helm-chart) to configure where the `vmagent` service sends telemetry data.
 
     ```text
         remote_write:
           - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480/insert/0/prometheus/
     ```
 
-- The `VictoriaMetrics read api` will be required on [Step 4](#id-4-install-and-connect-grafana-to-victoriametrics-with-helm) to configure the Grafana datasource.
+- The `VictoriaMetrics read api` will be required on [Step 4](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#id-4-install-and-connect-grafana-to-victoriametrics-with-helm) to configure the Grafana datasource.
 
     ```text
     The VictoriaMetrics read api can be accessed via port 8481 with the following DNS name from within your cluster:
@@ -189,7 +189,7 @@ helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.c
 
 Here are the key settings in the chart values file `guide-vmcluster-vmagent-values.yaml`:
 
-- `remoteWrite` defines the `vminsert` endpoint that receives telemetry from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This value should match exactly the URL for the `remote_write` in the output of [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart).
+- `remoteWrite` defines the `vminsert` endpoint that receives telemetry from [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/). This value should match exactly the URL for the `remote_write` in the output of [Step 2](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#id-2-install-victoriametrics-cluster-from-the-helm-chart).
 
     ```yaml
     remoteWrite:
@@ -290,7 +290,7 @@ EOF
 
 The config file defines the following settings for Grafana:
 
-- Provides a VictoriaMetrics data source. This value must match the `VictoriaMetrics read api` endpoint and port obtained in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart) during the VictoriaMetrics cluster installation.
+- Provides a VictoriaMetrics data source. This value must match the `VictoriaMetrics read api` endpoint and port obtained in [Step 2](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#id-2-install-victoriametrics-cluster-from-the-helm-chart) during the VictoriaMetrics cluster installation.
 - Adds three starter dashboards:
   - [VictoriaMetrics - cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) for the [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
   - [VictoriaMetrics - vmagent](https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/) for the [VictoriaMetrics agent](https://docs.victoriametrics.com/victoriametrics/vmagent/).
