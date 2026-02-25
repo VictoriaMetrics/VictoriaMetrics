@@ -88,6 +88,7 @@ var (
 
 type client struct {
 	sanitizedURL   string
+	targetAddr     string
 	remoteWriteURL string
 
 	// Whether to use VictoriaMetrics remote write protocol for sending the data to remoteWriteURL
@@ -120,7 +121,7 @@ type client struct {
 	stopCh chan struct{}
 }
 
-func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
+func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL, targetAddr string, fq *persistentqueue.FastQueue, concurrency int) *client {
 	authCfg, err := getAuthConfig(argIdx)
 	if err != nil {
 		logger.Fatalf("cannot initialize auth config for -remoteWrite.url=%q: %s", remoteWriteURL, err)
@@ -158,6 +159,7 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	}
 	c := &client{
 		sanitizedURL:     sanitizedURL,
+		targetAddr:       targetAddr,
 		remoteWriteURL:   remoteWriteURL,
 		authCfg:          authCfg,
 		awsCfg:           awsCfg,
@@ -200,8 +202,8 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	c.errorsCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_errors_total{url=%q}`, c.sanitizedURL))
 	c.packetsDropped = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_packets_dropped_total{url=%q}`, c.sanitizedURL))
 	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.sanitizedURL))
-	c.sendDuration = metrics.GetOrCreateFloatCounter(fmt.Sprintf(`vmagent_remotewrite_send_duration_seconds_total{url=%q}`, c.sanitizedURL))
-	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q}`, c.sanitizedURL), func() float64 {
+	c.sendDuration = metrics.GetOrCreateFloatCounter(fmt.Sprintf(`vmagent_remotewrite_send_duration_seconds_total{url=%q,addr=%q}`, c.sanitizedURL, c.targetAddr))
+	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q,addr=%q}`, c.sanitizedURL, c.targetAddr), func() float64 {
 		return float64(concurrency)
 	})
 	for range concurrency {
