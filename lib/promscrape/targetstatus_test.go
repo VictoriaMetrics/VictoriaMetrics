@@ -14,17 +14,17 @@ func TestWriteActiveTargetsJSON(t *testing.T) {
 	tsm.Register(&scrapeWork{
 		Config: &ScrapeWork{
 			jobNameOriginal: "foo",
-			OriginalLabels: promutil.NewLabelsFromMap(map[string]string{
+			OriginalLabels: newCompressedLabels(promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "host1:80",
-			}),
+			})),
 		},
 	})
 	tsm.Register(&scrapeWork{
 		Config: &ScrapeWork{
 			jobNameOriginal: "bar",
-			OriginalLabels: promutil.NewLabelsFromMap(map[string]string{
+			OriginalLabels: newCompressedLabels(promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "host2:80",
-			}),
+			})),
 		},
 	})
 
@@ -71,7 +71,7 @@ func TestRegisterDroppedTargets(t *testing.T) {
 		}
 
 		for _, originalLabels := range opts.toRegister {
-			dtm.Register(originalLabels, nil, targetDropReasonRelabeling, nil)
+			dtm.Register(newCompressedLabels(originalLabels), nil, targetDropReasonRelabeling, nil)
 		}
 		got := dtm.getTotalTargets()
 		if got != opts.wantTotalTargets {
