@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -345,6 +346,8 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		ls.processed[l.Name] = l.Value
 	}
 
+	// labels only support limited templating variables,
+	// including `labels`, `value` and `expr`, to avoid breaking alert states or causing cardinality issue with results
 	extraLabels, err := notifier.ExecTemplate(qFn, ar.Labels, notifier.AlertTplData{
 		Labels: ls.origin,
 		Value:  m.Values[0],
@@ -386,11 +389,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 			return nil, err
 		}
 		alertID := hash(ls.processed)
-		as, err := ar.expandAnnotationTemplates(s, qFn, time.Time{}, ls)
-		if err != nil {
-			return nil, err
-		}
-		a := ar.newAlert(s, time.Time{}, ls.processed, as) // initial alert
+		a := ar.newAlert(s, time.Time{}, ls.processed, nil) // initial alert
 
 		prevT := time.Time{}
 		for i := range s.Values {
@@ -406,8 +405,6 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 				// reset to Pending if there are gaps > EvalInterval between DPs
 				a.State = notifier.StatePending
 				a.ActiveAt = at
-				// re-template the annotations as active timestamp is changed
-				a.Annotations, _ = ar.expandAnnotationTemplates(s, qFn, at, ls)
 				a.Start = time.Time{}
 			} else if at.Sub(a.ActiveAt) >= ar.For && a.State != notifier.StateFiring {
 				a.State = notifier.StateFiring
@@ -453,7 +450,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 
 	defer func() {
 		ar.state.add(curState)
-		if curState.Err != nil {
+		if curState.Err != nil && !errors.Is(curState.Err, context.Canceled) {
 			ar.metrics.errors.Inc()
 		}
 	}()
@@ -462,7 +459,8 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
 
-	ar.logDebugf(ts, nil, "query returned %d series (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartialResponse(res))
+	isPartial := isPartialResponse(res)
+	ar.logDebugf(ts, nil, "query returned %d series (elapsed: %s, isPartial: %t)", curState.Samples, curState.Duration, isPartial)
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
 		return res.Data, err
@@ -488,7 +486,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				at = a.ActiveAt
 			}
 		}
-		as, err := ar.expandAnnotationTemplates(m, qFn, at, ls)
+		as, err := ar.expandAnnotationTemplates(m, qFn, at, ls, isPartial)
 		if err != nil {
 			// only set error in current state, but do not break alert processing
 			curState.Err = err
@@ -606,16 +604,17 @@ func (ar *AlertingRule) expandLabelTemplates(m datasource.Metric, qFn templates.
 	return ls, nil
 }
 
-func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templates.QueryFn, activeAt time.Time, ls *labelSet) (map[string]string, error) {
+func (ar *AlertingRule) expandAnnotationTemplates(m datasource.Metric, qFn templates.QueryFn, activeAt time.Time, ls *labelSet, isPartial bool) (map[string]string, error) {
 	tplData := notifier.AlertTplData{
-		Value:    m.Values[0],
-		Type:     ar.Type.String(),
-		Labels:   ls.origin,
-		Expr:     ar.Expr,
-		AlertID:  hash(ls.processed),
-		GroupID:  ar.GroupID,
-		ActiveAt: activeAt,
-		For:      ar.For,
+		Value:     m.Values[0],
+		Type:      ar.Type.String(),
+		Labels:    ls.origin,
+		Expr:      ar.Expr,
+		AlertID:   hash(ls.processed),
+		GroupID:   ar.GroupID,
+		ActiveAt:  activeAt,
+		For:       ar.For,
+		IsPartial: isPartial,
 	}
 	as, err := notifier.ExecTemplate(qFn, ar.Annotations, tplData)
 	if err != nil {
@@ -819,7 +818,9 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 	expr := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
 		alertForStateMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
 
-	res, _, err := q.Query(ctx, expr, ts)
+	// query ALERTS_FOR_STATE at `ts-1s` instead `ts` to avoid retrieving data written in the current run,
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10335
+	res, _, err := q.Query(ctx, expr, ts.Add(-1*time.Second))
 	if err != nil {
 		return fmt.Errorf("failed to execute restore query %q: %w ", expr, err)
 	}

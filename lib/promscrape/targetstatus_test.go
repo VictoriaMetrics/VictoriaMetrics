@@ -99,3 +99,29 @@ func TestRegisterDroppedTargets(t *testing.T) {
 	})
 
 }
+
+func Test_targetStatus_GetSizeFromLastScrape_RoundUp(t *testing.T) {
+	// the formula is: (N + 1023) / 1024, to avoid using `math` and doing type conversion.
+	f := func(n int, expect string) {
+		t.Helper()
+
+		ts := &targetStatus{
+			scrapeResponseSize: n,
+		}
+		result := ts.getSizeFromLastScrape()
+		if expect != result {
+			t.Fatalf("unexpected result; got %s; want %s", result, expect)
+		}
+	}
+
+	f(0, "never scraped")
+	f(1, "1B")
+	f(1023, "1023B")
+	f(1024, "1KiB")
+	f(1025, "2KiB")
+	f(1024*1024, "1024KiB")
+	f(1024*1024+1, "1025KiB")
+	f(1024*1024+1023, "1025KiB")
+
+	f(1024*1024*1024, "1048576KiB")
+}

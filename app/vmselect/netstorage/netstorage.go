@@ -5,6 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -296,14 +298,12 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 
 	// Start workers and wait until they finish the work.
 	var wg sync.WaitGroup
-	for i := range workChs {
-		wg.Add(1)
-		qtChild := qt.NewChild("worker #%d", i)
-		go func(workerID uint) {
-			timeseriesWorker(qtChild, workChs, workerID)
+	for workerID := range workChs {
+		qtChild := qt.NewChild("worker #%d", workerID)
+		wg.Go(func() {
+			timeseriesWorker(qtChild, workChs, uint(workerID))
 			qtChild.Done()
-			wg.Done()
-		}(uint(i))
+		})
 	}
 	wg.Wait()
 
@@ -492,10 +492,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 	}
 
 	// Prepare worker channels.
-	workers := min(len(upws), gomaxprocs)
-	if workers < 1 {
-		workers = 1
-	}
+	workers := max(min(len(upws), gomaxprocs), 1)
 	itemsPerWorker := (len(upws) + workers - 1) / workers
 	workChs := make([]chan *unpackWork, workers)
 	for i := range workChs {
@@ -514,12 +511,10 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 
 	// Start workers and wait until they finish the work.
 	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func(workerID uint) {
-			unpackWorker(workChs, workerID)
-			wg.Done()
-		}(uint(i))
+	for workerID := range workers {
+		wg.Go(func() {
+			unpackWorker(workChs, uint(workerID))
+		})
 	}
 	wg.Wait()
 
@@ -582,6 +577,7 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		return
 	}
 	heap.Init(sbh)
+	var dedupSamples int
 	for {
 		sbs := sbh.sbs
 		top := sbs[0]
@@ -597,6 +593,7 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		if n := equalSamplesPrefix(top, sbNext); n > 0 && dedupInterval > 0 {
 			// Skip n replicated samples at top if deduplication is enabled.
 			top.NextIdx = topNextIdx + n
+			dedupSamples += n
 		} else {
 			// Copy samples from top to dst with timestamps not exceeding tsNext.
 			top.NextIdx = topNextIdx + binarySearchTimestamps(top.Timestamps[topNextIdx:], tsNext)
@@ -611,8 +608,8 @@ func mergeSortBlocks(dst *Result, sbh *sortBlocksHeap, dedupInterval int64) {
 		}
 	}
 	timestamps, values := storage.DeduplicateSamples(dst.Timestamps, dst.Values, dedupInterval)
-	dedups := len(dst.Timestamps) - len(timestamps)
-	dedupsDuringSelect.Add(dedups)
+	dedupSamples += len(dst.Timestamps) - len(timestamps)
+	dedupsDuringSelect.Add(dedupSamples)
 	dst.Timestamps = timestamps
 	dst.Values = values
 }
@@ -638,7 +635,7 @@ func equalTimestampsPrefix(a, b []int64) int {
 
 func equalValuesPrefix(a, b []float64) int {
 	for i, v := range a {
-		if i >= len(b) || v != b[i] {
+		if i >= len(b) || math.Float64bits(v) != math.Float64bits(b[i]) {
 			return i
 		}
 	}
@@ -833,12 +830,7 @@ func GraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline sea
 }
 
 func hasString(a []string, s string) bool {
-	for _, x := range a {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a, s)
 }
 
 // LabelValues returns label values matching the given labelName and sq until the given deadline.
@@ -1020,12 +1012,10 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		mustStop      atomic.Bool
 	)
 	var wg sync.WaitGroup
-	wg.Add(gomaxprocs)
-	for i := 0; i < gomaxprocs; i++ {
-		go func(workerID uint) {
-			defer wg.Done()
+	for workerID := range gomaxprocs {
+		wg.Go(func() {
 			for xw := range workCh {
-				if err := f(&xw.mn, &xw.b, tr, workerID); err != nil {
+				if err := f(&xw.mn, &xw.b, tr, uint(workerID)); err != nil {
 					errGlobalLock.Lock()
 					if errGlobal == nil {
 						errGlobal = err
@@ -1036,7 +1026,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 				xw.reset()
 				exportWorkPool.Put(xw)
 			}
-		}(uint(i))
+		})
 	}
 
 	// Feed workers with work

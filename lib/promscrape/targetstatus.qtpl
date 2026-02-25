@@ -179,6 +179,11 @@
 {% endfunc %}
 
 {% func scrapeTargets(tsr *targetsStatusResult) %}
+    {% if !tsr.hasOriginalLabels %}
+        <div class="alert alert-warning" role="alert">
+            Some debugging information is not available, set <b>-promscrape.dropOriginalLabels=false</b> command-line flag to enable it
+        </div>
+    {% endif %}
     <div class="row mt-4">
         <div class="col-12">
             {% for i, jts := range tsr.jobTargetsStatuses %}
@@ -211,9 +216,7 @@
                             <th scope="col">Endpoint</th>
                             <th scope="col">State</th>
                             <th scope="col" title="target labels">Labels</th>
-                            {% if hasOriginalLabels %}
-                              <th scope="col" title="debug relabeling">Debug relabeling</th>
-                            {% endif %}
+                            <th scope="col" title="debug relabeling">Debug relabeling</th>
                             <th scope="col" title="total scrapes">Scrapes</th>
                             <th scope="col" title="total scrape errors">Errors</th>
                             <th scope="col" title="the time of the last scrape">Last Scrape</th>
@@ -239,6 +242,8 @@
                                   {% space %}
                                   (<a href="target_response?id={%s targetID %}" target="_blank"
                                     title="click to fetch target response on behalf of the scraper">response</a>)
+                                {% else %}
+                                  {% space %}(N/A)
                                 {% endif %}
                             </td>
                             <td>
@@ -263,12 +268,14 @@
                                 </div>
                               {% endif %}
                             </td>
+                            <td>
                             {% if hasOriginalLabels %}
-                              <td>
-                                <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
-                                <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
-                              </td>
+                              <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
+                              <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
+                            {% else %}
+                              N/A
                             {% endif %}
+                            </td>
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
                             <td>{%s ts.getDurationFromLastScrape() %}</td>

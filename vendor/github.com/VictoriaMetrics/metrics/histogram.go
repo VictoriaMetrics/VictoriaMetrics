@@ -220,7 +220,7 @@ func getVMRange(bucketIdx int) string {
 func initBucketRanges() {
 	v := math.Pow10(e10Min)
 	start := fmt.Sprintf("%.3e", v)
-	for i := 0; i < bucketsCount; i++ {
+	for i := range bucketsCount {
 		v *= bucketMultiplier
 		end := fmt.Sprintf("%.3e", v)
 		bucketRanges[i] = start + "..." + end

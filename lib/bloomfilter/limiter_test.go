@@ -22,7 +22,7 @@ func testLimiter(t *testing.T, maxItems int) {
 	items := make(map[uint64]struct{}, maxItems)
 
 	// Populate the l with new items.
-	for i := 0; i < maxItems; i++ {
+	for i := range maxItems {
 		h := r.Uint64()
 		if !l.Add(h) {
 			t.Fatalf("cannot add item %d on iteration %d out of %d", h, i, maxItems)
@@ -41,7 +41,7 @@ func testLimiter(t *testing.T, maxItems int) {
 
 	// Verify that new items are rejected with high probability.
 	falseAdditions := 0
-	for i := 0; i < maxItems; i++ {
+	for range maxItems {
 		h := r.Uint64()
 		if l.Add(h) {
 			falseAdditions++
@@ -58,13 +58,13 @@ func TestLimiterConcurrent(t *testing.T) {
 	maxItems := 10000
 	l := NewLimiter(maxItems, time.Hour)
 	doneCh := make(chan struct{}, concurrency)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		go func() {
 			if n := l.MaxItems(); n != maxItems {
 				panic(fmt.Errorf("unexpected maxItems returned; got %d; want %d", n, maxItems))
 			}
 			r := rand.New(rand.NewSource(0))
-			for i := 0; i < maxItems; i++ {
+			for range maxItems {
 				h := r.Uint64()
 				// Do not check whether the item is added, since less than maxItems can be added to l
 				// due to passible (expected) race in l.f.Add
@@ -72,7 +72,7 @@ func TestLimiterConcurrent(t *testing.T) {
 			}
 			// Verify that new items are rejected with high probability.
 			falseAdditions := 0
-			for i := 0; i < maxItems; i++ {
+			for range maxItems {
 				h := r.Uint64()
 				if l.Add(h) {
 					falseAdditions++
@@ -86,7 +86,7 @@ func TestLimiterConcurrent(t *testing.T) {
 		}()
 	}
 	tC := time.After(time.Second * 5)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		select {
 		case <-doneCh:
 		case <-tC:

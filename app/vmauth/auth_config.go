@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -64,10 +65,11 @@ type AuthConfig struct {
 type UserInfo struct {
 	Name string `yaml:"name,omitempty"`
 
-	BearerToken string `yaml:"bearer_token,omitempty"`
-	AuthToken   string `yaml:"auth_token,omitempty"`
-	Username    string `yaml:"username,omitempty"`
-	Password    string `yaml:"password,omitempty"`
+	BearerToken string     `yaml:"bearer_token,omitempty"`
+	JWT         *JWTConfig `yaml:"jwt,omitempty"`
+	AuthToken   string     `yaml:"auth_token,omitempty"`
+	Username    string     `yaml:"username,omitempty"`
+	Password    string     `yaml:"password,omitempty"`
 
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
@@ -94,6 +96,8 @@ type UserInfo struct {
 	rt http.RoundTripper
 
 	requests         *metrics.Counter
+	requestErrors    *metrics.Counter
+	backendRequests  *metrics.Counter
 	backendErrors    *metrics.Counter
 	requestsDuration *metrics.Summary
 }
@@ -105,13 +109,29 @@ type HeadersConf struct {
 	KeepOriginalHost *bool     `yaml:"keep_original_host,omitempty"`
 }
 
-func (ui *UserInfo) beginConcurrencyLimit() error {
+func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 	select {
 	case ui.concurrencyLimitCh <- struct{}{}:
 		return nil
 	default:
-		ui.concurrencyLimitReached.Inc()
-		return fmt.Errorf("cannot handle more than %d concurrent requests from user %s", ui.getMaxConcurrentRequests(), ui.name())
+		// The number of concurrently executed requests for the given user equals the limt.
+		// Wait until some of the currently executed requests are finished, so the current request could be executed.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
+		select {
+		case ui.concurrencyLimitCh <- struct{}{}:
+			return nil
+		case <-ctx.Done():
+			err := ctx.Err()
+			if errors.Is(err, context.DeadlineExceeded) {
+				// The current request couldn't be executed until the request timeout.
+				ui.concurrencyLimitReached.Inc()
+				return fmt.Errorf("cannot start executing the request during -maxQueueDuration=%s because %d concurrent requests from the user %s are executed",
+					*maxQueueDuration, ui.getMaxConcurrentRequests(), ui.name())
+			}
+
+			return fmt.Errorf("cannot start executing the request because %d concurrent requests from the user %s are executed: %w",
+				ui.getMaxConcurrentRequests(), ui.name(), err)
+		}
 	}
 }
 
@@ -125,6 +145,28 @@ func (ui *UserInfo) getMaxConcurrentRequests() int {
 		mcr = *maxConcurrentPerUserRequests
 	}
 	return mcr
+}
+
+func (ui *UserInfo) stopHealthChecks() {
+	if ui == nil {
+		return
+	}
+
+	if ui.URLPrefix != nil {
+		bus := ui.URLPrefix.bus.Load()
+		bus.stopHealthChecks()
+	}
+	if ui.DefaultURL != nil {
+		bus := ui.DefaultURL.bus.Load()
+		bus.stopHealthChecks()
+	}
+	for i := range ui.URLMaps {
+		um := &ui.URLMaps[i]
+		if um.URLPrefix != nil {
+			bus := um.URLPrefix.bus.Load()
+			bus.stopHealthChecks()
+		}
+	}
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
@@ -262,7 +304,7 @@ type URLPrefix struct {
 	// the list of backend urls
 	//
 	// the list can be dynamically updated if `discover_backend_ips` option is set.
-	bus atomic.Pointer[[]*backendURL]
+	bus atomic.Pointer[backendURLs]
 
 	// if this option is set, then backend ips for busOriginal are periodically re-discovered and put to bus.
 	discoverBackendIPs bool
@@ -286,21 +328,91 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 	}
 }
 
+type backendURLs struct {
+	healthChecksContext context.Context
+	healthChecksCancel  func()
+	healthChecksWG      sync.WaitGroup
+
+	bus []*backendURL
+}
+
+func newBackendURLs() *backendURLs {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &backendURLs{
+		healthChecksContext: ctx,
+		healthChecksCancel:  cancel,
+	}
+}
+
+func (bus *backendURLs) add(u *url.URL) {
+	bus.bus = append(bus.bus, &backendURL{
+		url:                u,
+		healthCheckContext: bus.healthChecksContext,
+		healthCheckWG:      &bus.healthChecksWG,
+	})
+}
+
+func (bus *backendURLs) stopHealthChecks() {
+	bus.healthChecksCancel()
+	bus.healthChecksWG.Wait()
+}
+
 type backendURL struct {
-	brokenDeadline     atomic.Uint64
+	broken atomic.Bool
+
+	healthCheckContext context.Context
+	healthCheckWG      *sync.WaitGroup
+
 	concurrentRequests atomic.Int32
 
 	url *url.URL
 }
 
 func (bu *backendURL) isBroken() bool {
-	ct := fasttime.UnixTimestamp()
-	return ct < bu.brokenDeadline.Load()
+	return bu.broken.Load()
 }
 
 func (bu *backendURL) setBroken() {
-	deadline := fasttime.UnixTimestamp() + uint64((*failTimeout).Seconds())
-	bu.brokenDeadline.Store(deadline)
+	if bu.broken.CompareAndSwap(false, true) {
+		bu.healthCheckWG.Go(func() {
+			bu.runHealthCheck()
+			bu.broken.Store(false)
+		})
+	}
+}
+
+func (bu *backendURL) runHealthCheck() {
+	port := bu.url.Port()
+	if port == "" {
+		port = "80"
+	}
+	addr := net.JoinHostPort(bu.url.Hostname(), port)
+
+	t := time.NewTicker(*failTimeout)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			// Verify network connectivity via TCP dial before marking backend healthy.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9997
+			ctx, cancel := context.WithTimeout(bu.healthCheckContext, time.Second)
+			c, err := netutil.Dialer.DialContext(ctx, "tcp", addr)
+			cancel()
+			if err != nil {
+				if errors.Is(bu.healthCheckContext.Err(), context.Canceled) {
+					return
+				}
+				logger.Warnf("ignoring the backend at %s for %s because of dial error: %s", addr, *failTimeout, err)
+				continue
+			}
+
+			_ = c.Close()
+			return
+		case <-bu.healthCheckContext.Done():
+			return
+		}
+	}
 }
 
 func (bu *backendURL) get() {
@@ -312,8 +424,8 @@ func (bu *backendURL) put() {
 }
 
 func (up *URLPrefix) getBackendsCount() int {
-	pbus := up.bus.Load()
-	return len(*pbus)
+	bus := up.bus.Load()
+	return len(bus.bus)
 }
 
 // getBackendURL returns the backendURL depending on the load balance policy.
@@ -324,16 +436,15 @@ func (up *URLPrefix) getBackendsCount() int {
 func (up *URLPrefix) getBackendURL() *backendURL {
 	up.discoverBackendAddrsIfNeeded()
 
-	pbus := up.bus.Load()
-	bus := *pbus
-	if len(bus) == 0 {
+	bus := up.bus.Load()
+	if len(bus.bus) == 0 {
 		return nil
 	}
 
 	if up.loadBalancingPolicy == "first_available" {
-		return getFirstAvailableBackendURL(bus)
+		return getFirstAvailableBackendURL(bus.bus)
 	}
-	return getLeastLoadedBackendURL(bus, &up.n)
+	return getLeastLoadedBackendURL(bus.bus, &up.n)
 }
 
 func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
@@ -407,25 +518,24 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	cancel()
 
 	// generate new backendURLs for the resolved IPs
-	var busNew []*backendURL
+	busNew := newBackendURLs()
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
 			buCopy.Host = addr
-			busNew = append(busNew, &backendURL{
-				url: &buCopy,
-			})
+			busNew.add(&buCopy)
 		}
 	}
 
-	pbus := up.bus.Load()
-	if areEqualBackendURLs(*pbus, busNew) {
+	bus := up.bus.Load()
+	if areEqualBackendURLs(bus.bus, busNew.bus) {
 		return
 	}
 
 	// Store new backend urls
-	up.bus.Store(&busNew)
+	up.bus.Store(busNew)
+	bus.stopHealthChecks()
 }
 
 func areEqualBackendURLs(a, b []*backendURL) bool {
@@ -456,27 +566,30 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 	for i := 1; i < len(bus); i++ {
 		if !bus[i].isBroken() {
 			bu = bus[i]
-			break
+			bu.get()
+			return bu
 		}
 	}
-	bu.get()
-	return bu
+	return nil
 }
 
-// getLeastLoadedBackendURL returns the backendURL with the minimum number of concurrent requests.
+// getLeastLoadedBackendURL returns a non-broken backendURL with the lowest number of concurrent requests.
 //
 // backendURL.put() must be called on the returned backendURL after the request is complete.
 func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *backendURL {
 	if len(bus) == 1 {
 		// Fast path - return the only backend url.
 		bu := bus[0]
+		if bu.isBroken() {
+			return nil
+		}
 		bu.get()
 		return bu
 	}
 
 	// Slow path - select other backend urls.
 	n := atomicCounter.Add(1) - 1
-	for i := uint32(0); i < uint32(len(bus)); i++ {
+	for i := range uint32(len(bus)) {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
 		if bu.isBroken() {
@@ -494,7 +607,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	// Slow path - return the backend with the minimum number of concurrently executed requests.
 	buMinIdx := n % uint32(len(bus))
 	minRequests := bus[buMinIdx].concurrentRequests.Load()
-	for i := uint32(0); i < uint32(len(bus)); i++ {
+	for i := uint32(1); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
 		if bu.isBroken() {
@@ -508,6 +621,9 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 		}
 	}
 	buMin := bus[buMinIdx]
+	if buMin.isBroken() {
+		return nil
+	}
 	buMin.get()
 	atomicCounter.CompareAndSwap(n+1, buMinIdx+1)
 	return buMin
@@ -626,11 +742,9 @@ func initAuthConfig() {
 	configTimestamp.Set(fasttime.UnixTimestamp())
 
 	stopCh = make(chan struct{})
-	authConfigWG.Add(1)
-	go func() {
-		defer authConfigWG.Done()
+	authConfigWG.Go(func() {
 		authConfigReloader(sighupCh)
-	}()
+	})
 }
 
 func stopAuthConfig() {
@@ -686,6 +800,9 @@ var (
 	// authUsers contains the currently loaded auth users
 	authUsers atomic.Pointer[map[string]*UserInfo]
 
+	// jwt authentication cache
+	jwtAuthCache atomic.Pointer[jwtCache]
+
 	authConfigWG sync.WaitGroup
 	stopCh       chan struct{}
 )
@@ -702,7 +819,7 @@ func reloadAuthConfig() (bool, error) {
 
 	ok, err := reloadAuthConfigData(data)
 	if err != nil {
-		return false, fmt.Errorf("failed to pars -auth.config=%q: %w", *authConfigPath, err)
+		return false, fmt.Errorf("failed to parse -auth.config=%q: %w", *authConfigPath, err)
 	}
 	if !ok {
 		return false, nil
@@ -725,6 +842,14 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
+	jui, err := parseJWTUsers(ac)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
+	}
+	jwtc := &jwtCache{
+		users: jui,
+	}
+
 	m, err := parseAuthConfigUsers(ac)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse users from auth config: %w", err)
@@ -732,6 +857,11 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 
 	acPrev := authConfig.Load()
 	if acPrev != nil {
+		acPrev.UnauthorizedUser.stopHealthChecks()
+		for i := range acPrev.Users {
+			acPrev.Users[i].stopHealthChecks()
+		}
+
 		metrics.UnregisterSet(acPrev.ms, true)
 	}
 	metrics.RegisterSet(ac.ms)
@@ -739,6 +869,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
+	jwtAuthCache.Store(jwtc)
 
 	return true, nil
 }
@@ -763,6 +894,9 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.BearerToken != "" {
 			return nil, fmt.Errorf("field bearer_token can't be specified for unauthorized_user section")
 		}
+		if ui.JWT != nil {
+			return nil, fmt.Errorf("field jwt can't be specified for unauthorized_user section")
+		}
 		if ui.AuthToken != "" {
 			return nil, fmt.Errorf("field auth_token can't be specified for unauthorized_user section")
 		}
@@ -778,6 +912,8 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 			return nil, fmt.Errorf("cannot parse metric_labels for unauthorized_user: %w", err)
 		}
 		ui.requests = ac.ms.NewCounter(`vmauth_unauthorized_user_requests_total` + metricLabels)
+		ui.requestErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_errors_total` + metricLabels)
+		ui.backendRequests = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_requests_total` + metricLabels)
 		ui.backendErrors = ac.ms.NewCounter(`vmauth_unauthorized_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.NewSummary(`vmauth_unauthorized_user_request_duration_seconds` + metricLabels)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
@@ -807,10 +943,17 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	}
 	for i := range uis {
 		ui := &uis[i]
+		// users with jwt tokens are parsed by parseJWTUsers function.
+		// the function also checks that users with jwt tokens do not have auth tokens, bearer tokens, usernames and passwords.
+		if ui.JWT != nil {
+			continue
+		}
+
 		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, at := range ats {
 			if uiOld := byAuthToken[at]; uiOld != nil {
 				return nil, fmt.Errorf("duplicate auth token=%q found for username=%q, name=%q; the previous one is set for username=%q, name=%q",
@@ -826,6 +969,8 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
 		}
 		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
+		ui.requestErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_errors_total` + metricLabels)
+		ui.backendRequests = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_requests_total` + metricLabels)
 		ui.backendErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_backend_errors_total` + metricLabels)
 		ui.requestsDuration = ac.ms.GetOrCreateSummary(`vmauth_user_request_duration_seconds` + metricLabels)
 		mcr := ui.getMaxConcurrentRequests()
@@ -1060,13 +1205,11 @@ func (up *URLPrefix) sanitizeAndInitialize() error {
 	}
 
 	// Initialize up.bus
-	bus := make([]*backendURL, len(up.busOriginal))
-	for i, bu := range up.busOriginal {
-		bus[i] = &backendURL{
-			url: bu,
-		}
+	bus := newBackendURLs()
+	for _, bu := range up.busOriginal {
+		bus.add(bu)
 	}
-	up.bus.Store(&bus)
+	up.bus.Store(bus)
 
 	return nil
 }

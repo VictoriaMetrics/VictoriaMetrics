@@ -144,7 +144,6 @@ monitoring:
   # other monitoring settings
 ```
 
-
 ## State Restoration
 
 > This feature is best used with config [hot-reloading](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) {{% available_from "v1.25.0" anomaly %}} for increased deployment flexibility.
@@ -305,6 +304,80 @@ reader:  # can be partially reused, because its class and datasource URL are unc
 This means that the service upon restart:
 1. Won't restore the state of `zscore_online` model, because its `z_threshold` argument **has changed**, retraining from scratch is needed on the last `fit_window` = 24 hours of data for `q1`, `q2` and `q3` (as model's `queries` arg is not set so it defaults to all queries found in the reader).
 2. Will **partially** restore the state of `prophet` model, because its class and schedulers are unchanged, but **only instances trained on timeseries returned by `q1` query**. New fit/infer jobs will be set for new query `q3`. The old query `q2` artifacts will be dropped upon restart - all respective models and data for (`prophet`, `q2`) combination will be removed from the database file and from the disk.
+
+## Retention
+
+{{% available_from "v1.28.1" anomaly %}} The `retention` argument allows to set a [time-to-live](https://en.wikipedia.org/wiki/Time_to_live) (TTL) for service artifacts, such as stored model instances and their training data. When enabled, the service will periodically check (controlled by `check_interval` period) and clean up model instances that have not been used for inference or refitting within the specified period of time (defined in `ttl` argument as a valid period). This helps to manage resources in long-running deployments by removing stale or unused artifacts.
+
+### Use Cases
+- With **[online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models)** as they continuously create model instances for new timeseries over time during inference calls, especially when combined with [periodic schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler) with infrequent `fit_every` (say, `90d`).
+- In deployments where **the set of monitored timeseries changes frequently**, leading to accumulation of unused model instances and training data over time, due to high churn rate or relabeling of metrics.
+- When using **[state restoration](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration) feature** which improves fault tolerance, but may retain all model instances and their training data for considerable time, potentially leading to high disk or RAM usage.
+
+### Configuration
+
+The section is **backward-compatible and disabled by default**, meaning that all model instances and their training data are retained unless:
+- The service is restarted with `restore_state` set to `false`, which triggers a cleanup of all stored artifacts.
+- The models are marked as outdated once scheduled re-fitting is due, leading to retraining and replacement of previous artifacts.
+
+`ttl` argument defines the time-to-live period for model instances and their training data. It should be a valid period string (e.g., `7d` for 7 days, `30d` for 30 days, etc.). If a model instance or its training data has not been used for inference or refitting within this period, it will be considered stale and eligible for cleanup. 
+
+> If set higher than respective scheduler's `fit_every` period, the ttl will have no effect, as models will always be refitted before they become stale.
+
+`check_interval` argument defines how often the service should check for stale artifacts. It should be a valid period string (e.g., `1h` for 1 hour, `24h` for 24 hours, etc.). During each check, the service will evaluate all stored model instances and their training data against the defined `ttl` and remove those that are stale.
+
+> Check interval should be set to a value smaller than `ttl` and smaller than the smallest `fit_every` period among all schedulers used in the config to ensure timely cleanup of stale artifacts, otherwise stale artifacts may persist longer than intended.
+
+### Example
+
+Here's an example configuration that enables retention with a TTL of 1 day and a check interval of 30 minutes, where inference is performed every 15 minutes.
+- Model instances and their training data that have not been used for inference or refitting within the last day will be cleaned up every 30 minutes (m2 example on a diagram)
+- While model instances used for inference within the last day at least 1 time will be retained (m1 example on a diagram)
+
+![Retention Example Diagram](vmanomaly-ttl-example.webp)
+
+```yaml
+schedulers:
+  s1:
+    class: periodic
+    infer_every: 15m
+    # other scheduler args
+  # other schedulers
+
+reader:
+  class: vm
+  datasource_url: 'https://play.victoriametrics.com'
+  tenant_id: "0"
+  queries:
+    q1:
+      expr: 'some_metricsql_query_1'  # returns active timeseries
+    q2:
+      expr: 'some_metricsql_query_2'  # returns high-churn timeseries
+  sampling_period: 30s
+  # other reader args
+
+models:
+  m1:  # model instances will be retained due to stable data returned by q1
+    class: zscore_online
+    schedulers: ['s1']
+    queries: ['q1']
+    # other model args
+  m2:  # model instances will be likely dropped during retention checks due to high churn rate
+    class: prophet
+    schedulers: ['s1']
+    queries: ['q2']
+    # other model args
+  # other models
+
+# other sections like schedulers, models, reader, writer, monitoring, etc.
+
+settings:
+  # other settings
+  restore_state: True  # enables state restoration
+  retention:
+    ttl: 24h  # time-to-live for model instances and their training data
+    check_interval: 30m  # interval to check for stale artifacts
+```
 
 
 ## Logger Levels

@@ -64,6 +64,10 @@ func (pe *pipeExtractRegexp) canReturnLastNResults() bool {
 	return true
 }
 
+func (pe *pipeExtractRegexp) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pe *pipeExtractRegexp) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }

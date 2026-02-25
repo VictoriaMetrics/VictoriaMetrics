@@ -38,6 +38,7 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) and [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/);
 * Integration with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/);
+* Integration with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) which also uses [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victoriatraces/vmalert/);
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
@@ -284,9 +285,11 @@ expr: <string>
 # Labels to add or overwrite for each alert.
 # Labels are merged with labels received from `expr` evaluation and uniquely identify each generated alert.
 # In case of conflicts, original labels are kept with prefix `exported_`.
-# Note: do not set dynamic label values like `$value`, because each time the $value changes - the new alert will be
-# generated. It will also break `for` condition.
-# Labels could contain arbitrary dynamically generated data or templates - see https://docs.victoriametrics.com/victoriametrics/vmalert/#templating
+#
+# Labels only support limited templating variables in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating,
+# including `$labels`, `$value` and `$expr`, to avoid breaking alert states or causing cardinality issue with results.
+# Note: be careful set dynamic label values like `$value`, because each time the $value changes - the new alert will be
+# generated which also break `for` condition.
 labels:
   [ <labelname>: <tmpl_string> ]
 
@@ -298,7 +301,7 @@ annotations:
 
 #### Templating
 
-It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations and labels to format data, iterate over
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations and labels(with limited support) to format data, iterate over
 or execute expressions.
 The following variables are available in templating:
 
@@ -314,6 +317,7 @@ The following variables are available in templating:
 | $for or .For                       | Alert's configured for param.                                                                             | Number of connections is too high for more than {{ .For }}                                                                                                                           |
 | $externalLabels or .ExternalLabels | List of labels configured via `-external.label` command-line flag.                                        | Issues with {{ $labels.instance }} (datacenter-{{ $externalLabels.dc }})                                                                                                             |
 | $externalURL or .ExternalURL       | URL configured via `-external.url` command-line flag. Used for cases when vmalert is hidden behind proxy. | Visit {{ $externalURL }} for more details                                                                                                                                            |
+| $isPartial or .IsPartial           | Indicates whether the latest rule query response from the datasource(that supports returning `isPartial` option, such as vmcluster) could be partial.       | {{ if $isPartial }}WARNING: The latest alert state may be a false alarm due to a partial response from the datasource.{{ end }}
 
 Additionally, `vmalert` provides some extra templating functions listed in [template functions](#template-functions) and [reusable templates](#reusable-templates).
 
@@ -412,6 +416,8 @@ expr: <string>
 
 # Labels to add or overwrite before storing the result.
 # In case of conflicts, original labels are kept with prefix `exported_`.
+#
+# Labels do not support templating in https://docs.victoriametrics.com/victoriametrics/vmalert/#templating due to cardinality concerns. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8171.
 labels:
   [ <labelname>: <labelvalue> ]
 
@@ -774,6 +780,10 @@ to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL 
 
 vmalert supports [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 
+## VictoriaTraces
+
+vmalert supports [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) as a (`vlogs`) datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victoriatraces/vmalert/) for details.
+
 ## Rules backfilling
 
 vmalert supports alerting and recording rules backfilling (aka `replay`). In replay mode vmalert
@@ -853,6 +863,8 @@ ALERTS{alertname="your_alertname", alertstate="firing"}
 ```
 
 Execute the query against storage which was used for `-remoteWrite.url` during the `replay`.
+
+> Since alerting rule annotations are attached to alert messages sent to the notifier (such as Alertmanager), and vmalert does not send alert messages to notifier in replay mode, all rule annotations will be ignored.
 
 ### Additional configuration
 
@@ -1165,7 +1177,13 @@ command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
 
-{{% content "vmalert_flags.md" %}}
+#### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmalert_common_flags.md" %}}
+
+#### Enterprise flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmalert_enterprise_flags.md" %}}
 
 ### Hot config reload
 

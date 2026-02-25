@@ -3,12 +3,14 @@ package logstorage
 import (
 	"fmt"
 	"sort"
-
-	"github.com/valyala/quicktemplate"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/valyala/quicktemplate"
+
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // Field is a single field for the log entry.
@@ -213,11 +215,18 @@ func (rs *rows) reset() {
 
 	rs.timestamps = rs.timestamps[:0]
 
+	clear(rs.rows)
+	rs.rows = rs.rows[:0]
+}
+
+func (rs *rows) hasNonEmptyRows() bool {
 	rows := rs.rows
-	for i := range rows {
-		rows[i] = nil
+	for _, fields := range rows {
+		if len(fields) > 0 {
+			return true
+		}
 	}
-	rs.rows = rows[:0]
+	return false
 }
 
 // appendRows appends rows with the given timestamps to rs.
@@ -266,8 +275,133 @@ func (rs *rows) mergeRows(timestampsA, timestampsB []int64, fieldsA, fieldsB [][
 	}
 }
 
+func (rs *rows) skipRowsByDropFilter(dropFilter *partitionSearchOptions, dropFilterFields *prefixfilter.Filter, offset int, stream, streamID string) {
+	tmpFields := GetFields()
+	defer PutFields(tmpFields)
+
+	tmpFields.Fields = addFieldIfNeeded(tmpFields.Fields, dropFilterFields, "_stream", stream)
+	tmpFields.Fields = addFieldIfNeeded(tmpFields.Fields, dropFilterFields, "_stream_id", streamID)
+	tmpFieldsBaseLen := len(tmpFields.Fields)
+
+	dstTimestamps := rs.timestamps[:offset]
+	dstRows := rs.rows[:offset]
+
+	srcTimestamps := rs.timestamps[offset:]
+	srcRows := rs.rows[offset:]
+
+	bb := bbPool.Get()
+	for i := range srcTimestamps {
+		srcTimestamp := srcTimestamps[i]
+		srcFields := srcRows[i]
+
+		if srcTimestamp < dropFilter.minTimestamp || srcTimestamp > dropFilter.maxTimestamp {
+			// Fast path - keep row outsize the dropFilter time range
+			dstTimestamps = append(dstTimestamps, srcTimestamp)
+			dstRows = append(dstRows, srcFields)
+			continue
+		}
+
+		if dropFilterFields.MatchString("_time") {
+			bb.B = marshalTimestampISO8601String(bb.B[:0], srcTimestamp)
+			tmpFields.Add("_time", bytesutil.ToUnsafeString(bb.B))
+		}
+
+		for _, f := range srcFields {
+			tmpFields.Fields = addFieldIfNeeded(tmpFields.Fields, dropFilterFields, f.Name, f.Value)
+		}
+
+		if !dropFilter.filter.matchRow(tmpFields.Fields) {
+			dstTimestamps = append(dstTimestamps, srcTimestamp)
+			dstRows = append(dstRows, srcFields)
+		} else if i == 0 {
+			// The first row with the minimum timestamp is deleted.
+			// Replace it with an empty row with the original timestamp in order to keep valid the assumptions
+			// that blocks for the same log stream are sorted by their first (minimum) timestamps.
+			// Violating these assumptions leads to data loss during background merge
+			// when obtaining the next block to merge via blockStreamReadersHeap.Less.
+			//
+			// It is safe to use an empty row here, since it is treated as non-existing row
+			// during filtering because of VictoraLogs data model - https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
+			//
+			// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/825
+			dstTimestamps = append(dstTimestamps, srcTimestamp)
+			dstRows = append(dstRows, nil)
+		}
+
+		clear(tmpFields.Fields[tmpFieldsBaseLen:])
+		tmpFields.Fields = tmpFields.Fields[:tmpFieldsBaseLen]
+	}
+	bbPool.Put(bb)
+
+	rs.timestamps = dstTimestamps
+
+	clear(rs.rows[len(dstRows):])
+	rs.rows = dstRows
+}
+
+func addFieldIfNeeded(dst []Field, pf *prefixfilter.Filter, name, value string) []Field {
+	name = getCanonicalColumnName(name)
+	if pf.MatchString(name) {
+		dst = append(dst, Field{
+			Name:  name,
+			Value: value,
+		})
+	}
+	return dst
+}
+
 func sortFieldsByName(fields []Field) {
 	sort.Slice(fields, func(i, j int) bool {
 		return fields[i].Name < fields[j].Name
 	})
 }
+
+// Fields holds a slice of Field items
+type Fields struct {
+	// Fields is a slice fields
+	Fields []Field
+}
+
+// Reset resets f.
+func (f *Fields) Reset() {
+	clear(f.Fields)
+	f.Fields = f.Fields[:0]
+}
+
+// ClearUpToCapacity clears f.Fields up to its' capacity.
+//
+// This function is useful in order to make sure f.Fields do not reference underlying byte slices,
+// so they could be freed by Go GC.
+func (f *Fields) ClearUpToCapacity() {
+	clear(f.Fields[:cap(f.Fields)])
+	f.Fields = f.Fields[:0]
+}
+
+// Add adds (name, value) field to f.
+func (f *Fields) Add(name, value string) {
+	f.Fields = append(f.Fields, Field{
+		Name:  name,
+		Value: value,
+	})
+}
+
+// GetFields returns an empty Fields from the pool.
+//
+// Pass the returned Fields to PutFields() when it is no longer needed.
+func GetFields() *Fields {
+	v := fieldsPool.Get()
+	if v == nil {
+		return &Fields{}
+	}
+	return v.(*Fields)
+}
+
+// PutFields returns f to the pool.
+//
+// f cannot be used after returning to the pool. Use GetFields() for obtaining an empty Fields from the pool.
+func PutFields(f *Fields) {
+	f.Reset()
+	fieldsPool.Put(f)
+}
+
+var fieldsPool sync.Pool

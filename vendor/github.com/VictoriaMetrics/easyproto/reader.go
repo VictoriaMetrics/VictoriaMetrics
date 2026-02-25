@@ -4,12 +4,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"sync"
 	"unsafe"
 )
 
-// FieldContext represents a single protobuf-encoded field after NextField() call.
+// FieldContext represents a single protobuf-encoded field after NextField() or FieldByNum() call.
 type FieldContext struct {
-	// FieldNum is the number of protobuf field read after NextField() call.
+	// FieldNum is the number of protobuf field read after NextField() or FieldByNum() call.
 	FieldNum uint32
 
 	// wireType is the wire type for the given field
@@ -22,11 +23,35 @@ type FieldContext struct {
 	intValue uint64
 }
 
+// FieldByNum sets fc to the field with the given fieldNum at protobuf-encoded src.
+//
+// false is returned if src doesn't contain a field with the given fieldNum.
+//
+// It is unsafe modifying src while FieldContext is in use.
+//
+// See also NextField().
+func (fc *FieldContext) FieldByNum(src []byte, fieldNum uint32) (bool, error) {
+	for len(src) > 0 {
+		var err error
+		src, err = fc.NextField(src)
+		if err != nil {
+			return false, fmt.Errorf("cannot read the next field while searching for fieldNum=%d: %w", fieldNum, err)
+		}
+		if fc.FieldNum != fieldNum {
+			continue
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
 // NextField reads the next field from protobuf-encoded src.
 //
 // It returns the tail left after reading the next field from src.
 //
 // It is unsafe modifying src while FieldContext is in use.
+//
+// See also FieldByNum().
 func (fc *FieldContext) NextField(src []byte) ([]byte, error) {
 	if len(src) >= 2 {
 		n := uint16(src[0])<<8 | uint16(src[1])
@@ -35,7 +60,7 @@ func (fc *FieldContext) NextField(src []byte) ([]byte, error) {
 			msgLen := int(n & 0xff)
 			src = src[2:]
 			if len(src) < msgLen {
-				return src, fmt.Errorf("cannot read field for from %d bytes; need at least %d bytes", len(src), msgLen)
+				return src, fmt.Errorf("cannot read field from %d bytes; need at least %d bytes", len(src), msgLen)
 			}
 			fc.FieldNum = uint32(n >> (8 + 3))
 			fc.wireType = wireTypeLen
@@ -155,6 +180,21 @@ const (
 	wireTypeI32 = wireType(5)
 )
 
+func (wt wireType) String() string {
+	switch wt {
+	case wireTypeVarint:
+		return "varint"
+	case wireTypeI64:
+		return "i64"
+	case wireTypeLen:
+		return "len"
+	case wireTypeI32:
+		return "i32"
+	default:
+		return fmt.Sprintf("unknown (%d)", int(wt))
+	}
+}
+
 // Int32 returns int32 value for fc.
 //
 // False is returned if fc doesn't contain int32 value.
@@ -229,6 +269,16 @@ func (fc *FieldContext) Bool() (bool, bool) {
 		return false, false
 	}
 	return getBool(fc.intValue)
+}
+
+// Enum returns enum value for fc.
+//
+// False is returned if fc doesn't contain enum value.
+func (fc *FieldContext) Enum() (int32, bool) {
+	if fc.wireType != wireTypeVarint {
+		return 0, false
+	}
+	return getInt32(fc.intValue)
 }
 
 // Fixed64 returns fixed64 value for fc.
@@ -331,6 +381,11 @@ func (fc *FieldContext) Float() (float32, bool) {
 	return v, true
 }
 
+// UnpackInt32s unpacks int32 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackInt32s(src []byte, fieldNum uint32, dst []int32) ([]int32, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackInt32s)
+}
+
 // UnpackInt32s unpacks int32 values from fc, appends them to dst and returns the result.
 //
 // False is returned if fc doesn't contain int32 values.
@@ -363,6 +418,11 @@ func (fc *FieldContext) UnpackInt32s(dst []int32) ([]int32, bool) {
 	return dst, true
 }
 
+// UnpackInt64s unpacks int64 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackInt64s(src []byte, fieldNum uint32, dst []int64) ([]int64, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackInt64s)
+}
+
 // UnpackInt64s unpacks int64 values from fc, appends them to dst and returns the result.
 //
 // False is returned if fc doesn't contain int64 values.
@@ -385,6 +445,11 @@ func (fc *FieldContext) UnpackInt64s(dst []int64) ([]int64, bool) {
 		dst = append(dst, int64(u64))
 	}
 	return dst, true
+}
+
+// UnpackUint32s unpacks uint32 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackUint32s(src []byte, fieldNum uint32, dst []uint32) ([]uint32, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackUint32s)
 }
 
 // UnpackUint32s unpacks uint32 values from fc, appends them to dst and returns the result.
@@ -419,6 +484,11 @@ func (fc *FieldContext) UnpackUint32s(dst []uint32) ([]uint32, bool) {
 	return dst, true
 }
 
+// UnpackUint64s unpacks uint64 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackUint64s(src []byte, fieldNum uint32, dst []uint64) ([]uint64, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackUint64s)
+}
+
 // UnpackUint64s unpacks uint64 values from fc, appends them to dst and returns the result.
 //
 // False is returned if fc doesn't contain uint64 values.
@@ -441,6 +511,11 @@ func (fc *FieldContext) UnpackUint64s(dst []uint64) ([]uint64, bool) {
 		dst = append(dst, u64)
 	}
 	return dst, true
+}
+
+// UnpackSint32s unpacks sint32 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackSint32s(src []byte, fieldNum uint32, dst []int32) ([]int32, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackSint32s)
 }
 
 // UnpackSint32s unpacks sint32 values from fc, appends them to dst and returns the result.
@@ -477,6 +552,11 @@ func (fc *FieldContext) UnpackSint32s(dst []int32) ([]int32, bool) {
 	return dst, true
 }
 
+// UnpackSint64s unpacks sint64 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackSint64s(src []byte, fieldNum uint32, dst []int64) ([]int64, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackSint64s)
+}
+
 // UnpackSint64s unpacks sint64 values from fc, appends them to dst and returns the result.
 //
 // False is returned if fc doesn't contain sint64 values.
@@ -501,6 +581,11 @@ func (fc *FieldContext) UnpackSint64s(dst []int64) ([]int64, bool) {
 		dst = append(dst, i64)
 	}
 	return dst, true
+}
+
+// UnpackBools unpacks bool values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackBools(src []byte, fieldNum uint32, dst []bool) ([]bool, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackBools)
 }
 
 // UnpackBools unpacks bool values from fc, appends them to dst and returns the result.
@@ -535,6 +620,11 @@ func (fc *FieldContext) UnpackBools(dst []bool) ([]bool, bool) {
 	return dst, true
 }
 
+// UnpackFixed64s unpacks fixed64 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackFixed64s(src []byte, fieldNum uint32, dst []uint64) ([]uint64, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackFixed64s)
+}
+
 // UnpackFixed64s unpacks fixed64 values from fc, appends them to dst and returns the result.
 //
 // False is returned if fc doesn't contain fixed64 values.
@@ -560,6 +650,11 @@ func (fc *FieldContext) UnpackFixed64s(dst []uint64) ([]uint64, bool) {
 	return dst, true
 }
 
+// UnpackSfixed64s unpacks sfixed64 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackSfixed64s(src []byte, fieldNum uint32, dst []int64) ([]int64, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackSfixed64s)
+}
+
 // UnpackSfixed64s unpacks sfixed64 values from fc, appends them to dst and returns the result.
 //
 // False is returned if fc doesn't contain sfixed64 values.
@@ -583,6 +678,11 @@ func (fc *FieldContext) UnpackSfixed64s(dst []int64) ([]int64, bool) {
 		dst = append(dst, int64(u64))
 	}
 	return dst, true
+}
+
+// UnpackDoubles unpacks double values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackDoubles(src []byte, fieldNum uint32, dst []float64) ([]float64, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackDoubles)
 }
 
 // UnpackDoubles unpacks double values from fc, appends them to dst and returns the result.
@@ -611,6 +711,11 @@ func (fc *FieldContext) UnpackDoubles(dst []float64) ([]float64, bool) {
 	return dst, true
 }
 
+// UnpackFixed32s unpacks fixed32 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackFixed32s(src []byte, fieldNum uint32, dst []uint32) ([]uint32, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackFixed32s)
+}
+
 // UnpackFixed32s unpacks fixed32 values from fc, appends them to dst and returns the result.
 //
 // False is returned if fc doesn't contain fixed32 values.
@@ -634,6 +739,11 @@ func (fc *FieldContext) UnpackFixed32s(dst []uint32) ([]uint32, bool) {
 		dst = append(dst, u32)
 	}
 	return dst, true
+}
+
+// UnpackSfixed32s unpacks sfixed32 values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackSfixed32s(src []byte, fieldNum uint32, dst []int32) ([]int32, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackSfixed32s)
 }
 
 // UnpackSfixed32s unpacks sfixed32 values from fc, appends them to dst and returns the result.
@@ -661,6 +771,11 @@ func (fc *FieldContext) UnpackSfixed32s(dst []int32) ([]int32, bool) {
 	return dst, true
 }
 
+// UnpackFloats unpacks float values from protobuf-encoded fields at src with the given fieldNum, appends them to dst and returns the result.
+func UnpackFloats(src []byte, fieldNum uint32, dst []float32) ([]float32, error) {
+	return unpackArray(src, fieldNum, dst, (*FieldContext).UnpackFloats)
+}
+
 // UnpackFloats unpacks float values from fc, appends them to dst and returns the result.
 //
 // False is returned if fc doesn't contain float values.
@@ -686,6 +801,385 @@ func (fc *FieldContext) UnpackFloats(dst []float32) ([]float32, bool) {
 		dst = append(dst, v)
 	}
 	return dst, true
+}
+
+func (fc *FieldContext) getField(src []byte, fieldNum uint32, neededWireType wireType) (bool, error) {
+	ok, err := fc.FieldByNum(src, fieldNum)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, nil
+	}
+	if fc.wireType != neededWireType {
+		return false, fmt.Errorf("fieldNum=%d contains unexpected wireType; got %s; want %s", fieldNum, fc.wireType, neededWireType)
+	}
+	return true, nil
+}
+
+func unpackArray[T any](src []byte, fieldNum uint32, dst []T, unpackFunc func(fc *FieldContext, dst []T) ([]T, bool)) ([]T, error) {
+	v := fieldContextPool.Get()
+	if v == nil {
+		v = &FieldContext{}
+	}
+	defer fieldContextPool.Put(v)
+
+	fc := v.(*FieldContext)
+	for len(src) > 0 {
+		var err error
+		src, err = fc.NextField(src)
+		if err != nil {
+			return dst, fmt.Errorf("cannot read the next field while searching for fieldNum=%d: %w", fieldNum, err)
+		}
+		if fc.FieldNum != fieldNum {
+			continue
+		}
+
+		var ok bool
+		dst, ok = unpackFunc(fc, dst)
+		if !ok {
+			return dst, fmt.Errorf("cannot unpack bools from field with fieldNum=%d", fieldNum)
+		}
+	}
+	return dst, nil
+}
+
+var fieldContextPool sync.Pool
+
+// GetInt32 returns the int32 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetInt32(src []byte, fieldNum uint32) (n int32, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeVarint)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	n, ok = getInt32(fc.intValue)
+	if !ok {
+		return 0, false, fmt.Errorf("fieldNum=%d contains too big integer %d, which cannot be converted to int32", fieldNum, fc.intValue)
+	}
+	return n, true, nil
+}
+
+// GetInt64 returns the int64 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetInt64(src []byte, fieldNum uint32) (n int64, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeVarint)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	return int64(fc.intValue), true, nil
+}
+
+// GetUint32 returns the uint32 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetUint32(src []byte, fieldNum uint32) (n uint32, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeVarint)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	n, ok = getUint32(fc.intValue)
+	if !ok {
+		return 0, false, fmt.Errorf("fieldNum=%d contains too big integer %d, which cannot be converted to uint32", fieldNum, fc.intValue)
+	}
+	return n, true, nil
+}
+
+// GetUint64 returns the int64 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetUint64(src []byte, fieldNum uint32) (n uint64, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeVarint)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	return fc.intValue, true, nil
+}
+
+// GetSint32 returns sint32 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetSint32(src []byte, fieldNum uint32) (n int32, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeVarint)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	u32, ok := getUint32(fc.intValue)
+	if !ok {
+		return 0, false, fmt.Errorf("fieldNum=%d contains too big integer %d, which cannot be converted to uint32", fieldNum, fc.intValue)
+	}
+	n = decodeZigZagInt32(u32)
+	return n, true, nil
+}
+
+// GetSint64 returns sint64 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetSint64(src []byte, fieldNum uint32) (n int64, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeVarint)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	n = decodeZigZagInt64(fc.intValue)
+	return n, true, nil
+}
+
+// GetBool returns bool value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetBool(src []byte, fieldNum uint32) (b bool, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeVarint)
+	if err != nil {
+		return false, false, err
+	}
+	if !ok {
+		return false, false, nil
+	}
+	b, ok = getBool(fc.intValue)
+	if !ok {
+		return false, false, fmt.Errorf("fieldNum=%d contains invalid integer %d, which cannot be converted to bool", fieldNum, fc.intValue)
+	}
+	return b, true, nil
+}
+
+// GetEnum returns enum value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetEnum(src []byte, fieldNum uint32) (n int32, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeVarint)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	n, ok = getInt32(fc.intValue)
+	if !ok {
+		return 0, false, fmt.Errorf("fieldNum=%d contains invalid integer %d, which cannot be converted to enum", fieldNum, fc.intValue)
+	}
+	return n, true, nil
+}
+
+// GetFixed64 returns fixed64 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetFixed64(src []byte, fieldNum uint32) (n uint64, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeI64)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	return fc.intValue, true, nil
+}
+
+// GetSfixed64 returns sfixed64 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetSfixed64(src []byte, fieldNum uint32) (n int64, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeI64)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	return int64(fc.intValue), true, nil
+}
+
+// GetDouble returns double value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetDouble(src []byte, fieldNum uint32) (f float64, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeI64)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	f = math.Float64frombits(fc.intValue)
+	return f, true, nil
+}
+
+// GetString returns string value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+// The returned string is valid until src is changed.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetString(src []byte, fieldNum uint32) (s string, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeLen)
+	if err != nil {
+		return "", false, err
+	}
+	if !ok {
+		return "", false, nil
+	}
+	return unsafeBytesToString(fc.data), true, nil
+}
+
+// GetBytes returns bytes slice for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+// The returned bytes slice is valid until src is changed.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetBytes(src []byte, fieldNum uint32) (b []byte, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeLen)
+	if err != nil {
+		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
+	}
+	return fc.data, true, nil
+}
+
+// GetMessageData returns message data for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+// The returned message data is valid until src is changed.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetMessageData(src []byte, fieldNum uint32) (data []byte, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeLen)
+	if err != nil {
+		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
+	}
+	return fc.data, true, nil
+}
+
+// GetFixed32 returns fixed32 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetFixed32(src []byte, fieldNum uint32) (n uint32, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeI32)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	n = mustGetUint32(fc.intValue)
+	return n, true, nil
+}
+
+// GetSfixed32 returns sfixed32 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetSfixed32(src []byte, fieldNum uint32) (n int32, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeI32)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	n = mustGetInt32(fc.intValue)
+	return n, true, nil
+}
+
+// GetFloat returns float32 value for the given fieldNum from protobuf-encoded message at src.
+//
+// ok=false is returned if src doesn't contain the given fieldNum.
+//
+// This function is useful when only a single message with the given fieldNum must be obtained from protobuf-encoded src.
+// Otherwise use FieldContext for obtaining multiple message from protobuf-encoded src.
+func GetFloat(src []byte, fieldNum uint32) (f float32, ok bool, err error) {
+	var fc FieldContext
+	ok, err = fc.getField(src, fieldNum, wireTypeI32)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		return 0, false, nil
+	}
+	u32 := mustGetUint32(fc.intValue)
+	f = math.Float32frombits(u32)
+	return f, true, nil
 }
 
 func decodeZigZagInt64(u64 uint64) int64 {

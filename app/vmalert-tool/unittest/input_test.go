@@ -41,7 +41,7 @@ func TestParseInputValue_Success(t *testing.T) {
 		if len(outputExpected) != len(output) {
 			t.Fatalf("unexpected output length; got %d; want %d", len(outputExpected), len(output))
 		}
-		for i := 0; i < len(outputExpected); i++ {
+		for i := range outputExpected {
 			if outputExpected[i].Omitted != output[i].Omitted {
 				t.Fatalf("unexpected Omitted field in the output\ngot\n%v\nwant\n%v", output, outputExpected)
 			}

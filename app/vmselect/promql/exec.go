@@ -37,7 +37,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	if querystats.Enabled() {
 		startTime := time.Now()
 		defer func() {
-			querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
+			querystats.RegisterQuery(q, ec.End-ec.Start, startTime, ec.QueryStats.memoryUsage())
 			ec.QueryStats.addExecutionTimeMsec(startTime)
 		}()
 	}
@@ -313,7 +313,7 @@ func escapeDots(s string) string {
 		return s
 	}
 	result := make([]byte, 0, len(s)+2*dotsCount)
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == '.' && (i == 0 || s[i-1] != '\\') && (i+1 == len(s) || i+1 < len(s) && s[i+1] != '*' && s[i+1] != '+' && s[i+1] != '{') {
 			// Escape a dot if the following conditions are met:
 			// - if it isn't escaped already, i.e. if there is no `\` char before the dot.

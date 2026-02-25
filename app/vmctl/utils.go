@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -15,7 +16,7 @@ const barTpl = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "â–ˆ" (cycle . "â
 // isSilent should be inited in main
 var isSilent bool
 
-func prompt(question string) bool {
+func prompt(ctx context.Context, question string) bool {
 	if isSilent {
 		return true
 	}
@@ -25,15 +26,32 @@ func prompt(question string) bool {
 	}
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(question, " [Y/n] ")
-	answer, err := reader.ReadString('\n')
-	if err != nil {
+
+	answerCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+
+	go func() {
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			errCh <- err
+			return
+		}
+		answerCh <- answer
+	}()
+
+	select {
+	case <-ctx.Done():
+		fmt.Println("\nCanceled.")
+		return false
+	case err := <-errCh:
 		panic(err)
+	case answer := <-answerCh:
+		answer = strings.TrimSpace(strings.ToLower(answer))
+		if answer == "" || answer == "yes" || answer == "y" {
+			return true
+		}
+		return false
 	}
-	answer = strings.TrimSpace(strings.ToLower(answer))
-	if answer == "" || answer == "yes" || answer == "y" {
-		return true
-	}
-	return false
 }
 
 func wrapErr(vmErr *vm.ImportError, verbose bool) error {

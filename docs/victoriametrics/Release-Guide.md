@@ -113,7 +113,7 @@ and the candidate is deployed to the sandbox environment.
 
 1. Make sure that the release branches have no security issues.
 1. Update release versions if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md).
-1. Run `PKG_TAG=v1.xx.y make docs-update-version` command to update version help tooltips.
+1. Run `PKG_TAG=v1.xx.y make docs-update-version` command to update version help tooltips. 
 1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md) and commit it. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
 1. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
@@ -151,7 +151,7 @@ and the candidate is deployed to the sandbox environment.
       * To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
         and all the needed assets are re-uploaded to it.
 
-1. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
+1. Run `TAG=v1.xx.y make github-verify-release` to verify that draft release with the name `TAG` has been created
    and this release contains all the needed binaries and checksums.
 1. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/victoriametrics/changelog/CHANGELOG.md) for this release. **Use "Save Draft" button, do not publish the release yet!**.
 1. Follow the instructions in [LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/enterprise-single-node/Release-Guide.md#lts-release).
@@ -198,6 +198,7 @@ Issues included in the release are closed, with the comment.
    ```
 
 1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
+1. Run `TAG=v1.xx.y make docs-update-flags` command to update command-line flags in the documentation. [Commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/4d42b291e55ac9211130efbd5a56aa819998516d).
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/enterprise-single-node/Release-Guide.md).
 
 #### Operator

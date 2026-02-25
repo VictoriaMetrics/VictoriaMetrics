@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1004,14 +1005,7 @@ func removeEmptyValuesAndTimeseries(tss []netstorage.Result) []netstorage.Result
 	dst := tss[:0]
 	for i := range tss {
 		ts := &tss[i]
-		hasNaNs := false
-		for _, v := range ts.Values {
-			if math.IsNaN(v) {
-				hasNaNs = true
-				break
-			}
-		}
-		if !hasNaNs {
+		if !slices.ContainsFunc(ts.Values, math.IsNaN) {
 			// Fast path: nothing to remove.
 			if len(ts.Values) > 0 {
 				dst = append(dst, *ts)

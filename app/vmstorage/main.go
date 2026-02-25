@@ -29,7 +29,8 @@ import (
 )
 
 var (
-	retentionPeriod   = flagutil.NewRetentionDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter")
+	retentionPeriod = flagutil.NewRetentionDuration("retentionPeriod", "1M", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. "+
+		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#retention. See also -retentionFilter")
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages. It overrides -httpAuth.*")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages. It overrides -httpAuth.*")
@@ -61,7 +62,7 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cardinality-limiter . "+
 		"See also -storage.maxHourlySeries")
 
-	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
+	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 100e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 
 	cacheSizeStorageTSID = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. "+
 		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#cache-tuning")
@@ -118,7 +119,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	}
 
 	resetResponseCacheIfNeeded = resetCacheIfNeeded
-	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
+	storage.LegacySetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
 	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
@@ -388,11 +389,23 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotPath := Storage.MustCreateSnapshot()
+		snapshotName := Storage.MustCreateSnapshot()
+
+		// Verify whether the client already closed the connection.
+		// In this case it is better to drop the created snapshot, since the client isn't interested in it.
+		if err := r.Context().Err(); err != nil {
+			logger.Infof("deleting already created snapshot at %s because the client canceled the request", snapshotName)
+			if err := deleteSnapshot(snapshotName); err != nil {
+				logger.Infof("cannot delete just created snapshot: %s", err)
+				return true
+			}
+			return true
+		}
+
 		if prometheusCompatibleResponse {
-			fmt.Fprintf(w, `{"status":"success","data":{"name":%s}}`, stringsutil.JSONString(snapshotPath))
+			fmt.Fprintf(w, `{"status":"success","data":{"name":%s}}`, stringsutil.JSONString(snapshotName))
 		} else {
-			fmt.Fprintf(w, `{"status":"ok","snapshot":%s}`, stringsutil.JSONString(snapshotPath))
+			fmt.Fprintf(w, `{"status":"ok","snapshot":%s}`, stringsutil.JSONString(snapshotName))
 		}
 		return true
 	case "/list":
@@ -412,23 +425,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		snapshotsDeleteTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-
-		snapshots := Storage.MustListSnapshots()
-		for _, snName := range snapshots {
-			if snName == snapshotName {
-				if err := Storage.DeleteSnapshot(snName); err != nil {
-					err = fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
-					jsonResponseError(w, err)
-					snapshotsDeleteErrorsTotal.Inc()
-					return true
-				}
-				fmt.Fprintf(w, `{"status":"ok"}`)
-				return true
-			}
+		if err := deleteSnapshot(snapshotName); err != nil {
+			jsonResponseError(w, err)
+			snapshotsDeleteErrorsTotal.Inc()
+			return true
 		}
-
-		err := fmt.Errorf("cannot find snapshot %q", snapshotName)
-		jsonResponseError(w, err)
+		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
@@ -449,15 +451,26 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+func deleteSnapshot(snapshotName string) error {
+	snapshots := Storage.MustListSnapshots()
+	for _, snName := range snapshots {
+		if snName == snapshotName {
+			if err := Storage.DeleteSnapshot(snName); err != nil {
+				return fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("cannot find snapshot %q", snapshotName)
+}
+
 func initStaleSnapshotsRemover(strg *storage.Storage) {
 	staleSnapshotsRemoverCh = make(chan struct{})
 	if snapshotsMaxAge.Duration() <= 0 {
 		return
 	}
 	snapshotsMaxAgeDur := snapshotsMaxAge.Duration()
-	staleSnapshotsRemoverWG.Add(1)
-	go func() {
-		defer staleSnapshotsRemoverWG.Done()
+	staleSnapshotsRemoverWG.Go(func() {
 		d := timeutil.AddJitterToDuration(time.Second * 11)
 		t := time.NewTicker(d)
 		defer t.Stop()
@@ -469,7 +482,7 @@ func initStaleSnapshotsRemover(strg *storage.Storage) {
 			}
 			strg.MustDeleteStaleSnapshots(snapshotsMaxAgeDur)
 		}
-	}()
+	})
 }
 
 func stopStaleSnapshotsRemover() {
@@ -500,7 +513,7 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	var m storage.Metrics
 	strg.UpdateMetrics(&m)
 	tm := &m.TableMetrics
-	idbm := &m.IndexDBMetrics
+	idbm := &m.TableMetrics.IndexDBMetrics
 
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *DataPath), fs.MustGetFreeSpace(*DataPath))
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *DataPath), uint64(minFreeDiskSpaceBytes.N))
@@ -628,76 +641,86 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 
 	metrics.WriteCounterUint64(w, `vm_missing_metric_names_for_metric_id_total`, idbm.MissingMetricNamesForMetricID)
 
-	metrics.WriteCounterUint64(w, `vm_date_metric_id_cache_syncs_total`, idbm.DateMetricIDCacheSyncsCount)
-	metrics.WriteCounterUint64(w, `vm_date_metric_id_cache_resets_total`, idbm.DateMetricIDCacheResetsCount)
-
+	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/tsid"}`, m.TSIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/metricIDs"}`, m.MetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/metricName"}`, m.MetricNameCacheSize)
-	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/date_metricID"}`, idbm.DateMetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/hour_metric_ids"}`, m.HourMetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/next_day_metric_ids"}`, m.NextDayMetricIDCacheSize)
-	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSize)
+	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/regexps"}`, uint64(storage.RegexpCacheSize()))
+	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/regexpPrefixes"}`, uint64(storage.RegexpPrefixesCacheSize()))
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheSize)
+	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/metricID"}`, idbm.MetricIDCacheSize)
+	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/date_metricID"}`, idbm.DateMetricIDCacheSize)
 	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheSize)
-	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/regexps"}`, uint64(storage.RegexpCacheSize()))
-	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="storage/regexpPrefixes"}`, uint64(storage.RegexpPrefixesCacheSize()))
+	metrics.WriteGaugeUint64(w, `vm_cache_entries{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheSize)
 
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/tsid"}`, m.TSIDCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/metricIDs"}`, m.MetricIDCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/metricName"}`, m.MetricNameCacheSizeBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/hour_metric_ids"}`, m.HourMetricIDCacheSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/next_day_metric_ids"}`, m.NextDayMetricIDCacheSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/regexps"}`, storage.RegexpCacheSizeBytes())
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheSizeBytes())
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/metricID"}`, idbm.MetricIDCacheSizeBytes)
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/date_metricID"}`, idbm.DateMetricIDCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheSizeBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/date_metricID"}`, idbm.DateMetricIDCacheSizeBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/hour_metric_ids"}`, m.HourMetricIDCacheSizeBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/next_day_metric_ids"}`, m.NextDayMetricIDCacheSizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheSizeBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/regexps"}`, storage.RegexpCacheSizeBytes())
-	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheSizeBytes())
+	metrics.WriteGaugeUint64(w, `vm_cache_size_bytes{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheSizeBytes)
 
+	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/tsid"}`, m.TSIDCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/metricIDs"}`, m.MetricIDCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/metricName"}`, m.MetricNameCacheSizeMaxBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/indexBlocks"}`, tm.IndexBlocksCacheSizeMaxBytes)
+	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/regexps"}`, storage.RegexpCacheMaxSizeBytes())
+	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMaxSizeBytes())
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheSizeMaxBytes)
 	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheSizeMaxBytes)
-	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/regexps"}`, storage.RegexpCacheMaxSizeBytes())
-	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMaxSizeBytes())
+	metrics.WriteGaugeUint64(w, `vm_cache_size_max_bytes{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheSizeMaxBytes)
 
+	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/indexBlocks"}`, tm.IndexBlocksCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/tsid"}`, m.TSIDCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/metricIDs"}`, m.MetricIDCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/metricName"}`, m.MetricNameCacheRequests)
-	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/indexBlocks"}`, tm.IndexBlocksCacheRequests)
+	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/regexps"}`, storage.RegexpCacheRequests())
+	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheRequests())
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheRequests)
 	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheRequests)
-	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/regexps"}`, storage.RegexpCacheRequests())
-	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheRequests())
+	metrics.WriteCounterUint64(w, `vm_cache_requests_total{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheRequests)
 
+	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/indexBlocks"}`, tm.IndexBlocksCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/tsid"}`, m.TSIDCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/metricIDs"}`, m.MetricIDCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/metricName"}`, m.MetricNameCacheMisses)
-	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/indexBlocks"}`, tm.IndexBlocksCacheMisses)
+	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexps"}`, storage.RegexpCacheMisses())
+	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMisses())
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/dataBlocks"}`, idbm.DataBlocksCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/dataBlocksSparse"}`, idbm.DataBlocksSparseCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/indexBlocks"}`, idbm.IndexBlocksCacheMisses)
 	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheMisses)
-	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexps"}`, storage.RegexpCacheMisses())
-	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="storage/regexpPrefixes"}`, storage.RegexpPrefixesCacheMisses())
+	metrics.WriteCounterUint64(w, `vm_cache_misses_total{type="indexdb/tagFiltersLoops"}`, idbm.LoopsPerDateTagFilterCacheMisses)
 
 	metrics.WriteCounterUint64(w, `vm_cache_resets_total{type="indexdb/tagFiltersToMetricIDs"}`, idbm.TagFiltersToMetricIDsCacheResets)
 
-	metrics.WriteCounterUint64(w, `vm_deleted_metrics_total{type="indexdb"}`, m.DeletedMetricsCount)
-
 	metrics.WriteCounterUint64(w, `vm_cache_collisions_total{type="storage/tsid"}`, m.TSIDCacheCollisions)
 	metrics.WriteCounterUint64(w, `vm_cache_collisions_total{type="storage/metricName"}`, m.MetricNameCacheCollisions)
+
+	metrics.WriteCounterUint64(w, `vm_cache_syncs_total{type="indexdb/metricID"}`, idbm.MetricIDCacheSyncsCount)
+	metrics.WriteCounterUint64(w, `vm_cache_syncs_total{type="indexdb/date_metricID"}`, idbm.DateMetricIDCacheSyncsCount)
+
+	metrics.WriteCounterUint64(w, `vm_cache_rotations_total{type="indexdb/metricID"}`, idbm.MetricIDCacheRotationsCount)
+	metrics.WriteCounterUint64(w, `vm_cache_rotations_total{type="indexdb/date_metricID"}`, idbm.DateMetricIDCacheRotationsCount)
+
+	metrics.WriteCounterUint64(w, `vm_deleted_metrics_total{type="indexdb"}`, m.DeletedMetricsCount)
 
 	metrics.WriteGaugeUint64(w, `vm_next_retention_seconds`, m.NextRetentionSeconds)
 

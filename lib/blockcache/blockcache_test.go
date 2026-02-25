@@ -83,7 +83,7 @@ func TestCache(t *testing.T) {
 	if n := c.Misses(); n != 2 {
 		t.Fatalf("unexpected number of misses; got %d; want %d", n, 2)
 	}
-	for i := 0; i < *missesBeforeCaching; i++ {
+	for i := range *missesBeforeCaching {
 		// Store the missed entry to the cache. It shouldn't be stored because of the previous cache miss
 		c.TryPutBlock(k, &b)
 		if n := c.SizeBytes(); n != 0 {
@@ -133,18 +133,16 @@ func TestCacheConcurrentAccess(_ *testing.T) {
 
 	workers := 5
 	var wg sync.WaitGroup
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func(worker int) {
-			defer wg.Done()
+	for worker := range workers {
+		wg.Go(func() {
 			testCacheSetGet(c, worker)
-		}(i)
+		})
 	}
 	wg.Wait()
 }
 
 func testCacheSetGet(c *Cache, worker int) {
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		part := (any)(i)
 		b := testBlock{}
 		k := Key{

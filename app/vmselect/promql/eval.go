@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -477,22 +478,18 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 		var tssFirst []*timeseries
 		var errFirst error
 		qtFirst := qt.NewChild("expr1")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
 			qtFirst.Done()
-		}()
+		})
 
 		var tssSecond []*timeseries
 		var errSecond error
 		qtSecond := qt.NewChild("expr2")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
 			qtSecond.Done()
-		}()
+		})
 
 		wg.Wait()
 		if errFirst != nil {
@@ -710,17 +707,13 @@ func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.
 	qt.Printf("eval function args in parallel")
 	var wg sync.WaitGroup
 	for i, e := range es {
-		wg.Add(1)
 		qtChild := qt.NewChild("eval arg %d", i)
-		go func(e metricsql.Expr, i int) {
-			defer func() {
-				qtChild.Done()
-				wg.Done()
-			}()
+		wg.Go(func() {
+			defer qtChild.Done()
 			rv, err := evalExpr(qtChild, ec, e)
 			rvs[i] = rv
 			errs[i] = err
-		}(e, i)
+		})
 	}
 	wg.Wait()
 	for _, err := range errs {
@@ -785,7 +778,8 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 // - rollupFunc(m) if iafc is nil
 // - aggrFunc(rollupFunc(m)) if iafc isn't nil
 func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr,
-	re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext,
+) ([]*timeseries, error) {
 	if re.At == nil {
 		return evalRollupFuncWithoutAt(qt, ec, funcName, rf, expr, re, iafc)
 	}
@@ -835,7 +829,8 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 }
 
 func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext,
+) ([]*timeseries, error) {
 	funcName = strings.ToLower(funcName)
 	ecNew := ec
 	var offset int64
@@ -1017,16 +1012,14 @@ func doParallel(tss []*timeseries, f func(ts *timeseries, values []float64, time
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func(workerID uint) {
-			defer wg.Done()
+	for workerID := range workers {
+		wg.Go(func() {
 			var tmpValues []float64
 			var tmpTimestamps []int64
 			for ts := range workChs[workerID] {
-				tmpValues, tmpTimestamps = f(ts, tmpValues, tmpTimestamps, workerID)
+				tmpValues, tmpTimestamps = f(ts, tmpValues, tmpTimestamps, uint(workerID))
 			}
-		}(uint(i))
+		})
 	}
 	wg.Wait()
 }
@@ -1058,7 +1051,8 @@ func removeNanValues(dstValues []float64, dstTimestamps []int64, values []float6
 
 // evalInstantRollup evaluates instant rollup where ec.Start == ec.End.
 func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window int64,
+) ([]*timeseries, error) {
 	if ec.Start != ec.End {
 		logger.Panicf("BUG: evalInstantRollup cannot be called on non-empty time range; got %s", ec.timeRangeString())
 	}
@@ -1083,10 +1077,12 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		rollupResultCacheV.DeleteInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	}
 	getCachedSeries := func(qt *querytracer.Tracer) ([]*timeseries, int64, error) {
+		rollupResultCacheV.rollupResultCacheRequests.Inc()
 	again:
 		offset := int64(0)
 		tssCached := rollupResultCacheV.GetInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
 		if len(tssCached) == 0 {
+			rollupResultCacheV.rollupResultCacheMisses.Inc()
 			// Cache miss. Re-populate the missing data.
 			start := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds()
 			offset = timestamp - start
@@ -1129,6 +1125,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			deleteCachedSeries(qt)
 			goto again
 		}
+		rollupResultCacheV.rollupResultCachePartialHits.Inc()
 		ec.QueryStats.addSeriesFetched(len(tssCached))
 		return tssCached, offset, nil
 	}
@@ -1166,60 +1163,6 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 				Name:            "count_over_time",
 				Args:            []metricsql.Expr{newArg},
 				KeepMetricNames: fe.KeepMetricNames,
-			},
-		}
-		return evalExpr(qt, ec, be)
-	case "rate":
-		if iafc != nil {
-			if !strings.EqualFold(iafc.ae.Name, "sum") {
-				qt.Printf("do not apply instant rollup optimization for incremental aggregate %s()", iafc.ae.Name)
-				return evalAt(qt, timestamp, window)
-			}
-			qt.Printf("optimized calculation for sum(rate(m[d])) as (sum(increase(m[d])) / d)")
-			afe := expr.(*metricsql.AggrFuncExpr)
-			fe := afe.Args[0].(*metricsql.FuncExpr)
-			feIncrease := *fe
-			feIncrease.Name = "increase"
-			// copy RollupExpr to drop possible offset,
-			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
-			newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
-			newArg.Offset = nil
-			feIncrease.Args = []metricsql.Expr{newArg}
-			d := newArg.Window.Duration(ec.Step)
-			if d == 0 {
-				d = ec.Step
-			}
-			afeIncrease := *afe
-			afeIncrease.Args = []metricsql.Expr{&feIncrease}
-			be := &metricsql.BinaryOpExpr{
-				Op:              "/",
-				KeepMetricNames: true,
-				Left:            &afeIncrease,
-				Right: &metricsql.NumberExpr{
-					N: float64(d) / 1000,
-				},
-			}
-			return evalExpr(qt, ec, be)
-		}
-		qt.Printf("optimized calculation for instant rollup rate(m[d]) as (increase(m[d]) / d)")
-		fe := expr.(*metricsql.FuncExpr)
-		feIncrease := *fe
-		feIncrease.Name = "increase"
-		// copy RollupExpr to drop possible offset,
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9762
-		newArg := copyRollupExpr(fe.Args[0].(*metricsql.RollupExpr))
-		newArg.Offset = nil
-		feIncrease.Args = []metricsql.Expr{newArg}
-		d := newArg.Window.Duration(ec.Step)
-		if d == 0 {
-			d = ec.Step
-		}
-		be := &metricsql.BinaryOpExpr{
-			Op:              "/",
-			KeepMetricNames: fe.KeepMetricNames,
-			Left:            &feIncrease,
-			Right: &metricsql.NumberExpr{
-				N: float64(d) / 1000,
 			},
 		}
 		return evalExpr(qt, ec, be)
@@ -1591,16 +1534,11 @@ func assertInstantValues(tss []*timeseries) {
 	}
 }
 
-var (
-	rollupResultCacheFullHits    = metrics.NewCounter(`vm_rollup_result_cache_full_hits_total`)
-	rollupResultCachePartialHits = metrics.NewCounter(`vm_rollup_result_cache_partial_hits_total`)
-	rollupResultCacheMiss        = metrics.NewCounter(`vm_rollup_result_cache_miss_total`)
-
-	memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
-)
+var memoryIntensiveQueries = metrics.NewCounter(`vm_memory_intensive_queries_total`)
 
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr,
+) ([]*timeseries, error) {
 	window, err := windowExpr.NonNegativeDuration(ec.Step)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", expr.AppendString(nil), err)
@@ -1636,19 +1574,20 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 
 	// Search for cached results.
+	rollupResultCacheV.rollupResultCacheRequests.Inc()
 	tssCached, start := rollupResultCacheV.GetSeries(qt, ec, expr, window)
 	ec.QueryStats.addSeriesFetched(len(tssCached))
 	if start > ec.End {
 		qt.Printf("the result is fully cached")
-		rollupResultCacheFullHits.Inc()
+		rollupResultCacheV.rollupResultCacheFullHits.Inc()
 		return tssCached, nil
 	}
 	if start > ec.Start {
 		qt.Printf("partial cache hit")
-		rollupResultCachePartialHits.Inc()
+		rollupResultCacheV.rollupResultCachePartialHits.Inc()
 	} else {
 		qt.Printf("cache miss")
-		rollupResultCacheMiss.Inc()
+		rollupResultCacheV.rollupResultCacheMisses.Inc()
 	}
 
 	// Fetch missing results, which aren't cached yet.
@@ -1684,7 +1623,8 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 //
 // pointsPerSeries is used only for estimating the needed memory for query processing
 func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, pointsPerSeries int64) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, window, pointsPerSeries int64,
+) ([]*timeseries, error) {
 	if qt.Enabled() {
 		qt = qt.NewChild("rollup %s: timeRange=%s, step=%d, window=%d", expr.AppendString(nil), ec.timeRangeString(), ec.Step, window)
 		defer qt.Done()
@@ -1774,6 +1714,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		return nil, err
 	}
 	defer rml.Put(uint64(rollupMemorySize))
+	qs.addMemoryUsage(rollupMemorySize)
 	qt.Printf("the rollup evaluation needs an estimated %d bytes of RAM for %d series and %d points per series (summary %d points)",
 		rollupMemorySize, timeseriesLen, pointsPerSeries, rollupPoints)
 
@@ -1807,7 +1748,8 @@ func maxSilenceInterval() int64 {
 
 func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool,
 	iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
-	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
+) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() with incremental aggregation %s() over %d series; rollupConfigs=%s", funcName, iafc.ae.Name, rss.Len(), rcs)
 	defer qt.Done()
 	var samplesScannedTotal atomic.Uint64
@@ -1846,7 +1788,8 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 }
 
 func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
-	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64,
+) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)
 	defer qt.Done()
 
@@ -1886,7 +1829,8 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 }
 
 func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConfig, tsDst *timeseries, mnSrc *storage.MetricName,
-	valuesSrc []float64, timestampsSrc []int64, sharedTimestamps []int64) uint64 {
+	valuesSrc []float64, timestampsSrc []int64, sharedTimestamps []int64,
+) uint64 {
 	tsDst.MetricName.CopyFrom(mnSrc)
 	if len(rc.TagValue) > 0 {
 		tsDst.MetricName.AddTag("rollup", rc.TagValue)
@@ -1992,14 +1936,7 @@ func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]flo
 		return values, timestamps
 	}
 	// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.
-	hasStaleSamples := false
-	for _, v := range values {
-		if decimal.IsStaleNaN(v) {
-			hasStaleSamples = true
-			break
-		}
-	}
-	if !hasStaleSamples {
+	if !slices.ContainsFunc(values, decimal.IsStaleNaN) {
 		// Fast path: values have no Prometheus staleness marks.
 		return values, timestamps
 	}

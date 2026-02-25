@@ -1,5 +1,5 @@
 ---
-weight: 4
+weight: 5
 title: Year 2023
 search:
   weight: 0.1
@@ -7,7 +7,7 @@ menu:
   docs:
     identifier: vm-changelog-2023
     parent: vm-changelog
-    weight: 4
+    weight: 5
 tags:
   - metrics
 aliases:

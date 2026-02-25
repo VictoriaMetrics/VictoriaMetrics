@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func hasMincore() bool {
+func supportsMincore() bool {
 	return false
 }
 

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"net/url"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
@@ -29,8 +31,8 @@ var (
 		"0 means no limit.")
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
 		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
-	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier.")
-	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maxiMum duration for automatic alert expiration, "+
+	resendDelay        = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier.")
+	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maximum duration for automatic alert expiration, "+
 		"which by default is 4 times evaluationInterval of the parent group")
 	evalDelay = flag.Duration("rule.evalDelay", 30*time.Second, "Adjustment of the 'time' parameter for rule evaluation requests to compensate intentional data delay from the datasource. "+
 		"Normally, should be equal to '-search.latencyOffset' (cmd-line flag configured for VictoriaMetrics single-node or vmselect). "+
@@ -96,9 +98,7 @@ type groupMetrics struct {
 // set2 has priority over set1.
 func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[string]string {
 	r := map[string]string{}
-	for k, v := range set1 {
-		r[k] = v
-	}
+	maps.Copy(r, set1)
 	for k, v := range set2 {
 		if prevV, ok := r[k]; ok {
 			logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
@@ -374,7 +374,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 
 	g.infof("started")
 
-	eval := func(ctx context.Context, ts time.Time) {
+	eval := func(ctx context.Context, ts time.Time) time.Time {
 		g.metrics.iterationTotal.Inc()
 
 		start := time.Now()
@@ -382,7 +382,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 		if len(g.Rules) < 1 {
 			g.metrics.iterationDuration.UpdateDuration(start)
 			g.LastEvaluation = start
-			return
+			return ts
 		}
 
 		resolveDuration := getResolveDuration(g.Interval, *resendDelay, *maxResolveDuration)
@@ -396,6 +396,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 		}
 		g.metrics.iterationDuration.UpdateDuration(start)
 		g.LastEvaluation = start
+		return ts
 	}
 
 	evalCtx, cancel := context.WithCancel(ctx)
@@ -404,7 +405,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	g.mu.Unlock()
 	defer g.evalCancel()
 
-	eval(evalCtx, evalTS)
+	realEvalTS := eval(evalCtx, evalTS)
 
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
@@ -412,7 +413,7 @@ func (g *Group) Start(ctx context.Context, rw remotewrite.RWClient, rr datasourc
 	// restore the rules state after the first evaluation
 	// so only active alerts can be restored.
 	if rr != nil {
-		err := g.restore(ctx, rr, evalTS, *remoteReadLookBack)
+		err := g.restore(ctx, rr, realEvalTS, *remoteReadLookBack)
 		if err != nil {
 			logger.Errorf("error while restoring ruleState for group %q: %s", g.Name, err)
 		}
@@ -493,11 +494,8 @@ func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Dura
 	}
 
 	// otherwise, return a random duration between [0..min(interval, maxDelay)] based on group ID
-	interval := g.Interval
-	if interval > maxDelay {
-		// artificially limit interval, so groups with big intervals could start sooner.
-		interval = maxDelay
-	}
+	// artificially limit interval, so groups with big intervals could start sooner.
+	interval := min(g.Interval, maxDelay)
 	var randSleep time.Duration
 	randSleep = time.Duration(float64(interval) * (float64(g.GetID()) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())
@@ -755,6 +753,7 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 		return fmt.Errorf("rule %q: failed to execute: %w", r, err)
 	}
 
+	var errG vmalertutil.ErrGroup
 	if e.Rw != nil {
 		pushToRW := func(tss []prompb.TimeSeries) error {
 			var lastErr error
@@ -766,20 +765,26 @@ func (e *executor) exec(ctx context.Context, r Rule, ts time.Time, resolveDurati
 			return lastErr
 		}
 		if err := pushToRW(tss); err != nil {
-			return err
+			errG.Add(err)
 		}
 	}
 
 	ar, ok := r.(*AlertingRule)
 	if !ok {
-		return nil
+		return errG.Err()
 	}
 
 	alerts := ar.alertsToSend(resolveDuration, *resendDelay)
 	if len(alerts) < 1 {
-		return nil
+		return errG.Err()
 	}
 
-	errGr := notifier.Send(ctx, alerts, e.notifierHeaders)
-	return errGr.Err()
+	notifierErr := notifier.Send(ctx, alerts, e.notifierHeaders)
+	for err := range notifierErr {
+		if err != nil {
+			errG.Add(fmt.Errorf("rule %q: notifier failure: %w", r, err))
+		}
+	}
+
+	return errG.Err()
 }

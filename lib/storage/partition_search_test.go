@@ -120,7 +120,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	// Generate tsids to search.
 	var tsids []TSID
 	var tsid TSID
-	for i := 0; i < 25; i++ {
+	for range 25 {
 		tsid.MetricID = uint64(rng.Intn(tsidsCount * 2))
 		tsids = append(tsids, tsid)
 	}
@@ -133,13 +133,13 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	var ptr TimeRange
 	ptr.fromPartitionTimestamp(ptt)
 	var rowss [][]rawRow
-	for i := 0; i < partsCount; i++ {
+	for range partsCount {
 		var rows []rawRow
 		var r rawRow
 		r.PrecisionBits = 30
 		timestamp := ptr.MinTimestamp
 		rowsCount := 1 + rng.Intn(maxRowsPerPart)
-		for j := 0; j < rowsCount; j++ {
+		for range rowsCount {
 			r.TSID.MetricID = uint64(rng.Intn(tsidsCount))
 			r.Timestamp = timestamp
 			r.Value = float64(int(rng.NormFloat64() * 1e5))
@@ -173,6 +173,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt := testCreatePartition(t, ptt, strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
+	indexDBPartsPath := pt.indexDBPartsPath
 	for _, rows := range rowss {
 		pt.AddRows(rows)
 
@@ -183,7 +184,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt.MustClose()
 
 	// Open the created partition and test search on it.
-	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
+	pt = mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
 	stopTestStorage(strg)
@@ -197,12 +198,12 @@ func testPartitionSearch(t *testing.T, pt *partition, tsids []TSID, tr TimeRange
 	}
 
 	ch := make(chan error, 5)
-	for i := 0; i < cap(ch); i++ {
+	for range cap(ch) {
 		go func() {
 			ch <- testPartitionSearchSerial(pt, tsids, tr, rbsExpected, rowsCountExpected)
 		}()
 	}
-	for i := 0; i < cap(ch); i++ {
+	for range cap(ch) {
 		select {
 		case err := <-ch:
 			if err != nil {

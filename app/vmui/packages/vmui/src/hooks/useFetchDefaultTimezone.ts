@@ -5,7 +5,6 @@ import { useTimeDispatch } from "../state/time/TimeStateContext";
 import { getFromStorage } from "../utils/storage";
 import dayjs from "dayjs";
 import { getBrowserTimezone } from "../utils/time";
-import { APP_TYPE_VM } from "../constants/appType";
 
 const disabledDefaultTimezone = Boolean(getFromStorage("DISABLED_DEFAULT_TIMEZONE"));
 
@@ -29,7 +28,7 @@ const useFetchDefaultTimezone = () => {
   };
 
   const fetchDefaultTimezone = async () => {
-    if (!serverUrl || !APP_TYPE_VM) return;
+    if (!serverUrl) return;
     setError("");
     setIsLoading(true);
 

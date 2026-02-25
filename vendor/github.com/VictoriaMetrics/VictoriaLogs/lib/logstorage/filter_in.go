@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 
@@ -24,6 +25,13 @@ func (fi *filterIn) String() string {
 
 func (fi *filterIn) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.AddAllowFilter(fi.fieldName)
+}
+
+func (fi *filterIn) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fi.fieldName)
+	stringValues := fi.values.getStringValues()
+	_, ok := stringValues[v]
+	return ok
 }
 
 func (fi *filterIn) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -209,12 +217,7 @@ func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, commonTokens
 		return true
 	}
 	bf := bs.getBloomFilterForColumn(ch)
-	for _, tokens := range tokenSets {
-		if bf.containsAll(tokens) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(tokenSets, bf.containsAll)
 }
 
 // It is faster to match every row in the block instead of checking too big number of tokenSets against bloom filter.

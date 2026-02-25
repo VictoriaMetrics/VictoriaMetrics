@@ -124,18 +124,14 @@ func (ctx *dedupFlushCtx) reset() {
 
 func (da *dedupAggr) flush(f aggrPushFunc, deleteDeadline int64, isGreen bool) {
 	var wg sync.WaitGroup
-	for i := range da.shards {
+	for shardIdx := range da.shards {
 		flushConcurrencyCh <- struct{}{}
-		wg.Add(1)
-		go func(shard *dedupAggrShard) {
-			defer func() {
-				<-flushConcurrencyCh
-				wg.Done()
-			}()
+		wg.Go(func() {
 			ctx := getDedupFlushCtx(deleteDeadline, isGreen)
-			shard.flush(ctx, f)
+			da.shards[shardIdx].flush(ctx, f)
 			putDedupFlushCtx(ctx)
-		}(&da.shards[i])
+			<-flushConcurrencyCh
+		})
 	}
 	wg.Wait()
 }
@@ -201,29 +197,28 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
 			state.sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
 			continue
 		}
-		if !isDuplicate(s, sample) {
-			s.value = sample.value
-			s.timestamp = sample.timestamp
-		}
+		s.timestamp, s.value = deduplicateSamples(s.timestamp, sample.timestamp, s.value, sample.value)
 	}
 	state.samplesBuf = samplesBuf
 }
 
-// isDuplicate returns true if b is duplicate of a
+// deduplicateSamples returns deduplicated timestamp and value results.
 // See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication
-func isDuplicate(a *dedupAggrSample, b pushSample) bool {
-	if b.timestamp > a.timestamp {
-		return false
+func deduplicateSamples(oldT, newT int64, oldV, newV float64) (int64, float64) {
+	if newT > oldT {
+		return newT, newV
 	}
-	if b.timestamp == a.timestamp {
-		if decimal.IsStaleNaN(b.value) {
-			return false
+	// if both samples have the same timestamp, choose the maximum value, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3333;
+	// always prefer a non-decimal.StaleNaN value, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10196
+	if newT == oldT {
+		if decimal.IsStaleNaN(oldV) {
+			return newT, newV
 		}
-		if b.value > a.value {
-			return false
+		if newV > oldV {
+			return newT, newV
 		}
 	}
-	return true
+	return oldT, oldV
 }
 
 func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {

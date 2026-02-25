@@ -1,4 +1,4 @@
-import { ArrayRGB, ForecastType } from "../types";
+import { ArrayRGB } from "../types";
 
 export const baseContrastColors = [
   "#e54040",
@@ -19,16 +19,6 @@ export const hexToRGB = (hex: string): string => {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `${r}, ${g}, ${b}`;
-};
-
-export const anomalyColors: Record<ForecastType, string> = {
-  [ForecastType.yhatUpper]: "#7126a1",
-  [ForecastType.yhatLower]: "#7126a1",
-  [ForecastType.yhat]: "#da42a6",
-  [ForecastType.anomaly]: "#da4242",
-  [ForecastType.anomalyScore]: "#7126a1",
-  [ForecastType.actual]: "#203ea9",
-  [ForecastType.training]: `rgba(${hexToRGB("#203ea9")}, 0.2)`,
 };
 
 export const getColorFromString = (text: string): string => {

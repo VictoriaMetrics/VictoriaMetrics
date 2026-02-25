@@ -48,9 +48,11 @@ Feel free to [contact us](mailto:info@victoriametrics.com) if you need customize
 * [TLS termination proxy](#tls-termination-proxy)
 * [Basic Auth proxy](#basic-auth-proxy)
 * [Bearer Token auth proxy](#bearer-token-auth-proxy)
+* [JWT Token auth proxy](#jwt-token-auth-proxy)
 * [Per-tenant authorization](#per-tenant-authorization)
 * [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
+* [OIDC authorization](#oidc-authorization)
 
 ### Simple HTTP proxy
 
@@ -247,6 +249,56 @@ users:
 
 See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
+### JWT Token auth proxy
+
+`vmauth` can authorize access to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header. 
+JWT tokens are verified using RSA or ECDSA public keys. The following auth config proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) if they contain a valid JWT token:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+JWT tokens must contain a `vm_access` claim with tenant information:
+```json
+{
+  "exp": 2770832322,
+  "vm_access": {
+    "tenant_id": {
+      "account_id": 0,
+      "project_id": 0
+    }
+  }
+}
+```
+
+The empty `vm_access` claim is also allowed and means access to Tenant `0:0` will be provided.
+```json
+{
+  "exp": 2770832322,
+  "vm_access": {}
+}
+```
+
+For testing, skip signature verification with `skip_verify: true` (not recommended for production).
+
+```yaml
+users:
+- jwt:
+    skip_verify: true
+  url_prefix: "http://victoria-metrics:8428"
+```
+
+JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
+
+See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
+
 ### Per-tenant authorization
 
 The following [`-auth.config`](#auth-config) instructs proxying `insert` and `select` requests from the [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication) user `tenant1` to the [tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) `1`, while requests from the user `tenant2` are sent to tenant `2`:
@@ -356,6 +408,7 @@ unauthorized_user:
 * [No authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#simple-http-proxy)
 * [Basic Auth](https://docs.victoriametrics.com/victoriametrics/vmauth/#basic-auth-proxy)
 * [Bearer token](https://docs.victoriametrics.com/victoriametrics/vmauth/#bearer-token-auth-proxy)
+* [JWT token](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy)
 * [Client TLS certificate verification aka mTLS](https://docs.victoriametrics.com/victoriametrics/vmauth/#mtls-based-request-routing)
 * [Auth tokens via Arbitrary HTTP request headers](https://docs.victoriametrics.com/victoriametrics/vmauth/#reading-auth-tokens-from-other-http-headers)
 
@@ -638,6 +691,7 @@ unauthorized_user:
 users:
   - username: "foo"
     password: "bar"
+    # dump request details on errors (can contain sensitive information)
     dump_request_on_errors: true
     url_map:
       - src_paths: ["/select/.*"]
@@ -646,7 +700,6 @@ users:
           - "ProjectID: 0"
         url_prefix:
           - "http://backend:9428/"
-
 ```
 
 `vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
@@ -704,7 +757,8 @@ unauthorized_user:
 * `-maxConcurrentRequests` limits the global number of concurrent requests `vmauth` can serve across all the configured users.
 * `-maxConcurrentPerUserRequests` limits the number of concurrent requests `vmauth` can serve per each configured user.
 
-It is also possible to set individual limits on the number of concurrent requests per each user with the `max_concurrent_requests` option. For example, the following [`-auth.config`](#auth-config) limits the number of concurrent requests from the user `foo` to 10:
+It is also possible to set individual limits on the number of concurrent requests per each user with the `max_concurrent_requests` option.
+For example, the following [`-auth.config`](#auth-config) limits the number of concurrent requests from the user `foo` to 10:
 
 ```yaml
 users:
@@ -714,9 +768,10 @@ users:
   max_concurrent_requests: 10
 ```
 
-`vmauth` responds with `429 Too Many Requests` HTTP error when the number of concurrent requests exceeds the configured limits.
+`vmauth` responds with `429 Too Many Requests` HTTP error when the number of concurrent requests exceeds the configured limits for the duration
+exceeding the `-maxQueueDuration` command-line flag value.
 
-The following [metrics](#monitoring) related to concurrency limits are exposed by `vmauth`:
+The following [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring) related to concurrency limits are exposed by `vmauth`:
 
 * `vmauth_concurrent_requests_capacity` - the global limit on the number of concurrent requests `vmauth` can serve.
   It is set via `-maxConcurrentRequests` command-line flag.
@@ -725,10 +780,33 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
   because of the global concurrency limit has been reached.
 * `vmauth_user_concurrent_requests_capacity{username="..."}` - the limit on the number of concurrent requests for the given `username`.
 * `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
-* `vmauth_user_concurrent_requests_limit_reached_total{username="..."}` - the number of requests rejected with `429 Too Many Requests` error because of the concurrency limit has been reached for the given `username`.
+* `vmauth_user_concurrent_requests_limit_reached_total{username="..."}` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for the given `username`.
 * `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
 * `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
-* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
+* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
+
+See also [request body buffering](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering).
+
+## Request body buffering
+
+`vmauth` can buffer request bodies {{% available_from "v1.135.0" %}} before proxying the requests to backends. This prevent slow-writing clients from occupying connections to backends.
+This is especially important when clients send requests over unreliable or low-bandwidth networks (for example, [IoT](https://en.wikipedia.org/wiki/Internet_of_things) devices over EDGE networks),
+where slow uploads can exhaust concurrency limits, increase latency, reduce ingestion rate, and trigger `429 Too Many Requests` responses even when backend resources are not saturated.
+
+Request body buffering can be configured with the `-requestBufferSize` command-line flag, which defines the maximum number of bytes to buffer from the request body
+before proxying the request to the backend. If buffering takes longer than the duration specified via `-maxQueueDuration` command-line flag, then the request is rejected.
+
+Request bodies are buffered before applying per-user [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting).
+
+The following [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring) related to request buffering are exposed by `vmauth`:
+
+* `vmauth_http_request_errors_total{reason="reject_slow_client"}` - the number of rejected requests because the request body couldn't be read during `-maxQueueDuration`.
+* `vmauth_buffer_request_body_duration_seconds` - the [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) for the request body buffering duration.
+  Use this metric to understand buffering performance and identify slow clients.
+
+See also [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limits).
 
 ## Backend TLS setup
 
@@ -775,6 +853,247 @@ By default, `vmauth` uses system settings when performing requests to HTTPS back
 
 The `-backend.tlsCAFile`, `-backend.tlsCertFile`, `-backend.tlsKeyFile`, `tls_ca_file`, `tls_cert_file` and `tls_key_file` may point either to local file or to `http` / `https` url.
 The file is checked for modifications every second and is automatically re-read when it is updated.
+
+## OIDC authorization
+
+[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmauth` can be configured for OIDC authorization.
+To start using OIDC realms and clients a required to be set. Realm defines a set of keys, which are either automatically discovered (`issuer_url` is set and `skip_discovery: false`)
+or specified manually (`public_key_files`, `public_keys` or `jwks_url` are set and `skip_discovery: true`) to validate signature of incoming JWT token against.
+
+```yaml
+oidc:
+  realms:
+    - name: org-1
+      issuer_url: http://example.com/admin/org-1
+    - name: org-2
+      skip_discovery: true
+      issuer_url: http://example.com/admin/org-2
+      jwks_url: http://custom.jwks.url/admin/jwks/endpoint
+    - name: org-3
+      skip_discovery: true
+      issuer_url: http://example.com/admin/org-3
+      public_keys:
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 1 pem>
+           -----END PUBLIC KEY-----
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 2 pem>
+           -----END PUBLIC KEY-----
+      public_key_files:
+        - /etc/public-key-1
+        - /etc/public-key-2
+```
+
+Client defines a `client_id` (`aud` claim which is required to be present in JWT token body) and `realm` (name of realm at `oidc.realms[*]`
+which `issuer_url` should match JWT `iss` claim) of user, who is allowed to access vmauth backend.
+
+```yaml
+oidc:
+  realms:
+    - name: realm-1
+      issuer_url: http://example.com/admin/org-1
+users:
+  - client:
+      client_id: client-1
+      realm: realm-1
+```
+
+If there's a need to override default claims for client ID and issuer, it's possible to do using `oidc.claims.client_id` and `oidc.claims.issuer` parameters:
+
+```yaml
+oidc:
+  claims:
+    client_id: client_id
+    issuer: custom_issuer_claim
+```
+ 
+If client's realm is not present at `oidc.realms` then it uses default realm if it's defined at `oidc.default_realm`:
+
+```yaml
+oidc:
+  realms:
+    - name: realm-1
+      issuer_url: http://example.com/admin/org-1
+  default_realm: {}
+users:
+  - client:
+      client_id: client-1
+      realm: no-realm
+```
+
+Both `oidc.realms` and `oidc.default_realm` allow to disable signature verification using `skip_discovery: true` and with `public_keys`, `public_keys` and `jwks_url` not set.
+
+```yaml
+oidc:
+  realms:
+    - name: realm-1
+      issuer_url: http://example.com/admin/org-1
+      skip_discovery: true
+  default_realm: {}
+users:
+  - client:
+      client_id: client-1
+      realm: realm-1
+```
+
+JWT token must be in one of the following formats:
+
+with `vm_access` claim as JSON object
+```json
+{
+  "aud": "test-client",
+  "iss": "http://example.com/admin/org-1",
+  "exp": 1617304574,
+  "vm_access": {
+      "tenant_id": {
+        "account_id": 1,
+        "project_id": 5
+      },
+      "query_args": {
+        "vm_extra_label": [
+           "team=dev",
+           "project=mobile"
+        ],
+        "vm_extra_filters": [
+          "{env=~\"prod|dev\",team!=\"test\"}"
+        ],
+      },
+  }
+}
+```
+
+or with `vm_access` claim as string
+
+```json
+{
+  "aud": "test-client",
+  "iss": "http://example.com/admin/org-1",
+  "exp": 1617304574,
+  "vm_access": "{\"tenant_id\":{\"account_id\":1,\"project_id\":5},\"query_args\": {\"vm_extra_label\":[\"team=dev\",\"project=mobile\"],\"vm_extra_filters\": [\"{env=~\\\"prod|dev\\\",team!=\\\"test\\\"}\"]}"
+}
+```
+
+Where:
+
+* `aud` - required, OIDC client ID, that is used for proper backend routing. `aud` claim name can be overridden using `oidc.claims.client_id` configuration property
+* `iss` - optional, OIDC issuer URL, which is used for matching incoming request agains `oidc.realms[*].issuer_url`, `oidc.default_realm` is used if this claim is omitted. Claim name can be overridden using `oidc.claims.issuer` configuration property
+* `exp` - required, expire time in unix_timestamp. If the token expires then `vmauth` rejects the request.
+* `vm_access` - required, dict with claim info, minimum form: `{"vm_access": {"tenant_id": {}}`
+* `tenant_id` - optional, routes requests to the corresponding tenant.
+* `query_args` - optional, key-value pairs, where key is a query argument name and value - slice of values for additional arguments that can be referenced in `url_prefix` and `default_url` query arg params.
+
+### Claim values templating
+
+VMAuth allows data retrieved from `query_args` and `tenant_id` to be used for templates in vmauth backend url configurations using expression `{{ variable }}`.
+Keys from `vm_access.query_args` are only available for `backend_url` and `default_url` query arguments templating and `accountID`, `projectID` and `tenantID`
+are only available for `backend_url` and `default_url` path templating:
+
+vmauth request to `/api/v1/write` JWT token with a given claim:
+
+```json
+{
+  "aud": "test-client",
+  "iss": "http://example.com/admin/org-1",
+  "exp": 1617304574,
+  "vm_access": {
+      "tenant_id": {
+        "account_id": 1,
+        "project_id": 5
+      },
+      "query_args": {
+        "vm_extra_label": [
+           "team=dev",
+           "project=mobile"
+        ],
+        "vm_extra_filters": [
+          "{env=~\"prod|dev\",team!=\"test\"}"
+        ],
+      },
+  }
+}
+```
+and given below vmauth config
+
+```yaml
+oidc:
+  realms:
+    - name: realm-1
+      issuer_url: http://example.com/admin/org-1
+      skip_discovery: true
+  default_realm: {}
+users:
+  - client:
+      client_id: test-client
+      realm: realm-1
+    url_map:
+      - src_paths:
+          - "/api/v1/write"
+        url_prefix: "http://backend:8480/insert/{{tenantID}}/prometheus/?extra_label={{vm_extra_label}}"
+      - src_paths:
+          - "/api/v1/query"
+          - "/api/v1/query_range"
+          - "/api/v1/series"
+          - "/api/v1/labels"
+          - "/api/v1/label/.+/values"
+        url_prefix: "http://vmselect-backend:8481/select/{{tenantID}}/prometheus/?extra_label={{vm_extra_label}}"
+```
+
+is proxied to `http://backend:8480/insert/1:5/prometheus/api/v1/write?extra_label=team=dev&extra_label=project=mobile`
+
+### Migration from vmgateway
+
+For users, who are still using vmgateway for OIDC authorization it's possible to migrate to vmauth, which provides a list of benefits:
+- [operator](https://docs.victoriametrics.com/operator/resources/vmauth/) support
+- ability to configure multiple independent realms
+- clientID-based routing
+- multiple backends support
+
+vmgateway uses command-line arguments which can be easily mapped to vmauth `oidc` configuration section:
+- `--auth.oidcDiscoveryEndpoints` -> `oidc.realms[*].issuer_url` or `oidc.default_realm.issuer_url`
+- `--auth.publicKeyFiles` -> `oidc.realms[*].public_key_files` or `oidc.default_realm.public_key_files`
+- `--auth.publicKeys` -> `oidc.realms[*].public_keys` or `oidc.default_realm.public_keys`
+- `--auth.jwksEndpoints` -> `oidc.realms[*].jwks_url` or `oidc.default_realm.jwks_url`
+- `--auth.httpHeaderAllowWithoutPrefix` -> `oidc.optional_auth_prefix`
+
+> only issuer URL part of `--auth.oidcDiscoveryEndpoints` value should be moved into `issuer_url` realm parameter (without `/.well-known/openid-configuration` suffix).
+
+given vmgateway command with arguments
+
+```sh
+./bin/vmgateway \
+    -licenseFile=./vm-license.key
+    -enable.auth=true \
+    -clusterMode=true \
+    -write.url=http://localhost:8480 \
+    -read.url=http://localhost:8481
+    -auth.oidcDiscoveryEndpoints=http://localhost:3001/realms/master/.well-known/openid-configuration
+```
+
+can be converted into vmauth configuration below
+
+```yaml
+oidc:
+  realms:
+    - name: master
+      issuer_url: http://localhost:3001/realms/master
+users:
+  - client:
+      client_id: grafana
+      realm: master
+    url_map:
+      - src_paths:
+          - "/insert/.*"
+        drop_src_path_prefix_parts: 1
+        url_prefix: "http://localhost:8480/insert/{{tenantID}}/prometheus/?extra_labels={{extra_labels}}
+      - src_paths:
+          - "/select/.*"
+        drop_src_path_prefix_parts: 1
+        url_prefix: "http://localhost:8481/select/{{tenantID}}/prometheus/?extra_labels={{extra_labels}}&extra_filters={{extra_filters}}
+```
+
+Also in configuration above ingestion and query URLs have additional `/insert` and `/select` path prefixes respectively.
 
 ## IP filters
 
@@ -899,6 +1218,14 @@ users:
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
 
+  # Requests with the 'Authorization: Bearer XXXX.XXXX.XXX' header where 'XXXX.XXXX.XXX' is a JWT claim, that contains
+  # 'aud' claim equal to 'client-1', 'iss' claim that is equal to 'oidc.realms[*].issuer_url' of 'oidc.realms' item with name 'org-1'.
+  # request is authorized against 'oidc.default_realm' if it's defined and if 'client.realm' is omitted.
+- client:
+    client_id: client-1
+    realm: org-1
+  url_prefix: "http://localhost:9428"
+
   # Requests with the 'Authorization: Foo XXXX' header are proxied to http://localhosT:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - auth_token: "Foo XXXX"
@@ -989,7 +1316,9 @@ users:
   #
   # Regular expressions are allowed in `src_paths` and `src_hosts` entries.
 - username: "foobar"
-  # log requests that failed url_map rules, for debugging purposes
+  # log requests that failed url_map rules in the following form:
+  #   statusCode=<SC> remoteAddr: "<IP>, X-Forwarded-For: <IP>"; requestURI: <URI>; missing route for <URL>"(host: <HOST>; path: <PATH>; args: <ARGS>; headers: <HEADERS>)
+  # May contain sensitive information and is recommended to use only for debugging purposes.
   dump_request_on_errors: true
   url_map:
   - src_paths:
@@ -1028,6 +1357,54 @@ ip_filters:
   allow_list: ["1.2.3.0/24", "127.0.0.1"]
   deny_list:
   - 10.1.0.1
+
+# Enterprise version of vmauth allows to configure OIDC authorization. `oidc` section is required to setup realms which are allowed to authorize against.
+oidc:
+  # realm represents a list of public keys set to validate client request signatures against.
+  realms:
+      # realm name is required for non-default realm, it's used for OIDC clients backend routing
+    - name: org-1
+      # realm issuer URL defines a value, which is compared against incoming request JWT issuer claim to identify realm, to which authorized user belongs
+      issuer_url: http://example.com/admin/org-1
+      # skip discovery disables JWKS endpoints discovery and uses keys defined either at `public_keys` or `public_key_files`
+      skip_discovery: true
+      # defines a list of plain text public keys which a used to validate a signature of request with matching issuer or any issuer in case of default realm
+      public_keys:
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 1 pem>
+           -----END PUBLIC KEY-----
+      # same as public_keys but defines a list of file to retrieve public keys from
+      public_key_files:
+        - /test/key
+      # JWKS endpoint to use for public keys downloading
+      jwks_url: http://custom.jwks.url/admin/jwks/endpoint
+    - name: org-2
+      skip_discovery: true
+      issuer_url: http://example.com/admin/org-2
+      jwks_url: http://custom.jwks.url/admin/jwks/endpoint
+    - name: org-3
+      skip_discovery: true
+      issuer_url: http://example.com/admin/org-3
+      public_keys:
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 1 pem>
+           -----END PUBLIC KEY-----
+        - |
+           -----BEGIN PUBLIC KEY-----
+           <public key 2 pem>
+           -----END PUBLIC KEY-----
+      public_key_files:
+        - /etc/public-key-1
+        - /etc/public-key-2
+  # by default issuer is retrieved from `iss` and client ID from `aud` claims, but these values can be patched using `oidc.claims` section
+  claims:
+    client_id: azp
+    issuer: custom_issuer_claim
+  default_realm:
+    issuer_url: http://example.com/admin/org-2
+    jwks_url: http://custom.jwks.url/admin/jwks/endpoint
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -1072,7 +1449,7 @@ It is recommended to protect the following endpoints with authKeys:
 
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
 * `/flags` with `-flagsAuthKey` command-line flag, so unauthorized users couldn't get command-line flag values.
-* `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](#monitoring).
+* `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
 
 As an alternative, it's possible to serve internal API routes at the different listen address with command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "v1.111.0" %}}
@@ -1106,7 +1483,9 @@ See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/tr
 `vmauth` exports the following metrics per each defined user in [`-auth.config`](#auth-config):
 
 * `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of requests served for the given `username`
-* `vmauth_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of request errors for the given `username`
+* `vmauth_user_request_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of request errors for the given `username`
+* `vmauth_user_request_backend_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of backend requests for the given `username`
+* `vmauth_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of backend request errors for the given `username`
 * `vmauth_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - the duration of requests for the given `username`
 * `vmauth_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of failed requests
   for the given `username` because of exceeded [concurrency limits](#concurrency-limiting)
@@ -1139,12 +1518,14 @@ users:
 
 `vmauth` exports the following metrics if `unauthorized_user` section is defined in [`-auth.config`](#auth-config):
 
-* `vmauth_unauthorized_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of unauthorized requests served
-* `vmauth_unauthorized_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of unauthorized request errors
-* `vmauth_unauthorized_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - the duration of unauthorized requests
-* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of failed unauthorized requests because of exceeded [concurrency limits](#concurrency-limiting)
-* `vmauth_unauthorized_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the maximum number of [concurrent unauthorized requests](#concurrency-limiting)
-* `vmauth_unauthorized_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the current number of [concurrent unauthorized requests](#concurrency-limiting)
+* `vmauth_unauthorized_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of requests served for unauthorized user
+* `vmauth_unauthorized_user_request_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of request errors for unauthorized user
+* `vmauth_unauthorized_user_request_backend_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of backend requests for unauthorized user
+* `vmauth_unauthorized_user_request_backend_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of backend request errors for unauthorized user
+* `vmauth_unauthorized_user_request_duration_seconds` [summary](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#summary) - the duration of requests for unauthorized user
+* `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of failed requests because of exceeded [concurrency limits](#concurrency-limiting) for unauthorized user
+* `vmauth_unauthorized_user_concurrent_requests_capacity` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the maximum number of [concurrent requests](#concurrency-limiting) for unauthorized user
+* `vmauth_unauthorized_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the current number of [concurrent requests](#concurrency-limiting) for unauthorized user
 
 ## How to build from sources
 
@@ -1199,220 +1580,10 @@ It is safe to share the collected profiles from security point of view, since th
 
 Pass `-help` command-line arg to `vmauth` in order to see all the configuration options:
 
-```shellhelp
-./vmauth -help
+### Common flags
+These flags are available in both VictoriaMetrics OSS and VictoriaMetrics Enterprise.
+{{% content "vmauth_common_flags.md" %}}
 
-vmauth authenticates and authorizes incoming requests and proxies them to VictoriaMetrics.
-
-See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
-
-  -auth.config string
-     Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/victoriametrics/vmauth/ for details on the format of this auth config
-  -backend.TLSCAFile string
-     Optional path to TLS root CA file, which is used for TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
-  -backend.TLSCertFile string
-     Optional path to TLS client certificate file, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
-  -backend.TLSKeyFile string
-     Optional path to TLS client key file, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
-  -backend.TLSServerName string
-     Optional TLS ServerName, which must be sent to HTTPS backend. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
-  -backend.tlsInsecureSkipVerify
-     Whether to skip TLS verification when connecting to backends over HTTPS. See https://docs.victoriametrics.com/victoriametrics/vmauth/#backend-tls-setup
-  -configCheckInterval duration
-     interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
-  -discoverBackendIPs
-     Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/victoriametrics/vmauth/#discovering-backend-ips
-  -discoverBackendIPsInterval duration
-     The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. Too low value may lead to DNS errors (default 10s)
-  -dryRun
-     Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.
-  -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
-  -envflag.enable
-     Whether to enable reading flags from environment variables in addition to the command line. Command line flag values have priority over values from environment vars. Flags are read only from the command line if this flag isn't set. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables for more details
-  -envflag.prefix string
-     Prefix for environment variables if -envflag.enable is set
-  -eula
-     Deprecated, please use -license or -licenseFile flags instead. By specifying this flag, you confirm that you have an enterprise license and accept the ESA https://victoriametrics.com/legal/esa/ . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-  -failTimeout duration
-     Sets a delay period for load balancing to skip a malfunctioning backend (default 3s)
-  -filestream.disableFadvise
-     Whether to disable fadvise() syscall when reading large data files. The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. In some rare cases it is better to disable the syscall if it uses too much CPU
-  -flagsAuthKey value
-     Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
-     Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
-  -http.connTimeout duration
-     Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
-  -http.disableCORS
-     Disable CORS for all origins (*)
-  -http.disableKeepAlive
-     Whether to disable HTTP keep-alive for incoming connections at -httpListenAddr
-  -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
-  -http.header.csp string
-     Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
-  -http.header.frameOptions string
-     Value for 'X-Frame-Options' header
-  -http.header.hsts string
-     Value for 'Strict-Transport-Security' header, recommended: 'max-age=31536000; includeSubDomains'
-  -http.idleConnTimeout duration
-     Timeout for incoming idle http connections (default 1m0s)
-  -http.maxGracefulShutdownDuration duration
-     The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
-  -http.pathPrefix string
-     An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
-  -http.shutdownDelay duration
-     Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
-  -httpAuth.password value
-     Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
-     Flag value can be read from the given file when using -httpAuth.password=file:///abs/path/to/file or -httpAuth.password=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -httpAuth.password=http://host/path or -httpAuth.password=https://host/path
-  -httpAuth.username string
-     Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
-  -httpAuthHeader array
-     HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -httpInternalListenAddr array
-     TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. If flag is set, vmauth no longer serves internal API at -httpListenAddr.
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -httpListenAddr array
-     TCP address to listen for incoming http requests. By default, serves internal API and proxy requests.  See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -httpListenAddr.useProxyProtocol array
-     Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
-     Supports array of values separated by comma or specified via multiple flags.
-     Empty values are set to false.
-  -httpRealIPHeader string
-     HTTP request header to use for obtaining IP address of client for applying 'ip_filters'. By default vmauth uses IP address of TCP the client. Useful if vmauth is behind reverse-proxy
-  -idleConnTimeout duration
-     The timeout for HTTP keep-alive connections to backend services. It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services (default 50s)
-  -internStringCacheExpireDuration duration
-     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
-  -internStringDisableCache
-     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
-  -internStringMaxLen int
-     The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
-  -license string
-     License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed via file specified by -licenseFile command-line flag
-  -license.forceOffline
-     Whether to enable offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification. This flag is available only in Enterprise binaries
-  -licenseFile string
-     Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/ . Trial Enterprise license can be obtained from https://victoriametrics.com/products/enterprise/trial/ . This flag is available only in Enterprise binaries. The license key can be also passed inline via -license command-line flag
-  -licenseFile.reloadInterval duration
-     Interval for reloading the license file specified via -licenseFile. See https://victoriametrics.com/products/enterprise/ . This flag is available only in Enterprise binaries (default 1h0m0s)
-  -loadBalancingPolicy string
-     The default load balancing policy to use for backend urls specified inside url_prefix section. Supported policies: least_loaded, first_available. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing (default "least_loaded")
-  -logInvalidAuthTokens
-     Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
-  -loggerDisableTimestamps
-     Whether to disable writing timestamps in logs
-  -loggerErrorsPerSecondLimit int
-     Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
-  -loggerFormat string
-     Format for logs. Possible values: default, json (default "default")
-  -loggerJSONFields string
-     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
-  -loggerLevel string
-     Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
-  -loggerMaxArgLen int
-     The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 5000)
-  -loggerOutput string
-     Output for the logs. Supported values: stderr, stdout (default "stderr")
-  -loggerTimezone string
-     Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
-  -loggerWarnsPerSecondLimit int
-     Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
-  -maxConcurrentPerUserRequests int
-     The maximum number of concurrent requests vmauth can process per each configured user. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option in per-user config (default 300)
-  -maxConcurrentRequests int
-     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options (default 1000)
-  -maxIdleConnsPerBackend int
-     The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
-  -maxRequestBodySizeToRetry size
-     The maximum request body size, which can be cached and re-tried at other backends. Bigger values may require more memory. Zero or negative value disables caching of request body. This may be useful when proxying data ingestion requests
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
-  -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
-  -memory.allowedPercent float
-     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
-  -mergeQueryArgs array
-     An optional list of client query arg names, which must be merged with args at backend urls. The rest of client query args are replaced by the corresponding query args from backend urls for security reasons; see https://docs.victoriametrics.com/victoriametrics/vmauth/#query-args-handling
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -metrics.exposeMetadata
-     Whether to expose TYPE and HELP metadata at the /metrics page, which is exposed at -httpListenAddr . The metadata may be needed when the /metrics page is consumed by systems, which require this information. For example, Managed Prometheus in Google Cloud - https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type
-  -metricsAuthKey value
-     Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
-     Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
-  -mtls array
-     Whether to require valid client certificate for https requests to the corresponding -httpListenAddr . This flag works only if -tls flag is set. See also -mtlsCAFile . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-     Supports array of values separated by comma or specified via multiple flags.
-     Empty values are set to false.
-  -mtlsCAFile array
-     Optional path to TLS Root CA for verifying client certificates at the corresponding -httpListenAddr when -mtls is enabled. By default the host system TLS Root CA is used for client certificate verification. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -pprofAuthKey value
-     Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
-     Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
-  -pushmetrics.disableCompression
-     Whether to disable request body compression when pushing metrics to every -pushmetrics.url
-  -pushmetrics.extraLabel array
-     Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -pushmetrics.header array
-     Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -pushmetrics.interval duration
-     Interval for pushing metrics to every -pushmetrics.url (default 10s)
-  -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -reloadAuthKey value
-     Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
-     Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
-  -removeXFFHTTPHeaderValue
-     Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. Recommended when vmauth is exposed to the internet.
-  -responseTimeout duration
-     The timeout for receiving a response from backend (default 5m0s)
-  -retryStatusCodes array
-     Comma-separated list of default HTTP response status codes when vmauth re-tries the request on other backends. See https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing for details (default 0)
-     Supports array of values separated by comma or specified via multiple flags.
-     Empty values are set to default value.
-  -tls array
-     Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
-     Supports array of values separated by comma or specified via multiple flags.
-     Empty values are set to false.
-  -tlsAutocertCacheDir string
-     Directory to store TLS certificates issued via Let's Encrypt. Certificates are lost on restarts if this flag isn't set. This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-  -tlsAutocertEmail string
-     Contact email for the issued Let's Encrypt TLS certificates. See also -tlsAutocertHosts and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-  -tlsAutocertHosts array
-     Optional hostnames for automatic issuing of Let's Encrypt TLS certificates. These hostnames must be reachable at -httpListenAddr . The -httpListenAddr must listen tcp port 443 . The -tlsAutocertHosts overrides -tlsCertFile and -tlsKeyFile . See also -tlsAutocertEmail and -tlsAutocertCacheDir . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/victoriametrics/enterprise/
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -tlsCertFile array
-     Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -tlsCipherSuites array
-     Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -tlsKeyFile array
-     Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -tlsMinVersion array
-     Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -version
-     Show VictoriaMetrics version
-```
+### Enterprise flags
+These flags are available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+{{% content "vmauth_enterprise_flags.md" %}}

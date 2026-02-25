@@ -81,9 +81,7 @@ absolute path to all .tpl files in root.
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
 
-var (
-	extURL *url.URL
-)
+var extURL *url.URL
 
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
@@ -161,7 +159,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	manager, err := newManager(ctx)
 	if err != nil {
-		logger.Fatalf("failed to init: %s", err)
+		logger.Fatalf("failed to create manager: %s", err)
 	}
 	logger.Infof("reading rules configuration file from %q", strings.Join(*rulePath, ";"))
 	groupsCfg, err := config.Parse(*rulePath, validateTplFn, *validateExpressions)

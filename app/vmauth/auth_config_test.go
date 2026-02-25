@@ -378,7 +378,7 @@ users:
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
 			MergeQueryArgs:         []string{"foo", "bar"},
-			DropSrcPathPrefixParts: intp(1),
+			DropSrcPathPrefixParts: new(1),
 			DiscoverBackendIPs:     &discoverBackendIPsTrue,
 		},
 	}, nil)
@@ -621,6 +621,22 @@ unauthorized_user:
 			},
 		},
 	})
+
+	// skip user info with jwt, it is parsed by parseJWTUsers
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: http://aaa:343/bbb
+- jwt: {skip_verify: true}
+  url_prefix: http://aaa:343/bbb
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("foo", "bar"): {
+			Username:  "foo",
+			Password:  "bar",
+			URLPrefix: mustParseURL("http://aaa:343/bbb"),
+		},
+	}, nil)
 }
 
 func TestParseAuthConfigPassesTLSVerificationConfig(t *testing.T) {
@@ -753,7 +769,7 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 	up.loadBalancingPolicy = "least_loaded"
 
 	pbus := up.bus.Load()
-	bus := *pbus
+	bus := pbus.bus
 
 	fn := func(ns ...int) {
 		t.Helper()
@@ -825,13 +841,13 @@ func TestBrokenBackend(t *testing.T) {
 	})
 	up.loadBalancingPolicy = "least_loaded"
 	pbus := up.bus.Load()
-	bus := *pbus
+	bus := pbus.bus
 
 	// explicitly mark one of the backends as broken
 	bus[1].setBroken()
 
 	// broken backend should never return while there are healthy backends
-	for i := 0; i < 1e3; i++ {
+	for range int(1e3) {
 		b := up.getBackendURL()
 		if b.isBroken() {
 			t.Fatalf("unexpected broken backend %q", b.url)
@@ -848,7 +864,7 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 
 		up.discoverBackendAddrsIfNeeded()
 		pbus := up.bus.Load()
-		bus := *pbus
+		bus := pbus.bus
 
 		if len(bus) != 1 {
 			t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
@@ -942,16 +958,14 @@ func mustParseURL(u string) *URLPrefix {
 }
 
 func mustParseURLs(us []string) *URLPrefix {
-	bus := make([]*backendURL, len(us))
+	bus := newBackendURLs()
 	urls := make([]*url.URL, len(us))
 	for i, u := range us {
 		pu, err := url.Parse(u)
 		if err != nil {
 			panic(fmt.Errorf("BUG: cannot parse %q: %w", u, err))
 		}
-		bus[i] = &backendURL{
-			url: pu,
-		}
+		bus.add(pu)
 		urls[i] = pu
 	}
 	up := &URLPrefix{}
@@ -960,13 +974,9 @@ func mustParseURLs(us []string) *URLPrefix {
 	} else {
 		up.vOriginal = us
 	}
-	up.bus.Store(&bus)
+	up.bus.Store(bus)
 	up.busOriginal = urls
 	return up
-}
-
-func intp(n int) *int {
-	return &n
 }
 
 func mustNewRegex(s string) *Regex {

@@ -82,7 +82,7 @@ func RenderHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	if s := r.FormValue("maxDataPoints"); len(s) > 0 {
 		n, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return fmt.Errorf("cannot parse maxDataPoints=%q: %w", maxDataPoints, err)
+			return fmt.Errorf("cannot parse maxDataPoints=%d: %w", maxDataPoints, err)
 		}
 		if n <= 0 {
 			return fmt.Errorf("maxDataPoints must be greater than 0; got %f", n)
@@ -209,7 +209,7 @@ func parseInterval(s string) (int64, error) {
 	s = strings.TrimSpace(s)
 	prefix := s
 	var suffix string
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		ch := s[i]
 		if ch != '-' && ch != '+' && ch != '.' && (ch < '0' || ch > '9') {
 			prefix = s[:i]

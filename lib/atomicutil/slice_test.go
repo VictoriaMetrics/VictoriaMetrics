@@ -18,22 +18,20 @@ func TestSlice_NoInit(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	for workerID := uint(0); workerID < workersCount; workerID++ {
-		wg.Add(1)
-		go func(workerID uint) {
-			defer wg.Done()
-			for i := 0; i < loopsPerWorker; i++ {
-				bb := s.Get(workerID)
+	for workerID := range workersCount {
+		wg.Go(func() {
+			for i := range loopsPerWorker {
+				bb := s.Get(uint(workerID))
 				fmt.Fprintf(bb, "item %d at worker %d\n", i, workerID)
 			}
-		}(workerID)
+		})
 	}
 	wg.Wait()
 
 	bbs = s.All()
-	for workerID := uint(0); workerID < workersCount; workerID++ {
+	for workerID := range workersCount {
 		var bbExpected bytes.Buffer
-		for i := 0; i < loopsPerWorker; i++ {
+		for i := range loopsPerWorker {
 			fmt.Fprintf(&bbExpected, "item %d at worker %d\n", i, workerID)
 		}
 		bb := bbs[workerID]
@@ -61,22 +59,20 @@ func TestSlice_Init(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	for workerID := uint(0); workerID < workersCount; workerID++ {
-		wg.Add(1)
-		go func(workerID uint) {
-			defer wg.Done()
-			for i := 0; i < loopsPerWorker; i++ {
-				bb := s.Get(workerID)
+	for workerID := range workersCount {
+		wg.Go(func() {
+			for i := range loopsPerWorker {
+				bb := s.Get(uint(workerID))
 				fmt.Fprintf(bb, "item %d at worker %d\n", i, workerID)
 			}
-		}(workerID)
+		})
 	}
 	wg.Wait()
 
 	bbs = s.All()
-	for workerID := uint(0); workerID < workersCount; workerID++ {
+	for workerID := range workersCount {
 		bbExpected := bytes.NewBufferString(prefix)
-		for i := 0; i < loopsPerWorker; i++ {
+		for i := range loopsPerWorker {
 			fmt.Fprintf(bbExpected, "item %d at worker %d\n", i, workerID)
 		}
 		bb := bbs[workerID]

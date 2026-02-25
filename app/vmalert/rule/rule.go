@@ -121,7 +121,7 @@ func (s *ruleState) add(e StateEntry) {
 func replayRule(r Rule, start, end time.Time, rw remotewrite.RWClient, replayRuleRetryAttempts int) (int, error) {
 	var err error
 	var tss []prompb.TimeSeries
-	for i := 0; i < replayRuleRetryAttempts; i++ {
+	for i := range replayRuleRetryAttempts {
 		tss, err = r.execRange(context.Background(), start, end)
 		if err == nil {
 			break

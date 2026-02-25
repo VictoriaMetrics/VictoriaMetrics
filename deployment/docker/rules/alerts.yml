@@ -27,7 +27,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will run out of disk space soon"
           description: "Taking into account current ingestion rate, free disk space will be enough only
             for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
@@ -51,7 +51,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=53&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=53&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will become read-only in 3 days"
           description: "Taking into account current ingestion rate and free disk space
               instance {{ $labels.instance }} is writable for {{ $value | humanizeDuration }}.\n
@@ -68,7 +68,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
             Having less than 20% of free disk space could cripple merge processes and overall performance.
@@ -80,7 +80,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=35&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=35&var-instance={{ $labels.instance }}"
           summary: "Too many errors served for path {{ $labels.path }} (instance {{ $labels.instance }})"
           description: "Requests to path {{ $labels.path }} are receiving errors.
             Please verify if clients are sending correct requests."
@@ -96,7 +96,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
           summary: "Churn rate is more than 10% on \"{{ $labels.instance }}\" for the last 15m"
           description: "VM constantly creates new time series on \"{{ $labels.instance }}\".\n
             This effect is known as Churn Rate.\n
@@ -112,7 +112,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
           summary: "Too high number of new series on \"{{ $labels.instance }}\" created over last 24h"
           description: "The number of created new time series over last 24h is 3x times higher than
             current number of active series on \"{{ $labels.instance }}\".\n
@@ -131,8 +131,21 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=68&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/wNf0q_kZk?viewPanel=68&var-instance={{ $labels.instance }}"
           summary: "Percentage of slow inserts is more than 5% on \"{{ $labels.instance }}\" for the last 15m"
           description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
             See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
+
+      - alert: MetadataCacheUtilizationIsTooHigh
+        expr: |
+          vm_metrics_metadata_storage_size_bytes / vm_metrics_metadata_storage_max_size_bytes > 0.95
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Metadata cache capacity on {{ $labels.instance }} (job={{ $labels.job }}) is utilized for more than 95% for the last 15min"
+          description: "Metadata cache stores meta information about ingested time series - see https://docs.victoriametrics.com/victoriametrics/#metrics-metadata.
+           When cache is overutilized, the oldest entries will be dropped out automatically. It may result into incomplete
+           response for /api/v1/metadata API calls. It doesn't impact regular queries or alerts. Cache size is controlled
+           via -storage.maxMetadataStorageSize cmd-line flag."

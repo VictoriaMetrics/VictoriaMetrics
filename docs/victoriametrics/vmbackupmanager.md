@@ -43,6 +43,8 @@ Backup schedule is controlled by the following flags:
 * `-disableMonthly` - disable monthly run. Default false
 
 By default, all flags are turned on and Backup Manager backups data every hour for every interval (hourly, daily, weekly and monthly).
+Note that if all intervals are disabled, the `vmbackupmanager` will create latest backups every 24 hours.
+Using `-disableScheduledBackups`{{% available_from "v1.135.0" %}} allows completely disabling scheduled backups. In this mode API can be used to trigger backups and restores on demand.
 
 The backup manager creates the following directory hierarchy at `-dst`:
 
@@ -537,6 +539,8 @@ command-line flags:
      Disable hourly run. Default false
   -disableMonthly
      Disable monthly run. Default false
+  -disableScheduledBackups
+     Disable all scheduled backups. This is useful in order to run vmbackupmanager in API only mode to allow requesting restore and performing manual backups. Default false
   -disableWeekly
      Disable weekly run. Default false
   -dst string
@@ -555,6 +559,8 @@ command-line flags:
   -flagsAuthKey value
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -fs.disableMincore
+     Whether to disable the mincore() syscall for checking mmap()ed files. By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10327 for details.
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int

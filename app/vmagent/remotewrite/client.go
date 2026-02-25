@@ -15,7 +15,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -203,14 +202,10 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	c.retriesCount = metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_retries_count_total{url=%q}`, c.sanitizedURL))
 	c.sendDuration = metrics.GetOrCreateFloatCounter(fmt.Sprintf(`vmagent_remotewrite_send_duration_seconds_total{url=%q}`, c.sanitizedURL))
 	metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_queues{url=%q}`, c.sanitizedURL), func() float64 {
-		return float64(*queues)
+		return float64(concurrency)
 	})
-	for i := 0; i < concurrency; i++ {
-		c.wg.Add(1)
-		go func() {
-			defer c.wg.Done()
-			c.runWorker()
-		}()
+	for range concurrency {
+		c.wg.Go(c.runWorker)
 	}
 	logger.Infof("initialized client for -remoteWrite.url=%q", c.sanitizedURL)
 }
@@ -554,9 +549,9 @@ func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.D
 // For more details, see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9417
 func repackBlockFromZstdToSnappy(zstdBlock []byte) ([]byte, error) {
 	plainBlock := make([]byte, 0, len(zstdBlock)*2)
-	plainBlock, err := zstd.Decompress(plainBlock, zstdBlock)
+	plainBlock, err := encoding.DecompressZSTD(plainBlock, zstdBlock)
 	if err != nil {
-		return nil, fmt.Errorf("zstd: decompress: %s", err)
+		return nil, err
 	}
 
 	return snappy.Encode(nil, plainBlock), nil

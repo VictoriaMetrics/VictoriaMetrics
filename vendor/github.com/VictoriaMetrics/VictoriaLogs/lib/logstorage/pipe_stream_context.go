@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -66,6 +67,10 @@ func (pc *pipeStreamContext) canLiveTail() bool {
 }
 
 func (pc *pipeStreamContext) canReturnLastNResults() bool {
+	return false
+}
+
+func (ps *pipeStreamContext) isFixedOutputFieldsOrder() bool {
 	return false
 }
 
@@ -136,9 +141,7 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 	for i := range neededRows {
 		neededTimestamps[i] = neededRows[i].timestamp
 	}
-	sort.Slice(neededTimestamps, func(i, j int) bool {
-		return neededTimestamps[i] < neededTimestamps[j]
-	})
+	slices.Sort(neededTimestamps)
 
 	trs, stateSize, err := pcp.getTimeRangesForStreamRowss(streamID, neededTimestamps, stateSizeBudget)
 	if err != nil {
@@ -322,7 +325,9 @@ func (pcp *pipeStreamContextProcessor) executeQuery(streamID, qStr string, neede
 	if !ok {
 		logger.Panicf("BUG: cannot obtain tenantID from streamID %q", streamID)
 	}
-	qctx := NewQueryContext(ctxWithCancel, pcp.pc.qctx.QueryStats, []TenantID{tenantID}, q, pcp.pc.qctx.AllowPartialResponse)
+
+	qctxOrig := pcp.pc.qctx
+	qctx := NewQueryContext(ctxWithCancel, qctxOrig.QueryStats, []TenantID{tenantID}, q, qctxOrig.AllowPartialResponse, qctxOrig.HiddenFieldsFilters)
 	if err := pcp.pc.runQuery(qctx, writeBlock); err != nil {
 		return nil, 0, err
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,7 +20,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
@@ -41,11 +44,20 @@ func main() {
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
 	beforeFn := func(c *cli.Context) error {
+		flag.Parse()
+		logger.Init()
 		isSilent = c.Bool(globalSilent)
 		if c.Bool(globalDisableProgressBar) {
 			barpool.Disable(true)
 		}
 		netutil.EnableIPv6()
+		pushmetrics.InitWith(&pushmetrics.Config{
+			URLs:               c.StringSlice(globalPushMetricsURL),
+			Interval:           c.Duration(globalPushMetricsInterval),
+			ExtraLabels:        c.StringSlice(globalPushExtraLabels),
+			DisableCompression: c.Bool(globalPushDisableCompression),
+			Headers:            c.StringSlice(globalPushHeaders),
+		})
 		return nil
 	}
 	app := &cli.App{
@@ -103,7 +115,7 @@ func main() {
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Bool(globalVerbose))
-					return otsdbProcessor.run()
+					return otsdbProcessor.run(ctx)
 				},
 			},
 			{
@@ -164,7 +176,7 @@ func main() {
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode),
 						c.Bool(globalVerbose))
-					return processor.run()
+					return processor.run(ctx)
 				},
 			},
 			{
@@ -279,7 +291,7 @@ func main() {
 						cc:        c.Int(promConcurrency),
 						isVerbose: c.Bool(globalVerbose),
 					}
-					return pp.run()
+					return pp.run(ctx)
 				},
 			},
 			{
@@ -451,6 +463,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	log.Printf("Total time: %v", time.Since(start))
+	pushmetrics.StopAndPush()
 }
 
 func initConfigVM(c *cli.Context) (vm.Config, error) {

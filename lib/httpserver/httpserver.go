@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net"
@@ -226,15 +227,13 @@ func Stop(addrs []string) error {
 		if addr == "" {
 			continue
 		}
-		wg.Add(1)
-		go func(addr string) {
+		wg.Go(func() {
 			if err := stop(addr); err != nil {
 				errGlobalLock.Lock()
 				errGlobal = err
 				errGlobalLock.Unlock()
 			}
-			wg.Done()
-		}(addr)
+		})
 	}
 	wg.Wait()
 
@@ -385,10 +384,7 @@ func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh 
 		// Return non-OK response during grace period before shutting down the server.
 		// Load balancers must notify these responses and re-route new requests to other servers.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/463 .
-		d := time.Until(time.Unix(0, deadline))
-		if d < 0 {
-			d = 0
-		}
+		d := max(time.Until(time.Unix(0, deadline)), 0)
 		errMsg := fmt.Sprintf("The server is in delayed shutdown mode, which will end in %.3fs", d.Seconds())
 		http.Error(w, errMsg, http.StatusServiceUnavailable)
 		return true
@@ -617,6 +613,13 @@ func (rwa *responseWriterWithAbort) Flush() {
 	flusher.Flush()
 }
 
+// Unwrap returns the original ResponseWriter wrapped by rwa.
+//
+// This is needed for the net/http.ResponseController - see https://pkg.go.dev/net/http#NewResponseController
+func (rwa *responseWriterWithAbort) Unwrap() http.ResponseWriter {
+	return rwa.ResponseWriter
+}
+
 // abort aborts the client connection associated with rwa.
 //
 // The last http chunk in the response stream is intentionally written incorrectly,
@@ -668,7 +671,11 @@ func Errorf(w http.ResponseWriter, r *http.Request, format string, args ...any) 
 	if rwa, ok := w.(*responseWriterWithAbort); ok && rwa.sentHeaders {
 		// HTTP status code has been already sent to client, so it cannot be sent again.
 		// Just write errStr to the response and abort the client connection, so the client could notice the error.
-		fmt.Fprintf(w, "\n%s\n", errStr)
+		//
+		// HTML-escape the errStr in order to protect from possible XSS, since the errStr may contain user input.
+		errStrEscaped := html.EscapeString(errStr)
+
+		fmt.Fprintf(w, "\n%s\n", errStrEscaped)
 		rwa.abort()
 		return
 	}

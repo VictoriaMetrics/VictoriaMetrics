@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -47,8 +48,7 @@ func Parse(r io.Reader, encoding string, isStreamMode bool, precision, db string
 		ctx := getBatchContext()
 		defer putBatchContext(ctx)
 
-		err := unmarshal(&ctx.rows, data, tsMultiplier)
-		if err != nil {
+		if err := unmarshal(&ctx.rows, data, tsMultiplier, false); err != nil {
 			return err
 		}
 		return callback(db, ctx.rows.Rows)
@@ -61,15 +61,17 @@ func Parse(r io.Reader, encoding string, isStreamMode bool, precision, db string
 }
 
 func parseStreamMode(r io.Reader, encoding string, tsMultiplier int64, db string, callback func(db string, rows []influx.Row) error) error {
-	reader, err := protoparserutil.GetUncompressedReader(r, encoding)
+	wcr, err := writeconcurrencylimiter.GetReader(r)
+	if err != nil {
+		return err
+	}
+	defer writeconcurrencylimiter.PutReader(wcr)
+
+	reader, err := protoparserutil.GetUncompressedReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode influx line protocol data: %w; see https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	reader = wcr
 
 	ctx := getStreamContext(reader)
 	defer putStreamContext(ctx)
@@ -82,7 +84,6 @@ func parseStreamMode(r io.Reader, encoding string, tsMultiplier int64, db string
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {
@@ -239,7 +240,10 @@ func (uw *unmarshalWork) runCallback() {
 
 // Unmarshal implements protoparserutil.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	_ = unmarshal(&uw.rows, uw.reqBuf, uw.tsMultiplier)
+	if err := unmarshal(&uw.rows, uw.reqBuf, uw.tsMultiplier, true); err != nil {
+		logger.Panicf("BUG: unexpected non-nil error when rows must be ignored: %s", err)
+	}
+
 	uw.runCallback()
 	putUnmarshalWork(uw)
 }
@@ -249,9 +253,7 @@ func getUnmarshalWork() *unmarshalWork {
 	if v == nil {
 		v = &unmarshalWork{}
 	}
-	uw := v.(*unmarshalWork)
-	uw.rows.IgnoreErrs = true
-	return uw
+	return v.(*unmarshalWork)
 }
 
 func putUnmarshalWork(uw *unmarshalWork) {
@@ -281,10 +283,11 @@ func detectTimestamp(ts, currentTs int64) int64 {
 	return ts * 1e3
 }
 
-func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64) error {
-	// do not return error immediately because rs.Rows could contain
-	// successfully parsed rows that needs to be processed below
-	err := rs.Unmarshal(bytesutil.ToUnsafeString(reqBuf))
+func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64, skipInvalidLines bool) error {
+	if err := rs.Unmarshal(bytesutil.ToUnsafeString(reqBuf), skipInvalidLines); err != nil {
+		return err
+	}
+
 	rows := rs.Rows
 	rowsRead.Add(len(rows))
 
@@ -326,5 +329,6 @@ func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64) error {
 			row.Timestamp -= row.Timestamp % tsTrim
 		}
 	}
-	return err
+
+	return nil
 }

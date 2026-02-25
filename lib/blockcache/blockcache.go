@@ -36,10 +36,7 @@ func NewCache(getMaxSizeBytes func() int) *Cache {
 	shardsCount := cgroup.AvailableCPUs()
 	// Increase the number of shards with the increased number of available CPU cores.
 	// This should reduce contention on per-shard mutexes.
-	multiplier := cpusCount
-	if multiplier > 16 {
-		multiplier = 16
-	}
+	multiplier := min(cpusCount, 16)
 	shardsCount *= multiplier
 	shards := make([]*cache, shardsCount)
 	getMaxShardBytes := func() int {

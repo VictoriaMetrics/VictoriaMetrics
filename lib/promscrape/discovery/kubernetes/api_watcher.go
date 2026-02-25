@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -269,11 +268,9 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 	if !*useHTTP2Client {
 		// Proxy is not supported for http2 client.
 		// See https://github.com/golang/go/issues/26479
-		var proxy func(*http.Request) (*url.URL, error)
 		if proxyURL != nil {
-			proxy = http.ProxyURL(proxyURL)
+			tr.Proxy = http.ProxyURL(proxyURL)
 		}
-		tr.Proxy = proxy
 	}
 	c := &http.Client{
 		Transport: ac.NewRoundTripper(tr),
@@ -286,7 +283,6 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 
 func newHTTPTransport(enableHTTP2 bool) *http.Transport {
 	tr := httputil.NewTransport(enableHTTP2, "vm_promscrape_discovery_kubernetes")
-	tr.DialContext = netutil.Dialer.DialContext
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.IdleConnTimeout = *apiServerTimeout
 	tr.MaxIdleConnsPerHost = 100
@@ -415,9 +411,9 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 	limiterCh := make(chan struct{}, cgroup.AvailableCPUs())
 	for key, o := range objectsByKey {
 		labelss := o.getTargetLabels(gw)
-		wg.Add(1)
 		limiterCh <- struct{}{}
-		go func(key string, labelss []*promutil.Labels) {
+
+		wg.Go(func() {
 			for aw, e := range swosByAPIWatcher {
 				swos := getScrapeWorkObjectsForLabels(aw.swcFunc, labelss)
 				e.mu.Lock()
@@ -425,9 +421,9 @@ func (gw *groupWatcher) getScrapeWorkObjectsByAPIWatcherLocked(objectsByKey map[
 				e.mu.Unlock()
 			}
 			putLabelssToPool(labelss)
-			wg.Done()
+
 			<-limiterCh
-		}(key, labelss)
+		})
 	}
 	wg.Wait()
 	return swosByAPIWatcher
@@ -636,10 +632,7 @@ func (uw *urlWatcher) recreateScrapeWorks() {
 		if uw.needRecreateScrapeWorks {
 			uw.needRecreateScrapeWorks = false
 			uw.recreateScrapeWorksLocked(uw.objectsByKey, uw.aws)
-			sleepTime = time.Since(startTime)
-			if sleepTime < minSleepTime {
-				sleepTime = minSleepTime
-			}
+			sleepTime = max(time.Since(startTime), minSleepTime)
 		}
 		gw.mu.Unlock()
 	}

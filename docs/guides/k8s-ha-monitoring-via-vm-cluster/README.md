@@ -187,12 +187,6 @@ scrape_configs:
       relabel_configs:
         - action: labelmap
           regex: __meta_kubernetes_node_label_(.+)
-        - target_label: __address__
-          replacement: kubernetes.default.svc:443
-        - source_labels: [__meta_kubernetes_node_name]
-          regex: (.+)
-          target_label: __metrics_path__
-          replacement: /api/v1/nodes/$1/proxy/metrics
     - job_name: "kubernetes-nodes-cadvisor"
       scheme: https
       tls_config:
@@ -201,15 +195,12 @@ scrape_configs:
       bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
       kubernetes_sd_configs:
         - role: node
+      metrics_path: /metrics/cadvisor
       relabel_configs:
         - action: labelmap
           regex: __meta_kubernetes_node_label_(.+)
-        - target_label: __address__
-          replacement: kubernetes.default.svc:443
-        - source_labels: [__meta_kubernetes_node_name]
-          regex: (.+)
-          target_label: __metrics_path__
-          replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+        - source_labels: [__metrics_path__]
+          target_label: metrics_path
       metric_relabel_configs:
         - action: replace
           source_labels: [pod]

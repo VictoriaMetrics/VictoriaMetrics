@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/zabbixconnector"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -244,6 +245,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, "<h2>vmagent</h2>")
+		fmt.Fprintf(w, "Version %s<br>", buildinfo.Version)
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/victoriametrics/vmagent/'>https://docs.victoriametrics.com/victoriametrics/vmagent/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
@@ -349,6 +351,17 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		firehose.WriteSuccessResponse(w, r)
+		return true
+	case "/zabbixconnector/api/v1/history":
+		zabbixconnectorHistoryRequests.Inc()
+		if err := zabbixconnector.InsertHandlerForHTTP(nil, r); err != nil {
+			zabbixconnectorHistoryErrors.Inc()
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, `{"error":%q}`, err.Error())
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
 		return true
 	case "/newrelic":
 		newrelicCheckRequest.Inc()
@@ -644,6 +657,17 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		}
 		firehose.WriteSuccessResponse(w, r)
 		return true
+	case "zabbixconnector/api/v1/history":
+		zabbixconnectorHistoryRequests.Inc()
+		if err := zabbixconnector.InsertHandlerForHTTP(at, r); err != nil {
+			zabbixconnectorHistoryErrors.Inc()
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, `{"error":%q}`, err.Error())
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
+		return true
 	case "newrelic":
 		newrelicCheckRequest.Inc()
 		w.Header().Set("Content-Type", "application/json")
@@ -764,6 +788,9 @@ var (
 
 	opentelemetryPushRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
+
+	zabbixconnectorHistoryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/zabbixconnector/api/v1/history", protocol="zabbixconnector"}`)
+	zabbixconnectorHistoryErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/zabbixconnector/api/v1/history", protocol="zabbixconnector"}`)
 
 	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
 	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)

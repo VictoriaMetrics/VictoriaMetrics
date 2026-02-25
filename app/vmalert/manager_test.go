@@ -65,13 +65,11 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 
 	const workers = 500
 	const iterations = 10
-	wg := sync.WaitGroup{}
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func(n int) {
-			defer wg.Done()
+	var wg sync.WaitGroup
+	for n := range workers {
+		wg.Go(func() {
 			r := rand.New(rand.NewSource(int64(n)))
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				rnd := r.Intn(len(paths))
 				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true)
 				if err != nil { // update can fail and this is expected
@@ -79,7 +77,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 				}
 				_ = m.update(context.Background(), cfg, false)
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 }
@@ -261,7 +259,7 @@ func compareGroups(t *testing.T, a, b *rule.Group) {
 	for i, r := range a.Rules {
 		got, want := r, b.Rules[i]
 		if a.CreateID() != b.CreateID() {
-			t.Fatalf("expected to have rule %q; got %q", want.ID(), got.ID())
+			t.Fatalf("expected to have rule %d; got %d", want.ID(), got.ID())
 		}
 		if err := rule.CompareRules(t, want, got); err != nil {
 			t.Fatalf("comparison error: %s", err)

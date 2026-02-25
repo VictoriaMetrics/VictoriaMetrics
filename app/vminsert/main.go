@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/zabbixconnector"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -231,6 +232,17 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		firehose.WriteSuccessResponse(w, r)
 		return true
+	case "/zabbixconnector/api/v1/history":
+		zabbixconnectorHistoryRequests.Inc()
+		if err := zabbixconnector.InsertHandlerForHTTP(r); err != nil {
+			zabbixconnectorHistoryErrors.Inc()
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, `{"error":%q}`, err.Error())
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
+		return true
 	case "/newrelic":
 		newrelicCheckRequest.Inc()
 		w.Header().Set("Content-Type", "application/json")
@@ -422,6 +434,9 @@ var (
 
 	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
 	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/opentelemetry/v1/metrics", protocol="opentelemetry"}`)
+
+	zabbixconnectorHistoryRequests = metrics.NewCounter(`vm_http_requests_total{path="/zabbixconnector/api/v1/history", protocol="zabbixconnector"}`)
+	zabbixconnectorHistoryErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/zabbixconnector/api/v1/history", protocol="zabbixconnector"}`)
 
 	newrelicWriteRequests = metrics.NewCounter(`vm_http_requests_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)
 	newrelicWriteErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/newrelic/infra/v2/metrics/events/bulk", protocol="newrelic"}`)

@@ -18,6 +18,18 @@
           "type": "dashboard"
         },
         "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+        "hide": false,
+        "iconColor": "dark-yellow",
+        "name": "restarts",
+        "textFormat": "{{job}} restarted"
       }
     ]
   },
@@ -26,7 +38,44 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 0,
-  "links": [],
+  "links": [
+    {
+      "icon": "doc",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Docs",
+      "type": "link",
+      "url": "https://docs.victoriametrics.com/operator/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Community support",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/community-support/"
+    },
+    {
+      "asDropdown": false,
+      "icon": "bolt",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Enterprise support",
+      "tooltip": "",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/enterprise-support/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Releases",
+      "type": "link",
+      "url": "https://github.com/VictoriaMetrics/operator/releases"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -42,8 +91,26 @@
       "type": "row"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
         "overrides": []
       },
       "gridPos": {
@@ -54,17 +121,42 @@
       },
       "id": 24,
       "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^short_version$/",
+          "values": false
         },
-        "content": "<div style=\"text-align: center;\">$version</div>",
-        "mode": "markdown"
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
       },
       "pluginVersion": "12.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "vm_app_version{job=~\"$job\",instance=~\"$instance\"}",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{short_version}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
       "title": "Version",
-      "type": "text"
+      "type": "stat"
     },
     {
       "datasource": {

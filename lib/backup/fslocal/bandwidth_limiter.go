@@ -29,11 +29,7 @@ func newBandwidthLimiter(perSecondLimit int) *bandwidthLimiter {
 	var mu sync.Mutex
 	bl.c = sync.NewCond(&mu)
 	bl.stopCh = make(chan struct{})
-	bl.wg.Add(1)
-	go func() {
-		defer bl.wg.Done()
-		bl.perSecondUpdater()
-	}()
+	bl.wg.Go(bl.perSecondUpdater)
 	return &bl
 }
 
@@ -121,10 +117,7 @@ func (bl *bandwidthLimiter) GetQuota(n int) int {
 	for bl.quota <= 0 {
 		c.Wait()
 	}
-	quota := bl.quota
-	if quota > n {
-		quota = n
-	}
+	quota := min(bl.quota, n)
 	bl.quota -= quota
 	if bl.quota > 0 {
 		c.Signal()

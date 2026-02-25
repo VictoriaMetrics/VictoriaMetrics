@@ -89,10 +89,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		}
 		offset := uint64(0)
 		for offset < size {
-			n := size - offset
-			if n > common.MaxPartSize {
-				n = common.MaxPartSize
-			}
+			n := min(size-offset, common.MaxPartSize)
 			parts = append(parts, common.Part{
 				Path:       path,
 				FileSize:   size,
