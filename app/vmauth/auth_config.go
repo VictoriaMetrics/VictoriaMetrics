@@ -1116,24 +1116,6 @@ func (ui *UserInfo) initURLs() error {
 	return nil
 }
 
-func (ui *UserInfo) name() string {
-	if ui.Name != "" {
-		return ui.Name
-	}
-	if ui.Username != "" {
-		return ui.Username
-	}
-	if ui.BearerToken != "" {
-		h := xxhash.Sum64([]byte(ui.BearerToken))
-		return fmt.Sprintf("bearer_token:hash:%016X", h)
-	}
-	if ui.AuthToken != "" {
-		h := xxhash.Sum64([]byte(ui.AuthToken))
-		return fmt.Sprintf("auth_token:hash:%016X", h)
-	}
-	return ""
-}
-
 func getAuthTokens(authToken, bearerToken, username, password string) ([]string, error) {
 	if authToken != "" {
 		if bearerToken != "" {
