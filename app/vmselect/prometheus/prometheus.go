@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
@@ -638,6 +639,12 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	sq, err := getSearchQuery(qt, at, cp, *maxLabelsAPISeries)
 	if err != nil {
 		return err
+	}
+	if strings.HasPrefix(labelName, "U__") {
+		// This label seems to be Unicode-encoded according to the Prometheus spec.
+		// See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values
+		// Spec: https://github.com/prometheus/proposals/blob/main/proposals/0028-utf8.md
+		labelName = unescapePrometheusLabelName(labelName)
 	}
 	labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
 	if err != nil {
@@ -1493,4 +1500,71 @@ func (sw *scalableWriter) flush() error {
 		return err == nil
 	})
 	return sw.bw.Flush()
+}
+
+// copied from https://github.com/prometheus/common/blob/adea6285c1c7447fcb7bfdeb6abfc6eff893e0a7/model/metric.go#L483
+// it's not possible to use direct import due to increased binary size
+func unescapePrometheusLabelName(name string) string {
+	// lower function taken from strconv.atoi.
+	lower := func(c byte) byte {
+		return c | ('x' - 'X')
+	}
+	if len(name) == 0 {
+		return name
+	}
+	escapedName, found := strings.CutPrefix(name, "U__")
+	if !found {
+		return name
+	}
+
+	var unescaped strings.Builder
+TOP:
+	for i := 0; i < len(escapedName); i++ {
+		// All non-underscores are treated normally.
+		if escapedName[i] != '_' {
+			unescaped.WriteByte(escapedName[i])
+			continue
+		}
+		i++
+		if i >= len(escapedName) {
+			return name
+		}
+		// A double underscore is a single underscore.
+		if escapedName[i] == '_' {
+			unescaped.WriteByte('_')
+			continue
+		}
+		// We think we are in a UTF-8 code, process it.
+		var utf8Val uint
+		for j := 0; i < len(escapedName); j++ {
+			// This is too many characters for a utf8 value based on the MaxRune
+			// value of '\U0010FFFF'.
+			if j >= 6 {
+				return name
+			}
+			// Found a closing underscore, convert to a rune, check validity, and append.
+			if escapedName[i] == '_' {
+				utf8Rune := rune(utf8Val)
+				if !utf8.ValidRune(utf8Rune) {
+					return name
+				}
+				unescaped.WriteRune(utf8Rune)
+				continue TOP
+			}
+			r := lower(escapedName[i])
+			utf8Val *= 16
+			switch {
+			case r >= '0' && r <= '9':
+				utf8Val += uint(r) - '0'
+			case r >= 'a' && r <= 'f':
+				utf8Val += uint(r) - 'a' + 10
+			default:
+				return name
+			}
+			i++
+		}
+		// Didn't find closing underscore, invalid.
+		return name
+	}
+	return unescaped.String()
 }
