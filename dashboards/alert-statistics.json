@@ -519,7 +519,7 @@
                   {
                     "targetBlank": true,
                     "title": "Alert",
-                    "url": "/alerting/VictoriaMetrics/${__value.text}/find"
+                    "url": "/alerting/${ds:text}/${__value.text}/find"
                   }
                 ]
               }
