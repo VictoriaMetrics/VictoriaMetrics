@@ -1036,6 +1036,18 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 VictoriaMetrics supports data ingestion via [OpenTelemetry protocol (OTLP) for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md) at `/opentelemetry/v1/metrics` path.
 It expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`. For gzip-compressed workload set HTTP request header `Content-Encoding: gzip`.
 
+VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`.
+Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/v1/metrics`.
+
+VictoriaMetrics stores the ingested OpenTelemetry [raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) as is without any transformations.
+Pass `-opentelemetry.usePrometheusNaming` command-line flag to VictoriaMetrics for automatic conversion of metric names and labels into Prometheus-compatible format.
+Pass `-opentelemetry.convertMetricNamesToPrometheus` command-line flag to VictoriaMetrics for applying Prometheus-compatible format conversion only for metrics names.
+OpenTelemetry [exponential histogram](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) is automatically converted
+to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
+Exponential histograms with [negative buckets](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) are not supported
+by VictoriaMetrics native histograms and will be dropped during ingestion.
+The number of dropped data points can be monitored via `vm_protoparser_rows_dropped_total{type="opentelemetry",reason="negative_histogram_buckets"}` metric.
+
 Use the following OpenTelemetry collector exporter configuration to push metrics to VictoriaMetrics:
 
 ```yaml
