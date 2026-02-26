@@ -1,11 +1,11 @@
 ---
 title: OpenTelemetry Collector
-weight: 5
+weight: 7
 menu:
   docs:
     identifier: "opentelemetry-collector"
     parent: "data-ingestion"
-    weight: 5
+    weight: 7
 tags:
   - metrics
 ---

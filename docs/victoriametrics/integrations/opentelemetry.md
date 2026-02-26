@@ -1,10 +1,11 @@
 ---
 title: OpenTelemetry
-weight: 3
+weight: 12
 menu:
   docs:
     parent: "integrations-vm"
-    weight: 3
+    identifier: "integrations-opentelemetry-vm"
+    weight: 12
 ---
 
 VictoriaMetrics supports data ingestion via [OpenTelemetry protocol (OTLP) for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/97c826b70e2f89cfdf655d5150791f3f0c2bae19/specification/metrics/data-model.md) at `/opentelemetry/v1/metrics` path.
@@ -16,9 +17,9 @@ See how to configure [OpenTelemetry Collector](https://docs.victoriametrics.com/
 
 By default, VictoriaMetrics stores the ingested OpenTelemetry [metric samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) as is **without any transformations**.
 The following label transformations can be enabled:
-* `--usePromCompatibleNaming` - replaces characters unsupported by Prometheus with `_` in metric names and labels **for all ingestion protocols**.
+* `-usePromCompatibleNaming` - replaces characters unsupported by Prometheus with `_` in metric names and labels **for all ingestion protocols**.
   For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time{service_name="foo"}`.
-* `--opentelemetry.usePrometheusNaming` - converts metric names and labels according to [OTLP Metric points to Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.33.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus) for metrics ingested via OTLP.
+* `-opentelemetry.usePrometheusNaming` - converts metric names and labels according to [OTLP Metric points to Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.33.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus) for metrics ingested via OTLP.
   For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time_seconds_total{service_name="foo"}`.
 * `-opentelemetry.convertMetricNamesToPrometheus` - converts **only metric names** according to [OTLP Metric points to Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.33.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus) for metrics ingested via OTLP.
   For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time_seconds_total{service.name="foo"}`. See more about this use case [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9830).

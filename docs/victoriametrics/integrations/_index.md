@@ -12,7 +12,6 @@ VictoriaMetrics integrates with many popular monitoring solutions as remote stor
 
 * [Grafana](https://docs.victoriametrics.com/victoriametrics/integrations/grafana/) (read)
 * [Perses](https://docs.victoriametrics.com/victoriametrics/integrations/perses/) (read)
-* [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) (write)
 * [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/) (write)
 * [Graphite](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/) (read, write)
 * [DataDog](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/) (write)
@@ -25,6 +24,7 @@ VictoriaMetrics integrates with many popular monitoring solutions as remote stor
 * [Kafka](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/) (read, write)
 * [OpenShift](https://docs.victoriametrics.com/victoriametrics/integrations/openshift/) (read)
 * [Zabbix Connector](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/)
+* [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) (write)
 
 If you think that community will benefit from new integrations, open a [feature request on GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 
