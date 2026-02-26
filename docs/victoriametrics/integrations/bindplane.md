@@ -27,11 +27,11 @@ VictoriaMetrics integrates with [Bindplane](https://docs.bindplane.com/) via the
 3. Add your telemetry sources such as OTLP, Prometheus scrape, or cloud services.
 4. Select the destination.
 
-![Bindplane configuration editor with telemetry sources and VictoriaMetrics destination](bindplane-add0-sources-1.webp)
+![Bindplane configuration editor with telemetry sources and VictoriaMetrics destination](bindplane-add-sources.webp)
 
 Your integration will be complete and ready to send and receive data.
 ![VictoriaMetrics metrics view showing data received from Bindplane via OpenTelemetry](bindplane-metrics-otel.webp)
 
-You can check the global view in the Library to view the resource type, component type and configurations.  
+You can check the global view in the Library to view the resource type, component type, and configurations.  
 
 For VictoriaLogs with Bindplane integration, check [this page](https://docs.victoriametrics.com/victorialogs/integrations/bindplane/).
