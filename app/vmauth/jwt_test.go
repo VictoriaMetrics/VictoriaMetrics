@@ -32,14 +32,14 @@ XOtclIk1uhc03oL9nOQ=
 		ac, err := parseAuthConfig([]byte(s))
 		if err != nil {
 			if expErr != err.Error() {
-				t.Fatalf("unexpected error; got %q; want %q", err.Error(), expErr)
+				t.Fatalf("unexpected error; got\n%q\nwant\n%q", err.Error(), expErr)
 			}
 			return
 		}
 		users, err := parseJWTUsers(ac)
 		if err != nil {
 			if expErr != err.Error() {
-				t.Fatalf("unexpected error; got %q; want %q", err.Error(), expErr)
+				t.Fatalf("unexpected error; got\n%q\nwant \n%q", err.Error(), expErr)
 			}
 			return
 		}
@@ -164,6 +164,38 @@ users:
     - `+publicKeyFile+`
   url_prefix: http://foo.bar
 `, "cannot parse public key from file \""+publicKeyFile+"\": failed to parse key \"invalidPEM\": failed to decode PEM block containing public key")
+
+	// unsupported placeholder in a header
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  url_prefix: http://foo.bar/{{.UnsupportedPlaceholder}}/foo`,
+		"invalid placeholder found in URL request path: \"/{{.UnsupportedPlaceholder}}/foo\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
+	// unsupported placeholder in a header
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  headers:
+    - "AccountID: {{.UnsupportedPlaceholder}}"
+  url_prefix: http://foo.bar
+`,
+		"request header: \"AccountID\" has unsupported placeholder: \"{{.UnsupportedPlaceholder}}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
+
+	// spaces in templating not allowed
+	f(`
+users:
+- jwt: 
+    skip_verify: true
+  headers:
+    - "AccountID: {{ .LogsAccountID }}"
+  url_prefix: http://foo.bar
+`,
+		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
+	)
 }
 
 func TestJWTParseAuthConfigSuccess(t *testing.T) {
