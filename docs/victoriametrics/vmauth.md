@@ -1085,7 +1085,7 @@ The printed log starts with `access_log` prefix and is followed with `request_ho
 analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs):
 ```logsql
 access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log
-| stats by(user, request_host, status_code) count()
+| stats by(username, request_host, status_code) count()
 ```
 
 Access logs can skip logging requests with specified status codes:
