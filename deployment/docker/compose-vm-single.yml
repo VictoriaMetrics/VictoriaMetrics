@@ -50,6 +50,7 @@ services:
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
+      - ./../../dashboards/alert-statistics.json:/var/lib/grafana/dashboards/alert-statistics.json
     restart: always
 
   # vmalert executes alerting and recording rules
