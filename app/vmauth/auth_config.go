@@ -104,9 +104,10 @@ type UserInfo struct {
 
 // HeadersConf represents config for request and response headers.
 type HeadersConf struct {
-	RequestHeaders   []*Header `yaml:"headers,omitempty"`
-	ResponseHeaders  []*Header `yaml:"response_headers,omitempty"`
-	KeepOriginalHost *bool     `yaml:"keep_original_host,omitempty"`
+	RequestHeaders     []*Header `yaml:"headers,omitempty"`
+	ResponseHeaders    []*Header `yaml:"response_headers,omitempty"`
+	KeepOriginalHost   *bool     `yaml:"keep_original_host,omitempty"`
+	hasAnyPlaceHolders bool
 }
 
 func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
@@ -349,6 +350,7 @@ func (bus *backendURLs) add(u *url.URL) {
 		url:                u,
 		healthCheckContext: bus.healthChecksContext,
 		healthCheckWG:      &bus.healthChecksWG,
+		hasPlaceHolders:    hasAnyPlaceholders(u),
 	})
 }
 
@@ -366,6 +368,8 @@ type backendURL struct {
 	concurrentRequests atomic.Int32
 
 	url *url.URL
+
+	hasPlaceHolders bool
 }
 
 func (bu *backendURL) isBroken() bool {
@@ -903,6 +907,9 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.Name != "" {
 			return nil, fmt.Errorf("field name can't be specified for unauthorized_user section")
 		}
+		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
+			return nil, err
+		}
 		if err := ui.initURLs(); err != nil {
 			return nil, err
 		}
@@ -959,6 +966,10 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 				return nil, fmt.Errorf("duplicate auth token=%q found for username=%q, name=%q; the previous one is set for username=%q, name=%q",
 					at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
 			}
+		}
+
+		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
+			return nil, err
 		}
 		if err := ui.initURLs(); err != nil {
 			return nil, err
@@ -1059,6 +1070,7 @@ func (ui *UserInfo) initURLs() error {
 			return err
 		}
 	}
+
 	for _, e := range ui.URLMaps {
 		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 {
 			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
