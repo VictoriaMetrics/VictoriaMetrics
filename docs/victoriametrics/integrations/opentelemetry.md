@@ -1,11 +1,11 @@
 ---
 title: OpenTelemetry
-weight: 12
+weight: 13
 menu:
   docs:
     parent: "integrations-vm"
     identifier: "integrations-opentelemetry-vm"
-    weight: 12
+    weight: 13
 ---
 
 VictoriaMetrics supports data ingestion via [OpenTelemetry protocol (OTLP) for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/97c826b70e2f89cfdf655d5150791f3f0c2bae19/specification/metrics/data-model.md) at `/opentelemetry/v1/metrics` path.

@@ -21,11 +21,11 @@ exporters:
   otlphttp/victoriametrics:
     compression: gzip
     encoding: proto
-    endpoint: http://<victoriametrics-addr>:<port>/opentelemetry
+    metrics_endpoint: http://<vmsinle>:8428/opentelemetry/v1/metrics
 ```
 
 > For the [cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) specify the tenant ID:
-> `http://<vminsert>:<port>/insert/<accountID>/opentelemetry`.
+> `http://<vminsert>:8480/insert/<accountID>/opentelemetry/v1/metrics`.
 > See more about [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
 
 Add the exporter to the desired service pipeline to activate it:
