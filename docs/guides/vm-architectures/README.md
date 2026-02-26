@@ -190,7 +190,7 @@ For Enterprise users, the queueing can be offloaded to an external message broke
 
 **Recommended for:** Large-scale workloads or services with high SLA requirements that must survive the complete failure of a datacenter or an Availability Zone (AZ).
 
-High availability implementation: [VictoriaMetrics Multi-Regional Setup](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions/)
+High availability implementation: implement [VictoriaMetrics Cluster Setup](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/) in each AZ.
 
 **Key characteristics:** The core principle of this architecture is to run two or more independent, self-contained VictoriaMetrics clusters (from the [Single AZ](https://docs.victoriametrics.com/guides/vm-architectures/#single-availability-zone) section) in separate failure domains, such as different Availability Zones or geographic regions. A global, stateless layer is responsible for routing write and read traffic to these clusters. Each participating AZ must be provisioned to handle the entire workload if another AZ fails. 
 
@@ -229,6 +229,8 @@ To ensure reliability, vmagent implements the bulkhead pattern: each destination
 ## The Hyperscale (Cell-based)
 
 **Recommended for:** Systems that require extra reliability and scalability across multiple regions and zones.
+
+Multi-region implementation: [VictoriaMetrics Multi-Regional Setup](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions/)
 
 **Key characteristics:** This architecture is built on two main ideas - cells and the separation of routing and storage paths
 

@@ -405,9 +405,47 @@ The expected output is:
 ```text
 vmagent-victoria-metrics-agent-69974b95b4-mhjph                1/1     Running   0          11m
 ```
+## 4. Install vmauth from the Helm chart (optional)
+
+We can also deploy `vmauth` service in cluster. It can work as a gateway, distributing requests to multiple `vminsert`s and `vmselect`s. Key capabilities include load balancing and failover. See [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/).
+
+Deploying vmauth is optional. But if you need to build the [Multi-AZ](https://docs.victoriametrics.com/guides/vm-architectures/#multi-cluster-and-multi-az) or [Hyperscale](https://docs.victoriametrics.com/guides/vm-architectures/#the-hyperscale-cell-based) cluster, it is highly recommended to deploy `vmauth` as the entry point for the cluster.
+
+Prepare `vmauth.yaml`:
+```yaml
+config:
+    unauthorized_user:
+      url_map: 
+        - src_paths: 
+            - "/insert/.*"
+          url_prefix: 
+            - "http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480"
+        - src_paths:
+            - "/select/.*"
+          url_prefix:
+            - "http://vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local:8481"
+podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8427"
+# For more configurations, please refer to https://docs.victoriametrics.com/helm/victoria-metrics-auth/
+```
+
+Then run
+```
+helm install vmauth vm/victoria-metrics-auth -f vmauth.yaml
+```
+Verify that `vmauth` pod is up and running by executing the following command:
+```
+kubectl get pods | grep vmauth
+```
+The expected output is:
+```
+vmauth-victoria-metrics-auth-5b4b5bc869-prb5b                     1/1     Running   0          81s
+```
+`vmauth` runs on `:8427` by default.
 
 
-## 4. Install and connect Grafana to VictoriaMetrics with Helm
+## 5. Install and connect Grafana to VictoriaMetrics with Helm
 
 Add the Grafana Helm repository. 
 
@@ -488,7 +526,7 @@ export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/nam
 kubectl --namespace default port-forward $POD_NAME 3000
 ```
 
-## 5. Check the result you obtained in your browser
+## 6. Check the result you obtained in your browser
 
 To check that [VictoriaMetrics](https://victoriametrics.com) collects metrics from k8s cluster open in browser [http://127.0.0.1:3000/dashboards](http://127.0.0.1:3000/dashboards) and choose the `Kubernetes Cluster Monitoring (via Prometheus)` dashboard. Use `admin` for login and `password` that you previously got from kubectl. 
 
@@ -506,7 +544,7 @@ vmagent has its own dashboard:
 
 ![VMAgent dashboard](grafana-dash.webp)
 
-## 6. Final thoughts
+## 7. Final thoughts
 
 * We set up TimeSeries Database for your Kubernetes cluster.
 * We collected metrics from all running pods,nodes, … and stored them in a VictoriaMetrics database.
