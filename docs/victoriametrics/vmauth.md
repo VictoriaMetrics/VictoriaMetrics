@@ -1077,10 +1077,10 @@ unauthorized_user:
 
 Access logs contain limited information to prevent exposing sensitive data. See an example of the printed access log below:
 ```bash
-2026-02-26T14:01:53.646Z        info    VictoriaMetrics/app/vmauth/auth_config.go:135   access_log request_host=localhost:8427 request_uri=/prometheus/api/v1/query_range?query=1&start=1772112713.339&end=1772114513.339&step=5s status_code=200 client_ip="127.0.0.1:62890" user_agent=Mozilla/5.0 referer=http://localhost:8427/vmui/ username=unauthorized
+2026-02-26T15:00:00.207Z        info    VictoriaMetrics/app/vmauth/auth_config.go:134   access_log request_host="localhost:8427" request_uri="/prometheus/api/v1/query_range?query=1&start=1772116199.897&end=1772117999.897&step=5s" status_code=200 remote_addr="127.0.0.1:63425" user_agent="Mozilla/5.0..." referer="http://localhost:8427/vmui/?" username="unauthorized"
 ```
 
-The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `client_ip`,
+The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
 `user_agent`, `referer` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
 analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs):
 ```logsql

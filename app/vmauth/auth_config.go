@@ -131,7 +131,7 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int)
 
 	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 	requestURI := httpserver.GetRequestURI(r)
-	logger.Infof("access_log request_host=%s request_uri=%s status_code=%d client_ip=%s user_agent=%s referer=%s username=%s",
+	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q username=%q",
 		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), userName)
 }
 
