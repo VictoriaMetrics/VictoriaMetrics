@@ -29,7 +29,7 @@ VictoriaMetrics integrates with [Bindplane](https://docs.bindplane.com/) via the
 
 ![Bindplane configuration editor with telemetry sources and VictoriaMetrics destination](bindplane-add-sources.webp)
 
-Your integration will be complete and ready to send and receive data.
+After that Bindplane will start sending metrics to VictoriaMetrics, and you can query them with PromQL/MetricsQL.
 ![VictoriaMetrics metrics view showing data received from Bindplane via OpenTelemetry](bindplane-metrics-otel.webp)
 
 You can check the global view in the Library to view the resource type, component type, and configurations.  
