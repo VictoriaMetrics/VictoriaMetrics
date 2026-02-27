@@ -37,6 +37,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `ovhcloud_sd_configs` is for discovering and scraping OVH Cloud VPS and dedicated server targets. See [these docs](#ovhcloud_sd_configs).
 * `puppetdb_sd_configs` is for discovering and scraping PuppetDB targets. See [these docs](#puppetdb_sd_configs).
+* `serverset_sd_configs` is for discovering and scraping targets from [ZooKeeper](https://zookeeper.apache.org/) ServerSet. See [these docs](#serverset_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
 * `vultr_sd_configs` is for discovering and scraping [Vultr](https://www.vultr.com/) targets. See [these docs](#vultr_sd_configs).
 * `yandexcloud_sd_configs` is for discovering and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
@@ -1671,6 +1672,47 @@ The following meta labels are available on targets during relabeling:
 * `__meta_puppetdb_parameter_<parametername>`: the parameters of the resource.
 
 The list of discovered PuppetDB targets is refreshed at the interval, which can be configured via `-promscrape.puppetdbSDCheckInterval` command-line flag.
+
+## serverset_sd_configs
+
+ServerSet SD configuration allows discovering scrape targets from [ZooKeeper](https://zookeeper.apache.org/)
+[ServerSet](https://github.com/twitter/finagle/tree/develop/finagle-serversets/) members.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: serverset
+  serverset_sd_configs:
+
+    # servers is a list of ZooKeeper servers to connect to.
+    #
+  - servers:
+    - "zk1:2181"
+    - "zk2:2181"
+
+    # paths is a list of ZooKeeper paths to discover ServerSet members from.
+    #
+    paths:
+    - "/discovery/service_name"
+
+    # timeout is an optional ZooKeeper session timeout.
+    # By default, 10s timeout is used.
+    #
+    # timeout: 10s
+```
+
+The following meta labels are available on targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
+
+* `__meta_serverset_path`: the full path to the member node in ZooKeeper.
+* `__meta_serverset_endpoint_host`: the host of the default endpoint.
+* `__meta_serverset_endpoint_port`: the port of the default endpoint.
+* `__meta_serverset_status`: the status of the member.
+* `__meta_serverset_shard`: the shard number of the member.
+* `__meta_serverset_endpoint_host_<name>`: the host of the additional endpoint `<name>`.
+* `__meta_serverset_endpoint_port_<name>`: the port of the additional endpoint `<name>`.
+
+The list of discovered ServerSet targets is refreshed at the interval, which can be configured via `-promscrape.serversetSDCheckInterval` command-line flag.
 
 ## static_configs
 
