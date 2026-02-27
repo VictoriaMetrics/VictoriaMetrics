@@ -33,6 +33,8 @@ type PrometheusQuerier interface {
 	// separate interface or rename this interface to allow for multiple querier
 	// types.
 	GraphiteMetricsIndex(t *testing.T, opts QueryOpts) GraphiteMetricsIndexResponse
+	GraphiteTagsTagSeries(t *testing.T, record string, opts QueryOpts) string
+	GraphiteTagsTagMultiSeries(t *testing.T, records []string, opts QueryOpts) []string
 }
 
 // Writer contains methods for writing new data

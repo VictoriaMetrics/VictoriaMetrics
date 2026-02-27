@@ -307,6 +307,43 @@ func (app *Vmselect) GraphiteMetricsIndex(t *testing.T, opts QueryOpts) Graphite
 	return index
 }
 
+// GraphiteTagsTagSeries is a test helper function that registers Graphite tags
+// for a single time series by sending a HTTP POST request to
+// /graphite/tags/tagSeries vmsingle endpoint.
+func (app *Vmselect) GraphiteTagsTagSeries(t *testing.T, record string, opts QueryOpts) string {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/select/%s/graphite/tags/tagSeries", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	values.Add("path", record)
+
+	res, statusCode := app.cli.PostForm(t, url, values)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+	return res
+}
+
+func (app *Vmselect) GraphiteTagsTagMultiSeries(t *testing.T, records []string, opts QueryOpts) []string {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/select/%s/graphite/tags/tagMultiSeries", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	for _, rec := range records {
+		values.Add("path", rec)
+	}
+
+	res, statusCode := app.cli.PostForm(t, url, values)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+	var tags []string
+	if err := json.Unmarshal([]byte(res), &tags); err != nil {
+		t.Fatalf("could not unmarshal response:\n%s\n err: %v", res, err)
+	}
+	return tags
+}
+
 // APIV1AdminTenants sends a query to a /admin/tenants endpoint
 func (app *Vmselect) APIV1AdminTenants(t *testing.T) *AdminTenantsResponse {
 	t.Helper()
