@@ -426,7 +426,7 @@ func (app *Vmsingle) GraphiteTagsTagSeries(t *testing.T, record string, opts Que
 
 	res, statusCode := app.cli.PostForm(t, url, values)
 	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+		t.Fatalf("unexpected status code: got %d, want %d; response body: %q", statusCode, http.StatusOK, res)
 	}
 	return res
 }
