@@ -270,14 +270,17 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 		userName = "unauthorized"
 	}
 
-	rws := &responseWriterWithStatus{ResponseWriter: w}
-	defer func() {
-		ui.logRequest(r, userName, rws.status)
-	}()
+	if ui.AccessLog != nil {
+		w = &responseWriterWithStatus{ResponseWriter: w}
+		defer func() {
+			rws := w.(*responseWriterWithStatus)
+			ui.logRequest(r, userName, rws.status)
+		}()
+	}
 
 	// Acquire global concurrency limit.
 	if err := beginConcurrencyLimit(ctx); err != nil {
-		handleConcurrencyLimitError(rws, r, err)
+		handleConcurrencyLimitError(w, r, err)
 		return
 	}
 	defer endConcurrencyLimit()
@@ -307,13 +310,13 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 
 	// Acquire concurrency limit for the given user.
 	if err := ui.beginConcurrencyLimit(ctx); err != nil {
-		handleConcurrencyLimitError(rws, r, err)
+		handleConcurrencyLimitError(w, r, err)
 		return
 	}
 	defer ui.endConcurrencyLimit()
 
 	// Process the request.
-	processRequest(rws, r, ui, tkn)
+	processRequest(w, r, ui, tkn)
 }
 
 func beginConcurrencyLimit(ctx context.Context) error {

@@ -118,12 +118,8 @@ type AccessLogFilters struct {
 }
 
 func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int) {
-	al := ui.AccessLog
-	if al == nil {
-		return
-	}
-	filters := al.Filters
-	if filters != nil && filters.SkipStatusCodes != nil {
+	filters := ui.AccessLog.Filters
+	if filters != nil && len(filters.SkipStatusCodes) > 0 {
 		if slices.Contains(filters.SkipStatusCodes, statusCode) {
 			return
 		}
