@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -41,6 +42,7 @@ import (
 	opentsdbserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdb"
 	opentsdbhttpserver "github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
@@ -142,6 +144,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8429"}
 	}
+	remotewrite.SetTopologyInstance(getTopologyInstance(listenAddrs))
 	logger.Infof("starting vmagent at %q...", listenAddrs)
 	startTime := time.Now()
 	remotewrite.StartIngestionRateLimiter()
@@ -222,6 +225,36 @@ func getOpenTSDBHTTPInsertHandler() func(req *http.Request) error {
 		}
 		return opentsdbhttp.InsertHandler(at, req)
 	}
+}
+
+func getTopologyInstance(listenAddrs []string) string {
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{":8429"}
+	}
+	addr, err := netutil.NormalizeAddr(listenAddrs[0], 8429)
+	if err != nil {
+		return getFallbackInstance()
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return getFallbackInstance()
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = getHostname()
+	}
+	return net.JoinHostPort(host, port)
+}
+
+func getHostname() string {
+	h, err := os.Hostname()
+	if err != nil {
+		return "unknown"
+	}
+	return h
+}
+
+func getFallbackInstance() string {
+	return net.JoinHostPort(getHostname(), "8429")
 }
 
 func getAuthTokenFromPath(path string) (*auth.Token, error) {

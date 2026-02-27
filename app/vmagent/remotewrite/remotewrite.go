@@ -195,6 +195,7 @@ func Init() {
 	initStreamAggrConfigGlobal()
 
 	initRemoteWriteCtxs(*remoteWriteURLs)
+	initTopologyMetrics()
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -328,6 +329,8 @@ var (
 func Stop() {
 	close(configReloaderStopCh)
 	configReloaderWG.Wait()
+
+	stopTopologyMetrics()
 
 	sasGlobal.Load().MustStop()
 	if deduplicatorGlobal != nil {
@@ -869,9 +872,10 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	})
 
 	var c *client
+	targetAddr := getRemoteWriteAddr(remoteWriteURL)
 	switch remoteWriteURL.Scheme {
 	case "http", "https":
-		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, queuesSize)
+		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, targetAddr, fq, queuesSize)
 	default:
 		logger.Fatalf("unsupported scheme: %s for remoteWriteURL: %s, want `http`, `https`", remoteWriteURL.Scheme, sanitizedURL)
 	}
