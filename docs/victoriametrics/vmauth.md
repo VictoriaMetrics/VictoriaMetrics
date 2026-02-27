@@ -250,7 +250,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 ### JWT Token auth proxy
 
-`vmauth` can authorize access{{% available_from "#" %}} to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header. 
+`vmauth` can authorize access{{% available_from "v1.137.0" %}} to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header. 
 JWT tokens are verified using RSA or ECDSA public keys. The following auth config proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) if they contain a valid JWT token:
 
 ```yaml
@@ -281,7 +281,7 @@ Only one user with JWT authentication method is allowed at the moment.
 
 #### JWT claim-based request templating
 
-`vmauth` can dynamically rewrite{{% available_from "#" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
+`vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
 This enables routing different users to different backends or tenants based solely on the JWT token, 
 without maintaining separate user configs per tenant.
 
