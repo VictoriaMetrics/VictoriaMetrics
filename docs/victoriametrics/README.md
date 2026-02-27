@@ -2145,9 +2145,12 @@ It is also possible removing [rollup result cache](#rollup-result-cache) on star
 
 ### Rollup result cache
 
-VictoriaMetrics caches query responses by default. This allows increasing performance for repeated queries
+VictoriaMetrics caches query responses by default and utilizes the cache for future queries when possible. This improves performance for repeated queries
 to [`/api/v1/query`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
 with the increasing `time`, `start` and `end` query args.
+
+> For range query: the cache can be used for queries with the same expression and step.
+> For instant query: the cache can be used for queries with the same expression that uses a lookbehind window larger than `-search.minWindowForInstantRollupOptimization` and specific functions such as `xx_over_time`, `increase`, `rate`. (For `rate`, the cache result may be inaccurate in edge cases, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for details)
 
 This cache may work incorrectly when ingesting historical data into VictoriaMetrics. See [these docs](#backfilling) for details.
 
