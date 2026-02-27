@@ -35,6 +35,7 @@ func TestGetRemoteWriteAddr(t *testing.T) {
 
 func TestResolveTopologyTargets_Direct(t *testing.T) {
 	customResolver := &fakeResolver{
+		Resolver: &net.Resolver{},
 		lookupIPAddrResults: map[string][]net.IPAddr{
 			"vminsert": {
 				{IP: net.ParseIP("10.20.30.40")},
@@ -62,6 +63,7 @@ func TestResolveTopologyTargets_Direct(t *testing.T) {
 
 func TestResolveTopologyTargets_DefaultPort(t *testing.T) {
 	customResolver := &fakeResolver{
+		Resolver: &net.Resolver{},
 		lookupIPAddrResults: map[string][]net.IPAddr{
 			"vminsert": {
 				{IP: net.ParseIP("10.20.30.41")},
@@ -89,6 +91,7 @@ func TestResolveTopologyTargets_DefaultPort(t *testing.T) {
 
 func TestResolveTopologyTargets_SRV(t *testing.T) {
 	customResolver := &fakeResolver{
+		Resolver: &net.Resolver{},
 		lookupSRVResults: map[string][]*net.SRV{
 			"vmselect": {
 				{
@@ -147,7 +150,7 @@ func TestBuildTopologyMetricNames(t *testing.T) {
 }
 
 type fakeResolver struct {
-	Resolver            *net.Resolver
+	*net.Resolver
 	lookupSRVResults    map[string][]*net.SRV
 	lookupIPAddrResults map[string][]net.IPAddr
 }
@@ -164,8 +167,4 @@ func (r *fakeResolver) LookupIPAddr(_ context.Context, host string) ([]net.IPAdd
 		return results, nil
 	}
 	return nil, fmt.Errorf("no results found for host: %s", host)
-}
-
-func (r *fakeResolver) LookupMX(_ context.Context, _ string) ([]*net.MX, error) {
-	return nil, nil
 }

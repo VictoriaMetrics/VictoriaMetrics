@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -227,7 +228,7 @@ func resolveSRV(ctx context.Context, host, port string) []string {
 		addrs = append(addrs, resolved...)
 	}
 	sort.Strings(addrs)
-	return deduplicateAddrs(addrs)
+	return slices.Compact(addrs)
 }
 
 func resolveIPAddrs(ctx context.Context, host, port string) []string {
@@ -244,21 +245,7 @@ func resolveIPAddrs(ctx context.Context, host, port string) []string {
 		addrs[i] = joinAddr(ip.String(), port)
 	}
 	sort.Strings(addrs)
-	return deduplicateAddrs(addrs)
-}
-
-func deduplicateAddrs(addrs []string) []string {
-	if len(addrs) < 2 {
-		return addrs
-	}
-	dst := addrs[:1]
-	for _, addr := range addrs[1:] {
-		if addr == dst[len(dst)-1] {
-			continue
-		}
-		dst = append(dst, addr)
-	}
-	return dst
+	return slices.Compact(addrs)
 }
 
 func joinAddr(host, port string) string {
