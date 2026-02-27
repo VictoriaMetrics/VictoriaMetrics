@@ -1227,7 +1227,10 @@ Metric names are stripped from the resulting series. Add [keep_metric_names](#ke
 #### buckets_limit
 
 `buckets_limit(limit, buckets)` is a [transform function](#transform-functions), which limits the number
-of [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) to the given `limit`.
+of [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) to the given `limit`. 
+
+The result will preserve the first and the last bucket to improve accuracy for min and max values. 
+So, if the `limit` is greater than 0 and less than 3, the function will still return 3 buckets: the first bucket, the last bucket, and a selected bucket.
 
 See also [prometheus_buckets](#prometheus_buckets) and [histogram_quantile](#histogram_quantile).
 
@@ -1380,6 +1383,15 @@ See also [ceil](#ceil) and [round](#round).
 It can be used for calculating the average over the given time range across multiple time series.
 For example, `histogram_avg(sum(histogram_over_time(response_time_duration_seconds[5m])) by (vmrange,job))` would return the average response time
 per each `job` over the last 5 minutes.
+
+#### histogram_fraction
+
+`histogram_fraction(lowerLe, upperLe, buckets)` is a [transform function](#transform-functions), which calculates the share (in the range `[0...1]`) for `buckets` that fall between `lowerLe` and `upperLe`.
+The result of `histogram_fraction(lowerLe, upperLe, buckets)` is equivalent to `histogram_share(upperLe, buckets) - histogram_share(lowerLe, buckets)`.
+
+This function is supported by PromQL.
+
+See also [histogram_share](#histogram_share).
 
 #### histogram_quantile
 

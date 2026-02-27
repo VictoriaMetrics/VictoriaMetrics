@@ -27,13 +27,13 @@ require (
 	github.com/klauspost/compress v1.18.4
 	github.com/prometheus/prometheus v0.309.1
 	github.com/urfave/cli/v2 v2.27.7
-	github.com/valyala/fastjson v1.6.9
+	github.com/valyala/fastjson v1.6.10
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/valyala/gozstd v1.24.0
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.8.0
-	golang.org/x/net v0.50.0
+	golang.org/x/net v0.51.0
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sys v0.41.0
 	google.golang.org/api v0.267.0

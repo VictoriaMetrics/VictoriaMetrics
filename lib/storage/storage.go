@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -891,7 +892,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *nextDayMetricIDs {
 	}
 
 	// Unmarshal uint64set
-	m, tail, err := unmarshalUint64Set(src)
+	m, tail, err := uint64set.Unmarshal(src)
 	if err != nil {
 		logger.Infof("discarding %s because cannot load uint64set: %s", path, err)
 		return e
@@ -931,7 +932,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	}
 
 	// Unmarshal uint64set
-	m, tail, err := unmarshalUint64Set(src)
+	m, tail, err := uint64set.Unmarshal(src)
 	if err != nil {
 		logger.Infof("discarding %s because cannot load uint64set: %s", path, err)
 		return hm
@@ -952,7 +953,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *nextDayMetricIDs) {
 	dst = encoding.MarshalUint64(dst, e.date)
 
 	// Marshal metricIDs
-	dst = marshalUint64Set(dst, &e.metricIDs)
+	dst = e.metricIDs.Marshal(dst)
 
 	fs.MustWriteSync(path, dst)
 }
@@ -965,35 +966,9 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	dst = encoding.MarshalUint64(dst, hm.hour)
 
 	// Marshal hm.m
-	dst = marshalUint64Set(dst, hm.m)
+	dst = hm.m.Marshal(dst)
 
 	fs.MustWriteSync(path, dst)
-}
-
-func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
-	mLen := encoding.UnmarshalUint64(src)
-	src = src[8:]
-	if uint64(len(src)) < 8*mLen {
-		return nil, nil, fmt.Errorf("cannot unmarshal uint64set; got %d bytes; want at least %d bytes", len(src), 8*mLen)
-	}
-	m := &uint64set.Set{}
-	for range mLen {
-		metricID := encoding.UnmarshalUint64(src)
-		src = src[8:]
-		m.Add(metricID)
-	}
-	return m, src, nil
-}
-
-func marshalUint64Set(dst []byte, m *uint64set.Set) []byte {
-	dst = encoding.MarshalUint64(dst, uint64(m.Len()))
-	m.ForEach(func(part []uint64) bool {
-		for _, metricID := range part {
-			dst = encoding.MarshalUint64(dst, metricID)
-		}
-		return true
-	})
-	return dst
 }
 
 func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) int64 {
@@ -1046,14 +1021,36 @@ func (s *Storage) mustSaveCache(c *workingsetcache.Cache, name string) {
 // saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
 var saveCacheLock sync.Mutex
 
-func (s *Storage) getMetricNameFromCache(dst []byte, metricID uint64) []byte {
+func (s *Storage) getTSIDByMetricIDFromCache(dst *TSID, metricID uint64) error {
+	// There is no need in checking for deleted metricIDs here, since they
+	// must be checked by the caller.
+	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))
+	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
+	tmp := s.metricIDCache.Get(buf[:0], key[:])
+	if len(tmp) == 0 {
+		// The TSID for the given metricID wasn't found in the cache.
+		return io.EOF
+	}
+	if &tmp[0] != &buf[0] || len(tmp) != len(buf) {
+		return fmt.Errorf("corrupted MetricID->TSID cache: unexpected size for metricID=%d value; got %d bytes; want %d bytes", metricID, len(tmp), len(buf))
+	}
+	return nil
+}
+
+func (s *Storage) putTSIDByMetricIDToCache(metricID uint64, tsid *TSID) {
+	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))
+	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
+	s.metricIDCache.Set(key[:], buf[:])
+}
+
+func (s *Storage) getMetricNameByMetricIDFromCache(dst []byte, metricID uint64) []byte {
 	// There is no need in checking for deleted metricIDs here, since they
 	// must be checked by the caller.
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
 	return s.metricNameCache.Get(dst, key[:])
 }
 
-func (s *Storage) putMetricNameToCache(metricID uint64, metricName []byte) {
+func (s *Storage) putMetricNameByMetricIDToCache(metricID uint64, metricName []byte) {
 	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
 	s.metricNameCache.Set(key[:], metricName)
 }
@@ -1750,7 +1747,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			deletedMetricIDs = idb.getDeletedMetricIDs()
 		}
 
-		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
+		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been
 			// found in cache and isn't deleted. If the TSID is deleted, we
 			// re-register time series. Eventually, the deleted TSID will be
@@ -1801,14 +1798,14 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
-			s.storeTSIDToCache(&lTSID, mr.MetricNameRaw)
+			s.putTSIDByMetricNameToCache(&lTSID, mr.MetricNameRaw)
 			continue
 		}
 
 		// Slowest path - there is no TSID in indexdb for the given mr.MetricNameRaw. Create it.
 		generateTSID(&lTSID.TSID, mn)
 		createAllIndexesForMetricName(idb, mn, &lTSID.TSID, date)
-		s.storeTSIDToCache(&lTSID, mr.MetricNameRaw)
+		s.putTSIDByMetricNameToCache(&lTSID, mr.MetricNameRaw)
 		newSeriesCount++
 	}
 	if ptw != nil {
@@ -1952,7 +1949,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		// tsidCache may contain TSIDs that were deleted from some indexDBs but
 		// are still in use in other indexDBs. Thus, also check if a given TSID
 		// was not deleted deom the current indexDB.
-		if s.getTSIDFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
+		if s.getTSIDByMetricNameFromCache(&lTSID, mr.MetricNameRaw) && !deletedMetricIDs.Has(lTSID.TSID.MetricID) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
 
 			r.TSID = lTSID.TSID
@@ -2007,7 +2004,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		if is.getTSIDByMetricName(&lTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
-			s.storeTSIDToCache(&lTSID, mr.MetricNameRaw)
+			s.putTSIDByMetricNameToCache(&lTSID, mr.MetricNameRaw)
 
 			r.TSID = lTSID.TSID
 			prevTSID = lTSID.TSID
@@ -2020,7 +2017,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		// Slowest path - the TSID for the given mr.MetricNameRaw isn't found in indexdb. Create it.
 		generateTSID(&lTSID.TSID, mn)
 		createAllIndexesForMetricName(idb, mn, &lTSID.TSID, date)
-		s.storeTSIDToCache(&lTSID, mr.MetricNameRaw)
+		s.putTSIDByMetricNameToCache(&lTSID, mr.MetricNameRaw)
 		newSeriesCount++
 
 		r.TSID = lTSID.TSID
@@ -2507,13 +2504,13 @@ type legacyTSID struct {
 	_ uint64
 }
 
-func (s *Storage) getTSIDFromCache(dst *legacyTSID, metricName []byte) bool {
+func (s *Storage) getTSIDByMetricNameFromCache(dst *legacyTSID, metricName []byte) bool {
 	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))[:]
 	buf = s.tsidCache.Get(buf[:0], metricName)
 	return uintptr(len(buf)) == unsafe.Sizeof(*dst)
 }
 
-func (s *Storage) storeTSIDToCache(tsid *legacyTSID, metricName []byte) {
+func (s *Storage) putTSIDByMetricNameToCache(tsid *legacyTSID, metricName []byte) {
 	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))[:]
 	s.tsidCache.Set(metricName, buf)
 }

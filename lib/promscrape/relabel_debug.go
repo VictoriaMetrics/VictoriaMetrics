@@ -47,7 +47,7 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			err = fmt.Errorf("cannot find target for id=%s", targetID)
 			targetID = ""
 		} else {
-			metric = labels.String()
+			metric = labels.labelsString()
 			relabelConfigs = pcs.String()
 		}
 	}

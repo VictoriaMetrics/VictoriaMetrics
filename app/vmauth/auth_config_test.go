@@ -277,6 +277,50 @@ users:
   metric_labels:
     not-prometheus-compatible: value
 `)
+	// placeholder in url_prefix
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
+	// placeholder in a header
+	f(`
+users:
+- username: foo
+  password: bar
+  headers:
+  - 'X-Foo: {{a_placeholder}}'
+  url_prefix: 'http://ahost'
+`)
+	// placeholder in url_prefix
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
+	// placeholder in a header in url_map
+	f(`
+users:
+- username: foo
+  password: bar
+  url_map:
+    - src_paths: ["/select/.*"]
+      headers:
+        - 'X-Foo: {{a_placeholder}}'
+      url_prefix: 'http://ahost'
+`)
+
+	// placeholder in a header in url_map
+	f(`
+users:
+- username: foo
+  password: bar
+  url_map:
+    - src_paths: ["/select/.*"]
+      url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
 }
 
 func TestParseAuthConfigSuccess(t *testing.T) {
