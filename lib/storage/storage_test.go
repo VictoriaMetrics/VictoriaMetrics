@@ -1133,7 +1133,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	assertMetricNameCached := func(metricNameRaw []byte, want bool) {
 		t.Helper()
 		var v legacyTSID
-		if got := s.getTSIDFromCache(&v, metricNameRaw); got != want {
+		if got := s.getTSIDByMetricNameFromCache(&v, metricNameRaw); got != want {
 			t.Errorf("unexpected %q metric name in TSID cache: got %t, want %t", string(metricNameRaw), got, want)
 		}
 	}

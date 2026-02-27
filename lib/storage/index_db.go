@@ -12,7 +12,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metricsql"
@@ -356,32 +355,6 @@ func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricI
 	qt.Printf("put %d metricIDs in cache", metricIDs.Len())
 	db.tagFiltersToMetricIDsCache.PutEntry(string(key), metricIDs)
 	qt.Printf("stored %d metricIDs into cache", metricIDs.Len())
-}
-
-func (db *indexDB) getFromMetricIDCache(dst *TSID, metricID uint64) error {
-	// There is no need in prefixing the key with (accountID, projectID),
-	// since metricID is globally unique across all (accountID, projectID) values.
-	// See getUniqueUint64.
-
-	// There is no need in checking for deleted metricIDs here, since they
-	// must be checked by the caller.
-	buf := (*[unsafe.Sizeof(*dst)]byte)(unsafe.Pointer(dst))
-	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
-	tmp := db.s.metricIDCache.Get(buf[:0], key[:])
-	if len(tmp) == 0 {
-		// The TSID for the given metricID wasn't found in the cache.
-		return io.EOF
-	}
-	if &tmp[0] != &buf[0] || len(tmp) != len(buf) {
-		return fmt.Errorf("corrupted MetricID->TSID cache: unexpected size for metricID=%d value; got %d bytes; want %d bytes", metricID, len(tmp), len(buf))
-	}
-	return nil
-}
-
-func (db *indexDB) putToMetricIDCache(metricID uint64, tsid *TSID) {
-	buf := (*[unsafe.Sizeof(*tsid)]byte)(unsafe.Pointer(tsid))
-	key := (*[unsafe.Sizeof(metricID)]byte)(unsafe.Pointer(&metricID))
-	db.s.metricIDCache.Set(key[:], buf[:])
 }
 
 func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange) []byte {
@@ -1923,7 +1896,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 			// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
 			// than scanning the mergeset if it contains a lot of metricIDs.
 			tsid := &tsids[i]
-			err = db.getFromMetricIDCache(tsid, metricID)
+			err = db.s.getTSIDByMetricIDFromCache(tsid, metricID)
 			if err == nil {
 				// Fast path - the tsid for metricID is found in cache.
 				i++
@@ -1945,7 +1918,7 @@ func (db *indexDB) SearchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 				}
 				continue
 			}
-			db.putToMetricIDCache(metricID, tsid)
+			db.s.putTSIDByMetricIDToCache(metricID, tsid)
 			i++
 		}
 		return true
@@ -2080,7 +2053,7 @@ func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date ui
 }
 
 func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byte, bool) {
-	metricName := is.db.s.getMetricNameFromCache(dst, metricID)
+	metricName := is.db.s.getMetricNameByMetricIDFromCache(dst, metricID)
 	if len(metricName) > len(dst) {
 		return metricName, true
 	}
@@ -2089,7 +2062,7 @@ func (is *indexSearch) searchMetricNameWithCache(dst []byte, metricID uint64) ([
 	if ok {
 		// There is no need in verifying whether the given metricID is deleted,
 		// since the filtering must be performed before calling this func.
-		is.db.s.putMetricNameToCache(metricID, dst)
+		is.db.s.putMetricNameByMetricIDToCache(metricID, dst)
 		return dst, true
 	}
 	return dst, false
