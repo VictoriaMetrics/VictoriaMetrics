@@ -26,7 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
-## v1.137.0
+## [v1.137.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.137.0)
 
 Released at 2026-02-27
 
