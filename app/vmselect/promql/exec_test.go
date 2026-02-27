@@ -4062,26 +4062,6 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`histogram_quantile(overlapping-buckets)`, func(t *testing.T) {
-		t.Parallel()
-		q := `histogram_quantile(0.9, (
-			label_set(10, "le", "0.5"),
-			label_set(8, "le", "1"),
-			label_set(20, "le", "+Inf"),
-		))`
-		resultExpected := []netstorage.Result{}
-		f(q, resultExpected)
-	})
-	t.Run(`histogram_share(overlapping-buckets)`, func(t *testing.T) {
-		t.Parallel()
-		q := `histogram_share(0.6, (
-			label_set(10, "le", "0.5"),
-			label_set(8, "le", "1"),
-			label_set(20, "le", "+Inf"),
-		))`
-		resultExpected := []netstorage.Result{}
-		f(q, resultExpected)
-	})
 	t.Run(`histogram_quantile(single-value-valid-le)`, func(t *testing.T) {
 		t.Parallel()
 		q := `histogram_quantile(0.6, label_set(100, "le", "200"))`
@@ -9915,6 +9895,8 @@ func TestExecError(t *testing.T) {
 	f(`vector()`)
 	f(`histogram_quantile()`)
 	f(`histogram_quantiles()`)
+	f(`histogram_quantile(0.9, (label_set(10, "le", "0.5"), label_set(8, "le", "1"), label_set(20, "le", "+Inf")))`)
+	f(`histogram_share(0.6, (label_set(10, "le", "0.5"), label_set(8, "le", "1"), label_set(20, "le", "+Inf")))`)
 	f(`sum()`)
 	f(`count_values()`)
 	f(`quantile()`)

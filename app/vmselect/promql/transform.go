@@ -662,9 +662,6 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 		if math.IsNaN(leReq) || len(xss) == 0 {
 			return nan, nan, nan
 		}
-		if hasOverlappingBuckets(i, xss) {
-			return nan, nan, nan
-		}
 		fixBrokenBuckets(i, xss)
 		if leReq < 0 {
 			return 0, 0, 0
@@ -716,6 +713,9 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 			tsUpper.MetricName.AddTag(boundsLabel, "upper")
 		}
 		for i := range dst.Values {
+			if hasOverlappingBuckets(i, xss) {
+				return nil, fmt.Errorf("overlapping `le` buckets found")
+			}
 			q, lower, upper := share(i, les, xss)
 			dst.Values[i] = q
 			if len(boundsLabel) > 0 {
@@ -935,9 +935,6 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		if math.IsNaN(phi) {
 			return nan, nan, nan
 		}
-		if hasOverlappingBuckets(i, xss) {
-			return nan, nan, nan
-		}
 		fixBrokenBuckets(i, xss)
 		vLast := float64(0)
 		if len(xss) > 0 {
@@ -999,6 +996,9 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 			tsUpper.MetricName.AddTag(boundsLabel, "upper")
 		}
 		for i := range dst.Values {
+			if hasOverlappingBuckets(i, xss) {
+				return nil, fmt.Errorf("overlapping `le` buckets found")
+			}
 			v, lower, upper := quantile(i, phis, xss)
 			dst.Values[i] = v
 			if len(boundsLabel) > 0 {
