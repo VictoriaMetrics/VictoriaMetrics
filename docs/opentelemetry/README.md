@@ -24,7 +24,7 @@ Resources:
 VictoriaMetrics single-node, vmagent and vminsert components support ingestion of metrics via OpenTelemetry Protocol (OTLP) 
 from [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) and applications instrumented with [OpenTelemetry SDKs](https://opentelemetry.io/docs/languages/). 
 
-See the detailed description about protocol support [here](https://docs.victoriametrics.com/victoriametrics/#sending-data-via-opentelemetry).
+See the detailed description about protocol support [here](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
 
 > See a practical guide [How to use OpenTelemetry metrics with VictoriaMetrics](https://docs.victoriametrics.com/guides/getting-started-with-opentelemetry/).
 
