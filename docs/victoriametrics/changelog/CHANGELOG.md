@@ -78,6 +78,8 @@ Released at 2026-02-13
 
 Released at 2026-01-30
 
+**Update Note 1:** `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): has a bug affecting the `/select/multitenant/*` APIs. Due to an issue in the tenant search logic [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422), these endpoints may return incorrect results. The bug has been fixed and the correction will be included in `v1.137.0`.
+
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): improved scrape size display. Sizes below 1024 bytes are now shown in `B`, and larger sizes are shown as whole `KiB` (rounded up). This prevents confusion where values like 123.456 KiB were interpreted as 123456 KiB, while the actual size was only 123 KiB. See [#10307](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10307).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): allow buffering request bodies before proxying them to backends. This reduces load on backends when processing requests from slow clients such as IoT devices connected to `vmauth` via slow networks. See [#10309](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10309) and [request body buffering docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering).
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): allow completely disabling scheduled backups by using `-disableScheduledBackups` command-line flag. This is useful to run `vmbackupmanager` only for on-demand backups and restores triggered via API. See [#10364](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10364).
@@ -223,6 +225,8 @@ The v1.122.x line will be supported for at least 12 months since [v1.122.0](http
 ## [v1.122.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.14)
 
 Released at 2026-01-30
+
+**Update Note 1:** `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): has a bug affecting the `/select/multitenant/*` APIs. Due to an issue in the tenant search logic [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422), these endpoints may return incorrect results. The bug has been fixed and the correction will be included in `v1.122.16`.
 
 **v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -372,6 +376,8 @@ The v1.110.x line will be supported for at least 12 months since [v1.110.0](http
 ## [v1.110.29](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.29)
 
 Released at 2026-01-30
+
+**Update Note 1:** `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): has a bug affecting the `/select/multitenant/*` APIs. Due to an issue in the tenant search logic [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422), these endpoints may return incorrect results. The bug has been fixed and the correction will be included in `v1.110.31`.
 
 **v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
