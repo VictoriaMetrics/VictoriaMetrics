@@ -718,129 +718,126 @@ func TestConfigHeadersHash(t *testing.T) {
 const testCertificateBits = 4096
 
 func TestMTLSCertificateRotation(t *testing.T) {
-	{
-		ca := generateCA(t)
+	ca := generateCA(t)
 
-		clientKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
-		if err != nil {
-			t.Fatalf("cannot generate client private key: %s", err)
-		}
-		clientKeyPEM := pem.EncodeToMemory(&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(clientKey),
-		})
-		clientCert := ca.createAndSignCert(t, clientKey)
+	clientKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
+	if err != nil {
+		t.Fatalf("cannot generate client private key: %s", err)
+	}
+	clientKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(clientKey),
+	})
+	clientCert := ca.createAndSignCert(t, clientKey)
 
-		clientCertPath, clientKeyPath := path.Join(t.TempDir(), "client_cert.pem"), path.Join(t.TempDir(), "client_key.pem")
-		if err := os.WriteFile(clientCertPath, clientCert.certPEM, os.ModePerm); err != nil {
-			t.Fatalf("cannot write client cert at temp dir: %s", err)
-		}
-		if err := os.WriteFile(clientKeyPath, clientKeyPEM, os.ModePerm); err != nil {
-			t.Fatalf("cannot write client cert key at temp dir: %s", err)
-		}
-
-		serverKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
-		if err != nil {
-			t.Fatalf("cannot generate server private key: %s", err)
-		}
-		serverCert := ca.createAndSignCert(t, serverKey)
-		serverKeyPEM := pem.EncodeToMemory(&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(serverKey),
-		})
-		serverTLS, err := tls.X509KeyPair(serverCert.certPEM, serverKeyPEM)
-		if err != nil {
-			t.Fatalf("cannot load generated server certificate: %s", err)
-		}
-		pool := x509.NewCertPool()
-		pool.AddCert(ca.cert)
-
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{serverTLS},
-			ClientCAs:    pool,
-			// enforce client certificate verify
-			ClientAuth: tls.RequireAndVerifyClientCert,
-		}
-
-		// store last certificate serial seen by server
-		var lastSeenCertificateSerial atomic.Uint64
-		s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if len(r.TLS.PeerCertificates) != 1 {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprintf(w, "expected 1 PeerCertificates, got: %d", len(r.TLS.PeerCertificates))
-				return
-			}
-			for _, pc := range r.TLS.PeerCertificates {
-				lastSeenCertificateSerial.Store(pc.SerialNumber.Uint64())
-			}
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		s.TLS = tlsConfig
-		s.StartTLS()
-		defer s.Close()
-
-		serverURL, err := url.Parse(s.URL)
-		if err != nil {
-			t.Fatalf("unexpected error when parsing url=%q: %s", s.URL, err)
-		}
-
-		opts := Options{
-			TLSConfig: &TLSConfig{
-				CA:       string(ca.certPEM),
-				CertFile: clientCertPath,
-				KeyFile:  clientKeyPath,
-			},
-		}
-		ac, err := opts.NewConfig()
-		if err != nil {
-			t.Fatalf("unexpected error when parsing config: %s", err)
-		}
-
-		tr := httputil.NewTransport(false, "test_client")
-		client := http.Client{
-			Transport: ac.NewRoundTripper(tr),
-		}
-
-		assertHTTPRequestOk := func() {
-			t.Helper()
-			resp, err := client.Do(&http.Request{
-				Method: http.MethodGet,
-				URL:    serverURL,
-			})
-			if err != nil {
-				t.Fatalf("unexpected error when making request: %s", err)
-			}
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("expected status code %d; got %d", http.StatusOK, resp.StatusCode)
-			}
-			resp.Body.Close()
-		}
-		assertSeenCertSerial := func() {
-			t.Helper()
-			wantSerial := clientCert.cert.SerialNumber.Uint64()
-			seenSerial := lastSeenCertificateSerial.Load()
-			if wantSerial != seenSerial {
-				t.Fatalf("unexpected last seen certificate serial (-%d;+%d)", wantSerial, seenSerial)
-			}
-		}
-		assertHTTPRequestOk()
-		assertSeenCertSerial()
-
-		// update certificate
-		clientCert = ca.createAndSignCert(t, clientKey)
-		if err := os.WriteFile(clientCertPath, clientCert.certPEM, os.ModePerm); err != nil {
-			t.Fatalf("cannot write client cert at temp dir: %s", err)
-		}
-
-		// wait for certificate rotation
-		// it's cached for 1 second by client
-		// we cannot use synctest there because of httpserver TCP socket
-		time.Sleep(time.Second * 2)
-		assertHTTPRequestOk()
-		assertSeenCertSerial()
+	clientCertPath, clientKeyPath := path.Join(t.TempDir(), "client_cert.pem"), path.Join(t.TempDir(), "client_key.pem")
+	if err := os.WriteFile(clientCertPath, clientCert.certPEM, os.ModePerm); err != nil {
+		t.Fatalf("cannot write client cert at temp dir: %s", err)
+	}
+	if err := os.WriteFile(clientKeyPath, clientKeyPEM, os.ModePerm); err != nil {
+		t.Fatalf("cannot write client cert key at temp dir: %s", err)
 	}
 
+	serverKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
+	if err != nil {
+		t.Fatalf("cannot generate server private key: %s", err)
+	}
+	serverCert := ca.createAndSignCert(t, serverKey)
+	serverKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(serverKey),
+	})
+	serverTLS, err := tls.X509KeyPair(serverCert.certPEM, serverKeyPEM)
+	if err != nil {
+		t.Fatalf("cannot load generated server certificate: %s", err)
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(ca.cert)
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{serverTLS},
+		ClientCAs:    pool,
+		// enforce client certificate verify
+		ClientAuth: tls.RequireAndVerifyClientCert,
+	}
+
+	// store last certificate serial seen by server
+	var lastSeenCertificateSerial atomic.Uint64
+	s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if len(r.TLS.PeerCertificates) != 1 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "expected 1 PeerCertificates, got: %d", len(r.TLS.PeerCertificates))
+			return
+		}
+		for _, pc := range r.TLS.PeerCertificates {
+			lastSeenCertificateSerial.Store(pc.SerialNumber.Uint64())
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	s.TLS = tlsConfig
+	s.StartTLS()
+	defer s.Close()
+
+	serverURL, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatalf("unexpected error when parsing url=%q: %s", s.URL, err)
+	}
+
+	opts := Options{
+		TLSConfig: &TLSConfig{
+			CA:       string(ca.certPEM),
+			CertFile: clientCertPath,
+			KeyFile:  clientKeyPath,
+		},
+	}
+	ac, err := opts.NewConfig()
+	if err != nil {
+		t.Fatalf("unexpected error when parsing config: %s", err)
+	}
+
+	tr := httputil.NewTransport(false, "test_client")
+	client := http.Client{
+		Transport: ac.NewRoundTripper(tr),
+	}
+
+	assertHTTPRequestOk := func() {
+		t.Helper()
+		resp, err := client.Do(&http.Request{
+			Method: http.MethodGet,
+			URL:    serverURL,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error when making request: %s", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected status code %d; got %d", http.StatusOK, resp.StatusCode)
+		}
+		resp.Body.Close()
+	}
+	assertSeenCertSerial := func() {
+		t.Helper()
+		wantSerial := clientCert.cert.SerialNumber.Uint64()
+		seenSerial := lastSeenCertificateSerial.Load()
+		if wantSerial != seenSerial {
+			t.Fatalf("unexpected last seen certificate serial (-%d;+%d)", wantSerial, seenSerial)
+		}
+	}
+	assertHTTPRequestOk()
+	assertSeenCertSerial()
+
+	// update certificate
+	clientCert = ca.createAndSignCert(t, clientKey)
+	if err := os.WriteFile(clientCertPath, clientCert.certPEM, os.ModePerm); err != nil {
+		t.Fatalf("cannot write client cert at temp dir: %s", err)
+	}
+
+	// wait for certificate rotation
+	// it's cached for 1 second by client
+	// we cannot use synctest there because of httpserver TCP socket
+	time.Sleep(time.Second * 2)
+	assertHTTPRequestOk()
+	assertSeenCertSerial()
 }
 
 type caSigner struct {
@@ -908,7 +905,7 @@ func (cas *caSigner) createAndSignCert(t *testing.T, certKey *rsa.PrivateKey) *c
 			CommonName:   "localhost",
 		},
 		NotBefore:   time.Now(),
-		NotAfter:    time.Now().Add(time.Second * 20),
+		NotAfter:    time.Now().Add(time.Minute),
 		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		DNSNames:    []string{"localhost"},
