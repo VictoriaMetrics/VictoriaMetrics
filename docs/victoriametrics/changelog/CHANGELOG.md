@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## v1.137.0
+
+Released at 2026-02-27
+
 **Update Note 1:** [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): default value of the flag `-promscrape.dropOriginalLabels` changed from `true` to `false`.
 It enables back `Discovered targets` debug UI by default.
 
