@@ -23,7 +23,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=13&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
+          dashboard: "{{ $externalURL }}/d/LzldHAVnz?viewPanel=13&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Alerting rules are failing for vmalert instance {{ $labels.instance }}"
           description: "Alerting rules execution is failing for \"{{ $labels.alertname }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             Check vmalert's logs for detailed error message."
@@ -34,7 +34,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=30&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
+          dashboard: "{{ $externalURL }}/d/LzldHAVnz?viewPanel=30&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Recording rules are failing for vmalert instance {{ $labels.instance }}"
           description: "Recording rules execution is failing for \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             Check vmalert's logs for detailed error message."
@@ -45,7 +45,7 @@ groups:
         labels:
           severity: info
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=33&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
+          dashboard: "{{ $externalURL }}/d/LzldHAVnz?viewPanel=33&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Recording rule {{ $labels.recording }} ({{ $labels.group }}) produces no data"
           description: "Recording rule \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\ in file \"{{ $labels.file }}\" 
             produces 0 samples over the last 30min. It might be caused by a misconfiguration 
