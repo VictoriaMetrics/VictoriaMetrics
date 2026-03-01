@@ -55,7 +55,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
+  "id": 55,
   "links": [
     {
       "asDropdown": false,
@@ -255,7 +255,7 @@
           "root_selector": "data.seriesCountByMetricName",
           "source": "url",
           "type": "json",
-          "url": "/api/v1/status/tsdb?topN=$topN&match[]=$match",
+          "url": "$victoriametrics_url/api/v1/status/tsdb?topN=$topN&match[]=$match",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -398,7 +398,7 @@
           "root_selector": "data.seriesCountByLabelName",
           "source": "url",
           "type": "json",
-          "url": "/api/v1/status/tsdb?topN=$topN&match[]=$match",
+          "url": "$victoriametrics_url/api/v1/status/tsdb?topN=$topN&match[]=$match",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -541,7 +541,7 @@
           "root_selector": "data.seriesCountByFocusLabelValue",
           "source": "url",
           "type": "json",
-          "url": "/api/v1/status/tsdb?topN=$topN&match[]=$match&focusLabel=$focus",
+          "url": "$victoriametrics_url/api/v1/status/tsdb?topN=$topN&match[]=$match&focusLabel=$focus",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -684,7 +684,7 @@
           "root_selector": "data.labelValueCountByLabelName",
           "source": "url",
           "type": "json",
-          "url": "/api/v1/status/tsdb?topN=$topN&match[]=$match",
+          "url": "$victoriametrics_url/api/v1/status/tsdb?topN=$topN&match[]=$match",
           "url_options": {
             "data": "",
             "method": "GET"
@@ -720,12 +720,17 @@
       "type": "table"
     }
   ],
+  "preload": false,
   "schemaVersion": 42,
   "tags": [],
   "templating": {
     "list": [
       {
-        "current": {},
+        "current": {
+          "text": "",
+          "value": "${DS_SHIFT-INFINITY}",
+          "selected": true
+        },
         "name": "ds",
         "options": [],
         "query": "yesoreyeram-infinity-datasource",
@@ -773,7 +778,8 @@
           }
         ],
         "query": "5,10,20,30,40,50",
-        "type": "custom"
+        "type": "custom",
+        "valuesFormat": "csv"
       },
       {
         "current": {
@@ -808,6 +814,24 @@
         ],
         "query": "",
         "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "http://victoriametrics:8428",
+          "value": "http://victoriametrics:8428"
+        },
+        "description": "URL of the Victoriametrics API instance",
+        "label": "Victoriametrics URL",
+        "name": "victoriametrics_url",
+        "options": [
+          {
+            "selected": true,
+            "text": "http://victoriametrics:8428",
+            "value": "http://victoriametrics:8428"
+          }
+        ],
+        "query": "http://victoriametrics:8428",
+        "type": "textbox"
       }
     ]
   },
@@ -819,6 +843,6 @@
   "timezone": "browser",
   "title": "VictoriMetrics - Cardinality Explorer",
   "uid": "add4lqn",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
