@@ -17,54 +17,97 @@ func TestParseJWTHeader_Failure(t *testing.T) {
 			base64.RawURLEncoding.Encode(encoded, []byte(data))
 			data = string(encoded)
 		}
-		if _, err := parseJWTHeader(data); err != nil {
+		var h header
+		if err := h.parse(data); err != nil {
 			if err.Error() != expectedErr {
-				t.Errorf("unexpected error message: \ngot\n%s\nwant\n%s", err.Error(), expectedErr)
+				t.Fatalf("unexpected error message: \ngot\n%s\nwant\n%s", err.Error(), expectedErr)
 			}
 		} else {
-			t.Errorf("expecting non-nil error")
+			t.Fatalf("expecting non-nil error")
 		}
 	}
 
 	// invalid input
 	f(
 		`bad input`,
-		`cannot decode jwt header as b64: cannot decode jwt body as b64: illegal base64 data at input byte 3`,
+		`illegal base64 data at input byte 3`,
 		false,
 	)
 
 	// invalid b644
 	f(
 		`YmFk`,
-		`cannot parse jwt header: invalid character 'b' looking for beginning of value`,
+		`cannot parse JSON: cannot parse number: unexpected char: "b"; unparsed tail: "bad"`,
 		false,
 	)
 
 	// invalid header json
 	f(`{]`,
-		`cannot parse jwt header: invalid character ']' looking for beginning of object key string`,
+		`cannot parse JSON: cannot parse object: cannot find opening '"" for object key; unparsed tail: "]"`,
 		true,
 	)
 
 	// invalid header type json
 	f(`[]`,
-		`cannot parse jwt header: json: cannot unmarshal array into Go value of type jwt.header`,
+		`unexpected non json object {} type: "array"`,
+		true,
+	)
+
+	// alg field is not a string
+	f(
+		`{"alg": 123, "typ": "JWT", "kid": "key-1"}`,
+		`unexpected non-string value for key="alg": value doesn't contain string; it contains number`,
+		true,
+	)
+
+	// typ field is not a string
+	f(
+		`{"alg": "RS256", "typ": 123, "kid": "key-1"}`,
+		`unexpected non-string value for key="typ": value doesn't contain string; it contains number`,
+		true,
+	)
+
+	// kid field is not a string
+	f(
+		`{"alg": "RS256", "typ": "JWT", "kid": 123}`,
+		`unexpected non-string value for key="kid": value doesn't contain string; it contains number`,
+		true,
+	)
+
+	// standard Base64 with + character (slow path in decodeB64)
+	f(
+		`{"alg": "RS256", "typ": "JWT/"}`,
+		`illegal base64 data at input byte 0`,
+		false,
+	)
+
+	// invalid header type json
+	f(`[]`,
+		`unexpected non json object {} type: "array"`,
 		true,
 	)
 }
 
 func TestParseJWTHeader_Success(t *testing.T) {
-	f := func(data string, expected *header) {
+	f := func(data string, expected header) {
 		t.Helper()
 		encodedLen := base64.RawURLEncoding.EncodedLen(len(data))
 		encoded := make([]byte, encodedLen)
 		base64.RawURLEncoding.Encode(encoded, []byte(data))
-		header, err := parseJWTHeader(string(encoded))
+		var h header
+		err := h.parse(string(encoded))
 		if err != nil {
 			t.Fatalf("parseJWTHeader() error: %s", err)
 		}
-		if !reflect.DeepEqual(header, expected) {
-			t.Fatalf("unexpected token header;\ngot\n%v\nwant\n%v", header, expected)
+
+		if h.Alg != expected.Alg {
+			t.Fatalf("unexpected Alg:\ngot\n%s\nwant\n%s", h.Alg, expected.Alg)
+		}
+		if h.Typ != expected.Typ {
+			t.Fatalf("unexpected Typ:\ngot\n%s\nwant\n%s", h.Typ, expected.Typ)
+		}
+		if h.Kid != expected.Kid {
+			t.Fatalf("unexpected Kid:\ngot\n%s\nwant\n%s", h.Kid, expected.Kid)
 		}
 	}
 
@@ -77,7 +120,7 @@ func TestParseJWTHeader_Success(t *testing.T) {
 			"alg": %q,
 			"kid": "test"
 		}`, supportedAlgorithms[i]),
-			&header{
+			header{
 				Alg: supportedAlgorithms[i],
 				Kid: "test",
 			},
@@ -94,40 +137,41 @@ func TestParseJWTBody_Failure(t *testing.T) {
 			base64.RawURLEncoding.Encode(encoded, []byte(data))
 			data = string(encoded)
 		}
-		if _, err := parseJWTBody(data); err != nil {
+		var b body
+		if err := b.parse(data); err != nil {
 			if err.Error() != expectedErr {
-				t.Errorf("unexpected error message: \ngot\n%s\nwant\n%s", err.Error(), expectedErr)
+				t.Fatalf("unexpected error message: \ngot\n%s\nwant\n%s", err.Error(), expectedErr)
 			}
 		} else {
-			t.Errorf("expecting non-nil error")
+			t.Fatalf("expecting non-nil error")
 		}
 	}
 
 	// invalid input
 	f(
 		`bad input`,
-		`cannot decode jwt body as b64: cannot decode jwt body as b64: illegal base64 data at input byte 3`,
+		`illegal base64 data at input byte 3`,
 		false,
 	)
 
 	// invalid b644
 	f(
 		`YmFk`,
-		`cannot parse jwt body: invalid character 'b' looking for beginning of value`,
+		`cannot parse JSON: cannot parse number: unexpected char: "b"; unparsed tail: "bad"`,
 		false,
 	)
 
 	// invalid body json
 	f(
 		`{]`,
-		`cannot parse jwt body: invalid character ']' looking for beginning of object key string`,
+		`cannot parse JSON: cannot parse object: cannot find opening '"" for object key; unparsed tail: "]"`,
 		true,
 	)
 
 	// invalid body type json
 	f(
 		`[]`,
-		`cannot parse jwt body: json: cannot unmarshal array into Go value of type jwt.tbody`,
+		"missing `vm_access` claim",
 		true,
 	)
 
@@ -141,7 +185,7 @@ func TestParseJWTBody_Failure(t *testing.T) {
 	// vm_access claim invalid type
 	f(
 		`{"vm_access": 123}`,
-		"cannot parse jwt body vm_access: json: cannot unmarshal number into Go value of type string",
+		"unexpected type for `vm_access` field; got: \"number\", want object {}",
 		true,
 	)
 
@@ -155,14 +199,14 @@ func TestParseJWTBody_Failure(t *testing.T) {
 	// invalid vm_access: account_id type mismatch
 	f(
 		`{"vm_access": {"tenant_id": {"account_id": "1", "project_id": 5}}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected non-int32 value for key="account_id": value doesn't contain number; it contains string`,
 		true,
 	)
 
 	// invalid vm_access: project_id type mismatch
 	f(
 		`{"vm_access": {"tenant_id": {"account_id": 1, "project_id": "5"}}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected non-int32 value for key="project_id": value doesn't contain number; it contains string`,
 		true,
 	)
 
@@ -180,7 +224,7 @@ func TestParseJWTBody_Failure(t *testing.T) {
 		}
 	}
 }`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		"cannot parse `extra_labels` field: value doesn't contain object; it contains array",
 		true,
 	)
 
@@ -195,70 +239,70 @@ func TestParseJWTBody_Failure(t *testing.T) {
 		}
 	}
 }`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected non string array[] type for key="extra_filters": value doesn't contain string; it contains object`,
 		true,
 	)
 
 	// invalid exp claim value type
 	f(
 		`{"exp": "1610976189", "vm_access": {}}`,
-		`cannot parse jwt body: json: cannot unmarshal string into Go struct field tbody.exp of type int64`,
+		"cannot parse `exp` field: value doesn't contain number; it contains string",
 		true,
 	)
 
 	// invalid metrics metrics_account_id claim value type
 	f(
 		`{"vm_access": {"metrics_account_id": "1"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected non-uint32 value for key="metrics_account_id": value doesn't contain number; it contains string`,
 		true,
 	)
 
 	// invalid metrics metrics_project_id claim value type
 	f(
 		`{"vm_access": {"metrics_project_id": "1"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected non-uint32 value for key="metrics_project_id": value doesn't contain number; it contains string`,
 		true,
 	)
 
 	// invalid metrics metrics_extra_labels claim value type
 	f(
 		`{"vm_access": {"metrics_extra_labels": "aString"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected type for key="metrics_extra_labels", got: string, want: array string`,
 		true,
 	)
 
 	// invalid metrics metrics_extra_filters claim value type
 	f(
 		`{"vm_access": {"metrics_extra_filters": "aString"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected type for key="metrics_extra_filters", got: string, want: array string`,
 		true,
 	)
 
 	// invalid metrics logs_account_id claim value type
 	f(
 		`{"vm_access": {"logs_account_id": "1"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected non-uint32 value for key="logs_account_id": value doesn't contain number; it contains string`,
 		true,
 	)
 
 	// invalid metrics logs_project_id claim value type
 	f(
 		`{"vm_access": {"logs_project_id": "1"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected non-uint32 value for key="logs_project_id": value doesn't contain number; it contains string`,
 		true,
 	)
 
 	// invalid metrics logs_extra_filters claim value type
 	f(
 		`{"vm_access": {"logs_extra_filters": "aString"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected type for key="logs_extra_filters", got: string, want: array string`,
 		true,
 	)
 
 	// invalid metrics logs_extra_stream_filters claim value type
 	f(
 		`{"vm_access": {"logs_extra_stream_filters": "aString"}}`,
-		`cannot parse jwt body vm_access: json: cannot unmarshal object into Go value of type string`,
+		`unexpected type for key="logs_extra_stream_filters", got: string, want: array string`,
 		true,
 	)
 }
@@ -271,7 +315,8 @@ func TestParseJWTBody_Success(t *testing.T) {
 		encoded := make([]byte, encodedLen)
 		base64.RawURLEncoding.Encode(encoded, []byte(data))
 
-		result, err := parseJWTBody(string(encoded))
+		var result body
+		err := result.parse(string(encoded))
 		if err != nil {
 			t.Fatalf("parseJWTBody() error: %s", err)
 		}
@@ -287,22 +332,22 @@ func TestParseJWTBody_Success(t *testing.T) {
 		if result.Jti != resultExpected.Jti {
 			t.Fatalf("unexpected jti; got %q; want %q", result.Jti, resultExpected.Jti)
 		}
-		if !reflect.DeepEqual(result.VMAccess.Tenant, resultExpected.VMAccess.Tenant) {
-			t.Fatalf("unexpected tenant; got %v; want %v", result.VMAccess.Tenant, resultExpected.VMAccess.Tenant)
+		if !reflect.DeepEqual(result.vmAccessClaim.Tenant, resultExpected.vmAccessClaim.Tenant) {
+			t.Fatalf("unexpected tenant; got %v; want %v", result.vmAccessClaim.Tenant, resultExpected.vmAccessClaim.Tenant)
 		}
-		if !reflect.DeepEqual(result.VMAccess.Labels, resultExpected.VMAccess.Labels) {
-			t.Fatalf("unexpected labels; got %v; want %v", result.VMAccess.Labels, resultExpected.VMAccess.Labels)
+		if !reflect.DeepEqual(result.vmAccessClaim.Labels, resultExpected.vmAccessClaim.Labels) {
+			t.Fatalf("unexpected labels; got %v; want %v", result.vmAccessClaim.Labels, resultExpected.vmAccessClaim.Labels)
 		}
-		if !reflect.DeepEqual(result.VMAccess.ExtraFilters, resultExpected.VMAccess.ExtraFilters) {
-			t.Fatalf("unexpected extra_filters; got %v; want %v", result.VMAccess.ExtraFilters, resultExpected.VMAccess.ExtraFilters)
+		if !reflect.DeepEqual(result.vmAccessClaim.ExtraFilters, resultExpected.vmAccessClaim.ExtraFilters) {
+			t.Fatalf("unexpected extra_filters; got %v; want %v", result.vmAccessClaim.ExtraFilters, resultExpected.vmAccessClaim.ExtraFilters)
 		}
 	}
 
 	f(`{"vm_access": {}}`, &body{
-		VMAccess: &VMAccessClaim{},
+		vmAccessClaim: VMAccessClaim{},
 	})
 	f(`{"vm_access": {"tenant_id": {}}}`, &body{
-		VMAccess: &VMAccessClaim{},
+		vmAccessClaim: VMAccessClaim{},
 	})
 
 	f(
@@ -316,7 +361,7 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
@@ -336,10 +381,10 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &VMAccessClaim{
-				Labels: Labels{
-					"project": "dev",
-					"team":    "mobile",
+			vmAccessClaim: VMAccessClaim{
+				Labels: []string{
+					"project=dev",
+					"team=mobile",
 				},
 			},
 		},
@@ -356,7 +401,7 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				ExtraFilters: []string{
 					`{project="dev"}`,
 					`{team=~"mobile"}`,
@@ -384,14 +429,14 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
 				},
-				Labels: Labels{
-					"project": "dev",
-					"team":    "mobile",
+				Labels: []string{
+					"project=dev",
+					"team=mobile",
 				},
 				ExtraFilters: []string{
 					`{project="dev"}`,
@@ -411,11 +456,10 @@ func TestParseJWTBody_Success(t *testing.T) {
     "vm_access": {}
 }`,
 		&body{
-			Exp:      1610976189,
-			Iat:      1610975889,
-			Jti:      "9b194187-6bb7-4244-9d1b-559eab2ef7f3",
-			Scope:    "openid email profile",
-			VMAccess: &VMAccessClaim{},
+			Exp:   1610976189,
+			Iat:   1610975889,
+			Jti:   "9b194187-6bb7-4244-9d1b-559eab2ef7f3",
+			Scope: "openid email profile",
 		},
 	)
 
@@ -436,7 +480,7 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				MetricsAccountID: 1,
 				MetricsProjectID: 5,
 				MetricsExtraLabels: []string{
@@ -466,7 +510,7 @@ func TestParseJWTBody_Success(t *testing.T) {
     }
 }`,
 		&body{
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				LogsAccountID: 1,
 				LogsProjectID: 5,
 				LogsExtraFilters: []string{
@@ -521,8 +565,18 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewTokenFromRequest() error: %s", err)
 		}
-		if !reflect.DeepEqual(result.body.VMAccess, resultExpected.body.VMAccess) {
-			t.Fatalf("unexpected token body VMAccess;\ngot\n%v\nwant\n%v", result.body.VMAccess, resultExpected.body.VMAccess)
+		// assign nil values to simplify equal check below
+		result.header.buf = nil
+		result.header.p = nil
+		result.body.vmAccessClaim.labelsBuf = nil
+		if result.body.Iat != resultExpected.body.Iat {
+			t.Fatalf("unexpected iat: %d;%d", result.body.Iat, resultExpected.body.Iat)
+		}
+		if result.body.Exp != resultExpected.body.Exp {
+			t.Fatalf("unexpected exp: %d;%d", result.body.Exp, resultExpected.body.Exp)
+		}
+		if !reflect.DeepEqual(result.body.vmAccessClaim, resultExpected.body.vmAccessClaim) {
+			t.Fatalf("unexpected token body VMAccess;\ngot\n%v\nwant\n%v", result.body.vmAccessClaim, resultExpected.body.vmAccessClaim)
 		}
 		if !reflect.DeepEqual(result.header, resultExpected.header) {
 			t.Fatalf("unexpected token header\ngot\n%v\nwant\n%v", result.header, resultExpected.header)
@@ -538,23 +592,23 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		},
 	}
 	resultExpected := &Token{
-		body: &body{
-			Exp:   1610889266,
-			Iat:   1610888966,
+		body: body{
+			Exp:   1610976189,
+			Iat:   1610975889,
 			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
 			Scope: "openid email profile",
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
 				},
-				Labels: map[string]string{
-					"project": "dev",
-					"team":    "mobile",
+				Labels: []string{
+					"project=dev",
+					"team=mobile",
 				},
 			},
 		},
-		header: &header{
+		header: header{
 			Alg: "RS256",
 			Kid: "aAZoCGvuGbFoftWHxQZyRSQen3yX4U0GPlP5oZOQSwc",
 			Typ: "JWT",
@@ -571,23 +625,23 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		},
 	}
 	resultExpected = &Token{
-		body: &body{
-			Exp:   1610889266,
-			Iat:   1610888966,
+		body: body{
+			Exp:   1610976189,
+			Iat:   1610975889,
 			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
 			Scope: "openid email profile",
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
 				},
-				Labels: map[string]string{
-					"project": "dev",
-					"team":    "mobile",
+				Labels: []string{
+					"project=dev",
+					"team=mobile",
 				},
 			},
 		},
-		header: &header{
+		header: header{
 			Alg: "RS256",
 			Kid: "aAZoCGvuGbFoftWHxQZyRSQen3yX4U0GPlP5oZOQSwc",
 			Typ: "JWT",
@@ -604,8 +658,10 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		},
 	}
 	resultExpected = &Token{
-		body: &body{
-			VMAccess: &VMAccessClaim{
+		body: body{
+			Iat: 1645536638,
+			Exp: 1645536758,
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 0,
 					AccountID: 1,
@@ -616,7 +672,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 				Mode: 1,
 			},
 		},
-		header: &header{
+		header: header{
 			Alg: "HS256",
 			Typ: "JWT",
 		},
@@ -632,8 +688,10 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		},
 	}
 	resultExpected = &Token{
-		body: &body{
-			VMAccess: &VMAccessClaim{
+		body: body{
+			Iat: 1645606878,
+			Exp: 1645606998,
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 0,
 					AccountID: 1,
@@ -644,7 +702,7 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 				Mode: 1,
 			},
 		},
-		header: &header{
+		header: header{
 			Alg: "HS256",
 			Typ: "JWT",
 		},
@@ -660,24 +718,24 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		},
 	}
 	resultExpected = &Token{
-		body: &body{
-			Exp:   1610889266,
-			Iat:   1610888966,
+		body: body{
+			Exp:   1610976189,
+			Iat:   1610975889,
 			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
 			Scope: "openid email profile",
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
 				},
-				Labels: map[string]string{
-					"project": "dev",
-					"team":    "mobile",
+				Labels: []string{
+					"project=dev",
+					"team=mobile",
 				},
 				ExtraFilters: []string{`{env=~"prod|dev"}`, `{team!="test"}`},
 			},
 		},
-		header: &header{
+		header: header{
 			Alg: "HS256",
 			Kid: "aAZoCGvuGbFoftWHxQZyRSQen3yX4U0GPlP5oZOQSwc",
 			Typ: "JWT",
@@ -694,24 +752,24 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 		},
 	}
 	resultExpected = &Token{
-		body: &body{
-			Exp:   1610889266,
-			Iat:   1610888966,
+		body: body{
+			Exp:   1610976189,
+			Iat:   1610975889,
 			Jti:   "09a058a2-0752-4ecd-a4e9-b65e85af423f",
 			Scope: "openid email profile",
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
 				},
-				Labels: map[string]string{
-					"project": "dev",
-					"team":    "mobile",
+				Labels: []string{
+					"project=dev",
+					"team=mobile",
 				},
 				ExtraFilters: []string{`{env=~"prod|dev"}`, `{team!="test"}`},
 			},
 		},
-		header: &header{
+		header: header{
 			Alg: "HS256",
 			Kid: "aAZoCGvuGbFoftWHxQZyRSQen3yX4U0GPlP5oZOQSwc",
 			Typ: "JWT",
@@ -729,17 +787,17 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 	}
 
 	resultExpected = &Token{
-		body: &body{
+		body: body{
 			Exp: 1725629232,
 			Iat: 1725625332,
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
 				},
 			},
 		},
-		header: &header{
+		header: header{
 			Alg: "RS256",
 			Kid: "H9nj5AOSswMphg1SFx7jaV-lB9w",
 			Typ: "JWT",
@@ -757,17 +815,17 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 	}
 
 	resultExpected = &Token{
-		body: &body{
+		body: body{
 			Exp: 1725629232,
 			Iat: 1725625332,
-			VMAccess: &VMAccessClaim{
+			vmAccessClaim: VMAccessClaim{
 				Tenant: TenantID{
 					ProjectID: 5,
 					AccountID: 1,
 				},
 			},
 		},
-		header: &header{
+		header: header{
 			Alg: "RS256",
 			Kid: "H9nj5AOSswMphg1SFx7jaV-lB9w",
 			Typ: "JWT",
