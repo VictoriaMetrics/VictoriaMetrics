@@ -67,7 +67,7 @@
       },
       "id": 10,
       "panels": [],
-      "title": "Stats",
+      "title": "Overview",
       "type": "row"
     },
     {
@@ -946,7 +946,7 @@
               "refId": "B"
             }
           ],
-          "title": "Last metrics by rule",
+          "title": "Last data by rule",
           "transformations": [
             {
               "id": "joinByField",
