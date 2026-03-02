@@ -1,0 +1,6 @@
+apiVersion: 1
+
+datasources:
+  - name: VictoriaMetrics-Infinity
+    type: yesoreyeram-infinity-datasource
+    url: "http://victoriametrics:8428"
