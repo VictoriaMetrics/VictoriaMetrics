@@ -606,6 +606,15 @@ func TestGroupStartDelay(t *testing.T) {
 	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:00.000+00:00")
 	f("2023-01-01T00:08:00.000+00:00", "2023-01-01T00:08:00.000+00:00")
 
+	// test group with negative offset -2min, which is equivalent to 3min offset for 5min interval
+	offset = -2 * time.Minute
+	g.EvalOffset = &offset
+
+	f("2023-01-01T00:00:15.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:00.000+00:00")
+	f("2023-01-01T00:08:00.000+00:00", "2023-01-01T00:08:00.000+00:00")
+
 	maxDelay = time.Minute * 1
 	g.EvalOffset = nil
 

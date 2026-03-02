@@ -484,8 +484,15 @@ func (g *Group) UpdateWith(newGroup *Group) {
 // delayBeforeStart calculates delay based on Group ID, so all groups will start at different moments of time.
 func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Duration {
 	if g.EvalOffset != nil {
+		offset := *g.EvalOffset
+		// adjust the offset for negative evalOffset, the rule is:
+		// `eval_offset: -x` is equivalent to `eval_offset: y` for `interval: x+y`.
+		// For example, `eval_offset: -6m` is equivalent to `eval_offset: 4m` for `interval: 10m`.
+		if offset < 0 {
+			offset += g.Interval
+		}
 		// if offset is specified, ignore the maxDelay and return a duration aligned with offset
-		currentOffsetPoint := ts.Truncate(g.Interval).Add(*g.EvalOffset)
+		currentOffsetPoint := ts.Truncate(g.Interval).Add(offset)
 		if currentOffsetPoint.Before(ts) {
 			// wait until the next offset point
 			return currentOffsetPoint.Add(g.Interval).Sub(ts)
