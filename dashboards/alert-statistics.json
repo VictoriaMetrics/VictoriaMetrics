@@ -842,14 +842,8 @@
                   "Value": "Duration [q99]",
                   "Value #A": "Duration [q5]",
                   "Value #B": "Duration [q99]",
-                  "alertgroup": "Group",
-                  "alertname": "",
                   "alertname 1": "Rule",
-                  "group": "Group",
-                  "group 1": "Group",
-                  "instance": "",
-                  "range": "",
-                  "severity": "Severity"
+                  "group": "Group"
                 }
               }
             }
@@ -973,7 +967,7 @@
               "options": {
                 "excludeByName": {
                   "Time": false,
-                  "alertname 1": true,
+                  "alertname 1": false,
                   "group": false
                 },
                 "includeByName": {},
