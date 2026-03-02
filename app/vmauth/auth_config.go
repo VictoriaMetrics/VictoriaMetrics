@@ -386,11 +386,16 @@ func (bu *backendURL) setBroken() {
 }
 
 func (bu *backendURL) runHealthCheck() {
-	port := bu.url.Port()
-	if port == "" {
-		port = "80"
+	var network, addr string
+	if bu.url.Scheme == "unix" {
+		network, addr = "unix", strings.TrimPrefix(bu.url.String(), "unix:")
+	} else {
+		port := bu.url.Port()
+		if port == "" {
+			port = "80"
+		}
+		network, addr = "tcp", net.JoinHostPort(bu.url.Hostname(), port)
 	}
-	addr := net.JoinHostPort(bu.url.Hostname(), port)
 
 	t := time.NewTicker(*failTimeout)
 	defer t.Stop()
@@ -401,13 +406,13 @@ func (bu *backendURL) runHealthCheck() {
 			// Verify network connectivity via TCP dial before marking backend healthy.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9997
 			ctx, cancel := context.WithTimeout(bu.healthCheckContext, time.Second)
-			c, err := netutil.Dialer.DialContext(ctx, "tcp", addr)
+			c, err := netutil.Dialer.DialContext(ctx, network, addr)
 			cancel()
 			if err != nil {
 				if errors.Is(bu.healthCheckContext.Err(), context.Canceled) {
 					return
 				}
-				logger.Warnf("ignoring the backend at %s for %s because of dial error: %s", addr, *failTimeout, err)
+				logger.Warnf("ignoring the backend at %s for %s because of dial error: %s:%s", network, addr, *failTimeout, err)
 				continue
 			}
 
@@ -1231,10 +1236,11 @@ func (up *URLPrefix) sanitizeAndInitialize() error {
 
 func sanitizeURLPrefix(urlPrefix *url.URL) (*url.URL, error) {
 	// Validate urlPrefix
-	if urlPrefix.Scheme != "http" && urlPrefix.Scheme != "https" {
+	if urlPrefix.Scheme != "http" && urlPrefix.Scheme != "https" && urlPrefix.Scheme != "unix" {
 		return nil, fmt.Errorf("unsupported scheme for `url_prefix: %q`: %q; must be `http` or `https`", urlPrefix, urlPrefix.Scheme)
 	}
-	if urlPrefix.Host == "" {
+	if urlPrefix.Host == "" &&
+		(urlPrefix.Scheme != "unix" || urlPrefix.Path == "") { // url.Parse fills only Path for unix:/a/b
 		return nil, fmt.Errorf("missing hostname in `url_prefix %q`", urlPrefix.Host)
 	}
 	return urlPrefix, nil
