@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `access_log` configuration option for each user that will log requests to stdout, and support filtering by HTTP status codes. See more in [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). See [#5936](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5936).
+
 ## [v1.137.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.137.0)
 
 Released at 2026-02-27
@@ -36,7 +38,6 @@ It enables back `Discovered targets` debug UI by default.
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/): can now copy backups between different storage backends, such as from s3 to local disk or gcs to s3. See [#10401](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10401). Thanks to @BenNF for the contribution.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add JWT token authentication support with signature verification based on provided `public_keys`. Read more about configuration in [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) documentation. See [#10445](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10445).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): support dynamic rewriting of upstream URLs and request headers using placeholders populated from JWT `vm_access` claim fields. This allows routing requests to the correct tenant backend without maintaining a separate user config entry per tenant. Read more in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) documentation. See [#10492](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10492).
-* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `access_log` configuration option for each user that will log requests to stdout, and support filtering by HTTP status codes. See more in [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). See [#5936](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5936).
 * FEATURE: all VictoriaMetrics components: expose `process_cpu_seconds_total`, `process_resident_memory_bytes`, and other process-level metrics when running on macOS. See [metrics#75](https://github.com/VictoriaMetrics/metrics/issues/75).
 * FEATURE: [dashboards/vmauth](https://grafana.com/grafana/dashboards/21394): add `Request body buffering duration` panel to the `Troubleshooting` section. This panel shows the time spent buffering incoming client request bodies, helping identify slow client uploads and potential concurrency issues. The panel is only available when `-requestBufferSize` is non-zero. See [#10309](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10309).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): reduce CPU and memory usage when `-promscrape.dropOriginalLabels` command-line flag is set. See [#9952](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9952).
