@@ -144,8 +144,10 @@ name: <string>
 # Optional
 # Group will be evaluated at the exact offset in the range of [0...interval].
 # E.g. for Group with `interval: 1h` and `eval_offset: 5m` the evaluation will
-# start at 5th minute of the hour. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409
-# `interval` must be specified if `eval_offset` is used, and `eval_offset` cannot exceed `interval`.
+# start at 5th minute of the hour.
+# `eval_offset` also supports negative values, which means the evaluation will start at `interval-abs(eval_offset)` within [0...interval],
+# For example, `eval_offset: -6m` is equivalent to `eval_offset: 4m` for `interval: 10m`.
+# `interval` must be specified if `eval_offset` is used, and the `abs(eval_offset)` cannot exceed `interval`.
 # `eval_offset` cannot be used with `eval_delay`, as group will be executed at the exact offset and `eval_delay` is ignored.
 [ eval_offset: <duration> ]
 

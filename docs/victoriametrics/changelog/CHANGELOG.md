@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support negative values for the group `eval_offset` option, which allows starting group evaluation at `groupInterval-abs(eval_offset)` within `[0...groupInterval]`. See [#10424](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10424).
+
 ## [v1.137.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.137.0)
 
 Released at 2026-02-27
