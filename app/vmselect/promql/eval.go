@@ -45,6 +45,10 @@ var (
 		"the query requires more memory than specified by this flag. "+
 		"This may help detecting and optimizing heavy queries. Query logging is disabled by default. "+
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
+	maxConcurrentQueryMemory = flagutil.NewBytes("search.maxConcurrentQueryMemory", 0, "The maximum amount of memory that can be used by concurrently executed rollup queries. "+
+		"By default, this is set to 25% of the memory allowed for VictoriaMetrics (see -memory.allowedPercent). "+
+		"Setting this to a higher value allows individual heavy queries to use more memory, which is useful for dedicated query instances with low concurrency. "+
+		"See also -search.maxMemoryPerQuery for limiting memory per individual query")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 	minWindowForInstantRollupOptimization = flag.Duration("search.minWindowForInstantRollupOptimization", time.Hour*3, "Enable cache-based optimization for repeated queries "+
@@ -1764,7 +1768,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		err := fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series; "+
 			"total available memory for concurrent requests: %d bytes; requested memory: %d bytes; "+
 			"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
-			"switching to node with more RAM; increasing -memory.allowedPercent",
+			"switching to node with more RAM; increasing -memory.allowedPercent; increasing -search.maxConcurrentQueryMemory",
 			expr.AppendString(nil), rollupPoints, timeseriesLen*len(rcs), pointsPerSeries, rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3)
 		return nil, err
 	}
@@ -1788,7 +1792,11 @@ var (
 
 func getRollupMemoryLimiter() *memoryLimiter {
 	rollupMemoryLimiterOnce.Do(func() {
-		rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 4
+		if maxConcurrentQueryMemory.N > 0 {
+			rollupMemoryLimiter.MaxSize = uint64(maxConcurrentQueryMemory.N)
+		} else {
+			rollupMemoryLimiter.MaxSize = uint64(memory.Allowed()) / 4
+		}
 	})
 	return &rollupMemoryLimiter
 }
