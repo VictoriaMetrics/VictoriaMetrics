@@ -250,7 +250,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 ### JWT Token auth proxy
 
-`vmauth` can authorize access{{% available_from "#" %}} to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header. 
+`vmauth` can authorize access{{% available_from "v1.137.0" %}} to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header. 
 JWT tokens are verified using RSA or ECDSA public keys. The following auth config proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) if they contain a valid JWT token:
 
 ```yaml
@@ -264,26 +264,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-JWT tokens must contain a `vm_access` claim with tenant information:
-```json
-{
-  "exp": 2770832322,
-  "vm_access": {
-    "tenant_id": {
-      "account_id": 0,
-      "project_id": 0
-    }
-  }
-}
-```
-
-The empty `vm_access` claim is also allowed and means access to Tenant `0:0` will be provided.
-```json
-{
-  "exp": 2770832322,
-  "vm_access": {}
-}
-```
+JWT tokens must contain a `"vm_access": {}` claim, more on that in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating)
 
 For testing, skip signature verification with `skip_verify: true` (not recommended for production).
 
@@ -296,37 +277,23 @@ users:
 
 JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
 
+Only one user with JWT authentication method is allowed at the moment. 
+
 #### JWT claim-based request templating
 
-`vmauth` can dynamically rewrite{{% available_from "#" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
+`vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
 This enables routing different users to different backends or tenants based solely on the JWT token, 
 without maintaining separate user configs per tenant.
 
-Placeholders are written directly into `url_prefix` and `headers` values in the auth config. 
-At request time each placeholder is replaced with the corresponding value from the `vm_access` claim of the incoming JWT token.
+Example: minimal valid JWT. If vm_access is empty, tenant `0:0` is assumed and no additional filters are applied.
+```json
+{
+  "exp": 2770832322,
+  "vm_access": {}
+}
+```
 
-The following placeholders are supported:
-
-| Placeholder | JWT claim field |
-|-------------|-----------------|
-| `{{.MetricsTenant}}` | `metrics_account_id`, `metrics_project_id` |
-| `{{.MetricsExtraLabels}}` | `metrics_extra_labels` |
-| `{{.MetricsExtraFilters}}` | `metrics_extra_filters` |
-| `{{.LogsAccountID}}` | `logs_account_id` |
-| `{{.LogsProjectID}}` | `logs_project_id` |
-| `{{.LogsExtraFilters}}` | `logs_extra_filters` |
-| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` |
-
-Placeholders are supported in the following locations:
-
-- **URL path** — only `{{.MetricsTenant}}`, `{{.LogsAccountID}}` and `{{.LogsProjectID}}` are allowed in path segments.
-- **URL query parameters** — any placeholder may be used as the full value of a query parameter (e.g. `?extra_filters={{.MetricsExtraFilters}}`).
-- **Request headers** — any placeholder may be used as the full value of a request header (e.g. `AccountID: {{.LogsAccountID}}`).
-
-Placeholders are **not** supported in response headers. 
-They are also only valid for JWT-authenticated users — using them in configs for `username`/`password` or `bearer_token` users causes a configuration error.
-
-Example: valid jwt token body with `vm_access` claim:
+Example: complete JWT with `vm_access` claim defining explicit access rules for metrics and logs.
 
 ```json
 {
@@ -344,6 +311,30 @@ Example: valid jwt token body with `vm_access` claim:
   }
 }
 ```
+
+Placeholders are written directly into `url_prefix` and `headers` values in the auth config. 
+At request time each placeholder is replaced with the corresponding value from the `vm_access` claim of the incoming JWT token.
+
+The following placeholders are supported:
+
+| Placeholder                   | JWT claim field                                                             |
+|-------------------------------|-----------------------------------------------------------------------------|
+| `{{.MetricsTenant}}` -> `0:0` | `metrics_account_id` int, <br/>`metrics_project_id` int |
+| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                               |
+| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                              |
+| `{{.LogsAccountID}}`          | `logs_account_id` int                                             |
+| `{{.LogsProjectID}}`          | `logs_project_id` int                                             |
+| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                                 |
+| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                          |
+
+Placeholders are supported in the following locations:
+
+- **URL path** — only `{{.MetricsTenant}}`, `{{.LogsAccountID}}` and `{{.LogsProjectID}}` are allowed in path segments.
+- **URL query parameters** — any placeholder may be used as the full value of a query parameter (e.g. `?extra_filters={{.MetricsExtraFilters}}`).
+- **Request headers** — any placeholder may be used as the full value of a request header (e.g. `AccountID: {{.LogsAccountID}}`).
+
+Placeholders are **not** supported in response headers. 
+They are also only valid for JWT-authenticated users — using them in configs for `username`/`password` or `bearer_token` users causes a configuration error.
 
 Example: route requests to the VictoriaMetrics single-node:
 

@@ -312,7 +312,7 @@ in addition to the pull-based Prometheus-compatible targets' scraping:
 * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/).
 * Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting).
-* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry).
+* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
 * NewRelic API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
 * OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/).
 * Zabbix Connector streaming protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/#send-data-from-zabbix-connector).
@@ -658,7 +658,7 @@ e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatical
 
 ## Metric metadata
 
-`vmagent` accepts{{% available_from "#" %}} metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto) by default. Set `-enableMetadata=false` to disable metadata processing{{% available_from "v1.125.1" %}}.
+`vmagent` accepts{{% available_from "v1.137.0" %}} metric metadata exposed by scrape targets in [Prometheus exposition format](https://github.com/prometheus/docs/blob/main/docs/instrumenting/exposition_formats.md), received via [Prometheus remote write v1](https://prometheus.io/docs/specs/prw/remote_write_spec/) or [OpenTelemetry protocol](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/metrics/v1/metrics.proto) by default. Set `-enableMetadata=false` to disable metadata processing{{% available_from "v1.125.1" %}}.
 During processing, metadata won't be dropped or modified by [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/) or [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/).
 
 When `-enableMultitenantHandlers` is enabled, vmagent adds tenant info to metadata received via the [multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/vmagent/#multitenancy) (`/insert/<accountID>/<suffix>`). However, if `vm_account_id` or `vm_project_id` labels are added directly to metrics before reaching vmagent, and vmagent writes to the [vminsert multitenant endpoints](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy-via-labels), the tenant info won't be attached and the metadata will be stored under the default tenant of VictoriaMetrics cluster.

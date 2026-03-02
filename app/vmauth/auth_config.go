@@ -1159,6 +1159,9 @@ func (ui *UserInfo) name() string {
 		h := xxhash.Sum64([]byte(ui.AuthToken))
 		return fmt.Sprintf("auth_token:hash:%016X", h)
 	}
+	if ui.JWT != nil {
+		return `jwt`
+	}
 	return ""
 }
 

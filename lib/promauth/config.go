@@ -429,7 +429,7 @@ func newGetTLSConfigCached(getTLSConfig getTLSConfigFunc) getTLSConfigFunc {
 	}
 }
 
-type getTLSCertFunc func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error)
+type getTLSCertFunc func() (*tls.Certificate, error)
 
 func newGetTLSCertCached(getTLSCert getTLSCertFunc) getTLSCertFunc {
 	if getTLSCert == nil {
@@ -439,13 +439,13 @@ func newGetTLSCertCached(getTLSCert getTLSCertFunc) getTLSCertFunc {
 	var deadline uint64
 	var cert *tls.Certificate
 	var err error
-	return func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	return func() (*tls.Certificate, error) {
 		// Cache the certificate and the error for up to a second in order to save CPU time
 		// on certificate parsing when TLS connections are frequently re-established.
 		mu.Lock()
 		defer mu.Unlock()
 		if fasttime.UnixTimestamp() > deadline {
-			cert, err = getTLSCert(cri)
+			cert, err = getTLSCert()
 			deadline = fasttime.UnixTimestamp() + 1
 		}
 		return cert, err
@@ -471,8 +471,10 @@ func (ac *Config) NewRoundTripper(trBase *http.Transport) http.RoundTripper {
 	rt := &roundTripper{
 		trBase: trBase,
 	}
+
 	if ac != nil {
 		rt.getTLSConfigCached = ac.getTLSConfigCached
+		rt.getTLSCertCached = ac.getTLSCertCached
 	}
 	return rt
 }
@@ -480,11 +482,13 @@ func (ac *Config) NewRoundTripper(trBase *http.Transport) http.RoundTripper {
 type roundTripper struct {
 	trBase             *http.Transport
 	getTLSConfigCached getTLSConfigFunc
+	getTLSCertCached   getTLSCertFunc
 
-	// mu protects access to rootCAPrev and trPrev
+	// mu protects access to rootCAPrev,certPrev and trPrev
 	mu         sync.Mutex
 	rootCAPrev *x509.CertPool
 	trPrev     *http.Transport
+	certPrev   *x509.Certificate
 }
 
 // RoundTrip implements http.RoundTripper interface.
@@ -505,11 +509,19 @@ func (rt *roundTripper) getTransport() (*http.Transport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize TLS config: %w", err)
 	}
+	var cert *x509.Certificate
+	if rt.getTLSCertCached != nil {
+		cachedCert, err := rt.getTLSCertCached()
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize TLS certificate: %w", err)
+		}
+		cert = cachedCert.Leaf
+	}
 
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	if rt.trPrev != nil && tlsCfg.RootCAs.Equal(rt.rootCAPrev) {
+	if rt.trPrev != nil && tlsCfg.RootCAs.Equal(rt.rootCAPrev) && (cert == nil || cert.Equal(rt.certPrev)) {
 		// Fast path - tlsCfg wasn't changed. Return the previously created transport.
 		return rt.trPrev, nil
 	}
@@ -525,6 +537,7 @@ func (rt *roundTripper) getTransport() (*http.Transport, error) {
 
 	rt.trPrev = tr
 	rt.rootCAPrev = tlsCfg.RootCAs
+	rt.certPrev = cert
 
 	return rt.trPrev, nil
 }
@@ -537,13 +550,17 @@ func (ac *Config) getTLSConfig() (*tls.Config, error) {
 	}
 
 	tlsCfg := &tls.Config{
-		ClientSessionCache:   tls.NewLRUClientSessionCache(0),
-		GetClientCertificate: ac.getTLSCertCached,
-		ServerName:           ac.tlsServerName,
-		InsecureSkipVerify:   ac.tlsInsecureSkipVerify,
-		MinVersion:           ac.tlsMinVersion,
+		ClientSessionCache: tls.NewLRUClientSessionCache(0),
+		ServerName:         ac.tlsServerName,
+		InsecureSkipVerify: ac.tlsInsecureSkipVerify,
+		MinVersion:         ac.tlsMinVersion,
 		// Do not set MaxVersion, since this has no sense from security PoV.
 		// This can only result in lower security level if improperly configured.
+	}
+	if ac.getTLSCertCached != nil {
+		tlsCfg.GetClientCertificate = func(cri *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+			return ac.getTLSCertCached()
+		}
 	}
 	if f := ac.getTLSRootCA; f != nil {
 		rootCA, err := f()
@@ -860,7 +877,7 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 		if err != nil {
 			return fmt.Errorf("cannot load TLS certificate from the provided `cert` and `key` values: %w", err)
 		}
-		tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		tctx.getTLSCert = func() (*tls.Certificate, error) {
 			return &cert, nil
 		}
 		h := xxhash.Sum64([]byte(tc.Key)) ^ xxhash.Sum64([]byte(tc.Cert))
@@ -868,7 +885,7 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 	} else if tc.CertFile != "" || tc.KeyFile != "" {
 		certPath := fscore.GetFilepath(baseDir, tc.CertFile)
 		keyPath := fscore.GetFilepath(baseDir, tc.KeyFile)
-		tctx.getTLSCert = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		tctx.getTLSCert = func() (*tls.Certificate, error) {
 			// Re-read TLS certificate from disk. This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1420
 			certData, err := fscore.ReadFileOrHTTP(certPath)
 			if err != nil {
