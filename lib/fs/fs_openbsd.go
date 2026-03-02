@@ -18,3 +18,7 @@ func totalSpace(stat statfs_t) uint64 {
 func statfs(path string, stat *statfs_t) (err error) {
 	return unix.Statfs(path, stat)
 }
+
+func getFsName(path string) string {
+	return ""
+}

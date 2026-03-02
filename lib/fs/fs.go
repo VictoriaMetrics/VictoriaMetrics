@@ -352,3 +352,7 @@ type diskSpaceEntry struct {
 func IsDirOrSymlink(de os.DirEntry) bool {
 	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
+
+func GetFsName(path string) string {
+	return getFsName(path)
+}
