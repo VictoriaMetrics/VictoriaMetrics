@@ -733,7 +733,8 @@ func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.T
 }
 
 var (
-	alertsFired = metrics.NewCounter(`vmalert_alerts_fired_total`)
+	alertsFired    = metrics.NewCounter(`vmalert_alerts_fired_total`)
+	alertsResolved = metrics.NewCounter(`vmalert_alerts_resolved_total`)
 
 	execTotal  = metrics.NewCounter(`vmalert_execution_total`)
 	execErrors = metrics.NewCounter(`vmalert_execution_errors_total`)
