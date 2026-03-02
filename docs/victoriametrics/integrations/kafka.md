@@ -23,7 +23,7 @@ Use `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` comm
   and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
 * `jsonline` - [JSON line format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
-* `opentelemetry`{{% available_from "v1.128.0" %}}  - [Opentelemetry format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry)
+* `opentelemetry`{{% available_from "v1.128.0" %}}  - [Opentelemetry format](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/)
 
 For Kafka messages in the `promremotewrite` format, `vmagent` will automatically detect whether they are using [the Prometheus remote write protocol](https://prometheus.io/docs/specs/remote_write_spec/#protocol)
 or [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/victoriametrics/vmagent/#victoriametrics-remote-write-protocol), and handle them accordingly.

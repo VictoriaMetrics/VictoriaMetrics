@@ -125,3 +125,8 @@ unauthorized_user:
   - http://vmselect-az1/?deny_partial_response=1
   - http://vmselect-az2/?deny_partial_response=1
   retry_status_codes: [503, 500]
+  # log access for requests routed to this user
+  access_log:
+    filters:
+      # except requests with Status Codes below
+      skip_status_codes: [200, 202]

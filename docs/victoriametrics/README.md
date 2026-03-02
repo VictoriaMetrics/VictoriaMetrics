@@ -75,7 +75,7 @@ VictoriaMetrics has the following prominent features:
   * [Native binary format](#how-to-import-data-in-native-format).
   * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/).
   * [NewRelic infrastructure agent](https://docs.victoriametrics.com/victoriametrics/integrations/newrelic/#sending-data-from-agent).
-  * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
+  * [OpenTelemetry metrics format](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/).
   * [Zabbix Connector streaming format](https://docs.victoriametrics.com/victoriametrics/integrations/zabbixconnector/#send-data-from-zabbix-connector).
 * It supports powerful [stream aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
@@ -852,7 +852,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * DataDog `submit metrics` API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/) for details.
 * InfluxDB line protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/graphite/#ingesting) for details.
-* OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
+* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) for details.
 * OpenTSDB telnet put protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-telnet) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http) for details.
 * `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
@@ -863,7 +863,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * `/api/v1/import/prometheus` for importing data in Prometheus exposition format and in [Pushgateway format](https://github.com/prometheus/pushgateway#url).
   See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
 
-Please note, most of the ingestion APIs (except [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), [OpenTelemetry](#sending-data-via-opentelemetry) and [Influx Line Protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf))
+Please note, most of the ingestion APIs (except [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), [OpenTelemetry](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) and [Influx Line Protocol](https://docs.victoriametrics.com/victoriametrics/integrations/influxdb/#influxdb-compatible-agents-such-as-telegraf))
 are optimized for performance and processes data in a streaming fashion.
 It means that client can transfer unlimited amount of data through the open connection. Because of this, import APIs
 may not return parsing errors to the client, as it is expected for data stream to be not interrupted.
@@ -1030,53 +1030,6 @@ VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
-
-### Sending data via OpenTelemetry
-
-VictoriaMetrics supports data ingestion via [OpenTelemetry protocol (OTLP) for metrics](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md) at `/opentelemetry/v1/metrics` path.
-It expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`. For gzip-compressed workload set HTTP request header `Content-Encoding: gzip`.
-
-Use the following OpenTelemetry collector exporter configuration to push metrics to VictoriaMetrics:
-
-```yaml
-exporters:
-  otlphttp/victoriametrics:
-    compression: gzip
-    encoding: proto
-    endpoint: http://<collector/vmagent>.<namespace>.svc.cluster.local:<port>/opentelemetry
-```
-
-> Note, [cluster version of VM](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) expects specifying tenant ID, i.e. `http://<vminsert>:<port>/insert/<accountID>/opentelemetry`.
-> See more about [multitenancy](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy).
-
-Remember to add the exporter to the desired service pipeline to activate the exporter.
-
-```yaml
-service:
-  pipelines:
-    metrics:
-      exporters:
-        - otlphttp/victoriametrics
-      receivers:
-        - otlp
-```
-
-By default, VictoriaMetrics stores the ingested OpenTelemetry [metric samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) as is **without any transformations**.
-The following label transformations can be enabled:
-* `--usePromCompatibleNaming` - replaces characters unsupported by Prometheus with `_` in metric names and labels **for all ingestion protocols**.
-  For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time{service_name="foo"}`.
-* `--opentelemetry.usePrometheusNaming` - converts metric names and labels according to [OTLP Metric points to Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.33.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus) for metrics ingested via OTLP.
-  For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time_seconds_total{service_name="foo"}`.
-* `-opentelemetry.convertMetricNamesToPrometheus` - converts **only metric names** according to [OTLP Metric points to Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.33.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus) for metrics ingested via OTLP.
-  For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time_seconds_total{service.name="foo"}`. See more about this use case [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9830).
-
-> These flags can applied on vmagent, vminsert or VictoriaMetrics single-node.
-
-OpenTelemetry [exponential histogram](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) is automatically converted
-to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
-
-See [How to use OpenTelemetry metrics with VictoriaMetrics](https://docs.victoriametrics.com/guides/getting-started-with-opentelemetry/).
-See more about [OpenTelemetry in VictoriaMetrics](https://docs.victoriametrics.com/opentelemetry/).
 
 ## JSON line format
 
@@ -1378,7 +1331,7 @@ see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggrega
 ## Metrics Metadata
 
 Single-node VictoriaMetrics can store metric metadata (`TYPE`, `HELP`, `UNIT`) {{% available_from "v1.130.0" %}}.
-Metadata ingestion and querying are enabled by default{{% available_from "#" %}}. To disable them, set `-enableMetadata=false`.
+Metadata ingestion and querying are enabled by default{{% available_from "v1.137.0" %}}. To disable them, set `-enableMetadata=false`.
 
 The metadata is cached in-memory in a ring buffer and can use up to 1% of available memory by default (see `-storage.maxMetadataStorageSize` cmd-line flag).
 When in-memory size is exceeded, the least updated entries are dropped first. Entries that weren't updated for 1h are cleaned up automatically.
@@ -2192,9 +2145,12 @@ It is also possible removing [rollup result cache](#rollup-result-cache) on star
 
 ### Rollup result cache
 
-VictoriaMetrics caches query responses by default. This allows increasing performance for repeated queries
+VictoriaMetrics caches query responses by default and utilizes the cache for future queries when possible. This improves performance for repeated queries
 to [`/api/v1/query`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
 with the increasing `time`, `start` and `end` query args.
+
+> For range query: the cache can be used for queries with the same expression and step.
+> For instant query: the cache can be used for queries with the same expression that uses a lookbehind window larger than `-search.minWindowForInstantRollupOptimization` and specific functions such as `xx_over_time`, `increase`, `rate`. (For `rate`, the cache result may be inaccurate in edge cases, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for details)
 
 This cache may work incorrectly when ingesting historical data into VictoriaMetrics. See [these docs](#backfilling) for details.
 
@@ -2500,6 +2456,11 @@ Moved to [integrations/opentsdb#sending-data-via-telnet](https://docs.victoriame
 ###### Sending OpenTSDB data via HTTP `/api/put` requests
 
 Moved to [integrations/opentsdb#sending-data-via-http](https://docs.victoriametrics.com/victoriametrics/integrations/opentsdb/#sending-data-via-http).
+
+###### Sending data via OpenTelemetry
+
+- See [OpenTelemetry integration](https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/) for protocol details, metric naming and histogram conversion.
+- See [OpenTelemetry Collector](https://docs.victoriametrics.com/victoriametrics/data-ingestion/opentelemetry-collector/) for collector configuration.
 
 ###### How to send data from NewRelic agent
 
