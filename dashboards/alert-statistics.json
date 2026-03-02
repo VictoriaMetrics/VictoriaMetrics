@@ -960,10 +960,10 @@
               "options": {
                 "include": {
                   "names": [
-                    "alertname",
-                    "Value #B",
+                    "group",
                     "Value #A",
-                    "group"
+                    "Value #B",
+                    "alertname 1"
                   ]
                 }
               }
@@ -973,7 +973,7 @@
               "options": {
                 "excludeByName": {
                   "Time": false,
-                  "alertname": true,
+                  "alertname 1": true,
                   "group": false
                 },
                 "includeByName": {},
@@ -989,6 +989,7 @@
                   "Value #B": "Last series",
                   "alertgroup": "Group",
                   "alertname": "Rule",
+                  "alertname 1": "Rule",
                   "group": "Group"
                 }
               }
@@ -1019,7 +1020,12 @@
         "type": "datasource"
       },
       {
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "${ds}"
@@ -1038,7 +1044,12 @@
         "type": "query"
       },
       {
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "${ds}"
@@ -1057,7 +1068,12 @@
         "type": "query"
       },
       {
-        "current": {},
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "${ds}"
@@ -1094,12 +1110,12 @@
             "value": "10"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "20",
             "value": "20"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "30",
             "value": "30"
           },
