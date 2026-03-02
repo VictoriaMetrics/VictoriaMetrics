@@ -1058,7 +1058,7 @@ unauthorized_user:
 
 ## Access log
 
-vmauth allows configuring access logs printing per-user:
+vmauth allows configuring access logs {{% available_from "#" %}} printing per-user:
 ```yaml
 unauthorized_user:
   url_prefix: 'http://localhost:8428/'
