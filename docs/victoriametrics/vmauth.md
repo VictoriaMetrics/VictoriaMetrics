@@ -1056,6 +1056,43 @@ unauthorized_user:
     url_prefix: 'http://victoria-logs:9428/?extra_filters={env="prod"}'
 ```
 
+## Access log
+
+vmauth allows configuring access logs printing per-user:
+```yaml
+unauthorized_user:
+  url_prefix: 'http://localhost:8428/'
+  # Log all requests to this user
+  access_log: {}
+```
+
+Access logs contain limited information to prevent exposing sensitive data. See an example of the printed access log below:
+```bash
+2026-02-26T15:00:00.207Z        info    VictoriaMetrics/app/vmauth/auth_config.go:134   access_log request_host="localhost:8427" request_uri="/prometheus/api/v1/query_range?query=1&start=1772116199.897&end=1772117999.897&step=5s" status_code=200 remote_addr="127.0.0.1:63425" user_agent="Mozilla/5.0..." referer="http://localhost:8427/vmui/?" username="unauthorized"
+```
+
+The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
+`user_agent`, `referer` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
+analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs):
+```logsql
+access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log
+| stats by(username, request_host, status_code) count()
+```
+
+Access logs can skip logging requests with specified status codes:
+```yaml
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://localhost:8428/'
+  access_log:
+    filters:
+      # except requests with HTTP status codes below
+      skip_status_codes: [200, 202]
+```
+
+Access logs can be enabled or disabled per-user with [hot config reload](https://docs.victoriametrics.com/victoriametrics/vmauth/#config-reload).
+
 ## Auth config
 
 `-auth.config` is represented in the following `yml` format:
