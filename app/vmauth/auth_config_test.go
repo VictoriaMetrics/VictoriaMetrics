@@ -968,6 +968,393 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 
 }
 
+func TestParseAuthConfigWithBackendsFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			return
+		}
+		users, err := parseAuthConfigUsers(ac)
+		if err == nil {
+			t.Fatalf("expecting non-nil error; got %v", users)
+		}
+	}
+
+	// Missing backend name
+	f(`
+backends:
+- url_prefix: http://foo.bar
+users:
+- username: foo
+  backend: test
+`)
+
+	// Duplicate backend names
+	f(`
+backends:
+- name: test
+  url_prefix: http://foo.bar
+- name: test
+  url_prefix: http://baz.bar
+users:
+- username: foo
+  backend: test
+`)
+
+	// User references non-existent backend
+	f(`
+backends:
+- name: backend1
+  url_prefix: http://foo.bar
+users:
+- username: foo
+  backend: non_existent_backend
+`)
+
+	// Backend with invalid url_prefix
+	f(`
+backends:
+- name: test
+  url_prefix: ftp://foo.bar
+users:
+- username: foo
+  backend: test
+`)
+
+	// Backend with empty url_prefix
+	f(`
+backends:
+- name: test
+  url_prefix: []
+users:
+- username: foo
+  backend: test
+`)
+}
+
+func TestParseAuthConfigWithBackendsSuccess(t *testing.T) {
+	f := func(s string, expectedAuthConfig map[string]*UserInfo) {
+		t.Helper()
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		m, err := parseAuthConfigUsers(ac)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		removeMetrics(m)
+		if err := areEqualConfigs(m, expectedAuthConfig); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	insecureSkipVerifyTrue := true
+	discoverBackendIPsTrue := true
+
+	// Single backend, single user
+	f(`
+backends:
+- name: victorialogs
+  url_prefix: http://victorialogs:9428/insert/elasticsearch/
+  retry_status_codes: [500, 502]
+users:
+- auth_token: "ApiKey AAAA"
+  backend: victorialogs
+`, map[string]*UserInfo{
+		getHTTPAuthToken("ApiKey AAAA"): {
+			AuthToken:        "ApiKey AAAA",
+			Backend:          "victorialogs",
+			URLPrefix:        mustParseURL("http://victorialogs:9428/insert/elasticsearch/"),
+			RetryStatusCodes: []int{500, 502},
+		},
+	})
+
+	// Single backend, multiple users
+	f(`
+backends:
+- name: victorialogs
+  url_prefix: http://victorialogs:9428/insert/elasticsearch/
+  retry_status_codes: [500, 502]
+  load_balancing_policy: first_available
+users:
+- auth_token: "ApiKey AAAA"
+  backend: victorialogs
+- auth_token: "ApiKey BBBB"
+  backend: victorialogs
+- auth_token: "ApiKey CCCC"
+  backend: victorialogs
+`, map[string]*UserInfo{
+		getHTTPAuthToken("ApiKey AAAA"): {
+			AuthToken:           "ApiKey AAAA",
+			Backend:             "victorialogs",
+			URLPrefix:           mustParseURL("http://victorialogs:9428/insert/elasticsearch/"),
+			RetryStatusCodes:    []int{500, 502},
+			LoadBalancingPolicy: "first_available",
+		},
+		getHTTPAuthToken("ApiKey BBBB"): {
+			AuthToken:           "ApiKey BBBB",
+			Backend:             "victorialogs",
+			URLPrefix:           mustParseURL("http://victorialogs:9428/insert/elasticsearch/"),
+			RetryStatusCodes:    []int{500, 502},
+			LoadBalancingPolicy: "first_available",
+		},
+		getHTTPAuthToken("ApiKey CCCC"): {
+			AuthToken:           "ApiKey CCCC",
+			Backend:             "victorialogs",
+			URLPrefix:           mustParseURL("http://victorialogs:9428/insert/elasticsearch/"),
+			RetryStatusCodes:    []int{500, 502},
+			LoadBalancingPolicy: "first_available",
+		},
+	})
+
+	// Multiple backends, multiple users
+	f(`
+backends:
+- name: victorialogs
+  url_prefix: http://victorialogs:9428/insert/elasticsearch/
+  retry_status_codes: [500, 502]
+- name: prometheus
+  url_prefix: http://prometheus:9090
+  retry_status_codes: [429, 500]
+  drop_src_path_prefix_parts: 1
+users:
+- auth_token: "ApiKey AAAA"
+  backend: victorialogs
+- auth_token: "ApiKey BBBB"
+  backend: prometheus
+`, map[string]*UserInfo{
+		getHTTPAuthToken("ApiKey AAAA"): {
+			AuthToken:        "ApiKey AAAA",
+			Backend:          "victorialogs",
+			URLPrefix:        mustParseURL("http://victorialogs:9428/insert/elasticsearch/"),
+			RetryStatusCodes: []int{500, 502},
+		},
+		getHTTPAuthToken("ApiKey BBBB"): {
+			AuthToken:              "ApiKey BBBB",
+			Backend:                "prometheus",
+			URLPrefix:              mustParseURL("http://prometheus:9090"),
+			RetryStatusCodes:       []int{429, 500},
+			DropSrcPathPrefixParts: new(1),
+		},
+	})
+
+	// Backend with multiple url_prefix entries
+	f(`
+backends:
+- name: vmcluster
+  url_prefix:
+  - http://node1:343/bbb
+  - http://node2:343/bbb
+  retry_status_codes: [500, 501]
+  load_balancing_policy: least_loaded
+  merge_query_args: [foo, bar]
+  drop_src_path_prefix_parts: 2
+  discover_backend_ips: true
+users:
+- username: foo
+  password: bar
+  backend: vmcluster
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("foo", "bar"): {
+			Username: "foo",
+			Password: "bar",
+			Backend:  "vmcluster",
+			URLPrefix: mustParseURLs([]string{
+				"http://node1:343/bbb",
+				"http://node2:343/bbb",
+			}),
+			RetryStatusCodes:       []int{500, 501},
+			LoadBalancingPolicy:    "least_loaded",
+			MergeQueryArgs:         []string{"foo", "bar"},
+			DropSrcPathPrefixParts: new(2),
+			DiscoverBackendIPs:     &discoverBackendIPsTrue,
+		},
+	})
+
+	// Backend with TLS settings
+	secureBackendUserInfo := &UserInfo{
+		BearerToken:           "secret123",
+		Backend:               "secure-backend",
+		URLPrefix:             mustParseURL("https://secure.backend:8443"),
+		TLSInsecureSkipVerify: &insecureSkipVerifyTrue,
+		TLSServerName:         "secure.backend",
+		TLSCAFile:             "/etc/ssl/ca.pem",
+		TLSCertFile:           "/etc/ssl/cert.pem",
+		TLSKeyFile:            "/etc/ssl/key.pem",
+	}
+	f(`
+backends:
+- name: secure-backend
+  url_prefix: https://secure.backend:8443
+  tls_insecure_skip_verify: true
+  tls_server_name: "secure.backend"
+  tls_ca_file: "/etc/ssl/ca.pem"
+  tls_cert_file: "/etc/ssl/cert.pem"
+  tls_key_file: "/etc/ssl/key.pem"
+users:
+- bearer_token: secret123
+  backend: secure-backend
+`, map[string]*UserInfo{
+		getHTTPAuthBearerToken("secret123"):    secureBackendUserInfo,
+		getHTTPAuthBasicToken("secret123", ""): secureBackendUserInfo,
+	})
+
+	// Backend with headers
+	keepOriginalHost := true
+	f(`
+backends:
+- name: backend-with-headers
+  url_prefix: http://backend:8080
+  headers:
+  - "X-Custom-Header: value"
+  - "X-Another: test"
+  response_headers:
+  - "X-Response: added"
+  keep_original_host: true
+users:
+- username: testuser
+  backend: backend-with-headers
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("testuser", ""): {
+			Username:  "testuser",
+			Backend:   "backend-with-headers",
+			URLPrefix: mustParseURL("http://backend:8080"),
+			HeadersConf: HeadersConf{
+				RequestHeaders: []*Header{
+					mustNewHeader("'X-Custom-Header: value'"),
+					mustNewHeader("'X-Another: test'"),
+				},
+				ResponseHeaders: []*Header{
+					mustNewHeader("'X-Response: added'"),
+				},
+				KeepOriginalHost: &keepOriginalHost,
+			},
+		},
+	})
+
+	// Backend with url_map
+	urlMapUserInfo := &UserInfo{
+		BearerToken: "token123",
+		Backend:     "backend-with-urlmap",
+		URLMaps: []URLMap{
+			{
+				SrcPaths:  getRegexs([]string{"/api/v1/query", "/api/v1/query_range"}),
+				URLPrefix: mustParseURL("http://vmselect:8481/select/0/prometheus"),
+			},
+			{
+				SrcPaths:  getRegexs([]string{"/api/v1/write"}),
+				URLPrefix: mustParseURL("http://vminsert:8480/insert/0/prometheus"),
+			},
+		},
+	}
+	f(`
+backends:
+- name: backend-with-urlmap
+  url_map:
+  - src_paths: ["/api/v1/query", "/api/v1/query_range"]
+    url_prefix: http://vmselect:8481/select/0/prometheus
+  - src_paths: ["/api/v1/write"]
+    url_prefix: http://vminsert:8480/insert/0/prometheus
+users:
+- bearer_token: token123
+  backend: backend-with-urlmap
+`, map[string]*UserInfo{
+		getHTTPAuthBearerToken("token123"):    urlMapUserInfo,
+		getHTTPAuthBasicToken("token123", ""): urlMapUserInfo,
+	})
+
+	// User overrides backend settings
+	f(`
+backends:
+- name: default-backend
+  url_prefix: http://default:8080
+  retry_status_codes: [500, 502]
+  load_balancing_policy: first_available
+users:
+- username: user1
+  backend: default-backend
+  url_prefix: http://custom:9090
+  retry_status_codes: [503]
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("user1", ""): {
+			Username:            "user1",
+			Backend:             "default-backend",
+			URLPrefix:           mustParseURL("http://custom:9090"),
+			RetryStatusCodes:    []int{503},
+			LoadBalancingPolicy: "first_available",
+		},
+	})
+
+	// Backend with default_url
+	f(`
+backends:
+- name: backend-with-default
+  url_map:
+  - src_paths: ["/api/v1/query"]
+    url_prefix: http://vmselect:8481
+  default_url: http://default:8080
+users:
+- username: user1
+  backend: backend-with-default
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("user1", ""): {
+			Username: "user1",
+			Backend:  "backend-with-default",
+			URLMaps: []URLMap{
+				{
+					SrcPaths:  getRegexs([]string{"/api/v1/query"}),
+					URLPrefix: mustParseURL("http://vmselect:8481"),
+				},
+			},
+			DefaultURL: mustParseURL("http://default:8080"),
+		},
+	})
+
+	// Mixed configuration: some users with backend ref, some without
+	f(`
+backends:
+- name: shared-backend
+  url_prefix: http://shared:8080
+  retry_status_codes: [500]
+users:
+- username: user1
+  backend: shared-backend
+- username: user2
+  url_prefix: http://custom:9090
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("user1", ""): {
+			Username:         "user1",
+			Backend:          "shared-backend",
+			URLPrefix:        mustParseURL("http://shared:8080"),
+			RetryStatusCodes: []int{500},
+		},
+		getHTTPAuthBasicToken("user2", ""): {
+			Username:  "user2",
+			URLPrefix: mustParseURL("http://custom:9090"),
+		},
+	})
+
+	// User with max_concurrent_requests and backend
+	f(`
+backends:
+- name: backend1
+  url_prefix: http://backend:8080
+users:
+- username: user1
+  backend: backend1
+  max_concurrent_requests: 50
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("user1", ""): {
+			Username:              "user1",
+			Backend:               "backend1",
+			URLPrefix:             mustParseURL("http://backend:8080"),
+			MaxConcurrentRequests: 50,
+		},
+	})
+}
+
 func getRegexs(paths []string) []*Regex {
 	var sps []*Regex
 	for _, path := range paths {

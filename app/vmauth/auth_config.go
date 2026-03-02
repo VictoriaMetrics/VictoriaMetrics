@@ -54,11 +54,32 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users            []UserInfo `yaml:"users,omitempty"`
-	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
-
+	Users            []UserInfo    `yaml:"users,omitempty"`
+	UnauthorizedUser *UserInfo     `yaml:"unauthorized_user,omitempty"`
+	Backends         []BackendInfo `yaml:"backends,omitempty"`
 	// ms holds all the metrics for the given AuthConfig
 	ms *metrics.Set
+}
+
+// BackendInfo represents backend configuration that can be shared between multiple users
+type BackendInfo struct {
+	Name string `yaml:"name,omitempty"`
+
+	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
+	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
+	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
+	DumpRequestOnErrors    bool        `yaml:"dump_request_on_errors,omitempty"`
+	HeadersConf            HeadersConf `yaml:",inline"`
+	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
+	RetryStatusCodes       []int       `yaml:"retry_status_codes,omitempty"`
+	LoadBalancingPolicy    string      `yaml:"load_balancing_policy,omitempty"`
+	MergeQueryArgs         []string    `yaml:"merge_query_args,omitempty"`
+	DropSrcPathPrefixParts *int        `yaml:"drop_src_path_prefix_parts,omitempty"`
+	TLSCAFile              string      `yaml:"tls_ca_file,omitempty"`
+	TLSCertFile            string      `yaml:"tls_cert_file,omitempty"`
+	TLSKeyFile             string      `yaml:"tls_key_file,omitempty"`
+	TLSServerName          string      `yaml:"tls_server_name,omitempty"`
+	TLSInsecureSkipVerify  *bool       `yaml:"tls_insecure_skip_verify,omitempty"`
 }
 
 // UserInfo is user information read from authConfigPath
@@ -70,6 +91,8 @@ type UserInfo struct {
 	AuthToken   string     `yaml:"auth_token,omitempty"`
 	Username    string     `yaml:"username,omitempty"`
 	Password    string     `yaml:"password,omitempty"`
+
+	Backend string `yaml:"backend,omitempty"`
 
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
@@ -326,6 +349,14 @@ func (up *URLPrefix) setLoadBalancingPolicy(loadBalancingPolicy string) error {
 		return nil
 	default:
 		return fmt.Errorf("unexpected load_balancing_policy: %q; want least_loaded or first_available", loadBalancingPolicy)
+	}
+}
+
+// clone returns a copy of up with the same busOriginal and vOriginal values.
+func (up *URLPrefix) clone() *URLPrefix {
+	return &URLPrefix{
+		busOriginal: up.busOriginal,
+		vOriginal:   up.vOriginal,
 	}
 }
 
@@ -948,6 +979,17 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		// fast path for empty configuration
 		return byAuthToken, nil
 	}
+	backends := make(map[string]*BackendInfo, len(ac.Backends))
+	for i := range ac.Backends {
+		bi := &ac.Backends[i]
+		if bi.Name == "" {
+			return nil, fmt.Errorf("missing required name for backend #%d", i+1)
+		}
+		if backends[bi.Name] != nil {
+			return nil, fmt.Errorf("duplicate backend name %q found in backend #%d", bi.Name, i+1)
+		}
+		backends[bi.Name] = bi
+	}
 	for i := range uis {
 		ui := &uis[i]
 		// users with jwt tokens are parsed by parseJWTUsers function.
@@ -955,7 +997,13 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		if ui.JWT != nil {
 			continue
 		}
-
+		if ui.Backend != "" {
+			backend, exists := backends[ui.Backend]
+			if !exists {
+				return nil, fmt.Errorf("backend %q not found for user %q", ui.Backend, ui.name())
+			}
+			ui.applyBackendConfig(backend)
+		}
 		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
 		if err != nil {
 			return nil, err
@@ -1005,6 +1053,69 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		}
 	}
 	return byAuthToken, nil
+}
+
+// applyBackendConfig merges backend configuration into user configuration
+func (ui *UserInfo) applyBackendConfig(backend *BackendInfo) {
+	// Apply only if user doesn't have these fields set
+	if ui.URLPrefix == nil && backend.URLPrefix != nil {
+		ui.URLPrefix = backend.URLPrefix.clone()
+	}
+	if ui.DiscoverBackendIPs == nil && backend.DiscoverBackendIPs != nil {
+		ui.DiscoverBackendIPs = backend.DiscoverBackendIPs
+	}
+	if len(ui.URLMaps) == 0 && len(backend.URLMaps) > 0 {
+		urlMaps := make([]URLMap, len(backend.URLMaps))
+		copy(urlMaps, backend.URLMaps)
+		for i := range urlMaps {
+			if urlMaps[i].URLPrefix != nil {
+				urlMaps[i].URLPrefix = urlMaps[i].URLPrefix.clone()
+			}
+		}
+		ui.URLMaps = urlMaps
+	}
+	if !ui.DumpRequestOnErrors && backend.DumpRequestOnErrors {
+		ui.DumpRequestOnErrors = backend.DumpRequestOnErrors
+	}
+	if len(ui.HeadersConf.RequestHeaders) == 0 && len(backend.HeadersConf.RequestHeaders) > 0 {
+		ui.HeadersConf.RequestHeaders = backend.HeadersConf.RequestHeaders
+	}
+	if len(ui.HeadersConf.ResponseHeaders) == 0 && len(backend.HeadersConf.ResponseHeaders) > 0 {
+		ui.HeadersConf.ResponseHeaders = backend.HeadersConf.ResponseHeaders
+	}
+	if ui.HeadersConf.KeepOriginalHost == nil && backend.HeadersConf.KeepOriginalHost != nil {
+		ui.HeadersConf.KeepOriginalHost = backend.HeadersConf.KeepOriginalHost
+	}
+	if ui.DefaultURL == nil && backend.DefaultURL != nil {
+		ui.DefaultURL = backend.DefaultURL.clone()
+	}
+	if ui.RetryStatusCodes == nil && backend.RetryStatusCodes != nil {
+		ui.RetryStatusCodes = backend.RetryStatusCodes
+	}
+	if ui.LoadBalancingPolicy == "" && backend.LoadBalancingPolicy != "" {
+		ui.LoadBalancingPolicy = backend.LoadBalancingPolicy
+	}
+	if len(ui.MergeQueryArgs) == 0 && len(backend.MergeQueryArgs) > 0 {
+		ui.MergeQueryArgs = backend.MergeQueryArgs
+	}
+	if ui.DropSrcPathPrefixParts == nil && backend.DropSrcPathPrefixParts != nil {
+		ui.DropSrcPathPrefixParts = backend.DropSrcPathPrefixParts
+	}
+	if ui.TLSCAFile == "" && backend.TLSCAFile != "" {
+		ui.TLSCAFile = backend.TLSCAFile
+	}
+	if ui.TLSCertFile == "" && backend.TLSCertFile != "" {
+		ui.TLSCertFile = backend.TLSCertFile
+	}
+	if ui.TLSKeyFile == "" && backend.TLSKeyFile != "" {
+		ui.TLSKeyFile = backend.TLSKeyFile
+	}
+	if ui.TLSServerName == "" && backend.TLSServerName != "" {
+		ui.TLSServerName = backend.TLSServerName
+	}
+	if ui.TLSInsecureSkipVerify == nil && backend.TLSInsecureSkipVerify != nil {
+		ui.TLSInsecureSkipVerify = backend.TLSInsecureSkipVerify
+	}
 }
 
 var labelNameRegexp = regexp.MustCompile("^[a-zA-Z_:.][a-zA-Z0-9_:.]*$")
