@@ -159,6 +159,26 @@ func TestFastQueueReadUnblockByClose(t *testing.T) {
 	fs.MustRemoveDir(path)
 }
 
+func TestFastQueueTryWriteBlockNoDiskSpace(t *testing.T) {
+	origGetFreeSpace := getFreeSpace
+	getFreeSpace = func(string) uint64 {
+		return 1
+	}
+	t.Cleanup(func() {
+		getFreeSpace = origGetFreeSpace
+	})
+
+	fq := MustOpenFastQueue(t.TempDir(), "no-space", 0, 0, false)
+	defer fq.MustClose()
+
+	if ok := fq.TryWriteBlock([]byte("block")); ok {
+		t.Fatalf("expected TryWriteBlock to fail when there is no free space")
+	}
+	if pending := fq.GetPendingBytes(); pending != 0 {
+		t.Fatalf("expected no pending bytes after failed write; got %d", pending)
+	}
+}
+
 func TestFastQueueReadUnblockByWrite(t *testing.T) {
 	path := "fast-queue-read-unblock-by-write"
 	fs.MustRemoveDir(path)
