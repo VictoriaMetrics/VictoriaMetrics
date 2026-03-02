@@ -22,10 +22,11 @@ so the urls in the rest of the documentation will look like `https://<victoriame
 ## Documented Collectors/Agents
 
 - [Telegraf](https://docs.victoriametrics.com/victoriametrics/data-ingestion/telegraf/)
-- [Vector](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vector/)
 - [vmagent](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vmagent/)
+- [Vector](https://docs.victoriametrics.com/victoriametrics/data-ingestion/vector/)
 - [Grafana Alloy](https://docs.victoriametrics.com/victoriametrics/data-ingestion/alloy/)
 - [Prometheus](https://docs.victoriametrics.com/victoriametrics/integrations/prometheus/)
+- [OpenTelemetry Collector](https://docs.victoriametrics.com/victoriametrics/data-ingestion/opentelemetry-collector/)
 
 
 ## Supported Platforms

@@ -115,7 +115,7 @@ func (m *Marshaler) Reset() {
 
 // MarshalWithLen marshals m, appends its length together with the marshaled m to dst and returns the result.
 //
-// E.g. appends length-delimited protobuf message to dst.
+// I.e. it appends length-delimited protobuf message to dst.
 // The length of the resulting message can be read via UnmarshalMessageLen() function.
 //
 // See also Marshal.

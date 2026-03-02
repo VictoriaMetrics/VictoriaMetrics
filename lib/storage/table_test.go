@@ -24,7 +24,7 @@ func TestTableOpenClose(t *testing.T) {
 	tb.MustClose()
 
 	// Re-open created table multiple times.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		tb := mustOpenTable(path, strg)
 		tb.MustClose()
 	}

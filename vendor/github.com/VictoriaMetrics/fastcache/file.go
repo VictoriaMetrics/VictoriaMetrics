@@ -113,7 +113,7 @@ func (c *Cache) save(dir string, workersCount int) error {
 	// Save buckets by workersCount concurrent workers.
 	workCh := make(chan int, workersCount)
 	results := make(chan error)
-	for i := 0; i < workersCount; i++ {
+	for i := range workersCount {
 		go func(workerNum int) {
 			results <- saveBuckets(c.buckets[:], workCh, dir, workerNum)
 		}(i)
@@ -126,7 +126,7 @@ func (c *Cache) save(dir string, workersCount int) error {
 
 	// Read results.
 	var err error
-	for i := 0; i < workersCount; i++ {
+	for range workersCount {
 		result := <-results
 		if result != nil && err == nil {
 			err = result
@@ -174,7 +174,7 @@ func load(filePath string, maxBytes int) (*Cache, error) {
 		}(filePath + "/" + fn)
 	}
 	err = nil
-	for i := 0; i < workersCount; i++ {
+	for range workersCount {
 		result := <-results
 		if result != nil && err == nil {
 			err = result
@@ -326,7 +326,7 @@ func (b *bucket) Save(w io.Writer) error {
 	if err := writeUint64(w, uint64(chunksLen)); err != nil {
 		return fmt.Errorf("cannot write len(b.chunks): %s", err)
 	}
-	for chunkIdx := 0; chunkIdx < chunksLen; chunkIdx++ {
+	for chunkIdx := range chunksLen {
 		chunk := b.chunks[chunkIdx][:chunkSize]
 		if _, err := w.Write(chunk); err != nil {
 			return fmt.Errorf("cannot write b.chunks[%d]: %s", chunkIdx, err)
@@ -382,7 +382,7 @@ func (b *bucket) Load(r io.Reader, maxChunks uint64) error {
 	if currChunkIdx > 0 && currChunkIdx >= chunksLen {
 		return fmt.Errorf("too big bIdx=%d; should be smaller than %d", bIdx, chunksLen*chunkSize)
 	}
-	for chunkIdx := uint64(0); chunkIdx < chunksLen; chunkIdx++ {
+	for chunkIdx := range chunksLen {
 		chunk := getChunk()
 		chunks[chunkIdx] = chunk
 		if _, err := io.ReadFull(r, chunk); err != nil {

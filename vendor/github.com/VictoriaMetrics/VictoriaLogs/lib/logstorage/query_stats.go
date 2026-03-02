@@ -122,7 +122,7 @@ func (qs *QueryStats) CreateDataBlock(queryDurationNsecs int64) *DataBlock {
 	qs.addEntries(addUint64Entry, queryDurationNsecs)
 
 	return &DataBlock{
-		Columns: cs,
+		columns: cs,
 	}
 }
 

@@ -65,10 +65,11 @@ type AuthConfig struct {
 type UserInfo struct {
 	Name string `yaml:"name,omitempty"`
 
-	BearerToken string `yaml:"bearer_token,omitempty"`
-	AuthToken   string `yaml:"auth_token,omitempty"`
-	Username    string `yaml:"username,omitempty"`
-	Password    string `yaml:"password,omitempty"`
+	BearerToken string     `yaml:"bearer_token,omitempty"`
+	JWT         *JWTConfig `yaml:"jwt,omitempty"`
+	AuthToken   string     `yaml:"auth_token,omitempty"`
+	Username    string     `yaml:"username,omitempty"`
+	Password    string     `yaml:"password,omitempty"`
 
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
@@ -103,9 +104,10 @@ type UserInfo struct {
 
 // HeadersConf represents config for request and response headers.
 type HeadersConf struct {
-	RequestHeaders   []*Header `yaml:"headers,omitempty"`
-	ResponseHeaders  []*Header `yaml:"response_headers,omitempty"`
-	KeepOriginalHost *bool     `yaml:"keep_original_host,omitempty"`
+	RequestHeaders     []*Header `yaml:"headers,omitempty"`
+	ResponseHeaders    []*Header `yaml:"response_headers,omitempty"`
+	KeepOriginalHost   *bool     `yaml:"keep_original_host,omitempty"`
+	hasAnyPlaceHolders bool
 }
 
 func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
@@ -348,6 +350,7 @@ func (bus *backendURLs) add(u *url.URL) {
 		url:                u,
 		healthCheckContext: bus.healthChecksContext,
 		healthCheckWG:      &bus.healthChecksWG,
+		hasPlaceHolders:    hasAnyPlaceholders(u),
 	})
 }
 
@@ -365,6 +368,8 @@ type backendURL struct {
 	concurrentRequests atomic.Int32
 
 	url *url.URL
+
+	hasPlaceHolders bool
 }
 
 func (bu *backendURL) isBroken() bool {
@@ -588,7 +593,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 
 	// Slow path - select other backend urls.
 	n := atomicCounter.Add(1) - 1
-	for i := uint32(0); i < uint32(len(bus)); i++ {
+	for i := range uint32(len(bus)) {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
 		if bu.isBroken() {
@@ -799,6 +804,9 @@ var (
 	// authUsers contains the currently loaded auth users
 	authUsers atomic.Pointer[map[string]*UserInfo]
 
+	// jwt authentication cache
+	jwtAuthCache atomic.Pointer[jwtCache]
+
 	authConfigWG sync.WaitGroup
 	stopCh       chan struct{}
 )
@@ -838,6 +846,14 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
+	jui, err := parseJWTUsers(ac)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
+	}
+	jwtc := &jwtCache{
+		users: jui,
+	}
+
 	m, err := parseAuthConfigUsers(ac)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse users from auth config: %w", err)
@@ -857,6 +873,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
+	jwtAuthCache.Store(jwtc)
 
 	return true, nil
 }
@@ -881,11 +898,17 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		if ui.BearerToken != "" {
 			return nil, fmt.Errorf("field bearer_token can't be specified for unauthorized_user section")
 		}
+		if ui.JWT != nil {
+			return nil, fmt.Errorf("field jwt can't be specified for unauthorized_user section")
+		}
 		if ui.AuthToken != "" {
 			return nil, fmt.Errorf("field auth_token can't be specified for unauthorized_user section")
 		}
 		if ui.Name != "" {
 			return nil, fmt.Errorf("field name can't be specified for unauthorized_user section")
+		}
+		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
+			return nil, err
 		}
 		if err := ui.initURLs(); err != nil {
 			return nil, err
@@ -927,15 +950,26 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	}
 	for i := range uis {
 		ui := &uis[i]
+		// users with jwt tokens are parsed by parseJWTUsers function.
+		// the function also checks that users with jwt tokens do not have auth tokens, bearer tokens, usernames and passwords.
+		if ui.JWT != nil {
+			continue
+		}
+
 		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
 		if err != nil {
 			return nil, err
 		}
+
 		for _, at := range ats {
 			if uiOld := byAuthToken[at]; uiOld != nil {
 				return nil, fmt.Errorf("duplicate auth token=%q found for username=%q, name=%q; the previous one is set for username=%q, name=%q",
 					at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
 			}
+		}
+
+		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
+			return nil, err
 		}
 		if err := ui.initURLs(); err != nil {
 			return nil, err
@@ -1036,6 +1070,7 @@ func (ui *UserInfo) initURLs() error {
 			return err
 		}
 	}
+
 	for _, e := range ui.URLMaps {
 		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 {
 			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
@@ -1094,6 +1129,9 @@ func (ui *UserInfo) name() string {
 	if ui.AuthToken != "" {
 		h := xxhash.Sum64([]byte(ui.AuthToken))
 		return fmt.Sprintf("auth_token:hash:%016X", h)
+	}
+	if ui.JWT != nil {
+		return `jwt`
 	}
 	return ""
 }

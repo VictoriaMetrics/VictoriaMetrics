@@ -17,7 +17,7 @@ func testGetParseCacheValue(q string) *parseCacheValue {
 
 func testGenerateQueries(items int) []string {
 	queries := make([]string, items)
-	for i := 0; i < items; i++ {
+	for i := range items {
 		queries[i] = fmt.Sprintf(`node_time_seconds{instance="node%d", job="job%d"}`, i, i)
 	}
 	return queries
@@ -102,7 +102,7 @@ func TestParseCacheBucketOverflow(t *testing.T) {
 	v := testGetParseCacheValue(queries[0])
 
 	// Fill bucket
-	for i := 0; i < parseBucketMaxLen; i++ {
+	for i := range parseBucketMaxLen {
 		b.put(queries[i], v)
 	}
 	expectedLen = uint64(parseBucketMaxLen)

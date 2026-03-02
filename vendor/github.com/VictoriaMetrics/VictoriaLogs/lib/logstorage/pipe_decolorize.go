@@ -35,6 +35,10 @@ func (pd *pipeDecolorize) canReturnLastNResults() bool {
 	return true
 }
 
+func (pd *pipeDecolorize) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pd *pipeDecolorize) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }

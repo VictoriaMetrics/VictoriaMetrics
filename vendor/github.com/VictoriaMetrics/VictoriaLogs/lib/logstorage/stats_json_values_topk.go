@@ -24,7 +24,7 @@ func (svp *statsJSONValuesTopkProcessor) updateStatsForAllRows(sf statsFunc, br 
 	stateSizeIncrease := 0
 	mc := getMatchingColumns(br, sv.fieldFilters)
 	mc.sort()
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		stateSizeIncrease += svp.updateStateForRow(sv, br, mc.cs, rowIdx)
 	}
 	putMatchingColumns(mc)

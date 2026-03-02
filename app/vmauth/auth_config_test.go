@@ -277,6 +277,50 @@ users:
   metric_labels:
     not-prometheus-compatible: value
 `)
+	// placeholder in url_prefix
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
+	// placeholder in a header
+	f(`
+users:
+- username: foo
+  password: bar
+  headers:
+  - 'X-Foo: {{a_placeholder}}'
+  url_prefix: 'http://ahost'
+`)
+	// placeholder in url_prefix
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
+	// placeholder in a header in url_map
+	f(`
+users:
+- username: foo
+  password: bar
+  url_map:
+    - src_paths: ["/select/.*"]
+      headers:
+        - 'X-Foo: {{a_placeholder}}'
+      url_prefix: 'http://ahost'
+`)
+
+	// placeholder in a header in url_map
+	f(`
+users:
+- username: foo
+  password: bar
+  url_map:
+    - src_paths: ["/select/.*"]
+      url_prefix: 'http://ahost/{{a_placeholder}}/foobar'
+`)
 }
 
 func TestParseAuthConfigSuccess(t *testing.T) {
@@ -378,7 +422,7 @@ users:
 			RetryStatusCodes:       []int{500, 501},
 			LoadBalancingPolicy:    "first_available",
 			MergeQueryArgs:         []string{"foo", "bar"},
-			DropSrcPathPrefixParts: intp(1),
+			DropSrcPathPrefixParts: new(1),
 			DiscoverBackendIPs:     &discoverBackendIPsTrue,
 		},
 	}, nil)
@@ -621,6 +665,22 @@ unauthorized_user:
 			},
 		},
 	})
+
+	// skip user info with jwt, it is parsed by parseJWTUsers
+	f(`
+users:
+- username: foo
+  password: bar
+  url_prefix: http://aaa:343/bbb
+- jwt: {skip_verify: true}
+  url_prefix: http://aaa:343/bbb
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("foo", "bar"): {
+			Username:  "foo",
+			Password:  "bar",
+			URLPrefix: mustParseURL("http://aaa:343/bbb"),
+		},
+	}, nil)
 }
 
 func TestParseAuthConfigPassesTLSVerificationConfig(t *testing.T) {
@@ -831,7 +891,7 @@ func TestBrokenBackend(t *testing.T) {
 	bus[1].setBroken()
 
 	// broken backend should never return while there are healthy backends
-	for i := 0; i < 1e3; i++ {
+	for range int(1e3) {
 		b := up.getBackendURL()
 		if b.isBroken() {
 			t.Fatalf("unexpected broken backend %q", b.url)
@@ -961,10 +1021,6 @@ func mustParseURLs(us []string) *URLPrefix {
 	up.bus.Store(bus)
 	up.busOriginal = urls
 	return up
-}
-
-func intp(n int) *int {
-	return &n
 }
 
 func mustNewRegex(s string) *Regex {

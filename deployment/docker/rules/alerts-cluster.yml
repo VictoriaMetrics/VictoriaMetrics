@@ -27,7 +27,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will run out of disk space in 3 days"
           description: "Taking into account current ingestion rate, free disk space will be enough only
               for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
@@ -51,7 +51,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will become read-only in 3 days"
           description: "Taking into account current ingestion rate, free disk space and -storage.minFreeDiskSpaceBytes
               instance {{ $labels.instance }} will remain writable for {{ $value | humanizeDuration }}.\n
@@ -68,7 +68,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=20&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
             Having less than 20% of free disk space could cripple merges processes and overall performance.
@@ -81,7 +81,7 @@ groups:
           severity: warning
           show_at: dashboard
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=52&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=52&var-instance={{ $labels.instance }}"
           summary: "Too many errors served for {{ $labels.job }} path {{ $labels.path }} (instance {{ $labels.instance }})"
           description: "Requests to path {{ $labels.path }} are receiving errors.
             Please verify if clients are sending correct requests."
@@ -100,7 +100,7 @@ groups:
           severity: warning
           show_at: dashboard
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=44&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=44&var-instance={{ $labels.instance }}"
           summary: "Too many RPC errors for {{ $labels.job }} (instance {{ $labels.instance }})"
           description: "RPC errors are interconnection errors between cluster components.\n
             Possible reasons for errors are misconfiguration, overload, network blips or unreachable components."
@@ -116,7 +116,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=102"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=102"
           summary: "Churn rate is more than 10% for the last 15m"
           description: "VM constantly creates new time series.\n
             This effect is known as Churn Rate.\n
@@ -132,7 +132,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=102"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=102"
           summary: "Too high number of new series created over last 24h"
           description: "The number of created new time series over last 24h is 3x times higher than
             current number of active series.\n
@@ -151,7 +151,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=108"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=108"
           summary: "Percentage of slow inserts is more than 5% for the last 15m"
           description: "High rate of slow inserts may be a sign of resource exhaustion
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
@@ -164,7 +164,7 @@ groups:
           severity: warning
           show_at: dashboard
         annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=139&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/oS7Bi_0Wz?viewPanel=139&var-instance={{ $labels.instance }}"
           summary: "Connection between vminsert on {{ $labels.instance }} and vmstorage on {{ $labels.addr }} is saturated"
           description: "The connection between vminsert (instance {{ $labels.instance }}) and vmstorage (instance {{ $labels.addr }})
             is saturated by more than 90% and vminsert won't be able to keep up.\n

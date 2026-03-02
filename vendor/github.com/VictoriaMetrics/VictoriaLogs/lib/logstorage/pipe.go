@@ -33,6 +33,9 @@ type pipe interface {
 	// The pipe can return last N results if it doesn't modify the _time field.
 	canReturnLastNResults() bool
 
+	// isFixedOutputFieldsOrder must return true if the pipe returns the output log fields in a fixed order.
+	isFixedOutputFieldsOrder() bool
+
 	// updateNeededFields must update pf with fields it needs and not needs at the input.
 	updateNeededFields(pf *prefixfilter.Filter)
 

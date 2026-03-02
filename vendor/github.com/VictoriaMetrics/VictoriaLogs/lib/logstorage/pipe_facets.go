@@ -68,7 +68,8 @@ func (pf *pipeFacets) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
 		| filter field_values_count:<=%d
 		| delete field_values_count
 		| sort by (hits desc) limit %d partition by (field_name)
-		| sort by (field_name, hits desc)`, pf.maxValuesPerField, pf.limit)
+		| sort by (field_name, hits desc, field_value)
+		| fields field_name, field_value, hits`, pf.maxValuesPerField, pf.limit)
 	psLocal := mustParsePipes(psLocalStr, timestamp)
 
 	return &pRemote, psLocal
@@ -80,6 +81,10 @@ func (pf *pipeFacets) canLiveTail() bool {
 
 func (pf *pipeFacets) canReturnLastNResults() bool {
 	return false
+}
+
+func (pf *pipeFacets) isFixedOutputFieldsOrder() bool {
+	return true
 }
 
 func (pf *pipeFacets) updateNeededFields(f *prefixfilter.Filter) {
@@ -221,7 +226,7 @@ func (shard *pipeFacetsProcessorShard) updateFacetsForColumn(br *blockResult, c 
 			shard.updateStateInt64(fhs, n)
 		}
 	default:
-		for i := 0; i < br.rowsLen; i++ {
+		for i := range br.rowsLen {
 			v := c.getValueAtRow(br, i)
 			shard.updateStateGeneric(fhs, v, 1)
 		}

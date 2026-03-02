@@ -162,10 +162,7 @@ func TryParseUnixTimestamp(s string) (int64, bool) {
 		if !ok {
 			return 0, false
 		}
-		if decimalExp > math.MaxInt64 || decimalExp < math.MinInt64 {
-			return 0, false
-		}
-		n, ok := tryParseScientificNumberForUnixTimestamp(s[:expIdx], int(decimalExp))
+		n, ok := tryParseScientificNumberForUnixTimestamp(s[:expIdx], decimalExp)
 		if !ok {
 			return 0, false
 		}
@@ -213,7 +210,7 @@ func getExpIndex(s string) int {
 	return -1
 }
 
-func tryParseScientificNumberForUnixTimestamp(s string, decimalExp int) (int64, bool) {
+func tryParseScientificNumberForUnixTimestamp(s string, decimalExp int64) (int64, bool) {
 	dotIdx := strings.IndexByte(s, '.')
 	if dotIdx < 0 {
 		n, ok := tryParseInt64(s)
@@ -225,14 +222,14 @@ func tryParseScientificNumberForUnixTimestamp(s string, decimalExp int) (int64, 
 
 	intStr := s[:dotIdx]
 	fracStr := s[dotIdx+1:]
-	if decimalExp < len(fracStr) {
+	if decimalExp < int64(len(fracStr)) {
 		return 0, false
 	}
 	n, ok := tryParseFractionalNumberForUnixTimestamp(intStr, fracStr)
 	if !ok {
 		return 0, false
 	}
-	decimalExp -= len(fracStr)
+	decimalExp -= int64(len(fracStr))
 	return multiplyByDecimalExp(n, decimalExp)
 }
 
@@ -242,7 +239,7 @@ func tryParseFractionalNumberForUnixTimestamp(intStr, fracStr string) (int64, bo
 		return 0, false
 	}
 
-	decimalExp := len(fracStr)
+	decimalExp := int64(len(fracStr))
 	num, ok := multiplyByDecimalExp(n, decimalExp)
 	if !ok {
 		return 0, false
@@ -268,11 +265,11 @@ func tryParseFractionalNumberForUnixTimestamp(intStr, fracStr string) (int64, bo
 	return num, true
 }
 
-func multiplyByDecimalExp(n int64, decimalExp int) (int64, bool) {
+func multiplyByDecimalExp(n int64, decimalExp int64) (int64, bool) {
 	if decimalExp < 0 {
 		return 0, false
 	}
-	if decimalExp >= len(decimalMultipliers) {
+	if decimalExp >= int64(len(decimalMultipliers)) {
 		return 0, false
 	}
 	if decimalExp == 0 {

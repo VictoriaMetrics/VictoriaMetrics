@@ -9,7 +9,7 @@ import (
 func TestJoinHostPort(t *testing.T) {
 	f := func(host string, port int, resultExpected string) {
 		t.Helper()
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			result := JoinHostPort(host, port)
 			if result != resultExpected {
 				t.Fatalf("unexpected result for JoinHostPort(%q, %d); got %q; want %q", host, port, result, resultExpected)
@@ -29,13 +29,13 @@ func TestSanitizeLabelNameSerial(t *testing.T) {
 func TestSanitizeLabelNameParallel(t *testing.T) {
 	goroutines := 5
 	ch := make(chan error, goroutines)
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			ch <- testSanitizeLabelName()
 		}()
 	}
 	tch := time.After(5 * time.Second)
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		select {
 		case <-tch:
 			t.Fatalf("timeout!")
@@ -49,7 +49,7 @@ func TestSanitizeLabelNameParallel(t *testing.T) {
 
 func testSanitizeLabelName() error {
 	f := func(name, expectedSanitizedName string) error {
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			sanitizedName := SanitizeLabelName(name)
 			if sanitizedName != expectedSanitizedName {
 				return fmt.Errorf("unexpected sanitized label name %q; got %q; want %q", name, sanitizedName, expectedSanitizedName)

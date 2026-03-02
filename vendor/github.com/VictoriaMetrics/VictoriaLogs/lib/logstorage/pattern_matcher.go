@@ -399,7 +399,7 @@ func indexGenericPlaceholderEnd(s string, start int, nums int, separator byte) i
 	if end < 0 {
 		return -1
 	}
-	for i := 0; i < nums-1; i++ {
+	for range nums - 1 {
 		if end >= len(s) || s[end] != separator {
 			return -1
 		}

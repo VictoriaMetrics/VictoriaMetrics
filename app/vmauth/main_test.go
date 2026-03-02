@@ -3,11 +3,21 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -420,7 +430,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable`
+all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// all the backend_urls are unavailable for authorized user
@@ -438,7 +448,7 @@ users:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "some-user" are unavailable`
+all the 2 backends for the user "some-user" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// zero discovered backend IPs
@@ -460,7 +470,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 0 backends for the user "" are unavailable`
+all the 0 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	netutil.Resolver = origResolver
 
@@ -477,7 +487,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=502
-all the 2 backends for the user "" are unavailable`
+all the 2 backends for the user "" are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
@@ -504,6 +514,728 @@ requested_url={BACKEND}/path2/foo/?de=fg`
 	if n := retries.Load(); n != 2 {
 		t.Fatalf("unexpected number of retries; got %d; want 2", n)
 	}
+}
+
+func TestJWTRequestHandler(t *testing.T) {
+	// Generate RSA key pair for testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("cannot generate RSA key: %s", err)
+	}
+
+	// Generate public key PEM
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		t.Fatalf("cannot marshal public key: %s", err)
+	}
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	})
+
+	genToken := func(t *testing.T, body map[string]any, valid bool) string {
+		t.Helper()
+
+		headerJSON, err := json.Marshal(map[string]any{
+			"alg": "RS256",
+			"typ": "JWT",
+		})
+		if err != nil {
+			t.Fatalf("cannot marshal header: %s", err)
+		}
+		headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+
+		bodyJSON, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("cannot marshal body: %s", err)
+		}
+		bodyB64 := base64.RawURLEncoding.EncodeToString(bodyJSON)
+
+		payload := headerB64 + "." + bodyB64
+
+		var signatureB64 string
+		if valid {
+			// Create real RSA signature
+			hash := crypto.SHA256
+			h := hash.New()
+			h.Write([]byte(payload))
+			digest := h.Sum(nil)
+
+			signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
+			if err != nil {
+				t.Fatalf("cannot sign token: %s", err)
+			}
+			signatureB64 = base64.RawURLEncoding.EncodeToString(signature)
+		} else {
+			signatureB64 = base64.RawURLEncoding.EncodeToString([]byte("invalid_signature"))
+		}
+
+		return payload + "." + signatureB64
+	}
+
+	f := func(cfgStr string, r *http.Request, responseExpected string) {
+		t.Helper()
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if _, err := w.Write([]byte("path: " + r.URL.Path + "\n")); err != nil {
+				panic(fmt.Errorf("cannot write response: %w", err))
+			}
+			if _, err := w.Write([]byte("query:\n")); err != nil {
+				panic(fmt.Errorf("cannot write response: %w", err))
+			}
+			names := make([]string, 0, len(r.URL.Query()))
+			query := r.URL.Query()
+			for n := range query {
+				names = append(names, n)
+			}
+			sort.Strings(names)
+			for _, n := range names {
+				for _, v := range query[n] {
+					if _, err := w.Write([]byte("    " + n + "=" + v + "\n")); err != nil {
+						panic(fmt.Errorf("cannot write response: %w", err))
+					}
+				}
+			}
+
+			if _, err := w.Write([]byte("headers:\n")); err != nil {
+				panic(fmt.Errorf("cannot write response: %w", err))
+			}
+			if v := r.Header.Get(`AccountID`); v != "" {
+				if _, err := w.Write([]byte(`    AccountID=` + v + "\n")); err != nil {
+					panic(fmt.Errorf("cannot write response: %w", err))
+				}
+			}
+			if v := r.Header.Get(`ProjectID`); v != "" {
+				if _, err := w.Write([]byte(`    ProjectID=` + v + "\n")); err != nil {
+					panic(fmt.Errorf("cannot write response: %w", err))
+				}
+			}
+		}))
+		defer ts.Close()
+
+		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
+		responseExpected = strings.ReplaceAll(responseExpected, "{BACKEND}", ts.URL)
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			_, err := reloadAuthConfigData(cfgOrig)
+			if err != nil {
+				t.Fatalf("cannot load the original config: %s", err)
+			}
+		}()
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false is returned from requestHandler")
+		}
+
+		response := w.getResponse()
+		response = strings.ReplaceAll(response, "\r\n", "\n")
+		response = strings.TrimSpace(response)
+		responseExpected = strings.TrimSpace(responseExpected)
+		if response != responseExpected {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
+		}
+	}
+
+	simpleCfgStr := fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/foo`, string(publicKeyPEM))
+	noVMAccessClaimToken := genToken(t, nil, true)
+	minimalToken := genToken(t, map[string]any{
+		"exp":       time.Now().Add(10 * time.Minute).Unix(),
+		"vm_access": map[string]any{},
+	}, true)
+	expiredToken := genToken(t, map[string]any{
+		"exp":       10,
+		"vm_access": map[string]any{},
+	}, true)
+	invalidSignatureToken := genToken(t, map[string]any{
+		"exp":       time.Now().Add(10 * time.Minute).Unix(),
+		"vm_access": map[string]any{},
+	}, false)
+
+	fullToken := genToken(t, map[string]any{
+		"exp": time.Now().Add(10 * time.Minute).Unix(),
+		"vm_access": map[string]any{
+			"metrics_account_id": 123,
+			"metrics_project_id": 234,
+			"metrics_extra_labels": []string{
+				"label1=value1",
+				"label2=value2",
+			},
+			"metrics_extra_filters": []string{
+				`{label3="value3"}`,
+				`{label4="value4"}`,
+			},
+			"logs_account_id": 345,
+			"logs_project_id": 456,
+			"logs_extra_filters": []string{
+				`{"namespace":"my-app","env":"prod"}`,
+			},
+			"logs_extra_stream_filters": []string{
+				`{"team":"dev"}`,
+			},
+		},
+	}, true)
+
+	// missing authorization
+	request := httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	responseExpected := `
+statusCode=401
+Www-Authenticate: Basic realm="Restricted"
+missing 'Authorization' request header`
+	f(simpleCfgStr, request, responseExpected)
+
+	// token without vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+noVMAccessClaimToken)
+	responseExpected = `
+statusCode=401
+Unauthorized`
+	f(simpleCfgStr, request, responseExpected)
+
+	// expired token
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+expiredToken)
+	responseExpected = `
+statusCode=401
+Unauthorized`
+	f(simpleCfgStr, request, responseExpected)
+
+	// invalid signature token
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+invalidSignatureToken)
+	responseExpected = `
+statusCode=401
+Unauthorized`
+	f(simpleCfgStr, request, responseExpected)
+
+	// invalid signature token and skip verify
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+invalidSignatureToken)
+	responseExpected = `
+statusCode=200
+path: /foo/abc
+query:
+headers:`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  url_prefix: {BACKEND}/foo`, request, responseExpected)
+
+	// token with default valid vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=200
+path: /foo/abc
+query:
+headers:`
+	f(simpleCfgStr, request, responseExpected)
+
+	// jwt token used but no matching user with JWT token in config
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=401
+Unauthorized`
+	f(`
+users:
+- password: a-password
+  username: a-user
+  url_prefix: {BACKEND}/foo`, request, responseExpected)
+
+	// auth with key from file
+	publicKeyFile := filepath.Join(t.TempDir(), "a_public_key.pem")
+	if err := os.WriteFile(publicKeyFile, []byte(publicKeyPEM), 0o644); err != nil {
+		t.Fatalf("failed to write public key file: %s", err)
+	}
+	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=200
+path: /foo/abc
+query:
+headers:`
+	f(fmt.Sprintf(`
+users:
+- jwt:
+    public_key_files:
+    - %q
+  url_prefix: {BACKEND}/foo`, publicKeyFile), request, responseExpected)
+
+	// ---- VictoriaMetrics specific tests ----
+
+	// extra_label and extra_filters dropped if empty in vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=200
+path: /select/0:0/api/v1/query
+query:
+headers:`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// extra_label and extra_filters set if present in vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123:234/api/v1/query
+query:
+    extra_filters={label3="value3"}
+    extra_filters={label4="value4"}
+    extra_label=label1=value1
+    extra_label=label2=value2
+headers:`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// extra_label and extra_filters from vm_access claim merged with statically defined
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123:234/api/v1/query
+query:
+    extra_filters=aStaticFilter
+    extra_filters={label3="value3"}
+    extra_filters={label4="value4"}
+    extra_label=aStaticLabel
+    extra_label=label1=value1
+    extra_label=label2=value2
+headers:`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label=aStaticLabel&extra_filters=aStaticFilter&extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// extra_labels and extra_filters set from vm_access claim should override user provided query args
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query?extra_label=userProvidedLabel&extra_filters=userProvidedFilter", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123:234/api/v1/query
+query:
+    extra_filters={label3="value3"}
+    extra_filters={label4="value4"}
+    extra_label=label1=value1
+    extra_label=label2=value2
+headers:`
+	f(
+		fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// merge user provided query args with extra_labels and extra_filters from vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query?extra_label=userProvidedLabel&extra_filters=userProvidedFilter", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123:234/api/v1/query
+query:
+    extra_filters={label3="value3"}
+    extra_filters={label4="value4"}
+    extra_filters=userProvidedFilter
+    extra_label=label1=value1
+    extra_label=label2=value2
+    extra_label=userProvidedLabel
+headers:`
+	f(fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  merge_query_args: [extra_filters, extra_label]
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// pass user provided query args if vm_access claim has no extra_labels and extra_filters
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query?extra_label=userProvidedLabel&extra_filters=userProvidedFilter", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123:234/api/v1/query
+query:
+    extra_filters=userProvidedFilter
+    extra_label=userProvidedLabel
+headers:`
+	f(fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  merge_query_args: [extra_filters, extra_label]
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// pass user provided query args if vm_access claim has no extra_labels and extra_filters
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query?extra_label=userProvidedLabel&extra_filters=userProvidedFilter", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123:234/api/v1/query
+query:
+    extra_filters=userProvidedFilter
+    extra_label=userProvidedLabel
+headers:`
+	f(fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_prefix: {BACKEND}/select/{{.MetricsTenant}}/`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// placeholders in url_map
+	request = httptest.NewRequest(`GET`, "http://some-host.com/api/v1/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/123:234/api/v1/query
+query:
+    extra_filters={label3="value3"}
+    extra_filters={label4="value4"}
+    extra_label=label1=value1
+    extra_label=label2=value2
+headers:`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+    - src_paths: ["/api/.*"]
+      url_prefix: {BACKEND}/select/{{.MetricsTenant}}/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// ---- VictoriaLogs specific tests ----
+
+	// tenant headers not overwritten if set statically
+	// extra_filters extra_stream_filters dropped if empty in vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+headers:
+    AccountID=555
+    ProjectID=666`
+	f(
+		fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  headers:
+    - "AccountID: 555"
+    - "ProjectID: 666"
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// tenant headers are overwritten if set as placeholders
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+headers:
+    AccountID=0
+    ProjectID=0`
+	f(
+		fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  headers:
+    - "AccountID: {{.LogsAccountID}}"
+    - "ProjectID: {{.LogsProjectID}}"
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// tenant headers are overwritten if set as placeholders
+	// extra_filters extra_stream_filters from vm_access claim merged with statically defined
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters=aStaticFilter
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_stream_filters=aStaticStreamFilter
+    extra_stream_filters={"team":"dev"}
+headers:
+    AccountID=345
+    ProjectID=456`
+	f(
+		fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  headers:
+    - "AccountID: {{.LogsAccountID}}"
+    - "ProjectID: {{.LogsProjectID}}"
+  url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// tenant headers are overwritten if set as placeholders
+	// extra_filters extra_stream_filters from vm_access claim merged with statically defined
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters=aStaticFilter
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_stream_filters=aStaticStreamFilter
+    extra_stream_filters={"team":"dev"}
+headers:
+    AccountID=345
+    ProjectID=456`
+	f(
+		fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  headers:
+    - "AccountID: {{.LogsAccountID}}"
+    - "ProjectID: {{.LogsProjectID}}"
+  url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// claim info should overwrite user provided query args and headers
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query?extra_filters=aUserFilter&extra_stream_filters=aUserStreamFilter", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	request.Header.Set(`AccountID`, `aUserAccountID`)
+	request.Header.Set(`ProjectID`, `aUserProjectID`)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_stream_filters={"team":"dev"}
+headers:
+    AccountID=345
+    ProjectID=456`
+	f(
+		fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  headers:
+    - "AccountID: {{.LogsAccountID}}"
+    - "ProjectID: {{.LogsProjectID}}"
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// merge user provided query args with extra_filters and extra_stream_filters from vm_access claim
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query?extra_filters=aUserFilter&extra_stream_filters=aUserStreamFilter", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_filters=aUserFilter
+    extra_stream_filters={"team":"dev"}
+    extra_stream_filters=aUserStreamFilter
+headers:
+    AccountID=345
+    ProjectID=456`
+	f(
+		fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  headers:
+    - "AccountID: {{.LogsAccountID}}"
+    - "ProjectID: {{.LogsProjectID}}"
+  merge_query_args: [extra_filters, extra_stream_filters]
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// pass user provided query args if vm_access claim has no extra_labels and extra_filters
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query?extra_filters=aUserFilter&extra_stream_filters=aUserStreamFilter", nil)
+	request.Header.Set(`Authorization`, `Bearer `+minimalToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters=aUserFilter
+    extra_stream_filters=aUserStreamFilter
+headers:
+    AccountID=0
+    ProjectID=0`
+	f(
+		fmt.Sprintf(`
+users:
+- jwt:
+    public_keys:
+    - %q
+  headers:
+    - "AccountID: {{.LogsAccountID}}"
+    - "ProjectID: {{.LogsProjectID}}"
+  merge_query_args: [extra_filters, extra_stream_filters]
+  url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// placeholders in url_map
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_stream_filters={"team":"dev"}
+headers:
+    AccountID=345
+    ProjectID=456`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+    - src_paths: ["/query"]
+      headers:
+        - "AccountID: {{.LogsAccountID}}"
+        - "ProjectID: {{.LogsProjectID}}"
+      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
+	// multiple placeholders in url_map for the same param
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_stream_filters={"team":"dev"}
+    tenant_info=static=value
+    tenant_info=345
+    tenant_info=456
+headers:
+    AccountID=345
+    ProjectID=456`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+    - src_paths: ["/query"]
+      headers:
+        - "AccountID: {{.LogsAccountID}}"
+        - "ProjectID: {{.LogsProjectID}}"
+      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}&tenant_info=static=value&tenant_info={{.LogsAccountID}}&tenant_info={{.LogsProjectID}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+	// client request params must be ignored by placeholders
+	request = httptest.NewRequest(`GET`, "http://some-host.com/query?template_attack={{.LogsExtraFilters}}", nil)
+	request.Header.Set(`Authorization`, `Bearer `+fullToken)
+	request.Header.Set(`AccountID`, `{{.LogsAccountID}}`)
+	responseExpected = `
+statusCode=200
+path: /select/logsql/query
+query:
+    extra_filters={"namespace":"my-app","env":"prod"}
+    extra_stream_filters={"team":"dev"}
+    template_attack={{.LogsExtraFilters}}
+headers:
+    AccountID={{.LogsAccountID}}`
+	f(fmt.Sprintf(
+		`
+users:
+- jwt:
+    public_keys:
+    - %q
+  url_map:
+    - src_paths: ["/query"]
+      url_prefix: {BACKEND}/select/logsql/?extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
+		request,
+		responseExpected,
+	)
+
 }
 
 type fakeResponseWriter struct {
@@ -832,7 +1564,7 @@ func TestBufferedBody_RetrySuccess(t *testing.T) {
 		if !canRetry {
 			t.Fatalf("canRetry() must return true before reading anything")
 		}
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			data, err := io.ReadAll(rb)
 			if err != nil {
 				t.Fatalf("unexpected error when reading all the data at iteration %d: %s", i, err)
@@ -890,7 +1622,7 @@ func TestBufferedBody_RetrySuccessPartialRead(t *testing.T) {
 		if !canRetry {
 			t.Fatalf("canRetry must return true")
 		}
-		for i := 0; i < len(s); i++ {
+		for i := range len(s) {
 			buf := make([]byte, i)
 			n, err := io.ReadFull(rb, buf)
 			if err != nil {

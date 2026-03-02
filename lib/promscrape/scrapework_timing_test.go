@@ -113,7 +113,7 @@ vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 func BenchmarkScrapeWorkScrapeInternalStreamBigData(b *testing.B) {
 	generateScrape := func(n int) []byte {
 		var b []byte
-		for i := 0; i < n; i++ {
+		for i := range n {
 			b = append(b, "fooooo_"...)
 			b = strconv.AppendInt(b, int64(i), 10)
 			b = append(b, " 1\n"...)

@@ -79,7 +79,7 @@ func TestCompressDecompress(t *testing.T) {
 
 	r := rand.New(rand.NewSource(1))
 	var b []byte
-	for i := 0; i < 64*1024; i++ {
+	for range 64 * 1024 {
 		b = append(b, byte(r.Int31n(256)))
 	}
 	testCrossCompressDecompress(t, b)

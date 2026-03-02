@@ -124,7 +124,7 @@ func (p *SyslogParser) parseCEEMessage(s string) bool {
 	if p.jsonParser == nil {
 		p.jsonParser = GetJSONParser()
 	}
-	err := p.jsonParser.ParseLogMessage(bytesutil.ToUnsafeBytes(s))
+	err := p.jsonParser.ParseLogMessage(bytesutil.ToUnsafeBytes(s), nil)
 	if err != nil {
 		return false
 	}

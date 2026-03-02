@@ -187,7 +187,7 @@ func matchAnyCasePhrase(s, phraseLowercase string) bool {
 }
 
 func isASCIILowercase(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if c >= utf8.RuneSelf || (c >= 'A' && c <= 'Z') {
 			return false

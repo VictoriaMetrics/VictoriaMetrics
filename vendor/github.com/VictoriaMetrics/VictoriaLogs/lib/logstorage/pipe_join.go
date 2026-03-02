@@ -54,6 +54,10 @@ func (pj *pipeJoin) canReturnLastNResults() bool {
 	return false
 }
 
+func (pj *pipeJoin) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pj *pipeJoin) hasFilterInWithQuery() bool {
 	// Do not check for in(...) filters at pj.q, since they are checked separately during pj.q execution.
 	return false
@@ -127,7 +131,7 @@ func (pjp *pipeJoinProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	}
 
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		clear(byValues)
 		for j := range cs {
 			if cIdx := byValuesIdxs[j]; cIdx >= 0 {

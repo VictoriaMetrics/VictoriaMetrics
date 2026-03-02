@@ -94,7 +94,7 @@ func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath ma
 
 	// Read results.
 	var err error
-	for i := 0; i < len(perPath); i++ {
+	for range len(perPath) {
 		err = <-resultCh
 		if err != nil {
 			// Stop the work.
@@ -145,7 +145,7 @@ func runParallelInternal(concurrency int, parts []common.Part, f func(p common.P
 
 	// Read results.
 	var err error
-	for i := 0; i < len(parts); i++ {
+	for range parts {
 		err = <-resultCh
 		if err != nil {
 			// Stop the work.

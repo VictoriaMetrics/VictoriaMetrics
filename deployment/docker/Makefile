@@ -100,6 +100,7 @@ publish-via-docker:
 		) \
 		-o type=image \
 		--provenance=false \
+		--sbom=true \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
 		bin
@@ -120,6 +121,7 @@ publish-via-docker:
 		) \
 		-o type=image \
 		--provenance=false \
+		--sbom=true \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
 		bin
@@ -137,6 +139,11 @@ publish-via-docker-from-rc:
 	$(foreach registry,$(DOCKER_REGISTRIES),\
 		docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-scratch $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(EXTRA_DOCKER_TAG_SUFFIX)-scratch; \
 	)
+	@if echo "$(PKG_TAG)" | grep -q "enterprise"; then \
+		$(foreach registry,$(DOCKER_REGISTRIES),\
+			docker buildx imagetools create --tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)-fips $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(EXTRA_DOCKER_TAG_SUFFIX)-fips; \
+		) \
+	fi
 
 publish-via-docker-latest:
 	$(foreach registry,$(DOCKER_REGISTRIES),\

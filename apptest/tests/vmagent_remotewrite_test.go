@@ -313,7 +313,7 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 
 	waitFor := func(f func() bool) {
 		t.Helper()
-		for i := 0; i < retries; i++ {
+		for range retries {
 			if f() {
 				return
 			}
@@ -339,7 +339,7 @@ func TestSingleVMAgentDropOnOverload(t *testing.T) {
 
 	// Send 2 more requests, the first RW endpoint should receive everything, the second should add them to the queue
 	// since worker is busy with the first request.
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		vmagent.APIV1ImportPrometheusNoWaitFlush(t, []string{
 			"foo_bar 1 1652169600000", // 2022-05-10T08:00:00Z
 		}, apptest.QueryOpts{})

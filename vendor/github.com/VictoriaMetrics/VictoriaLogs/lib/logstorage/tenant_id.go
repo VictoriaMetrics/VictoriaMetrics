@@ -96,7 +96,7 @@ func ParseTenantID(s string) (TenantID, error) {
 		return tenantID, nil
 	}
 
-	n := strings.Index(s, ":")
+	n := strings.IndexByte(s, ':')
 	if n < 0 {
 		account, err := getUint32FromString(s)
 		if err != nil {

@@ -13,7 +13,7 @@ import (
 func TestQueueOpenClose(t *testing.T) {
 	path := "queue-open-close"
 	fs.MustRemoveDir(path)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		q := mustOpen(path, "foobar", 0)
 		if n := q.GetPendingBytes(); n > 0 {
 			t.Fatalf("pending bytes must be 0; got %d", n)
@@ -150,8 +150,8 @@ func TestQueueResetIfEmpty(t *testing.T) {
 
 	block := make([]byte, 1024*1024)
 	var buf []byte
-	for j := 0; j < 10; j++ {
-		for i := 0; i < 10; i++ {
+	for range 10 {
+		for range 10 {
 			q.MustWriteBlock(block)
 			var ok bool
 			buf, ok = q.MustReadBlockNonblocking(buf[:0])
@@ -179,10 +179,10 @@ func TestQueueWriteRead(t *testing.T) {
 		fs.MustRemoveDir(path)
 	}()
 
-	for j := 0; j < 5; j++ {
+	for j := range 5 {
 		var blocks [][]byte
-		for i := 0; i < 10; i++ {
-			block := []byte(fmt.Sprintf("block %d+%d", j, i))
+		for i := range 10 {
+			block := fmt.Appendf(nil, "block %d+%d", j, i)
 			q.MustWriteBlock(block)
 			blocks = append(blocks, block)
 		}
@@ -215,10 +215,10 @@ func TestQueueWriteCloseRead(t *testing.T) {
 		fs.MustRemoveDir(path)
 	}()
 
-	for j := 0; j < 5; j++ {
+	for j := range 5 {
 		var blocks [][]byte
-		for i := 0; i < 10; i++ {
-			block := []byte(fmt.Sprintf("block %d+%d", j, i))
+		for i := range 10 {
+			block := fmt.Appendf(nil, "block %d+%d", j, i)
 			q.MustWriteBlock(block)
 			blocks = append(blocks, block)
 		}
@@ -256,7 +256,7 @@ func TestQueueChunkManagementSimple(t *testing.T) {
 	defer fs.MustRemoveDir(path)
 	defer q.MustClose()
 	var blocks []string
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		block := fmt.Sprintf("block %d", i)
 		q.MustWriteBlock([]byte(block))
 		blocks = append(blocks, block)
@@ -289,7 +289,7 @@ func TestQueueChunkManagementPeriodicClose(t *testing.T) {
 		fs.MustRemoveDir(path)
 	}()
 	var blocks []string
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		block := fmt.Sprintf("block %d", i)
 		q.MustWriteBlock([]byte(block))
 		blocks = append(blocks, block)
@@ -327,7 +327,7 @@ func TestQueueLimitedSize(t *testing.T) {
 
 	// Check that small blocks are successfully buffered and read
 	var blocks []string
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		block := fmt.Sprintf("block_%d", i)
 		q.MustWriteBlock([]byte(block))
 		blocks = append(blocks, block)
@@ -345,7 +345,7 @@ func TestQueueLimitedSize(t *testing.T) {
 	}
 
 	// Make sure that old blocks are dropped on queue size overflow
-	for i := 0; i < maxPendingBytes; i++ {
+	for i := range maxPendingBytes {
 		block := fmt.Sprintf("%d", i)
 		q.MustWriteBlock([]byte(block))
 	}

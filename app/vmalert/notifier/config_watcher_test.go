@@ -216,7 +216,7 @@ consul_sd_configs:
 	for n := range workers {
 		wg.Go(func() {
 			r := rand.New(rand.NewSource(int64(n)))
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				rnd := r.Intn(len(paths))
 				_ = cw.reload(paths[rnd]) // update can fail and this is expected
 				_ = cw.notifiers()

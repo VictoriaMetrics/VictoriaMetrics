@@ -39,6 +39,10 @@ func (pu *pipeUniqLocal) canReturnLastNResults() bool {
 	return false
 }
 
+func (pu *pipeUniqLocal) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (pu *pipeUniqLocal) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.Reset()
 
@@ -93,7 +97,7 @@ func (pup *pipeUniqLocalProcessor) writeBlock(workerID uint, br *blockResult) {
 	hits := cHits.getValues(br)
 
 	var buf []byte
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		buf = buf[:0]
 		for _, columnValues := range columnValuess {
 			v := columnValues[rowIdx]
@@ -150,7 +154,7 @@ func (pup *pipeUniqLocalProcessor) flush() error {
 	rowValues := make([]string, len(pu.byFields)+1)
 	for i := range result {
 		src := bytesutil.ToUnsafeBytes(result[i].Value)
-		for i := 0; i < len(rowValues)-1; i++ {
+		for i := range len(rowValues) - 1 {
 			v, n := encoding.UnmarshalBytes(src)
 			if n <= 0 {
 				logger.Panicf("BUG: cannot unmarshal field value")

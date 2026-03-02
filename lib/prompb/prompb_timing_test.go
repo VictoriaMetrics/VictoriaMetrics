@@ -33,7 +33,7 @@ func BenchmarkWriteRequestMarshalProtobuf(b *testing.B) {
 
 var benchWriteRequest = func() *WriteRequest {
 	var tss []TimeSeries
-	for i := 0; i < 1_000; i++ {
+	for i := range 1_000 {
 		ts := TimeSeries{
 			Labels: []Label{
 				{

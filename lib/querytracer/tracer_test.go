@@ -151,10 +151,10 @@ func TestTraceConcurrent(t *testing.T) {
 	childLocal.Printf("abc")
 	childLocal.Done()
 	var wg sync.WaitGroup
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		child := qt.NewChild("child %d", i)
 		wg.Go(func() {
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				child.Printf("message %d", j)
 			}
 		})

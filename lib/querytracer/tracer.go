@@ -283,7 +283,7 @@ type span struct {
 
 func (s *span) writePlaintextWithIndent(w io.Writer, indent int) {
 	prefix := ""
-	for i := 0; i < indent; i++ {
+	for range indent {
 		prefix += "| "
 	}
 	prefix += "- "

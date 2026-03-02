@@ -7,6 +7,7 @@ import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
 import { QueryEditorAutocompleteProps } from "./QueryEditor";
 import { getExprLastPart, getValueByContext, getContext } from "./autocompleteUtils";
 import { extractCurrentLabel, extractLabelMatchers, extractMetric, splitByCursor } from "./utils/parser";
+import { escapeLabelName } from "../../../utils/metric";
 
 const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   value,
@@ -90,6 +91,7 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     }
 
     if (context === QueryContextType.label) {
+      insert = escapeLabelName(insert);
       valueAfterCursor = valueAfterCursor.replace(/^[^\s=!,{}()"|+\-/*^]*/, "");
     }
 

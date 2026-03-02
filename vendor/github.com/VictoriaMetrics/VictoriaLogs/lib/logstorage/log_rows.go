@@ -38,7 +38,7 @@ type LogRows struct {
 	streamTagsCanonicals []string
 
 	// streamFields contains names for stream fields
-	streamFields map[string]struct{}
+	streamFields []string
 
 	// ignoreFields is a filter for fields, which must be ignored during data ingestion
 	ignoreFields prefixfilter.Filter
@@ -251,10 +251,7 @@ func (lr *LogRows) ForEachRow(callback func(streamHash uint64, r *InsertRow)) {
 func (lr *LogRows) Reset() {
 	lr.ResetKeepSettings()
 
-	sfs := lr.streamFields
-	for k := range sfs {
-		delete(sfs, k)
-	}
+	lr.streamFields = lr.streamFields[:0]
 
 	lr.ignoreFields.Reset()
 	lr.decolorizeFields.Reset()
@@ -299,7 +296,7 @@ func (lr *LogRows) ResetKeepSettings() {
 
 // NeedFlush returns true if lr contains too much data, so it must be flushed to the storage.
 func (lr *LogRows) NeedFlush() bool {
-	return len(lr.a.b) > (maxUncompressedBlockSize/8)*7
+	return len(lr.a.b) > (maxUncompressedBlockSize/8)*7 || len(lr.rows) > maxUncompressedBlockSize/100
 }
 
 // MustAddInsertRow adds r to lr.
@@ -307,7 +304,7 @@ func (lr *LogRows) MustAddInsertRow(r *InsertRow) {
 	// verify r.StreamTagsCanonical
 	st := GetStreamTags()
 	streamTagsCanonical := bytesutil.ToUnsafeBytes(r.StreamTagsCanonical)
-	tail, err := st.UnmarshalCanonical(streamTagsCanonical)
+	tail, err := st.UnmarshalCanonicalInplace(streamTagsCanonical)
 	if err != nil {
 		line := MarshalFieldsToJSON(nil, r.Fields)
 		logger.Warnf("cannot unmarshal streamTagsCanonical: %w; skipping the log entry; log entry: %s", err, line)
@@ -374,10 +371,10 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field, s
 		return
 	}
 
-	// Compose StreamTags from fields according to streamFieldsLen, lr.streamFields and lr.extraStreamFields
+	// Compose StreamTags from fields
 	st := GetStreamTags()
 	if streamFieldsLen >= 0 {
-		// lr.streamFields with fields[:streamFieldsLen]
+		// Compose StreamTags from fields[:streamFieldsLen] and ignore lr.streamFields with lr.extraStreamFields.
 		for _, f := range fields[:streamFieldsLen] {
 			fieldName := getCanonicalFieldName(f.Name)
 			if !lr.ignoreFields.MatchString(fieldName) {
@@ -385,9 +382,10 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field, s
 			}
 		}
 	} else {
+		// Compose StreamTags from lr.streamFields and lr.extraStreamFields.
 		for _, f := range fields {
 			fieldName := getCanonicalFieldName(f.Name)
-			if _, ok := lr.streamFields[fieldName]; ok {
+			if slices.Contains(lr.streamFields, fieldName) {
 				st.Add(fieldName, f.Value)
 			}
 		}
@@ -588,15 +586,10 @@ func GetLogRows(streamFields, ignoreFields, decolorizeFields []string, extraFiel
 	}
 
 	// Initialize streamFields
-	sfs := lr.streamFields
-	if sfs == nil {
-		sfs = make(map[string]struct{}, len(streamFields))
-		lr.streamFields = sfs
-	}
 	for _, f := range streamFields {
 		f = getCanonicalFieldName(f)
 		if !lr.ignoreFields.MatchString(f) {
-			sfs[f] = struct{}{}
+			lr.streamFields = append(lr.streamFields, f)
 		}
 	}
 
@@ -605,7 +598,7 @@ func GetLogRows(streamFields, ignoreFields, decolorizeFields []string, extraFiel
 		fieldName := getCanonicalFieldName(f.Name)
 		if slices.Contains(streamFields, fieldName) {
 			lr.extraStreamFields = append(lr.extraStreamFields, f)
-			delete(sfs, fieldName)
+			lr.streamFields = slices.DeleteFunc(lr.streamFields, func(s string) bool { return s == fieldName })
 		}
 	}
 

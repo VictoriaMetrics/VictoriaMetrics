@@ -13,6 +13,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -329,7 +332,7 @@ func TestConfigGetAuthHeaderFailure(t *testing.T) {
 
 		// Verify that the tls cert cannot be loaded properly if it exists
 		if f := cfg.getTLSCertCached; f != nil {
-			cert, err := f(nil)
+			cert, err := f()
 			if err == nil {
 				t.Fatalf("expecting non-nil error in getTLSCertCached()")
 			}
@@ -610,7 +613,7 @@ func TestConfigHeaders(t *testing.T) {
 
 func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 	// Generate and save a self-signed CA certificate and a certificate signed by the CA
-	caPEM, certPEM, keyPEM := mustGenerateCertificates()
+	caPEM, certPEM, keyPEM := mustGenerateCertificates(t)
 	fs.MustWriteSync("testdata/ca.pem", caPEM)
 
 	defer fs.MustRemovePath("testdata/ca.pem")
@@ -623,7 +626,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 		Certificates: []tls.Certificate{cert},
 	}
 
-	s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	s.TLS = tlsConfig
@@ -660,7 +663,7 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 	}
 
 	// Update CA file with new CA and get config
-	ca2PEM, _, _ := mustGenerateCertificates()
+	ca2PEM, _, _ := mustGenerateCertificates(t)
 	fs.MustWriteSync("testdata/ca.pem", ca2PEM)
 
 	// Wait for cert cache expiration
@@ -675,67 +678,20 @@ func TestTLSConfigWithCertificatesFilesUpdate(t *testing.T) {
 	}
 }
 
-func mustGenerateCertificates() ([]byte, []byte, []byte) {
-	// Small key size for faster tests
-	const testCertificateBits = 4096
+func mustGenerateCertificates(t *testing.T) ([]byte, []byte, []byte) {
 
-	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(2024),
-		Subject: pkix.Name{
-			Organization: []string{"Test CA"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-		SubjectKeyId:          []byte{1, 2, 3, 4},
-	}
-	caPrivKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
-	if err != nil {
-		panic(fmt.Errorf("cannot generate CA private key: %s", err))
-	}
-	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
-	if err != nil {
-		panic(fmt.Errorf("cannot create CA certificate: %s", err))
-	}
-	caPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: caBytes,
-	})
-
-	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(2020),
-		Subject: pkix.Name{
-			Organization: []string{"Test Cert"},
-		},
-		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		IsCA:                  false,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature,
-		BasicConstraintsValid: true,
-	}
+	ts := generateCA(t)
 	key, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
 	if err != nil {
-		panic(fmt.Errorf("cannot generate certificate private key: %s", err))
+		t.Fatalf("cannot generate certificate private key: %s", err)
 	}
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &key.PublicKey, caPrivKey)
-	if err != nil {
-		panic(fmt.Errorf("cannot generate certificate: %s", err))
-	}
-	certPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: certBytes,
-	})
+	sc := ts.createAndSignCert(t, key)
 	keyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	})
 
-	return caPEM, certPEM, keyPEM
+	return ts.certPEM, sc.certPEM, keyPEM
 }
 
 func TestConfigHeadersHash(t *testing.T) {
@@ -756,4 +712,220 @@ func TestConfigHeadersHash(t *testing.T) {
 	f(nil, "digest(headers)=17241709254077376921")
 	f([]string{"foo: bar"}, "digest(headers)=16063449615388042431")
 	f([]string{"foo: bar", "X-Forwarded-For: A-B:c"}, "digest(headers)=8240238594493248512")
+}
+
+// Small key size for faster tests
+const testCertificateBits = 4096
+
+func TestMTLSCertificateRotation(t *testing.T) {
+	ca := generateCA(t)
+
+	clientKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
+	if err != nil {
+		t.Fatalf("cannot generate client private key: %s", err)
+	}
+	clientKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(clientKey),
+	})
+	clientCert := ca.createAndSignCert(t, clientKey)
+
+	clientCertPath, clientKeyPath := path.Join(t.TempDir(), "client_cert.pem"), path.Join(t.TempDir(), "client_key.pem")
+	if err := os.WriteFile(clientCertPath, clientCert.certPEM, os.ModePerm); err != nil {
+		t.Fatalf("cannot write client cert at temp dir: %s", err)
+	}
+	if err := os.WriteFile(clientKeyPath, clientKeyPEM, os.ModePerm); err != nil {
+		t.Fatalf("cannot write client cert key at temp dir: %s", err)
+	}
+
+	serverKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
+	if err != nil {
+		t.Fatalf("cannot generate server private key: %s", err)
+	}
+	serverCert := ca.createAndSignCert(t, serverKey)
+	serverKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(serverKey),
+	})
+	serverTLS, err := tls.X509KeyPair(serverCert.certPEM, serverKeyPEM)
+	if err != nil {
+		t.Fatalf("cannot load generated server certificate: %s", err)
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(ca.cert)
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{serverTLS},
+		ClientCAs:    pool,
+		// enforce client certificate verify
+		ClientAuth: tls.RequireAndVerifyClientCert,
+	}
+
+	// store last certificate serial seen by server
+	var lastSeenCertificateSerial atomic.Uint64
+	s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if len(r.TLS.PeerCertificates) != 1 {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "expected 1 PeerCertificates, got: %d", len(r.TLS.PeerCertificates))
+			return
+		}
+		for _, pc := range r.TLS.PeerCertificates {
+			lastSeenCertificateSerial.Store(pc.SerialNumber.Uint64())
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	s.TLS = tlsConfig
+	s.StartTLS()
+	defer s.Close()
+
+	serverURL, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatalf("unexpected error when parsing url=%q: %s", s.URL, err)
+	}
+
+	opts := Options{
+		TLSConfig: &TLSConfig{
+			CA:       string(ca.certPEM),
+			CertFile: clientCertPath,
+			KeyFile:  clientKeyPath,
+		},
+	}
+	ac, err := opts.NewConfig()
+	if err != nil {
+		t.Fatalf("unexpected error when parsing config: %s", err)
+	}
+
+	tr := httputil.NewTransport(false, "test_client")
+	client := http.Client{
+		Transport: ac.NewRoundTripper(tr),
+	}
+
+	assertHTTPRequestOk := func() {
+		t.Helper()
+		resp, err := client.Do(&http.Request{
+			Method: http.MethodGet,
+			URL:    serverURL,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error when making request: %s", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected status code %d; got %d", http.StatusOK, resp.StatusCode)
+		}
+		resp.Body.Close()
+	}
+	assertSeenCertSerial := func() {
+		t.Helper()
+		wantSerial := clientCert.cert.SerialNumber.Uint64()
+		seenSerial := lastSeenCertificateSerial.Load()
+		if wantSerial != seenSerial {
+			t.Fatalf("unexpected last seen certificate serial (-%d;+%d)", wantSerial, seenSerial)
+		}
+	}
+	assertHTTPRequestOk()
+	assertSeenCertSerial()
+
+	// update certificate
+	clientCert = ca.createAndSignCert(t, clientKey)
+	if err := os.WriteFile(clientCertPath, clientCert.certPEM, os.ModePerm); err != nil {
+		t.Fatalf("cannot write client cert at temp dir: %s", err)
+	}
+
+	// wait for certificate rotation
+	// it's cached for 1 second by client
+	// we cannot use synctest there because of httpserver TCP socket
+	time.Sleep(time.Second * 2)
+	assertHTTPRequestOk()
+	assertSeenCertSerial()
+}
+
+type caSigner struct {
+	certPEM []byte
+	keyPEM  []byte
+	cert    *x509.Certificate
+	key     *rsa.PrivateKey
+}
+
+type certificate struct {
+	certPEM []byte
+	cert    *x509.Certificate
+}
+
+func generateCA(t *testing.T) *caSigner {
+	ca := &x509.Certificate{
+		SerialNumber: big.NewInt(2024),
+		Subject: pkix.Name{
+			Organization: []string{"Test CA"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		SubjectKeyId:          []byte{1, 2, 3, 4},
+		DNSNames:              []string{"localhost"},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+	caPrivKey, err := rsa.GenerateKey(rand.Reader, testCertificateBits)
+	if err != nil {
+		t.Fatalf("cannot generate CA private key: %s", err)
+	}
+	caCertDER, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
+	if err != nil {
+		t.Fatalf("cannot create CA certificate: %s", err)
+	}
+	caCert, err := x509.ParseCertificate(caCertDER)
+	if err != nil {
+		t.Fatalf("cannot parse CA certificate: %s", err)
+	}
+	caPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCertDER,
+	})
+	caKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),
+	})
+
+	return &caSigner{
+		certPEM: caPEM,
+		keyPEM:  caKeyPEM,
+		cert:    caCert,
+		key:     caPrivKey,
+	}
+}
+
+func (cas *caSigner) createAndSignCert(t *testing.T, certKey *rsa.PrivateKey) *certificate {
+	certTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		Subject: pkix.Name{
+			Organization: []string{"Test Organization"},
+			CommonName:   "localhost",
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(time.Minute),
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		DNSNames:    []string{"localhost"},
+		IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, cas.cert, &certKey.PublicKey, cas.key)
+	if err != nil {
+		t.Fatalf("cannot generate certificate: %s", err)
+	}
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatalf("cannot parse certificate: %s", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certDER,
+	})
+	return &certificate{
+		certPEM: certPEM,
+		cert:    cert,
+	}
 }

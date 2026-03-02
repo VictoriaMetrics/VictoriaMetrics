@@ -32,6 +32,10 @@ func (pf *pipeFilter) canReturnLastNResults() bool {
 	return true
 }
 
+func (pf *pipeFilter) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pf *pipeFilter) updateNeededFields(f *prefixfilter.Filter) {
 	pf.f.updateNeededFields(f)
 }

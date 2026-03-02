@@ -60,6 +60,10 @@ func (pu *pipeUniq) canReturnLastNResults() bool {
 	return false
 }
 
+func (pu *pipeUniq) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (pu *pipeUniq) updateNeededFields(pf *prefixfilter.Filter) {
 	pf.Reset()
 	pf.AddAllowFilters(pu.byFields)
@@ -153,7 +157,7 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 	shard.columnValues = columnValues
 
 	keyBuf := shard.keyBuf
-	for i := 0; i < br.rowsLen; i++ {
+	for i := range br.rowsLen {
 		seenValue := true
 		for _, values := range columnValues {
 			if needHits || i == 0 || values[i-1] != values[i] {
@@ -310,12 +314,10 @@ func (pup *pipeUniqProcessor) flush() error {
 
 	// Write the calculated stats in parallel to the next pipe.
 	var wg sync.WaitGroup
-	for i := range hms {
-		wg.Add(1)
-		go func(workerID uint) {
-			defer wg.Done()
-			pup.writeShardData(workerID, hms[workerID], resetHits)
-		}(uint(i))
+	for workerID := range hms {
+		wg.Go(func() {
+			pup.writeShardData(uint(workerID), hms[workerID], resetHits)
+		})
 	}
 	wg.Wait()
 

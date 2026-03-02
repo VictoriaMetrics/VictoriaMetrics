@@ -747,7 +747,7 @@ func AreIdenticalSeriesFast(s1, s2 string) bool {
 }
 
 func isNumeric(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if numericChars[s[i]] {
 			continue
 		}

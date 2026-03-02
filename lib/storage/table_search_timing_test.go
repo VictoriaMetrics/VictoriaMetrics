@@ -81,7 +81,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 			rows := make([]rawRow, rowsPerInsert)
 			value := float64(100)
 			for insertsCount.Add(-1) >= 0 {
-				for j := 0; j < rowsPerInsert; j++ {
+				for j := range rowsPerInsert {
 					ts := timestamp.Add(uint64(10 + rng.Int63n(2)))
 					value += float64(int(rng.NormFloat64() * 5))
 
@@ -113,10 +113,7 @@ func benchmarkTableSearch(b *testing.B, rowsCount, tsidsCount, tsidsSearch int) 
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	rowsPerBench := int64(float64(rowsCount) * float64(tsidsSearch) / float64(tsidsCount))
-	if rowsPerBench > int64(rowsCount) {
-		rowsPerBench = int64(rowsCount)
-	}
+	rowsPerBench := min(int64(float64(rowsCount)*float64(tsidsSearch)/float64(tsidsCount)), int64(rowsCount))
 	b.SetBytes(rowsPerBench)
 	b.RunParallel(func(pb *testing.PB) {
 		var ts tableSearch

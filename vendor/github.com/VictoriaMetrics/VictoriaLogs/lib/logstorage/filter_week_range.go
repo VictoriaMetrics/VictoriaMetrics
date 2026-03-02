@@ -126,7 +126,7 @@ func (fr *filterWeekRange) matchTimestampValue(timestamp int64) bool {
 }
 
 func (fr *filterWeekRange) weekday(timestamp int64) time.Weekday {
-	timestamp = subNoOverflowInt64(timestamp, -fr.offset)
+	timestamp = SubInt64NoOverflow(timestamp, -fr.offset)
 	return time.Unix(0, timestamp).UTC().Weekday()
 }
 

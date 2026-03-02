@@ -15,13 +15,13 @@ func TestInternStringSerial(t *testing.T) {
 func TestInternStringConcurrent(t *testing.T) {
 	concurrency := 5
 	resultCh := make(chan error, concurrency)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		go func() {
 			resultCh <- testInternString()
 		}()
 	}
 	timer := time.NewTimer(5 * time.Second)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		select {
 		case err := <-resultCh:
 			if err != nil {
@@ -34,7 +34,7 @@ func TestInternStringConcurrent(t *testing.T) {
 }
 
 func testInternString() error {
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		s := fmt.Sprintf("foo_%d", i)
 		s1 := InternString(s)
 		if s != s1 {

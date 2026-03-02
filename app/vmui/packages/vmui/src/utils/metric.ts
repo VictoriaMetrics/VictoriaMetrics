@@ -52,3 +52,7 @@ export const isHistogramData = (result: MetricBase[]) => {
 
   return isHistogram && result.every(r => histogramLabels.some(l => l in r.metric));
 };
+
+export const escapeLabelName = (s: string) => {
+  return s.replace(/([\\./-])/g, "\\$1");
+};

@@ -142,7 +142,7 @@ type aggrStatePercentile struct {
 
 func newAggrStatePercentile(pointsLen int, n float64) aggrState {
 	hs := make([]*histogram.Fast, pointsLen)
-	for i := 0; i < pointsLen; i++ {
+	for i := range pointsLen {
 		hs[i] = histogram.NewFast()
 	}
 	return &aggrStatePercentile{

@@ -76,11 +76,11 @@ func (ts *TimeSeries) write(w io.Writer) (int, error) {
 
 		pointsCount := len(timestampsBatch)
 		cw.printf(`},"timestamps":[`)
-		for i := 0; i < pointsCount-1; i++ {
+		for i := range pointsCount - 1 {
 			cw.printf(`%d,`, timestampsBatch[i])
 		}
 		cw.printf(`%d],"values":[`, timestampsBatch[pointsCount-1])
-		for i := 0; i < pointsCount-1; i++ {
+		for i := range pointsCount - 1 {
 			cw.printf(`%v,`, valuesBatch[i])
 		}
 		cw.printf("%v]}\n", valuesBatch[pointsCount-1])

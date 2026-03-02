@@ -22,7 +22,7 @@ var pools [10]sync.Pool
 // Get returns byte buffer, which is able to store at least dataLen bytes.
 func Get(dataLen int) *bytesutil.ByteBuffer {
 	id, capacityNeeded := getPoolIDAndCapacity(dataLen)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		if id < 0 || id >= len(pools) {
 			break
 		}

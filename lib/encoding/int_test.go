@@ -14,7 +14,7 @@ func TestMarshalUnmarshalUint16(t *testing.T) {
 	testMarshalUnmarshalUint16(t, (1<<15)-1)
 	testMarshalUnmarshalUint16(t, 1<<15)
 
-	for i := uint16(0); i < 1e4; i++ {
+	for i := range uint16(1e4) {
 		testMarshalUnmarshalUint16(t, i)
 	}
 }
@@ -49,7 +49,7 @@ func TestMarshalUnmarshalUint32(t *testing.T) {
 	testMarshalUnmarshalUint32(t, (1<<31)-1)
 	testMarshalUnmarshalUint32(t, 1<<31)
 
-	for i := uint32(0); i < 1e4; i++ {
+	for i := range uint32(1e4) {
 		testMarshalUnmarshalUint32(t, i)
 	}
 }
@@ -84,7 +84,7 @@ func TestMarshalUnmarshalUint64(t *testing.T) {
 	testMarshalUnmarshalUint64(t, (1<<63)-1)
 	testMarshalUnmarshalUint64(t, 1<<63)
 
-	for i := uint64(0); i < 1e4; i++ {
+	for i := range uint64(1e4) {
 		testMarshalUnmarshalUint64(t, i)
 	}
 }
@@ -119,7 +119,7 @@ func TestMarshalUnmarshalInt16(t *testing.T) {
 	testMarshalUnmarshalInt16(t, (-1<<15)+1)
 	testMarshalUnmarshalInt16(t, (1<<15)-1)
 
-	for i := int16(0); i < 1e4; i++ {
+	for i := range int16(1e4) {
 		testMarshalUnmarshalInt16(t, i)
 		testMarshalUnmarshalInt16(t, -i)
 	}
@@ -155,7 +155,7 @@ func TestMarshalUnmarshalInt64(t *testing.T) {
 	testMarshalUnmarshalInt64(t, (-1<<63)+1)
 	testMarshalUnmarshalInt64(t, (1<<63)-1)
 
-	for i := int64(0); i < 1e4; i++ {
+	for i := range int64(1e4) {
 		testMarshalUnmarshalInt64(t, i)
 		testMarshalUnmarshalInt64(t, -i)
 	}
@@ -200,7 +200,7 @@ func TestMarshalUnmarshalVarInt64(t *testing.T) {
 	testMarshalUnmarshalVarInt64(t, (-1<<63)+1)
 	testMarshalUnmarshalVarInt64(t, (1<<63)-1)
 
-	for i := int64(0); i < 1e4; i++ {
+	for i := range int64(1e4) {
 		testMarshalUnmarshalVarInt64(t, i)
 		testMarshalUnmarshalVarInt64(t, -i)
 		testMarshalUnmarshalVarInt64(t, i<<8)
@@ -256,7 +256,7 @@ func TestMarshalUnmarshalVarUint64(t *testing.T) {
 	testMarshalUnmarshalVarInt64(t, (1<<13)+1)
 	testMarshalUnmarshalVarUint64(t, (1<<63)-1)
 
-	for i := uint64(0); i < 1024; i++ {
+	for i := range uint64(1024) {
 		testMarshalUnmarshalVarUint64(t, i)
 		testMarshalUnmarshalVarUint64(t, i<<8)
 		testMarshalUnmarshalVarUint64(t, i<<16)
@@ -301,7 +301,7 @@ func TestMarshalUnmarshalBytes(t *testing.T) {
 	testMarshalUnmarshalBytes(t, "xy")
 
 	var bb bytes.Buffer
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		fmt.Fprintf(&bb, " %d ", i)
 		s := bb.String()
 		testMarshalUnmarshalBytes(t, s)

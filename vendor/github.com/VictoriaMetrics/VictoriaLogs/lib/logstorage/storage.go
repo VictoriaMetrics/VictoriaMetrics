@@ -89,6 +89,12 @@ type StorageConfig struct {
 	// Log entries with timestamps older than now-MaxBackfillAge are ignored.
 	MaxBackfillAge time.Duration
 
+	// SnapshotsMaxAge is the maximum age for the created partition snapshots.
+	//
+	// Snapshots are automatically dropped after that duration.
+	// See https://docs.victoriametrics.com/victorialogs/#partitions-lifecycle
+	SnapshotsMaxAge time.Duration
+
 	// MinFreeDiskSpaceBytes is the minimum free disk space at storage path after which the storage stops accepting new data
 	// and enters read-only mode.
 	MinFreeDiskSpaceBytes int64
@@ -139,6 +145,11 @@ type Storage struct {
 
 	// maxBackfillAge is the maximum age of logs with historical timestamps to accept
 	maxBackfillAge time.Duration
+
+	// snapshotsMaxAge is the maximum age for the created partition snapshots.
+	//
+	// Older snapshots are automatically deleted. See https://docs.victoriametrics.com/victorialogs/#partitions-lifecycle
+	snapshotsMaxAge time.Duration
 
 	// minFreeDiskSpaceBytes is the minimum free disk space at path after which the storage stops accepting new data
 	minFreeDiskSpaceBytes uint64
@@ -295,48 +306,47 @@ func (s *Storage) PartitionList() []string {
 	return ptNames
 }
 
-// PartitionSnapshotCreate creates a snapshot for the partition with the given name
+// PartitionSnapshotMustCreate creates snapshots for partitions with the given partitionPrefix
 //
-// The snaphsot name must have YYYYMMDD format.
+// The partitionPrefix must match one of the following formats:
+// - YYYYMMDD - matches partitions for the given day
+// - YYYYMM - matches partitions for the given month
+// - YYYY - matches partitions for the given year
+// - an empty string - matches all the partitions
 //
-// The function returns path to the created snapshot on success.
-func (s *Storage) PartitionSnapshotCreate(name string) (string, error) {
-	ptw := func() *partitionWrapper {
-		s.partitionsLock.Lock()
-		defer s.partitionsLock.Unlock()
+// The function returns paths to created snapshots
+func (s *Storage) PartitionSnapshotMustCreate(partitionPrefix string) []string {
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
 
-		for _, ptw := range s.partitions {
-			if ptw.pt.name == name {
-				ptw.incRef()
-				return ptw
-			}
+	var snapshotPaths []string
+
+	for _, ptw := range ptws {
+		if strings.HasPrefix(ptw.pt.name, partitionPrefix) {
+			snapshotPath := ptw.pt.mustCreateSnapshot()
+			snapshotPaths = append(snapshotPaths, snapshotPath)
 		}
-		return nil
-	}()
-
-	if ptw == nil {
-		return "", fmt.Errorf("cannot create snapshot from partition %q, because it is missing", name)
 	}
 
-	snapshotPath := ptw.pt.mustCreateSnapshot()
-	ptw.decRef()
-
-	return snapshotPath, nil
+	return snapshotPaths
 }
 
 // PartitionSnapshotList returns a list of paths to all the snapshots across active partitions.
 func (s *Storage) PartitionSnapshotList() []string {
-	s.partitionsLock.Lock()
-	ptws := append([]*partitionWrapper{}, s.partitions...)
-	for _, ptw := range ptws {
-		ptw.incRef()
-	}
-	s.partitionsLock.Unlock()
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
 
+	snapshotPaths := getSnapshotPaths(ptws)
+	sort.Strings(snapshotPaths)
+
+	return snapshotPaths
+}
+
+func getSnapshotPaths(ptws []*partitionWrapper) []string {
 	var snapshotPaths []string
+
 	for _, ptw := range ptws {
-		ptPath := ptw.pt.path
-		snapshotsPath := filepath.Join(ptPath, snapshotsDirname)
+		snapshotsPath := filepath.Join(ptw.pt.path, snapshotsDirname)
 		if !fs.IsPathExist(snapshotsPath) {
 			continue
 		}
@@ -349,16 +359,10 @@ func (s *Storage) PartitionSnapshotList() []string {
 				continue
 			}
 
-			path := filepath.Join(snapshotsPath, name)
-			snapshotPaths = append(snapshotPaths, path)
+			snapshotPath := filepath.Join(snapshotsPath, name)
+			snapshotPaths = append(snapshotPaths, snapshotPath)
 		}
 	}
-
-	for _, ptw := range ptws {
-		ptw.decRef()
-	}
-
-	sort.Strings(snapshotPaths)
 
 	return snapshotPaths
 }
@@ -376,13 +380,12 @@ func (s *Storage) PartitionSnapshotDelete(snapshotPath string) error {
 	}
 	partitionPath := filepath.Dir(snapshotDir)
 
-	ptw := func() *partitionWrapper {
-		s.partitionsLock.Lock()
-		defer s.partitionsLock.Unlock()
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
 
-		for _, ptw := range s.partitions {
-			if partitionPath == ptw.pt.path {
-				ptw.incRef()
+	ptw := func() *partitionWrapper {
+		for _, ptw := range ptws {
+			if ptw.pt.path == partitionPath {
 				return ptw
 			}
 		}
@@ -392,9 +395,39 @@ func (s *Storage) PartitionSnapshotDelete(snapshotPath string) error {
 	if ptw == nil {
 		return fmt.Errorf("partition path %q cannot be found across active partitions", partitionPath)
 	}
-	defer ptw.decRef()
 
 	return ptw.pt.deleteSnapshot(snapshotName)
+}
+
+// MustDeleteStalePartitionSnapshots deletes snapshots older than maxAge.
+//
+// The list of paths to deleted snapshots is returned from this function.
+func (s *Storage) MustDeleteStalePartitionSnapshots(maxAge time.Duration) []string {
+	var deletedSnapshotPaths []string
+
+	currentTime := time.Now()
+
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
+
+	snapshotPaths := getSnapshotPaths(ptws)
+	for _, snapshotPath := range snapshotPaths {
+		fi, err := os.Stat(snapshotPath)
+		if err != nil {
+			logger.Warnf("skipping snapshot at %s since cannot access it: %s", snapshotPath, err)
+			continue
+		}
+
+		creationTime := fi.ModTime()
+		if currentTime.Sub(creationTime) > maxAge {
+			logger.Infof("deleting snapshot at %s because it became older than maxAge=%s (snapshot creation time: %s)", snapshotPath, maxAge, creationTime)
+			fs.MustRemoveDir(snapshotPath)
+			deletedSnapshotPaths = append(deletedSnapshotPaths, snapshotPath)
+			logger.Infof("deleted snapshot at %s", snapshotPath)
+		}
+	}
+
+	return deletedSnapshotPaths
 }
 
 // DeleteRunTask starts deletion of logs according to the given filter f for the given tenantIDs.
@@ -583,20 +616,11 @@ func mustCreateStorage(path string) {
 //
 // MustClose must be called on the returned Storage when it is no longer needed.
 func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
-	flushInterval := cfg.FlushInterval
-	if flushInterval < time.Second {
-		flushInterval = time.Second
-	}
+	flushInterval := max(cfg.FlushInterval, time.Second)
 
-	retention := cfg.Retention
-	if retention < 24*time.Hour {
-		retention = 24 * time.Hour
-	}
+	retention := max(cfg.Retention, 24*time.Hour)
 
-	futureRetention := cfg.FutureRetention
-	if futureRetention < 24*time.Hour {
-		futureRetention = 24 * time.Hour
-	}
+	futureRetention := max(cfg.FutureRetention, 24*time.Hour)
 
 	maxBackfillAge := cfg.MaxBackfillAge
 	if maxBackfillAge <= 0 || maxBackfillAge > retention {
@@ -631,6 +655,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		flushInterval:          flushInterval,
 		futureRetention:        futureRetention,
 		maxBackfillAge:         maxBackfillAge,
+		snapshotsMaxAge:        cfg.SnapshotsMaxAge,
 		minFreeDiskSpaceBytes:  minFreeDiskSpaceBytes,
 		logIngestedRows:        cfg.LogIngestedRows,
 		flockF:                 flockF,
@@ -654,7 +679,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	// when it opens many partitions.
 	var wg sync.WaitGroup
 	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
-	for i, de := range des {
+	for idx, de := range des {
 		fname := de.Name()
 
 		partitionDir := filepath.Join(partitionsPath, fname)
@@ -664,14 +689,8 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 			continue
 		}
 
-		wg.Add(1)
 		concurrencyLimiterCh <- struct{}{}
-		go func(idx int) {
-			defer func() {
-				<-concurrencyLimiterCh
-				wg.Done()
-			}()
-
+		wg.Go(func() {
 			day, err := getPartitionDayFromName(fname)
 			if err != nil {
 				logger.Panicf("FATAL: cannot parse partition filename %q at %q: %s", fname, partitionsPath, err)
@@ -680,7 +699,9 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 			partitionPath := filepath.Join(partitionsPath, fname)
 			pt := mustOpenPartition(s, partitionPath)
 			ptws[idx] = newPartitionWrapper(pt, day)
-		}(i)
+
+			<-concurrencyLimiterCh
+		})
 	}
 	wg.Wait()
 
@@ -710,6 +731,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	s.runRetentionWatcher()
 	s.runMaxDiskSpaceUsageWatcher()
 	s.runDeleteTasksWatcher()
+	s.runSnapshotsMaxAgeWatcher()
 	return s
 }
 
@@ -720,30 +742,22 @@ func sortPartitions(ptws []*partitionWrapper) {
 }
 
 func (s *Storage) runRetentionWatcher() {
-	s.wg.Add(1)
-	go func() {
-		s.watchRetention()
-		s.wg.Done()
-	}()
+	s.wg.Go(s.watchRetention)
 }
 
 func (s *Storage) runMaxDiskSpaceUsageWatcher() {
 	if s.maxDiskSpaceUsageBytes <= 0 && s.maxDiskUsagePercent <= 0 {
 		return // nothing to watch
 	}
-	s.wg.Add(1)
-	go func() {
-		s.watchMaxDiskSpaceUsage()
-		s.wg.Done()
-	}()
+	s.wg.Go(s.watchMaxDiskSpaceUsage)
 }
 
 func (s *Storage) runDeleteTasksWatcher() {
-	s.wg.Add(1)
-	go func() {
-		s.watchDeleteTasks()
-		s.wg.Done()
-	}()
+	s.wg.Go(s.watchDeleteTasks)
+}
+
+func (s *Storage) runSnapshotsMaxAgeWatcher() {
+	s.wg.Go(s.watchSnapshotsMaxAge)
 }
 
 func (s *Storage) watchRetention() {
@@ -871,6 +885,26 @@ func (s *Storage) watchMaxDiskSpaceUsage() {
 			return
 		case <-ticker.C:
 		}
+	}
+}
+
+func (s *Storage) watchSnapshotsMaxAge() {
+	if s.snapshotsMaxAge <= 0 {
+		return
+	}
+
+	d := timeutil.AddJitterToDuration(time.Minute)
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-ticker.C:
+		}
+
+		s.MustDeleteStalePartitionSnapshots(s.snapshotsMaxAge)
 	}
 }
 
@@ -1064,29 +1098,24 @@ func (s *Storage) MustClose() {
 	s.path = ""
 }
 
-// MustForceMerge force-merges parts in s partitions with names starting from the given partitionNamePrefix.
+// MustForceMerge force-merges parts in s partitions with names starting from the given partitionPrefix.
 //
 // Partitions are merged sequentially in order to reduce load on the system.
-func (s *Storage) MustForceMerge(partitionNamePrefix string) {
-	var ptws []*partitionWrapper
-
-	s.partitionsLock.Lock()
-	for _, ptw := range s.partitions {
-		if strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {
-			ptw.incRef()
-			ptws = append(ptws, ptw)
-		}
-	}
-	s.partitionsLock.Unlock()
+func (s *Storage) MustForceMerge(partitionPrefix string) {
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
 
 	s.wg.Add(1)
 	defer s.wg.Done()
 
 	for _, ptw := range ptws {
+		if !strings.HasPrefix(ptw.pt.name, partitionPrefix) {
+			continue
+		}
+
 		logger.Infof("started force merge for partition %s", ptw.pt.name)
 		startTime := time.Now()
 		ptw.pt.mustForceMerge()
-		ptw.decRef()
 		logger.Infof("finished force merge for partition %s in %.3fs", ptw.pt.name, time.Since(startTime).Seconds())
 	}
 }
@@ -1294,6 +1323,15 @@ func (s *Storage) IsReadOnly() bool {
 //
 // This function is for debugging and testing purposes only, since it is slow.
 func (s *Storage) DebugFlush() {
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
+
+	for _, ptw := range ptws {
+		ptw.pt.debugFlush()
+	}
+}
+
+func (s *Storage) getPartitions() []*partitionWrapper {
 	s.partitionsLock.Lock()
 	ptws := append([]*partitionWrapper{}, s.partitions...)
 	for _, ptw := range ptws {
@@ -1301,8 +1339,11 @@ func (s *Storage) DebugFlush() {
 	}
 	s.partitionsLock.Unlock()
 
+	return ptws
+}
+
+func (s *Storage) putPartitions(ptws []*partitionWrapper) {
 	for _, ptw := range ptws {
-		ptw.pt.debugFlush()
 		ptw.decRef()
 	}
 }

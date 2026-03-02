@@ -49,6 +49,10 @@ func (pc *pipeCollapseNums) canReturnLastNResults() bool {
 	return true
 }
 
+func (pc *pipeCollapseNums) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pc *pipeCollapseNums) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForUpdatePipe(pf, pc.field, pc.iff)
 }
@@ -263,7 +267,7 @@ func canBeTreatedAsNum(s string) bool {
 }
 
 func hasHexChars(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if isHexChar(s[i]) {
 			return true
 		}

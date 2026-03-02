@@ -61,7 +61,7 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 		stateSizeIncrease += len(v)
 
 		values := svp.values
-		for i := 0; i < br.rowsLen; i++ {
+		for range br.rowsLen {
 			values = append(values, v)
 		}
 		svp.values = values

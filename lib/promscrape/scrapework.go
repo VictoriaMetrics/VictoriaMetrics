@@ -88,7 +88,7 @@ type ScrapeWork struct {
 	// These labels are needed for relabeling troubleshooting at /targets page.
 	//
 	// OriginalLabels are sorted by name.
-	OriginalLabels *promutil.Labels
+	OriginalLabels *compressedLabels
 
 	// Labels to add to the scraped metrics.
 	//
@@ -755,7 +755,7 @@ type leveledWriteRequestCtxPool struct {
 
 func (lwp *leveledWriteRequestCtxPool) Get(labelsLen int) *writeRequestCtx {
 	id, _ := lwp.getPoolIDAndCapacity(labelsLen)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		if id < 0 || id >= len(lwp.pools) {
 			break
 		}

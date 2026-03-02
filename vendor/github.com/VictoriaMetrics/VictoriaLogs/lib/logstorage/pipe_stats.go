@@ -202,6 +202,10 @@ func (ps *pipeStats) canReturnLastNResults() bool {
 	return false
 }
 
+func (ps *pipeStats) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (ps *pipeStats) updateNeededFields(pf *prefixfilter.Filter) {
 	if ps.mode.needImportState() {
 		ps.updateNeededFieldsLocal(pf)
@@ -269,33 +273,30 @@ func (ps *pipeStats) visitSubqueries(visitFunc func(q *Query)) {
 	}
 }
 
-func (ps *pipeStats) addByTimeField(step int64) {
+func (ps *pipeStats) addByTimeField(step, offset int64) {
 	if step <= 0 {
 		return
 	}
 
 	// add step to byFields
-	stepStr := fmt.Sprintf("%d", step)
+	bf := &byStatsField{
+		name:          "_time",
+		bucketSizeStr: fmt.Sprintf("%d", step),
+		bucketSize:    float64(step),
+	}
+	if offset != 0 {
+		bf.bucketOffsetStr = fmt.Sprintf("%d", offset)
+		bf.bucketOffset = float64(offset)
+	}
+
 	dstFields := make([]*byStatsField, 0, len(ps.byFields)+1)
-	hasByTime := false
+	dstFields = append(dstFields, bf)
 	for _, f := range ps.byFields {
-		if f.name == "_time" {
-			f = &byStatsField{
-				name:          "_time",
-				bucketSizeStr: stepStr,
-				bucketSize:    float64(step),
-			}
-			hasByTime = true
+		if f.name != "_time" {
+			dstFields = append(dstFields, f)
 		}
-		dstFields = append(dstFields, f)
 	}
-	if !hasByTime {
-		dstFields = append(dstFields, &byStatsField{
-			name:          "_time",
-			bucketSizeStr: stepStr,
-			bucketSize:    float64(step),
-		})
-	}
+
 	ps.byFields = dstFields
 }
 
@@ -607,7 +608,7 @@ func (shard *pipeStatsProcessorShard) writeBlockDefault(br *blockResult) {
 	// The slowest path - group by multiple columns with different values across rows.
 	var psg *pipeStatsGroup
 	keyBuf := shard.keyBuf[:0]
-	for i := 0; i < br.rowsLen; i++ {
+	for i := range br.rowsLen {
 		// Verify whether the key for 'by (...)' fields equals the previous key
 		sameValue := i > 0
 		for _, values := range columnValues {
@@ -663,7 +664,7 @@ func (shard *pipeStatsProcessorShard) writeBlockLocal(br *blockResult) {
 		return
 	}
 	if len(byFields) == 1 {
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		for rowIdx := range br.rowsLen {
 			v := byFieldValues[0][rowIdx]
 			psg := shard.getPipeStatsGroupGeneric(v)
 			stateSize, err := psg.importStateFromRow(columnValues, rowIdx, stopCh)
@@ -681,7 +682,7 @@ func (shard *pipeStatsProcessorShard) writeBlockLocal(br *blockResult) {
 	}
 
 	keyBuf := shard.keyBuf
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		keyBuf = keyBuf[:0]
 		for _, values := range byFieldValues {
 			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[rowIdx]))
@@ -724,7 +725,7 @@ func (shard *pipeStatsProcessorShard) updateStatsSingleColumn(br *blockResult, b
 		}
 
 		var psg *pipeStatsGroup
-		for i := 0; i < br.rowsLen; i++ {
+		for i := range br.rowsLen {
 			if i <= 0 || values[i-1] != values[i] {
 				psg = shard.getPipeStatsGroupGeneric(values[i])
 			}
@@ -795,7 +796,7 @@ func (shard *pipeStatsProcessorShard) updateStatsSingleColumn(br *blockResult, b
 	values := c.getValues(br)
 
 	var psg *pipeStatsGroup
-	for i := 0; i < br.rowsLen; i++ {
+	for i := range br.rowsLen {
 		if i <= 0 || values[i-1] != values[i] {
 			psg = shard.getPipeStatsGroupGeneric(values[i])
 		}
@@ -1039,15 +1040,12 @@ func (psp *pipeStatsProcessor) flush() error {
 
 	// Write the calculated stats in parallel to the next pipe.
 	var wg sync.WaitGroup
-	for i := range psms {
-		wg.Add(1)
-		go func(workerID uint) {
-			defer wg.Done()
-
-			psw := newPipeStatsWriter(psp, workerID)
+	for workerID := range psms {
+		wg.Go(func() {
+			psw := newPipeStatsWriter(psp, uint(workerID))
 			psw.writeShardData(psms[workerID])
 			psw.flush()
-		}(uint(i))
+		})
 	}
 	wg.Wait()
 
@@ -1207,13 +1205,10 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 			continue
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			var a chunkedAllocator
 			shard.moveGroupMapToShards(&a)
-		}()
+		})
 	}
 	wg.Wait()
 	if needStop(psp.stopCh) {
@@ -1222,11 +1217,8 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 
 	psms := shards[0].groupMapShards
 	shards = shards[1:]
-	for i := range psms {
-		wg.Add(1)
-		go func(cpuIdx int) {
-			defer wg.Done()
-
+	for cpuIdx := range psms {
+		wg.Go(func() {
 			var a chunkedAllocator
 			psm := &psms[cpuIdx].pipeStatsGroupMap
 			for _, shard := range shards {
@@ -1234,7 +1226,7 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 				psm.mergeState(&a, src, psp.stopCh)
 				src.reset()
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 	if needStop(psp.stopCh) {

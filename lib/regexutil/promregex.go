@@ -3,6 +3,7 @@ package regexutil
 import (
 	"regexp"
 	"regexp/syntax"
+	"slices"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -118,12 +119,7 @@ func (pr *PromRegex) MatchString(s string) bool {
 
 	if len(pr.orValues) > 0 {
 		// Fast path - pr contains only alternate strings such as 'foo|bar|baz'
-		for _, v := range pr.orValues {
-			if s == v {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(pr.orValues, s)
 	}
 
 	// Fall back to slow path by matching the original regexp.
