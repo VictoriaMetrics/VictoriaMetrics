@@ -680,7 +680,7 @@ command-line flags:
   -runOnStart
      Upload backups immediately after start of the service. Otherwise the backup starts on new hour
   -s3ACL string
-     ACL to be set for uploaded objects to S3. Supported values are: private, public-read, public-read-write, authenticated-read, aws-exec-read, bucket-owner-read, bucket-owner-full-control
+     ACL to be set for uploaded objects to S3. If not set, no ACL header is sent. Supported values are: private, public-read, public-read-write, authenticated-read, aws-exec-read, bucket-owner-read, bucket-owner-full-control, log-delivery-write.
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
   -s3ObjectTags string

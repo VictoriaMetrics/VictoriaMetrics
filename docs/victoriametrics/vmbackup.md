@@ -492,7 +492,7 @@ Run `vmbackup -help` in order to see all the available options:
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -s3ACL string
-     ACL to be set for uploaded objects to S3. Supported values are: private, public-read, public-read-write, authenticated-read, aws-exec-read, bucket-owner-read, bucket-owner-full-control
+     ACL to be set for uploaded objects to S3. If not set, no ACL header is sent. Supported values are: private, public-read, public-read-write, authenticated-read, aws-exec-read, bucket-owner-read, bucket-owner-full-control, log-delivery-write.
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
   -s3ObjectTags string
