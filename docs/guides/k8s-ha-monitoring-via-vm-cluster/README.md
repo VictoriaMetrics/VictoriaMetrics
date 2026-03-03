@@ -15,13 +15,20 @@ By the end of this guide, you will know:
 - How high-availability mode works in VictoriaMetrics.
 - How to scrape metrics from Kubernetes components using service discovery.
 
-**Preconditions**
+## Overview
 
-TODO: update, and test on GKE
-* [Kubernetes cluster 1.19.12-gke.2100](https://cloud.google.com/kubernetes-engine). We use GKE cluster from [GCP](https://cloud.google.com/) but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/).
-* [Helm 3 ](https://helm.sh/docs/intro/install)
-* [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
-* [jq](https://stedolan.github.io/jq/download/) tool
+In this guide, high availability is achieved by configuring [replication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) on `vminsert` to a value of 2. This means every incoming data point is written twice on separate `vmstorage` pods, so data is still available provided at least two storage nodes are available.
+
+This setup requires **twice as much storage** as a normal, non-replicating cluster because `vminsert` fans out each write into two `vmstorage` pods. 
+
+Duplication causes `vmselect` to read back two copies of every sample, which can skew results. To handle this, we must enable [de-duplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) in the `vmselect` pods to collapse the replicas into a single sample per scrape interval.
+
+## Preconditions
+
+- [Kubernetes cluster 1.35](https://cloud.google.com/kubernetes-engine). We use GKE cluster from [GCP](https://cloud.google.com/) but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/). 
+- [Helm](https://helm.sh/docs/intro/install)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl)
+- [jq](https://stedolan.github.io/jq/download/) tool
 
 ## 1. VictoriaMetrics Helm repository
 
@@ -89,7 +96,7 @@ EOF
 Let's break down how high-availability is achieved:
 
 * `replicaCount: 3` creates three replicas of vmselect, vminsert and vmstorage each.
-* `replicationFactor: 2` Replication factor for the ingested data, i.e. how many copies should be made among distinct `vmstorage` instances. If the replication factor is greater than one, the de-duplication must be enabled on the remote storage side.
+* `replicationFactor: 2` sets the [replication factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) for the ingested data, i.e. how many data point copies should be made among distinct `vmstorage` instances. If the replication factor is greater than one, de-duplication must be enabled to prevent double-counting samples.
 * `dedup.minScrapeInterval: 1ms` configures [de-duplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for the cluster. Thus, only the earliest data point in a given time series is kept (as long as they fall in the same discrete 1ms bucket).
 * `podAnnotations: prometheus.io/scrape: "true"` enables metric scraping so you can monitor your VictoriaMetrics cluster.
 * `podAnnotations:prometheus.io/port: "some_port" ` defines the scraping port.
@@ -381,16 +388,19 @@ Which should output 2 nodes now:
 }
 ```
 
+Even with one storage node pod, queries still work because we initial set the replication factor to 2. Since each data point is stored twice for redundancy, high availability is guaranteed if at least two storage pods are up.
 
-Even with one storage node pod, queries still work because we initial set the replication factor to 2. Since each data point is stored twice for redudancy, high availability is guaranteed if at least two storage pods are up.
+You can also check if the query result is complete by examining the `isPartial` value in the response:
+- when `isPartial: false` the response complete for the requested time range and series. This means either all required `vmstorage` nodes responded successfully, or enough replicas responded (according to the configured `replicationFactor`)
+- when `isPartial: true` it means `vmselect` could not fetch all the data it expected from `vmstorage`, so the returned series and values may be incomplete or incorrect. 
 
-Running other queries such as `count(up{kubernetes_pod_name=~".*vmselect.*"})` should return still return 3. 
+Running other queries such as `count(up{kubernetes_pod_name=~".*vmselect.*"})` should return still return 3.
 
 ```sh
 curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=count(up{kubernetes_pod_name=~".*vmselect.*"})&start=-10m&step=1m' | jq
 ```
 
-Which should return:
+Which should print:
 
 ```json
 {
@@ -427,10 +437,21 @@ Which should return:
 
 This means queries and metric ingestion are not affected by the "failure" of one storage pod.
 
+Finally, you can scale the `vmstorage` pods back to 3 to resume normal operation:
+
+```sh
+kubectl scale sts vmcluster-victoria-metrics-cluster-vmstorage --replicas=3
+```
+
 ## 6. Final thoughts
 
 * We set up VictoriaMetrics for Kubernetes cluster in high availability.
 * We collected metrics from running services and stored them in the VictoriaMetrics database.
 * We configured `dedup.minScrapeInterval` and `replicationFactor: 2` for VictoriaMetrics cluster for high availability purposes.
 * We tested and made sure that metrics are available even if one of `vmstorages` nodes was turned off.
+
+Next steps:
+- [Learn more about the cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
+- [Migrate existing metric data into VictoriaMetrics with vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/)
+- [Install Grafana](https://docs.victoriametrics.com/guides/k8s-monitoring-via-vm-cluster/#id-4-install-and-connect-grafana-to-victoriametrics-with-helm)
 
