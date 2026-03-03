@@ -353,6 +353,6 @@ func IsDirOrSymlink(de os.DirEntry) bool {
 	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
 
-func GetFsName(path string) string {
-	return getFsName(path)
+func GetFsTypeName(path string) string {
+	return getFsTypeName(path)
 }

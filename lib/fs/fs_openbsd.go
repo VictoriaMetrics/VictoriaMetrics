@@ -5,8 +5,9 @@ import (
 	"sync"
 )
 
-// Path -> Fs Type
-var lock sync.Mutex
+var fsNameCacheLock sync.Mutex
+
+// Path To FsTypeName
 var fsNameCache = map[string]string{}
 
 type statfs_t = unix.Statfs_t
@@ -24,14 +25,14 @@ func statfs(path string, stat *statfs_t) (err error) {
 	return unix.Statfs(path, stat)
 }
 
-func getFsName(path string) string {
+func getFsTypeName(path string) string {
 	// fast path: get fs name from cache
-	lock.Lock()
+	fsNameCacheLock.Lock()
 	if fsName, ok := fsNameCache[path]; ok {
-		lock.Unlock()
+		fsNameCacheLock.Unlock()
 		return fsName
 	}
-	lock.Unlock()
+	fsNameCacheLock.Unlock()
 
 	// slow path: get fs name by statfs syscall
 	var stat statfs_t
@@ -48,9 +49,9 @@ func getFsName(path string) string {
 		fsNameBytes = append(fsNameBytes, byte(v))
 	}
 	fsName = string(fsNameBytes)
-	lock.Lock()
+	fsNameCacheLock.Lock()
 	fsNameCache[path] = fsName
-	lock.Unlock()
+	fsNameCacheLock.Unlock()
 
 	return fsName
 }
