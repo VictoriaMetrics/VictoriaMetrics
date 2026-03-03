@@ -1245,7 +1245,7 @@
                 "value": "{$match}"
               },
               {
-                "key": "data",
+                "key": "date",
                 "value": "${__to:date:YYYY-MM-DD}"
               }
             ]
