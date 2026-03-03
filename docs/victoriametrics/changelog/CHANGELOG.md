@@ -29,6 +29,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `access_log` configuration option for each user that will log requests to stdout, and support filtering by HTTP status codes. See more in [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). See [#5936](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5936).
 
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): do not enable ACL when uploading backups to S3-compatible endpoints by default. ACL is not always supported by S3-compatible endpoints and it is not recommended to use ACLs to limit access to objects. See [#10539](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10539) for more details.
+* BUGFIX: [dashboards/vmauth](https://grafana.com/grafana/dashboards/21394): fix `requested from system` and `heap inuse` expressions in the memory usage panel. See [#10574](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10574).
 
 ## [v1.137.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.137.0)
 
