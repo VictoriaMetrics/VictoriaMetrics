@@ -126,5 +126,5 @@ func newOverlapped() (*windows.Overlapped, error) {
 }
 
 func getFsTypeName(path string) string {
-	return ""
+	return "unknown"
 }

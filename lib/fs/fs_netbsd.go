@@ -20,5 +20,5 @@ func statfs(path string, buf *statfs_t) (err error) {
 }
 
 func getFsTypeName(path string) string {
-	return ""
+	return "unknown"
 }
