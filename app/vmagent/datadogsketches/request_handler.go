@@ -62,9 +62,6 @@ func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels 
 			}
 			for _, tag := range sketch.Tags {
 				name, value := datadogutil.SplitTag(tag)
-				if name == "host" {
-					name = "exported_host"
-				}
 				labels = append(labels, prompb.Label{
 					Name:  name,
 					Value: value,
