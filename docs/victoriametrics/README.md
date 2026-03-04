@@ -1429,7 +1429,7 @@ never exposed to the clients, i.e. it is for internal use only.
 Instead, VictoriaMetrics maintains an **inverted index** (known as `indexDB`)
 that enables searching the raw samples by metric name, label name, and label
 value by mapping these values to the corresponding TSIDs. Every data
-[partition](#storage) has it own indexDB.
+[partition](#storage) has its own indexDB.
 
 VictoriaMetrics uses two types of inverted indexes:
 
