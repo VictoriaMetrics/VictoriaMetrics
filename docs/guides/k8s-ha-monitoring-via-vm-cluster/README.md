@@ -17,15 +17,18 @@ By the end of this guide, you will know:
 
 ## Overview
 
-In this guide, high availability is achieved by configuring [replication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) on `vminsert` to a value of 2. This means every incoming data point is written twice on separate `vmstorage` pods, so data is still available provided at least two storage nodes are available.
+In this guide, high availability is achieved by configuring [replication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) on `vminsert` to a value of 2. This means every incoming data point is written twice to separate `vmstorage` pods, so data remains available as long as at least one replica of a given time series is reachable.
 
 This setup requires **twice as much storage** as a normal, non-replicating cluster because `vminsert` fans out each write into two `vmstorage` pods. 
 
-Duplication causes `vmselect` to read back two copies of every sample, which can skew results. To handle this, we must enable [de-duplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) in the `vmselect` pods to collapse the replicas into a single sample per scrape interval.
+Duplication causes `vmselect` to read back two copies of each sample, potentially skewing results. For example, in aggregations such as `sum` or `count`, this would double the result. To handle this, we must enable [de-duplication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#deduplication) in the `vmselect` pods to collapse the replicas into a single sample per scrape interval.
 
 ## Preconditions
 
-- [Kubernetes cluster 1.35](https://cloud.google.com/kubernetes-engine). We use GKE cluster from [GCP](https://cloud.google.com/) but this guide also applies to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/). 
+> [!NOTE] Note
+> We used a GKE cluster (v1.35) from [GCP](https://cloud.google.com/) in this guide, but it can also be applied to any Kubernetes cluster. For example, [Amazon EKS](https://aws.amazon.com/ru/eks/) or an on-premises cluster.
+
+- [Kubernetes cluster](https://cloud.google.com/kubernetes-engine).
 - [Helm](https://helm.sh/docs/intro/install)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 - [jq](https://stedolan.github.io/jq/download/) tool
@@ -39,7 +42,7 @@ helm repo add vm https://victoriametrics.github.io/helm-charts/
 helm repo update
 ```
 
-Then verify VictoriaMetrics charts are available with:
+Then, verify that VictoriaMetrics charts are available with:
 
 ```sh
 helm search repo vm/
@@ -95,19 +98,21 @@ EOF
 
 Let's break down how high-availability is achieved:
 
-* `replicaCount: 3` creates three replicas of vmselect, vminsert and vmstorage each.
-* `replicationFactor: 2` sets the [replication factor](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) for the ingested data, i.e. how many data point copies should be made among distinct `vmstorage` instances. If the replication factor is greater than one, de-duplication must be enabled to prevent double-counting samples.
-* `dedup.minScrapeInterval: 1ms` configures [de-duplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for the cluster. Thus, only the earliest data point in a given time series is kept (as long as they fall in the same discrete 1ms bucket).
-* `podAnnotations: prometheus.io/scrape: "true"` enables metric scraping so you can monitor your VictoriaMetrics cluster.
-* `podAnnotations:prometheus.io/port: "some_port" ` defines the scraping port.
+- `replicaCount: 3` creates three replicas of vmselect, vminsert, and vmstorage each.
+- `replicationFactor: 2` enables [replication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) for `vminsert` and `vmselect`.
+  - `vminsert` uses `replicationFactor` to fan out writes. In this case, it creates two copies of the sample and distributes them among distinct `vmstorage` pods.
+  - `vmselect` also gets a `replicationFactor` so it knows how many replicas to expect and when to treat a response as partial (more on this later).
+- `dedup.minScrapeInterval`: 1ms configures [de-duplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for `vmselect`, so it does not double-count samples when retrieving data from `vmstorage` pods.
+- `podAnnotations: prometheus.io/scrape: "true"` enables metric scraping so you can monitor your VictoriaMetrics cluster.
+- `podAnnotations:prometheus.io/port: "some_port" ` defines the scraping port.
 
-Install the VictoriaMetrics cluster in high-availability mode. The following command deploys VictoriaMetrics cluster in the default namespace:
+Install the VictoriaMetrics cluster in high-availability mode. The following command deploys a VictoriaMetrics cluster in the default namespace:
 
 ```sh
 helm install vmcluster vm/victoria-metrics-cluster -f victoria-metrics-cluster-values.yml
 ```
 
-The expected result of the command execution is the following:
+The expected output is:
 
 ```text
 NAME: vmcluster
@@ -147,7 +152,7 @@ Get the VictoriaMetrics select service URL by running these commands in the same
   export POD_NAME=$(kubectl get pods --namespace default -l "app=" -o jsonpath="{.items[0].metadata.name}")
   kubectl --namespace default port-forward $POD_NAME 8481
 
-You need to specify select service URL into your Grafana:
+You need to specify the service URL in your Grafana:
  NOTE: you need to use the Prometheus Data Source
 
 Input this URL field into Grafana
@@ -166,7 +171,7 @@ Verify that the VictoriaMetrics cluster pods are up and running by executing the
 kubectl get pods -l app.kubernetes.io/instance=vmcluster
 ```
 
-The expected output is:
+You should see:
 
 ```text
 NAME                                                           READY   STATUS    RESTARTS   AGE
@@ -183,7 +188,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-2                 1/1     Running  
 ```
 ## 3. Install vmagent from the Helm chart
 
-To scrape metrics from Kubernetes with a VictoriaMetrics Cluster we will need to install [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) with some additional configurations. 
+To scrape metrics from Kubernetes with a VictoriaMetrics Cluster, we need to install [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) and configure it with additional settings. 
 
 Install `vmagent` with the following command:
 
@@ -193,7 +198,7 @@ helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.c
 
 Here are the key settings in the chart values file `guide-vmcluster-vmagent-values.yaml`:
 
-- `remoteWrite` defines the vminsert endpoint that receives telemetry from vmagent . This value should match exactly the URL for the `remote_write` in the output of the VictoriaMetrics cluster installation in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart).
+- `remoteWrite` defines the vminsert endpoint that receives telemetry from vmagent. This value should match exactly the URL for the `remote_write` in the output of the VictoriaMetrics cluster installation in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart).
 
     ```yaml
     remoteWrite:
@@ -233,7 +238,7 @@ Verify that `vmagent`'s pod is up and running by executing the following command
 kubectl get pod -l app.kubernetes.io/instance=vmagent
 ```
 
-The expected output is:
+Expected output:
 
 ```text
 NAME                                              READY   STATUS    RESTARTS   AGE
@@ -257,7 +262,7 @@ vmcluster-victoria-metrics-cluster-vmselect    ClusterIP   10.43.222.181   <none
 vmcluster-victoria-metrics-cluster-vmstorage   ClusterIP   None            <none>        8482/TCP,8401/TCP,8400/TCP   4m41s
 ```
 
-To verify that metrics are present in the VictoriaMetrics, you can send a curl request to the `vmselect` service. Run the following command to make `vmselect`'s port accessible from the local machine:
+To verify that metrics are present in VictoriaMetrics, you can send a curl request to the `vmselect` service. Run the following command to make `vmselect`'s port accessible from the local machine:
 
 ```shell
 kubectl port-forward svc/vmcluster-victoria-metrics-cluster-vmselect 8481:8481
@@ -272,11 +277,11 @@ curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=cou
 Let's break down the command:
 
 * The request to `http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range` uses the [VictoriaMetrics querying API](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) to fetch metric data
-* The argument `query=count(up{kubernetes_pod_name=~".*vmselect.*"})` specifies the query we want to execute. Specifically, we want to count how many `vmselect` pods there are.
-* The arguments `start=-10m&step=1m'` set requested time range from -10 minutes (10 minutes ago) to now (default value if `end` argument is omitted) ,and step (the distance between returned data points) of 1 minute.
+* The argument `query=count(up{kubernetes_pod_name=~".*vmselect.*"})` specifies the query. Specifically, we want to count the number of `vmselect` pods.
+* The arguments `start=-10m&step=1m'` set the requested time range from -10 minutes (10 minutes ago) to now (default value if `end` argument is omitted), and step (the distance between returned data points) of 1 minute.
 * We pipe the output to `jq` to format the output in a more readable way.
 
-The expected output is:
+You should see:
 
 ```json
 {
@@ -319,7 +324,7 @@ Type `count(up{kubernetes_pod_name=~".*vmselect.*"})` and press **Execute query*
 
 ![Screenshot of VMUI showing query results](count-pods.webp)
 
-You can try **Explore** > **Prometheus metrics** to discover metrics collected from the Kubernetes cluster.
+You can also try **Explore** > **Prometheus metrics** to discover metrics collected from the Kubernetes cluster.
 
 ![Screenshot of VMUI showing CPU utilization graph](process-cpu-seconds-total.webp)
 
@@ -333,7 +338,7 @@ Reduce the number of `vmstorage` pods from 3 to 2 with the following command:
 kubectl scale sts vmcluster-victoria-metrics-cluster-vmstorage --replicas=2
 ```
 
-Verify that now we have two running `vmstorages` in the cluster by executing the following command:
+Verify that now we have two running `vmstorage` pods in the cluster by executing the following command:
 
 ```shell
 kubectl get pods -l app=vmstorage
@@ -353,7 +358,7 @@ You can confirm that there are two `vmstorage` pods with this query:
 curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=count(up{kubernetes_pod_name=~".*vmstorage.*"})&start=-10m&step=1m' | jq
 ```
 
-Which should output 2 nodes now:
+This should output 2 nodes:
 
 ```json
 {
@@ -388,19 +393,19 @@ Which should output 2 nodes now:
 }
 ```
 
-Even with one storage node pod, queries still work because we initial set the replication factor to 2. Since each data point is stored twice for redundancy, high availability is guaranteed if at least two storage pods are up.
+Since each data point is stored across two storage pods, losing a single pod does not affect query results, and data remains available as long as at least one replica per time series remains reachable.
 
 You can also check if the query result is complete by examining the `isPartial` value in the response:
-- when `isPartial: false` the response complete for the requested time range and series. This means either all required `vmstorage` nodes responded successfully, or enough replicas responded (according to the configured `replicationFactor`)
-- when `isPartial: true` it means `vmselect` could not fetch all the data it expected from `vmstorage`, so the returned series and values may be incomplete or incorrect. 
+- When `isPartial: false`, the response is complete for the requested time range and series. This means that enough storage replicas have responded (according to the configured `replicationFactor`).
+- When `isPartial: true`, it means `vmselect` could not fetch all the data it expected from `vmstorage`, so the returned series and values may be incomplete or incorrect. 
 
-Running other queries such as `count(up{kubernetes_pod_name=~".*vmselect.*"})` should return still return 3.
+Running other queries such as `count(up{kubernetes_pod_name=~".*vmselect.*"})` should still return 3.
 
 ```sh
 curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=count(up{kubernetes_pod_name=~".*vmselect.*"})&start=-10m&step=1m' | jq
 ```
 
-Which should print:
+This should print:
 
 ```json
 {
@@ -435,7 +440,7 @@ Which should print:
 }
 ```
 
-This means queries and metric ingestion are not affected by the "failure" of one storage pod.
+This means that queries and metric ingestion are not affected by the "failure" of a single storage pod.
 
 Finally, you can scale the `vmstorage` pods back to 3 to resume normal operation:
 
@@ -445,10 +450,10 @@ kubectl scale sts vmcluster-victoria-metrics-cluster-vmstorage --replicas=3
 
 ## 6. Final thoughts
 
-* We set up VictoriaMetrics for Kubernetes cluster in high availability.
-* We collected metrics from running services and stored them in the VictoriaMetrics database.
-* We configured `dedup.minScrapeInterval` and `replicationFactor: 2` for VictoriaMetrics cluster for high availability purposes.
-* We tested and made sure that metrics are available even if one of `vmstorages` nodes was turned off.
+- We set up a highly available VictoriaMetrics cluster on Kubernetes
+- We collected metrics from running services and stored them in the VictoriaMetrics database.
+- We configured `dedup.minScrapeInterval` and `replicationFactor: 2` for the VictoriaMetrics cluster for high availability purposes.
+- We tested and made sure that metrics are available even if one of the `vmstorage` nodes is turned off.
 
 Next steps:
 - [Learn more about the cluster version](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/)
