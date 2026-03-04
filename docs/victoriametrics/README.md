@@ -1442,7 +1442,7 @@ VictoriaMetrics uses two types of inverted indexes:
 When the search query is executed, VictoriaMetrics decides which index to use
 based on the time range of the query:
 
-* Per-day index is used if the search time range less than partition time range.
+* Per-day index is used if the search time range is less than the partition time range.
 * Global index is used for search queries with a time range that matches exactly
   or greater than the partition time range.
 
