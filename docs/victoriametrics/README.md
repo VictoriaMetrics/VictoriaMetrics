@@ -708,7 +708,7 @@ Using the delete API is not recommended in the following cases, since it brings 
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
   Note that VictoriaMetrics doesn't delete entries from [IndexDB](#indexdb) for the deleted time series.
-  IndexDB is cleaned up once per the configured [retention](#retention).
+  IndexDB is cleaned up along with the corresponding data partition once it becomes outside the [-retentionPeriod](#retention).
 
 It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
@@ -1419,21 +1419,22 @@ See also [how to work with snapshots](#how-to-work-with-snapshots) and [IndexDB]
 ## IndexDB
 
 VictoriaMetrics identifies
-[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) by
-`TSID` (time series ID) and stores
-[raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) sorted
-by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and could
-be used for searching and retrieving raw samples. However, the TSID is never
-exposed to the clients, i.e. it is for internal use only.
+[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
+by `TSID` (time series ID) and stores
+[raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+sorted by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and
+could be used for searching and retrieving raw samples. However, the TSID is
+never exposed to the clients, i.e. it is for internal use only.
 
-Instead, VictoriaMetrics maintains an **inverted index** that enables searching
-the raw samples by metric name, label name, and label value by mapping these
-values to the corresponding TSIDs.
+Instead, VictoriaMetrics maintains an **inverted index** (known as `indexDB`)
+that enables searching the raw samples by metric name, label name, and label
+value by mapping these values to the corresponding TSIDs. Every data
+[partition](#storage) has its own indexDB.
 
 VictoriaMetrics uses two types of inverted indexes:
 
 * Global index. Searches using this index is performed across the entire
-  retention period.
+  partition time range.
 * Per-day index. This index stores mappings similar to ones in global index
   but also includes the date in each mapping. This speeds up data retrieval
   for queries within a shorter time range (which is often just the last day).
@@ -1441,19 +1442,18 @@ VictoriaMetrics uses two types of inverted indexes:
 When the search query is executed, VictoriaMetrics decides which index to use
 based on the time range of the query:
 
-* Per-day index is used if the search time range is 40 days or less.
-* Global index is used for search queries with a time range greater than 40
-  days.
+* Per-day index is used if the search time range is less than the partition time range.
+* Global index is used for search queries with a time range that matches exactly
+  or greater than the partition time range.
 
 Mappings are added to the indexes during the data ingestion:
 
-* In global index each mapping is created only once per retention period.
+* In global index each mapping is created only once per partition.
 * In the per-day index each mapping is created for each unique date that
   has been seen in the samples for the corresponding time series.
 
-IndexDB respects [retention period](#retention) and once it is over, the indexes
-are dropped. For the new retention period, the indexes are gradually populated
-again as the new samples arrive.
+Since indexDB is a part of a partition, it is dropped along with it as it
+becomes outside the [retention period](#retention).
 
 See also [Why IndexDB size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large).
 
