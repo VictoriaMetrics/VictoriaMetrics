@@ -14,14 +14,6 @@
       "description": "",
       "type": "datasource",
       "pluginId": "__expr__"
-    },
-    {
-      "name": "DS_VICTORIAMETRICS",
-      "label": "VictoriaMetrics",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
     }
   ],
   "__elements": {},
@@ -36,12 +28,6 @@
       "id": "grafana",
       "name": "Grafana",
       "version": "12.3.3"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
     },
     {
       "type": "panel",
@@ -99,7 +85,7 @@
       "title": "Reset Filters",
       "tooltip": "",
       "type": "link",
-      "url": "/d/${__dashboard.uid}?var-match=__name__|!%3D|\"\"&&var-focus=&var-ds=$ds"
+      "url": "/d/${__dashboard.uid}?var-match=__name__!=\"\"&&var-focus=&var-ds=$ds"
     }
   ],
   "panels": [
@@ -120,34 +106,8 @@
           },
           "gridPos": {
             "h": 4,
-            "w": 12,
+            "w": 24,
             "x": 0,
-            "y": 1
-          },
-          "id": 13,
-          "options": {
-            "code": {
-              "language": "plaintext",
-              "showLineNumbers": false,
-              "showMiniMap": false
-            },
-            "content": "This dashboard mimics [VictoriaMetrics Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). Dashboard is in `Work in Progress` status.\r\n",
-            "mode": "markdown"
-          },
-          "pluginVersion": "12.3.3",
-          "title": "Info",
-          "transparent": true,
-          "type": "text"
-        },
-        {
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 12,
-            "x": 12,
             "y": 1
           },
           "id": 14,
@@ -157,11 +117,11 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "- The data is taken only for the `current` and `last day`\r\n- An `Inner` join is used, so there may be fewer rows than specified in `Limited Entries`. Also, if the statistics between days show 0, the metric is `also deleted` :(\r\n- The data from the `Label=value...` table cannot be quickly inserted into the `Time series selector`",
+            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). Dashboard is in `Work in Progress`\r\n- Used `time picker` and takes the `to` and `from` dates. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day\r\n- An `Inner` join is used, so there may be fewer rows than specified in `Limited Entries`. Also, if the statistics between days show 0, the metric is `also deleted` :(\r\n- The data from the `Label=value...` table cannot be quickly inserted into the `Time series selector`\r\n",
             "mode": "markdown"
           },
           "pluginVersion": "12.3.3",
-          "title": "Specificity",
+          "title": "Information",
           "transparent": true,
           "type": "text"
         },
@@ -231,7 +191,7 @@
       },
       "id": 11,
       "panels": [],
-      "title": "Overview",
+      "title": "Overview (${__to:date:YYYY-MM-DD})",
       "type": "row"
     },
     {
@@ -393,7 +353,6 @@
           "type": "math"
         }
       ],
-      "timeFrom": "1d",
       "title": "Total Series",
       "type": "stat"
     },
@@ -465,6 +424,22 @@
               {
                 "id": "unit",
                 "value": "dateTimeFromNow"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "from": 0,
+                      "result": {
+                        "index": 0,
+                        "text": "Never"
+                      },
+                      "to": 1614805200000
+                    },
+                    "type": "range"
+                  }
+                ]
               }
             ]
           },
@@ -554,8 +529,8 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "link",
-                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=__name__|=|${__value.raw}&var-ds=$ds$var-focus="
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=__name__=\"${__value.raw}\"&var-ds=$ds&var-focus="
                   }
                 ]
               }
@@ -652,8 +627,8 @@
         "showHeader": true,
         "sortBy": [
           {
-            "desc": true,
-            "displayName": "Number of series"
+            "desc": false,
+            "displayName": "Metric name"
           }
         ]
       },
@@ -730,7 +705,6 @@
           }
         }
       ],
-      "timeFrom": "1d",
       "title": "Metric names with the highest number of series",
       "transformations": [
         {
@@ -1107,8 +1081,8 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "Link",
-                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${__value.raw}|!=|\"\"&var-focus=${__value.raw}&var-ds=$ds"
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${__value.raw}!=\"\"&var-focus=${__value.raw}&var-ds=$ds"
                   }
                 ]
               }
@@ -1287,7 +1261,6 @@
           }
         }
       ],
-      "timeFrom": "1d",
       "title": "Labels with the highest number of series",
       "transformations": [
         {
@@ -1772,7 +1745,6 @@
           }
         }
       ],
-      "timeFrom": "1d",
       "title": "Values for \"$focus\" label with the highest number of series",
       "transformations": [
         {
@@ -2239,7 +2211,6 @@
           }
         }
       ],
-      "timeFrom": "1d",
       "title": "Label=value pairs with the highest number of series",
       "transformations": [
         {
@@ -2543,8 +2514,8 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "Filter",
-                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${__value.raw}|!=|\"\"&var-focus=${__value.raw}&var-ds=$ds"
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${__value.raw}!=\"\"&var-focus=${__value.raw}&var-ds=$ds"
                   }
                 ]
               }
@@ -2642,7 +2613,6 @@
           }
         }
       ],
-      "timeFrom": "1d",
       "title": "Labels with the highest number of unique values",
       "transformations": [
         {
@@ -2803,7 +2773,7 @@
       "type": "table"
     }
   ],
-  "preload": false,
+  "preload": true,
   "schemaVersion": 42,
   "tags": [
     "victoriametrics"
@@ -2869,26 +2839,22 @@
         "type": "custom"
       },
       {
-        "baseFilters": [],
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${DS_VICTORIAMETRICS}"
+        "current": {
+          "text": "__name__!=\"\"",
+          "value": "__name__!=\"\""
         },
-        "filters": [
-          {
-            "condition": "",
-            "key": "__name__",
-            "keyLabel": "__name__",
-            "operator": "!=",
-            "value": "\"\"",
-            "valueLabels": [
-              "\"\""
-            ]
-          }
-        ],
+        "description": "",
         "label": "Time series selector",
         "name": "match",
-        "type": "adhoc"
+        "options": [
+          {
+            "selected": true,
+            "text": "__name__!=\"\"",
+            "value": "__name__!=\"\""
+          }
+        ],
+        "query": "__name__!=\"\"",
+        "type": "textbox"
       },
       {
         "current": {
@@ -2910,7 +2876,7 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-1d",
     "to": "now"
   },
   "timepicker": {},
