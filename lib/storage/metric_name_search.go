@@ -38,7 +38,7 @@ type metricNameSearch struct {
 func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 	if !s.useSparseCache {
 		n := len(dst)
-		dst = s.storage.getMetricNameFromCache(dst, metricID)
+		dst = s.storage.getMetricNameByMetricIDFromCache(dst, metricID)
 		if len(dst) > n {
 			return dst, true
 		}
@@ -52,7 +52,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
 		if found {
 			if !s.useSparseCache {
-				s.storage.putMetricNameToCache(metricID, dst)
+				s.storage.putMetricNameByMetricIDToCache(metricID, dst)
 			}
 			return dst, true
 		}
@@ -63,7 +63,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
 		if found {
 			if !s.useSparseCache {
-				s.storage.putMetricNameToCache(metricID, dst)
+				s.storage.putMetricNameByMetricIDToCache(metricID, dst)
 			}
 			return dst, true
 		}
@@ -74,7 +74,7 @@ func (s *metricNameSearch) search(dst []byte, metricID uint64) ([]byte, bool) {
 		dst, found = idb.searchMetricName(dst, metricID, s.useSparseCache)
 		if found {
 			if !s.useSparseCache {
-				s.storage.putMetricNameToCache(metricID, dst)
+				s.storage.putMetricNameByMetricIDToCache(metricID, dst)
 			}
 			return dst, true
 		}

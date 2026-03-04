@@ -47,7 +47,7 @@ func New(retries int, factor float64, minDuration time.Duration) (*Backoff, erro
 // Retry process retries until all attempts are completed
 func (b *Backoff) Retry(ctx context.Context, cb retryableFunc) (uint64, error) {
 	var attempt uint64
-	for i := 0; i < b.retries; i++ {
+	for i := range b.retries {
 		err := cb()
 		if err == nil {
 			return attempt, nil

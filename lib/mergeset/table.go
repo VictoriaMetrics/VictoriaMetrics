@@ -60,10 +60,7 @@ func maxItemsPerCachedPart() uint64 {
 	// in the OS page cache before they are merged into bigger part.
 	// Half of the remaining RAM must be left for lib/storage parts,
 	// so the maxItems is calculated using the below code:
-	maxItems := uint64(mem) / (4 * defaultPartsToMerge)
-	if maxItems < 1e6 {
-		maxItems = 1e6
-	}
+	maxItems := max(uint64(mem)/(4*defaultPartsToMerge), 1e6)
 	return maxItems
 }
 
@@ -149,10 +146,7 @@ type rawItemsShards struct {
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
 var rawItemsShardsPerTable = func() int {
 	cpus := cgroup.AvailableCPUs()
-	multiplier := cpus
-	if multiplier > 16 {
-		multiplier = 16
-	}
+	multiplier := min(cpus, 16)
 	return cpus * multiplier
 }()
 
@@ -389,7 +383,7 @@ func (tb *Table) startBackgroundWorkers() {
 
 func (tb *Table) startInmemoryPartsMergers() {
 	tb.partsLock.Lock()
-	for i := 0; i < cap(inmemoryPartsConcurrencyCh); i++ {
+	for range cap(inmemoryPartsConcurrencyCh) {
 		tb.startInmemoryPartsMergerLocked()
 	}
 	tb.partsLock.Unlock()
@@ -406,7 +400,7 @@ func (tb *Table) startInmemoryPartsMergerLocked() {
 
 func (tb *Table) startFilePartsMergers() {
 	tb.partsLock.Lock()
-	for i := 0; i < cap(filePartsConcurrencyCh); i++ {
+	for range cap(filePartsConcurrencyCh) {
 		tb.startFilePartsMergerLocked()
 	}
 	tb.partsLock.Unlock()
@@ -841,10 +835,7 @@ func (tb *Table) flushBlocksToInmemoryParts(ibs []*inmemoryBlock, isFinal bool) 
 	pws := make([]*partWrapper, 0, (len(ibs)+defaultPartsToMerge-1)/defaultPartsToMerge)
 	wg := getWaitGroup()
 	for len(ibs) > 0 {
-		n := defaultPartsToMerge
-		if n > len(ibs) {
-			n = len(ibs)
-		}
+		n := min(defaultPartsToMerge, len(ibs))
 		inmemoryPartsConcurrencyCh <- struct{}{}
 
 		ibsChunk := ibs[:n]
@@ -1048,20 +1039,14 @@ func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.T
 
 func getMaxInmemoryPartSize() uint64 {
 	// Allow up to 5% of memory for in-memory parts.
-	n := uint64(0.05 * float64(memory.Allowed()) / maxInmemoryParts)
-	if n < 1e6 {
-		n = 1e6
-	}
+	n := max(uint64(0.05*float64(memory.Allowed())/maxInmemoryParts), 1e6)
 	return n
 }
 
 func (tb *Table) getMaxFilePartSize() uint64 {
 	n := fs.MustGetFreeSpace(tb.path)
 	// Divide free space by the max number of concurrent merges for file parts.
-	maxOutBytes := n / uint64(cap(filePartsConcurrencyCh))
-	if maxOutBytes > maxPartSize {
-		maxOutBytes = maxPartSize
-	}
+	maxOutBytes := min(n/uint64(cap(filePartsConcurrencyCh)), maxPartSize)
 	return maxOutBytes
 }
 
@@ -1392,7 +1377,7 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 	}()
 
 	// Update inmemoryPartsLimitCh accordingly to the number of the remaining in-memory parts.
-	for i := 0; i < removedInmemoryParts; i++ {
+	for range removedInmemoryParts {
 		select {
 		case <-tb.inmemoryPartsLimitCh:
 		case <-tb.stopCh:
@@ -1708,20 +1693,14 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutByte
 
 	sortPartsForOptimalMerge(src)
 
-	maxSrcParts := maxPartsToMerge
-	if maxSrcParts > len(src) {
-		maxSrcParts = len(src)
-	}
-	minSrcParts := (maxSrcParts + 1) / 2
-	if minSrcParts < 2 {
-		minSrcParts = 2
-	}
+	maxSrcParts := min(maxPartsToMerge, len(src))
+	minSrcParts := max((maxSrcParts+1)/2, 2)
 
 	// Exhaustive search for parts giving the lowest write amplification when merged.
 	var pws []*partWrapper
 	maxM := float64(0)
 	for i := minSrcParts; i <= maxSrcParts; i++ {
-		for j := 0; j <= len(src)-i; j++ {
+		for j := range len(src) - i + 1 {
 			a := src[j : j+i]
 			if a[0].p.size*uint64(len(a)) < a[len(a)-1].p.size {
 				// Do not merge parts with too big difference in size,

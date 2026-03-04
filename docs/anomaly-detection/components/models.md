@@ -136,21 +136,21 @@ models:
 
 Here's how default (backward-compatible) behavior looks like - anomalies will be tracked in `both` directions (`y > yhat` or `y < yhat`). This is useful when there is no domain expertise to filter the required direction.
 
-![schema_detection_direction=both](schema_detection_direction=both.webp)
+![schema_detection_direction=both](schema_detection_direction_both.webp)
 
 
 When set to `above_expected`, anomalies are tracked only when `y > yhat`.
 
 *Example metrics*: Error rate, response time, page load time, number of failed transactions - metrics where *lower values are better*, so **higher** values are typically tracked.
 
-![schema_detection_direction=above_expected](schema_detection_direction=above_expected.webp)
+![schema_detection_direction=above_expected](schema_detection_direction_above_expected.webp)
 
 
 When set to `below_expected`, anomalies are tracked only when `y < yhat`. 
 
 *Example metrics*: Service Level Agreement (SLA) compliance, conversion rate, Customer Satisfaction Score (CSAT) - metrics where *higher values are better*, so **lower** values are typically tracked.
 
-![schema_detection_direction=below_expected](schema_detection_direction=below_expected.webp)
+![schema_detection_direction=below_expected](schema_detection_direction_below_expected.webp)
 
 
 Config with a split example:
@@ -199,13 +199,13 @@ reader:
 
 Visualizations below demonstrate this concept; the green zone defined as the `[yhat - min_dev_from_expected, yhat + min_dev_from_expected]` range excludes actual data points (`y`) from generating anomaly scores if they fall within that range.
 
-![min_dev_from_expected-default](schema_min_dev_from_expected=0.webp)
+![min_dev_from_expected-default](schema_min_dev_from_expected_0.webp)
 
 
-![min_dev_from_expected-small](schema_min_dev_from_expected=1.0.webp)
+![min_dev_from_expected-small](schema_min_dev_from_expected_1_0.webp)
 
 
-![min_dev_from_expected-big](schema_min_dev_from_expected=5.0.webp)
+![min_dev_from_expected-big](schema_min_dev_from_expected_5_0.webp)
 
 Example config of how to use this param based on query results:
 

@@ -1,10 +1,12 @@
 package actions
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"sync/atomic"
 	"time"
 
@@ -177,10 +179,7 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			prc := 100 * float64(n) / float64(uploadSize)
 			speed := float64(n) / elapsed.Seconds()
 			estimatedTotal := time.Duration(float64(uploadSize)/speed) * time.Second
-			eta := estimatedTotal - elapsed
-			if eta < 0 {
-				eta = 0
-			}
+			eta := max(estimatedTotal-elapsed, 0)
 			logger.Infof("uploaded %s out of %s bytes (%.2f%%) from %s to %s in %s; estimated time to completion: %s", uploadedHuman, uploadSizeHuman, prc, src, dst, elapsed, eta)
 		})
 		if err != nil {
@@ -240,7 +239,25 @@ func copySrcParts(src common.OriginFS, dst common.RemoteFS, partsToCopy []common
 		return nil
 	}
 	logger.Infof("server-side copying %d parts from %s to %s", len(partsToCopy), src, dst)
+
 	var copiedParts atomic.Uint64
+	if srcRemote, ok := src.(common.RemoteFS); ok {
+		tSrc := reflect.TypeOf(srcRemote)
+		tDst := reflect.TypeOf(dst)
+		if tSrc != tDst {
+			return runParallel(concurrency, partsToCopy, func(p common.Part) error {
+				logger.Infof("cross type copying %s from %s to %s", &p, srcRemote, dst)
+				if err := crossTypeCopy(srcRemote, dst, p); err != nil {
+					return fmt.Errorf("cannot copy %s from %s to %s: %w", &p, srcRemote, dst, err)
+				}
+				copiedParts.Add(1)
+				return nil
+			}, func(elapsed time.Duration) {
+				n := copiedParts.Load()
+				logger.Infof("cross type copied %d out of %d parts from %s to %s in %s", n, len(partsToCopy), srcRemote, dst, elapsed)
+			})
+		}
+	}
 	err := runParallel(concurrency, partsToCopy, func(p common.Part) error {
 		logger.Infof("server-side copying %s from %s to %s", &p, src, dst)
 		if err := dst.CopyPart(src, p); err != nil {
@@ -253,4 +270,43 @@ func copySrcParts(src common.OriginFS, dst common.RemoteFS, partsToCopy []common
 		logger.Infof("server-side copied %d out of %d parts from %s to %s in %s", n, len(partsToCopy), src, dst, elapsed)
 	})
 	return err
+}
+
+// crossTypeCopy downloads part p from src and uploads to dst using streaming.
+// This is used when src and dst are different RemoteFS types (e.g., S3 to GCS).
+// It uses io.Pipe with buffering to allow download to run ahead of upload for better throughput.
+func crossTypeCopy(src common.RemoteFS, dst common.RemoteFS, p common.Part) error {
+	pr, pw := io.Pipe()
+
+	errCh := make(chan error, 1)
+
+	// Download in goroutine with buffering to prevent lock-step serialization
+	go func() {
+		// Use 1MB buffer to allow download to run ahead of upload
+		buf := bufio.NewWriterSize(pw, 1024*1024)
+		err := src.DownloadPart(p, buf)
+		if err == nil {
+			err = buf.Flush()
+		}
+		// Propagate error to reader if download/flush failed
+		pw.CloseWithError(err)
+		errCh <- err
+	}()
+
+	// Upload from pipe
+	uploadErr := dst.UploadPart(p, pr)
+	pr.Close()
+
+	// Wait for download to complete
+	downloadErr := <-errCh
+
+	// Check upload error first - if upload failed, that's the root cause
+	if uploadErr != nil {
+		return fmt.Errorf("cannot upload %s to %s: %w", &p, dst, uploadErr)
+	}
+	if downloadErr != nil {
+		return fmt.Errorf("cannot download %s from %s: %w", &p, src, downloadErr)
+	}
+
+	return nil
 }

@@ -7,7 +7,7 @@ sitemap:
   disable: true
 ---
 
-This guide walks you through deploying VictoriaMetrics and VictoriaLogs on Kubernetes, and collecting [metrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry) and [logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/) from a Go application either directly or via the [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/).
+This guide walks you through deploying VictoriaMetrics and VictoriaLogs on Kubernetes, and collecting [metrics](https://docs.victoriametrics.com/victoriametrics/data-ingestion/opentelemetry-collector/) and [logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/) from a Go application either directly or via the [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/).
 
 ## Pre-Requirements
 

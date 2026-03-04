@@ -132,7 +132,7 @@ func (s *Server) serveTCP(insertHandler func(r io.Reader) error) {
 func (s *Server) serveUDP(insertHandler func(r io.Reader) error) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
-	for i := 0; i < gomaxprocs; i++ {
+	for range gomaxprocs {
 		wg.Go(func() {
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.ResizeNoCopyNoOverallocate(bb.B, 64*1024)

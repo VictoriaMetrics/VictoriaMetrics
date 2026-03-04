@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -173,7 +174,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// Process requests for unauthorized users
 		ui := authConfig.Load().UnauthorizedUser
 		if ui != nil {
-			processUserRequest(w, r, ui)
+			processUserRequest(w, r, ui, nil)
 			return true
 		}
 
@@ -181,29 +182,36 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	ui := getUserInfoByAuthTokens(ats)
-	if ui == nil {
-		uu := authConfig.Load().UnauthorizedUser
-		if uu != nil {
-			processUserRequest(w, r, uu)
-			return true
+	if ui := getUserInfoByAuthTokens(ats); ui != nil {
+		processUserRequest(w, r, ui, nil)
+		return true
+	}
+	if ui, tkn := getUserInfoByJWTToken(ats); ui != nil {
+		if tkn == nil {
+			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
 
-		invalidAuthTokenRequests.Inc()
-		if *logInvalidAuthTokens {
-			err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
-			err = &httpserver.ErrorWithStatusCode{
-				Err:        err,
-				StatusCode: http.StatusUnauthorized,
-			}
-			httpserver.Errorf(w, r, "%s", err)
-		} else {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		}
+		processUserRequest(w, r, ui, tkn)
 		return true
 	}
 
-	processUserRequest(w, r, ui)
+	uu := authConfig.Load().UnauthorizedUser
+	if uu != nil {
+		processUserRequest(w, r, uu, nil)
+		return true
+	}
+
+	invalidAuthTokenRequests.Inc()
+	if *logInvalidAuthTokens {
+		err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
+		err = &httpserver.ErrorWithStatusCode{
+			Err:        err,
+			StatusCode: http.StatusUnauthorized,
+		}
+		httpserver.Errorf(w, r, "%s", err)
+	} else {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
 	return true
 }
 
@@ -218,7 +226,37 @@ func getUserInfoByAuthTokens(ats []string) *UserInfo {
 	return nil
 }
 
-func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
+// responseWriterWithStatus is a wrapper around http.ResponseWriter that captures the status code written to the response.
+type responseWriterWithStatus struct {
+	http.ResponseWriter
+	status int
+}
+
+// WriteHeader records the status so it can be easily retrieved later
+func (rws *responseWriterWithStatus) WriteHeader(status int) {
+	rws.status = status
+	rws.ResponseWriter.WriteHeader(status)
+}
+
+// Flush implements net/http.Flusher interface
+//
+// This is needed for the copyStreamToClient()
+func (rws *responseWriterWithStatus) Flush() {
+	flusher, ok := rws.ResponseWriter.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: it is expected http.ResponseWriter (%T) supports http.Flusher interface", rws.ResponseWriter)
+	}
+	flusher.Flush()
+}
+
+// Unwrap returns the original ResponseWriter wrapped by rws.
+//
+// This is needed for the net/http.ResponseController - see https://pkg.go.dev/net/http#NewResponseController
+func (rws *responseWriterWithStatus) Unwrap() http.ResponseWriter {
+	return rws.ResponseWriter
+}
+
+func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {
 	startTime := time.Now()
 	defer ui.requestsDuration.UpdateDuration(startTime)
 
@@ -226,6 +264,19 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), *maxQueueDuration)
 	defer cancel()
+
+	userName := ui.name()
+	if userName == "" {
+		userName = "unauthorized"
+	}
+
+	if ui.AccessLog != nil {
+		w = &responseWriterWithStatus{ResponseWriter: w}
+		defer func() {
+			rws := w.(*responseWriterWithStatus)
+			ui.logRequest(r, userName, rws.status)
+		}()
+	}
 
 	// Acquire global concurrency limit.
 	if err := beginConcurrencyLimit(ctx); err != nil {
@@ -245,10 +296,6 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 
 	// Read the initial chunk for the request body.
-	userName := ui.name()
-	if userName == "" {
-		userName = "unauthorized"
-	}
 	bb, err := bufferRequestBody(ctx, r.Body, userName)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
@@ -269,7 +316,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	defer ui.endConcurrencyLimit()
 
 	// Process the request.
-	processRequest(w, r, ui)
+	processRequest(w, r, ui, tkn)
 }
 
 func beginConcurrencyLimit(ctx context.Context) error {
@@ -342,7 +389,7 @@ func bufferRequestBody(ctx context.Context, r io.ReadCloser, userName string) (i
 	return bb, nil
 }
 
-func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
+func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {
 	u := normalizeURL(r.URL)
 	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
 	isDefault := false
@@ -368,12 +415,16 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	}
 
 	maxAttempts := up.getBackendsCount()
-	for i := 0; i < maxAttempts; i++ {
+	for range maxAttempts {
 		bu := up.getBackendURL()
 		if bu == nil {
 			break
 		}
 		targetURL := bu.url
+		if tkn != nil {
+			// for security reasons allow templating only for configured url values and headers
+			targetURL, hc = replaceJWTPlaceholders(bu, hc, tkn.VMAccess())
+		}
 		if isDefault {
 			// Don't change path and add request_path query param for default route.
 			query := targetURL.Query()
@@ -383,7 +434,6 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			// Update path for regular routes.
 			targetURL = mergeURLs(targetURL, u, up.dropSrcPathPrefixParts, up.mergeQueryArgs)
 		}
-
 		wasLocalRetry := false
 	again:
 		ok, needLocalRetry := tryProcessingRequest(w, r, targetURL, hc, up.retryStatusCodes, ui, bu)
@@ -401,7 +451,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		ui.backendErrors.Inc()
 	}
 	err := &httpserver.ErrorWithStatusCode{
-		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable", up.getBackendsCount(), ui.name()),
+		Err:        fmt.Errorf("all the %d backends for the user %q are unavailable for proxying the request - check previous WARN logs to see the exact error for each failed backend", up.getBackendsCount(), ui.name()),
 		StatusCode: http.StatusBadGateway,
 	}
 	httpserver.Errorf(w, r, "%s", err)

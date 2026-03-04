@@ -37,7 +37,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/puppetdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/vultr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 var (
@@ -364,7 +363,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 
 	additionsCount := 0
 	deletionsCount := 0
-	swsMap := make(map[string]*promutil.Labels, len(sws))
+	swsMap := make(map[string]*compressedLabels, len(sws))
 	var swsToStart []*ScrapeWork
 	for _, sw := range sws {
 		key := sw.key()
@@ -375,7 +374,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 					"make sure service discovery and relabeling is set up properly; "+
 					"see also https://docs.victoriametrics.com/victoriametrics/vmagent/#troubleshooting; "+
 					"original labels for target1: %s; original labels for target2: %s",
-					sw.ScrapeURL, sw.Labels.String(), originalLabels.String(), sw.OriginalLabels.String())
+					sw.ScrapeURL, sw.Labels.String(), originalLabels.labelsString(), sw.OriginalLabels.labelsString())
 			}
 			droppedTargetsMap.Register(sw.OriginalLabels, sw.RelabelConfigs, targetDropReasonDuplicate, nil)
 			continue

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -348,9 +350,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	for k := range alertEvalTimesMap {
 		alertEvalTimes = append(alertEvalTimes, k)
 	}
-	sort.Slice(alertEvalTimes, func(i, j int) bool {
-		return alertEvalTimes[i] < alertEvalTimes[j]
-	})
+	slices.Sort(alertEvalTimes)
 
 	// sort group eval order according to the given "group_eval_order".
 	sort.Slice(testGroups, func(i, j int) bool {
@@ -361,12 +361,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	var groups []*rule.Group
 	for _, group := range testGroups {
 		mergedExternalLabels := make(map[string]string)
-		for k, v := range tg.ExternalLabels {
-			mergedExternalLabels[k] = v
-		}
-		for k, v := range externalLabels {
-			mergedExternalLabels[k] = v
-		}
+		maps.Copy(mergedExternalLabels, tg.ExternalLabels)
+		maps.Copy(mergedExternalLabels, externalLabels)
 		ng := rule.NewGroup(group, q, time.Minute, mergedExternalLabels)
 		ng.Init()
 		groups = append(groups, ng)

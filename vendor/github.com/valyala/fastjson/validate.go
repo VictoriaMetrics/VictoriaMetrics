@@ -51,7 +51,7 @@ func validateValue(s string) (string, error) {
 			return tail, fmt.Errorf("cannot parse string: %s", err)
 		}
 		// Scan the string for control chars.
-		for i := 0; i < len(sv); i++ {
+		for i := range len(sv) {
 			if sv[i] < 0x20 {
 				return tail, fmt.Errorf("string cannot contain control char 0x%02X", sv[i])
 			}
@@ -142,7 +142,7 @@ func validateObject(s string) (string, error) {
 			return s, fmt.Errorf("cannot parse object key: %s", err)
 		}
 		// Scan the key for control chars.
-		for i := 0; i < len(key); i++ {
+		for i := range len(key) {
 			if key[i] < 0x20 {
 				return s, fmt.Errorf("object key cannot contain control char 0x%02X", key[i])
 			}
@@ -177,7 +177,7 @@ func validateObject(s string) (string, error) {
 // validateKey is similar to validateString, but is optimized
 // for typical object keys, which are quite small and have no escape sequences.
 func validateKey(s string) (string, string, error) {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == '"' {
 			// Fast path - the key doesn't contain escape sequences.
 			return s[:i], s[i+1:], nil

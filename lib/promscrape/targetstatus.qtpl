@@ -24,7 +24,7 @@
 		state={% if ts.up %}up{% else %}down{% endif %},{% space %}
 		endpoint={%s= ts.sw.Config.ScrapeURL %},{% space %}
 		labels={%s= ts.sw.Config.Labels.String() %},{% space %}
-		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.String() %},{% space %}{% endif %}
+		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.labelsString() %},{% space %}{% endif %}
 		scrapes_total={%d ts.scrapesTotal %},{% space %}
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
 		last_scrape={%s= ts.getDurationFromLastScrape() %},{% space %}
@@ -233,7 +233,7 @@
                         originalLabels := ts.sw.Config.OriginalLabels
 
                         // The target is uniquely identified by a pointer to its original labels.
-                        targetID := getLabelsID(originalLabels)
+                        targetID := originalLabels.getTargetID()
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                             <td class="endpoint">
@@ -264,7 +264,7 @@
                               </div>
                               {% if hasOriginalLabels %}
                                 <div style="display:none" id="original-labels-{%s targetID %}">
-                                  {%= formatLabels(originalLabels) %}
+                                  {%= formatLabels(originalLabels.getLabels()) %}
                                 </div>
                               {% endif %}
                             </td>
@@ -368,13 +368,13 @@
                         {% endif %}
                     </td>
                     <td class="labels">
-                        {%= formatLabels(t.originalLabels) %}
+                        {%= formatLabels(t.originalLabels.getLabels()) %}
                     </td>
                     <td class="labels">
                         {%= formatLabels(t.labels) %}
                     </td>
                     <td>
-                        {% code targetID := getLabelsID(t.originalLabels) %}
+                        {% code targetID := t.originalLabels.getTargetID() %}
                         <a href="target-relabel-debug?id={%s targetID %}" target="_blank">debug</a>
                     </td>
                 </tr>

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"net/url"
 	"sync"
 	"time"
@@ -30,8 +31,8 @@ var (
 		"0 means no limit.")
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
 		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
-	resendDelay        = flag.Duration("rule.resendDelay", 0, "MiniMum amount of time to wait before resending an alert to notifier.")
-	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maxiMum duration for automatic alert expiration, "+
+	resendDelay        = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier.")
+	maxResolveDuration = flag.Duration("rule.maxResolveDuration", 0, "Limits the maximum duration for automatic alert expiration, "+
 		"which by default is 4 times evaluationInterval of the parent group")
 	evalDelay = flag.Duration("rule.evalDelay", 30*time.Second, "Adjustment of the 'time' parameter for rule evaluation requests to compensate intentional data delay from the datasource. "+
 		"Normally, should be equal to '-search.latencyOffset' (cmd-line flag configured for VictoriaMetrics single-node or vmselect). "+
@@ -97,9 +98,7 @@ type groupMetrics struct {
 // set2 has priority over set1.
 func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[string]string {
 	r := map[string]string{}
-	for k, v := range set1 {
-		r[k] = v
-	}
+	maps.Copy(r, set1)
 	for k, v := range set2 {
 		if prevV, ok := r[k]; ok {
 			logger.Infof("label %q=%q for rule %q.%q overwritten with external label %q=%q",
@@ -485,8 +484,15 @@ func (g *Group) UpdateWith(newGroup *Group) {
 // delayBeforeStart calculates delay based on Group ID, so all groups will start at different moments of time.
 func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Duration {
 	if g.EvalOffset != nil {
+		offset := *g.EvalOffset
+		// adjust the offset for negative evalOffset, the rule is:
+		// `eval_offset: -x` is equivalent to `eval_offset: y` for `interval: x+y`.
+		// For example, `eval_offset: -6m` is equivalent to `eval_offset: 4m` for `interval: 10m`.
+		if offset < 0 {
+			offset += g.Interval
+		}
 		// if offset is specified, ignore the maxDelay and return a duration aligned with offset
-		currentOffsetPoint := ts.Truncate(g.Interval).Add(*g.EvalOffset)
+		currentOffsetPoint := ts.Truncate(g.Interval).Add(offset)
 		if currentOffsetPoint.Before(ts) {
 			// wait until the next offset point
 			return currentOffsetPoint.Add(g.Interval).Sub(ts)
@@ -495,11 +501,8 @@ func (g *Group) delayBeforeStart(ts time.Time, maxDelay time.Duration) time.Dura
 	}
 
 	// otherwise, return a random duration between [0..min(interval, maxDelay)] based on group ID
-	interval := g.Interval
-	if interval > maxDelay {
-		// artificially limit interval, so groups with big intervals could start sooner.
-		interval = maxDelay
-	}
+	// artificially limit interval, so groups with big intervals could start sooner.
+	interval := min(g.Interval, maxDelay)
 	var randSleep time.Duration
 	randSleep = time.Duration(float64(interval) * (float64(g.GetID()) / (1 << 64)))
 	sleepOffset := time.Duration(ts.UnixNano() % interval.Nanoseconds())

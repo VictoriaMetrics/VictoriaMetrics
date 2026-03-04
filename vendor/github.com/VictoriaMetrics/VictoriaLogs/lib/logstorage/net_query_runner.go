@@ -77,9 +77,11 @@ func splitQueryToRemoteAndLocal(q *Query) (*Query, []pipe) {
 	pipesRemote, pipesLocal := getRemoteAndLocalPipes(q)
 	qRemote.pipes = pipesRemote
 
-	// Limit fields to select at the remote storage.
-	pf := getNeededColumns(pipesLocal)
-	qRemote.addFieldsFilters(pf)
+	if !qRemote.IsFixedOutputFieldsOrder() {
+		// Limit fields to select at the remote storage if the output fields aren't fixed.
+		pf := getNeededColumns(pipesLocal)
+		qRemote.addFieldsFilters(pf)
+	}
 
 	return qRemote, pipesLocal
 }

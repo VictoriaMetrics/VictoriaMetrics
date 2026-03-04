@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutil"
@@ -116,12 +117,7 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutil.Labels {
 
 	// Append labels for skipped ports on seen pods.
 	portSeen := func(port int, ports []int) bool {
-		for _, p := range ports {
-			if p == port {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(ports, port)
 	}
 	appendPodMetadata := func(p *Pod, c *Container, seen []int, isInit bool) {
 		for _, cp := range c.Ports {

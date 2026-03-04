@@ -405,7 +405,8 @@ func TestGroupStart(t *testing.T) {
 
 		var cur uint64
 		prev := g.metrics.iterationTotal.Get()
-		for i := 0; ; i++ {
+		i := 0
+		for {
 			if i > 40 {
 				t.Fatalf("group wasn't able to perform %d evaluations during %d eval intervals", n, i)
 			}
@@ -414,6 +415,7 @@ func TestGroupStart(t *testing.T) {
 				return
 			}
 			time.Sleep(interval)
+			i++
 		}
 	}
 
@@ -597,6 +599,15 @@ func TestGroupStartDelay(t *testing.T) {
 
 	// test group with offset
 	offset := 3 * time.Minute
+	g.EvalOffset = &offset
+
+	f("2023-01-01T00:00:15.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:00.000+00:00")
+	f("2023-01-01T00:08:00.000+00:00", "2023-01-01T00:08:00.000+00:00")
+
+	// test group with negative offset -2min, which is equivalent to 3min offset for 5min interval
+	offset = -2 * time.Minute
 	g.EvalOffset = &offset
 
 	f("2023-01-01T00:00:15.000+00:00", "2023-01-01T00:03:00.000+00:00")

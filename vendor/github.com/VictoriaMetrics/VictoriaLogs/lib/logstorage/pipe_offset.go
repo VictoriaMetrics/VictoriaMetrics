@@ -34,6 +34,10 @@ func (po *pipeOffset) canReturnLastNResults() bool {
 	return false
 }
 
+func (po *pipeOffset) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (po *pipeOffset) updateNeededFields(_ *prefixfilter.Filter) {
 	// nothing to do
 }

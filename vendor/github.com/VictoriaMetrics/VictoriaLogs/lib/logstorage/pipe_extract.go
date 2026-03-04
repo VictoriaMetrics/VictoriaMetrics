@@ -57,6 +57,10 @@ func (pe *pipeExtract) canReturnLastNResults() bool {
 	return true
 }
 
+func (pe *pipeExtract) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }

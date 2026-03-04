@@ -27,7 +27,7 @@ func TestInmemoryPartInitFromRows(t *testing.T) {
 	rows = rows[:0]
 	initTestTSID(&r.TSID)
 	r.PrecisionBits = defaultPrecisionBits
-	for i := uint64(0); i < 1e4; i++ {
+	for range uint64(1e4) {
 		r.Timestamp = int64(rng.NormFloat64() * 1e7)
 		r.Value = rng.NormFloat64() * 100
 
@@ -37,7 +37,7 @@ func TestInmemoryPartInitFromRows(t *testing.T) {
 
 	// Test distinct tsids.
 	rows = rows[:0]
-	for i := 0; i < 1e4; i++ {
+	for i := range int(1e4) {
 		initTestTSID(&r.TSID)
 		r.TSID.MetricID = uint64(i)
 		r.Timestamp = int64(rng.NormFloat64() * 1e7)

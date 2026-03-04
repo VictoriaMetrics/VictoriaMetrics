@@ -50,7 +50,7 @@ func unmarshalColumnIdxs(src []byte, columnNames []string, shardsCount uint64) (
 	}
 
 	shardIdxs := make(map[string]uint64, n)
-	for i := uint64(0); i < n; i++ {
+	for i := range n {
 		columnID, nBytes := encoding.UnmarshalVarUint64(src)
 		if nBytes <= 0 {
 			return nil, fmt.Errorf("cannot parse columnID #%d", i)
@@ -126,7 +126,7 @@ func unmarshalColumnNames(src []byte) ([]string, map[string]uint64, error) {
 	columnNameIDs := make(map[string]uint64, n)
 	columnNames := make([]string, n)
 
-	for id := uint64(0); id < n; id++ {
+	for id := range n {
 		name, nBytes := encoding.UnmarshalBytes(src)
 		if nBytes <= 0 {
 			return nil, nil, fmt.Errorf("cannot parse column name number %d out of %d", id, n)

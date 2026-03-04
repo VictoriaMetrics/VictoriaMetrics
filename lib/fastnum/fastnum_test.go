@@ -26,7 +26,7 @@ func TestIsInt64Ones(t *testing.T) {
 	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := make([]int64, n)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				a[i] = 1
 			}
 			if !IsInt64Ones(a) {
@@ -63,7 +63,7 @@ func TestIsFloat64Ones(t *testing.T) {
 	for _, n := range []int{0, 1, 10, 100, 1000, 1e4, 1e5, 8*1024 + 1} {
 		t.Run(fmt.Sprintf("%d_items", n), func(t *testing.T) {
 			a := make([]float64, n)
-			for i := 0; i < n; i++ {
+			for i := range n {
 				a[i] = 1
 			}
 			if !IsFloat64Ones(a) {
@@ -95,7 +95,7 @@ func TestAppendInt64Zeros(t *testing.T) {
 			if len(a) != len(prefix)+n {
 				t.Fatalf("unexpected len(a) with prefix; got %d; want %d", len(a), len(prefix)+n)
 			}
-			for i := 0; i < len(prefix); i++ {
+			for i := range prefix {
 				if a[i] != prefix[i] {
 					t.Fatalf("unexpected prefix[%d]; got %d; want %d", i, a[i], prefix[i])
 				}
@@ -123,7 +123,7 @@ func TestAppendInt64Ones(t *testing.T) {
 			if len(a) != len(prefix)+n {
 				t.Fatalf("unexpected len(a) with prefix; got %d; want %d", len(a), len(prefix)+n)
 			}
-			for i := 0; i < len(prefix); i++ {
+			for i := range prefix {
 				if a[i] != prefix[i] {
 					t.Fatalf("unexpected prefix[%d]; got %d; want %d", i, a[i], prefix[i])
 				}
@@ -151,7 +151,7 @@ func TestAppendFloat64Zeros(t *testing.T) {
 			if len(a) != len(prefix)+n {
 				t.Fatalf("unexpected len(a) with prefix; got %d; want %d", len(a), len(prefix)+n)
 			}
-			for i := 0; i < len(prefix); i++ {
+			for i := range prefix {
 				if a[i] != prefix[i] {
 					t.Fatalf("unexpected prefix[%d]; got %f; want %f", i, a[i], prefix[i])
 				}
@@ -179,7 +179,7 @@ func TestAppendFloat64Ones(t *testing.T) {
 			if len(a) != len(prefix)+n {
 				t.Fatalf("unexpected len(a) with prefix; got %d; want %d", len(a), len(prefix)+n)
 			}
-			for i := 0; i < len(prefix); i++ {
+			for i := range prefix {
 				if a[i] != prefix[i] {
 					t.Fatalf("unexpected prefix[%d]; got %f; want %f", i, a[i], prefix[i])
 				}

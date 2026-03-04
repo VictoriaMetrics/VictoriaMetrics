@@ -69,7 +69,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 	for n := range workers {
 		wg.Go(func() {
 			r := rand.New(rand.NewSource(int64(n)))
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				rnd := r.Intn(len(paths))
 				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true)
 				if err != nil { // update can fail and this is expected

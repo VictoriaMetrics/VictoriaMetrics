@@ -964,7 +964,7 @@
           "links": [
             {
               "title": "Drilldown",
-              "url": "/d/G7Z9GzMGz_vm?viewPanel=123&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+              "url": "/d/G7Z9GzMGz_vm?viewPanel=123&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -1231,7 +1231,7 @@
             {
               "targetBlank": true,
               "title": "Drilldown",
-              "url": "/d/G7Z9GzMGz_vm?viewPanel=162&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+              "url": "/d/G7Z9GzMGz_vm?viewPanel=162&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
             }
           ],
           "mappings": [],
@@ -1743,7 +1743,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz_vm?viewPanel=117&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz_vm?viewPanel=117&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1858,7 +1858,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz_vm?viewPanel=119&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz_vm?viewPanel=119&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -2332,7 +2332,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/G7Z9GzMGz_vm?viewPanel=121&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
+                  "url": "/d/G7Z9GzMGz_vm?viewPanel=121&var-job=${__field.labels.job}&var-ds=$ds&${__url_time_range}"
                 }
               ],
               "mappings": [],

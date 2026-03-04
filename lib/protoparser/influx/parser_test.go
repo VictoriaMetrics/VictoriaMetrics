@@ -2,6 +2,7 @@ package influx
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -138,6 +139,25 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	// HTTP request line
 	f("GET /foo HTTP/1.1")
 	f("GET /foo?bar=baz HTTP/1.0")
+}
+
+func TestParseFieldValue_MissingClosingQuoteWithRawNewlineHint(t *testing.T) {
+	uc := &unmarshalContext{
+		hasQuotedFields: true,
+	}
+
+	// Simulate the truncated value that happens
+	// after line splitting on raw newline
+	input := "\"hello"
+
+	_, err := parseFieldValue(input, uc)
+	if err == nil {
+		t.Fatalf("expected error for missing closing quote")
+	}
+
+	if !strings.Contains(err.Error(), "this may be caused by a raw newline") {
+		t.Fatalf("unexpected error message: %s", err)
+	}
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {

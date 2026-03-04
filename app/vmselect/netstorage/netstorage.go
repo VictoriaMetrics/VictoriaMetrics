@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -491,10 +492,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbf *tmpBlocksFile, tr s
 	}
 
 	// Prepare worker channels.
-	workers := min(len(upws), gomaxprocs)
-	if workers < 1 {
-		workers = 1
-	}
+	workers := max(min(len(upws), gomaxprocs), 1)
 	itemsPerWorker := (len(upws) + workers - 1) / workers
 	workChs := make([]chan *unpackWork, workers)
 	for i := range workChs {
@@ -832,12 +830,7 @@ func GraphiteTags(qt *querytracer.Tracer, filter string, limit int, deadline sea
 }
 
 func hasString(a []string, s string) bool {
-	for _, x := range a {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a, s)
 }
 
 // LabelValues returns label values matching the given labelName and sq until the given deadline.

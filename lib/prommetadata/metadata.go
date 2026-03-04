@@ -2,7 +2,7 @@ package prommetadata
 
 import "flag"
 
-var enableMetadata = flag.Bool("enableMetadata", false, "Whether to enable metadata processing for metrics scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. "+
+var enableMetadata = flag.Bool("enableMetadata", true, "Whether to enable metadata processing for metrics scraped from targets, received via VictoriaMetrics remote write, Prometheus remote write v1 or OpenTelemetry protocol. "+
 	"See also remoteWrite.maxMetadataPerBlock")
 
 // IsEnabled reports whether metadata processing is enabled.

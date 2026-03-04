@@ -55,7 +55,7 @@ type parseCache struct {
 
 func newParseCache() *parseCache {
 	pc := new(parseCache)
-	for i := 0; i < parseBucketCount; i++ {
+	for i := range parseBucketCount {
 		pc.buckets[i] = newParseBucket()
 	}
 	return pc
@@ -75,7 +75,7 @@ func (pc *parseCache) get(q string) *parseCacheValue {
 
 func (pc *parseCache) requests() uint64 {
 	var n uint64
-	for i := 0; i < parseBucketCount; i++ {
+	for i := range parseBucketCount {
 		n += pc.buckets[i].requests.Load()
 	}
 	return n
@@ -83,7 +83,7 @@ func (pc *parseCache) requests() uint64 {
 
 func (pc *parseCache) misses() uint64 {
 	var n uint64
-	for i := 0; i < parseBucketCount; i++ {
+	for i := range parseBucketCount {
 		n += pc.buckets[i].misses.Load()
 	}
 	return n
@@ -91,7 +91,7 @@ func (pc *parseCache) misses() uint64 {
 
 func (pc *parseCache) len() uint64 {
 	var n uint64
-	for i := 0; i < parseBucketCount; i++ {
+	for i := range parseBucketCount {
 		n += pc.buckets[i].len()
 	}
 	return n

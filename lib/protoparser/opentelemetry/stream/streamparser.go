@@ -153,7 +153,7 @@ func (wctx *writeRequestContext) PushSample(mm *pb.MetricMetadata, suffix string
 		Samples: wctx.samplesBuf[len(wctx.samplesBuf)-1:],
 	})
 
-	// check if we should flush it right now, if the buf is already huge (2MiB).
+	// check if we should flush it right now, if the buf is already huge (4MiB).
 	if len(wctx.buf) > 4*1024*1024 {
 		if err := wctx.flushFunc(wctx.tss, wctx.mms); err != nil {
 			if wctx.firstErr == nil {

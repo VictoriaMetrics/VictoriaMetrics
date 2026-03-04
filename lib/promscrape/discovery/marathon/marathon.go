@@ -86,7 +86,7 @@ func getAppLabels(app *app) []*promutil.Labels {
 		ports = make([]uint32, len(app.PortDefinitions))
 		labels = make([]map[string]string, len(app.PortDefinitions))
 
-		for i := 0; i < len(app.PortDefinitions); i++ {
+		for i := range app.PortDefinitions {
 			labels[i] = app.PortDefinitions[i].Labels
 			// When requirePorts is false, this port becomes the 'servicePort', not the listen port.
 			// In this case, the port needs to be taken from the task instead of the app.
@@ -166,7 +166,7 @@ func extractPortMapping(portMappings []portMapping, containerNet bool) ([]uint32
 	ports := make([]uint32, len(portMappings))
 	labels := make([]map[string]string, len(portMappings))
 
-	for i := 0; i < len(portMappings); i++ {
+	for i := range portMappings {
 		labels[i] = portMappings[i].Labels
 
 		if containerNet {

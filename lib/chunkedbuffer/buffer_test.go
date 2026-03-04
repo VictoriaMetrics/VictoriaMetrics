@@ -11,7 +11,7 @@ func TestBuffer(t *testing.T) {
 	cb := Get()
 	defer Put(cb)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		cb.Reset()
 
 		// Write data to chunked buffer

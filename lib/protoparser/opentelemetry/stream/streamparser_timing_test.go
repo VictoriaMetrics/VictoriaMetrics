@@ -103,9 +103,9 @@ func BenchmarkWriteRequestContextPushSample(b *testing.B) {
 	timeSeriesCount := 100000
 	labels := make([]*promutil.Labels, 0, timeSeriesCount)
 	mms := make([]*pb.MetricMetadata, 0, timeSeriesCount)
-	for i := 0; i < timeSeriesCount; i++ {
+	for i := range timeSeriesCount {
 		lbs := &promutil.Labels{}
-		for j := 0; j < 20; j++ {
+		for j := range 20 {
 			lbs.Labels = append(lbs.Labels, prompb.Label{
 				Name:  fmt.Sprintf("some_super_long_label_%d", j),
 				Value: fmt.Sprintf("some_super_super_super_super_super_super_long_label_%d", j),
@@ -129,7 +129,7 @@ func BenchmarkWriteRequestContextPushSample(b *testing.B) {
 			return nil
 		}
 
-		for i := 0; i < timeSeriesCount; i++ {
+		for i := range timeSeriesCount {
 			benchmarkWriteRequestContextPushSample(b, wctx, mms[i], labels[i])
 		}
 

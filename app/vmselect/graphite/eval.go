@@ -50,7 +50,7 @@ func (ec *evalConfig) newTimestamps(step int64) []int64 {
 	pointsLen := ec.pointsLen(step)
 	timestamps := make([]int64, pointsLen)
 	ts := ec.startTime
-	for i := 0; i < pointsLen; i++ {
+	for i := range pointsLen {
 		timestamps[i] = ts
 		ts += step
 	}

@@ -15,7 +15,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=49&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=49&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} is dropping data from persistent queue"
           description: "Vmagent dropped {{ $value | humanize1024 }} from persistent queue
               on instance {{ $labels.instance }} for the last 10m."
@@ -26,7 +26,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=79&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=79&var-instance={{ $labels.instance }}"
           summary: "Vmagent is dropping data blocks that are rejected by remote storage"
           description: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} drops the rejected by 
             remote-write server data blocks. Check the logs to find the reason for rejects."
@@ -37,7 +37,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=31&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=31&var-instance={{ $labels.instance }}"
           summary: "Vmagent fails to scrape one or more targets"
           description: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} fails to scrape targets for last 15m"
 
@@ -61,7 +61,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=77&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=77&var-instance={{ $labels.instance }}"
           summary: "Vmagent responds with too many errors on data ingestion protocols"
           description: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} responds with errors to write requests for last 15m."
 
@@ -71,7 +71,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=61&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=61&var-instance={{ $labels.instance }}"
           summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} fails to push to remote storage"
           description: "Vmagent fails to push data via remote write protocol to destination \"{{ $labels.url }}\"\n
             Ensure that destination is up and reachable."
@@ -87,7 +87,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=84&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=84&var-instance={{ $labels.instance }}"
           summary: "Remote write connection from \"{{ $labels.job }}\" (instance {{ $labels.instance }}) to {{ $labels.url }} is saturated"
           description: "The remote write connection between vmagent \"{{ $labels.job }}\" (instance {{ $labels.instance }}) and destination \"{{ $labels.url }}\"
             is saturated by more than 90% and vmagent won't be able to keep up.\n
@@ -101,7 +101,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=98&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=98&var-instance={{ $labels.instance }}"
           summary: "Persistent queue writes for instance {{ $labels.instance }} are saturated"
           description: "Persistent queue writes for vmagent \"{{ $labels.job }}\" (instance {{ $labels.instance }})
             are saturated by more than 90% and vmagent won't be able to keep up with flushing data on disk. 
@@ -113,7 +113,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=99&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=99&var-instance={{ $labels.instance }}"
           summary: "Persistent queue reads for instance {{ $labels.instance }} are saturated"
           description: "Persistent queue reads for vmagent \"{{ $labels.job }}\" (instance {{ $labels.instance }})
             are saturated by more than 90% and vmagent won't be able to keep up with reading data from the disk. 
@@ -124,7 +124,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=88&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=88&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} reached 90% of the limit"
           description: "Max series limit set via -remoteWrite.maxHourlySeries flag is close to reaching the max value. 
             Then samples for new time series will be dropped instead of sending them to remote storage systems."
@@ -134,7 +134,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=90&var-instance={{ $labels.instance }}"
+          dashboard: "{{ $externalURL }}/d/G7Z9GzMGz?viewPanel=90&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} reached 90% of the limit"
           description: "Max series limit set via -remoteWrite.maxDailySeries flag is close to reaching the max value. 
             Then samples for new time series will be dropped instead of sending them to remote storage systems."

@@ -28,7 +28,8 @@ var (
 	configProfile = flag.String("configProfile", "", "Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), "+
 		"or if both not set, DefaultSharedConfigProfile is used")
 	customS3Endpoint = flag.String("customS3Endpoint", "", "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set")
-	s3ACL            = flag.String("s3ACL", "bucket-owner-full-control", "ACL to be set for uploaded objects to S3.")
+	s3ACL            = flag.String("s3ACL", "", "ACL to be set for uploaded objects to S3. If not set, no ACL header is sent. "+
+		"Supported values are: private, public-read, public-read-write, authenticated-read, aws-exec-read, bucket-owner-read, bucket-owner-full-control, log-delivery-write.")
 	s3ForcePathStyle = flag.Bool("s3ForcePathStyle", true, "Prefixing endpoint with bucket name when set false, true by default.")
 	s3StorageClass   = flag.String("s3StorageClass", "", "The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, "+
 		"DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.\n"+
@@ -94,7 +95,7 @@ func runParallelPerPathInternal(ctx context.Context, concurrency int, perPath ma
 
 	// Read results.
 	var err error
-	for i := 0; i < len(perPath); i++ {
+	for range len(perPath) {
 		err = <-resultCh
 		if err != nil {
 			// Stop the work.
@@ -145,7 +146,7 @@ func runParallelInternal(concurrency int, parts []common.Part, f func(p common.P
 
 	// Read results.
 	var err error
-	for i := 0; i < len(parts); i++ {
+	for range parts {
 		err = <-resultCh
 		if err != nil {
 			// Stop the work.

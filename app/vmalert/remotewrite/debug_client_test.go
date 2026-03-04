@@ -22,7 +22,7 @@ func TestDebugClient_Push(t *testing.T) {
 
 	const rowsN = 100
 	var sent int
-	for i := 0; i < rowsN; i++ {
+	for i := range rowsN {
 		s := prompb.TimeSeries{
 			Samples: []prompb.Sample{{
 				Value:     float64(i),
