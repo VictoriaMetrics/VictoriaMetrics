@@ -1,6 +1,7 @@
 package awsapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +39,9 @@ type Config struct {
 	defaultAccessKey string
 	defaultSecretKey string
 
+	// profile is the named AWS profile to use from shared credentials/config files.
+	profile string
+
 	// Real credentials used for accessing EC2 API.
 	creds     *credentials
 	credsLock sync.Mutex
@@ -51,7 +56,7 @@ type credentials struct {
 }
 
 // NewConfig returns new AWS Config from the given args.
-func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service string) (*Config, error) {
+func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service, profile string) (*Config, error) {
 	cfg := &Config{
 		client:             http.DefaultClient,
 		region:             region,
@@ -61,6 +66,7 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		service:            service,
 		defaultAccessKey:   os.Getenv("AWS_ACCESS_KEY_ID"),
 		defaultSecretKey:   os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		profile:            profile,
 	}
 	if cfg.service == "" {
 		cfg.service = "aps"
@@ -207,6 +213,8 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 	if relativeURI := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"); len(relativeURI) > 0 {
 		fullURI = "http://169.254.170.2" + relativeURI
 	}
+	// roleARN may be overridden by profile's role_arn config entry.
+	roleARN := cfg.roleARN
 	switch {
 	case len(acNew.AccessKeyID) > 0 && len(acNew.SecretAccessKey) > 0:
 	case len(cfg.webTokenPath) > 0:
@@ -229,6 +237,29 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 			return nil, err
 		}
 		acNew = ac
+	case len(cfg.profile) > 0:
+		sourceProfile, profileRoleARN, err := readAWSConfigFile(cfg.profile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read config file for profile %q: %w", cfg.profile, err)
+		}
+		credProfile := cfg.profile
+		if sourceProfile != "" {
+			if sourceProfile == cfg.profile {
+				return nil, fmt.Errorf("source_profile for %q points to itself", cfg.profile)
+			}
+			credProfile = sourceProfile
+		}
+		if roleARN == "" {
+			roleARN = profileRoleARN
+		}
+		ac, err := readSharedCredentials(credProfile)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read shared credentials for profile %q: %w", credProfile, err)
+		}
+		if ac == nil {
+			return nil, fmt.Errorf("missing credentials for profile %q", credProfile)
+		}
+		acNew = ac
 	default:
 		// we need instance credentials if we do not have access keys
 		ac, err := getInstanceRoleCredentials(cfg.client)
@@ -238,10 +269,10 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		acNew = ac
 	}
 	// read credentials from sts api, if role_arn is defined
-	if len(cfg.roleARN) > 0 {
-		ac, err := cfg.getRoleARNCredentials(acNew, cfg.roleARN)
+	if len(roleARN) > 0 {
+		ac, err := cfg.getRoleARNCredentials(acNew, roleARN)
 		if err != nil {
-			return nil, fmt.Errorf("cannot get credentials for role_arn %q: %w", cfg.roleARN, err)
+			return nil, fmt.Errorf("cannot get credentials for role_arn %q: %w", roleARN, err)
 		}
 		acNew = ac
 	}
@@ -252,6 +283,113 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		return nil, fmt.Errorf("missing AWS secret_key; it may be set via env var AWS_SECRET_ACCESS_KEY or use instance iam role")
 	}
 	return acNew, nil
+}
+
+// readSharedCredentials reads credentials from ~/.aws/credentials for the given profile.
+func readSharedCredentials(profile string) (*credentials, error) {
+	path := os.Getenv("AWS_SHARED_CREDENTIALS_FILE")
+	if path == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("cannot get home directory: %w", err)
+		}
+		path = filepath.Join(home, ".aws", "credentials")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("cannot read %q: %w", path, err)
+	}
+	section := readSection(data, profile)
+	if section == nil {
+		return nil, nil
+	}
+	accessKey := section["aws_access_key_id"]
+	secretKey := section["aws_secret_access_key"]
+	if accessKey == "" || secretKey == "" {
+		return nil, fmt.Errorf("missing aws_access_key_id or aws_secret_access_key for profile %q in %q", profile, path)
+	}
+	return &credentials{
+		AccessKeyID:     accessKey,
+		SecretAccessKey: secretKey,
+		Token:           section["aws_session_token"],
+	}, nil
+}
+
+// readAWSConfigFile returns source_profile and role_arn for the given profile from ~/.aws/config.
+func readAWSConfigFile(profile string) (sourceProfile, roleARN string, err error) {
+	path := os.Getenv("AWS_CONFIG_FILE")
+	if path == "" {
+		tilde, err := os.UserHomeDir()
+		if err != nil {
+			return "", "", fmt.Errorf("cannot get home directory: %w", err)
+		}
+		path = filepath.Join(tilde, ".aws", "config")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", "", nil
+		}
+		return "", "", fmt.Errorf("cannot read %q: %w", path, err)
+	}
+	// named profiles use "profile " prefix in config file; "default" is the exception
+	sectionName := "profile " + profile
+	if profile == "default" {
+		sectionName = "default"
+	}
+	section := readSection(data, sectionName)
+	if section == nil {
+		return "", "", nil
+	}
+	return section["source_profile"], section["role_arn"], nil
+}
+
+// readSection returns key-value pairs for the given section from AWS config/credentials file data.
+func readSection(data []byte, section string) map[string]string {
+	section = strings.TrimSpace(section)
+	var result map[string]string
+	inSection := false
+	for len(data) > 0 {
+		var line []byte
+		if i := bytes.IndexByte(data, '\n'); i >= 0 {
+			line, data = data[:i], data[i+1:]
+		} else {
+			line, data = data, nil
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+		// '#' is the only recognized comment character. See https://stackoverflow.com/questions/43217469/how-do-you-comment-out-lines-in-aws-cli-config-and-credentials-files
+		if line[0] == '#' {
+			continue
+		}
+		if line[0] == '[' {
+			end := bytes.IndexByte(line, ']')
+			if end < 0 {
+				continue
+			}
+			inSection = bytes.EqualFold(bytes.TrimSpace(line[1:end]), []byte(section))
+			continue
+		}
+		if !inSection {
+			continue
+		}
+		eq := bytes.IndexByte(line, '=')
+		if eq < 0 {
+			continue
+		}
+		key := string(bytes.TrimSpace(line[:eq]))
+		value := string(bytes.TrimSpace(line[eq+1:]))
+		if result == nil {
+			result = make(map[string]string)
+		}
+		result[key] = value
+	}
+	return result
 }
 
 // getCredentialsByPath makes request to metadata service and retrieves container credentials
