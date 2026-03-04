@@ -1443,7 +1443,7 @@ When the search query is executed, VictoriaMetrics decides which index to use
 based on the time range of the query:
 
 * Per-day index is used if the search time range less than partition time range.
-* Global index is used for search queries with a time range that match exactly
+* Global index is used for search queries with a time range that matches exactly
   or greater than the partition time range.
 
 Mappings are added to the indexes during the data ingestion:
