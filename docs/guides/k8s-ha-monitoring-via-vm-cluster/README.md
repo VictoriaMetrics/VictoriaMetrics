@@ -104,7 +104,7 @@ Let's break down how high-availability is achieved:
   - `vmselect` also gets a `replicationFactor` so it knows how many replicas to expect and when to treat a response as partial (more on this later).
 - `dedup.minScrapeInterval`: 1ms configures [de-duplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) for `vmselect`, so it does not double-count samples when retrieving data from `vmstorage` pods.
 - `podAnnotations: prometheus.io/scrape: "true"` enables metric scraping so you can monitor your VictoriaMetrics cluster.
-- `podAnnotations:prometheus.io/port: "some_port" ` defines the scraping port.
+- `podAnnotations: prometheus.io/port: "some_port" ` defines the scraping port.
 
 Install the VictoriaMetrics cluster in high-availability mode. The following command deploys a VictoriaMetrics cluster in the default namespace:
 
@@ -129,7 +129,7 @@ The Victoria Metrics write api can be accessed via port 8480 with the following 
 vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.
 
 Get the Victoria Metrics insert service URL by running these commands in the same shell:
-  export POD_NAME=$(kubectl get pods --namespace default -l "app=" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods --namespace default -l "app=vminsert" -o jsonpath="{.items[0].metadata.name}")
   kubectl --namespace default port-forward $POD_NAME 8480
 
 You need to update your Prometheus configuration file and add the following lines to it:
@@ -149,7 +149,7 @@ The VictoriaMetrics read api can be accessed via port 8481 with the following DN
 vmcluster-victoria-metrics-cluster-vmselect.default.svc.cluster.local.
 
 Get the VictoriaMetrics select service URL by running these commands in the same shell:
-  export POD_NAME=$(kubectl get pods --namespace default -l "app=" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods --namespace default -l "app=vmselect" -o jsonpath="{.items[0].metadata.name}")
   kubectl --namespace default port-forward $POD_NAME 8481
 
 You need to specify the service URL in your Grafana:
