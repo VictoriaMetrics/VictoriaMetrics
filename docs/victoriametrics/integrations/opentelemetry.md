@@ -23,6 +23,9 @@ The following label transformations can be enabled:
   For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time_seconds_total{service_name="foo"}`.
 * `-opentelemetry.convertMetricNamesToPrometheus` - converts **only metric names** according to [OTLP Metric points to Prometheus specification](https://github.com/open-telemetry/opentelemetry-specification/blob/v1.33.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus) for metrics ingested via OTLP.
   For example, `process.cpu.time{service.name="foo"}` is converted to `process_cpu_time_seconds_total{service.name="foo"}`. See more about this use case [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9830).
+* `-opentelemetry.labelNameUnderscoreSanitization` - controls whether labels starting with a single underscore are prefixed with `key` when `-opentelemetry.usePrometheusNaming` is enabled (default: `true`).
+  For example, `_mylabel` becomes `key_mylabel`. Labels starting with `__` are never modified.
+  Set to `false` to allow single-underscore labels to pass through unchanged.
 
 > These flags can be applied on vmagent, vminsert or VictoriaMetrics single-node.
 

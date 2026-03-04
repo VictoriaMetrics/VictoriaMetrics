@@ -13,12 +13,12 @@ import (
 
 var (
 	usePrometheusNaming = flag.Bool("opentelemetry.usePrometheusNaming", false, "Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested "+
-		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry")
+		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
 	convertMetricNamesToPrometheus = flag.Bool("opentelemetry.convertMetricNamesToPrometheus", false, "Whether to convert only metric names into Prometheus-compatible format for the metrics ingested "+
-		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry")
-	usePermissiveLabelSanitization = flag.Bool("opentelemetry.usePermissiveLabelSanitization", false, "Disables prefixing labels starting with a single underscore with 'key' "+
+		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
+	labelNameUnderscoreSanitization = flag.Bool("opentelemetry.labelNameUnderscoreSanitization", true, "Whether to prefix labels starting with a single underscore with 'key' "+
 		"when -opentelemetry.usePrometheusNaming is enabled. "+
-		"See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#sending-data-via-opentelemetry")
+		"See https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
 )
 
 // unitMap is obtained from https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L19
@@ -93,6 +93,8 @@ func (sctx *sanitizerContext) sanitizeLabelName(labelName string) string {
 	return sctx.sanitizePrometheusLabelName(labelName)
 }
 
+// sanitizePrometheusLabelName performs convertion and normalization of OpenTelemetry Attributes to Prometheus labels
+// It follows the Prometheus guidelines: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/translator/prometheus#labels
 func (sctx *sanitizerContext) sanitizePrometheusLabelName(labelName string) string {
 	if len(labelName) == 0 {
 		return ""
@@ -100,7 +102,7 @@ func (sctx *sanitizerContext) sanitizePrometheusLabelName(labelName string) stri
 	labelName = promrelabel.SanitizeLabelName(labelName)
 	if labelName[0] >= '0' && labelName[0] <= '9' {
 		return sctx.concatLabel("key_", labelName)
-	} else if !*usePermissiveLabelSanitization && strings.HasPrefix(labelName, "_") && !strings.HasPrefix(labelName, "__") {
+	} else if *labelNameUnderscoreSanitization && strings.HasPrefix(labelName, "_") && !strings.HasPrefix(labelName, "__") {
 		return sctx.concatLabel("key", labelName)
 	}
 	return labelName
