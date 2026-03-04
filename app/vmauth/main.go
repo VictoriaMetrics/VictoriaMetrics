@@ -190,7 +190,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())
 		}
-
+		defer putToken(tkn)
 		processUserRequest(w, r, ui, tkn)
 		return true
 	}
