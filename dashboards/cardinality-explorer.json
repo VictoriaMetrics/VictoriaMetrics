@@ -7,22 +7,10 @@
       "type": "datasource",
       "pluginId": "yesoreyeram-infinity-datasource",
       "pluginName": "Infinity"
-    },
-    {
-      "name": "DS_EXPRESSION",
-      "label": "Expression",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "__expr__"
     }
   ],
   "__elements": {},
   "__requires": [
-    {
-      "type": "datasource",
-      "id": "__expr__",
-      "version": "1.0.0"
-    },
     {
       "type": "grafana",
       "id": "grafana",
@@ -73,7 +61,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
   "links": [
     {
       "asDropdown": false,
@@ -117,7 +104,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). Dashboard is in `Work in Progress`\r\n- Used `time picker` and takes the `to` and `from` dates. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day\r\n- An `Inner` join is used, so there may be fewer rows than specified in `Limited Entries`. Also, if the statistics between days show 0, the metric is `also deleted` :(\r\n- The data from the `Label=value...` table cannot be quickly inserted into the `Time series selector`\r\n",
+            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). In case of problems, it is better to use `vmui`\r\n- Used `time picker` and takes the `to` and `from` dates. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day\r\n- An `Inner` join is used, so there may be fewer rows than specified in `Limited Entries`. Also, if the statistics between days show 0, the metric is `also deleted` :(\r\n",
             "mode": "markdown"
           },
           "pluginVersion": "12.3.3",
@@ -189,7 +176,7 @@
         "x": 0,
         "y": 1
       },
-      "id": 11,
+      "id": 24,
       "panels": [],
       "title": "Overview (${__to:date:YYYY-MM-DD})",
       "type": "row"
@@ -199,6 +186,7 @@
         "type": "yesoreyeram-infinity-datasource",
         "uid": "${ds}"
       },
+      "description": "Main panel, all other panels depend on it",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -219,9 +207,13 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "C"
+              "options": "For last day"
             },
             "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
               {
                 "id": "thresholds",
                 "value": {
@@ -233,27 +225,23 @@
                     },
                     {
                       "color": "red",
-                      "value": 1
+                      "value": 0.01
                     }
                   ]
                 }
               },
               {
-                "id": "displayName",
-                "value": "% for previous day"
+                "id": "decimals",
+                "value": 2
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "A"
+              "options": "Today"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "Current"
-              },
               {
                 "id": "unit",
                 "value": "short"
@@ -268,16 +256,16 @@
         "x": 0,
         "y": 2
       },
-      "id": 1,
+      "id": 20,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "vertical",
+        "justifyMode": "center",
+        "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -295,12 +283,12 @@
             "uid": "${ds}"
           },
           "filters": [],
-          "format": "dataframe",
+          "format": "table",
           "global_query_id": "",
           "hide": false,
           "parser": "jq-backend",
           "refId": "A",
-          "root_selector": ".data.totalSeries",
+          "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
           "source": "url",
           "type": "json",
           "url": "/prometheus/api/v1/status/tsdb",
@@ -309,8 +297,20 @@
             "method": "GET",
             "params": [
               {
+                "key": "topN",
+                "value": "$topn"
+              },
+              {
+                "key": "match[]",
+                "value": "{$match}"
+              },
+              {
                 "key": "date",
                 "value": "${__to:date:YYYY-MM-DD}"
+              },
+              {
+                "key": "focusLabel",
+                "value": "$focus"
               }
             ]
           }
@@ -324,10 +324,10 @@
           "filters": [],
           "format": "table",
           "global_query_id": "",
-          "hide": true,
+          "hide": false,
           "parser": "jq-backend",
           "refId": "B",
-          "root_selector": ".data.totalSeries",
+          "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
           "source": "url",
           "type": "json",
           "url": "/prometheus/api/v1/status/tsdb",
@@ -336,30 +336,149 @@
             "method": "GET",
             "params": [
               {
+                "key": "topN",
+                "value": "$topn"
+              },
+              {
+                "key": "match[]",
+                "value": "{$match}"
+              },
+              {
                 "key": "date",
                 "value": "${__from:date:YYYY-MM-DD}"
+              },
+              {
+                "key": "focusLabel",
+                "value": "$focus"
               }
             ]
           }
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "${DS_EXPRESSION}"
-          },
-          "expression": "( $A - $B ) / $B * 100",
-          "hide": false,
-          "refId": "C",
-          "type": "math"
         }
       ],
       "title": "Total Series",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "name",
+            "mode": "inner"
+          }
+        },
+        {
+          "disabled": true,
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByMetricName"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByMetricName"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "total A",
+                "total B"
+              ]
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "totalAB",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total A"
+                }
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "totalAB"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "total B": true,
+              "totalAB": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "total A": 0,
+              "total B": 2,
+              "totalAB": 3,
+              "totalAB / total B": 1
+            },
+            "renameByName": {
+              "total A": "Today",
+              "totalAB / total B": "For last day"
+            }
+          }
+        }
+      ],
       "type": "stat"
     },
     {
       "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "${ds}"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
       "fieldConfig": {
         "defaults": {
@@ -533,6 +652,10 @@
                     "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=__name__=\"${__value.raw}\"&var-ds=$ds&var-focus="
                   }
                 ]
+              },
+              {
+                "id": "custom.width",
+                "value": 450
               }
             ]
           },
@@ -621,88 +744,26 @@
         "x": 3,
         "y": 2
       },
-      "id": 15,
+      "id": 22,
       "options": {
         "cellHeight": "sm",
         "showHeader": true,
         "sortBy": [
           {
-            "desc": false,
-            "displayName": "Metric name"
+            "desc": true,
+            "displayName": "Number of series"
           }
         ]
       },
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "columns": [],
           "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
+            "type": "datasource",
+            "uid": "-- Dashboard --"
           },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "jq-backend",
-          "refId": "A",
-          "root_selector": ".data as $root\n| $root.seriesCountByMetricName\n| map(\n    . + {\n      totalSeries: $root.totalSeries,\n      lastRequest: (.lastRequestTimestamp * 1000),\n      shareOfTotal: (.value / $root.totalSeries)\n    }\n  )",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "data",
-                "value": "${__to:date:YYYY-MM-DD}"
-              }
-            ]
-          }
-        },
-        {
-          "columns": [],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
-          },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "jq-backend",
-          "refId": "B",
-          "root_selector": ".data as $root\n| $root.seriesCountByMetricName\n| map(\n    . + {\n      totalSeries: $root.totalSeries,\n      lastRequest: (.lastRequestTimestamp * 1000),\n      shareOfTotal: (.value / $root.totalSeries)\n    }\n  )",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "date",
-                "value": "${__from:date:YYYY-MM-DD}"
-              }
-            ]
-          }
+          "panelId": 20,
+          "refId": "A"
         }
       ],
       "title": "Metric names with the highest number of series",
@@ -712,6 +773,33 @@
           "options": {
             "byField": "name",
             "mode": "inner"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByMetricName"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByMetricName"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "all",
+            "type": "include"
           }
         },
         {
@@ -953,8 +1041,8 @@
     },
     {
       "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "${ds}"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
       "fieldConfig": {
         "defaults": {
@@ -1191,74 +1279,12 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "columns": [],
           "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
+            "type": "datasource",
+            "uid": "-- Dashboard --"
           },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "jq-backend",
-          "refId": "A",
-          "root_selector": ".data as $root\n| $root.seriesCountByLabelName\n| map(\n    . + {\n      totalSeries: $root.totalSeries,\n      shareOfTotal: (.value / $root.totalSeries)\n    }\n  )",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "date",
-                "value": "${__to:date:YYYY-MM-DD}"
-              }
-            ]
-          }
-        },
-        {
-          "columns": [],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
-          },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "jq-backend",
-          "refId": "B",
-          "root_selector": ".data as $root\n| $root.seriesCountByLabelName\n| map(\n    . + {\n      totalSeries: $root.totalSeries,\n      shareOfTotal: (.value / $root.totalSeries)\n    }\n  )",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "date",
-                "value": "${__from:date:YYYY-MM-DD}"
-              }
-            ]
-          }
+          "panelId": 20,
+          "refId": "A"
         }
       ],
       "title": "Labels with the highest number of series",
@@ -1268,6 +1294,33 @@
           "options": {
             "byField": "name",
             "mode": "inner"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByLabelName"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByLabelName"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "all",
+            "type": "include"
           }
         },
         {
@@ -1422,8 +1475,8 @@
     },
     {
       "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "${ds}"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
       "fieldConfig": {
         "defaults": {
@@ -1461,30 +1514,6 @@
               {
                 "id": "unit",
                 "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Requests count"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Last request"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeFromNow"
               }
             ]
           },
@@ -1644,6 +1673,23 @@
                 "value": 2
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${focus:text}=\"${__value.raw}\"&var-focus=&var-ds=$ds"
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
@@ -1653,7 +1699,7 @@
         "x": 12,
         "y": 10
       },
-      "id": 8,
+      "id": 16,
       "options": {
         "cellHeight": "sm",
         "showHeader": true,
@@ -1667,82 +1713,12 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "columns": [],
           "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
+            "type": "datasource",
+            "uid": "-- Dashboard --"
           },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "jq-backend",
-          "refId": "A",
-          "root_selector": ".data as $root\n| $root.seriesCountByFocusLabelValue\n| map(\n    . + {\n      totalSeries: $root.totalSeries,\n      shareOfTotal: (.value / $root.totalSeries)\n    }\n  )",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "data",
-                "value": "${__to:date:YYYY-MM-DD}"
-              },
-              {
-                "key": "focusLabel",
-                "value": "$focus"
-              }
-            ]
-          }
-        },
-        {
-          "columns": [],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
-          },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "jq-backend",
-          "refId": "B",
-          "root_selector": ".data as $root\n| $root.seriesCountByFocusLabelValue\n| map(\n    . + {\n      totalSeries: $root.totalSeries,\n      shareOfTotal: (.value / $root.totalSeries)\n    }\n  )",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "date",
-                "value": "${__from:date:YYYY-MM-DD}"
-              },
-              {
-                "key": "focusLabel",
-                "value": "$focus"
-              }
-            ]
-          }
+          "panelId": 20,
+          "refId": "A"
         }
       ],
       "title": "Values for \"$focus\" label with the highest number of series",
@@ -1752,6 +1728,33 @@
           "options": {
             "byField": "name",
             "mode": "inner"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByFocusLabelValue"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByFocusLabelValue"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "all",
+            "type": "include"
           }
         },
         {
@@ -1920,8 +1923,8 @@
     },
     {
       "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "${ds}"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
       "fieldConfig": {
         "defaults": {
@@ -2116,6 +2119,47 @@
               {
                 "id": "decimals",
                 "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "labelName A"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom.viz",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "labelValue A"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom.viz",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${__data.fields[1]}=\"${__data.fields[2]}\"&var-ds=$ds&var-focus="
+                  }
+                ]
               }
             ]
           }
@@ -2141,74 +2185,12 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "columns": [],
           "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
+            "type": "datasource",
+            "uid": "-- Dashboard --"
           },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "jq-backend",
-          "refId": "A",
-          "root_selector": ".data as $root\n| $root.seriesCountByLabelValuePair\n| map(\n    . + {\n      totalSeries: $root.totalSeries,\n      shareOfTotal: (.value / $root.totalSeries)\n    }\n  )",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "data",
-                "value": "${__to:date:YYYY-MM-DD}"
-              }
-            ]
-          }
-        },
-        {
-          "columns": [],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
-          },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "jq-backend",
-          "refId": "B",
-          "root_selector": ".data as $root\n| $root.seriesCountByLabelValuePair\n| map(\n    . + {\n      totalSeries: $root.totalSeries,\n      shareOfTotal: (.value / $root.totalSeries)\n    }\n  )",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "date",
-                "value": "${__from:date:YYYY-MM-DD}"
-              }
-            ]
-          }
+          "panelId": 20,
+          "refId": "A"
         }
       ],
       "title": "Label=value pairs with the highest number of series",
@@ -2221,25 +2203,30 @@
           }
         },
         {
-          "id": "calculateField",
+          "id": "filterByValue",
           "options": {
-            "alias": "lastRequestTS",
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "lastRequestTimestamp A"
-                }
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByLabelValuePair"
+                  }
+                },
+                "fieldName": "type A"
               },
-              "operator": "*",
-              "right": {
-                "fixed": "1000"
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByLabelValuePair"
+                  }
+                },
+                "fieldName": "type B"
               }
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
+            ],
+            "match": "all",
+            "type": "include"
           }
         },
         {
@@ -2334,11 +2321,13 @@
             "include": {
               "names": [
                 "name",
+                "labelValue A",
                 "shareOfTotal A",
                 "value A",
                 "1d",
                 "1d%",
-                "SOT"
+                "SOT",
+                "labelName A"
               ]
             }
           }
@@ -2347,6 +2336,8 @@
           "id": "organize",
           "options": {
             "excludeByName": {
+              "labelName A": false,
+              "labelValue A": false,
               "lastRequestTimestamp": true,
               "lastRequestTimestamp A": false,
               "name": false,
@@ -2354,14 +2345,14 @@
             },
             "includeByName": {},
             "indexByName": {
-              "1d": 6,
-              "1d%": 7,
-              "lastRequestTS": 5,
-              "lastRequestTimestamp A": 3,
+              "1d": 4,
+              "1d%": 5,
+              "SOT": 7,
+              "labelName A": 1,
+              "labelValue A": 2,
               "name": 0,
-              "requestsCount A": 4,
-              "test": 1,
-              "value A": 2
+              "shareOfTotal A": 6,
+              "value A": 3
             },
             "renameByName": {
               "1d": "1d",
@@ -2386,8 +2377,8 @@
     },
     {
       "datasource": {
-        "type": "yesoreyeram-infinity-datasource",
-        "uid": "${ds}"
+        "type": "datasource",
+        "uid": "-- Dashboard --"
       },
       "fieldConfig": {
         "defaults": {
@@ -2529,7 +2520,7 @@
         "x": 0,
         "y": 26
       },
-      "id": 7,
+      "id": 27,
       "options": {
         "cellHeight": "sm",
         "showHeader": true,
@@ -2543,74 +2534,12 @@
       "pluginVersion": "12.3.3",
       "targets": [
         {
-          "columns": [],
           "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
+            "type": "datasource",
+            "uid": "-- Dashboard --"
           },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "backend",
-          "refId": "A",
-          "root_selector": "data.labelValueCountByLabelName",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "data",
-                "value": "${__to:date:YYYY-MM-DD}"
-              }
-            ]
-          }
-        },
-        {
-          "columns": [],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
-          },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "hide": false,
-          "parser": "backend",
-          "refId": "B",
-          "root_selector": "data.labelValueCountByLabelName",
-          "source": "url",
-          "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "date",
-                "value": "${__from:date:YYYY-MM-DD}"
-              }
-            ]
-          }
+          "panelId": 20,
+          "refId": "A"
         }
       ],
       "title": "Labels with the highest number of unique values",
@@ -2623,25 +2552,30 @@
           }
         },
         {
-          "id": "calculateField",
+          "id": "filterByValue",
           "options": {
-            "alias": "lastRequestTS",
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "lastRequestTimestamp A"
-                }
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "labelValueCountByLabelName"
+                  }
+                },
+                "fieldName": "type A"
               },
-              "operator": "*",
-              "right": {
-                "fixed": "1000"
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "labelValueCountByLabelName"
+                  }
+                },
+                "fieldName": "type B"
               }
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
+            ],
+            "match": "all",
+            "type": "include"
           }
         },
         {
@@ -2721,14 +2655,10 @@
           "options": {
             "include": {
               "names": [
-                "lastRequestTimestamp A",
-                "requestsCount A",
+                "name",
                 "value A",
-                "test",
-                "lastRequestTS",
                 "1d",
-                "1d%",
-                "name"
+                "1d%"
               ]
             }
           }
@@ -2757,13 +2687,13 @@
               "1d": "1d",
               "1d%": "1d [%]",
               "Range": "1d",
-              "lastRequestTS": "Last request",
+              "lastRequestTS": "",
               "lastRequestTimestamp": "",
               "lastRequestTimestamp * 1000": "Last request",
               "lastRequestTimestamp A": "",
               "name": "Metric name",
               "requestsCount": "Requests count",
-              "requestsCount A": "Requests count",
+              "requestsCount A": "",
               "value": "Number of series",
               "value A": "Number of series"
             }
@@ -2884,5 +2814,6 @@
   "title": "VictoriMetrics - Cardinality Explorer",
   "uid": "1d95a92f",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "id": null
 }
