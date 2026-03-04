@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -119,6 +120,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompb.Writ
 	}
 	marshaledData := cfg.marshal()
 	configData.Store(&marshaledData)
+	configHash.Set(float64(xxhash.Sum64(marshaledData)))
 	cfg.mustStart()
 
 	configSuccess.Set(1)
@@ -176,6 +178,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompb.Writ
 			cfg = cfgNew
 			marshaledData = cfg.marshal()
 			configData.Store(&marshaledData)
+			configHash.Set(float64(xxhash.Sum64(marshaledData)))
 			configReloads.Inc()
 			configTimestamp.Set(fasttime.UnixTimestamp())
 		case <-tickerCh:
@@ -193,6 +196,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompb.Writ
 			cfg = cfgNew
 			marshaledData = cfg.marshal()
 			configData.Store(&marshaledData)
+			configHash.Set(float64(xxhash.Sum64(marshaledData)))
 			configReloads.Inc()
 			configTimestamp.Set(fasttime.UnixTimestamp())
 		case <-globalStopCh:
@@ -212,6 +216,7 @@ var (
 	configReloadErrors = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_errors_total`)
 	configSuccess      = configMetricsSet.NewGauge(`vm_promscrape_config_last_reload_successful`, nil)
 	configTimestamp    = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
+	configHash         = configMetricsSet.NewGauge(`vm_promscrape_config_hash`, nil)
 )
 
 type scrapeConfigs struct {

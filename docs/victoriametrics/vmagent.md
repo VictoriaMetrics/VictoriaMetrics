@@ -762,6 +762,25 @@ to all the metrics scraped by the given `vmagent` instance:
 
 See also [how to shard data among multiple remote storage systems](#sharding-among-remote-storages).
 
+### Detecting config divergence in cluster mode
+
+All `vmagent` instances in a cluster must run with identical scrape config.
+The sharding key per target is derived from the config, so divergence causes some targets to be scraped by multiple instances while others are skipped.
+
+`vmagent` exposes the `vm_promscrape_config_hash` metric with a hash of the loaded scrape config, updated on every successful reload.
+
+The following alerting rule fires when cluster members have different configs:
+
+```yaml
+- alert: VMAgentClusterConfigMismatch
+  expr: count(count_values("config_hash", vm_promscrape_config_hash)) by (job) > 1
+  for: 5m
+  annotations:
+    summary: "vmagent cluster members have different scrape configs"
+```
+
+Config divergence can occur when configs contain host-local values such as `localhost` or per-pod IP addresses, or when a config reload only reaches some instances.
+
 ## High availability
 
 It is possible to run multiple **identically configured** `vmagent` instances or `vmagent`
