@@ -773,7 +773,7 @@ The following alerting rule fires when cluster members have different configs:
 
 ```yaml
 - alert: VMAgentClusterConfigMismatch
-  expr: count(count_values("config_hash", vm_promscrape_config_hash)) by (job) > 1
+  expr: count(count_values("config_hash", vm_promscrape_config_hash) by (job)) by (job) > 1
   for: 5m
   annotations:
     summary: "vmagent cluster members have different scrape configs"
