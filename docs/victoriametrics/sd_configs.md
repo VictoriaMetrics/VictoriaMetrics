@@ -761,7 +761,7 @@ scrape_configs:
 ```
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
-to `<task_ip>:<port>`, where `<task_ip>` is the private IP of the task, while `<port>` is taken from `port` in `ecs_sd_configs`.
+to `<ip>:<port>`, where `<ip>` is the task private IP for `awsvpc` tasks and the backing EC2 instance private IP for `bridge` tasks, while `<port>` is taken from `port` in `ecs_sd_configs`.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
 
