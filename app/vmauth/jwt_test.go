@@ -39,13 +39,14 @@ XOtclIk1uhc03oL9nOQ=
 			}
 			return
 		}
-		users, err := parseJWTUsers(ac)
+		users, ds, err := parseJWTUsers(ac)
 		if err != nil {
 			if expErr != err.Error() {
 				t.Fatalf("unexpected error; got\n%q\nwant \n%q", err.Error(), expErr)
 			}
 			return
 		}
+		ds.stop()
 		t.Fatalf("expecting non-nil error; got %v", users)
 	}
 
@@ -273,10 +274,11 @@ XOtclIk1uhc03oL9nOQ=
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		jui, err := parseJWTUsers(ac)
+		jui, ds, err := parseJWTUsers(ac)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		defer ds.stop()
 
 		for _, ui := range jui {
 			if ui.JWT == nil {
