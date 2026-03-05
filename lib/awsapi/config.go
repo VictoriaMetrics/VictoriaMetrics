@@ -190,8 +190,8 @@ func (cfg *Config) getFreshAPICredentials() (*credentials, error) {
 		// There is no need in refreshing statically set api credentials if roleARN isn't set.
 		return cfg.creds, nil
 	}
-	if time.Until(cfg.creds.Expiration) > 10*time.Second {
-		// credentials aren't expired yet.
+	if cfg.creds != nil && (cfg.creds.Expiration.IsZero() || time.Until(cfg.creds.Expiration) > 10*time.Second) {
+		// credentials aren't expired yet; zero expiration means they don't expire (e.g. static profile keys).
 		return cfg.creds, nil
 	}
 	// credentials have been expired. Update them.
@@ -349,7 +349,7 @@ func readAWSConfigFile(profile string) (sourceProfile, roleARN string, err error
 
 // readSection returns key-value pairs for the given section from AWS config/credentials file data.
 func readSection(data []byte, section string) map[string]string {
-	section = strings.TrimSpace(section)
+	sectionBytes := []byte(strings.TrimSpace(section))
 	var result map[string]string
 	inSection := false
 	for len(data) > 0 {
@@ -360,11 +360,8 @@ func readSection(data []byte, section string) map[string]string {
 			line, data = data, nil
 		}
 		line = bytes.TrimSpace(line)
-		if len(line) == 0 {
-			continue
-		}
 		// '#' is the only recognized comment character. See https://stackoverflow.com/questions/43217469/how-do-you-comment-out-lines-in-aws-cli-config-and-credentials-files
-		if line[0] == '#' {
+		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
 		if line[0] == '[' {
@@ -372,7 +369,9 @@ func readSection(data []byte, section string) map[string]string {
 			if end < 0 {
 				continue
 			}
-			inSection = bytes.EqualFold(bytes.TrimSpace(line[1:end]), []byte(section))
+			// strip double quotes to handle profile names with spaces, e.g. [profile "my profile"]
+			header := bytes.ReplaceAll(bytes.TrimSpace(line[1:end]), []byte{'"'}, nil)
+			inSection = bytes.EqualFold(header, sectionBytes)
 			continue
 		}
 		if !inSection {
