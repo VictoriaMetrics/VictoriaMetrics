@@ -275,6 +275,7 @@ func initRemoteWriteCtxs(urls []string) {
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, sanitizedURL)
 		rwctxIdx[i] = i
 	}
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_filesystem_metadata{path=%q, fs_type=%q}`, *tmpDataPath, fs.GetFsTypeName(*tmpDataPath)), func() float64 { return 1 })
 
 	if *shardByURL {
 		consistentHashNodes := make([]string, 0, len(urls))
