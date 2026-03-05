@@ -305,6 +305,13 @@ func TestParseJWTBody_Failure(t *testing.T) {
 		`unexpected type for key="logs_extra_stream_filters", got: string, want: array string`,
 		true,
 	)
+
+	// invalid iss claim value type
+	f(
+		`{"iss": {}, "vm_access": {}}`,
+		"cannot parse `iss` field: value doesn't contain string; it contains object",
+		true,
+	)
 }
 
 func TestParseJWTBody_Success(t *testing.T) {
@@ -325,6 +332,9 @@ func TestParseJWTBody_Success(t *testing.T) {
 		}
 		if result.Iat != resultExpected.Iat {
 			t.Fatalf("unexpected Iat; got %d; want %d", result.Iat, resultExpected.Iat)
+		}
+		if result.Iss != resultExpected.Iss {
+			t.Fatalf("unexpected Iss; got %s; want %s", result.Iss, resultExpected.Iss)
 		}
 		if result.Scope != resultExpected.Scope {
 			t.Fatalf("unexpected scope; got %q; want %q", result.Scope, resultExpected.Scope)
@@ -347,6 +357,10 @@ func TestParseJWTBody_Success(t *testing.T) {
 		vmAccessClaim: VMAccessClaim{},
 	})
 	f(`{"vm_access": {"tenant_id": {}}}`, &body{
+		vmAccessClaim: VMAccessClaim{},
+	})
+	f(`{"iss": "theIssuer", "vm_access": {"tenant_id": {}}}`, &body{
+		Iss:           "theIssuer",
 		vmAccessClaim: VMAccessClaim{},
 	})
 
