@@ -21,58 +21,86 @@ import (
 
 type OIDCConfig struct {
 	Issuer string `yaml:"issuer"`
-
-	discoveryContext context.Context
-	discoveryCancel  func()
-	discoveryWG      *sync.WaitGroup
 }
 
-func (c *OIDCConfig) startDiscovery(vp *atomic.Pointer[jwt.VerifierPool]) {
-	if err := c.refreshVerifierPool(vp); err != nil {
-		logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", c.Issuer, err)
+type oidcDiscoverers struct {
+	ds      map[string]*oidcDiscoverer
+	context context.Context
+	cancel  func()
+	wg      *sync.WaitGroup
+}
+
+func (ds *oidcDiscoverers) stop() {
+	ds.cancel()
+	ds.wg.Wait()
+}
+
+func (ds *oidcDiscoverers) add(iss string, vp *atomic.Pointer[jwt.VerifierPool]) {
+	d, ok := ds.ds[iss]
+	if !ok {
+		d = &oidcDiscoverer{
+			issuer:  iss,
+			context: ds.context,
+			cancel:  ds.cancel,
+			wg:      ds.wg,
+		}
+		ds.ds[iss] = d
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	c.discoveryContext = ctx
-	c.discoveryCancel = cancel
-	c.discoveryWG = &sync.WaitGroup{}
+	d.vps = append(d.vps, vp)
+}
 
-	c.discoveryWG.Go(func() {
+func (ds *oidcDiscoverers) start() {
+	for _, d := range ds.ds {
+		d.start()
+	}
+}
+
+type oidcDiscoverer struct {
+	vps    []*atomic.Pointer[jwt.VerifierPool]
+	issuer string
+
+	context context.Context
+	cancel  func()
+	wg      *sync.WaitGroup
+}
+
+func (d *oidcDiscoverer) start() {
+	if err := d.refreshVerifierPool(); err != nil {
+		logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", d.issuer, err)
+	}
+
+	d.wg.Go(func() {
 		t := time.NewTimer(time.Second * 10)
 		defer t.Stop()
 
 		for {
 			select {
 			case <-t.C:
-				if err := c.refreshVerifierPool(vp); err != nil {
+				if err := d.refreshVerifierPool(); err != nil {
 					t.Reset(time.Second * 10)
-					logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", c.Issuer, err)
+					logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", d.issuer, err)
 				}
 				// OIDC may reutrn Cache-Control header with max-age directive.
 				// It could be used as time rage for next refresh.
 				// https://openid.net/specs/openid-connect-core-1_0.html#RotateEncKeys
 				t.Reset(time.Minute * 5)
-			case <-c.discoveryContext.Done():
+			case <-d.context.Done():
 				return
 			}
 		}
 	})
 }
 
-func (c *OIDCConfig) stopDiscovery() {
-	c.discoveryCancel()
-	c.discoveryWG.Wait()
-}
-
-func (c *OIDCConfig) refreshVerifierPool(vp *atomic.Pointer[jwt.VerifierPool]) error {
-	cfg, err := getOpenIDConfiguration(c.Issuer)
+func (d *oidcDiscoverer) refreshVerifierPool() error {
+	cfg, err := getOpenIDConfiguration(d.issuer)
 	if err != nil {
 		return err
 	}
 	// The issuer in the OIDC configuration must match the expected issuer.
 	// https://openid.net/specs/openid-connect-core-1_0.html#RotateEncKeys
-	if cfg.Issuer != c.Issuer {
-		return fmt.Errorf("openid configuration issuer %q does not match expected issuer %q", cfg.Issuer, c.Issuer)
+	if cfg.Issuer != d.issuer {
+		return fmt.Errorf("openid configuration issuer %q does not match expected issuer %q", cfg.Issuer, d.issuer)
 	}
 
 	keys, err := fetchJWKs(cfg.JWKsURI)
@@ -85,7 +113,10 @@ func (c *OIDCConfig) refreshVerifierPool(vp *atomic.Pointer[jwt.VerifierPool]) e
 		return err
 	}
 
-	vp.Store(verifierPool)
+	for _, vp := range d.vps {
+		vp.Store(verifierPool)
+	}
+
 	return nil
 }
 

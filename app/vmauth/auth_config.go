@@ -875,12 +875,13 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		return false, fmt.Errorf("failed to parse auth config: %w", err)
 	}
 
-	jui, err := parseJWTUsers(ac)
+	jui, ds, err := parseJWTUsers(ac)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse JWT users from auth config: %w", err)
 	}
 	jwtc := &jwtCache{
 		users: jui,
+		ds:    ds,
 	}
 
 	m, err := parseAuthConfigUsers(ac)
@@ -901,7 +902,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 
 	jwtcPrev := jwtAuthCache.Load()
 	if jwtcPrev != nil {
-		jwtcPrev.stopOIDCDiscovery()
+		jwtcPrev.ds.stop()
 	}
 
 	authConfig.Store(ac)
