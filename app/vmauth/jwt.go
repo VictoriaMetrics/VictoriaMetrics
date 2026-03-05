@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
@@ -47,12 +48,25 @@ type jwtCache struct {
 	users []*UserInfo
 }
 
-type JWTConfig struct {
-	PublicKeys     []string `yaml:"public_keys,omitempty"`
-	PublicKeyFiles []string `yaml:"public_key_files,omitempty"`
-	SkipVerify     bool     `yaml:"skip_verify,omitempty"`
+func (c *jwtCache) stopOIDCDiscovery() {
+	for _, ui := range c.users {
+		if ui.JWT.OIDC != nil {
+			ui.JWT.OIDC.stopDiscovery()
+		}
+	}
+}
 
-	verifierPool *jwt.VerifierPool
+type JWTConfig struct {
+	PublicKeys     []string    `yaml:"public_keys,omitempty"`
+	PublicKeyFiles []string    `yaml:"public_key_files,omitempty"`
+	SkipVerify     bool        `yaml:"skip_verify,omitempty"`
+	OIDC           *OIDCConfig `yaml:"oidc,omitempty"`
+
+	// verifierPool is used to verify JWT tokens.
+	// It is initialized from PublicKeys or\and PublicKeyFiles.
+	// In this case, it is initialized once at config reload and never updated until next reload
+	// In case of OIDC, it is initialized on config reload and periodically updated by discovery process.
+	verifierPool atomic.Pointer[jwt.VerifierPool]
 }
 
 func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
@@ -66,8 +80,8 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 		if ui.AuthToken != "" || ui.BearerToken != "" || ui.Username != "" || ui.Password != "" {
 			return nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt is set")
 		}
-		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify {
-			return nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files or have skip_verify=true")
+		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify && jwtToken.OIDC == nil {
+			return nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files, oidc or have skip_verify=true")
 		}
 
 		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
@@ -98,8 +112,20 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 				return nil, err
 			}
 
-			jwtToken.verifierPool = vp
+			jwtToken.verifierPool.Store(vp)
 		}
+		if jwtToken.OIDC != nil {
+			if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 || jwtToken.SkipVerify {
+				return nil, fmt.Errorf("jwt with oidc cannot contain public keys or have skip_verify=true")
+			}
+
+			if jwtToken.OIDC.Issuer == "" {
+				return nil, fmt.Errorf("oidc issuer cannot be empty")
+			}
+
+			jwtToken.OIDC.startDiscovery(&ui.JWT.verifierPool)
+		}
+
 		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {
 			return nil, err
 		}
@@ -193,7 +219,29 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 				return ui, tkn
 			}
 
-			if err := ui.JWT.verifierPool.Verify(tkn); err != nil {
+			if ui.JWT.OIDC != nil {
+				// OIDC requires iss claim.
+				// It must match the discovery issuer URL set in OIDC config.
+				// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+				if tkn.Issuer() == "" {
+					continue
+				}
+				if tkn.Issuer() != ui.JWT.OIDC.Issuer {
+					continue
+				}
+			}
+
+			vp := ui.JWT.verifierPool.Load()
+			if vp == nil {
+				continue
+			}
+
+			// In case of OIDC, current verifier implementation is suboptimal.
+			// It tries all keys for the same alg until it finds the right one or fails all of them.
+			// OIDC require using kid claim from the token to choose a proper JWK.
+			// https://openid.net/specs/openid-connect-core-1_0.html#RotateEncKeys
+			// https://openid.net/specs/draft-jones-json-web-key-03.html#anchor4
+			if err := vp.Verify(tkn); err != nil {
 				if *logInvalidAuthTokens {
 					logger.Infof("cannot verify jwt token: %s", err)
 				}

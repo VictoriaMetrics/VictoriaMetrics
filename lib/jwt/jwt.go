@@ -99,6 +99,7 @@ type body struct {
 	Exp int64 `json:"exp"`
 	// issued at time unix_ts
 	Iat           int64  `json:"iat"`
+	Iss           string `json:"iss"`
 	Jti           string `json:"jti,omitempty"`
 	Scope         string `json:"scope,omitempty"`
 	vmAccessClaim VMAccessClaim
@@ -138,6 +139,14 @@ func (b *body) parse(src string) error {
 			return fmt.Errorf("cannot parse `iat` field: %w", err)
 		}
 	}
+	if issObject := jv.Get("iss"); issObject != nil {
+		bIss, err := issObject.StringBytes()
+		if err != nil {
+			return fmt.Errorf("cannot parse `iss` field: %w", err)
+		}
+		b.Iss = bytesutil.ToUnsafeString(bIss)
+	}
+
 	vaObject := jv.Get("vm_access")
 	if vaObject == nil {
 		return ErrVMAccessFieldMissing
@@ -263,6 +272,11 @@ func (t *Token) HasClaims(claims map[string]string) bool {
 	}
 
 	return true
+}
+
+// Issuer returns `iss` claim value from token body
+func (t *Token) Issuer() string {
+	return t.body.Iss
 }
 
 // VMAccess return a reference to the VMAccessClaim

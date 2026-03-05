@@ -899,6 +899,11 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	}
 	metrics.RegisterSet(ac.ms)
 
+	jwtcPrev := jwtAuthCache.Load()
+	if jwtcPrev != nil {
+		jwtcPrev.stopOIDCDiscovery()
+	}
+
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
