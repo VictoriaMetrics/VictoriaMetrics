@@ -567,6 +567,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				if ts.Sub(a.KeepFiringSince) >= ar.KeepFiringFor {
 					a.State = notifier.StateInactive
 					a.ResolvedAt = ts
+					alertsResolved.Inc()
 					// add stale time series
 					tss = append(tss, firingAlertStaleTimeSeries(a.Labels, ts.Unix())...)
 
