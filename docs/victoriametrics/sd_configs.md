@@ -25,6 +25,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `docker_sd_configs` is for discovering and scraping [Docker](https://www.docker.com/) targets. See [these docs](#docker_sd_configs).
 * `dockerswarm_sd_configs` is for discovering and scraping [Docker Swarm](https://docs.docker.com/engine/swarm/) targets. See [these docs](#dockerswarm_sd_configs).
 * `ec2_sd_configs` is for discovering and scraping [Amazon EC2](https://aws.amazon.com/ec2/) targets. See [these docs](#ec2_sd_configs).
+* `ecs_sd_configs` is for discovering and scraping targets running on [Amazon ECS](https://aws.amazon.com/ecs/). See [these docs](#ecs_sd_configs).
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [these docs](#eureka_sd_configs).
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](#file_sd_configs).
 * `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
@@ -700,6 +701,101 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_ec2_vpc_id`: the ID of the VPC in which the instance is running, if available
 
 The list of discovered EC2 targets is refreshed at the interval, which can be configured via `-promscrape.ec2SDCheckInterval` command-line flag.
+
+## ecs_sd_configs
+
+ECS SD configuration allows retrieving scrape targets from tasks running in [Amazon ECS](https://aws.amazon.com/ecs/).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: ecs
+  ecs_sd_configs:
+
+    # region is an optional AWS region.
+    # By default, the region from the instance metadata is used.
+    #
+  - region: "..."
+
+    # endpoint is an optional custom ECS API endpoint to use.
+    # By default, the standard endpoint for the given region is used.
+    # Also used as the STS endpoint unless sts_endpoint is set.
+    #
+    # endpoint: "..."
+
+    # ec2_endpoint is an optional custom EC2 API endpoint to use.
+    # By default, the standard endpoint for the given region is used.
+    #
+    # ec2_endpoint: "..."
+
+    # sts_endpoint is an optional custom STS API endpoint to use.
+    # By default, endpoint is used, falling back to the standard endpoint for the region.
+    #
+    # sts_endpoint: "..."
+
+    # access_key is an optional AWS API access key.
+    # By default, the access key is loaded from AWS_ACCESS_KEY_ID environment var.
+    #
+    # access_key: "..."
+
+    # secret_key is an optional AWS API secret key.
+    # By default, the secret key is loaded from AWS_SECRET_ACCESS_KEY environment var.
+    #
+    # secret_key: "..."
+
+    # role_arn is an optional AWS Role ARN, an alternative to using AWS API keys.
+    #
+    # role_arn: "..."
+
+    # clusters is an optional list of cluster names or ARNs to discover.
+    # By default, all clusters in the region are discovered.
+    #
+    # clusters:
+    # - "..."
+
+    # port is an optional port to scrape metrics from.
+    # By default, port 80 is used.
+    #
+    # port: ...
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/victoriametrics/relabeling/#how-to-modify-scrape-urls-in-targets) label set
+to `<task_ip>:<port>`, where `<task_ip>` is the private IP of the task, while `<port>` is taken from `port` in `ecs_sd_configs`.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/):
+
+* `__meta_ecs_cluster_arn`: the ECS cluster ARN
+* `__meta_ecs_cluster`: the ECS cluster name
+* `__meta_ecs_task_arn`: the task ARN
+* `__meta_ecs_task_definition`: the task definition ARN
+* `__meta_ecs_task_group`: the task group
+* `__meta_ecs_ip_address`: the private IP address of the task
+* `__meta_ecs_region`: the AWS region
+* `__meta_ecs_launch_type`: the launch type (`EC2` or `FARGATE`)
+* `__meta_ecs_availability_zone`: the availability zone in which the task is running
+* `__meta_ecs_desired_status`: the desired status of the task
+* `__meta_ecs_last_status`: the last reported status of the task
+* `__meta_ecs_health_status`: the health status of the task
+* `__meta_ecs_network_mode`: the network mode (`awsvpc` or `bridge`)
+* `__meta_ecs_subnet_id`: the subnet ID of the task network interface, if available
+* `__meta_ecs_public_ip`: the public IP address of the task, if available
+* `__meta_ecs_container_instance_arn`: the container instance ARN, for EC2 launch type
+* `__meta_ecs_ec2_instance_id`: the EC2 instance ID, for EC2 launch type
+* `__meta_ecs_ec2_instance_type`: the EC2 instance type, for EC2 launch type
+* `__meta_ecs_ec2_instance_private_ip`: the EC2 instance private IP, for EC2 launch type
+* `__meta_ecs_ec2_instance_public_ip`: the EC2 instance public IP, for EC2 launch type
+* `__meta_ecs_platform_family`: the platform family, if available
+* `__meta_ecs_platform_version`: the platform version, if available
+* `__meta_ecs_tag_cluster_<tagkey>`: each tag of the ECS cluster
+* `__meta_ecs_tag_task_<tagkey>`: each tag of the ECS task
+* `__meta_ecs_tag_ec2_<tagkey>`: each tag of the EC2 instance, for EC2 launch type
+* `__meta_ecs_service`: the service name, if the task belongs to a service
+* `__meta_ecs_service_arn`: the service ARN, if the task belongs to a service
+* `__meta_ecs_service_status`: the service status, if the task belongs to a service
+* `__meta_ecs_tag_service_<tagkey>`: each tag of the ECS service, if the task belongs to a service
+
+The list of discovered ECS targets is refreshed at the interval, which can be configured via `-promscrape.ecsSDCheckInterval` command-line flag.
 
 ## eureka_sd_configs
 
