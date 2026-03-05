@@ -1612,7 +1612,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1624,7 +1624,7 @@
                 "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
-              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,

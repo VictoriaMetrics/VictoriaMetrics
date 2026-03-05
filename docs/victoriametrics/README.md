@@ -708,7 +708,7 @@ Using the delete API is not recommended in the following cases, since it brings 
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
   Note that VictoriaMetrics doesn't delete entries from [IndexDB](#indexdb) for the deleted time series.
-  IndexDB is cleaned up once per the configured [retention](#retention).
+  IndexDB is cleaned up along with the corresponding data partition once it becomes outside the [-retentionPeriod](#retention).
 
 It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
@@ -1331,7 +1331,7 @@ see [these docs](https://docs.victoriametrics.com/victoriametrics/stream-aggrega
 ## Metrics Metadata
 
 Single-node VictoriaMetrics can store metric metadata (`TYPE`, `HELP`, `UNIT`) {{% available_from "v1.130.0" %}}.
-Metadata ingestion and querying are enabled by default{{% available_from "#" %}}. To disable them, set `-enableMetadata=false`.
+Metadata ingestion and querying are enabled by default{{% available_from "v1.137.0" %}}. To disable them, set `-enableMetadata=false`.
 
 The metadata is cached in-memory in a ring buffer and can use up to 1% of available memory by default (see `-storage.maxMetadataStorageSize` cmd-line flag).
 When in-memory size is exceeded, the least updated entries are dropped first. Entries that weren't updated for 1h are cleaned up automatically.
@@ -1419,21 +1419,22 @@ See also [how to work with snapshots](#how-to-work-with-snapshots) and [IndexDB]
 ## IndexDB
 
 VictoriaMetrics identifies
-[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) by
-`TSID` (time series ID) and stores
-[raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples) sorted
-by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and could
-be used for searching and retrieving raw samples. However, the TSID is never
-exposed to the clients, i.e. it is for internal use only.
+[time series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series)
+by `TSID` (time series ID) and stores
+[raw samples](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#raw-samples)
+sorted by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and
+could be used for searching and retrieving raw samples. However, the TSID is
+never exposed to the clients, i.e. it is for internal use only.
 
-Instead, VictoriaMetrics maintains an **inverted index** that enables searching
-the raw samples by metric name, label name, and label value by mapping these
-values to the corresponding TSIDs.
+Instead, VictoriaMetrics maintains an **inverted index** (known as `indexDB`)
+that enables searching the raw samples by metric name, label name, and label
+value by mapping these values to the corresponding TSIDs. Every data
+[partition](#storage) has its own indexDB.
 
 VictoriaMetrics uses two types of inverted indexes:
 
 * Global index. Searches using this index is performed across the entire
-  retention period.
+  partition time range.
 * Per-day index. This index stores mappings similar to ones in global index
   but also includes the date in each mapping. This speeds up data retrieval
   for queries within a shorter time range (which is often just the last day).
@@ -1441,19 +1442,18 @@ VictoriaMetrics uses two types of inverted indexes:
 When the search query is executed, VictoriaMetrics decides which index to use
 based on the time range of the query:
 
-* Per-day index is used if the search time range is 40 days or less.
-* Global index is used for search queries with a time range greater than 40
-  days.
+* Per-day index is used if the search time range is less than the partition time range.
+* Global index is used for search queries with a time range that matches exactly
+  or greater than the partition time range.
 
 Mappings are added to the indexes during the data ingestion:
 
-* In global index each mapping is created only once per retention period.
+* In global index each mapping is created only once per partition.
 * In the per-day index each mapping is created for each unique date that
   has been seen in the samples for the corresponding time series.
 
-IndexDB respects [retention period](#retention) and once it is over, the indexes
-are dropped. For the new retention period, the indexes are gradually populated
-again as the new samples arrive.
+Since indexDB is a part of a partition, it is dropped along with it as it
+becomes outside the [retention period](#retention).
 
 See also [Why IndexDB size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large).
 
@@ -2145,9 +2145,12 @@ It is also possible removing [rollup result cache](#rollup-result-cache) on star
 
 ### Rollup result cache
 
-VictoriaMetrics caches query responses by default. This allows increasing performance for repeated queries
+VictoriaMetrics caches query responses by default and utilizes the cache for future queries when possible. This improves performance for repeated queries
 to [`/api/v1/query`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#range-query)
 with the increasing `time`, `start` and `end` query args.
+
+> For range query: the cache can be used for queries with the same expression and step.
+> For instant query: the cache can be used for queries with the same expression that uses a lookbehind window larger than `-search.minWindowForInstantRollupOptimization` and specific functions such as `xx_over_time`, `increase`, `rate`. (For `rate`, the cache result may be inaccurate in edge cases, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for details)
 
 This cache may work incorrectly when ingesting historical data into VictoriaMetrics. See [these docs](#backfilling) for details.
 

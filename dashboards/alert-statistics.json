@@ -174,7 +174,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sort_desc(topk_max($topk, sum(vmalert_alerts_firing{group=~\"$group\"}) by (alertname)))",
+          "expr": "sort_desc(topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}) by (alertname)))",
           "format": "time_series",
           "instant": false,
           "legendFormat": "__auto",
@@ -242,7 +242,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(count(vmalert_alerting_rules_errors_total{group=~\"$group\"}) by (group))",
+          "expr": "count(count(vmalert_alerting_rules_errors_total{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}) by (group))",
           "interval": "",
           "legendFormat": "",
           "range": true,
@@ -309,7 +309,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(vmalert_alerting_rules_errors_total{group=~\"$group\"})",
+          "expr": "count(vmalert_alerting_rules_errors_total{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"})",
           "instant": false,
           "interval": "",
           "legendFormat": "",
@@ -398,7 +398,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_max(100, sum(increases_over_time(vmalert_alerts_firing{group=~\"$group\"}[$__range])) by(group, alertname) > 0)",
+          "expr": "topk_max(100, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by(group, alertname) > 0)",
           "format": "table",
           "instant": true,
           "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
@@ -551,7 +551,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_max($topk, sum(increases_over_time(vmalert_alerts_firing{group=~\"$group\"}[$__range])) by (group, alertname) > 0)",
+          "expr": "topk_max($topk, sum(increases_over_time(vmalert_alerts_firing{job=~\"$job\",instance=~\"$instance\",group=~\"$group\"}[$__range])) by (group, alertname) > 0)",
           "format": "table",
           "instant": true,
           "key": "Q-3934f0fb-8ad6-4519-a98d-c26d0fc6b312-0",
@@ -602,6 +602,46 @@
         "refresh": 1,
         "regex": "",
         "type": "datasource"
+      },
+      {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "definition": "label_values(vm_app_version{version=~\"^vmalert.*\"},job)",
+        "includeAll": true,
+        "multi": true,
+        "name": "job",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{version=~\"^vmalert.*\"},job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\"},instance)",
+        "includeAll": true,
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\"},instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
       },
       {
         "allValue": ".*",

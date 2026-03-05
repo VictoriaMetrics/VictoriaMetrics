@@ -134,6 +134,14 @@ and the candidate is deployed to the sandbox environment.
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
+   * c) [SPDX](https://spdx.dev/) SBOM attestations are
+      generated automatically by BuildKit during
+      `docker buildx build` (`--sbom=true`). SBOMs can
+      be inspected with
+      `docker buildx imagetools inspect <image> --format "{{ json .SBOM }}"`
+      or consumed by vulnerability scanners such as
+      [Trivy](https://github.com/aquasecurity/trivy) via
+      `trivy image --sbom-sources oci <image-ref>`.
 
 1. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
 
@@ -166,7 +174,7 @@ Issues included in the release are closed, with the comment.
 
 1. Review the performance of the release candidate in the sandbox environment.
    If any issues are found, they must be addressed, and the release process restarted from [Step 1](#step-1) with an incremented release candidate version.
-1. Run `TAG=v1.xx.y EXTRA_DOCKER_TAG_SUFFIX=-rc1 make publish-final-images`. This command publishes the final release images from release candidate image for given `EXTRA_DOCKER_TAG_SUFFIX` and updates  `latest` Docker image tag for the given `TAG`.
+1. Run `TAG=v1.xx.y EXTRA_DOCKER_TAG_SUFFIX=-rc1 make publish-final-images`. This command publishes the final release images from release candidate image for given `EXTRA_DOCKER_TAG_SUFFIX` and updates `latest` Docker image tag for the given `TAG`. SBOM attestations are preserved from the RC images by `imagetools create`.
    This command must be run only for the latest officially published release. It must be skipped when publishing other releases such as
    [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/) or some test releases.
 1. Deploy the final images to the sandbox environment and perform a quick smoke test to verify basic functionality works.

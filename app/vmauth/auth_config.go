@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -90,6 +92,8 @@ type UserInfo struct {
 
 	MetricLabels map[string]string `yaml:"metric_labels,omitempty"`
 
+	AccessLog *AccessLog `yaml:"access_log,omitempty"`
+
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
@@ -100,6 +104,31 @@ type UserInfo struct {
 	backendRequests  *metrics.Counter
 	backendErrors    *metrics.Counter
 	requestsDuration *metrics.Summary
+}
+
+// AccessLog represents configuration for access log settings.
+type AccessLog struct {
+	Filters *AccessLogFilters `yaml:"filters"`
+}
+
+// AccessLogFilters represents list of filters for access logs printing
+type AccessLogFilters struct {
+	// SkipStatusCodes is a list of HTTP status codes for which access logs will be skipped
+	SkipStatusCodes []int `yaml:"skip_status_codes"`
+}
+
+func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int) {
+	filters := ui.AccessLog.Filters
+	if filters != nil && len(filters.SkipStatusCodes) > 0 {
+		if slices.Contains(filters.SkipStatusCodes, statusCode) {
+			return
+		}
+	}
+
+	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+	requestURI := httpserver.GetRequestURI(r)
+	logger.Infof("access_log request_host=%q request_uri=%q status_code=%d remote_addr=%s user_agent=%q referer=%q username=%q",
+		r.Host, requestURI, statusCode, remoteAddr, r.UserAgent(), r.Referer(), userName)
 }
 
 // HeadersConf represents config for request and response headers.

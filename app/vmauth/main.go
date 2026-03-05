@@ -226,6 +226,36 @@ func getUserInfoByAuthTokens(ats []string) *UserInfo {
 	return nil
 }
 
+// responseWriterWithStatus is a wrapper around http.ResponseWriter that captures the status code written to the response.
+type responseWriterWithStatus struct {
+	http.ResponseWriter
+	status int
+}
+
+// WriteHeader records the status so it can be easily retrieved later
+func (rws *responseWriterWithStatus) WriteHeader(status int) {
+	rws.status = status
+	rws.ResponseWriter.WriteHeader(status)
+}
+
+// Flush implements net/http.Flusher interface
+//
+// This is needed for the copyStreamToClient()
+func (rws *responseWriterWithStatus) Flush() {
+	flusher, ok := rws.ResponseWriter.(http.Flusher)
+	if !ok {
+		logger.Panicf("BUG: it is expected http.ResponseWriter (%T) supports http.Flusher interface", rws.ResponseWriter)
+	}
+	flusher.Flush()
+}
+
+// Unwrap returns the original ResponseWriter wrapped by rws.
+//
+// This is needed for the net/http.ResponseController - see https://pkg.go.dev/net/http#NewResponseController
+func (rws *responseWriterWithStatus) Unwrap() http.ResponseWriter {
+	return rws.ResponseWriter
+}
+
 func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tkn *jwt.Token) {
 	startTime := time.Now()
 	defer ui.requestsDuration.UpdateDuration(startTime)
@@ -234,6 +264,19 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 
 	ctx, cancel := context.WithTimeout(r.Context(), *maxQueueDuration)
 	defer cancel()
+
+	userName := ui.name()
+	if userName == "" {
+		userName = "unauthorized"
+	}
+
+	if ui.AccessLog != nil {
+		w = &responseWriterWithStatus{ResponseWriter: w}
+		defer func() {
+			rws := w.(*responseWriterWithStatus)
+			ui.logRequest(r, userName, rws.status)
+		}()
+	}
 
 	// Acquire global concurrency limit.
 	if err := beginConcurrencyLimit(ctx); err != nil {
@@ -253,10 +296,6 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 	}
 
 	// Read the initial chunk for the request body.
-	userName := ui.name()
-	if userName == "" {
-		userName = "unauthorized"
-	}
 	bb, err := bufferRequestBody(ctx, r.Body, userName)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)

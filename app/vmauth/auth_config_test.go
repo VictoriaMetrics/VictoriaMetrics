@@ -681,6 +681,31 @@ users:
 			URLPrefix: mustParseURL("http://aaa:343/bbb"),
 		},
 	}, nil)
+
+	// Multiple users with access logs enabled
+	f(`
+users:
+- username: foo
+  url_prefix: http://foo
+  access_log: {}
+- username: bar
+  url_prefix: https://bar/x/
+  access_log:
+    filters:
+      skip_status_codes: [404]
+`, map[string]*UserInfo{
+		getHTTPAuthBasicToken("foo", ""): {
+			Username:  "foo",
+			URLPrefix: mustParseURL("http://foo"),
+			AccessLog: &AccessLog{},
+		},
+		getHTTPAuthBasicToken("bar", ""): {
+			Username:  "bar",
+			URLPrefix: mustParseURL("https://bar/x/"),
+			AccessLog: &AccessLog{Filters: &AccessLogFilters{SkipStatusCodes: []int{404}}},
+		},
+	}, nil)
+
 }
 
 func TestParseAuthConfigPassesTLSVerificationConfig(t *testing.T) {
