@@ -140,7 +140,7 @@ users:
     public_keys:
     - %q
   url_prefix: http://foo.bar
-`, validRSAPublicKey, validECDSAPublicKey), `multiple users with JWT tokens are not supported; found 2 users`)
+`, validRSAPublicKey, validECDSAPublicKey), `duplicate match claims="" found for name="" at idx=1; the previous one is set for name=""`)
 
 	// public key file doesn't exist
 	f(`
@@ -196,6 +196,23 @@ users:
 `,
 		"request header: \"AccountID\" has unsupported placeholder: \"{{ .LogsAccountID }}\", supported values are: {{.MetricsTenant}}, {{.MetricsExtraLabels}}, {{.MetricsExtraFilters}}, {{.LogsAccountID}}, {{.LogsProjectID}}, {{.LogsExtraFilters}}, {{.LogsExtraStreamFilters}}",
 	)
+
+	// duplicate claims
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+  url_prefix: http://foo.bar
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+  url_prefix: http://foo.bar`,
+		"duplicate match claims=\"team=ops\" found for name=\"\" at idx=1; the previous one is set for name=\"\"",
+	)
+
 }
 
 func TestJWTParseAuthConfigSuccess(t *testing.T) {
@@ -333,4 +350,34 @@ users:
     - %q
   url_prefix: http://foo.bar
 `, validECDSAPublicKey, rsaKeyFile))
+
+	// multiple match claims
+	f(fmt.Sprintf(`
+users:
+- jwt:
+   match_claims:
+    role: ro
+    team: dev
+   public_keys:
+    - %q
+  url_prefix: http://foo.bar
+- jwt:
+   match_claims:
+      role: admin
+      team: dev
+   public_key_files:
+    - %q
+    - %q
+  url_prefix: http://foo.bar
+- jwt:
+   match_claims:
+     role: viewer
+     team: dev
+     department: ceo
+   skip_verify: true
+  url_prefix: http://foo.bar
+
+
+`, validRSAPublicKey, rsaKeyFile, ecdsaKeyFile))
+
 }

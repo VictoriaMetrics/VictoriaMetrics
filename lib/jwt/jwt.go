@@ -249,19 +249,31 @@ func (t *Token) Parse(src string, enforceAuthPrefix bool) error {
 	return nil
 }
 
-// HasClaims checks if Token has all given claim key value pairs
-func (t *Token) HasClaims(claims map[string]string) bool {
-	for k, v := range claims {
-		gotV := t.body.allClaims.Get(k)
+// HasClaimKeysByValue checks if Token has all given claim nested keys by value
+//
+// For example, token claim and inverted value to keys match
+// token claim: {"vm_Access": {}, "audit": {"team": "dev", "access_modes": ["read","write","admin"], "permissions": [0,1,0] }}
+// keysByValue: {"0":["autid","permissions"], "dev": ["audit","team"]}
+func (t *Token) HasClaimKeysByValue(keysByValue map[string][]string) bool {
+	for value, keys := range keysByValue {
+		gotV := t.body.allClaims.Get(keys...)
 		if gotV == nil || gotV.Type() != fastjson.TypeString {
+			if gotV != nil {
+				// TODO: remove allocations
+				s := gotV.MarshalTo(nil)
+				if string(s) != value {
+					return false
+				}
+				continue
+			}
+			println("key miss")
 			return false
 		}
 		tcv := bytesutil.ToUnsafeString(gotV.GetStringBytes())
-		if tcv != v {
+		if tcv != value {
 			return false
 		}
 	}
-
 	return true
 }
 

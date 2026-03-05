@@ -1236,6 +1236,134 @@ users:
 		responseExpected,
 	)
 
+	nestedClaims := genToken(t, map[string]any{
+		"exp":  time.Now().Add(10 * time.Minute).Unix(),
+		"team": "dev",
+		"nested": map[string]any{
+			"department_id": 0,
+			"scopes":        []string{"metrics", "logs"},
+			"team_permissions": map[string]any{
+				"read":  0,
+				"write": 1,
+			},
+		},
+		"vm_access": map[string]any{
+			"metrics_account_id": 123,
+			"metrics_project_id": 234,
+			"metrics_extra_labels": []string{
+				"label1=value1",
+				"label2=value2",
+			},
+			"metrics_extra_filters": []string{
+				`{label3="value3"}`,
+				`{label4="value4"}`,
+			},
+			"logs_account_id": 345,
+			"logs_project_id": 456,
+			"logs_extra_filters": []string{
+				`{"namespace":"my-app","env":"prod"}`,
+			},
+			"logs_extra_stream_filters": []string{
+				`{"team":"dev"}`,
+			},
+		},
+	}, true)
+
+	// use claim for routing, must specific match wins
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedClaims)
+	responseExpected = `
+statusCode=200
+path: /dev/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.scopes.1: "logs"
+     nested.department_id: "0"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/dev
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
+
+	// use claim for routing, most specific not matching
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedClaims)
+	responseExpected = `
+statusCode=200
+path: /ops/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.scopes.1: "logs"
+     nested.department_id: "0"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/dev
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
+
+	// use claim for routing, empty claim match
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedClaims)
+	responseExpected = `
+statusCode=200
+path: /dev/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/dev
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
+
 }
 
 type fakeResponseWriter struct {

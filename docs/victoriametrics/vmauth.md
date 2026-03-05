@@ -279,6 +279,49 @@ JWT authentication cannot be combined with other auth methods (`bearer_token`, `
 
 Only one user with JWT authentication method is allowed at the moment. 
 
+#### JWT claim-based request routing
+
+`vmauth` can dynamically select auth section based on `match_claims`{{% available_from "#" %}} field. It allows to route requests based 
+on JWT token claims.
+
+Example: JWT token with security claims:
+```json
+{
+  "exp": 2770832322,
+  "vm_access": {},
+   "issuer": "development",
+   "security": {
+        "team": "dev",
+         "project": "accounting"
+    }
+}
+```
+
+ It's possible to use any of those fields at `match_claims` routing. Consider the following config example:
+```yaml
+users:
+- name: jwt-dev-ro
+  jwt:
+    match_claims:
+     issuer: development
+     security.team: "dev"
+    skip_verify: true
+  url_prefix:
+  - "http://vmsingle:8428/vmui"
+
+- name: jwt-dev-rw
+  jwt:
+    match_claims:
+     issuer: development
+     security.team: "ops"
+    skip_verify: true
+  url_prefix:
+  - "http://vmsingle:8428/"
+```
+
+ In this scenario, request will be routed into first section based on `security.team` match.
+
+
 #### JWT claim-based request templating
 
 `vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 

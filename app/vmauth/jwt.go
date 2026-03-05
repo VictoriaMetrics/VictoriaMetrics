@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -47,16 +48,27 @@ type jwtCache struct {
 }
 
 type JWTConfig struct {
-	PublicKeys     []string `yaml:"public_keys,omitempty"`
-	PublicKeyFiles []string `yaml:"public_key_files,omitempty"`
-	SkipVerify     bool     `yaml:"skip_verify,omitempty"`
+	PublicKeys     []string          `yaml:"public_keys,omitempty"`
+	PublicKeyFiles []string          `yaml:"public_key_files,omitempty"`
+	SkipVerify     bool              `yaml:"skip_verify,omitempty"`
+	MatchClaims    map[string]string `yaml:"match_claims,omitempty"`
+
+	// in order to perform claim matching by nested fields
+	// it's neeeded to split key by . in order to perform
+	// so matching claim:
+	// {"nested.key": "value"}
+	// transforms into:
+	// {"value": ["nested","key"]}
+	matchClaimKeysByValue map[string][]string
 
 	verifierPool *jwt.VerifierPool
 }
 
 func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 	jui := make([]*UserInfo, 0, len(ac.Users))
-	for _, ui := range ac.Users {
+	uniqClaims := make(map[string]*UserInfo)
+	var sortedClaims []string
+	for idx, ui := range ac.Users {
 		jwtToken := ui.JWT
 		if jwtToken == nil {
 			continue
@@ -68,7 +80,23 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify {
 			return nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files or have skip_verify=true")
 		}
+		var claimsString string
+		claimKeysByValue := make(map[string][]string, len(jwtToken.MatchClaims))
+		sortedClaims = sortedClaims[:0]
+		for ck, cv := range jwtToken.MatchClaims {
+			sortedClaims = append(sortedClaims, fmt.Sprintf("%s=%s", ck, cv))
+			// TODO: add check for escaping
+			// currently syntax for delimiter escaping \. is not supported
+			claimKeysByValue[cv] = strings.Split(ck, ".")
+		}
+		sort.Strings(sortedClaims)
+		claimsString = strings.Join(sortedClaims, ",")
 
+		if oldUI, ok := uniqClaims[claimsString]; ok {
+			return nil, fmt.Errorf("duplicate match claims=%q found for name=%q at idx=%d; the previous one is set for name=%q", claimsString, ui.Name, idx, oldUI.Name)
+		}
+		jwtToken.matchClaimKeysByValue = claimKeysByValue
+		uniqClaims[claimsString] = &ui
 		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
 			keys := make([]any, 0, len(jwtToken.PublicKeys)+len(jwtToken.PublicKeyFiles))
 
@@ -135,10 +163,11 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 		jui = append(jui, &ui)
 	}
 
-	// TODO: the limitation will be lifted once claim based matching will be implemented
-	if len(jui) > 1 {
-		return nil, fmt.Errorf("multiple users with JWT tokens are not supported; found %d users", len(jui))
-	}
+	// sort by amount of matching claims
+	// it allows to more specific claim win in case of clash
+	sort.Slice(jui, func(i, j int) bool {
+		return len(jui[i].JWT.MatchClaims) > len(jui[j].JWT.MatchClaims)
+	})
 
 	return jui, nil
 }
@@ -173,6 +202,9 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 		}
 
 		for _, ui := range js.users {
+			if !tkn.HasClaimKeysByValue(ui.JWT.matchClaimKeysByValue) {
+				continue
+			}
 			if ui.JWT.SkipVerify {
 				return ui, tkn
 			}
