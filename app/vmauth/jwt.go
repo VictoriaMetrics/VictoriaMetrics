@@ -63,7 +63,7 @@ type JWTConfig struct {
 	OIDC           *OIDCConfig `yaml:"oidc,omitempty"`
 
 	// verifierPool is used to verify JWT tokens.
-	// It is initialized from PublicKeys or\and PublicKeyFiles.
+	// It is initialized from PublicKeys and/or PublicKeyFiles.
 	// In this case, it is initialized once at config reload and never updated until next reload
 	// In case of OIDC, it is initialized on config reload and periodically updated by discovery process.
 	verifierPool atomic.Pointer[jwt.VerifierPool]
