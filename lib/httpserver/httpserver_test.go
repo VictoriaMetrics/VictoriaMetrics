@@ -144,6 +144,59 @@ func TestAuthKeyMetrics(t *testing.T) {
 	tstWithOutAuthKey("wrong", "wrong", 401)
 }
 
+func TestHandlerWrapperOptionsRequest(t *testing.T) {
+	handlerCalled := false
+	rh := func(_ http.ResponseWriter, _ *http.Request) bool {
+		handlerCalled = true
+		return true
+	}
+
+	f := func(t *testing.T, name string, corsDisabled bool, expectAllowOrigin bool) {
+		t.Helper()
+		handlerCalled = false
+
+		origDisableCORS := *disableCORS
+		*disableCORS = corsDisabled
+		defer func() {
+			*disableCORS = origDisableCORS
+		}()
+
+		req := httptest.NewRequest(http.MethodOptions, "/api/v1/query_range", nil)
+		w := httptest.NewRecorder()
+
+		handlerWrapper(w, req, rh)
+
+		res := w.Result()
+		_ = res.Body.Close()
+
+		if res.StatusCode != http.StatusNoContent {
+			t.Fatalf("%s: unexpected status code; got %d; want %d", name, res.StatusCode, http.StatusNoContent)
+		}
+		if handlerCalled {
+			t.Fatalf("%s: request handler must not be called for OPTIONS requests", name)
+		}
+		if got := res.Header.Get("Access-Control-Allow-Methods"); got != "*" {
+			t.Fatalf("%s: unexpected Access-Control-Allow-Methods; got %q; want %q", name, got, "*")
+		}
+		wantHeaders := "*"
+		if got := res.Header.Get("Access-Control-Allow-Headers"); got != wantHeaders {
+			t.Fatalf("%s: unexpected Access-Control-Allow-Headers; got %q; want %q", name, got, wantHeaders)
+		}
+		if expectAllowOrigin {
+			if got := res.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+				t.Fatalf("%s: unexpected Access-Control-Allow-Origin; got %q; want %q", name, got, "*")
+			}
+		} else {
+			if got := res.Header.Get("Access-Control-Allow-Origin"); got != "" {
+				t.Fatalf("%s: Access-Control-Allow-Origin must be empty when CORS is disabled; got %q", name, got)
+			}
+		}
+	}
+
+	f(t, "cors enabled", false, true)
+	f(t, "cors disabled", true, false)
+}
+
 func TestHandlerWrapper(t *testing.T) {
 	const hstsHeader = "foo"
 	const frameOptionsHeader = "bar"

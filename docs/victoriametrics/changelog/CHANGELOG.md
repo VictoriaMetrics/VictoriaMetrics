@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: all VictoriaMetrics components: implement proper CORS preflight handling by responding 204 No Content to HTTP OPTIONS requests. See [#5563](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5563).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `access_log` configuration option for each user that will log requests to stdout, and support filtering by HTTP status codes. See more in [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). See [#5936](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5936).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support negative values for the group `eval_offset` option, which allows starting group evaluation at `groupInterval-abs(eval_offset)` within `[0...groupInterval]`. See [#10424](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10424).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Disable `/graphite/tags/tagSeries` and `/graphite/tags/tagMultiSeries` for Graphite tag registration since it is unlikely it is used in context of VictoriaMetrics. See [10544](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544).
