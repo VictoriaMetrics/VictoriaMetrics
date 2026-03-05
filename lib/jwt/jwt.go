@@ -266,7 +266,6 @@ func (t *Token) HasClaimKeysByValue(keysByValue map[string][]string) bool {
 				}
 				continue
 			}
-			println("key miss")
 			return false
 		}
 		tcv := bytesutil.ToUnsafeString(gotV.GetStringBytes())
