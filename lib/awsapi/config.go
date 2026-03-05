@@ -1,6 +1,7 @@
 package awsapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -126,6 +127,30 @@ func (cfg *Config) GetEC2APIResponse(action, filtersQueryString, nextPageToken s
 		return nil, fmt.Errorf("cannot perform http request to %q: %w", apiURL, err)
 	}
 	return readResponseBody(resp, apiURL)
+}
+
+// GetECSAPIResponse performs an ECS JSON API request with the given action and body.
+//
+// See https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Operations.html
+func (cfg *Config) GetECSAPIResponse(ecsEndpoint, action string, body []byte) ([]byte, error) {
+	ac, err := cfg.getFreshAPICredentials()
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(http.MethodPost, ecsEndpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("cannot create ECS request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-amz-json-1.1")
+	req.Header.Set("X-Amz-Target", "AmazonEC2ContainerServiceV20141113."+action)
+	if err := signRequestWithTime(req, "ecs", cfg.region, HashHex(body), ac, time.Now().UTC()); err != nil {
+		return nil, fmt.Errorf("cannot sign ECS request: %w", err)
+	}
+	resp, err := cfg.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("cannot perform ECS request to %q: %w", ecsEndpoint, err)
+	}
+	return readResponseBody(resp, ecsEndpoint)
 }
 
 // SignRequest signs request for service access and payloadHash.
