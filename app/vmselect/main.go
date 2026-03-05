@@ -474,19 +474,23 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "graphite/tags/tagSeries":
 		graphiteTagsTagSeriesRequests.Inc()
-		if err := graphite.TagsTagSeriesHandler(startTime, at, w, r); err != nil {
-			graphiteTagsTagSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
+		err := &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("graphite tag registration has been disabled and is planned to be removed in future. " +
+				"See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544"),
+			StatusCode: http.StatusNotImplemented,
 		}
+		graphiteTagsTagSeriesErrors.Inc()
+		httpserver.Errorf(w, r, "%s", err)
 		return true
 	case "graphite/tags/tagMultiSeries":
 		graphiteTagsTagMultiSeriesRequests.Inc()
-		if err := graphite.TagsTagMultiSeriesHandler(startTime, at, w, r); err != nil {
-			graphiteTagsTagMultiSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
+		err := &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("graphite tag registration has been disabled and is planned to be removed in future. " +
+				"See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544"),
+			StatusCode: http.StatusNotImplemented,
 		}
+		graphiteTagsTagMultiSeriesErrors.Inc()
+		httpserver.Errorf(w, r, "%s", err)
 		return true
 	case "graphite/tags":
 		graphiteTagsRequests.Inc()
