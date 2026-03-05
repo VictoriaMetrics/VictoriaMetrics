@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `profile` option to `ec2_sd_configs` for loading credentials from named AWS profiles in `~/.aws/credentials` and `~/.aws/config`, including `source_profile` chaining and `role_arn` resolution. See [ec2_sd_configs docs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#ec2_sd_configs). Issue [#1685](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1685).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `access_log` configuration option for each user that will log requests to stdout, and support filtering by HTTP status codes. See more in [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). See [#5936](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5936).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support negative values for the group `eval_offset` option, which allows starting group evaluation at `groupInterval-abs(eval_offset)` within `[0...groupInterval]`. See [#10424](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10424).
 

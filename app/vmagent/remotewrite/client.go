@@ -290,7 +290,7 @@ func getAWSAPIConfig(argIdx int) (*awsapi.Config, error) {
 	accessKey := awsAccessKey.GetOptionalArg(argIdx)
 	secretKey := awsSecretKey.GetOptionalArg(argIdx)
 	service := awsService.GetOptionalArg(argIdx)
-	cfg, err := awsapi.NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service)
+	cfg, err := awsapi.NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service, "")
 	if err != nil {
 		return nil, err
 	}

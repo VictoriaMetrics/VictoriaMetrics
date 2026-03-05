@@ -648,6 +648,12 @@ scrape_configs:
     #
     # role_arn: "..."
 
+    # profile is an optional named AWS profile from ~/.aws/config and ~/.aws/credentials.
+    # When set, credentials and role_arn are resolved from the profile, with source_profile
+    # chaining supported. See https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html
+    #
+    # profile: "..."
+
     # port is an optional port to scrape metrics from.
     # By default, port 80 is used.
     #
