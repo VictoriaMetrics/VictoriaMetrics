@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -51,10 +52,12 @@ type jwtCache struct {
 }
 
 type JWTConfig struct {
-	PublicKeys     []string    `yaml:"public_keys,omitempty"`
-	PublicKeyFiles []string    `yaml:"public_key_files,omitempty"`
-	SkipVerify     bool        `yaml:"skip_verify,omitempty"`
-	OIDC           *oidcConfig `yaml:"oidc,omitempty"`
+	PublicKeys        []string          `yaml:"public_keys,omitempty"`
+	PublicKeyFiles    []string          `yaml:"public_key_files,omitempty"`
+	SkipVerify        bool              `yaml:"skip_verify,omitempty"`
+	OIDC              *oidcConfig       `yaml:"oidc,omitempty"`
+	MatchClaims       map[string]string `yaml:"match_claims,omitempty"`
+	parsedMatchClaims []*jwt.Claim
 
 	// verifierPool is used to verify JWT tokens.
 	// It is initialized from PublicKeys and/or PublicKeyFiles.
@@ -67,7 +70,9 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 	jui := make([]*UserInfo, 0, len(ac.Users))
 	oidcDP := &oidcDiscovererPool{}
 
-	for _, ui := range ac.Users {
+	uniqClaims := make(map[string]*UserInfo)
+	var sortedClaims []string
+	for idx, ui := range ac.Users {
 		jwtToken := ui.JWT
 		if jwtToken == nil {
 			continue
@@ -79,7 +84,21 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify && jwtToken.OIDC == nil {
 			return nil, nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files, oidc or have skip_verify=true")
 		}
+		var claimsString string
+		sortedClaims = sortedClaims[:0]
+		parsedClaims := make([]*jwt.Claim, 0, len(jwtToken.MatchClaims))
+		for ck, cv := range jwtToken.MatchClaims {
+			sortedClaims = append(sortedClaims, fmt.Sprintf("%s=%s", ck, cv))
+			parsedClaims = append(parsedClaims, jwt.NewClaim(ck, cv))
+		}
+		ui.JWT.parsedMatchClaims = parsedClaims
+		sort.Strings(sortedClaims)
+		claimsString = strings.Join(sortedClaims, ",")
 
+		if oldUI, ok := uniqClaims[claimsString]; ok {
+			return nil, nil, fmt.Errorf("duplicate match claims=%q found for name=%q at idx=%d; the previous one is set for name=%q", claimsString, ui.Name, idx, oldUI.Name)
+		}
+		uniqClaims[claimsString] = &ui
 		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
 			keys := make([]any, 0, len(jwtToken.PublicKeys)+len(jwtToken.PublicKeyFiles))
 
@@ -165,10 +184,11 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 		jui = append(jui, &ui)
 	}
 
-	// TODO: the limitation will be lifted once claim based matching will be implemented
-	if len(jui) > 1 {
-		return nil, nil, fmt.Errorf("multiple users with JWT tokens are not supported; found %d users", len(jui))
-	}
+	// sort by amount of matching claims
+	// it allows to more specific claim win in case of clash
+	sort.SliceStable(jui, func(i, j int) bool {
+		return len(jui[i].JWT.MatchClaims) > len(jui[j].JWT.MatchClaims)
+	})
 
 	return jui, oidcDP, nil
 }
@@ -229,6 +249,10 @@ func getJWTUserInfo(ats []string) (*UserInfo, *jwt.Token) {
 
 func getUserInfoByJWTToken(tkn *jwt.Token, users []*UserInfo) *UserInfo {
 	for _, ui := range users {
+		if !tkn.MatchClaims(ui.JWT.parsedMatchClaims) {
+			continue
+		}
+
 		if ui.JWT.SkipVerify {
 			return ui
 		}
@@ -263,7 +287,7 @@ func getUserInfoByJWTToken(tkn *jwt.Token, users []*UserInfo) *UserInfo {
 			if *logInvalidAuthTokens {
 				logger.Infof("cannot verify jwt token: %s", err)
 			}
-			continue
+			return nil
 		}
 
 		return ui
