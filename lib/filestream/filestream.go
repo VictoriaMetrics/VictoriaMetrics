@@ -292,11 +292,6 @@ func (w *Writer) Write(p []byte) (int, error) {
 //
 // if isSync is true, then the flushed data is fsynced to the underlying storage.
 func (w *Writer) MustFlush(isSync bool) {
-	startTime := time.Now()
-	defer func() {
-		d := time.Since(startTime).Seconds()
-		writeDuration.Add(d)
-	}()
 	if err := w.bw.Flush(); err != nil {
 		logger.Panicf("FATAL: cannot flush buffered data to file %q: %s", w.f.Name(), err)
 	}
