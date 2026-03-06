@@ -1295,7 +1295,7 @@ func TestOIDCRequestHandler(t *testing.T) {
 	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
 
 	bodyJSON, err := json.Marshal(map[string]any{
-		"exp":       9999999999,
+		"exp":       time.Now().Add(time.Minute).Unix(),
 		"iss":       oidcSrv.URL,
 		"vm_access": map[string]any{},
 	})
