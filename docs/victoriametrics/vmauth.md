@@ -300,7 +300,7 @@ Claim names support dot-notation for traversal of nested JSON objects
 (a simplified JSONPath-style approach), for example `vm_access.metrics_account_id` matches `{"vm_access": {"metrics_account_id": 1}}` and
 `security.permissions.0.read` matches `{"security": {"permissions": [{"read": 1}]}}.
 Claim names must point to a **leaf value**. The only supported leaf values are string, integer, float and boolean. Any other leaf type
-treated as claim not matched.
+is treated as not matched.
 All configured claims must match exactly.
 
 For example, the following config routes requests based on the `role` claim in the JWT token:
