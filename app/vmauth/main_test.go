@@ -1292,8 +1292,8 @@ users:
 - jwt:
     skip_verify: true
     match_claims:
-     team: ops
-     nested.team_permissions.write: "1"
+     team: dev
+     nested.scopes.1: "logs"
   url_map:
     - src_paths: ["/route"]
       url_prefix: {BACKEND}/ops
