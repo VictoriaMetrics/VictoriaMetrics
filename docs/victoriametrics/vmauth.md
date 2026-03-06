@@ -409,7 +409,7 @@ users:
 ```
 
 Both users have one claim entry each, so if the token satisfies both,
-neither takes priority. Resolve this by adding the same match claim keys to the both users:
+neither takes priority. Resolve this by adding the same match claim keys to both users:
 
 ```yaml
 users:
