@@ -560,6 +560,35 @@ foo:1m_stdvar{abc="456",de="fg"} 0
   outputs: [stdvar]
 `, "1111")
 
+	// sum_series output
+	f([]string{`
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+foo{abc="456",de="fg"} 8
+`}, time.Minute, `bar:1m_sum_series 5
+foo:1m_sum_series 16.5
+`, `
+- interval: 1m
+  by: [__name__]
+  outputs: [sum_series]
+`, "1111")
+
+	// sum_series output with by label
+	f([]string{`
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+foo{abc="456",de="fg"} 8
+`}, time.Minute, `bar:1m_by_abc_sum_series 5
+foo:1m_by_abc_sum_series{abc="123"} 8.5
+foo:1m_by_abc_sum_series{abc="456"} 8
+`, `
+- interval: 1m
+  by: [abc]
+  outputs: [sum_series]
+`, "1111")
+
 	// histogram_bucket output
 	f([]string{`
 cpu_usage{cpu="1"} 12.5
