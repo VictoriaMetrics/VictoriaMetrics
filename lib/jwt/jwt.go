@@ -300,6 +300,7 @@ func (t *Token) matchClaim(key, value string) bool {
 	bb := claimValuePool.Get()
 	b := bb.B[:0]
 	b = gotV.MarshalTo(b)
+	bb.B = b
 	equal := string(b) == value
 	claimValuePool.Put(bb)
 	return equal

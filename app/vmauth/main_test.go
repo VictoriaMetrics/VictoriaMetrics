@@ -1236,7 +1236,7 @@ users:
 		responseExpected,
 	)
 
-	nestedClaims := genToken(t, map[string]any{
+	nestedToken := genToken(t, map[string]any{
 		"exp":  time.Now().Add(10 * time.Minute).Unix(),
 		"team": "dev",
 		"nested": map[string]any{
@@ -1271,7 +1271,7 @@ users:
 
 	// use claim for routing, must specific match wins
 	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
-	request.Header.Set(`Authorization`, `Bearer `+nestedClaims)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
 	responseExpected = `
 statusCode=200
 path: /dev/route
@@ -1304,10 +1304,10 @@ users:
 
 	// use claim for routing, most specific not matching
 	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
-	request.Header.Set(`Authorization`, `Bearer `+nestedClaims)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
 	responseExpected = `
 statusCode=200
-path: /ops/route
+path: /dev/route
 query:
 headers:
 `
@@ -1316,7 +1316,7 @@ users:
 - jwt:
     skip_verify: true
     match_claims:
-     team: ops
+     team: dev
      nested.scopes.1: "logs"
      nested.department_id: "0"
   url_map:
@@ -1325,7 +1325,7 @@ users:
 - jwt:
     skip_verify: true
     match_claims:
-     team: dev
+     team: ops
      nested.team_permissions.write: "1"
   url_map:
     - src_paths: ["/route"]
@@ -1337,10 +1337,10 @@ users:
 
 	// use claim for routing, empty claim match
 	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
-	request.Header.Set(`Authorization`, `Bearer `+nestedClaims)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
 	responseExpected = `
 statusCode=200
-path: /dev/route
+path: /empty/route
 query:
 headers:
 `
@@ -1350,7 +1350,7 @@ users:
     skip_verify: true
   url_map:
     - src_paths: ["/route"]
-      url_prefix: {BACKEND}/dev
+      url_prefix: {BACKEND}/empty
 - jwt:
     skip_verify: true
     match_claims:

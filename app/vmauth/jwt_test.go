@@ -204,13 +204,15 @@ users:
     skip_verify: true
     match_claims:
      team: ops
+  name: user-1
   url_prefix: http://foo.bar
 - jwt:
     skip_verify: true
     match_claims:
      team: ops
+  name: user-2
   url_prefix: http://foo.bar`,
-		"duplicate match claims=\"team=ops\" found for name=\"\" at idx=1; the previous one is set for name=\"\"",
+		"duplicate match claims=\"team=ops\" found for name=\"user-2\" at idx=1; the previous one is set for name=\"user-1\"",
 	)
 
 }

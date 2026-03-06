@@ -277,15 +277,13 @@ users:
 
 JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
 
-Only one user with JWT authentication method is allowed at the moment. 
-
 #### JWT claim-based request routing
 
 `vmauth` can route requests to different backends depending on the claims contained
 in the provided [JWT token](https://www.jwt.io/) based on `match_claims`{{% available_from "#" %}} field.
 
 
-This enables simple RBAC-style setups where tokens carrying different roles
+This enables RBAC-style setups where tokens carrying different roles
 (e.g. `admin`, `viewer`, `writer`) are mapped to different users — each with its own
 `url_prefix` or `url_map` configuration — all authenticated against the same public key.
 
@@ -301,7 +299,8 @@ signed with the configured public key.
 Claim names support dot-notation for traversal of nested JSON objects
 (a simplified JSONPath-style approach), for example `vm_access.metrics_account_id` matches `{"vm_access": {"metrics_account_id": 1}}` and
 `security.permissions.0.read` matches `{"security": {"permissions": [{"read": 1}]}}.
-Claim names must point to a **leaf value**.
+Claim names must point to a **leaf value**. The only supported leaf values are string, integer, float and boolean. Any other leaf type
+treated as claim not matched.
 All configured claims must match exactly.
 
 For example, the following config routes requests based on the `role` claim in the JWT token:
@@ -315,7 +314,6 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      iss: foo
       role: admin
   url_prefix: "http://victoria-metrics-admin:8428/"
 - jwt:
@@ -325,7 +323,6 @@ users:
       MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
       -----END PUBLIC KEY-----
     match_claims:
-      iss: foo
       role: viewer
   url_prefix: "http://victoria-metrics-readonly:8428/"
 ```
@@ -369,7 +366,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-#### Conflict resolution
+#### JWT claim-based request routing. Conflict resolution
 
 When multiple users have `match_claims` entries that all match the incoming token,
 `vmauth` selects the user whose `match_claims` map contains the **greatest number of entries**.
@@ -412,9 +409,22 @@ users:
 ```
 
 Both users have one claim entry each, so if the token satisfies both,
-neither takes priority. Resolve this by adding a shared discriminating claim
-(e.g. `iss`) to both users, or by combining the conditions into a single user
-with a `url_map`.
+neither takes priority. Resolve this by adding the same match claim keys to the both users:
+
+```yaml
+users:
+- jwt:
+    match_claims:
+      team: ops
+      role: foo
+  url_prefix: "http://backend-a:8428/"
+- jwt:
+    match_claims:
+      team: platform
+      role: admin
+  url_prefix: "http://backend-b:8428/"
+
+```
 
 JWT claim-based routing can be combined with
 [JWT claim-based request templating](/victoriametrics/vmauth/#jwt-claim-based-request-templating)
