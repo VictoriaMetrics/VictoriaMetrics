@@ -395,6 +395,9 @@ github.com/go-logr/stdr
 ## explicit; go 1.18
 github.com/go-viper/mapstructure/v2
 github.com/go-viper/mapstructure/v2/internal/errors
+# github.com/go-zookeeper/zk v1.0.4
+## explicit; go 1.13
+github.com/go-zookeeper/zk
 # github.com/gobwas/glob v0.2.3
 ## explicit
 github.com/gobwas/glob
