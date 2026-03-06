@@ -128,7 +128,7 @@ users:
     skip_verify: true
   url_prefix:
   - "http://vmselect1:8481/select/{{.MetricsTenant}}/prometheus"
-  - "http://vmselect2:8482/select/{{.MetricsTenant}}/prometheus"
+  - "http://vmselect2:8481/select/{{.MetricsTenant}}/prometheus"
 
 # Requests without Authorization header are proxied according to `unauthorized_user` section.
 # Requests are proxied in round-robin fashion between `url_prefix` backends.

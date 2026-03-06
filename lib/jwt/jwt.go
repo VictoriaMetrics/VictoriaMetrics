@@ -252,7 +252,7 @@ func (t *Token) Parse(src string, enforceAuthPrefix bool) error {
 // HasClaims checks if Token has all given claims
 //
 // claim key dot . used as a separator for nested keys lookup
-// For example, token claim key: audit.permissions.0 culd be used to access nested arrary at:
+// For example, token claim key: audit.permissions.0 could be used to access nested array at:
 // {"vm_access": {}, "audit": {"team": "dev", "access_modes": ["read","write","admin"], "permissions": [0,1,0] }}
 func (t *Token) HasClaims(claims map[string]string) bool {
 	for key, value := range claims {

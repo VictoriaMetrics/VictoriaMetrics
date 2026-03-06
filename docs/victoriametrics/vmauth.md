@@ -286,7 +286,7 @@ in the provided [JWT token](https://www.jwt.io/) based on `match_claims`{{% avai
 
 
 This enables simple RBAC-style setups where tokens carrying different roles
-(e.g. `admin`, `viewer`, `writer`) are mapped to different users — each with j own
+(e.g. `admin`, `viewer`, `writer`) are mapped to different users — each with its own
 `url_prefix` or `url_map` configuration — all authenticated against the same public key.
 
 Claim matching is configured via the `match_claims` field inside the `jwt` user section.
