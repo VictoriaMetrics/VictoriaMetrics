@@ -277,7 +277,33 @@ users:
 
 JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
 
-Only one user with JWT authentication method is allowed at the moment. 
+Only one user with JWT authentication method is allowed at the moment.
+
+#### OIDC Discovery
+
+Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "#" %}} 
+and rotate public keys from an [OpenID Connect (OIDC)](https://openid.net/connect/) provider via its [Discovery endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html).
+This is useful when integrating with identity providers such as Keycloak, Auth0, Okta, or Google.
+
+Set `oidc.issuer` to the base URL of the OIDC provider. `vmauth` will:
+1. Fetch `{issuer}/.well-known/openid-configuration` to discover the `jwks_uri`.
+2. Download the JSON Web Key Set (JWKS) from the `jwks_uri` to obtain the public keys used to verify JWT signatures.
+3. Automatically refresh the keys every 5 minutes to handle key rotation.
+
+JWT tokens must contain an `iss` claim that matches the configured `issuer` value exactly.
+
+```yaml
+users:
+- jwt:
+    oidc:
+      issuer: "https://your-identity-provider.example.com"
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+The `oidc` option cannot be combined with `public_keys`, `public_key_files`, or `skip_verify`.
+
+If the OIDC provider is temporarily unavailable during a key refresh, `vmauth` continues using the previously fetched keys until the next successful refresh.
+If no keys have been fetched yet (e.g., on startup when the provider is unreachable), the config section is skipped during authentication.
 
 #### JWT claim-based request templating
 
