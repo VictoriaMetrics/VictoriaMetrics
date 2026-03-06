@@ -10053,6 +10053,8 @@ func TestExecError(t *testing.T) {
 	f(`vector()`)
 	f(`histogram_quantile()`)
 	f(`histogram_quantiles()`)
+	f(`histogram_quantile(0.9, (label_set(10, "le", "0.5"), label_set(8, "le", "1"), label_set(20, "le", "+Inf")))`)
+	f(`histogram_share(0.6, (label_set(10, "le", "0.5"), label_set(8, "le", "1"), label_set(20, "le", "+Inf")))`)
 	f(`sum()`)
 	f(`count_values()`)
 	f(`quantile()`)
