@@ -249,14 +249,23 @@ func (t *Token) Parse(src string, enforceAuthPrefix bool) error {
 	return nil
 }
 
-// HasClaimKeysByValue checks if Token has all given claim nested keys by value
+// HasClaims checks if Token has all given claims
 //
-// For example, token claim and inverted value to keys match
-// token claim: {"vm_Access": {}, "audit": {"team": "dev", "access_modes": ["read","write","admin"], "permissions": [0,1,0] }}
-// keysByValue: {"0":["autid","permissions"], "dev": ["audit","team"]}
-func (t *Token) HasClaimKeysByValue(keysByValue map[string][]string) bool {
-	for value, keys := range keysByValue {
-		gotV := t.body.allClaims.Get(keys...)
+// claim key dot . used as a separator for nested keys lookup
+// For example, token claim key: audit.permissions.0 culd be used to access nested arrary at:
+// {"vm_access": {}, "audit": {"team": "dev", "access_modes": ["read","write","admin"], "permissions": [0,1,0] }}
+func (t *Token) HasClaims(claims map[string]string) bool {
+	for key, value := range claims {
+		var gotV *fastjson.Value
+		if idx := strings.Index(key, "."); idx > 0 {
+			// TODO: add check for escaping
+			// currently syntax for delimiter escaping \. is not supported
+			// and remove memory allocations if needed
+			gotV = t.body.allClaims.Get(strings.Split(key, ".")...)
+		} else {
+			// direct match
+			gotV = t.body.allClaims.Get(key)
+		}
 		if gotV == nil || gotV.Type() != fastjson.TypeString {
 			if gotV != nil {
 				// TODO: remove allocations

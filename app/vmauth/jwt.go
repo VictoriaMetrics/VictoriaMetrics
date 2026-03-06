@@ -53,14 +53,6 @@ type JWTConfig struct {
 	SkipVerify     bool              `yaml:"skip_verify,omitempty"`
 	MatchClaims    map[string]string `yaml:"match_claims,omitempty"`
 
-	// in order to perform claim matching by nested fields
-	// it's neeeded to split key by . in order to perform
-	// so matching claim:
-	// {"nested.key": "value"}
-	// transforms into:
-	// {"value": ["nested","key"]}
-	matchClaimKeysByValue map[string][]string
-
 	verifierPool *jwt.VerifierPool
 }
 
@@ -81,13 +73,9 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 			return nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files or have skip_verify=true")
 		}
 		var claimsString string
-		claimKeysByValue := make(map[string][]string, len(jwtToken.MatchClaims))
 		sortedClaims = sortedClaims[:0]
 		for ck, cv := range jwtToken.MatchClaims {
 			sortedClaims = append(sortedClaims, fmt.Sprintf("%s=%s", ck, cv))
-			// TODO: add check for escaping
-			// currently syntax for delimiter escaping \. is not supported
-			claimKeysByValue[cv] = strings.Split(ck, ".")
 		}
 		sort.Strings(sortedClaims)
 		claimsString = strings.Join(sortedClaims, ",")
@@ -95,7 +83,6 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 		if oldUI, ok := uniqClaims[claimsString]; ok {
 			return nil, fmt.Errorf("duplicate match claims=%q found for name=%q at idx=%d; the previous one is set for name=%q", claimsString, ui.Name, idx, oldUI.Name)
 		}
-		jwtToken.matchClaimKeysByValue = claimKeysByValue
 		uniqClaims[claimsString] = &ui
 		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
 			keys := make([]any, 0, len(jwtToken.PublicKeys)+len(jwtToken.PublicKeyFiles))
@@ -165,7 +152,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 
 	// sort by amount of matching claims
 	// it allows to more specific claim win in case of clash
-	sort.Slice(jui, func(i, j int) bool {
+	sort.SliceStable(jui, func(i, j int) bool {
 		return len(jui[i].JWT.MatchClaims) > len(jui[j].JWT.MatchClaims)
 	})
 
@@ -202,7 +189,7 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 		}
 
 		for _, ui := range js.users {
-			if !tkn.HasClaimKeysByValue(ui.JWT.matchClaimKeysByValue) {
+			if !tkn.HasClaims(ui.JWT.MatchClaims) {
 				continue
 			}
 			if ui.JWT.SkipVerify {
