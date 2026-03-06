@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 	"github.com/valyala/fastrand"
 )
 
 func BenchmarkAddMulti(b *testing.B) {
 	for _, itemsCount := range []int{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7} {
 		start := uint64(time.Now().UnixNano())
-		sa := createRangeSet(start, itemsCount)
-		a := sa.AppendTo(nil)
+		a := createRangeSet(start, itemsCount).ToArray()
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			benchmarkAddMulti(b, a)
 		})
@@ -22,8 +22,7 @@ func BenchmarkAddMulti(b *testing.B) {
 func BenchmarkAdd(b *testing.B) {
 	for _, itemsCount := range []int{1e3, 1e4, 1e5, 1e6, 1e7} {
 		start := uint64(time.Now().UnixNano())
-		sa := createRangeSet(start, itemsCount)
-		a := sa.AppendTo(nil)
+		a := createRangeSet(start, itemsCount).ToArray()
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			benchmarkAdd(b, a)
 		})
@@ -68,7 +67,7 @@ func benchmarkAdd(b *testing.B, a []uint64) {
 	b.SetBytes(int64(len(a)))
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			var s Set
+			s := roaring64.New()
 			for _, x := range a {
 				s.Add(x)
 			}
@@ -81,26 +80,26 @@ func benchmarkAddMulti(b *testing.B, a []uint64) {
 	b.SetBytes(int64(len(a)))
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			var s Set
+			s := roaring64.New()
 			n := 0
 			for n < len(a) {
 				m := min(n+64, len(a))
-				s.AddMulti(a[n:m])
+				s.AddMany(a[n:m])
 				n = m
 			}
 		}
 	})
 }
 
-func benchmarkUnion(b *testing.B, sa, sb *Set) {
+func benchmarkUnion(b *testing.B, sa, sb *roaring64.Bitmap) {
 	b.ReportAllocs()
-	b.SetBytes(int64(sa.Len() + sb.Len()))
+	b.SetBytes(int64(sa.Stats().Cardinality + sb.Stats().Cardinality))
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			saCopy := sa.Clone()
 			sbCopy := sb.Clone()
-			saCopy.Union(sb)
-			sbCopy.Union(sa)
+			saCopy.Or(sb)
+			sbCopy.Or(sa)
 		}
 	})
 }
@@ -138,15 +137,15 @@ func BenchmarkIntersectFullOverlap(b *testing.B) {
 	}
 }
 
-func benchmarkIntersect(b *testing.B, sa, sb *Set) {
+func benchmarkIntersect(b *testing.B, sa, sb *roaring64.Bitmap) {
 	b.ReportAllocs()
-	b.SetBytes(int64(sa.Len() + sb.Len()))
+	b.SetBytes(int64(sa.Stats().Cardinality + sb.Stats().Cardinality))
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			saCopy := sa.Clone()
 			sbCopy := sb.Clone()
-			saCopy.Intersect(sb)
-			sbCopy.Intersect(sa)
+			saCopy.And(sb)
+			sbCopy.And(sa)
 		}
 	})
 }
@@ -156,10 +155,10 @@ func BenchmarkSubtract(b *testing.B) {
 		sa := createRangeSet(startA, int(itemsCountA))
 		sb := createRangeSet(startB, int(itemsCountB))
 		b.ReportAllocs()
-		b.SetBytes(int64(sa.Len() + sb.Len()))
+		b.SetBytes(int64(sa.Stats().Cardinality + sb.Stats().Cardinality))
 		for b.Loop() {
 			saCopy := sa.Clone()
-			saCopy.Subtract(sb)
+			saCopy.AndNot(sb)
 		}
 	}
 
@@ -211,13 +210,13 @@ func BenchmarkSubtract(b *testing.B) {
 	}
 }
 
-func createRangeSet(start uint64, itemsCount int) *Set {
-	var s Set
+func createRangeSet(start uint64, itemsCount int) *roaring64.Bitmap {
+	s := roaring64.New()
 	for i := range itemsCount {
 		n := start + uint64(i)
 		s.Add(n)
 	}
-	return &s
+	return s
 }
 
 func BenchmarkSetAddRandomLastBits(b *testing.B) {
@@ -231,7 +230,7 @@ func BenchmarkSetAddRandomLastBits(b *testing.B) {
 				var rng fastrand.RNG
 				for pb.Next() {
 					start := uint64(time.Now().UnixNano())
-					var s Set
+					s := roaring64.New()
 					for range int(itemsCount) {
 						n := start | (uint64(rng.Uint32()) & mask)
 						s.Add(n)
@@ -273,7 +272,7 @@ func BenchmarkSetAddWithAllocs(b *testing.B) {
 				for pb.Next() {
 					start := uint64(time.Now().UnixNano())
 					end := start + itemsCount
-					var s Set
+					s := roaring64.New()
 					n := start
 					for n < end {
 						s.Add(n)
@@ -357,13 +356,13 @@ func BenchmarkSetHasHitRandomLastBits(b *testing.B) {
 		mask := (uint64(1) << lastBits) - 1
 		b.Run(fmt.Sprintf("lastBits_%d", lastBits), func(b *testing.B) {
 			start := uint64(time.Now().UnixNano())
-			var s Set
+			s := roaring64.New()
 			var rng fastrand.RNG
 			for range int(itemsCount) {
 				n := start | (uint64(rng.Uint32()) & mask)
 				s.Add(n)
 			}
-			a := s.AppendTo(nil)
+			a := s.ToArray()
 
 			b.ResetTimer()
 			b.ReportAllocs()
@@ -371,7 +370,7 @@ func BenchmarkSetHasHitRandomLastBits(b *testing.B) {
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
 					for _, n := range a {
-						if !s.Has(n) {
+						if !s.Contains(n) {
 							panic("unexpected miss")
 						}
 					}
@@ -415,7 +414,7 @@ func BenchmarkSetHasHit(b *testing.B) {
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			start := uint64(time.Now().UnixNano())
 			end := start + itemsCount
-			var s Set
+			s := roaring64.New()
 			n := start
 			for n < end {
 				s.Add(n)
@@ -429,7 +428,7 @@ func BenchmarkSetHasHit(b *testing.B) {
 				for pb.Next() {
 					n := start
 					for n < end {
-						if !s.Has(n) {
+						if !s.Contains(n) {
 							panic("unexpected miss")
 						}
 						n++
@@ -475,7 +474,7 @@ func BenchmarkSetHasMiss(b *testing.B) {
 		b.Run(fmt.Sprintf("items_%d", itemsCount), func(b *testing.B) {
 			start := uint64(time.Now().UnixNano())
 			end := start + itemsCount
-			var s Set
+			s := roaring64.New()
 			n := start
 			for n < end {
 				s.Add(n)
@@ -490,7 +489,7 @@ func BenchmarkSetHasMiss(b *testing.B) {
 					n := end
 					nEnd := end + itemsCount
 					for n < nEnd {
-						if s.Has(n) {
+						if s.Contains(n) {
 							panic("unexpected hit")
 						}
 						n++
@@ -529,5 +528,64 @@ func BenchmarkMapHasMiss(b *testing.B) {
 				}
 			})
 		})
+	}
+}
+
+func BenchmarkSizeBytes_uint64slice(b *testing.B) {
+	benchmarkSizeBytes(b, func(start, n, step uint64) uint64 {
+		s := []uint64{}
+		for i := range n {
+			v := start + i*step
+			s = append(s, v)
+		}
+		return uint64(len(s) * 8)
+	})
+}
+
+func BenchmarkSizeBytes_uint64set(b *testing.B) {
+	benchmarkSizeBytes(b, func(start, n, step uint64) uint64 {
+		s := &Set{}
+		for i := range n {
+			v := start + i*step
+			s.Add(v)
+		}
+		return s.SizeBytes()
+	})
+}
+
+func BenchmarkSizeBytes_roaring(b *testing.B) {
+	benchmarkSizeBytes(b, func(start, n, step uint64) uint64 {
+		s := roaring64.New()
+		for i := range n {
+			v := start + i*step
+			s.Add(v)
+		}
+		stats := s.Stats()
+		sizeBytes := stats.ArrayContainerBytes
+		sizeBytes += stats.BitmapContainerBytes
+		sizeBytes += stats.RunContainerBytes
+		return sizeBytes
+	})
+}
+
+func benchmarkSizeBytes(b *testing.B, sizeBytesFunc func(start, n, step uint64) uint64) {
+	f := func(b *testing.B, n, step uint64) {
+		start := uint64(time.Now().UnixNano())
+		var sizeBytes uint64
+		for b.Loop() {
+			sizeBytes = sizeBytesFunc(start, n, step)
+		}
+
+		b.ReportAllocs()
+		b.ReportMetric(float64(sizeBytes), "bytes")
+	}
+
+	for _, n := range []uint64{15_000_000} {
+		for _, step := range []uint64{1, 10, 100, 1e3, 1e4, 1e5, 1e6} {
+			name := fmt.Sprintf("%d/%d", n, step)
+			b.Run(name, func(b *testing.B) {
+				f(b, n, step)
+			})
+		}
 	}
 }
