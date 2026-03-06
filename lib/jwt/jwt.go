@@ -112,6 +112,10 @@ type body struct {
 
 	// claimsParser holds optional parser for `vm_access` string representation
 	claimsParser *fastjson.Parser
+
+	// vmAccessClaimObject holds vm_access fields in case of source field
+	// was a string and it cannot be accessed directly via allClaims
+	vmAccessClaimObject *fastjson.Value
 }
 
 func (b *body) parse(src string) error {
@@ -158,6 +162,7 @@ func (b *body) parse(src string) error {
 		if err := b.vmAccessClaim.parseFrom(va); err != nil {
 			return fmt.Errorf("cannot parse `vm_access` values from string json: %w", err)
 		}
+		b.vmAccessClaimObject = va
 	case fastjson.TypeNull:
 		return ErrVMAccessFieldMissing
 	default:
@@ -210,6 +215,9 @@ func (b *body) reset() {
 		parserPool.Put(b.claimsParser)
 		b.claimsParser = nil
 	}
+	if b.vmAccessClaimObject != nil {
+		b.vmAccessClaimObject = nil
+	}
 
 }
 
@@ -249,40 +257,84 @@ func (t *Token) Parse(src string, enforceAuthPrefix bool) error {
 	return nil
 }
 
-// HasClaims checks if Token has all given claims
+// MatchClaims checks if Token has all given claims
 //
 // claim key dot . used as a separator for nested keys lookup
 // For example, token claim key: audit.permissions.0 could be used to access nested array at:
 // {"vm_access": {}, "audit": {"team": "dev", "access_modes": ["read","write","admin"], "permissions": [0,1,0] }}
-func (t *Token) HasClaims(claims map[string]string) bool {
+func (t *Token) MatchClaims(claims map[string]string) bool {
 	for key, value := range claims {
-		var gotV *fastjson.Value
-		if idx := strings.Index(key, "."); idx > 0 {
-			// TODO: add check for escaping
-			// currently syntax for delimiter escaping \. is not supported
-			// and remove memory allocations if needed
-			gotV = t.body.allClaims.Get(strings.Split(key, ".")...)
-		} else {
-			// direct match
-			gotV = t.body.allClaims.Get(key)
-		}
-		if gotV == nil || gotV.Type() != fastjson.TypeString {
-			if gotV != nil {
-				// TODO: remove allocations
-				s := gotV.MarshalTo(nil)
-				if string(s) != value {
-					return false
-				}
-				continue
-			}
-			return false
-		}
-		tcv := bytesutil.ToUnsafeString(gotV.GetStringBytes())
-		if tcv != value {
+		if !t.matchClaim(key, value) {
 			return false
 		}
 	}
 	return true
+}
+
+func (t *Token) matchClaim(key, value string) bool {
+	var gotV *fastjson.Value
+	if key == "scope" {
+		// special case, scope could be both string and []string
+		return value == t.body.Scope
+	}
+	if idx := strings.Index(key, "."); idx > 0 {
+		keys := splitNestedClaimKey(key)
+		if keys[0] == "vm_access" && t.body.vmAccessClaimObject != nil {
+			// fall back to object match for vm_access claim
+			keys = keys[1:]
+			gotV = t.body.vmAccessClaimObject.Get(keys...)
+		} else {
+			gotV = t.body.allClaims.Get(keys...)
+		}
+	} else {
+		// direct match
+		gotV = t.body.allClaims.Get(key)
+	}
+	if gotV == nil || gotV.Type() == fastjson.TypeArray || gotV.Type() == fastjson.TypeObject {
+		// key not found or has complex structure
+		return false
+	}
+	if gotV.Type() == fastjson.TypeString {
+		return bytesutil.ToUnsafeString(gotV.GetStringBytes()) == value
+	}
+	bb := claimValuePool.Get()
+	b := bb.B[:0]
+	b = gotV.MarshalTo(b)
+	equal := string(b) == value
+	claimValuePool.Put(bb)
+	return equal
+}
+
+var claimValuePool bytesutil.ByteBufferPool
+
+func splitNestedClaimKey(key string) []string {
+	var keys []string
+	// TODO: remove memory allocations for escaping
+	var unescapedKey string
+	for {
+		idx := strings.IndexByte(key, '.')
+		if idx <= 0 {
+			if len(unescapedKey) > 0 {
+				key = unescapedKey + key
+			}
+			keys = append(keys, key)
+			return keys
+		}
+		if key[idx-1] == '\\' {
+			unescapedKey += key[:idx-1] + "."
+			key = key[idx+1:]
+			continue
+		}
+		if len(unescapedKey) > 0 {
+			unescapedKey += key[:idx]
+			keys = append(keys, unescapedKey)
+			key = key[idx+1:]
+			unescapedKey = ""
+			continue
+		}
+		keys = append(keys, key[:idx])
+		key = key[idx+1:]
+	}
 }
 
 // VMAccess return a reference to the VMAccessClaim

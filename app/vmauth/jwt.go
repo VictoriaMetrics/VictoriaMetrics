@@ -189,7 +189,7 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 		}
 
 		for _, ui := range js.users {
-			if !tkn.HasClaims(ui.JWT.MatchClaims) {
+			if !tkn.MatchClaims(ui.JWT.MatchClaims) {
 				continue
 			}
 			if ui.JWT.SkipVerify {
