@@ -114,7 +114,7 @@ Once Keycloak is available, follow the steps below to configure the OIDC client 
    ![Create mapper 3](create-mapper-3.webp)
    Click `Save`.<br>
 
-### Create user
+### Create users
 
 1. Go to `Realm settings` -> `User profile`.<br>
    Click `Create attribute`.<br>
@@ -133,7 +133,8 @@ Once Keycloak is available, follow the steps below to configure the OIDC client 
    Set `New password` to `testpass` and click `Set password`.<brs
 
 1. Go to `Users` -> `admin` user.<br>
-   Make sure the user has an email address set and it is verified.<br>
+   Specify `admin@example.com` as `Email`.<br>
+   Mark email verified.<br>
    Specify `vm_acess` as `{"metrics_account_id": 1, "metrics_project_id": 2, "metrics_extra_labels": ["team=admin"]}`.<br>
    Click `Save`.
 
@@ -150,14 +151,25 @@ Gather the following information needed to configure Grafana:
 Test that everything is working by requesting a token using `curl`:
 
 ```sh
-TOKEN=$(curl -s -X POST "http://keycloak:3001/realms/master/protocol/openid-connect/token" \
+TOKEN=$(curl --fail -s -X POST "http://keycloak:3001/realms/master/protocol/openid-connect/token" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     -d "client_id=grafana" \
     -d "client_secret={CLIENT_SECRET}" \
     -d "grant_type=password" \
-    -d "username=dev" \
+    -d "username=test-dev" \
     -d "password=testpass" | jq -r '.access_token') && echo $TOKEN
 ```
+
+<!--
+fish example:
+set TOKEN (curl --fail -s -X POST "http://keycloak:3001/realms/master/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=grafana" \
+  -d "client_secret={CLIENT_SECRET}" \
+  -d "grant_type=password" \
+  -d "username=test-dev" \
+  -d "password=testpass" | jq -r '.access_token'); and echo $TOKEN
+-->
 
 The response should contain a valid JWT token with `vm_access` claim. 
 Use [jwt.io](https://jwt.io/) to decode and inspect the token.
@@ -261,23 +273,10 @@ For single-node access, we will use `{{vm_extra_label}}`.
 
 ```yaml
 # auth.yaml
-# todo: not supported yet
-#oidc:
-#  realms:
-#    - name: keycloak
-#      issuer_url: http://keycloak:3001/realms/master
-#      # It's recommended to enable discovery in production
-#      skip_discovery: true
 users:
   - jwt:
-      # todo: oidc public key discovery not supported yet.
-      # let's disable signature verification for testing purposes, but it should be enabled before merging.
-      skip_verify: true
-      # todo: claim matching not supported yet
-      # The value should match "aud" claim from JWT token
-      # Use oidc.claims.client_id to change the claim used as client ID
-      #      client_id: account
-      #      realm: keycloak
+      oidc:
+        issuer: 'http://keycloak:3001/realms/master'
     url_map:
       - src_paths:
           - "/insert/.*"
@@ -299,7 +298,7 @@ Now add the vmauth service to `compose.yaml`:
 # compose.yaml
 services:
   vmauth:
-    image: docker.io/victoriametrics/vmauth:heads-vmauth-jwt-templating-0-gedc503233b
+    image: docker.io/victoriametrics/vmauth:heads-vmauth-jwt-oidc-0-g5b053c9bbb-dirty-c2e46287
     ports:
       - 8427:8427
     volumes:
@@ -307,47 +306,6 @@ services:
     command:
       - -auth.config=/auth.yaml
 ```
-
-### Signature verification
-
-It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-authorization) in vmauth.
-To do this using the OpenID Connect discovery endpoint, either set `skip_discovery: false` or configure `public_keys`, `public_key_files`, or `jwks_url`. For example:
-
-```yaml
-# vm-auth.yaml
-oidc:
-  realms:
-    - name: realm-1
-      issuer_url: http://keycloak:3001/realms/realm-1
-    - name: realm-2
-      issuer_url: http://keycloak:3001/realms/realm-2
-      skip_discovery: true
-      public_keys:
-        - |
-           -----BEGIN PUBLIC KEY-----
-           <public key 1 pem>
-           -----END PUBLIC KEY-----
-        - |
-           -----BEGIN PUBLIC KEY-----
-           <public key 2 pem>
-           -----END PUBLIC KEY-----
-    - name: realm-3
-      issuer_url: http://keycloak:3001/realms/realm-3
-      skip_discovery: true
-      public_key_files:
-        - /etc/public-key-1
-        - /etc/public-key-2
-    - name: realm-4
-      issuer_url: http://keycloak:3001/realms/realm-4
-      skip_discovery: true
-      jwks_url: http://keycloak:3001/realms/realm-4/protocol/openid-connect/certs
-```
-
-Each of the above realms provides token signature verification:
-- `realm-1` - automatically discovers JWKS URLs and downloads keys on vmauth start
-- `realm-2` - uses static public keys defined in `public_keys` for signature verification
-- `realm-3` - uses static public keys defined in `public_key_files` for signature verification
-- `realm-4` - uses `jwks_url` to download keys for signature verification
 
 ### Test vmauth
 
@@ -361,7 +319,7 @@ Use the token obtained in [Test identity provider](https://docs.victoriametrics.
 
 Cluster select:
 ```sh
-curl http://localhost:8427/select/api/v1/status/buildinfo -H "Authorization: Bearer ${TOKEN}"
+curl --fail http://localhost:8427/select/api/v1/status/buildinfo -H "Authorization: Bearer $TOKEN"
 
 # Output:
 # {"status":"success","data":{"version":"2.24.0"}}
@@ -369,7 +327,7 @@ curl http://localhost:8427/select/api/v1/status/buildinfo -H "Authorization: Bea
 
 Cluster insert:
 ```sh
-$curl http://localhost:8427/insert/api/v1/write -H "Authorization: Bearer ${TOKEN}" -i
+curl --fail http://localhost:8427/insert/api/v1/write -H "Authorization: Bearer $TOKEN" -i
 # Output
 # HTTP/1.1 204 No Content
 # ...
@@ -377,7 +335,7 @@ $curl http://localhost:8427/insert/api/v1/write -H "Authorization: Bearer ${TOKE
 
 Single:
 ```sh
-curl http://localhost:8427/single/api/v1/status/buildinfo -H "Authorization: Bearer ${TOKEN}"
+curl --fail http://localhost:8427/single/api/v1/status/buildinfo -H "Authorization: Bearer $TOKEN"
 
 # Output:
 # {"status":"success","data":{"version":"2.24.0"}}
@@ -404,7 +362,7 @@ services:
       GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: true
       GF_AUTH_GENERIC_OAUTH_NAME: keycloak
       GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
-      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: 
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: '{CLIENT_SECRET}'
       GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH: email
       GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH: username
       GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH: full_name
