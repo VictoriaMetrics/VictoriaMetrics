@@ -811,6 +811,11 @@ type remoteWriteCtx struct {
 	streamAggrKeepInput bool
 	streamAggrDropInput bool
 
+	// obfuscateLabels holds the label names whose values must be replaced with
+	// their SHA-256 hex digest before sending to the remote storage.
+	// It is populated from the -remoteWrite.obfuscatedLabels flag.
+	obfuscateLabels []string
+
 	pss        []*pendingSeries
 	pssNextIdx atomic.Uint64
 
@@ -892,10 +897,11 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 	}
 
 	rwctx := &remoteWriteCtx{
-		idx: argIdx,
-		fq:  fq,
-		c:   c,
-		pss: pss,
+		idx:             argIdx,
+		fq:              fq,
+		c:               c,
+		pss:             pss,
+		obfuscateLabels: parseObfuscatedLabels(argIdx),
 
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
@@ -1086,6 +1092,15 @@ func (rwctx *remoteWriteCtx) tryPushTimeSeriesInternal(tss []prompb.TimeSeries) 
 		v = tssPool.Get().(*[]prompb.TimeSeries)
 		tss = append(*v, tss...)
 		rctx.appendExtraLabels(tss, labelsGlobal)
+	}
+
+	if len(rwctx.obfuscateLabels) > 0 {
+		if rctx == nil {
+			rctx = getRelabelCtx()
+			v = tssPool.Get().(*[]prompb.TimeSeries)
+			tss = append(*v, tss...)
+		}
+		applyObfuscation(tss, rwctx.obfuscateLabels)
 	}
 
 	pss := rwctx.pss

@@ -289,14 +289,16 @@ flowchart TB
       H1 --> H2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
       H2 --> H3["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
       H3 --> H4[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
-      H4 --> H5[[push to <b>-remoteWrite.url</b>]]
+      H4 --> H5[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate label values</a><br><b>-remoteWrite.obfuscatedLabels</b>]
+      H5 --> H6[[push to <b>-remoteWrite.url</b>]]
 
       %% Right branch
       G --> R1[per-url <a href="https://docs.victoriametrics.com/victoriametrics/relabeling/">relabeling</a><br><b>-remoteWrite.urlRelabelConfig</b>]
       R1 --> R2[per-url <a href="https://docs.victoriametrics.com/victoriametrics/stream-aggregation">aggregation</a><br><b>-remoteWrite.streamAggr.config</b><br><b>-remoteWrite.streamAggr.dedupInterval</b>]
       R2 --> R3["per-url <a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#calculating-disk-space-for-persistence-queue">queue</a> (default: enabled)<br><b>-remoteWrite.disableOnDiskQueue</b>"]
       R3 --> R4[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#adding-labels-to-metrics">add extra labels</a><br><b>-remoteWrite.label</b>]
-      R4 --> R5[[push to <b>-remoteWrite.url</b>]]
+      R4 --> R5[<a href="https://docs.victoriametrics.com/victoriametrics/vmagent/#obfuscating-label-values">obfuscate label values</a><br><b>-remoteWrite.obfuscatedLabels</b>]
+      R5 --> R6[[push to <b>-remoteWrite.url</b>]]
 ```
 
 Scraping has additional settings that can be applied before samples are pushed to the processing pipeline above:
@@ -526,6 +528,28 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   ```sh
   /path/to/vmagent -remoteWrite.url=http://127.0.0.1:8428/api/v1/write?extra_label="env=prod"
   ```
+
+## Obfuscating label values
+
+`vmagent` can replace label values with their SHA-256 hex digest before sending metrics to a
+specific `-remoteWrite.url`. This is useful when forwarding data to third-party destinations that
+need metrics but should not see raw values of labels such as `instance`, `ip`, or `datacenter`.
+
+Use `-remoteWrite.obfuscatedLabels` to specify which labels to obfuscate per destination.
+Multiple label names must be separated by `^^`:
+
+```sh
+./vmagent \
+  -remoteWrite.url=http://<third-party-url> \
+  -remoteWrite.obfuscatedLabels='instance^^ip' \
+  -remoteWrite.url=http://<internal-url> \
+  -remoteWrite.obfuscatedLabels='datacenter'
+```
+
+Obfuscation runs after per-URL relabeling, stream aggregation, and extra-label injection — just
+before pushing data to the send queue.
+
+For more flexible label transformations see [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/).
 
 ## Automatically generated metrics
 

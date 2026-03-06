@@ -1,9 +1,12 @@
 package remotewrite
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +31,10 @@ var (
 	relabelConfigPaths = flagutil.NewArrayString("remoteWrite.urlRelabelConfig", "Optional path to relabel configs for the corresponding -remoteWrite.url. "+
 		"See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. "+
 		"See https://docs.victoriametrics.com/victoriametrics/relabeling/")
+	obfuscatedLabels = flagutil.NewArrayString("remoteWrite.obfuscatedLabels", "Optional list of labels whose values are replaced with their SHA-256 hashes "+
+		"before sending to the corresponding -remoteWrite.url. Useful for hiding sensitive label values such as instance names or IP addresses. "+
+		"Multiple labels per -remoteWrite.url must be delimited by '^^': -remoteWrite.obfuscatedLabels='instance^^ip,datacenter'. "+
+		"See also -remoteWrite.urlRelabelConfig")
 
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
@@ -314,6 +321,57 @@ func fixPromCompatibleNaming(labels []prompb.Label) {
 			label.Value = promrelabel.SanitizeMetricName(label.Value)
 		} else {
 			label.Name = promrelabel.SanitizeLabelName(label.Name)
+		}
+	}
+}
+
+// parseObfuscatedLabels returns the label names to obfuscate for the given -remoteWrite.url index.
+func parseObfuscatedLabels(argIdx int) []string {
+	arg := obfuscatedLabels.GetOptionalArg(argIdx)
+	if arg == "" {
+		return nil
+	}
+	parts := strings.Split(arg, "^^")
+	names := parts[:0]
+	for _, name := range parts {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// applyObfuscation replaces the values of labelNames labels in tss with their SHA-256 hex digests.
+// tss must be a shallow copy of the original slice so that reassigning ts.Labels is safe.
+func applyObfuscation(tss []prompb.TimeSeries, labelNames []string) {
+	if len(labelNames) == 0 {
+		return
+	}
+	for i := range tss {
+		ts := &tss[i]
+		var newLabels []prompb.Label
+		for j, label := range ts.Labels {
+			if !slices.Contains(labelNames, label.Name) {
+				if newLabels != nil {
+					newLabels = append(newLabels, label)
+				}
+				continue
+			}
+			if newLabels == nil {
+				newLabels = make([]prompb.Label, j, len(ts.Labels))
+				copy(newLabels, ts.Labels[:j])
+			}
+			h := sha256.Sum256([]byte(label.Value))
+			var hexBuf [64]byte
+			hex.Encode(hexBuf[:], h[:])
+			newLabels = append(newLabels, prompb.Label{
+				Name:  label.Name,
+				Value: string(hexBuf[:]),
+			})
+		}
+		if newLabels != nil {
+			ts.Labels = newLabels
 		}
 	}
 }

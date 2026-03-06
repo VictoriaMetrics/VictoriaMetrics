@@ -1,6 +1,8 @@
 package remotewrite
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"reflect"
 	"testing"
 
@@ -58,6 +60,59 @@ func TestAppendExtraLabels(t *testing.T) {
 	*usePromCompatibleNaming = true
 	f([]prompb.Label{{Name: "foo.bar", Value: "baz"}}, "up", `up{foo.bar="baz"}`)
 	*usePromCompatibleNaming = oldVal
+}
+
+func sha256hex(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
+}
+
+func TestApplyObfuscation(t *testing.T) {
+	f := func(labelNames []string, sTss, sExpTss string) {
+		t.Helper()
+		tss := parseSeries(sTss)
+		expTss := parseSeries(sExpTss)
+		applyObfuscation(tss, labelNames)
+		if !reflect.DeepEqual(tss, expTss) {
+			t.Fatalf("expected:\n%v\ngot:\n%v", expTss, tss)
+		}
+	}
+
+	f(nil, `up{instance="localhost:8428"}`, `up{instance="localhost:8428"}`)
+	f([]string{"instance"}, `up{instance="localhost:8428"}`,
+		`up{instance="`+sha256hex("localhost:8428")+`"}`)
+	f([]string{"instance", "ip"}, `up{instance="localhost",ip="10.0.0.1",env="prod"}`,
+		`up{instance="`+sha256hex("localhost")+`",ip="`+sha256hex("10.0.0.1")+`",env="prod"}`)
+	f([]string{"unknown"}, `up{instance="localhost:8428"}`, `up{instance="localhost:8428"}`)
+
+	// multiple time series
+	tss := []prompb.TimeSeries{
+		{Labels: []prompb.Label{{Name: "__name__", Value: "up"}, {Name: "instance", Value: "host1"}}},
+		{Labels: []prompb.Label{{Name: "__name__", Value: "up"}, {Name: "instance", Value: "host2"}}},
+	}
+	expTss := []prompb.TimeSeries{
+		{Labels: []prompb.Label{{Name: "__name__", Value: "up"}, {Name: "instance", Value: sha256hex("host1")}}},
+		{Labels: []prompb.Label{{Name: "__name__", Value: "up"}, {Name: "instance", Value: sha256hex("host2")}}},
+	}
+	applyObfuscation(tss, []string{"instance"})
+	if !reflect.DeepEqual(tss, expTss) {
+		t.Fatalf("expected:\n%v\ngot:\n%v", expTss, tss)
+	}
+}
+
+func TestApplyObfuscationIsolation(t *testing.T) {
+	original := []prompb.TimeSeries{
+		{Labels: []prompb.Label{{Name: "__name__", Value: "up"}, {Name: "instance", Value: "host1"}}},
+	}
+	shallow := append([]prompb.TimeSeries{}, original...)
+	applyObfuscation(shallow, []string{"instance"})
+
+	if original[0].Labels[1].Value != "host1" {
+		t.Fatalf("original was modified: got %q", original[0].Labels[1].Value)
+	}
+	if shallow[0].Labels[1].Value != sha256hex("host1") {
+		t.Fatalf("shallow copy was not obfuscated: got %q", shallow[0].Labels[1].Value)
+	}
 }
 
 func parseSeries(data string) []prompb.TimeSeries {
