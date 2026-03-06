@@ -21,6 +21,7 @@ func BenchmarkIfExpression(b *testing.B) {
 	}
 
 	bloomFilter := BloomFilter{}
+	bloomFilter.EnsureSize(maxLabels * 2)
 	for _, l := range labels {
 		bloomFilter.AddTokens([]string{l.Name, l.Value})
 	}
@@ -60,6 +61,12 @@ func BenchmarkIfExpression(b *testing.B) {
 		Name:  "__name__",
 		Value: "foo",
 	}
+	bloomFilter = BloomFilter{}
+	bloomFilter.EnsureSize(maxLabels * 2)
+	for _, l := range labels {
+		bloomFilter.AddTokens([]string{l.Name, l.Value})
+	}
+
 	b.Run("equal __name__: last", func(b *testing.B) {
 		ifExpr := `foo`
 		benchIfExpr(b, ifExpr, labels)
@@ -73,6 +80,11 @@ func BenchmarkIfExpression(b *testing.B) {
 		Name:  "__name__",
 		Value: "foo",
 	}
+	bloomFilter = BloomFilter{}
+	bloomFilter.EnsureSize(maxLabels * 2)
+	for _, l := range labels {
+		bloomFilter.AddTokens([]string{l.Name, l.Value})
+	}
 	b.Run("equal __name__: middle", func(b *testing.B) {
 		ifExpr := `foo`
 		benchIfExpr(b, ifExpr, labels)
@@ -85,6 +97,10 @@ func BenchmarkIfExpression(b *testing.B) {
 	labels[0] = prompb.Label{
 		Name:  "__name__",
 		Value: "foo",
+	}
+	bloomFilter.EnsureSize(maxLabels * 2)
+	for _, l := range labels {
+		bloomFilter.AddTokens([]string{l.Name, l.Value})
 	}
 	b.Run("equal __name__: first", func(b *testing.B) {
 		ifExpr := `foo`

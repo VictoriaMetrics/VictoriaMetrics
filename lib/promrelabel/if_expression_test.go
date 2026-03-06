@@ -171,6 +171,7 @@ func TestIfExpressionMatch(t *testing.T) {
 		}
 		labels := promutil.MustNewLabelsFromString(metricWithLabels)
 		bf := BloomFilter{}
+		bf.EnsureSize(len(labels.Labels) * 2)
 		tokens := getTokenSlice(len(labels.Labels) * 2)
 		for _, label := range labels.Labels {
 			tokens = append(tokens, label.Name, label.Value)
