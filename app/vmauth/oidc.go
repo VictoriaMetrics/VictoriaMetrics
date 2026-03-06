@@ -47,6 +47,7 @@ func (c *OIDCConfig) startDiscovery(vp *atomic.Pointer[jwt.VerifierPool]) {
 				if err := c.refreshVerifierPool(vp); err != nil {
 					t.Reset(time.Second * 10)
 					logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", c.Issuer, err)
+					continue
 				}
 				// OIDC may return Cache-Control header with max-age directive.
 				// It could be used as time range for next refresh.
@@ -169,7 +170,7 @@ func getOpenIDConfiguration(issuer string) (openidConfig, error) {
 }
 
 func parseJwksKeys(resp *jwksResponse) ([]any, error) {
-	keys := make(map[string]any)
+	keys := make([]any, 0)
 	for _, key := range resp.Keys {
 		if key.Kid == "" {
 			return nil, fmt.Errorf("jwks key without kid found")
@@ -193,10 +194,10 @@ func parseJwksKeys(resp *jwksResponse) ([]any, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode jwks key n: %w", err)
 			}
-			keys[key.Kid] = &rsa.PublicKey{
+			keys = append(keys, &rsa.PublicKey{
 				E: int(exp.Int64()),
 				N: big.NewInt(0).SetBytes(n),
-			}
+			})
 		case "EC":
 			if key.Crv == "" || key.X == "" || key.Y == "" {
 				return nil, fmt.Errorf("jwks key without crv or x or y found")
@@ -220,18 +221,13 @@ func parseJwksKeys(resp *jwksResponse) ([]any, error) {
 			default:
 				return nil, fmt.Errorf("unsupported jwks key crv %q found", key.Crv)
 			}
-			keys[key.Kid] = &ecdsa.PublicKey{
+			keys = append(keys, &ecdsa.PublicKey{
 				Curve: curve,
 				X:     big.NewInt(0).SetBytes(x),
 				Y:     big.NewInt(0).SetBytes(y),
-			}
+			})
 		}
 	}
 
-	keysValues := make([]any, 0)
-	for _, key := range keys {
-		keysValues = append(keysValues, key)
-	}
-
-	return keysValues, nil
+	return keys, nil
 }
