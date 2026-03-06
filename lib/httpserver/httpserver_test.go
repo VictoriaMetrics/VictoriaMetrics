@@ -144,6 +144,55 @@ func TestAuthKeyMetrics(t *testing.T) {
 	tstWithOutAuthKey("wrong", "wrong", 401)
 }
 
+func TestHandlerWrapperOptionsRequest(t *testing.T) {
+	handlerCalled := false
+	rh := func(_ http.ResponseWriter, _ *http.Request) bool {
+		handlerCalled = true
+		return true
+	}
+	headersToCheck := []string{"Access-Control-Allow-Origin", "Access-Control-Allow-Headers"}
+	f := func(t *testing.T, corsDisabled bool) {
+		t.Helper()
+		handlerCalled = false
+
+		origDisableCORS := *disableCORS
+		*disableCORS = corsDisabled
+		defer func() {
+			*disableCORS = origDisableCORS
+		}()
+
+		wantCORSHeaderValue := "*"
+		if corsDisabled {
+			wantCORSHeaderValue = ""
+		}
+		req := httptest.NewRequest(http.MethodOptions, "/api/v1/query_range", nil)
+		w := httptest.NewRecorder()
+
+		handlerWrapper(w, req, rh)
+
+		res := w.Result()
+		_ = res.Body.Close()
+
+		if res.StatusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code; (-%d;+%d)", http.StatusNoContent, res.StatusCode)
+		}
+		if handlerCalled {
+			t.Fatalf("request handler must not be called for OPTIONS requests")
+		}
+		for _, h := range headersToCheck {
+			got := res.Header.Get(h)
+			if wantCORSHeaderValue != got {
+				t.Fatalf("unexpected header: %s value: (-%s;+%s)", h, wantCORSHeaderValue, got)
+			}
+		}
+	}
+
+	// CORS disabled
+	f(t, false)
+	// CORS enabled
+	f(t, true)
+}
+
 func TestHandlerWrapper(t *testing.T) {
 	const hstsHeader = "foo"
 	const frameOptionsHeader = "bar"
