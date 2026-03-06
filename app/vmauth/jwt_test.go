@@ -39,14 +39,16 @@ XOtclIk1uhc03oL9nOQ=
 			}
 			return
 		}
-		users, err := parseJWTUsers(ac)
-		if err != nil {
-			if expErr != err.Error() {
-				t.Fatalf("unexpected error; got\n%q\nwant \n%q", err.Error(), expErr)
-			}
-			return
+		users, oidcDP, err := parseJWTUsers(ac)
+		if err == nil {
+			t.Fatalf("expecting non-nil error; got %v", users)
 		}
-		t.Fatalf("expecting non-nil error; got %v", users)
+		if expErr != err.Error() {
+			t.Fatalf("unexpected error; got\n%q\nwant \n%q", err.Error(), expErr)
+		}
+		if oidcDP != nil {
+			t.Fatalf("expecting nil oidcDP; got %v", oidcDP)
+		}
 	}
 
 	// unauthorized_user cannot be used with jwt
@@ -295,10 +297,12 @@ XOtclIk1uhc03oL9nOQ=
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		jui, err := parseJWTUsers(ac)
+		jui, oidcDP, err := parseJWTUsers(ac)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		oidcDP.startDiscovery()
+		defer oidcDP.stopDiscovery()
 
 		for _, ui := range jui {
 			if ui.JWT == nil {
