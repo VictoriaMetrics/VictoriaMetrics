@@ -969,7 +969,11 @@ func (tb *Table) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	}
 
 	flushToDiskDeadline := getFlushToDiskDeadline(pws, tb.flushInterval)
-	return tb.mustMergeIntoInmemoryPart(bsrs, flushToDiskDeadline)
+	pw := tb.mustMergeIntoInmemoryPart(bsrs, flushToDiskDeadline)
+	for _, srcPW := range pws {
+		srcPW.decRef()
+	}
+	return pw
 }
 
 func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
