@@ -1,0 +1,2819 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_VMINFINITY",
+      "label": "VMInfinity",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "yesoreyeram-infinity-datasource",
+      "pluginName": "Infinity"
+    }
+  ],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "12.3.3"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "yesoreyeram-infinity-datasource",
+      "name": "Infinity",
+      "version": "3.7.2"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "bolt",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Reset Filters",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/${__dashboard.uid}?var-match=__name__!=\"\"&&var-focus=&var-ds=$ds"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 12,
+      "panels": [
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 24,
+            "x": 0,
+            "y": 1
+          },
+          "id": 14,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). In case of problems, it is better to use `vmui`\r\n- Used `time picker` and takes the `to` and `from` dates. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day\r\n- An `Inner` join is used, so there may be fewer rows than specified in `Limited Entries`. Also, if the statistics between days show 0, the metric is `also deleted` :(\r\n",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.3.3",
+          "title": "Information",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 0,
+            "y": 5
+          },
+          "id": 9,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "- Identify and eliminate labels with frequently changed values to reduce their [cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)\r\n- Find unused time series and [drop entire metrics](https://docs.victoriametrics.com/victoriametrics/relabeling/)\r\n- Aggregate time series before they got ingested into the database via [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.3.3",
+          "title": "Metrics with a high number of series",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 12,
+            "y": 5
+          },
+          "id": 10,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "- Decrease the number of unique label values to reduce cardinality\r\n- Drop the label entirely via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)\r\n- For volatile label values (such as URL path, user session, etc.) consider printing them to the log file instead of adding to time series",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.3.3",
+          "title": "Labels with a high number of unique values",
+          "transparent": true,
+          "type": "text"
+        }
+      ],
+      "title": "Tips",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 24,
+      "panels": [],
+      "title": "Overview (${__to:date:YYYY-MM-DD})",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "${ds}"
+      },
+      "description": "Main panel, all other panels depend on it",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "For last day"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.01
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Today"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 0,
+        "y": 2
+      },
+      "id": 20,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "hide": false,
+          "parser": "jq-backend",
+          "refId": "A",
+          "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
+          "source": "url",
+          "type": "json",
+          "url": "/prometheus/api/v1/status/tsdb",
+          "url_options": {
+            "data": "",
+            "method": "GET",
+            "params": [
+              {
+                "key": "topN",
+                "value": "$topn"
+              },
+              {
+                "key": "match[]",
+                "value": "{$match}"
+              },
+              {
+                "key": "date",
+                "value": "${__to:date:YYYY-MM-DD}"
+              },
+              {
+                "key": "focusLabel",
+                "value": "$focus"
+              }
+            ]
+          }
+        },
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "hide": false,
+          "parser": "jq-backend",
+          "refId": "B",
+          "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
+          "source": "url",
+          "type": "json",
+          "url": "/prometheus/api/v1/status/tsdb",
+          "url_options": {
+            "data": "",
+            "method": "GET",
+            "params": [
+              {
+                "key": "topN",
+                "value": "$topn"
+              },
+              {
+                "key": "match[]",
+                "value": "{$match}"
+              },
+              {
+                "key": "date",
+                "value": "${__from:date:YYYY-MM-DD}"
+              },
+              {
+                "key": "focusLabel",
+                "value": "$focus"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Total Series",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "name",
+            "mode": "inner"
+          }
+        },
+        {
+          "disabled": true,
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByMetricName"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByMetricName"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "total A",
+                "total B"
+              ]
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "totalAB",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total A"
+                }
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "totalAB"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "total B": true,
+              "totalAB": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "total A": 0,
+              "total B": 2,
+              "totalAB": 3,
+              "totalAB / total B": 1
+            },
+            "renameByName": {
+              "total A": "Today",
+              "totalAB / total B": "For last day"
+            }
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false,
+            "tooltip": {
+              "placement": "auto"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Number of series"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Requests count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Last request"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeFromNow"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "from": 0,
+                      "result": {
+                        "index": 0,
+                        "text": "Never"
+                      },
+                      "to": 1614805200000
+                    },
+                    "type": "range"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": -1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=__name__=\"${__value.raw}\"&var-ds=$ds&var-focus="
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 450
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Share On Total"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "gauge",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SOT [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.001
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 21,
+        "x": 3,
+        "y": 2
+      },
+      "id": 22,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Number of series"
+          }
+        ]
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 20,
+          "refId": "A"
+        }
+      ],
+      "title": "Metric names with the highest number of series",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "name",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByMetricName"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByMetricName"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "all",
+            "type": "include"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value A"
+                }
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "cumulative": {
+              "field": "lastRequestTimestamp A",
+              "reducer": "sum"
+            },
+            "index": {
+              "asPercentile": false
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [
+                "value A",
+                "value B"
+              ],
+              "reducer": "diffperc"
+            },
+            "replaceFields": false,
+            "unary": {
+              "fieldName": "lastRequestTimestamp A",
+              "operator": "percent"
+            },
+            "window": {
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSize": 0.1,
+              "windowSizeMode": "percentage"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d%",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "1d"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "SOT",
+            "binary": {
+              "left": {
+                "fixed": ""
+              },
+              "right": {
+                "fixed": ""
+              }
+            },
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "shareOfTotal A",
+                "shareOfTotal B"
+              ],
+              "reducer": "diff"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "name",
+                "lastRequest A",
+                "requestsCount A",
+                "shareOfTotal A",
+                "value A",
+                "1d",
+                "1d%",
+                "SOT"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "lastRequestTimestamp": true,
+              "lastRequestTimestamp A": true,
+              "name": false,
+              "requestsCount A": false,
+              "totalSeries A": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "1d": 5,
+              "1d%": 6,
+              "lastRequest A": 4,
+              "lastRequestTimestamp A": 2,
+              "name": 0,
+              "requestsCount A": 3,
+              "shareOfTotal A": 7,
+              "value A": 1
+            },
+            "renameByName": {
+              "1d": "1d",
+              "1d%": "1d [%]",
+              "Range": "1d",
+              "SOT": "SOT [%]",
+              "diff": "SOT [%]",
+              "lastRequest A": "Last request",
+              "lastRequestTS": "Last request",
+              "lastRequestTimestamp": "",
+              "lastRequestTimestamp * 1000": "Last request",
+              "lastRequestTimestamp A": "",
+              "name": "Metric name",
+              "requestsCount": "Requests count",
+              "requestsCount A": "Requests count",
+              "shareOfTotal A": "Share On Total",
+              "shareOnTotal": "Share On Total",
+              "value": "Number of series",
+              "value A": "Number of series"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 0,
+        "y": 7
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "filters": [],
+          "format": "dataframe",
+          "global_query_id": "",
+          "hide": false,
+          "parser": "jq-backend",
+          "refId": "A",
+          "root_selector": ".statsCollectedRecordsTotal",
+          "source": "url",
+          "type": "json",
+          "url": "/prometheus/api/v1/status/metric_names_stats",
+          "url_options": {
+            "data": "",
+            "method": "GET",
+            "params": [
+              {
+                "key": "limit",
+                "value": "1"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Total metric names",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Number of series"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": -1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${__value.raw}!=\"\"&var-focus=${__value.raw}&var-ds=$ds"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Share Of Total"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "gauge",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SOT [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.0001
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Number of series"
+          }
+        ]
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 20,
+          "refId": "A"
+        }
+      ],
+      "title": "Labels with the highest number of series",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "name",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByLabelName"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByLabelName"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "all",
+            "type": "include"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value A"
+                }
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "cumulative": {
+              "field": "lastRequestTimestamp A",
+              "reducer": "sum"
+            },
+            "index": {
+              "asPercentile": false
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [
+                "value A",
+                "value B"
+              ],
+              "reducer": "diffperc"
+            },
+            "replaceFields": false,
+            "unary": {
+              "fieldName": "lastRequestTimestamp A",
+              "operator": "percent"
+            },
+            "window": {
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSize": 0.1,
+              "windowSizeMode": "percentage"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d%",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "1d"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "SOT",
+            "binary": {
+              "left": {
+                "fixed": ""
+              },
+              "right": {
+                "fixed": ""
+              }
+            },
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "shareOfTotal A",
+                "shareOfTotal B"
+              ],
+              "reducer": "diff"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "name",
+                "shareOfTotal A",
+                "value A",
+                "1d",
+                "1d%",
+                "SOT"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "lastRequestTimestamp": true,
+              "lastRequestTimestamp A": false,
+              "name": false,
+              "requestsCount A": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "1d": 6,
+              "1d%": 7,
+              "lastRequestTS": 5,
+              "lastRequestTimestamp A": 3,
+              "name": 0,
+              "requestsCount A": 4,
+              "test": 1,
+              "value A": 2
+            },
+            "renameByName": {
+              "1d": "1d",
+              "1d%": "1d [%]",
+              "Range": "1d",
+              "SOT": "SOT [%]",
+              "lastRequestTS": "Last request",
+              "lastRequestTimestamp": "",
+              "lastRequestTimestamp * 1000": "Last request",
+              "lastRequestTimestamp A": "",
+              "name": "Metric name",
+              "requestsCount": "Requests count",
+              "requestsCount A": "Requests count",
+              "shareOfTotal A": "Share Of Total",
+              "value": "Number of series",
+              "value A": "Number of series"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Number of series"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": -1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Share Of Total"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "gauge",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SOT [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.001
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${focus:text}=\"${__value.raw}\"&var-focus=&var-ds=$ds"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 24,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 16,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Number of series"
+          }
+        ]
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 20,
+          "refId": "A"
+        }
+      ],
+      "title": "Values for \"$focus\" label with the highest number of series",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "name",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByFocusLabelValue"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByFocusLabelValue"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "all",
+            "type": "include"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "lastRequestTS",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "lastRequestTimestamp A"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value A"
+                }
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "cumulative": {
+              "field": "lastRequestTimestamp A",
+              "reducer": "sum"
+            },
+            "index": {
+              "asPercentile": false
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [
+                "value A",
+                "value B"
+              ],
+              "reducer": "diffperc"
+            },
+            "replaceFields": false,
+            "unary": {
+              "fieldName": "lastRequestTimestamp A",
+              "operator": "percent"
+            },
+            "window": {
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSize": 0.1,
+              "windowSizeMode": "percentage"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d%",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "1d"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "SOT",
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "shareOfTotal A",
+                "shareOfTotal B"
+              ],
+              "reducer": "diff"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "name",
+                "shareOfTotal A",
+                "value A",
+                "1d",
+                "1d%",
+                "SOT"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "lastRequestTimestamp": true,
+              "lastRequestTimestamp A": false,
+              "name": false,
+              "requestsCount A": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "1d": 6,
+              "1d%": 7,
+              "lastRequestTS": 5,
+              "lastRequestTimestamp A": 3,
+              "name": 0,
+              "requestsCount A": 4,
+              "test": 1,
+              "value A": 2
+            },
+            "renameByName": {
+              "1d": "1d",
+              "1d%": "1d [%]",
+              "Range": "1d",
+              "SOT": "SOT [%]",
+              "lastRequestTS": "Last request",
+              "lastRequestTimestamp": "",
+              "lastRequestTimestamp * 1000": "Last request",
+              "lastRequestTimestamp A": "",
+              "name": "Metric name",
+              "requestsCount": "Requests count",
+              "requestsCount A": "Requests count",
+              "shareOfTotal A": "Share Of Total",
+              "value": "Number of series",
+              "value A": "Number of series"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Number of series"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": -1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Share Of Total"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "gauge",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SOT [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.001
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "labelName A"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom.viz",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "labelValue A"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom.viz",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${__data.fields[1]}=\"${__data.fields[2]}\"&var-ds=$ds&var-focus="
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 6,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Number of series"
+          }
+        ]
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 20,
+          "refId": "A"
+        }
+      ],
+      "title": "Label=value pairs with the highest number of series",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "name",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByLabelValuePair"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "seriesCountByLabelValuePair"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "all",
+            "type": "include"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value A"
+                }
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "cumulative": {
+              "field": "lastRequestTimestamp A",
+              "reducer": "sum"
+            },
+            "index": {
+              "asPercentile": false
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [
+                "value A",
+                "value B"
+              ],
+              "reducer": "diffperc"
+            },
+            "replaceFields": false,
+            "unary": {
+              "fieldName": "lastRequestTimestamp A",
+              "operator": "percent"
+            },
+            "window": {
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSize": 0.1,
+              "windowSizeMode": "percentage"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d%",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "1d"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "SOT",
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "shareOfTotal A",
+                "shareOfTotal B"
+              ],
+              "reducer": "diff"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "name",
+                "labelValue A",
+                "shareOfTotal A",
+                "value A",
+                "1d",
+                "1d%",
+                "SOT",
+                "labelName A"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "labelName A": false,
+              "labelValue A": false,
+              "lastRequestTimestamp": true,
+              "lastRequestTimestamp A": false,
+              "name": false,
+              "requestsCount A": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "1d": 4,
+              "1d%": 5,
+              "SOT": 7,
+              "labelName A": 1,
+              "labelValue A": 2,
+              "name": 0,
+              "shareOfTotal A": 6,
+              "value A": 3
+            },
+            "renameByName": {
+              "1d": "1d",
+              "1d%": "1d [%]",
+              "Range": "1d",
+              "SOT": "SOT [%]",
+              "lastRequestTS": "Last request",
+              "lastRequestTimestamp": "",
+              "lastRequestTimestamp * 1000": "Last request",
+              "lastRequestTimestamp A": "",
+              "name": "Metric name",
+              "requestsCount": "Requests count",
+              "requestsCount A": "Requests count",
+              "shareOfTotal A": "Share Of Total",
+              "value": "Number of series",
+              "value A": "Number of series"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Number of series"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d [%]"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": 0
+                    },
+                    {
+                      "color": "green",
+                      "value": -1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "select",
+                    "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=${__value.raw}!=\"\"&var-focus=${__value.raw}&var-ds=$ds"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "id": 27,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Number of series"
+          }
+        ]
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 20,
+          "refId": "A"
+        }
+      ],
+      "title": "Labels with the highest number of unique values",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "name",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "labelValueCountByLabelName"
+                  }
+                },
+                "fieldName": "type A"
+              },
+              {
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "labelValueCountByLabelName"
+                  }
+                },
+                "fieldName": "type B"
+              }
+            ],
+            "match": "all",
+            "type": "include"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value A"
+                }
+              },
+              "operator": "-",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "cumulative": {
+              "field": "lastRequestTimestamp A",
+              "reducer": "sum"
+            },
+            "index": {
+              "asPercentile": false
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [
+                "value A",
+                "value B"
+              ],
+              "reducer": "diffperc"
+            },
+            "replaceFields": false,
+            "unary": {
+              "fieldName": "lastRequestTimestamp A",
+              "operator": "percent"
+            },
+            "window": {
+              "reducer": "mean",
+              "windowAlignment": "trailing",
+              "windowSize": 0.1,
+              "windowSizeMode": "percentage"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "1d%",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "1d"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "value B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "name",
+                "value A",
+                "1d",
+                "1d%"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "lastRequestTimestamp": true,
+              "lastRequestTimestamp A": false,
+              "name": false,
+              "requestsCount A": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "1d": 6,
+              "1d%": 7,
+              "lastRequestTS": 5,
+              "lastRequestTimestamp A": 3,
+              "name": 0,
+              "requestsCount A": 4,
+              "test": 1,
+              "value A": 2
+            },
+            "renameByName": {
+              "1d": "1d",
+              "1d%": "1d [%]",
+              "Range": "1d",
+              "lastRequestTS": "",
+              "lastRequestTimestamp": "",
+              "lastRequestTimestamp * 1000": "Last request",
+              "lastRequestTimestamp A": "",
+              "name": "Metric name",
+              "requestsCount": "Requests count",
+              "requestsCount A": "",
+              "value": "Number of series",
+              "value A": "Number of series"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "preload": true,
+  "schemaVersion": 42,
+  "tags": [
+    "victoriametrics"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "",
+          "value": "${DS_VMINFINITY}",
+          "selected": true
+        },
+        "label": "DS",
+        "name": "ds",
+        "options": [],
+        "query": "yesoreyeram-infinity-datasource",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "5",
+          "value": "5"
+        },
+        "label": "Limit entries",
+        "name": "topn",
+        "options": [
+          {
+            "selected": true,
+            "text": "5",
+            "value": "5"
+          },
+          {
+            "selected": false,
+            "text": "10",
+            "value": "10"
+          },
+          {
+            "selected": false,
+            "text": "20",
+            "value": "20"
+          },
+          {
+            "selected": false,
+            "text": "30",
+            "value": "30"
+          },
+          {
+            "selected": false,
+            "text": "40",
+            "value": "40"
+          },
+          {
+            "selected": false,
+            "text": "50",
+            "value": "50"
+          }
+        ],
+        "query": "5,10,20,30,40,50",
+        "type": "custom"
+      },
+      {
+        "current": {
+          "text": "__name__!=\"\"",
+          "value": "__name__!=\"\""
+        },
+        "description": "",
+        "label": "Time series selector",
+        "name": "match",
+        "options": [
+          {
+            "selected": true,
+            "text": "__name__!=\"\"",
+            "value": "__name__!=\"\""
+          }
+        ],
+        "query": "__name__!=\"\"",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "label": "Focus label",
+        "name": "focus",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "VictoriMetrics - Cardinality Explorer",
+  "uid": "1d95a92f",
+  "version": 1,
+  "weekStart": "",
+  "id": null
+}
