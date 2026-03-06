@@ -209,6 +209,9 @@ func Init() {
 
 	mdxEnabled = isMDXEnabledForAnyURL()
 	if mdxEnabled {
+		if *mdxInstanceTTL <= 0 {
+			logger.Fatalf("-remoteWrite.mdx.instanceTTL must be positive; got %s", *mdxInstanceTTL)
+		}
 		initMDXTracker()
 		configReloaderWG.Go(func() {
 			ticker := time.NewTicker(*mdxInstanceTTL / 2)
