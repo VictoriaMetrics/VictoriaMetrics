@@ -94,7 +94,7 @@ func (sctx *sanitizerContext) sanitizeLabelName(labelName string) string {
 }
 
 // sanitizePrometheusLabelName performs convertion and normalization of OpenTelemetry Attributes to Prometheus labels
-// It follows the Prometheus guidelines: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/translator/prometheus#labels
+// See https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L83
 func (sctx *sanitizerContext) sanitizePrometheusLabelName(labelName string) string {
 	if len(labelName) == 0 {
 		return ""
@@ -114,8 +114,6 @@ func (sctx *sanitizerContext) concatLabel(a, b string) string {
 	return bytesutil.ToUnsafeString(sctx.labelBuf)
 }
 
-// See https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L83
-//
 // The returned string is valid until the next call to sanitizeMetricName.
 func (sctx *sanitizerContext) sanitizeMetricName(mm *pb.MetricMetadata) string {
 	if !*usePrometheusNaming && !*convertMetricNamesToPrometheus {
