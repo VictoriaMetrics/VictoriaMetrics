@@ -850,3 +850,138 @@ func TestNewTokenFromRequest_Success(t *testing.T) {
 	}
 	f(r, resultExpected, false)
 }
+
+func TestTokenMatchClaims(t *testing.T) {
+
+	/*
+		{
+		  "iss": "https://login.microsoftonline.com/-6691-4868-a77b-1b0f9bbe5f43/v2.0",
+		  "iat": 1725625332,
+		  "exp": 1725629232,
+		  "name": "Zakhar",
+		  "key.with.dot": "issuer",
+		  "security": {
+		    "permissions": [
+		      {"read": true},
+		      {"write": true}
+		    ],
+		    "nested_array": [
+		      {"values":["read","write"]}
+		    ],
+		    "audit":{
+		      "scope": "",
+		      "score": 1.05,
+		      "user_id": 100
+		    }
+		  },
+		  "ver": 2.0,
+		  "vm_access": "{\"tenant_id\":{\"project_id\": 5, \"account_id\": 1}}",
+		  "scope": "[\"openid\",\"vm\"]"
+		}
+	*/
+	tokenStr := "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImZmZi1sQjl3In0.eyJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vLTY2OTEtNDg2OC1hNzdiLTFiMGY5YmJlNWY0My92Mi4wIiwiaWF0IjoxNzI1NjI1MzMyLCJleHAiOjE3MjU2MjkyMzIsIm5hbWUiOiJaYWtoYXIiLCJrZXkud2l0aC5kb3QiOiJpc3N1ZXIiLCJzZWN1cml0eSI6eyJwZXJtaXNzaW9ucyI6W3sicmVhZCI6dHJ1ZX0seyJ3cml0ZSI6dHJ1ZX1dLCJuZXN0ZWRfYXJyYXkiOlt7InZhbHVlcyI6WyJyZWFkIiwid3JpdGUiXX1dLCJhdWRpdCI6eyJzY29wZSI6IiIsInNjb3JlIjoxLjA1LCJ1c2VyX2lkIjoxMDB9fSwidmVyIjoyLCJ2bV9hY2Nlc3MiOiJ7XCJ0ZW5hbnRfaWRcIjp7XCJwcm9qZWN0X2lkXCI6IDUsIFwiYWNjb3VudF9pZFwiOiAxfX0iLCJzY29wZSI6WyJvcGVuaWQiLCJ2bSJdfQ.Xczc0_QUCtQtZli2cLKjraKSelCGOZaBemttVb65ekBPL1lkK813KwlGmD_LLvBTkHOumMEjFr2P8TcQeixhDC4oZ2D3yxwdsOEpnSfuWs0hw0Edqzd7D1E2DFD2ptB6X8-qAizQM_tDAhRn6U_H886EXu_ebaiGcf7k7akqv1LY6SZhGLjYKcI3HERQtqor7ZROGbckE1Swak5YoZBdBp-WI-h7CSFsWrK9E3Dcl7Sn42PzgyR5TaxQ7n4VIIUXa0VTUukL-v_g-qzBrgyrujUhtS4hnZIBBQ1qSESjWyceGW7SRtwOWCGQG8kBwUvlWgbwrz5_pp_A6trwtag2rA"
+	var tokenWithStrFields Token
+	if err := tokenWithStrFields.Parse(tokenStr, false); err != nil {
+		t.Fatalf("BUG: cannot JWT token: %s", err)
+	}
+	f := func(tkn *Token, claims map[string]string, want bool) {
+		t.Helper()
+		got := tkn.MatchClaims(claims)
+		if got != want {
+			t.Fatalf("unexpected match: (-%v;+%v)", want, got)
+		}
+	}
+	// single field match
+	claims := map[string]string{
+		"name": "Zakhar",
+	}
+	f(&tokenWithStrFields, claims, true)
+
+	// multiple fileds with array and nested maps
+	claims = map[string]string{
+		"name":                         "Zakhar",
+		"security.permissions.1.write": "true",
+	}
+	f(&tokenWithStrFields, claims, true)
+
+	// multiple fileds with float and escaped dot
+	claims = map[string]string{
+		"name":                           "Zakhar",
+		"key\\.with\\.dot":               "issuer",
+		"vm_access.tenant_id.project_id": "5",
+	}
+	f(&tokenWithStrFields, claims, true)
+
+	// with scope slice match
+	claims = map[string]string{
+		"name":  "Zakhar",
+		"scope": "openid vm",
+	}
+	f(&tokenWithStrFields, claims, true)
+
+	// complex key do not match
+	claims = map[string]string{
+		"name":                         "Zakhar",
+		"security.nested_array.values": "[\"read\",\"write\"]",
+	}
+	f(&tokenWithStrFields, claims, false)
+
+	// key not found
+	claims = map[string]string{
+		"name":        "Zakhar",
+		"missing_key": "true",
+	}
+	f(&tokenWithStrFields, claims, false)
+
+	tokenObjectStr := "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6ImZmZi1sQjl3In0.eyJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vLTY2OTEtNDg2OC1hNzdiLTFiMGY5YmJlNWY0My92Mi4wIiwiaWF0IjoxNzI1NjI1MzMyLCJleHAiOjE3MjU2MjkyMzIsIm5hbWUiOiJaYWtoYXIiLCJkaWN0LndpdGhfZG90Ijp7ImtleSI6InZhbHVlIn0sInZlciI6Miwidm1fYWNjZXNzIjp7InRlbmFudF9pZCI6eyJwcm9qZWN0X2lkIjo1LCJhY2NvdW50X2lkIjoxfSwiZXh0cmFfbGFiZWxzIjp7ImtleSI6InZhbHVlIn19LCJzY29wZSI6Im9wZW5pZCB2bSJ9.CpSZbF0uzhg1vEYmMaZGAvVW2GIKTJ_BvFN6Ihfg0uQoeXYv3g8PENH3jfDAMI1m3tCoTdfY-HTrB4Nj85TlBvcpPlOYxOggW-yPK_3F8yNsP4WlIJh-FYJNM3c4eanzj37mhVRoA_v1rpDfWij2nGLR2TKo3C6CXNjOJATnuVllncJaXPHgGazP5yEFsbIeQdE1Yf8VxLNGcFAMrXADIL9Gh8kNvqp6AxHiYC5bU8AmkMHsO0YwomMFLwgB_QfJ_9O3CebVMirOMoJFRt01Mx7NbUWzciWXWtlShj_ADBL-lEpqUre2Ma6iayrXcvlYuVQYZZw8MkVEkKfq3TQA6Q"
+	/*
+		{
+		  "iss": "https://login.microsoftonline.com/-6691-4868-a77b-1b0f9bbe5f43/v2.0",
+		  "iat": 1725625332,
+		  "exp": 1725629232,
+		  "name": "Zakhar",
+		  "dict.with_dot": {
+		    "key": "value"
+		  },
+		  "ver": 2.0,
+		  "vm_access": {
+		    "tenant_id":
+		     {
+		       "project_id": 5,
+		       "account_id": 1
+		     },
+		    "extra_labels": {
+		      "key": "value"
+		    }
+		  },
+		  "scope": "openid vm"
+		}
+	*/
+	var tokenObjectFields Token
+
+	if err := tokenObjectFields.Parse(tokenObjectStr, false); err != nil {
+		t.Fatalf("BUG: cannot JWT token: %s", err)
+	}
+
+	// with scope string and tenant_id
+	claims = map[string]string{
+		"name":                           "Zakhar",
+		"scope":                          "openid vm",
+		"vm_access.tenant_id.account_id": "1",
+	}
+	f(&tokenObjectFields, claims, true)
+
+	// with extra_labels and float match
+	claims = map[string]string{
+		"ver":                        "2",
+		"vm_access.extra_labels.key": "value",
+	}
+	f(&tokenObjectFields, claims, true)
+
+	// with dot escaped
+	claims = map[string]string{
+		"name":                "Zakhar",
+		"dict\\.with_dot.key": "value",
+	}
+	f(&tokenObjectFields, claims, true)
+}
