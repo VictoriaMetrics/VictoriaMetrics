@@ -269,6 +269,42 @@ for the collected samples. Examples:
   ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
 
+### Filtering metrics by VictoriaMetrics instance
+
+`vmagent` can filter outgoing metrics so that only samples from known VictoriaMetrics instances are forwarded
+to a particular `-remoteWrite.url`. This is useful when routing VictoriaMetrics self-monitoring metrics
+to a dedicated destination while discarding metrics from non-VictoriaMetrics sources.
+
+To enable the filter, pass `-remoteWrite.mdx.enable` for the target URL:
+
+```sh
+./vmagent \
+  -remoteWrite.url=http://monitoring-vm:8428/api/v1/write \
+  -remoteWrite.mdx.enable
+```
+
+When enabled, `vmagent` tracks every instance (identified by the `instance` label) that emits
+the `vm_app_version` metric - a metric produced by all VictoriaMetrics components. Only samples
+whose `instance` label matches a tracked VictoriaMetrics instance are forwarded; all other samples
+are dropped. The number of currently tracked instances is exposed via the
+`vmagent_mdx_tracked_instances` metric.
+
+An instance is removed from the tracked set after it stops emitting `vm_app_version` for longer
+than `-remoteWrite.mdx.instanceTTL` (default: `10m`). The dropped rows counter is exposed as
+`vmagent_remotewrite_mdx_rows_dropped_total`.
+
+If multiple `-remoteWrite.url` destinations are configured, the flag can be set per destination.
+For example, the following config sends all metrics to the first URL and only VictoriaMetrics
+metrics to the second URL:
+
+```sh
+./vmagent \
+  -remoteWrite.url=http://all-metrics:8428/api/v1/write \
+  -remoteWrite.mdx.enable=false \
+  -remoteWrite.url=http://vm-metrics-only:8428/api/v1/write \
+  -remoteWrite.mdx.enable=true
+```
+
 ### Life of a sample
 
 vmagent supports limiting, relabeling, deduplication and stream aggregation for all metric samples, scraped or pushed.

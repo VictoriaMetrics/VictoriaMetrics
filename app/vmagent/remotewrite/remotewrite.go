@@ -207,6 +207,23 @@ func Init() {
 
 	dropDanglingQueues()
 
+	mdxEnabled = isMDXEnabledForAnyURL()
+	if mdxEnabled {
+		initMDXTracker()
+		configReloaderWG.Go(func() {
+			ticker := time.NewTicker(*mdxInstanceTTL / 2)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-configReloaderStopCh:
+					return
+				case <-ticker.C:
+					cleanupMDXInstances()
+				}
+			}
+		})
+	}
+
 	// Start config reloader.
 	configReloaderWG.Go(func() {
 		for {
@@ -475,6 +492,9 @@ func tryPush(at *auth.Token, wr *prompb.WriteRequest, forceDropSamplesOnFailure 
 		if deduplicatorGlobal != nil {
 			deduplicatorGlobal.Push(tssBlock)
 			tssBlock = tssBlock[:0]
+		}
+		if mdxEnabled {
+			updateMDXInstances(tssBlock)
 		}
 		if !tryPushTimeSeriesToRemoteStorages(rwctxs, tssBlock, forceDropSamplesOnFailure) {
 			return false
@@ -816,6 +836,7 @@ type remoteWriteCtx struct {
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
+	rowsDroppedByMDX       *metrics.Counter
 
 	pushFailures                 *metrics.Counter
 	metadataDroppedOnPushFailure *metrics.Counter
@@ -899,6 +920,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, sanitizedURL string)
 
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
+		rowsDroppedByMDX:       metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_mdx_rows_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 
 		pushFailures:                 metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_push_failures_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
 		metadataDroppedOnPushFailure: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_metadata_dropped_total{path=%q,url=%q}`, queuePath, sanitizedURL)),
@@ -934,6 +956,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 
 	rwctx.rowsPushedAfterRelabel = nil
 	rwctx.rowsDroppedByRelabel = nil
+	rwctx.rowsDroppedByMDX = nil
 }
 
 // TryPushTimeSeries sends tss series to the configured remote write endpoint
@@ -969,6 +992,19 @@ func (rwctx *remoteWriteCtx) TryPushTimeSeries(tss []prompb.TimeSeries, forceDro
 	}
 	rowsCount := getRowsCount(tss)
 	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
+
+	if mdxEnable.GetOptionalArg(rwctx.idx) {
+		if rctx == nil {
+			// Make a copy of tss before modifying it in order to prevent
+			// from affecting time series for other remoteWrite.url configs.
+			rctx = getRelabelCtx()
+			v = tssPool.Get().(*[]prompb.TimeSeries)
+			tss = append(*v, tss...)
+		}
+		rowsCountBeforeMDX := getRowsCount(tss)
+		tss = applyMDXFilter(tss)
+		rwctx.rowsDroppedByMDX.Add(rowsCountBeforeMDX - getRowsCount(tss))
+	}
 
 	// Apply stream aggregation or deduplication if they are configured
 	sas := rwctx.sas.Load()
