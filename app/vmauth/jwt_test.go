@@ -220,6 +220,28 @@ users:
 		"oidc issuer cannot be empty",
 	)
 
+	// oidc issuer invalid urls
+	f(`
+users:
+- jwt: 
+    oidc:
+      issuer: "::invalid-url"
+  url_prefix: http://foo.bar
+`,
+		"oidc issuer \"::invalid-url\" must be a valid URL",
+	)
+
+	// oidc issuer invalid urls
+	f(`
+users:
+- jwt: 
+    oidc:
+      issuer: "invalid-url"
+  url_prefix: http://foo.bar
+`,
+		"oidc issuer \"invalid-url\" must have http or https scheme",
+	)
+
 	// oidc and public_keys are not allowed
 	f(fmt.Sprintf(`
 users:

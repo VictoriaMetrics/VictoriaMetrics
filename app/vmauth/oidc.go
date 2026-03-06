@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 type OIDCConfig struct {
@@ -28,31 +30,33 @@ type OIDCConfig struct {
 }
 
 func (c *OIDCConfig) startDiscovery(vp *atomic.Pointer[jwt.VerifierPool]) {
-	if err := c.refreshVerifierPool(vp); err != nil {
-		logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", c.Issuer, err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	c.discoveryContext = ctx
 	c.discoveryCancel = cancel
 	c.discoveryWG = &sync.WaitGroup{}
 
+	if err := c.refreshVerifierPool(vp); err != nil {
+		logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", c.Issuer, err)
+	}
+
 	c.discoveryWG.Go(func() {
-		t := time.NewTimer(time.Second * 10)
+		t := time.NewTimer(timeutil.AddJitterToDuration(time.Second * 10))
 		defer t.Stop()
 
 		for {
 			select {
 			case <-t.C:
-				if err := c.refreshVerifierPool(vp); err != nil {
-					t.Reset(time.Second * 10)
+				if err := c.refreshVerifierPool(vp); errors.Is(err, context.Canceled) {
+					return
+				} else if err != nil {
+					t.Reset(timeutil.AddJitterToDuration(time.Second * 10))
 					logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", c.Issuer, err)
 					continue
 				}
 				// OIDC may return Cache-Control header with max-age directive.
 				// It could be used as time range for next refresh.
 				// https://openid.net/specs/openid-connect-core-1_0.html#RotateEncKeys
-				t.Reset(time.Minute * 5)
+				t.Reset(timeutil.AddJitterToDuration(time.Minute * 5))
 			case <-c.discoveryContext.Done():
 				return
 			}
@@ -66,7 +70,7 @@ func (c *OIDCConfig) stopDiscovery() {
 }
 
 func (c *OIDCConfig) refreshVerifierPool(vp *atomic.Pointer[jwt.VerifierPool]) error {
-	cfg, err := getOpenIDConfiguration(c.Issuer)
+	cfg, err := getOpenIDConfiguration(c.discoveryContext, c.Issuer)
 	if err != nil {
 		return err
 	}
@@ -76,7 +80,7 @@ func (c *OIDCConfig) refreshVerifierPool(vp *atomic.Pointer[jwt.VerifierPool]) e
 		return fmt.Errorf("openid configuration issuer %q does not match expected issuer %q", cfg.Issuer, c.Issuer)
 	}
 
-	keys, err := fetchJWKs(cfg.JWKsURI)
+	keys, err := fetchJWKs(c.discoveryContext, cfg.JWKsURI)
 	if err != nil {
 		return err
 	}
@@ -121,12 +125,18 @@ var oidcHTTPClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
-func fetchJWKs(jwksURI string) ([]any, error) {
-	resp, err := oidcHTTPClient.Get(jwksURI)
+func fetchJWKs(ctx context.Context, jwksURI string) ([]any, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", jwksURI, http.NoBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch jwks keys from %q: %v", jwksURI, err)
+		return nil, fmt.Errorf("failed to create request for fetching jwks keys from %q: %v", jwksURI, err)
+	}
+
+	resp, err := oidcHTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch jwks keys from %q: %w", jwksURI, err)
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code %d when fetching jwks keys from %q", resp.StatusCode, jwksURI)
 	}
@@ -136,7 +146,6 @@ func fetchJWKs(jwksURI string) ([]any, error) {
 
 		return nil, fmt.Errorf("failed to decode jwks response from %q: %v", jwksURI, err)
 	}
-	_ = resp.Body.Close()
 
 	keys, err := parseJwksKeys(&jwks)
 	if err != nil {
@@ -146,13 +155,18 @@ func fetchJWKs(jwksURI string) ([]any, error) {
 	return keys, nil
 }
 
-func getOpenIDConfiguration(issuer string) (openidConfig, error) {
+func getOpenIDConfiguration(ctx context.Context, issuer string) (openidConfig, error) {
 	issuer, _ = strings.CutSuffix(issuer, "/")
 	configURL := fmt.Sprintf("%s/.well-known/openid-configuration", issuer)
 
-	resp, err := oidcHTTPClient.Get(configURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", configURL, http.NoBody)
 	if err != nil {
-		return openidConfig{}, fmt.Errorf("failed to fetch openid config from %q: %v", configURL, err)
+		return openidConfig{}, fmt.Errorf("failed to create request for fetching openid config from %q: %w", configURL, err)
+	}
+
+	resp, err := oidcHTTPClient.Do(req)
+	if err != nil {
+		return openidConfig{}, fmt.Errorf("failed to fetch openid config from %q: %s", configURL, err)
 	}
 	defer resp.Body.Close()
 
@@ -162,7 +176,7 @@ func getOpenIDConfiguration(issuer string) (openidConfig, error) {
 
 	var cfg openidConfig
 	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
-		return openidConfig{}, fmt.Errorf("failed to decode openid config from %q: %v", configURL, err)
+		return openidConfig{}, fmt.Errorf("failed to decode openid config from %q: %s", configURL, err)
 	}
 	_ = resp.Body.Close()
 

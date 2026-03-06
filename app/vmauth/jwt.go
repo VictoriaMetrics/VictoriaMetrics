@@ -124,6 +124,13 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 			if jwtToken.OIDC.Issuer == "" {
 				return nil, fmt.Errorf("oidc issuer cannot be empty")
 			}
+			isserURL, err := url.Parse(jwtToken.OIDC.Issuer)
+			if err != nil {
+				return nil, fmt.Errorf("oidc issuer %q must be a valid URL", jwtToken.OIDC.Issuer)
+			}
+			if isserURL.Scheme != "https" && isserURL.Scheme != "http" {
+				return nil, fmt.Errorf("oidc issuer %q must have http or https scheme", jwtToken.OIDC.Issuer)
+			}
 
 			oidcUIs = append(oidcUIs, &ui)
 		}
