@@ -1265,8 +1265,8 @@ func TestOIDCRequestHandler(t *testing.T) {
 			}
 
 			// Encode the RSA public key in JWK format (base64url, no padding)
-			nBytes := privateKey.PublicKey.N.Bytes()
-			eBytes := big.NewInt(int64(privateKey.PublicKey.E)).Bytes()
+			nBytes := privateKey.N.Bytes()
+			eBytes := big.NewInt(int64(privateKey.E)).Bytes()
 			jwksBody := fmt.Sprintf(`{"keys":[{"kty":"RSA","kid":%q,"n":%q,"e":%q}]}`,
 				`test-key-id`,
 				base64.RawURLEncoding.EncodeToString(nBytes),

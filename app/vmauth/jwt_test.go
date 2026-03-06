@@ -387,7 +387,7 @@ users:
 	ipSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/openid-configuration" {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"issuer":   ipSrv.URL,
 				"jwks_uri": fmt.Sprintf("%s/jwks", ipSrv.URL),
 			})

@@ -206,6 +206,7 @@ func (b *body) parse(src string) error {
 func (b *body) reset() {
 	b.Exp = 0
 	b.Iat = 0
+	b.Iss = ""
 	b.Jti = ""
 	b.Scope = ""
 	b.buf = b.buf[:0]

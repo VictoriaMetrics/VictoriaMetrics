@@ -71,6 +71,8 @@ type JWTConfig struct {
 
 func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 	jui := make([]*UserInfo, 0, len(ac.Users))
+	oidcUIs := make([]*UserInfo, 0, len(ac.Users))
+
 	for _, ui := range ac.Users {
 		jwtToken := ui.JWT
 		if jwtToken == nil {
@@ -123,7 +125,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 				return nil, fmt.Errorf("oidc issuer cannot be empty")
 			}
 
-			jwtToken.OIDC.startDiscovery(&ui.JWT.verifierPool)
+			oidcUIs = append(oidcUIs, &ui)
 		}
 
 		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {
@@ -165,6 +167,10 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 	// TODO: the limitation will be lifted once claim based matching will be implemented
 	if len(jui) > 1 {
 		return nil, fmt.Errorf("multiple users with JWT tokens are not supported; found %d users", len(jui))
+	}
+
+	for _, ui := range oidcUIs {
+		ui.JWT.OIDC.startDiscovery(&ui.JWT.verifierPool)
 	}
 
 	return jui, nil
