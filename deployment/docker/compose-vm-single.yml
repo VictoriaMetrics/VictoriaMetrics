@@ -43,14 +43,18 @@ services:
       - "victoriametrics"
     ports:
       - 3000:3000
+    environment:
+      - GF_PLUGINS_PREINSTALL=yesoreyeram-infinity-datasource
     volumes:
       - grafanadata:/var/lib/grafana
       - ./provisioning/datasources/prometheus-datasource/single.yml:/etc/grafana/provisioning/datasources/single.yml
+      - ./provisioning/datasources/infinity-datasource/single.yml:/etc/grafana/provisioning/datasources/infinity-single.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
       - ./../../dashboards/alert-statistics.json:/var/lib/grafana/dashboards/alert-statistics.json
+      - ./../../dashboards/cardinality-explorer.json:/var/lib/grafana/dashboards/cardinality-explorer.json
     restart: always
 
   # vmalert executes alerting and recording rules
