@@ -26,6 +26,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `headers` field to `oauth2` scrape config for passing custom HTTP headers to `token_url`. Some services require different headers for the token endpoint and the scrape targets. See [#8939](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8939).
 * FEATURE: all VictoriaMetrics components: implement proper CORS preflight handling by responding 204 No Content to HTTP OPTIONS requests. See [#5563](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5563).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `access_log` configuration option for each user that will log requests to stdout, and support filtering by HTTP status codes. See more in [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). See [#5936](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5936).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support negative values for the group `eval_offset` option, which allows starting group evaluation at `groupInterval-abs(eval_offset)` within `[0...groupInterval]`. See [#10424](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10424).
