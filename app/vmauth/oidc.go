@@ -48,8 +48,8 @@ func (c *OIDCConfig) startDiscovery(vp *atomic.Pointer[jwt.VerifierPool]) {
 					t.Reset(time.Second * 10)
 					logger.Errorf("failed to refresh OIDC verifier pool for issuer %q: %v", c.Issuer, err)
 				}
-				// OIDC may reutrn Cache-Control header with max-age directive.
-				// It could be used as time rage for next refresh.
+				// OIDC may return Cache-Control header with max-age directive.
+				// It could be used as time range for next refresh.
 				// https://openid.net/specs/openid-connect-core-1_0.html#RotateEncKeys
 				t.Reset(time.Minute * 5)
 			case <-c.discoveryContext.Done():
@@ -116,8 +116,12 @@ type openidConfig struct {
 	JWKsURI string `json:"jwks_uri"`
 }
 
+var oidcHTTPClient = &http.Client{
+	Timeout: time.Second * 5,
+}
+
 func fetchJWKs(jwksURI string) ([]any, error) {
-	resp, err := http.Get(jwksURI)
+	resp, err := oidcHTTPClient.Get(jwksURI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch jwks keys from %q: %v", jwksURI, err)
 	}
@@ -145,7 +149,7 @@ func getOpenIDConfiguration(issuer string) (openidConfig, error) {
 	issuer, _ = strings.CutSuffix(issuer, "/")
 	configURL := fmt.Sprintf("%s/.well-known/openid-configuration", issuer)
 
-	resp, err := http.Get(configURL)
+	resp, err := oidcHTTPClient.Get(configURL)
 	if err != nil {
 		return openidConfig{}, fmt.Errorf("failed to fetch openid config from %q: %v", configURL, err)
 	}
@@ -180,12 +184,17 @@ func parseJwksKeys(resp *jwksResponse) ([]any, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode jwks key e: %w", err)
 			}
+			exp := big.NewInt(0).SetBytes(e)
+			if !exp.IsInt64() || exp.Int64() < 1 {
+				return nil, fmt.Errorf("invalid RSA exponent")
+			}
+
 			n, err := base64.RawURLEncoding.DecodeString(key.N)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode jwks key n: %w", err)
 			}
 			keys[key.Kid] = &rsa.PublicKey{
-				E: int(big.NewInt(0).SetBytes(e).Int64()),
+				E: int(exp.Int64()),
 				N: big.NewInt(0).SetBytes(n),
 			}
 		case "EC":
