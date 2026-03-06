@@ -125,7 +125,7 @@ As a reference, see resource consumption of VictoriaMetrics cluster on our [play
 The Retention Period is the number of days or months for storing data. It affects the disk space usage.
 The formula for calculating required disk space is the following:
 ```
-Bytes Per Sample * Ingestion rate * Replication Factor * (Retention Period in Seconds +1 Retention Cycle(day or month)) * 1.2 (recommended 20% of free space for merges ) 
+Bytes Per Sample * Ingestion rate * Replication Factor * (Retention Period in Seconds +1 Retention Cycle(day or month)) / (1 - 0.2) (recommended 20% of free space for merges ) 
 ```
 
 The **Retention Cycle** is one **day** or one **month**. If the retention period is higher than 30 days cycle is a month; otherwise day.
@@ -143,7 +143,7 @@ Keep at least **20%** of free space for VictoriaMetrics to remain efficient with
 
 A Kubernetes environment that produces 5k time series per second with 1-year of the Retention Period and ReplicationFactor=2:
 
-`(1 byte-per-sample * 5000 time series * 2 replication factor * 34128000 seconds) * 1.2 ) / 2^30 = 381 GB`
+`(1 byte-per-sample * 5000 time series * 2 replication factor * 34128000 seconds) / (1 - 0.2) ) / 2^30 = 397 GB`
 
 VictoriaMetrics requires additional disk space for the index. The lower Churn Rate, the lower is disk space usage for the index.
 Usually, index takes about **20%** of the disk space for storing data. High cardinality setups may use **>50%** of storage size for index. If your indexdb looks unexpectedly large, see [FAQ: Why indexdb size is so large?](https://docs.victoriametrics.com/victoriametrics/faq/#why-indexdb-size-is-so-large) for typical ratios and troubleshooting tips.
