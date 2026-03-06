@@ -24,6 +24,18 @@ func TestSanitizePrometheusLabelName(t *testing.T) {
 	f("1foo", "key_1foo")
 	f("_foo", "key_foo")
 	f("__bar", "__bar")
+	prevlabelNameUnderscoreSanitization := *labelNameUnderscoreSanitization
+	*labelNameUnderscoreSanitization = true
+	defer func() {
+		*labelNameUnderscoreSanitization = prevlabelNameUnderscoreSanitization
+	}()
+
+	f("", "")
+	f("foo", "foo")
+	f("_foo", "_foo")
+	f("__bar", "__bar")
+	f("1foo", "key_1foo")
+	f("foo_bar", "foo_bar")
 }
 
 func TestSanitizePrometheusMetricName(t *testing.T) {
