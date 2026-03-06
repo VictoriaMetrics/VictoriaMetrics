@@ -16,7 +16,7 @@ var (
 		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
 	convertMetricNamesToPrometheus = flag.Bool("opentelemetry.convertMetricNamesToPrometheus", false, "Whether to convert only metric names into Prometheus-compatible format for the metrics ingested "+
 		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
-	labelNameUnderscoreSanitization = flag.Bool("opentelemetry.labelNameUnderscoreSanitization", true, "Whether to prefix labels starting with a single underscore with 'key' "+
+	labelNameUnderscoreSanitization = flag.Bool("opentelemetry.labelNameUnderscoreSanitization", true, "Whether to enable prepending of 'key' to labels starting with '_'. "+
 		"when -opentelemetry.usePrometheusNaming is enabled. "+
 		"See https://docs.victoriametrics.com/victoriametrics/integrations/opentelemetry/")
 )
