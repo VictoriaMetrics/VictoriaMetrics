@@ -3,6 +3,7 @@ package promrelabel
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -121,8 +122,9 @@ func (mlr *MultiLineRegex) MarshalYAML() (any, error) {
 
 // ParsedConfigs represents parsed relabel configs.
 type ParsedConfigs struct {
-	prcs   []*parsedRelabelConfig
-	ifSize int
+	prcs         []*parsedRelabelConfig
+	ifSize       int
+	bfBuildCount int
 }
 
 // Len returns the number of relabel configs in pcs.
@@ -157,22 +159,60 @@ func (pcs *ParsedConfigs) String() string {
 
 // GetIfFilterSize returns the number of filters in all `if` expressions in pcs.
 func (pcs *ParsedConfigs) GetIfFilterSize() int {
-
 	if pcs == nil {
 		return 0
 	}
-	//pre-computed
-	if pcs.ifSize != 0 {
-		return pcs.ifSize
+	return pcs.ifSize
+}
+
+func (pcs *ParsedConfigs) GetBfBuildCount() int {
+	if pcs == nil {
+		return 0
+	}
+	return pcs.bfBuildCount
+}
+
+func computeIfFilterSize(prcs []*parsedRelabelConfig) int {
+	if prcs == nil {
+		return 0
 	}
 	total := 0
-	for _, prc := range pcs.prcs {
+	for _, prc := range prcs {
 		if prc.If != nil {
 			total += prc.If.Len()
 		}
 	}
-	pcs.ifSize = total
 	return total
+}
+
+// actions that either keep or drop entire metrics
+// These actions do not require bloom filters to be built after application
+// as they cannot change label values
+var labelStaticActions = []string{"keep", "drop",
+	"keep_if_equal", "drop_if_equal",
+	"keep_if_contains", "drop_if_contains",
+	"keepequal", "dropequal"}
+
+// computes the number of times we would need to build a bloom filter for if matching actions in the worst case
+func computeBfBuildCount(prcs []*parsedRelabelConfig) int {
+	if prcs == nil {
+		return 0
+	}
+	count := 0
+	validFilter := false
+	for _, c := range prcs {
+		// if we don't have a valid bloom filter, and we encounter an if filter then we will need to build a bloom filter for it
+		if !validFilter && c.If != nil {
+			count++
+			validFilter = true
+		}
+		// if the action might modify labels then it will invalidate the filter
+		if !slices.Contains(labelStaticActions, c.Action) {
+			validFilter = false
+			continue
+		}
+	}
+	return count
 }
 
 // LoadRelabelConfigs loads relabel configs from the given path.
@@ -212,7 +252,9 @@ func ParseRelabelConfigs(rcs []RelabelConfig) (*ParsedConfigs, error) {
 		prcs[i] = prc
 	}
 	return &ParsedConfigs{
-		prcs: prcs,
+		prcs:         prcs,
+		ifSize:       computeIfFilterSize(prcs),
+		bfBuildCount: computeBfBuildCount(prcs),
 	}, nil
 }
 

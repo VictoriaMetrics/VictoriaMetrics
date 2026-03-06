@@ -63,6 +63,7 @@ func (ie *IfExpression) Parse(s string) error {
 		return err
 	}
 	ie.ies = []*ifExpression{ieLocal}
+	ie.lfSize = ieLocal.Len()
 	return nil
 }
 
@@ -100,16 +101,7 @@ func (ie *IfExpression) Len() int {
 	if ie == nil {
 		return 0
 	}
-	//we already computed it
-	if len(ie.ies) != 0 && ie.lfSize != 0 {
-		return ie.lfSize
-	}
-	total := 0
-	for _, sie := range ie.ies {
-		total += sie.Len()
-	}
-	ie.lfSize = total
-	return total
+	return ie.lfSize
 }
 
 func (ie *IfExpression) unmarshalFromInterface(v any) error {
@@ -137,6 +129,11 @@ func (ie *IfExpression) unmarshalFromInterface(v any) error {
 		return fmt.Errorf("unexpected `match` type; got %#v; want string or an array of strings", t)
 	}
 	ie.ies = ies
+	size := 0
+	for _, tie := range ies {
+		size += tie.Len()
+	}
+	ie.lfSize = size
 	return nil
 }
 
