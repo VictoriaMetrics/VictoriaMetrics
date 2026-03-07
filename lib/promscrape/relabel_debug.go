@@ -27,36 +27,36 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			metric = labels.String()
 			relabelConfigs += "# metrics_relabel_configs\n"
 			relabelConfigs += pcs.String()
-		}
-	}
 
-	// these are not target specific, so it should be placed here instead of `WriteMetricRelabelDebug` func, which handles target specific data.
-	rwRelabelConfigs := remotewrite.GetRemoteWriteRelabelConfigString()
-	rwURLRelabelConfigs := remotewrite.GetURLRelabelConfig()
+			// these are not target specific, so it should be placed here instead of `WriteMetricRelabelDebug` func, which handles target specific data.
+			rwRelabelConfigs := remotewrite.GetRemoteWriteRelabelConfigString()
+			rwURLRelabelConfigs := remotewrite.GetURLRelabelConfig()
 
-	relabelConfigs += "\n# -remoteWrite.relabelConfig"
-	relabelConfigs += "\n" + rwRelabelConfigs
+			relabelConfigs += "\n# -remoteWrite.relabelConfig"
+			relabelConfigs += "\n" + rwRelabelConfigs
 
-	// we could have different relabel config for different remote write URL, but there's no way to know which one the user wants to debug.
-	// so we append the 1st one here, and comment out the rest. user can see them on the page and edit to activate them.
-	for i := range rwURLRelabelConfigs {
+			// we could have different relabel config for different remote write URL, but there's no way to know which one the user wants to debug.
+			// so we append the 1st one here, and comment out the rest. user can see them on the page and edit to activate them.
+			for i := range rwURLRelabelConfigs {
 
-		if i == 0 {
-			relabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
+				if i == 0 {
+					relabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
 
-			// append the URL info
-			relabelConfigs += "\n# " + rwURLRelabelConfigs[i].Url
+					// append the URL info
+					relabelConfigs += "\n# " + rwURLRelabelConfigs[i].Url
 
-			// append the relabeling config string
-			relabelConfigs += "\n" + rwURLRelabelConfigs[i].RelabelConfigStr
-			continue
-		}
+					// append the relabeling config string
+					relabelConfigs += "\n" + rwURLRelabelConfigs[i].RelabelConfigStr
+					continue
+				}
 
-		// add comment # before every line.
-		relabelConfigs += "\n# " + rwURLRelabelConfigs[i].Url
-		lines := strings.Split(rwURLRelabelConfigs[i].RelabelConfigStr, "\n")
-		for _, line := range lines {
-			relabelConfigs += "\n#" + line
+				// add comment # before every line.
+				relabelConfigs += "\n# " + rwURLRelabelConfigs[i].Url
+				lines := strings.Split(rwURLRelabelConfigs[i].RelabelConfigStr, "\n")
+				for _, line := range lines {
+					relabelConfigs += "\n#" + line
+				}
+			}
 		}
 	}
 
