@@ -228,6 +228,8 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 			// OIDC require using kid claim from the token to choose a proper JWK.
 			// https://openid.net/specs/openid-connect-core-1_0.html#RotateEncKeys
 			// https://openid.net/specs/draft-jones-json-web-key-03.html#anchor4
+			//
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10606
 			if err := vp.Verify(tkn); err != nil {
 				if *logInvalidAuthTokens {
 					logger.Infof("cannot verify jwt token: %s", err)
