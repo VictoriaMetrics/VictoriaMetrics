@@ -102,7 +102,7 @@ type UrlRelabelCfg struct {
 
 // WriteURLRelabelConfigData writes -remoteWrite.urlRelabelConfig contents to w
 func WriteURLRelabelConfigData(w io.Writer) {
-	cs := getURLRelabelConfigData()
+	cs := GetURLRelabelConfigData()
 	if cs == nil {
 		// Nothing to write to w
 		return
@@ -111,12 +111,8 @@ func WriteURLRelabelConfigData(w io.Writer) {
 	_, _ = w.Write(d)
 }
 
-// GetURLRelabelConfig is similar to WriteURLRelabelConfigData but returning data in []UrlRelabelCfg.
-func GetURLRelabelConfig() []UrlRelabelCfg {
-	return getURLRelabelConfigData()
-}
-
-func getURLRelabelConfigData() []UrlRelabelCfg {
+// GetURLRelabelConfigData is similar to WriteURLRelabelConfigData but returning data in []UrlRelabelCfg.
+func GetURLRelabelConfigData() []UrlRelabelCfg {
 	p := remoteWriteURLRelabelConfigData.Load()
 	if p == nil {
 		return nil
@@ -124,7 +120,10 @@ func getURLRelabelConfigData() []UrlRelabelCfg {
 	var cs []UrlRelabelCfg
 	for i, url := range *remoteWriteURLs {
 		cfgData := (*p)[i]
-		cfgDataBytes, _ := yaml.Marshal(cfgData)
+		var cfgDataBytes []byte
+		if cfgData != nil {
+			cfgDataBytes, _ = yaml.Marshal(cfgData)
+		}
 		if !*showRemoteWriteURL {
 			url = fmt.Sprintf("%d:secret-url", i+1)
 		}
