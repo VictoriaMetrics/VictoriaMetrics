@@ -1273,7 +1273,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(up == bool 1) by (job) / sum(up) by (job)",
+          "expr": "sum(up == bool 1 / up) by (job)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
