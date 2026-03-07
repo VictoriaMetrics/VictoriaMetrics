@@ -311,7 +311,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(sum by (job) (up == 0) > 0) or vector(0)",
+          "expr": "count(sum by (job) (up == bool 0) > 0) or vector(0)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "DOWN",
@@ -499,7 +499,6 @@
         "type": "prometheus",
         "uid": "${ds}"
       },
-      "description": "For 24h",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -571,7 +570,6 @@
         "type": "prometheus",
         "uid": "${ds}"
       },
-      "description": "For 24h",
       "fieldConfig": {
         "defaults": {
           "color": {
