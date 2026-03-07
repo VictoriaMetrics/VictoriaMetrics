@@ -28,7 +28,6 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			relabelConfigs += "# metrics_relabel_configs\n"
 			relabelConfigs += pcs.String()
 
-			// these are not target specific, so it should be placed here instead of `WriteMetricRelabelDebug` func, which handles target specific data.
 			rwRelabelConfigs := remotewrite.GetRemoteWriteRelabelConfigString()
 			rwURLRelabelConfigs := remotewrite.GetURLRelabelConfigData()
 
