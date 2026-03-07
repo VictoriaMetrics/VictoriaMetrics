@@ -37,7 +37,6 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			// we could have different relabel config for different remote write URL, but there's no way to know which one the user wants to debug.
 			// so we append the 1st one here, and comment out the rest. user can see them on the page and edit to activate them.
 			for i := range rwURLRelabelConfigs {
-
 				if i == 0 {
 					relabelConfigs += "\n# -remoteWrite.urlRelabelConfig"
 
@@ -49,7 +48,7 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 
-				// add comment # before every line.
+				// for the rest URLs add comment # before every line.
 				relabelConfigs += "\n# " + rwURLRelabelConfigs[i].Url
 				lines := strings.Split(rwURLRelabelConfigs[i].RelabelConfigStr, "\n")
 				for _, line := range lines {
