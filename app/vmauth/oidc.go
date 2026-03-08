@@ -2,14 +2,9 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"net/http"
 	"strings"
 	"sync"
@@ -121,12 +116,7 @@ func (d *oidcDiscoverer) refreshVerifierPools(ctx context.Context) error {
 		return fmt.Errorf("openid configuration issuer %q does not match expected issuer %q", cfg.Issuer, d.issuer)
 	}
 
-	keys, err := fetchJWKs(ctx, cfg.JWKsURI)
-	if err != nil {
-		return err
-	}
-
-	verifierPool, err := jwt.NewVerifierPool(keys)
+	verifierPool, err := fetchAndParseJWKs(ctx, cfg.JWKsURI)
 	if err != nil {
 		return err
 	}
@@ -135,27 +125,6 @@ func (d *oidcDiscoverer) refreshVerifierPools(ctx context.Context) error {
 		vp.Store(verifierPool)
 	}
 	return nil
-}
-
-type jwksResponse struct {
-	Keys []jwk `json:"keys"`
-}
-
-// See https://www.rfc-editor.org/rfc/rfc7517 for details.
-type jwk struct {
-	Type string `json:"kty"`
-	Alg  string `json:"alg"`
-	Use  string `json:"use"`
-	Kid  string `json:"kid"`
-
-	// RSA keys contents
-	E string `json:"e"`
-	N string `json:"n"`
-
-	// EC keys contents
-	Crv string `json:"crv"`
-	X   string `json:"x"`
-	Y   string `json:"y"`
 }
 
 // See https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata for details.
@@ -168,7 +137,7 @@ var oidcHTTPClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
-func fetchJWKs(ctx context.Context, jwksURI string) ([]any, error) {
+func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jwksURI, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request for fetching jwks keys from %q: %w", jwksURI, err)
@@ -184,17 +153,12 @@ func fetchJWKs(ctx context.Context, jwksURI string) ([]any, error) {
 		return nil, fmt.Errorf("unexpected status code %d when fetching jwks keys from %q", resp.StatusCode, jwksURI)
 	}
 
-	var jwks jwksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
-		return nil, fmt.Errorf("failed to decode jwks response from %q: %v", jwksURI, err)
-	}
-
-	keys, err := parseJwksKeys(&jwks)
+	vp, err := jwt.ParseJWKs(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse jwks keys from %q: %v", jwksURI, err)
 	}
 
-	return keys, nil
+	return vp, nil
 }
 
 func getOpenIDConfiguration(ctx context.Context, issuer string) (openidConfig, error) {
@@ -222,69 +186,4 @@ func getOpenIDConfiguration(ctx context.Context, issuer string) (openidConfig, e
 	}
 
 	return cfg, nil
-}
-
-func parseJwksKeys(resp *jwksResponse) ([]any, error) {
-	keys := make([]any, 0)
-	for _, key := range resp.Keys {
-		if key.Kid == "" {
-			return nil, fmt.Errorf("jwks key without kid found")
-		}
-
-		switch key.Type {
-		case "RSA":
-			if key.E == "" || key.N == "" {
-				return nil, fmt.Errorf("jwks key without e or n found")
-			}
-			e, err := base64.RawURLEncoding.DecodeString(key.E)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode jwks key e: %w", err)
-			}
-			exp := big.NewInt(0).SetBytes(e)
-			if !exp.IsInt64() || exp.Int64() < 1 {
-				return nil, fmt.Errorf("invalid RSA exponent")
-			}
-
-			n, err := base64.RawURLEncoding.DecodeString(key.N)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode jwks key n: %w", err)
-			}
-			keys = append(keys, &rsa.PublicKey{
-				E: int(exp.Int64()),
-				N: big.NewInt(0).SetBytes(n),
-			})
-		case "EC":
-			if key.Crv == "" || key.X == "" || key.Y == "" {
-				return nil, fmt.Errorf("jwks key without crv or x or y found")
-			}
-			x, err := base64.RawURLEncoding.DecodeString(key.X)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode jwks key x: %w", err)
-			}
-			y, err := base64.RawURLEncoding.DecodeString(key.Y)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode jwks key y: %w", err)
-			}
-			var curve elliptic.Curve
-			switch key.Crv {
-			case "P-256":
-				curve = elliptic.P256()
-			case "P-384":
-				curve = elliptic.P384()
-			case "P-521":
-				curve = elliptic.P521()
-			default:
-				return nil, fmt.Errorf("unsupported jwks key crv %q found", key.Crv)
-			}
-			keys = append(keys, &ecdsa.PublicKey{
-				Curve: curve,
-				X:     big.NewInt(0).SetBytes(x),
-				Y:     big.NewInt(0).SetBytes(y),
-			})
-		default:
-			return nil, fmt.Errorf("unsupported jwk.KTY: %s; want RSA or EC", key.Type)
-		}
-	}
-
-	return keys, nil
 }
