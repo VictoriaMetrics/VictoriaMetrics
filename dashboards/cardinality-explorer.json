@@ -1,8 +1,8 @@
 {
   "__inputs": [
     {
-      "name": "DS_VMINFINITY",
-      "label": "VMInfinity",
+      "name": "DS_VMETRICS-INFINITY",
+      "label": "VMetrics-Infinity",
       "description": "",
       "type": "datasource",
       "pluginId": "yesoreyeram-infinity-datasource",
@@ -15,7 +15,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "12.3.3"
+      "version": "12.4.0"
     },
     {
       "type": "panel",
@@ -39,7 +39,7 @@
       "type": "datasource",
       "id": "yesoreyeram-infinity-datasource",
       "name": "Infinity",
-      "version": "3.7.2"
+      "version": "3.7.3"
     }
   ],
   "annotations": {
@@ -274,7 +274,7 @@
         "textMode": "value_and_name",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.3",
+      "pluginVersion": "12.4.0",
       "targets": [
         {
           "columns": [],
@@ -285,7 +285,6 @@
           "filters": [],
           "format": "table",
           "global_query_id": "",
-          "hide": false,
           "parser": "jq-backend",
           "refId": "A",
           "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
@@ -324,7 +323,6 @@
           "filters": [],
           "format": "table",
           "global_query_id": "",
-          "hide": false,
           "parser": "jq-backend",
           "refId": "B",
           "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
@@ -519,6 +517,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 160
               }
             ]
           },
@@ -531,6 +533,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 140
               }
             ]
           },
@@ -559,6 +565,10 @@
                     "type": "range"
                   }
                 ]
+              },
+              {
+                "id": "custom.width",
+                "value": 140
               }
             ]
           },
@@ -597,6 +607,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -635,6 +649,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -652,10 +670,6 @@
                     "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match=__name__=\"${__value.raw}\"&var-ds=$ds&var-focus="
                   }
                 ]
-              },
-              {
-                "id": "custom.width",
-                "value": 450
               }
             ]
           },
@@ -691,13 +705,25 @@
               {
                 "id": "min",
                 "value": 0
+              },
+              {
+                "id": "custom.width",
+                "value": 200
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              },
+              {
+                "id": "decimals",
+                "value": 2
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "SOT [%]"
+              "options": "For last day"
             },
             "properties": [
               {
@@ -719,7 +745,7 @@
                     },
                     {
                       "color": "green",
-                      "value": 0.001
+                      "value": 0.0001
                     }
                   ]
                 }
@@ -733,6 +759,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 120
               }
             ]
           }
@@ -755,7 +785,7 @@
           }
         ]
       },
-      "pluginVersion": "12.3.3",
+      "pluginVersion": "12.4.0",
       "targets": [
         {
           "datasource": {
@@ -938,8 +968,7 @@
               "1d": "1d",
               "1d%": "1d [%]",
               "Range": "1d",
-              "SOT": "SOT [%]",
-              "diff": "SOT [%]",
+              "SOT": "For last day",
               "lastRequest A": "Last request",
               "lastRequestTS": "Last request",
               "lastRequestTimestamp": "",
@@ -1006,7 +1035,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.3.3",
+      "pluginVersion": "12.4.0",
       "targets": [
         {
           "columns": [],
@@ -1017,7 +1046,6 @@
           "filters": [],
           "format": "dataframe",
           "global_query_id": "",
-          "hide": false,
           "parser": "jq-backend",
           "refId": "A",
           "root_selector": ".statsCollectedRecordsTotal",
@@ -1080,6 +1108,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 160
               }
             ]
           },
@@ -1118,6 +1150,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -1156,6 +1192,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -1208,13 +1248,25 @@
                   "fixedColor": "blue",
                   "mode": "fixed"
                 }
+              },
+              {
+                "id": "custom.width",
+                "value": 200
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              },
+              {
+                "id": "decimals",
+                "value": 2
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "SOT [%]"
+              "options": "For last day"
             },
             "properties": [
               {
@@ -1254,6 +1306,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 120
               }
             ]
           }
@@ -1276,7 +1332,7 @@
           }
         ]
       },
-      "pluginVersion": "12.3.3",
+      "pluginVersion": "12.4.0",
       "targets": [
         {
           "datasource": {
@@ -1456,7 +1512,7 @@
               "1d": "1d",
               "1d%": "1d [%]",
               "Range": "1d",
-              "SOT": "SOT [%]",
+              "SOT": "For last day",
               "lastRequestTS": "Last request",
               "lastRequestTimestamp": "",
               "lastRequestTimestamp * 1000": "Last request",
@@ -1514,6 +1570,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 160
               }
             ]
           },
@@ -1552,6 +1612,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -1590,6 +1654,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -1625,13 +1693,25 @@
                   "fixedColor": "blue",
                   "mode": "fixed"
                 }
+              },
+              {
+                "id": "custom.width",
+                "value": 200
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              },
+              {
+                "id": "decimals",
+                "value": 2
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "SOT [%]"
+              "options": "For last day"
             },
             "properties": [
               {
@@ -1657,7 +1737,7 @@
                     },
                     {
                       "color": "green",
-                      "value": 0.001
+                      "value": 0.0001
                     }
                   ]
                 }
@@ -1671,6 +1751,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 120
               }
             ]
           },
@@ -1710,7 +1794,7 @@
           }
         ]
       },
-      "pluginVersion": "12.3.3",
+      "pluginVersion": "12.4.0",
       "targets": [
         {
           "datasource": {
@@ -1904,7 +1988,7 @@
               "1d": "1d",
               "1d%": "1d [%]",
               "Range": "1d",
-              "SOT": "SOT [%]",
+              "SOT": "For last day",
               "lastRequestTS": "Last request",
               "lastRequestTimestamp": "",
               "lastRequestTimestamp * 1000": "Last request",
@@ -1962,6 +2046,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 160
               }
             ]
           },
@@ -2000,6 +2088,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -2038,6 +2130,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -2073,13 +2169,25 @@
                   "fixedColor": "blue",
                   "mode": "fixed"
                 }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              },
+              {
+                "id": "custom.width",
+                "value": 200
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "SOT [%]"
+              "options": "For last day"
             },
             "properties": [
               {
@@ -2111,7 +2219,7 @@
                     },
                     {
                       "color": "green",
-                      "value": 0.001
+                      "value": 0.0001
                     }
                   ]
                 }
@@ -2119,6 +2227,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 120
               }
             ]
           },
@@ -2182,7 +2294,7 @@
           }
         ]
       },
-      "pluginVersion": "12.3.3",
+      "pluginVersion": "12.4.0",
       "targets": [
         {
           "datasource": {
@@ -2358,7 +2470,7 @@
               "1d": "1d",
               "1d%": "1d [%]",
               "Range": "1d",
-              "SOT": "SOT [%]",
+              "SOT": "For last day",
               "lastRequestTS": "Last request",
               "lastRequestTimestamp": "",
               "lastRequestTimestamp * 1000": "Last request",
@@ -2416,6 +2528,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 160
               }
             ]
           },
@@ -2454,6 +2570,10 @@
               {
                 "id": "unit",
                 "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -2492,6 +2612,10 @@
               {
                 "id": "decimals",
                 "value": 2
+              },
+              {
+                "id": "custom.width",
+                "value": 100
               }
             ]
           },
@@ -2531,7 +2655,7 @@
           }
         ]
       },
-      "pluginVersion": "12.3.3",
+      "pluginVersion": "12.4.0",
       "targets": [
         {
           "datasource": {
@@ -2711,10 +2835,10 @@
   "templating": {
     "list": [
       {
-        "allowCustomValue": false,
+        "allowCustomValue": true,
         "current": {
           "text": "",
-          "value": "${DS_VMINFINITY}",
+          "value": "${DS_VMETRICS-INFINITY}",
           "selected": true
         },
         "label": "DS",
@@ -2726,7 +2850,7 @@
         "type": "datasource"
       },
       {
-        "allowCustomValue": false,
+        "allowCustomValue": true,
         "current": {
           "text": "5",
           "value": "5"
@@ -2748,25 +2872,11 @@
             "selected": false,
             "text": "20",
             "value": "20"
-          },
-          {
-            "selected": false,
-            "text": "30",
-            "value": "30"
-          },
-          {
-            "selected": false,
-            "text": "40",
-            "value": "40"
-          },
-          {
-            "selected": false,
-            "text": "50",
-            "value": "50"
           }
         ],
-        "query": "5,10,20,30,40,50",
-        "type": "custom"
+        "query": "5,10,20",
+        "type": "custom",
+        "valuesFormat": "csv"
       },
       {
         "current": {
@@ -2814,6 +2924,5 @@
   "title": "VictoriMetrics - Cardinality Explorer",
   "uid": "1d95a92f",
   "version": 1,
-  "weekStart": "",
-  "id": null
+  "weekStart": ""
 }
