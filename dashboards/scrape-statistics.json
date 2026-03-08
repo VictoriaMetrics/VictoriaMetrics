@@ -85,35 +85,9 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 5,
-            "w": 12,
+            "h": 7,
+            "w": 24,
             "x": 0,
-            "y": 1
-          },
-          "id": 19,
-          "options": {
-            "code": {
-              "language": "plaintext",
-              "showLineNumbers": false,
-              "showMiniMap": false
-            },
-            "content": "- Some parameters use [automatically generated metrics](https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics)\n- Some parameters are available when installing [cardinality limiter](https://docs.victoriametrics.com/vmagent/#cardinality-limiter)",
-            "mode": "markdown"
-          },
-          "pluginVersion": "12.4.0",
-          "title": "Information",
-          "transparent": true,
-          "type": "text"
-        },
-        {
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 12,
-            "x": 12,
             "y": 1
           },
           "id": 20,
@@ -123,11 +97,11 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "- `Series Add` is calculated for the last `1h`. Thresholds: 500, 1000\n- `Series` ceiling is taken from `scrape_series_limit`. Thresholds: 50%, 80%\n- `Dropped` is calculated over the last `24h`\n- `Size` ceiling is taken from `-promscrape.maxScrapeSize` by default. Thresholds: 16mb, 32mb\n- `Duration` ceiling is taken from `scrape_timeout_seconds`. Thresholds: 50%, 80%",
+            "content": "The dashboard uses the parameters from [automatically generated metrics](https://docs.victoriametrics.com/vmagent/#automatically-generated-metrics) and if [cardinality limiter](https://docs.victoriametrics.com/vmagent/#cardinality-limiter) is set\n\nCalculating metrics:\n- `Series Add` is calculated for the last `1h`. Thresholds: 500, 1000\n- `Series` ceiling is taken from `scrape_series_limit`. Thresholds: 50%, 80%\n- `Dropped` is calculated over the last `24h`\n- `Size` ceiling is taken from `-promscrape.maxScrapeSize` as example. Thresholds: 8mb, 16mb\n- `Duration` ceiling is taken from `scrape_timeout_seconds`. Thresholds: 50%, 80%\n- `Samples` Thresholds: 5000, 10000",
             "mode": "markdown"
           },
           "pluginVersion": "12.4.0",
-          "title": "Calculating metrics",
+          "title": "",
           "transparent": true,
           "type": "text"
         }
@@ -789,11 +763,11 @@
                     },
                     {
                       "color": "#EAB839",
-                      "value": 16777216
+                      "value": 8388608
                     },
                     {
                       "color": "red",
-                      "value": 33554432
+                      "value": 16777216
                     }
                   ]
                 }
@@ -913,6 +887,32 @@
               {
                 "id": "custom.width",
                 "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 5000
+                    },
+                    {
+                      "color": "red",
+                      "value": 10000
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               }
             ]
           }
@@ -1379,7 +1379,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 19
+            "y": 30
           },
           "id": 12,
           "options": {
@@ -1490,7 +1490,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 28
+            "y": 39
           },
           "id": 13,
           "options": {
@@ -1601,7 +1601,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 37
+            "y": 48
           },
           "id": 14,
           "options": {
@@ -1712,7 +1712,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 46
+            "y": 57
           },
           "id": 15,
           "options": {
@@ -1823,7 +1823,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 55
+            "y": 66
           },
           "id": 16,
           "options": {
@@ -1934,7 +1934,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 64
+            "y": 75
           },
           "id": 17,
           "options": {
@@ -2045,7 +2045,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 73
+            "y": 84
           },
           "id": 9,
           "options": {
