@@ -1743,7 +1743,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(sum_over_time(scrape_series_limit_samples_dropped{job=~\"$job\", instance=~\"$instance\"})[24h]) by (job,instance))",
+              "expr": "topk_max($topk, sum(sum_over_time(scrape_series_limit_samples_dropped{job=~\"$job\", instance=~\"$instance\"}[24h])) by (job,instance))",
               "format": "time_series",
               "instant": false,
               "legendFormat": "{{job}}/{{instance}}",
