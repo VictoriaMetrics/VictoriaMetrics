@@ -35,12 +35,6 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 		return
 	}
 
-	labels, err := promutil.NewLabelsFromString(metric)
-	if err != nil {
-		err = fmt.Errorf("cannot parse metric: %w", err)
-		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
-		return
-	}
 	pcs, err := ParseRelabelConfigsData([]byte(relabelConfigs))
 	if err != nil {
 		err = fmt.Errorf("cannot parse relabel configs: %w", err)
@@ -48,8 +42,33 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 		return
 	}
 
-	dss, targetURL := newDebugRelabelSteps(pcs, labels, isTargetRelabel)
-	WriteRelabelDebugSteps(w, targetURL, targetID, format, dss, metric, relabelConfigs, nil)
+	// metric input may contain multiple lines, and it's good to add support and print the debug steps for each of them.
+	// however, the target URL won't change
+	metrics := strings.Split(metric, "\n")
+	dsss := make([][]DebugStep, 0, len(metrics))
+	var lastErr error
+
+	for _, m := range metrics {
+		// try to trim all the special characters and space first
+		m = strings.TrimSpace(m)
+		labels, err := promutil.NewLabelsFromString(m)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		dss, tURL := newDebugRelabelSteps(pcs, labels, isTargetRelabel)
+		targetURL = tURL
+		dsss = append(dsss, dss)
+	}
+
+	// break here if all failed
+	if len(dsss) == 0 && lastErr != nil {
+		err = fmt.Errorf("cannot parse metric: %w", err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, lastErr)
+		return
+	}
+
+	WriteRelabelDebugSteps(w, targetURL, targetID, format, dsss, metric, relabelConfigs, nil)
 }
 
 func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutil.Labels, isTargetRelabel bool) ([]DebugStep, string) {

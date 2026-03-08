@@ -6,15 +6,15 @@
 
 {% stripspace %}
 
-{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs  string, err error) %}
+{% func RelabelDebugSteps(targetURL, targetID, format string, dsss [][]DebugStep, metric string, relabelConfigs  string, err error) %}
   {% if format == "json" %}
-      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+      {%= RelabelDebugStepsJSON(targetURL, targetID, dsss, metric, relabelConfigs, err) %}
   {% else %}
-      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+      {%= RelabelDebugStepsHTML(targetURL, targetID, dsss, metric, relabelConfigs, err) %}
   {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugStepsHTML(targetURL, targetID string, dsss [][]DebugStep, metric string, relabelConfigs string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -60,11 +60,13 @@ function submitRelabelDebugForm(e) {
         </form>
         </div>
 
+        {% for _, dss := range dsss %}
         <div class="row">
             <main class="col-12">
               {%= relabelDebugSteps(dss, targetURL, targetID) %}
             </main>
         </div>
+        {% endfor %}
     </div>
 </body>
 </html>
@@ -77,7 +79,7 @@ function submitRelabelDebugForm(e) {
     </div>
 
     <div>
-        Labels:<br/>
+        Labels (One label set per line. Multiple lines will be treated as multiple label sets):<br/>
         <textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1">{%s metric %}</textarea>
     </div>
 {% endfunc %}
@@ -151,45 +153,52 @@ function submitRelabelDebugForm(e) {
 {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugStepsJSON(targetURL, targetID string, dsss [][]DebugStep, metric string, relabelConfigs string, err error) %}
 {
     {% if err != nil %}
         "status": "error",
         "error": {%q= fmt.Sprintf("Error: %s", err) %}
     {% else %}
-        {% code var hasError bool %}
         "status": "success",
-        "steps": [
-            {% for i, ds := range dss %}
-                {% code
-                    inLabels, inErr := promutil.NewLabelsFromString(ds.In)
-                    outLabels, outErr := promutil.NewLabelsFromString(ds.Out)
-                    changedLabels := getChangedLabelNames(inLabels, outLabels)
-                %}
+        "metrics": [
+            {% for idx, dss := range dsss %}
+                {% code var hasError bool %}
                 {
-                    "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "#D15757") %},
-                    "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "#4495e0") %},
-                    "rule": {%q= ds.Rule %},
-                    "errors": {
-                        {% if inErr != nil %}
-                        "inLabels": {%q= `<span style="color: #D15757">`+inErr.Error()+`</span>` %}{% if outErr != nil %},{% endif %}
-                        {%code hasError = true %}
-                        {% else %}
-                        {% endif %}
-                        {% if outErr != nil %}
-                        "outLabels": {%q= `<span style="color: #D15757">`+outErr.Error()+`</span>` %}
-                        {%code hasError = true %}
-                        {% endif %}
-                    }
+                    "steps": [
+                        {% for i, ds := range dss %}
+                            {% code
+                                inLabels, inErr := promutil.NewLabelsFromString(ds.In)
+                                outLabels, outErr := promutil.NewLabelsFromString(ds.Out)
+                                changedLabels := getChangedLabelNames(inLabels, outLabels)
+                            %}
+                            {
+                                "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "#D15757") %},
+                                "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "#4495e0") %},
+                                "rule": {%q= ds.Rule %},
+                                "errors": {
+                                    {% if inErr != nil %}
+                                    "inLabels": {%q= `<span style="color: #D15757">`+inErr.Error()+`</span>` %}{% if outErr != nil %},{% endif %}
+                                    {%code hasError = true %}
+                                    {% else %}
+                                    {% endif %}
+                                    {% if outErr != nil %}
+                                    "outLabels": {%q= `<span style="color: #D15757">`+outErr.Error()+`</span>` %}
+                                    {%code hasError = true %}
+                                    {% endif %}
+                                }
+                            }
+                            {% if i != len(dss)-1 %},{% endif %}
+                        {% endfor %}
+                    ]
+                    {% if len(dss) > 0 && !hasError %}
+                    ,
+                      "originalLabels": {%q= mustFormatLabels(dss[0].In) %},
+                      "resultingLabels": {%q= mustFormatLabels(dss[len(dss)-1].Out) %}
+                    {% endif %}
                 }
-                {% if i != len(dss)-1 %},{% endif %}
+                {% if idx != len(dsss)-1 %},{% endif %}
             {% endfor %}
         ]
-        {% if len(dss) > 0 && !hasError %}
-        ,
-          "originalLabels": {%q= mustFormatLabels(dss[0].In) %},
-          "resultingLabels": {%q= mustFormatLabels(dss[len(dss)-1].Out) %}
-        {% endif %}
     {% endif %}
 }
 {% endfunc %}
