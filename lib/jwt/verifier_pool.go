@@ -116,5 +116,5 @@ func (vp *VerifierPool) Verify(token *Token) error {
 		}
 	}
 
-	return ErrSignatureAlgorithmNotSupported
+	return ErrSignatureVerificationFailed
 }

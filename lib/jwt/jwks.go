@@ -47,10 +47,6 @@ func ParseJWKs(r io.Reader) (*VerifierPool, error) {
 
 	vs := make([]*verifier, 0, len(resp.Keys))
 	for _, key := range resp.Keys {
-		if key.Kid == "" {
-			return nil, fmt.Errorf("jwks key without kid found")
-		}
-
 		switch key.Kty {
 		case "RSA":
 			if key.E == "" || key.N == "" {
