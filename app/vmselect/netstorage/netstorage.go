@@ -2478,7 +2478,6 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	var er *errRemote
 	var ne net.Error
 	var le *limitExceededErr
-	var eofEr *eofError
 	if errors.As(err, &le) || errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() || errors.Is(err, errCannotObtainConn) {
 		// There is no sense in repeating the query on the following errors:
 		//
@@ -2494,7 +2493,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	// retry with new connection if the error is io.EOF, which is caused by broken connection.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314
 	retryOnNewConn := false
-	if errors.As(err, &eofEr) {
+	if errors.Is(err, io.EOF) {
 		retryOnNewConn = true
 	}
 	err = sn.execOnConn(qtRetry, funcName, f, deadline, retryOnNewConn)
@@ -3134,20 +3133,9 @@ func sendAccountIDProjectID(bc *handshake.BufferedConn, accountID, projectID uin
 	return nil
 }
 
-type eofError struct {
-	err error
-}
-
-func (er *eofError) Error() string {
-	return er.err.Error()
-}
-
 func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte, error) {
 	buf = bytesutil.ResizeNoCopyMayOverallocate(buf, 8)
 	if n, err := io.ReadFull(bc, buf); err != nil {
-		if errors.Is(err, io.EOF) {
-			err = &eofError{err: err}
-		}
 		return buf, fmt.Errorf("cannot read %d bytes with data size: %w; read only %d bytes", len(buf), err, n)
 	}
 	dataSize := encoding.UnmarshalUint64(buf)
