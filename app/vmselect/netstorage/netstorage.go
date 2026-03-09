@@ -3145,7 +3145,7 @@ func (er *eofError) Error() string {
 func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte, error) {
 	buf = bytesutil.ResizeNoCopyMayOverallocate(buf, 8)
 	if n, err := io.ReadFull(bc, buf); err != nil {
-		if err.Error() == "EOF" {
+		if errors.Is(err, io.EOF) {
 			err = &eofError{err: err}
 		}
 		return buf, fmt.Errorf("cannot read %d bytes with data size: %w; read only %d bytes", len(buf), err, n)
