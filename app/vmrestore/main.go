@@ -30,6 +30,7 @@ var (
 	concurrency             = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce restore duration")
 	maxBytesPerSecond       = flagutil.NewBytes("maxBytesPerSecond", 0, "The maximum download speed. There is no limit if it is set to 0")
 	skipBackupCompleteCheck = flag.Bool("skipBackupCompleteCheck", false, "Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file")
+	doNothingOnNoBackup     = flag.Bool("doNothingOnNoBackup", false, "Whether to do nothing (rather than fail) when no backup is present in -src")
 )
 
 func main() {
@@ -63,6 +64,7 @@ func main() {
 		Src:                     srcFS,
 		Dst:                     dstFS,
 		SkipBackupCompleteCheck: *skipBackupCompleteCheck,
+		DoNothingOnNoBackup:     *doNothingOnNoBackup,
 	}
 	pushmetrics.Init()
 	if err := a.Run(ctx); err != nil {
