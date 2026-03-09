@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1235,11 +1236,147 @@ users:
 		request,
 		responseExpected,
 	)
+}
 
+func TestOIDCRequestHandler(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("cannot generate RSA key: %s", err)
+	}
+
+	var oidcSrv *httptest.Server
+	oidcRespOK := atomic.Bool{}
+	oidcRespOK.Store(true)
+
+	oidcSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(map[string]string{
+				"issuer":   oidcSrv.URL,
+				"jwks_uri": oidcSrv.URL + "/jwks",
+			}); err != nil {
+				panic(fmt.Errorf("cannot write openid-configuration response: %w", err))
+			}
+		case "/jwks":
+			if !oidcRespOK.Load() {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			// Encode the RSA public key in JWK format (base64url, no padding)
+			nBytes := privateKey.N.Bytes()
+			eBytes := big.NewInt(int64(privateKey.E)).Bytes()
+			jwksBody := fmt.Sprintf(`{"keys":[{"kty":"RSA","kid":%q,"n":%q,"e":%q}]}`,
+				`test-key-id`,
+				base64.RawURLEncoding.EncodeToString(nBytes),
+				base64.RawURLEncoding.EncodeToString(eBytes),
+			)
+
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(jwksBody)); err != nil {
+				panic(fmt.Errorf("cannot write jwks response: %w", err))
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer oidcSrv.Close()
+
+	headerJSON, err := json.Marshal(map[string]any{
+		"alg": "RS256",
+		"typ": "JWT",
+		"iss": oidcSrv.URL,
+		"kid": `test-key-id`,
+	})
+	if err != nil {
+		t.Fatalf("cannot marshal JWT header: %s", err)
+	}
+	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+
+	bodyJSON, err := json.Marshal(map[string]any{
+		"exp":       time.Now().Add(time.Minute).Unix(),
+		"iss":       oidcSrv.URL,
+		"vm_access": map[string]any{},
+	})
+	if err != nil {
+		t.Fatalf("cannot marshal JWT body: %s", err)
+	}
+	bodyB64 := base64.RawURLEncoding.EncodeToString(bodyJSON)
+
+	payload := headerB64 + "." + bodyB64
+
+	var signatureB64 string
+	hash := crypto.SHA256
+	h := hash.New()
+	h.Write([]byte(payload))
+	digest := h.Sum(nil)
+
+	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
+	if err != nil {
+		t.Fatalf("cannot sign JWT token: %s", err)
+	}
+	signatureB64 = base64.RawURLEncoding.EncodeToString(signature)
+
+	tkn := payload + "." + signatureB64
+
+	backSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backSrv.Close()
+
+	f := func(responseExpected string) {
+		t.Helper()
+
+		cfgStr := `
+users:
+- jwt:
+    oidc:
+      issuer: ` + oidcSrv.URL + `
+  url_prefix: ` + backSrv.URL + `/
+`
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			if _, err := reloadAuthConfigData(cfgOrig); err != nil {
+				t.Fatalf("cannot restore original config: %s", err)
+			}
+		}()
+
+		r := httptest.NewRequest("GET", "http://some-host.com/api/v1/query", nil)
+		r.Header.Set("Authorization", "Bearer "+tkn)
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false returned from requestHandler")
+		}
+
+		if response := w.getResponse(); response != responseExpected {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
+		}
+	}
+
+	// successful
+	f(`statusCode=200
+`)
+
+	oidcRespOK.Store(false)
+	// OIDC server error
+	f(`statusCode=401
+Unauthorized
+`)
 }
 
 type fakeResponseWriter struct {
-	h http.Header
+	statusCode int
+	h          http.Header
 
 	bb bytes.Buffer
 }
@@ -1265,6 +1402,7 @@ func (w *fakeResponseWriter) Write(p []byte) (int, error) {
 }
 
 func (w *fakeResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
 	fmt.Fprintf(&w.bb, "statusCode=%d\n", statusCode)
 	if w.h == nil {
 		return
@@ -1283,6 +1421,12 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 // This is needed for net/http.ResponseController
 func (w *fakeResponseWriter) SetReadDeadline(deadline time.Time) error {
 	return nil
+}
+
+func (w *fakeResponseWriter) reset() {
+	w.bb.Reset()
+	w.statusCode = 0
+	clear(w.h)
 }
 
 func TestBufferRequestBody_Success(t *testing.T) {
