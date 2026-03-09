@@ -27,6 +27,8 @@ type verifier struct {
 // VerifierPool is a pool of verifiers for different algorithms
 type VerifierPool struct {
 	vs []*verifier
+
+	matchKid bool
 }
 
 // NewVerifierPool creates a new verifier pool for a set of keys
@@ -97,7 +99,7 @@ func (vp *VerifierPool) Verify(token *Token) error {
 		if token.header.Alg != v.alg {
 			continue
 		}
-		if token.header.Kid != "" {
+		if vp.matchKid && token.header.Kid != "" {
 			if token.header.Kid != v.kid {
 				continue
 			}

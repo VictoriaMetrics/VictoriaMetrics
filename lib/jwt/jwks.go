@@ -33,6 +33,12 @@ type jwksResponse struct {
 	Keys []jwk `json:"keys"`
 }
 
+// ParseJWKs parses a JSON Web Key Set (JWKS) from r and returns a VerifierPool
+// containing a verifier for each key in the set. Each key might have a non-empty "kid" field.
+// For RSA keys, if "alg" is specified it must be one of the supported RS or PS algorithms;
+// if omitted, verifiers are created for all supported RSA and RSA-PSS algorithms.
+// For EC keys, the curve determines the algorithm.
+// The returned VerifierPool matches tokens by "kid" if not empty, otherwise tries all keys.
 func ParseJWKs(r io.Reader) (*VerifierPool, error) {
 	var resp jwksResponse
 	if err := json.NewDecoder(r).Decode(&resp); err != nil {
@@ -54,13 +60,18 @@ func ParseJWKs(r io.Reader) (*VerifierPool, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode jwks key e: %w", err)
 			}
+			exp := big.NewInt(0).SetBytes(e)
+			if !exp.IsInt64() || exp.Int64() < 1 {
+				return nil, fmt.Errorf("invalid RSA exponent")
+			}
+
 			n, err := base64.RawURLEncoding.DecodeString(key.N)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decode jwks key n: %w", err)
 			}
 
 			k := &rsa.PublicKey{
-				E: int(big.NewInt(0).SetBytes(e).Int64()),
+				E: int(exp.Int64()),
 				N: big.NewInt(0).SetBytes(n),
 			}
 
@@ -177,10 +188,13 @@ func ParseJWKs(r io.Reader) (*VerifierPool, error) {
 				alg: string(alg),
 				kid: key.Kid,
 			})
+		default:
+			return nil, fmt.Errorf("unsupported jwk.KTY: %s; want RSA or EC", key.Kty)
 		}
 	}
 
 	return &VerifierPool{
-		vs: vs,
+		matchKid: true,
+		vs:       vs,
 	}, nil
 }
