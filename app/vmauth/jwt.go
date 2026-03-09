@@ -6,6 +6,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
@@ -143,21 +144,36 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 	return jui, nil
 }
 
+var tokenPool sync.Pool
+
+func getToken() *jwt.Token {
+	tkn := tokenPool.Get()
+	if tkn == nil {
+		return &jwt.Token{}
+	}
+	return tkn.(*jwt.Token)
+}
+
+func putToken(tkn *jwt.Token) {
+	tkn.Reset()
+	tokenPool.Put(tkn)
+}
+
 func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 	js := *jwtAuthCache.Load()
 	if len(js.users) == 0 {
 		return nil, nil
 	}
 
+	tkn := getToken()
 	for _, at := range ats {
 		if strings.Count(at, ".") != 2 {
 			continue
 		}
 
 		at, _ = strings.CutPrefix(at, `http_auth:`)
-
-		tkn, err := jwt.NewToken(at, true)
-		if err != nil {
+		tkn.Reset()
+		if err := tkn.Parse(at, true); err != nil {
 			if *logInvalidAuthTokens {
 				logger.Infof("cannot parse jwt token: %s", err)
 			}
@@ -188,6 +204,7 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 		}
 	}
 
+	putToken(tkn)
 	return nil, nil
 }
 

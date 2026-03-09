@@ -1239,7 +1239,8 @@ users:
 }
 
 type fakeResponseWriter struct {
-	h http.Header
+	statusCode int
+	h          http.Header
 
 	bb bytes.Buffer
 }
@@ -1265,6 +1266,7 @@ func (w *fakeResponseWriter) Write(p []byte) (int, error) {
 }
 
 func (w *fakeResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
 	fmt.Fprintf(&w.bb, "statusCode=%d\n", statusCode)
 	if w.h == nil {
 		return
@@ -1283,6 +1285,12 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 // This is needed for net/http.ResponseController
 func (w *fakeResponseWriter) SetReadDeadline(deadline time.Time) error {
 	return nil
+}
+
+func (w *fakeResponseWriter) reset() {
+	w.bb.Reset()
+	w.statusCode = 0
+	clear(w.h)
 }
 
 func TestBufferRequestBody_Success(t *testing.T) {
