@@ -87,7 +87,7 @@ make vmalert
 Then run `vmalert`:
 
 ```sh
-./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard, HTTP URL and S3.
+./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard and HTTP URL (S3/GCS are available in Enterprise).
     -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
