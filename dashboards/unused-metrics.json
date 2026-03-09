@@ -1,0 +1,1172 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Dashboard for finding unused metrics in VictoriaMetrics",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 0,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": false,
+      "title": "RESET FILTERS",
+      "tooltip": "",
+      "type": "link",
+      "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match_pattern=&var-focus=&var-ds=${ds}&var-le=-1&var-metric="
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 16,
+      "panels": [
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 13,
+            "x": 0,
+            "y": 1
+          },
+          "id": 15,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "\nOn querying, VictoriaMetrics [tracks](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage) how many times the requested metric\n name was fetched from the database (`Requests count`) and when was the last \n time it happened (`Last request`). It helps to identify metric names that \n were **rarely** or **never** queried. \n\n _Note: prefer using [vmui Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) over this dashboard for better performance and user experience._",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.2.0",
+          "title": "",
+          "transparent": true,
+          "type": "text"
+        }
+      ],
+      "title": "Info",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 8,
+      "panels": [],
+      "title": "Explore",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "$ds"
+      },
+      "description": "VictoriaMetrics can track statistics of fetched metric names during querying . It tracks only **metric names**, as the number of names is usually limited (thousands) compared to time series (millions or billions).\n\nSee https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 2
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "$ds"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "jq-backend",
+          "refId": "A",
+          "root_selector": ".statsCollectedRecordsTotal",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/status/metric_names_stats",
+          "url_options": {
+            "data": "",
+            "method": "GET"
+          }
+        }
+      ],
+      "title": "Total metric names",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "$ds"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TS"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeFromNow"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 4,
+        "y": 2
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "$ds"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "jq-backend",
+          "refId": "A",
+          "root_selector": ".statsCollectedSince",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/status/metric_names_stats",
+          "url_options": {
+            "data": "",
+            "method": "GET"
+          }
+        }
+      ],
+      "title": "Stats collection started",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "TS",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "A"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "$ds"
+      },
+      "description": "The size of the in-memory state is limited by default to `1%` of available memory on storage. This limit can be adjusted using the `-storage.cacheSizeMetricNamesStats` flag.\n\nWhen the maximum state capacity is reached, VictoriaMetrics will stop tracking stats for newly registered time series. However, read request statistics for already tracked time series will continue to work as expected.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "#EAB839",
+                "value": 0.8
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 5,
+        "x": 7,
+        "y": 2
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "$ds"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "jq-backend",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/status/metric_names_stats",
+          "url_options": {
+            "data": "",
+            "method": "GET"
+          }
+        }
+      ],
+      "title": "Stats cache usage %",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "mem-utilization",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "trackerCurrentMemoryUsageBytes"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "trackerMemoryMaxSizeBytes"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 12,
+        "x": 12,
+        "y": 2
+      },
+      "id": 6,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "### Find: [Unused](/d/adqm4hz?var-limit=$limit&var-match_pattern=&var-le=0&var-ds=$ds) | [Unused Recording Rules](/d/adqm4hz?var-limit=$limit&var-match_pattern=.%2A:.%2A&var-le=0&var-ds=$ds) | [Rarely used](/d/adqm4hz?var-limit=$limit&var-match_pattern=&var-le=10&var-ds=$ds) | [Reset](/d/${__dashboard.uid}?var-topN=$topN&var-match_pattern=&var-focus=&var-ds=${ds}&var-le=-1&var-metric=)\n\nClick on metric name in table to get detailed information of its labels.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "12.2.0",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "$ds"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "color-text"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
+            "hideFrom": {
+              "viz": false
+            },
+            "inspect": false,
+            "wrapHeaderText": false,
+            "wrapText": false
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "lastQueryTS"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeFromNow"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "0": {
+                        "color": "semi-dark-red",
+                        "index": 0,
+                        "text": "Never"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Metric name"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Filter by name",
+                    "url": "/d/adqm4hz/unused-metrics?var-limit=$limit&var-match_pattern=${match_pattern}﻿﻿&var-le=$le&var-ds=$ds&var-metric=${__value.text}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Requests count"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "enablePagination": false,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Requests count"
+          }
+        ]
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "$ds"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "jq-backend",
+          "refId": "A",
+          "root_selector": ".records",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/status/metric_names_stats",
+          "url_options": {
+            "data": "",
+            "method": "GET",
+            "params": [
+              {
+                "key": "le",
+                "value": "$le"
+              },
+              {
+                "key": "match_pattern",
+                "value": "$match_pattern"
+              },
+              {
+                "key": "limit",
+                "value": "$limit"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Metric names usage stats",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "lastQueryTS",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "lastQueryRequestTimestamp"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "lastQueryRequestTimestamp": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "lastQueryRequestTimestamp": "",
+              "lastQueryTS": "Last request",
+              "metricName": "Metric name",
+              "queryRequestsCount": "Requests count"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 9,
+      "panels": [],
+      "title": "Detailed info about metric name: \"$metric\"",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 0,
+        "y": 18
+      },
+      "id": 13,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Click on a metric name in table `Metric names usage stats` above to see detailed information about its labels.\n\n**If you selected metric and table below is empty - this metric wasn't ingested today!**\n\nClick on the label name below to see breakdown by label values on the right table.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "12.2.0",
+      "title": "",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows total number of unique time series for selected metric name.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 9,
+        "y": 18
+      },
+      "id": 14,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "columns": [],
+          "computed_columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "$ds"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "data.seriesCountByMetricName.value",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/status/tsdb",
+          "url_options": {
+            "data": "",
+            "method": "GET",
+            "params": [
+              {
+                "key": "match",
+                "value": "$metric"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Unique time series",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "lastReqTS",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "lastRequestTimestamp"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "$ds"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "hideFrom": {
+              "viz": false
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Number of series"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Metric name"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 12,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Number of series"
+          }
+        ]
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "columns": [],
+          "computed_columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "$ds"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "data.seriesCountByFocusLabelValue",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/status/tsdb",
+          "url_options": {
+            "data": "",
+            "method": "GET",
+            "params": [
+              {
+                "key": "match",
+                "value": "$metric"
+              },
+              {
+                "key": "focusLabel",
+                "value": "$focus"
+              },
+              {
+                "key": "topN",
+                "value": "$limit"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Values for \"$focus\" label with the highest number of series",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "lastReqTS",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "lastRequestTimestamp"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "$ds"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "hideFrom": {
+              "viz": false
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Number of series"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Metric name"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Filter by metric name",
+                    "url": "/d/adqm4hz?var-topN=$topN&var-match={\"${__value.raw}\"!=\"\"}&var-focus=${__value.raw}&var-ds=$ds"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 11,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Number of series"
+          }
+        ]
+      },
+      "pluginVersion": "12.2.0",
+      "targets": [
+        {
+          "columns": [],
+          "computed_columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "$ds"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "data.labelValueCountByLabelName",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/status/tsdb",
+          "url_options": {
+            "data": "",
+            "method": "GET",
+            "params": [
+              {
+                "key": "match",
+                "value": "$metric"
+              },
+              {
+                "key": "topN",
+                "value": "$limit"
+              }
+            ]
+          }
+        }
+      ],
+      "title": "Labels with the highest number of unique values for \"$metric\"",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "lastReqTS",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "lastRequestTimestamp"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 42,
+  "tags": [
+    "victoriametrics"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "text": "VictoriaMetrics-Infinity",
+          "value": "P5DD1A226E34AC93B"
+        },
+        "label": "Datasource",
+        "name": "ds",
+        "options": [],
+        "query": "yesoreyeram-infinity-datasource",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "description": "A regex pattern to match metric names. For example, ?match_pattern=vm_ will match any metric names with vm_ pattern, like vm_http_requests, max_vm_memory_available.",
+        "label": "Metric filter (regex)",
+        "name": "match_pattern",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "-1",
+          "value": "-1"
+        },
+        "description": "Less than or equal.\nEnter integer threshold for filtering metric names by their usage count in queries. For example, with `1` API returns metric names that were queried <=1 times.\n\n\nSet `-1` for disabling filtering.",
+        "label": "Requests count <= N",
+        "name": "le",
+        "options": [
+          {
+            "selected": true,
+            "text": "-1",
+            "value": "-1"
+          }
+        ],
+        "query": "-1",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "500",
+          "value": "500"
+        },
+        "description": "Limit the amount of displayed metric names.",
+        "label": "Limit",
+        "name": "limit",
+        "options": [
+          {
+            "selected": true,
+            "text": "500",
+            "value": "500"
+          }
+        ],
+        "query": "500",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "hide": 2,
+        "name": "metric",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "description": "",
+        "hide": 2,
+        "name": "focus",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "VictoriaMetrics - unused metrics",
+  "uid": "adqm4hz",
+  "version": 1
+}
