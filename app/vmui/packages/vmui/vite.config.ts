@@ -21,7 +21,7 @@ const getProxy = (): Record<string, ProxyOptions> | undefined => {
   };
 
   return {
-    "^/prometheus/(api|vmalert)/.*": { ...commonProxy },
+    "^/prometheus/.*": { ...commonProxy },
     "/prometheus/vmui/config.json": { ...commonProxy },
   };
 };

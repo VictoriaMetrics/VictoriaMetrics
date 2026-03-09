@@ -90,25 +90,33 @@ const Relabel: FC = () => {
         </div>
         <div className="vm-relabeling-header-bottom">
           <a
-            className="vm-link vm-link_with-icon"
             target="_blank"
             href="https://docs.victoriametrics.com/victoriametrics/relabeling/"
             rel="help noreferrer"
           >
-            <InfoIcon/>
-            Relabeling cookbook
+            <Button
+              variant="text"
+              color="gray"
+              startIcon={<InfoIcon/>}
+            >
+              Relabeling cookbook
+            </Button>
           </a>
           <a
-            className="vm-link vm-link_with-icon"
             target="_blank"
             href="https://docs.victoriametrics.com/victoriametrics/relabeling/"
             rel="help noreferrer"
           >
-            <WikiIcon/>
-            Documentation
+            <Button
+              variant="text"
+              color="gray"
+              startIcon={<WikiIcon/>}
+            >
+              Documentation
+            </Button>
           </a>
           <Button
-            variant="text"
+            variant="outlined"
             onClick={handleRunExample}
           >
             Try example
@@ -118,7 +126,7 @@ const Relabel: FC = () => {
             onClick={handleRunQuery}
             startIcon={<PlayIcon/>}
           >
-            Submit
+            Preview
           </Button>
         </div>
       </div>
