@@ -139,7 +139,7 @@ For information on migrating between different versions of `vmanomaly`, please r
 
 ## Choosing the right model for vmanomaly
 
-> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) to get AI-assisted recommendations on selecting the best model and its configuration for your use case. See [installation guide](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly#installation) for more details.
+> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) to get AI-assisted recommendations on selecting the best model and its configuration for your use case. See [installation guide](https://github.com/VictoriaMetrics/mcp-vmanomaly#installation) for more details.
 
 Selecting the best model for `vmanomaly` depends on the data's nature and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) to detect. For instance, [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet).
 
@@ -151,8 +151,8 @@ Still not 100% sure what to use? We are [here to help](https://docs.victoriametr
 
 ## Incorporating domain knowledge
 
-> [!TIP] 
-> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) to get AI-assisted recommendations on incorporating domain knowledge into your anomaly detection models. See [installation guide](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly#installation) for more details. {{% available_from "v1.29.0" anomaly %}} Connect MCP server to the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to benefit from better response quality and tool access in the UI Copilot, which provides AI-assisted configuration generation and debugging capabilities. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) for instructions on how to set it up.
+> [!TIP]
+> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) to get AI-assisted recommendations on incorporating domain knowledge into your anomaly detection models. See [installation guide](https://github.com/VictoriaMetrics/mcp-vmanomaly#installation) for more details. {{% available_from "v1.29.0" anomaly %}} Connect MCP server to the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to benefit from better response quality and tool access in the UI Copilot, which provides AI-assisted configuration generation and debugging capabilities. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) for instructions on how to set it up.
 
 Anomaly detection models can significantly improve when incorporating business-specific assumptions about the data and what constitutes an anomaly. `vmanomaly` supports various [business-side configuration parameters](https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args) across all built-in models to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** and **align model behavior with business needs**, for example:
 
@@ -237,7 +237,7 @@ groups:
 
 > {{% available_from "v1.27.0" anomaly %}} You can also use the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to generate alerting rules automatically based on your model configurations and selected thresholds.
 
-> {{% available_from "v1.28.3" anomaly %}} Check out our [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) to get AI-assisted recommendations on setting up alerting rules based on produced anomaly scores. See [installation guide](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly#installation) for more details.
+> {{% available_from "v1.28.3" anomaly %}} Check out our [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) to get AI-assisted recommendations on setting up alerting rules based on produced anomaly scores. See [installation guide](https://github.com/VictoriaMetrics/mcp-vmanomaly#installation) for more details.
 
 ## Preventing alert fatigue
 Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data, while a value greater than 1.0 is generally classified as an anomaly. However, there are no perfect models for anomaly detection, that's why reasonable defaults expressions like `anomaly_score > 1` may not work 100% of the time. However, anomaly scores, produced by `vmanomaly` are written back as metrics to VictoriaMetrics, where tools like [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) can use [MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/) expressions to fine-tune alerting thresholds and conditions, balancing between avoiding [false negatives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative) and reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).

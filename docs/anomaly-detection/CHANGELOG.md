@@ -58,7 +58,7 @@ Released: 2026-01-12
 ## v1.28.3
 Released: 2025-12-17
 
-- IMPROVEMENT: Aligned service endpoints for `vmanomaly` [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) integration.
+- IMPROVEMENT: Aligned service endpoints for `vmanomaly` [MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) integration.
 
 ## v1.28.2
 Released: 2025-12-11

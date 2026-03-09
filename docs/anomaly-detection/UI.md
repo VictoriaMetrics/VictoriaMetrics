@@ -209,9 +209,9 @@ AI Assistant is disabled by default; enable it with `VMANOMALY_COPILOT_ENABLED=t
 Set one provider API key and select the matching model via `VMANOMALY_COPILOT_MODEL` ENV variable, supported options are:
 
 - **Anthropic** — set `ANTHROPIC_API_KEY`; model format: `anthropic:<model>`
-  - Supported models: `claude-haiku-4-5`, `claude-sonnet-4-6` — [full list](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison)
+  - Supported models: `claude-haiku-4-5`, `claude-sonnet-4-6` etc., see [full list](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison)
 - **OpenAI** — set `OPENAI_API_KEY`; model format: `openai:<model>`
-  - Supported models: `gpt-4o-mini`, `gpt-4o` — [full list](https://platform.openai.com/docs/models)
+  - Supported models: `gpt-5-mini`, `gpt-5.2` etc., see [full list](https://platform.openai.com/docs/models)
 
 ### MCP tools server
 
