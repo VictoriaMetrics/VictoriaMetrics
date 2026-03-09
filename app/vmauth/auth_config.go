@@ -121,9 +121,6 @@ func (ui *UserInfo) logRequest(r *http.Request, userName string, statusCode int,
 	if ui.AccessLog == nil {
 		return
 	}
-	if ui.AccessLog.Filters == nil {
-		return
-	}
 	filters := ui.AccessLog.Filters
 	if filters != nil && len(filters.SkipStatusCodes) > 0 {
 		if slices.Contains(filters.SkipStatusCodes, statusCode) {
