@@ -183,6 +183,94 @@ The best applications of this mode are:
 
 > However, the UI can be **combined with existing production jobs of anomaly detection, as it is available in non-blocking mode for all running vmanomaly instances** {{% available_from "v1.26.0" anomaly %}}, regardless of the preset or configuration used, just at a cost of increased resource usage.
 
+## AI Assistance
+
+{{% available_from "v1.29.0" anomaly %}} Copilot is an AI assistant built into the vmanomaly UI. It understands current anomaly detection configuration in the UI and helps iterate faster and obtain better results - without leaving the UI, searching the docs manually, or being an expert in anomaly detection.
+
+### What you can do with Copilot
+
+- **Ask questions** about any model (e.g. [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-z-score) — parameters, trade-offs, when to use each)
+- **Improve detection quality** — describe what's wrong ("too many false positives", "missing spikes") and Copilot reads the config, searches the docs, and proposes a validated configuration change to fix the issue.
+- **Get config suggestions inline** — suggestions appear as interactive cards with an explanation and a YAML diff; click **Apply** to write the change directly to your current settings, or **Decline** to keep the conversation going.
+
+### How it works
+
+Copilot appears as a **chat popup** anchored to the bottom-right corner of the page. The panel is resizable by dragging its left edge, and can be opened or closed by clicking the respective icon.
+
+> [!TIP] Copilot is context-aware
+> It reads your active model, scheduler, and anomaly settings from the UI automatically, so you don't need to paste your config manually.
+
+### Configuration
+
+AI Assistant is disabled by default; enable it with `VMANOMALY_COPILOT_ENABLED=true` ENV variable, then set up the provider and model you want to use (see details below). Once enabled and configured, Copilot will appear as a chat popup in the bottom-right corner of the UI.
+
+**Required: LLM provider**
+
+Set one provider API key and select the matching model via `VMANOMALY_COPILOT_MODEL` ENV variable, supported options are:
+
+- **Anthropic** — set `ANTHROPIC_API_KEY`; model format: `anthropic:<model>`
+  - Supported models: `claude-haiku-4-5`, `claude-sonnet-4-6` — [full list](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison)
+- **OpenAI** — set `OPENAI_API_KEY`; model format: `openai:<model>`
+  - Supported models: `gpt-4o-mini`, `gpt-4o` — [full list](https://platform.openai.com/docs/models)
+
+### MCP tools server
+
+Connects Copilot to [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly) for full tool access (built-in docs, models configuration and validation, alerts recommendation, service healthchecks, etc.). Full [tools list](https://github.com/VictoriaMetrics/mcp-vmanomaly?tab=readme-ov-file#toolset):
+
+> [!NOTE]
+> Only `http` [mode](https://github.com/VictoriaMetrics/mcp-vmanomaly?tab=readme-ov-file#modes) is supported. Set `VMANOMALY_MCP_SERVER_URL` to the MCP server HTTP endpoint. The server must be reachable from within the vmanomaly container.
+
+**Example**: if using Docker, run `mcp-vmanomaly` and vmanomaly UI in the same Docker network so they can reach each other by container name:
+
+```bash
+docker network create vmanomaly-network
+
+docker run -d --rm \
+  --name mcp-vmanomaly \
+  --network vmanomaly-network \
+  -e VMANOMALY_ENDPOINT=http://vmanomaly-instance:8490 \
+  -e MCP_SERVER_MODE=http \
+  -e MCP_LISTEN_ADDR=:8081 \
+  ghcr.io/victoriametrics/mcp-vmanomaly
+
+docker run -it --rm \
+  --name vmanomaly-instance \
+  --network vmanomaly-network \
+  -e VMANOMALY_COPILOT_ENABLED=true \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e VMANOMALY_COPILOT_MODEL=openai:gpt-4o \
+  -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
+  -p 8080:8080 \
+  -p 8490:8490 \
+  victoriametrics/vmanomaly:v1.29.0 \
+  vmanomaly_config.yaml
+```
+
+### Required: LLM provider key
+
+Set exactly one provider key (matching your selected model provider):
+
+```bash
+# Anthropic
+export ANTHROPIC_API_KEY=your_key_here
+
+# OpenAI
+export OPENAI_API_KEY=your_key_here
+```
+
+### Optional settings
+
+To benefit from better response quality and tool access, set specific model and MCP server URL:
+
+```bash
+# Model (default: anthropic:claude-haiku-4-5)
+export VMANOMALY_COPILOT_MODEL=openai:gpt-5.2
+
+# MCP tools endpoint
+export VMANOMALY_MCP_SERVER_URL=http://localhost:8491/mcp
+```
+
+
 ## UI Navigation
 
 The vmanomaly UI provides a user-friendly interface for exploring and configuring anomaly detection models. The main components of the UI include:
@@ -500,6 +588,15 @@ If the **results** look good and the **model configuration should be deployed in
 ![vmanomaly-ui-example-alert-menu](vmanomaly-ui-example-alert-menu.webp)
 
 ## Changelog
+
+### v1.5.0
+Released: 2026-03-05
+
+vmanomaly version: [v1.29.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1290)
+
+- FEATURE: Allowed AI assistance use for documentation Q&A, model configuration suggestion and application, optionally backed by [MCP Server tools](https://github.com/VictoriaMetrics/mcp-vmanomaly/tree/main). Please refer to [AI Assistance](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) section for details.
+- FEATURE: Added filtering of timeseries in the Visualization Panel by labels and statistics (e.g. anomaly count) to focus on the most relevant series when many series are returned by the query.
+- BUGFIX: Fixed missing datapoints in [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) windows combined with [exact mode](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#defining-inference-timeframe-1), leading to "gaps" in plotted predictions and scores.
 
 ### v1.4.3
 Released: 2026-02-09

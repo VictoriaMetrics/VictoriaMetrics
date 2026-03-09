@@ -14,6 +14,21 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.29.0
+Released: 2026-03-05
+
+- UI: Updated [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) from [v1.4.3](https://docs.victoriametrics.com/anomaly-detection/ui/#v143) to [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/ui/#v150), see respective [release notes](https://docs.victoriametrics.com/anomaly-detection/ui/#v150) for details. Notable changes include [AI assistance](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) support capable of applying model configuration changes, generating VMAlert rules, and providing general guidance on using the product.
+
+- IMPROVEMENT: Optimized internal data structures for readers when `query_from_last_seen_timestamp` [parameter](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) is enabled, resulting in reduced memory usage and improved performance for large datasets.
+
+- IMPROVEMENT: Hardened [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) with staged snapshot apply and automatic rollback. Reload now validates once and applies the same snapshot, preventing re-read race conditions and avoiding same-port conflicts during restart; failures keep previous runtime and are reflected in [startup metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#startup-metrics).
+
+- BUGFIX: Config file read/parse failures are now non-fatal in [hot reload](https://docs.victoriametrics.com/anomaly-detection/components/#hot-reload) mode (service keeps running), while initial startup remains fatal for invalid/broken config files.
+
+- BUGFIX: Fixed missing datapoints in [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) windows used in [exact mode](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#defining-inference-timeframe-1), leading to "gaps" in plotted predictions and scores.
+
+- BUGFIX: Fixed a model state update issue in [BacktestingScheduler exact mode](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#defining-inference-timeframe-1) when parallelization (`settings.n_workers > 1`) was enabled, causing [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) to produce stale/flat `yhat`, `yhat_lower`, and `yhat_upper` lines.
+
 ## v1.28.7
 Released: 2026-02-09
 

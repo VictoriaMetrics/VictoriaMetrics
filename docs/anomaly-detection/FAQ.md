@@ -151,7 +151,8 @@ Still not 100% sure what to use? We are [here to help](https://docs.victoriametr
 
 ## Incorporating domain knowledge
 
-> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) to get AI-assisted recommendations on incorporating domain knowledge into your anomaly detection models. See [installation guide](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly#installation) for more details.
+> [!TIP] 
+> {{% available_from "v1.28.3" anomaly %}} Try our [MCP Server](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly) to get AI-assisted recommendations on incorporating domain knowledge into your anomaly detection models. See [installation guide](https://github.com/VictoriaMetrics-Community/mcp-vmanomaly#installation) for more details. {{% available_from "v1.29.0" anomaly %}} Connect MCP server to the [vmanomaly UI](https://docs.victoriametrics.com/anomaly-detection/ui/) to benefit from better response quality and tool access in the UI Copilot, which provides AI-assisted configuration generation and debugging capabilities. See the [UI documentation](https://docs.victoriametrics.com/anomaly-detection/ui/#ai-assistance) for instructions on how to set it up.
 
 Anomaly detection models can significantly improve when incorporating business-specific assumptions about the data and what constitutes an anomaly. `vmanomaly` supports various [business-side configuration parameters](https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args) across all built-in models to **reduce [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive)** and **align model behavior with business needs**, for example:
 
@@ -419,7 +420,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.28.7
+    image: victoriametrics/vmanomaly:v1.29.0
     # ...
     restart: always
     volumes:
@@ -637,7 +638,7 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.28.6 && docker image tag victoriametrics/vmanomaly:v1.28.7 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.29.0 && docker image tag victoriametrics/vmanomaly:v1.29.0 vmanomaly
 ```
 
 ```sh
