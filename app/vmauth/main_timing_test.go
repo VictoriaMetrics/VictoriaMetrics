@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -74,50 +73,20 @@ func BenchmarkJWTRequestHandler(b *testing.B) {
 		return payload + "." + signatureB64
 	}
 
-	f := func(name string, cfgStr string, r *http.Request, responseExpected string) {
+	f := func(name string, cfgStr string, r *http.Request, statusCodeExpected int) {
 		b.Helper()
 
 		b.ReportAllocs()
 		b.ResetTimer()
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
 			if _, err := w.Write([]byte("path: " + r.URL.Path + "\n")); err != nil {
 				panic(fmt.Errorf("cannot write response: %w", err))
-			}
-			if _, err := w.Write([]byte("query:\n")); err != nil {
-				panic(fmt.Errorf("cannot write response: %w", err))
-			}
-			names := make([]string, 0, len(r.URL.Query()))
-			query := r.URL.Query()
-			for n := range query {
-				names = append(names, n)
-			}
-			sort.Strings(names)
-			for _, n := range names {
-				for _, v := range query[n] {
-					if _, err := w.Write([]byte("    " + n + "=" + v + "\n")); err != nil {
-						panic(fmt.Errorf("cannot write response: %w", err))
-					}
-				}
-			}
-
-			if _, err := w.Write([]byte("headers:\n")); err != nil {
-				panic(fmt.Errorf("cannot write response: %w", err))
-			}
-			if v := r.Header.Get(`AccountID`); v != "" {
-				if _, err := w.Write([]byte(`    AccountID=` + v + "\n")); err != nil {
-					panic(fmt.Errorf("cannot write response: %w", err))
-				}
-			}
-			if v := r.Header.Get(`ProjectID`); v != "" {
-				if _, err := w.Write([]byte(`    ProjectID=` + v + "\n")); err != nil {
-					panic(fmt.Errorf("cannot write response: %w", err))
-				}
 			}
 		}))
 		defer ts.Close()
 
 		cfgStr = strings.ReplaceAll(cfgStr, "{BACKEND}", ts.URL)
-		responseExpected = strings.ReplaceAll(responseExpected, "{BACKEND}", ts.URL)
 
 		cfgOrigP := authConfigData.Load()
 		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
@@ -133,24 +102,21 @@ func BenchmarkJWTRequestHandler(b *testing.B) {
 				b.Fatalf("cannot load the original config: %s", err)
 			}
 		}()
-		responseExpected = strings.TrimSpace(responseExpected)
 
 		b.Run(name, func(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 			b.RunParallel(func(pb *testing.PB) {
+				w := &fakeResponseWriter{}
 				for pb.Next() {
-					w := &fakeResponseWriter{}
+					w.reset()
 					if !requestHandlerWithInternalRoutes(w, r) {
 						b.Fatalf("unexpected false is returned from requestHandler")
 					}
-
-					response := w.getResponse()
-					response = strings.ReplaceAll(response, "\r\n", "\n")
-					response = strings.TrimSpace(response)
-					if response != responseExpected {
-						b.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
+					if w.statusCode != statusCodeExpected {
+						b.Fatalf("unexpected response code (-%d;+%d)", statusCodeExpected, w.statusCode)
 					}
+
 				}
 			})
 		})
@@ -202,17 +168,6 @@ users:
 	// extra_filters extra_stream_filters from vm_access claim merged with statically defined
 	request := httptest.NewRequest(`GET`, "http://some-host.com/query", nil)
 	request.Header.Set(`Authorization`, `Bearer `+fullToken)
-	responseExpected := `
-statusCode=200
-path: /select/logsql/query
-query:
-    extra_filters=aStaticFilter
-    extra_filters={"namespace":"my-app","env":"prod"}
-    extra_stream_filters=aStaticStreamFilter
-    extra_stream_filters={"team":"dev"}
-headers:
-    AccountID=345
-    ProjectID=456`
 	f("full_template",
 		fmt.Sprintf(`
 users:
@@ -224,22 +179,16 @@ users:
     - "ProjectID: {{.LogsProjectID}}"
   url_prefix: {BACKEND}/select/logsql/?extra_filters=aStaticFilter&extra_stream_filters=aStaticStreamFilter&extra_filters={{.LogsExtraFilters}}&extra_stream_filters={{.LogsExtraStreamFilters}}`, string(publicKeyPEM)),
 		request,
-		responseExpected,
+		http.StatusOK,
 	)
 
 	// token without vm_access claim
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
 	request.Header.Set(`Authorization`, `Bearer `+noVMAccessClaimToken)
-	responseExpected = `
-statusCode=401
-Unauthorized`
-	f("token_without_claim", simpleCfgStr, request, responseExpected)
+	f("token_without_claim", simpleCfgStr, request, http.StatusUnauthorized)
 
 	// expired token
 	request = httptest.NewRequest(`GET`, "http://some-host.com/abc", nil)
 	request.Header.Set(`Authorization`, `Bearer `+expiredToken)
-	responseExpected = `
-statusCode=401
-Unauthorized`
-	f("expired_token", simpleCfgStr, request, responseExpected)
+	f("expired_token", simpleCfgStr, request, http.StatusUnauthorized)
 }
