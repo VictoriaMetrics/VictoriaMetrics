@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -82,30 +83,58 @@ func WriteRelabelConfigData(w io.Writer) {
 	_, _ = w.Write(*p)
 }
 
+// GetRemoteWriteRelabelConfigString returns -remoteWrite.relabelConfig contents in string
+func GetRemoteWriteRelabelConfigString() string {
+	var bb bytesutil.ByteBuffer
+	WriteRelabelConfigData(&bb)
+	if bb.Len() == 0 {
+		return ""
+	}
+	return string(bb.B)
+}
+
+type UrlRelabelCfg struct {
+	Url           string `yaml:"url"`
+	RelabelConfig any    `yaml:"relabel_config"`
+
+	RelabelConfigStr string
+}
+
 // WriteURLRelabelConfigData writes -remoteWrite.urlRelabelConfig contents to w
 func WriteURLRelabelConfigData(w io.Writer) {
-	p := remoteWriteURLRelabelConfigData.Load()
-	if p == nil {
+	cs := GetURLRelabelConfigData()
+	if cs == nil {
 		// Nothing to write to w
 		return
 	}
-	type urlRelabelCfg struct {
-		Url           string `yaml:"url"`
-		RelabelConfig any    `yaml:"relabel_config"`
+	d, _ := yaml.Marshal(cs)
+	_, _ = w.Write(d)
+}
+
+// GetURLRelabelConfigData is similar to WriteURLRelabelConfigData but returning data in []UrlRelabelCfg.
+func GetURLRelabelConfigData() []UrlRelabelCfg {
+	p := remoteWriteURLRelabelConfigData.Load()
+	if p == nil {
+		return nil
 	}
-	var cs []urlRelabelCfg
+	var cs []UrlRelabelCfg
 	for i, url := range *remoteWriteURLs {
 		cfgData := (*p)[i]
+		var cfgDataBytes []byte
+		if cfgData != nil {
+			cfgDataBytes, _ = yaml.Marshal(cfgData)
+		}
 		if !*showRemoteWriteURL {
 			url = fmt.Sprintf("%d:secret-url", i+1)
 		}
-		cs = append(cs, urlRelabelCfg{
+		cs = append(cs, UrlRelabelCfg{
 			Url:           url,
 			RelabelConfig: cfgData,
+
+			RelabelConfigStr: string(cfgDataBytes),
 		})
 	}
-	d, _ := yaml.Marshal(cs)
-	_, _ = w.Write(d)
+	return cs
 }
 
 func reloadRelabelConfigs() {
