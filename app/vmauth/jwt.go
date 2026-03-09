@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jwt"
@@ -45,18 +46,27 @@ var urlPathPlaceHolders = []string{
 type jwtCache struct {
 	// users contain UserInfo`s from AuthConfig with JWTConfig set
 	users []*UserInfo
+
+	oidcDP *oidcDiscovererPool
 }
 
 type JWTConfig struct {
-	PublicKeys     []string `yaml:"public_keys,omitempty"`
-	PublicKeyFiles []string `yaml:"public_key_files,omitempty"`
-	SkipVerify     bool     `yaml:"skip_verify,omitempty"`
+	PublicKeys     []string    `yaml:"public_keys,omitempty"`
+	PublicKeyFiles []string    `yaml:"public_key_files,omitempty"`
+	SkipVerify     bool        `yaml:"skip_verify,omitempty"`
+	OIDC           *oidcConfig `yaml:"oidc,omitempty"`
 
-	verifierPool *jwt.VerifierPool
+	// verifierPool is used to verify JWT tokens.
+	// It is initialized from PublicKeys and/or PublicKeyFiles.
+	// In this case, it is initialized once at config reload and never updated until next reload
+	// In case of OIDC, it is initialized on config reload and periodically updated by discovery process.
+	verifierPool atomic.Pointer[jwt.VerifierPool]
 }
 
-func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
+func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 	jui := make([]*UserInfo, 0, len(ac.Users))
+	oidcDP := &oidcDiscovererPool{}
+
 	for _, ui := range ac.Users {
 		jwtToken := ui.JWT
 		if jwtToken == nil {
@@ -64,10 +74,10 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 		}
 
 		if ui.AuthToken != "" || ui.BearerToken != "" || ui.Username != "" || ui.Password != "" {
-			return nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt is set")
+			return nil, nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt is set")
 		}
-		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify {
-			return nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files or have skip_verify=true")
+		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify && jwtToken.OIDC == nil {
+			return nil, nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files, oidc or have skip_verify=true")
 		}
 
 		if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 {
@@ -76,7 +86,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 			for i := range jwtToken.PublicKeys {
 				k, err := jwt.ParseKey([]byte(jwtToken.PublicKeys[i]))
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				keys = append(keys, k)
 			}
@@ -84,33 +94,52 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 			for _, filePath := range jwtToken.PublicKeyFiles {
 				keyData, err := os.ReadFile(filePath)
 				if err != nil {
-					return nil, fmt.Errorf("cannot read public key from file %q: %w", filePath, err)
+					return nil, nil, fmt.Errorf("cannot read public key from file %q: %w", filePath, err)
 				}
 				k, err := jwt.ParseKey(keyData)
 				if err != nil {
-					return nil, fmt.Errorf("cannot parse public key from file %q: %w", filePath, err)
+					return nil, nil, fmt.Errorf("cannot parse public key from file %q: %w", filePath, err)
 				}
 				keys = append(keys, k)
 			}
 
 			vp, err := jwt.NewVerifierPool(keys)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
-			jwtToken.verifierPool = vp
+			jwtToken.verifierPool.Store(vp)
 		}
+		if jwtToken.OIDC != nil {
+			if len(jwtToken.PublicKeys) > 0 || len(jwtToken.PublicKeyFiles) > 0 || jwtToken.SkipVerify {
+				return nil, nil, fmt.Errorf("jwt with oidc cannot contain public keys or have skip_verify=true")
+			}
+
+			if jwtToken.OIDC.Issuer == "" {
+				return nil, nil, fmt.Errorf("oidc issuer cannot be empty")
+			}
+			isserURL, err := url.Parse(jwtToken.OIDC.Issuer)
+			if err != nil {
+				return nil, nil, fmt.Errorf("oidc issuer %q must be a valid URL", jwtToken.OIDC.Issuer)
+			}
+			if isserURL.Scheme != "https" && isserURL.Scheme != "http" {
+				return nil, nil, fmt.Errorf("oidc issuer %q must have http or https scheme", jwtToken.OIDC.Issuer)
+			}
+
+			oidcDP.createOrAdd(ui.JWT.OIDC.Issuer, &ui.JWT.verifierPool)
+		}
+
 		if err := parseJWTPlaceholdersForUserInfo(&ui, true); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if err := ui.initURLs(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
+			return nil, nil, fmt.Errorf("cannot parse metric_labels: %w", err)
 		}
 		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
 		ui.requestErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_errors_total` + metricLabels)
@@ -129,7 +158,7 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
-			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
+			return nil, nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
 		ui.rt = rt
 
@@ -138,10 +167,10 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, error) {
 
 	// TODO: the limitation will be lifted once claim based matching will be implemented
 	if len(jui) > 1 {
-		return nil, fmt.Errorf("multiple users with JWT tokens are not supported; found %d users", len(jui))
+		return nil, nil, fmt.Errorf("multiple users with JWT tokens are not supported; found %d users", len(jui))
 	}
 
-	return jui, nil
+	return jui, oidcDP, nil
 }
 
 var tokenPool sync.Pool
@@ -159,13 +188,14 @@ func putToken(tkn *jwt.Token) {
 	tokenPool.Put(tkn)
 }
 
-func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
+func getJWTUserInfo(ats []string) (*UserInfo, *jwt.Token) {
 	js := *jwtAuthCache.Load()
 	if len(js.users) == 0 {
 		return nil, nil
 	}
 
 	tkn := getToken()
+
 	for _, at := range ats {
 		if strings.Count(at, ".") != 2 {
 			continue
@@ -188,24 +218,62 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 			continue
 		}
 
-		for _, ui := range js.users {
-			if ui.JWT.SkipVerify {
-				return ui, tkn
-			}
-
-			if err := ui.JWT.verifierPool.Verify(tkn); err != nil {
-				if *logInvalidAuthTokens {
-					logger.Infof("cannot verify jwt token: %s", err)
-				}
-				continue
-			}
-
+		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
 			return ui, tkn
 		}
 	}
 
 	putToken(tkn)
 	return nil, nil
+}
+
+func getUserInfoByJWTToken(tkn *jwt.Token, users []*UserInfo) *UserInfo {
+	for _, ui := range users {
+		if ui.JWT.SkipVerify {
+			return ui
+		}
+
+		if ui.JWT.OIDC != nil {
+			// OIDC requires iss claim.
+			// It must match the discovery issuer URL set in OIDC config.
+			// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+			if tkn.Issuer() == "" {
+				if *logInvalidAuthTokens {
+					logger.Infof("jwt token must have issuer filed")
+				}
+				return nil
+			}
+			if tkn.Issuer() != ui.JWT.OIDC.Issuer {
+				if *logInvalidAuthTokens {
+					logger.Infof("jwt token issuer: %q does not match oidc issuer: %q", tkn.Issuer(), ui.JWT.OIDC.Issuer)
+				}
+				return nil
+			}
+		}
+
+		vp := ui.JWT.verifierPool.Load()
+		if vp == nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("jwt verifier not initialed")
+			}
+			return nil
+		}
+
+		if err := vp.Verify(tkn); err != nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("cannot verify jwt token: %s", err)
+			}
+			continue
+		}
+
+		return ui
+	}
+
+	if *logInvalidAuthTokens {
+		logger.Infof("no user match jwt token")
+	}
+
+	return nil
 }
 
 func replaceJWTPlaceholders(bu *backendURL, hc HeadersConf, vma *jwt.VMAccessClaim) (*url.URL, HeadersConf) {
