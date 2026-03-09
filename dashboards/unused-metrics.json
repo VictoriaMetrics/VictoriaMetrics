@@ -31,7 +31,7 @@
       "title": "RESET FILTERS",
       "tooltip": "",
       "type": "link",
-      "url": "/d/${__dashboard.uid}?var-topN=$topN&var-match_pattern=&var-focus=&var-ds=${ds}&var-le=-1&var-metric="
+      "url": "/d/${__dashboard.uid}?var-limit=$limit&var-match_pattern=&var-focus=&var-ds=${ds}&var-le=-1&var-metric="
     }
   ],
   "panels": [
@@ -399,7 +399,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "### Find: [Unused](/d/adqm4hz?var-limit=$limit&var-match_pattern=&var-le=0&var-ds=$ds) | [Unused Recording Rules](/d/adqm4hz?var-limit=$limit&var-match_pattern=.%2A:.%2A&var-le=0&var-ds=$ds) | [Rarely used](/d/adqm4hz?var-limit=$limit&var-match_pattern=&var-le=10&var-ds=$ds) | [Reset](/d/${__dashboard.uid}?var-topN=$topN&var-match_pattern=&var-focus=&var-ds=${ds}&var-le=-1&var-metric=)\n\nClick on metric name in table to get detailed information of its labels.",
+        "content": "### Find: [Unused](/d/adqm4hz?var-limit=$limit&var-match_pattern=&var-le=0&var-ds=$ds) | [Unused Recording Rules](/d/adqm4hz?var-limit=$limit&var-match_pattern=.%2A:.%2A&var-le=0&var-ds=$ds) | [Rarely used](/d/adqm4hz?var-limit=$limit&var-match_pattern=&var-le=10&var-ds=$ds) | [Reset](/d/${__dashboard.uid}?var-limit=$limit&var-match_pattern=&var-focus=&var-ds=${ds}&var-le=-1&var-metric=)\n\nClick on metric name in table to get detailed information of its labels.",
         "mode": "markdown"
       },
       "pluginVersion": "12.2.0",
@@ -961,7 +961,7 @@
                 "value": [
                   {
                     "title": "Filter by metric name",
-                    "url": "/d/adqm4hz?var-topN=$topN&var-match={\"${__value.raw}\"!=\"\"}&var-focus=${__value.raw}&var-ds=$ds"
+                    "url": "/d/adqm4hz?var-limit=$limit&var-match={\"${__value.raw}\"!=\"\"}&var-focus=${__value.raw}&var-ds=$ds"
                   }
                 ]
               }
