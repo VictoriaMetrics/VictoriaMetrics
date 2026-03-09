@@ -6,14 +6,13 @@ This guide provides step-by-step instructions for configuring vmagent to ingest 
 
 ## Prerequisites
 
-* An active license key. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
-* [Docker](https://docs.docker.com/engine/install/) and Docker Compose must be installed.
+* [Docker](https://docs.docker.com/engine/install/) and [docker compose](https://docs.docker.com/compose/) must be installed.
 * Add the `keycloak` host to the `/etc/hosts` file pointing to `127.0.0.1`.
 
 ```
 # /etc/hosts
 
-# Setup vmauth - Multi-Tenant Access with vmagent & OIDC
+# Setup vmagent - Multi-Tenant remote write & OIDC
 # https://docs.victoriametrics.com/guides/vmagent-openid-configuration/#prerequisites
 127.0.0.1 keycloak
 ```
@@ -24,24 +23,24 @@ The identity service must be able to issue JWT tokens with the following `vm_acc
 
 ```json
 {
+  "exp": 1772019469,
   "vm_access": {
-    "tenant_id": {
-      "account_id": 0,
-      "project_id": 0
-    }
+    "metrics_account_id": 0,
+    "metrics_project_id": 0
   }
 }
 ```
-> Note: if `project_id` is not specified, the default value `0` is used.
+> Note: if `metrics_account_id` or `metrics_project_id` are not specified, the default value `0` is used.
 
-Some identity providers support only string claim values. vmauth also supports the claim value as a string:
+Some identity providers support only string-based claim values, and vmauth supports them as well:
 ```json
 {
-  "vm_access": "{\"tenant_id\": {\"account_id\": 0, \"project_id\": 0}}"
+   "exp": 1772019469,
+   "vm_access": "{\"metrics_account_id\": 0, \"metrics_project_id\": 0}"
 }
 ```
 
-See details about all supported options in the [vmauth - oidc authorization](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-authorization).
+See details about all supported options in the [vmauth documentation](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy).
 
 ### Setup Keycloak
 
@@ -110,7 +109,7 @@ Once Keycloak is available at `http://keycloak:3001`, follow the steps below to 
 1. Go to `Service account roles` -> click on `service-account-vmagent`.<br>
    ![vmagent service account](vmagent-sa.webp)
 1. Go to the `Attributes` tab and add an attribute.
-   Set the `vm_access` attribute value to `{"tenant_id" : {"account_id": 0, "project_id": 0}}`. <br>
+   Set the `vm_access` attribute value to `{"metrics_account_id": 0, "metrics_project_id": 0}`. <br>
    ![User attributes](vmagent-sa-attributes.webp)
    Click `Save`.
 
@@ -146,15 +145,15 @@ These services will store and query the metrics scraped by vmagent.
 # compose.yaml
 services:
   vmstorage:
-    image: victoriametrics/vmstorage:v1.124.0-cluster
+    image: victoriametrics/vmstorage:v1.137.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.124.0-cluster
+    image: victoriametrics/vminsert:v1.137.0-cluster
     command:
       - -storageNode=vmstorage:8400
 
   vmselect:
-    image: victoriametrics/vmselect:v1.124.0-cluster
+    image: victoriametrics/vmselect:v1.137.0-cluster
     command:
       - -storageNode=vmstorage:8401
     ports:
@@ -163,28 +162,21 @@ services:
 
 ### Setup vmauth
 
-Create a vmauth configuration file `vm-auth.yaml` that enables OIDC authorization using the identity provider.
-The `{{tenantID}}` placeholder will route requests to the correct tenant based on JWT claims.
+Create a vmauth configuration file `auth.yaml` that enables OIDC authorization using the identity provider.
+The `{{.MetricsTenant}}` placeholder will route requests to the correct tenant based on JWT claims.
 
 ```yaml
-# vm-auth.yaml
-oidc:
-  realms:
-    - name: keycloak
-      issuer_url: http://keycloak:3001/realms/master
-      # It's recommended to enable discovery in production
-      skip_discovery: true
+# auth.yaml
+
 users:
-  - client:
-      # The value should match the "aud" claim from the JWT token
-      # Use oidc.claims.client_id to change the claim used as client ID
-      client_id: account
-      realm: keycloak
-    url_map:
-      - src_paths:
-          - "/insert/.*"
-        drop_src_path_prefix_parts: 1
-        url_prefix: "http://vminsert:8480/insert/{{tenantID}}/prometheus/"
+- jwt:
+    oidc:
+      issuer: 'http://keycloak:3001/realms/master'
+  url_map:
+    - src_paths:
+        - "/insert/.*"
+      drop_src_path_prefix_parts: 1
+      url_prefix: "http://vminsert:8480/insert/{{.MetricsTenant}}/prometheus/"
 ```
 
 Add the vmauth service to `compose.yaml`:
@@ -193,14 +185,12 @@ Add the vmauth service to `compose.yaml`:
 # compose.yaml
 services:
   vmauth:
-    image: victoriametrics/vmauth:v1.124.0-enterprise
+    image: victoriametrics/vmauth:v1.137.0-enterprise
     ports:
       - 8427:8427
     volumes:
-      - ./vm-license.key:/opt/vm-license.key
       - ./vm-auth.yaml:/etc/config.yaml
     command:
-      - -licenseFile=/opt/vm-license.key
       - -auth.config=/etc/config.yaml
 ```
 
@@ -250,7 +240,7 @@ Add the vmagent service to `compose.yaml` with OAuth2 configuration:
 # compose.yaml
 services:
   vmagent:
-    image: victoriametrics/vmagent:v1.124.0
+    image: victoriametrics/vmagent:v1.137.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -269,6 +259,7 @@ Use the client secret obtained in the [Create client](https://docs.victoriametri
 
 Go to `http://localhost:8481/select/0/vmui/` and query the `vm_app_version` metric. If the metric is present, then everything is working as expected.
 
-
 ## Summary
 
+This guide showed how to configure vmagent to ingest metrics into a VictoriaMetrics cluster through vmauth using OIDC authentication.
+Vmagent uses the OAuth2 client credentials flow to obtain JWT tokens from Keycloak, which vmauth validates and uses to route requests to the correct tenant.
