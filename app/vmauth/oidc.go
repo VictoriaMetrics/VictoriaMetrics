@@ -21,7 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
-type OIDCConfig struct {
+type oidcConfig struct {
 	Issuer string `yaml:"issuer"`
 }
 
@@ -169,7 +169,7 @@ var oidcHTTPClient = &http.Client{
 }
 
 func fetchJWKs(ctx context.Context, jwksURI string) ([]any, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", jwksURI, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jwksURI, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request for fetching jwks keys from %q: %w", jwksURI, err)
 	}
@@ -186,7 +186,6 @@ func fetchJWKs(ctx context.Context, jwksURI string) ([]any, error) {
 
 	var jwks jwksResponse
 	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
-
 		return nil, fmt.Errorf("failed to decode jwks response from %q: %v", jwksURI, err)
 	}
 
@@ -202,7 +201,7 @@ func getOpenIDConfiguration(ctx context.Context, issuer string) (openidConfig, e
 	issuer, _ = strings.CutSuffix(issuer, "/")
 	configURL := fmt.Sprintf("%s/.well-known/openid-configuration", issuer)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", configURL, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, configURL, nil)
 	if err != nil {
 		return openidConfig{}, fmt.Errorf("failed to create request for fetching openid config from %q: %w", configURL, err)
 	}
@@ -221,7 +220,6 @@ func getOpenIDConfiguration(ctx context.Context, issuer string) (openidConfig, e
 	if err := json.NewDecoder(resp.Body).Decode(&cfg); err != nil {
 		return openidConfig{}, fmt.Errorf("failed to decode openid config from %q: %s", configURL, err)
 	}
-	_ = resp.Body.Close()
 
 	return cfg, nil
 }
@@ -283,6 +281,8 @@ func parseJwksKeys(resp *jwksResponse) ([]any, error) {
 				X:     big.NewInt(0).SetBytes(x),
 				Y:     big.NewInt(0).SetBytes(y),
 			})
+		default:
+			return nil, fmt.Errorf("unsupported jwk.KTY: %s; want RSA or EC", key.Type)
 		}
 	}
 

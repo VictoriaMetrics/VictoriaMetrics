@@ -209,7 +209,7 @@ users:
     oidc: "not an object"
   url_prefix: http://foo.bar
 `,
-		"cannot unmarshal AuthConfig data: yaml: unmarshal errors:\n  line 4: cannot unmarshal !!str `not an ...` into main.OIDCConfig",
+		"cannot unmarshal AuthConfig data: yaml: unmarshal errors:\n  line 4: cannot unmarshal !!str `not an ...` into main.oidcConfig",
 	)
 
 	// oidc issuer empty

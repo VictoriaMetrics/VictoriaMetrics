@@ -54,7 +54,7 @@ type JWTConfig struct {
 	PublicKeys     []string    `yaml:"public_keys,omitempty"`
 	PublicKeyFiles []string    `yaml:"public_key_files,omitempty"`
 	SkipVerify     bool        `yaml:"skip_verify,omitempty"`
-	OIDC           *OIDCConfig `yaml:"oidc,omitempty"`
+	OIDC           *oidcConfig `yaml:"oidc,omitempty"`
 
 	// verifierPool is used to verify JWT tokens.
 	// It is initialized from PublicKeys and/or PublicKeyFiles.
@@ -195,6 +195,8 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 	}
 
 	tkn := getToken()
+
+atsLoop:
 	for _, at := range ats {
 		if strings.Count(at, ".") != 2 {
 			continue
@@ -227,30 +229,29 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 				// It must match the discovery issuer URL set in OIDC config.
 				// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
 				if tkn.Issuer() == "" {
-					continue
+					if *logInvalidAuthTokens {
+						logger.Infof("jwt token must have issuer filed")
+					}
+					continue atsLoop
 				}
 				if tkn.Issuer() != ui.JWT.OIDC.Issuer {
-					continue
+					if *logInvalidAuthTokens {
+						logger.Infof("jwt token issuer=%q does not match oidc issuer: %q", tkn.Issuer(), ui.JWT.OIDC.Issuer)
+					}
+					continue atsLoop
 				}
 			}
 
 			vp := ui.JWT.verifierPool.Load()
 			if vp == nil {
-				continue
+				continue atsLoop
 			}
 
-			// In case of OIDC, current verifier implementation is suboptimal.
-			// It tries all keys for the same alg until it finds the right one or fails all of them.
-			// OIDC require using kid claim from the token to choose a proper JWK.
-			// https://openid.net/specs/openid-connect-core-1_0.html#RotateEncKeys
-			// https://openid.net/specs/draft-jones-json-web-key-03.html#anchor4
-			//
-			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10606
 			if err := vp.Verify(tkn); err != nil {
 				if *logInvalidAuthTokens {
 					logger.Infof("cannot verify jwt token: %s", err)
 				}
-				continue
+				continue atsLoop
 			}
 
 			return ui, tkn
