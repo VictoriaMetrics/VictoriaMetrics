@@ -188,7 +188,7 @@ func putToken(tkn *jwt.Token) {
 	tokenPool.Put(tkn)
 }
 
-func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
+func getJWTUserInfo(ats []string) (*UserInfo, *jwt.Token) {
 	js := *jwtAuthCache.Load()
 	if len(js.users) == 0 {
 		return nil, nil
@@ -196,7 +196,6 @@ func getUserInfoByJWTToken(ats []string) (*UserInfo, *jwt.Token) {
 
 	tkn := getToken()
 
-atsLoop:
 	for _, at := range ats {
 		if strings.Count(at, ".") != 2 {
 			continue
@@ -219,47 +218,62 @@ atsLoop:
 			continue
 		}
 
-		for _, ui := range js.users {
-			if ui.JWT.SkipVerify {
-				return ui, tkn
-			}
-
-			if ui.JWT.OIDC != nil {
-				// OIDC requires iss claim.
-				// It must match the discovery issuer URL set in OIDC config.
-				// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
-				if tkn.Issuer() == "" {
-					if *logInvalidAuthTokens {
-						logger.Infof("jwt token must have issuer filed")
-					}
-					continue atsLoop
-				}
-				if tkn.Issuer() != ui.JWT.OIDC.Issuer {
-					if *logInvalidAuthTokens {
-						logger.Infof("jwt token issuer=%q does not match oidc issuer: %q", tkn.Issuer(), ui.JWT.OIDC.Issuer)
-					}
-					continue atsLoop
-				}
-			}
-
-			vp := ui.JWT.verifierPool.Load()
-			if vp == nil {
-				continue atsLoop
-			}
-
-			if err := vp.Verify(tkn); err != nil {
-				if *logInvalidAuthTokens {
-					logger.Infof("cannot verify jwt token: %s", err)
-				}
-				continue atsLoop
-			}
-
+		if ui := getUserInfoByJWTToken(tkn, js.users); ui != nil {
 			return ui, tkn
 		}
 	}
 
 	putToken(tkn)
 	return nil, nil
+}
+
+func getUserInfoByJWTToken(tkn *jwt.Token, users []*UserInfo) *UserInfo {
+	for _, ui := range users {
+		if ui.JWT.SkipVerify {
+			return ui
+		}
+
+		if ui.JWT.OIDC != nil {
+			// OIDC requires iss claim.
+			// It must match the discovery issuer URL set in OIDC config.
+			// https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+			if tkn.Issuer() == "" {
+				if *logInvalidAuthTokens {
+					logger.Infof("jwt token must have issuer filed")
+				}
+				return nil
+			}
+			if tkn.Issuer() != ui.JWT.OIDC.Issuer {
+				if *logInvalidAuthTokens {
+					logger.Infof("jwt token issuer: %q does not match oidc issuer: %q", tkn.Issuer(), ui.JWT.OIDC.Issuer)
+				}
+				return nil
+			}
+		}
+
+		vp := ui.JWT.verifierPool.Load()
+		if vp == nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("jwt verifier not initialed")
+			}
+			return nil
+		}
+
+		if err := vp.Verify(tkn); err != nil {
+			if *logInvalidAuthTokens {
+				logger.Infof("cannot verify jwt token: %s", err)
+			}
+			continue
+		}
+
+		return ui
+	}
+
+	if *logInvalidAuthTokens {
+		logger.Infof("no user match jwt token")
+	}
+
+	return nil
 }
 
 func replaceJWTPlaceholders(bu *backendURL, hc HeadersConf, vma *jwt.VMAccessClaim) (*url.URL, HeadersConf) {
