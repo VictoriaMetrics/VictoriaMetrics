@@ -175,7 +175,13 @@ func tryRemoveDir(dirPath string) bool {
 
 	deleteFilePath := filepath.Join(dirPath, deleteDirFilename)
 	// Remove the deleteDirFilename file, since there are no other entries left in the directory.
-	MustRemovePath(deleteFilePath)
+	if err := os.Remove(deleteFilePath); err != nil && !os.IsNotExist(err) {
+		// At NFS filesystems, file deletion could fail for any reason and it should be retried
+		if !isTemporaryNFSError(err) {
+			logger.Panicf("FATAL: cannot remove %q: %s", deleteFilePath, err)
+		}
+		return false
+	}
 
 	// Sync the directory after the removing deletDirFilename file in order to make sure
 	// all the metadata files are removed at some exotic filesystems such as OSSFS2.
