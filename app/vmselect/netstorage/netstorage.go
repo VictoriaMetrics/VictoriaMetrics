@@ -2470,7 +2470,7 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
-	err := sn.execOnConn(qtChild, funcName, f, deadline)
+	err := sn.execOnConn(qtChild, funcName, f, deadline, false)
 	defer qtChild.Done()
 	if err == nil {
 		return nil
@@ -2478,6 +2478,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	var er *errRemote
 	var ne net.Error
 	var le *limitExceededErr
+	var eofEr *eofError
 	if errors.As(err, &le) || errors.As(err, &er) || errors.As(err, &ne) && ne.Timeout() || deadline.Exceeded() || errors.Is(err, errCannotObtainConn) {
 		// There is no sense in repeating the query on the following errors:
 		//
@@ -2490,14 +2491,20 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	// Repeat the query in the hope the error was temporary.
 	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
-	err = sn.execOnConn(qtRetry, funcName, f, deadline)
+	// retry with new connection if the error is io.EOF, which is caused by broken connection.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314
+	retryOnNewConn := false
+	if errors.As(err, &eofEr) {
+		retryOnNewConn = true
+	}
+	err = sn.execOnConn(qtRetry, funcName, f, deadline, retryOnNewConn)
 	qtRetry.Done()
 	return err
 }
 
 var errCannotObtainConn = fmt.Errorf("cannot obtain connection from a pool")
 
-func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline) error {
+func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline, onNewConn bool) error {
 	sn.concurrentQueries.Inc()
 	defer sn.concurrentQueries.Dec()
 
@@ -2508,7 +2515,7 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	if timeout <= 0 {
 		return fmt.Errorf("request timeout reached: %s", deadline.String())
 	}
-	bc, err := sn.connPool.Get()
+	bc, err := sn.connPool.Get(onNewConn)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errCannotObtainConn, err)
 	}
@@ -3127,9 +3134,20 @@ func sendAccountIDProjectID(bc *handshake.BufferedConn, accountID, projectID uin
 	return nil
 }
 
+type eofError struct {
+	err error
+}
+
+func (er *eofError) Error() string {
+	return er.err.Error()
+}
+
 func readBytes(buf []byte, bc *handshake.BufferedConn, maxDataSize int) ([]byte, error) {
 	buf = bytesutil.ResizeNoCopyMayOverallocate(buf, 8)
 	if n, err := io.ReadFull(bc, buf); err != nil {
+		if err.Error() == "EOF" {
+			err = &eofError{err: err}
+		}
 		return buf, fmt.Errorf("cannot read %d bytes with data size: %w; read only %d bytes", len(buf), err, n)
 	}
 	dataSize := encoding.UnmarshalUint64(buf)

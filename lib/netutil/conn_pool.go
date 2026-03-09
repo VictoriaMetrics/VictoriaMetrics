@@ -133,7 +133,10 @@ func (cp *ConnPool) Addr() string {
 }
 
 // Get returns free connection from the pool.
-func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
+func (cp *ConnPool) Get(dailNewConn bool) (*handshake.BufferedConn, error) {
+	if dailNewConn {
+		return cp.getConnSlow()
+	}
 	bc, err := cp.tryGetConn()
 	if err != nil {
 		return nil, err

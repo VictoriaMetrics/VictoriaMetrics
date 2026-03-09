@@ -55,7 +55,7 @@ func testConnPoolStartStop(t *testing.T, name string, ms *metrics.Set) {
 	for _, cp := range cps {
 		cp.MustStop()
 		// Make sure that Get works properly after MustStop()
-		c, err := cp.Get()
+		c, err := cp.Get(false)
 		if err == nil {
 			t.Fatalf("expecting non-nil error after MustStop()")
 		}
@@ -84,7 +84,7 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 	// concurrent create connections
 	for range concurrency {
 		go func() {
-			conn, err := cp.Get()
+			conn, err := cp.Get(false)
 			if err != nil {
 				t.Errorf("get conn from connection pool err:%v", err)
 				panic(err)
@@ -103,6 +103,33 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+func TestConnPoolForceDailNewConn(t *testing.T) {
+	mockSvr := newMockServer()
+	addr, _ := url.Parse(mockSvr.URL)
+	cp := NewConnPool(metrics.NewSet(), "test-pool", addr.Host, mockHandshake, 1, 5*time.Second, 0)
+
+	conn, err := cp.Get(false)
+	if err != nil {
+		t.Errorf("get conn from connection pool err:%v", err)
+		panic(err)
+	}
+	cp.Put(conn)
+	if len(cp.conns) != 1 {
+		t.Fatalf("expecting 1 connection in the pool, but got %d", len(cp.conns))
+	}
+	// dail a new conn rather than getting one from pool.
+	conn, err = cp.Get(true)
+	if err != nil {
+		t.Errorf("get conn from connection pool err:%v", err)
+		panic(err)
+	}
+	cp.Put(conn)
+	if len(cp.conns) != 2 {
+		t.Fatalf("expecting 2 connection in the pool, but got %d", len(cp.conns))
+	}
+
 }
 
 // mockServer does nothing. It only acts as a tcp server for connection test.
