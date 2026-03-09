@@ -1,12 +1,11 @@
 Using [Grafana](https://grafana.com/) with [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) access to your metrics, logs and traces.
 vmauth provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used to restrict access to metrics to only those that belong to the tenant.
-This guide provides step-by-step instruction of how to setup querying metrics from VictoriaMetrics single and cluster using Grafana and writing metrics using vmagent through vmauth with OIDC authorization enabled.
+This guide provides step-by-step instruction of how to setup querying metrics from VictoriaMetrics single and cluster using Grafana with OIDC authorization enabled.
 
 ## Prerequisites
 
-* An active license key. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
-* [Docker](https://docs.docker.com/engine/install/) and `docker compose` must be installed.
+* [Docker](https://docs.docker.com/engine/install/) and [docker compose](https://docs.docker.com/compose/) must be installed.
 * Add `grafana` and `keycloak` hosts to the `/etc/hosts` file, pointing to `127.0.0.1`.
 
 ```
@@ -172,7 +171,9 @@ set TOKEN (curl --fail -s -X POST "http://keycloak:3001/realms/master/protocol/o
 -->
 
 The response should contain a valid JWT token with `vm_access` claim. 
-Use [jwt.io](https://jwt.io/) to decode and inspect the token.
+Use [jwt.io](https://jwt.io/) to decode and inspect the token. 
+
+> Please note that issued token is short-lived so you might need to refresh it before use in later chapters. 
 
 ## VictoriaMetrics
 
@@ -268,8 +269,9 @@ The following placeholders are supported:
 - `{{.MetricsExtraFilters}}` placeholder is substituted from `vm_access.metrics_extra_filters` claim property.
 
 Now, let's create a vmauth configuration file `auth.yaml` that enables OIDC authorization using the [identity provider](https://docs.victoriametrics.com/guides/grafana-vmauth-openid-configuration/#identity-provider).
-For cluster access, we will use the `{{tenantID}}` placeholder to route requests to a specific tenant.
-For single-node access, we will use `{{vm_extra_label}}`.
+For cluster access, we will use the `{{.MetricsTenant}}` placeholder to route requests to a specific tenant.
+For single-node access, we will use `{{.MetricsExtraLabels}}`. 
+Read more about templating in vmauth [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating).
 
 ```yaml
 # auth.yaml

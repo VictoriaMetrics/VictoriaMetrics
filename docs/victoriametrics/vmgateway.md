@@ -32,6 +32,8 @@ See how to request a free [trial license](https://victoriametrics.com/products/e
 
 ## Access Control
 
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead.
+
 ![vmgateway-ac](vmgateway-access-control.webp)
 
 `vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
@@ -198,6 +200,8 @@ curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJ
 
 ## JWT signature verification
 
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead.
+
 `vmgateway` supports JWT signature verification.
 
 Supported algorithms are `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512`, `PS256`, `PS384`, `PS512`.
@@ -236,6 +240,8 @@ This command will result in 3 keys loaded: 2 keys from files and 1 from command 
 
 ### Using OpenID discovery endpoint for JWT signature verification
 
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead. Read more about vmauth [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) in docs.
+
 `vmgateway` supports using OpenID discovery endpoint for JWKS keys discovery.
 
 In order to enable [OpenID discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) endpoint for JWT signature verification, you need to specify OpenID discovery endpoint URLs by using `auth.oidcDiscoveryEndpoints` flag.
@@ -262,6 +268,8 @@ Example usage for tokens issued by Google:
 ```
 
 ### Using JWKS endpoint for JWT signature verification
+
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead.
 
 `vmgateway` supports using JWKS endpoint for JWT signature verification.
 
