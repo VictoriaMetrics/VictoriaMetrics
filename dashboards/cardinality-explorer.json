@@ -104,7 +104,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). In case of problems, it is better to use `vmui`\r\n- Used `time picker` and takes the `to` and `from` dates. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day\r\n- An `Inner` join is used, so there may be fewer rows than specified in `Limited Entries`. Also, if the statistics between days show 0, the metric is `also deleted` :(\r\n",
+            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer in vmui](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). In case of problems, it is better to use `vmui` directly.\r\n- Dashboard requires [Infinity datasource](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed and configured to have access to VM: `http://victoriametrics:8428` for vmsingle, `http://vmauth:8427/select/<tenant>/prometheus` for cluster.\r\n- Dashboard can display data only for a specific `day`. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day.\r\n- In tables, it automatically compares cardinality numbers with numbers 1d before. It should help to track changes in the number of series with time. \r\n",
             "mode": "markdown"
           },
           "pluginVersion": "12.3.3",
@@ -121,7 +121,7 @@
             "h": 4,
             "w": 12,
             "x": 0,
-            "y": 5
+            "y": 37
           },
           "id": 9,
           "options": {
@@ -147,7 +147,7 @@
             "h": 4,
             "w": 12,
             "x": 12,
-            "y": 5
+            "y": 37
           },
           "id": 10,
           "options": {
@@ -161,6 +161,58 @@
           },
           "pluginVersion": "12.3.3",
           "title": "Labels with a high number of unique values",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 0,
+            "y": 41
+          },
+          "id": 28,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "* `Limit entries` - limits the amount of entries each table could show.\r\n* `Time series selector` - accepts arbitrary time series selector for filtering metrics. For example, `__name__!~\"go_.*\"` will display only metrics with prefix `go_`. Gets automatically updated when clicking on metric name in `Metric names` table, or label name in labels tables.\r\n* `Focus label` - is used for displaying details for a specific label. Gets automatically updated when clicking on label name in labels tables.\r\n\r\nPress on `Reset Filters` to return all filters to default values",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.4.0",
+          "title": "Variables",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 12,
+            "y": 41
+          },
+          "id": 29,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "1. `Request count` and `Last request` columns help to identify how many times and when it was the last time metric was queried. See more about [metric usage tracking](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage). If metric wasn't used for a long time (e.g. >20d), it might not worth to store it anymore. \r\n2. `1d` and `1d[%]` columns display the change in cardinality numbers between selected day and day before. Could help identifying rapidly growing metrics.\r\n3. Click on the metric name to see details about its labels in tables below.\r\n4. Click on the label name to see its values in the table in the bottom-right table.\r\n",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.4.0",
+          "title": "Details",
           "transparent": true,
           "type": "text"
         }
