@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/big"
 	"slices"
 )
@@ -33,15 +32,16 @@ type jwksResponse struct {
 	Keys []jwk `json:"keys"`
 }
 
-// ParseJWKs parses a JSON Web Key Set (JWKS) from r and returns a VerifierPool
+// ParseJWKs parses a JSON Web Key Set (JWKS) from rawResp and returns a VerifierPool
 // containing a verifier for each key in the set. Each key might have a non-empty "kid" field.
 // For RSA keys, if "alg" is specified it must be one of the supported RS or PS algorithms;
 // if omitted, verifiers are created for all supported RSA and RSA-PSS algorithms.
-// For EC keys, the curve determines the algorithm.
+// For EC keys, the curve determines the algorithm. It must match "alg" if provided.
+//
 // The returned VerifierPool matches tokens by "kid" if not empty, otherwise tries all keys.
-func ParseJWKs(r io.Reader) (*VerifierPool, error) {
+func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 	var resp jwksResponse
-	if err := json.NewDecoder(r).Decode(&resp); err != nil {
+	if err := json.Unmarshal(rawResp, &resp); err != nil {
 		return nil, err
 	}
 
@@ -161,6 +161,11 @@ func ParseJWKs(r io.Reader) (*VerifierPool, error) {
 			default:
 				return nil, fmt.Errorf("jwk %s crv %q unsupported", key.Kty, key.Crv)
 			}
+
+			if key.Alg != "" && key.Alg != string(alg) {
+				return nil, fmt.Errorf("jwk alg: %s does not match curve: %s", key.Alg, curve)
+			}
+
 			x := big.NewInt(0).SetBytes(decX)
 			y := big.NewInt(0).SetBytes(decY)
 			if !curve.IsOnCurve(x, y) {

@@ -3,16 +3,14 @@ package jwt
 import (
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"io"
-	"strings"
 	"testing"
 )
 
 func TestParseJWKs_RSA(t *testing.T) {
-	f := func(r io.Reader) {
+	f := func(resp []byte) {
 		t.Helper()
 
-		vp, err := ParseJWKs(r)
+		vp, err := ParseJWKs(resp)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -40,7 +38,7 @@ func TestParseJWKs_RSA(t *testing.T) {
 		}
 	}
 
-	f(strings.NewReader(`
+	f([]byte(`
 {
     "keys": [
         {
@@ -56,7 +54,7 @@ func TestParseJWKs_RSA(t *testing.T) {
 `))
 
 	// Example key from https://www.rfc-editor.org/rfc/rfc7517#appendix-A.1
-	f(strings.NewReader(`
+	f([]byte(`
 {
     "keys": [
         {
@@ -72,10 +70,10 @@ func TestParseJWKs_RSA(t *testing.T) {
 }
 
 func TestParseJWKs_EC(t *testing.T) {
-	f := func(r io.Reader) {
+	f := func(resp []byte) {
 		t.Helper()
 
-		vp, err := ParseJWKs(r)
+		vp, err := ParseJWKs(resp)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -91,7 +89,7 @@ func TestParseJWKs_EC(t *testing.T) {
 	}
 
 	// Example key from https://www.rfc-editor.org/rfc/rfc7517#appendix-A.1
-	f(strings.NewReader(`
+	f([]byte(`
 {
     "keys": [
         {
@@ -109,7 +107,7 @@ func TestParseJWKs_EC(t *testing.T) {
 func TestParseMultipleKeys(t *testing.T) {
 	// Microsoft JWKS keys
 	// https://login.microsoftonline.com/common/discovery/v2.0/keys
-	raw := `
+	raw := []byte(`
 {
   "keys": [
     {
@@ -217,8 +215,8 @@ func TestParseMultipleKeys(t *testing.T) {
       "issuer": "https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0"
     }
   ]
-}`
-	vp, err := ParseJWKs(strings.NewReader(raw))
+}`)
+	vp, err := ParseJWKs(raw)
 	if err != nil {
 		t.Fatalf("error parsing jwks keys: %v", err)
 	}

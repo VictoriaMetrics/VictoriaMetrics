@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -153,7 +154,12 @@ func fetchAndParseJWKs(ctx context.Context, jwksURI string) (*jwt.VerifierPool, 
 		return nil, fmt.Errorf("unexpected status code %d when fetching jwks keys from %q", resp.StatusCode, jwksURI)
 	}
 
-	vp, err := jwt.ParseJWKs(resp.Body)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body from %q: %w", jwksURI, err)
+	}
+
+	vp, err := jwt.ParseJWKs(b)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse jwks keys from %q: %v", jwksURI, err)
 	}
