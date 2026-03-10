@@ -9,22 +9,30 @@ import (
 )
 
 func getInstancesLabels(cfg *apiConfig) ([]*promutil.Labels, error) {
-	organizations, err := cfg.getOrganizations()
-	if err != nil {
-		return nil, err
-	}
-	clouds, err := cfg.getClouds(organizations)
-	if err != nil {
-		return nil, err
-	}
-	folders, err := cfg.getFolders(clouds)
-	if err != nil {
-		return nil, err
+	var folderIDs []string
+	if len(cfg.folderIDs) > 0 {
+		folderIDs = cfg.folderIDs
+	} else {
+		organizations, err := cfg.getOrganizations()
+		if err != nil {
+			return nil, err
+		}
+		clouds, err := cfg.getClouds(organizations)
+		if err != nil {
+			return nil, err
+		}
+		folders, err := cfg.getFolders(clouds)
+		if err != nil {
+			return nil, err
+		}
+		for _, fld := range folders {
+			folderIDs = append(folderIDs, fld.ID)
+		}
 	}
 
 	var instances []instance
-	for _, fld := range folders {
-		inst, err := cfg.getInstances(fld.ID)
+	for _, folderID := range folderIDs {
+		inst, err := cfg.getInstances(folderID)
 		if err != nil {
 			return nil, err
 		}

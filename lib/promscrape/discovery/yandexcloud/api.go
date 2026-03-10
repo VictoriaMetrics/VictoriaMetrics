@@ -33,6 +33,7 @@ type apiConfig struct {
 	client              *http.Client
 	yandexPassportOAuth *yandexPassportOAuth
 	serviceEndpoints    map[string]string
+	folderIDs           []string
 
 	// credsLock protects the refresh of creds
 	credsLock sync.Mutex
@@ -67,6 +68,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		client: &http.Client{
 			Transport: rt,
 		},
+		folderIDs: sdc.FolderIDs,
 	}
 	apiEndpoint := sdc.APIEndpoint
 	if apiEndpoint == "" {

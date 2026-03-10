@@ -21,6 +21,7 @@ type SDConfig struct {
 	Service                  string              `yaml:"service"`
 	YandexPassportOAuthToken *promauth.Secret    `yaml:"yandex_passport_oauth_token,omitempty"`
 	APIEndpoint              string              `yaml:"api_endpoint,omitempty"`
+	FolderIDs                []string            `yaml:"folder_ids,omitempty"`
 	TLSConfig                *promauth.TLSConfig `yaml:"tls_config,omitempty"`
 }
 
