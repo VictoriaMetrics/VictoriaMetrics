@@ -238,7 +238,7 @@
         "type": "yesoreyeram-infinity-datasource",
         "uid": "${ds}"
       },
-      "description": "Main panel, all other panels depend on it",
+      "description": "Based on [metric usage tracker](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage).\n\nColumns `Requests count` and `Last request` depend on this panel.\n\n* `Tracking since` shows for what period of time metrics usage tracking is On.\n* `Metric names` - shows the total number of unique metric names in the system",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -249,70 +249,39 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "text",
+                "color": "green",
                 "value": 0
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "For last day"
+              "options": "Tracking since"
             },
             "properties": [
               {
                 "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    },
-                    {
-                      "color": "red",
-                      "value": 0.01
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Today"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
+                "value": "dateTimeFromNow"
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 5,
-        "w": 3,
+        "h": 3,
+        "w": 4,
         "x": 0,
         "y": 2
       },
-      "id": 20,
+      "id": 4,
       "options": {
-        "colorMode": "value",
+        "colorMode": "none",
         "graphMode": "none",
-        "justifyMode": "center",
+        "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
@@ -323,7 +292,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "12.4.0",
@@ -335,194 +304,47 @@
             "uid": "${ds}"
           },
           "filters": [],
-          "format": "table",
+          "format": "dataframe",
           "global_query_id": "",
           "parser": "jq-backend",
           "refId": "A",
-          "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
+          "root_selector": "({\ntotal: .statsCollectedRecordsTotal,\nsince: (.statsCollectedSince * 1000)\n})\n",
           "source": "url",
           "type": "json",
-          "url": "/api/v1/status/tsdb",
+          "url": "/api/v1/status/metric_names_stats",
           "url_options": {
             "data": "",
             "method": "GET",
             "params": [
               {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "date",
-                "value": "${__to:date:YYYY-MM-DD}"
-              },
-              {
-                "key": "focusLabel",
-                "value": "$focus"
-              }
-            ]
-          }
-        },
-        {
-          "columns": [],
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "${ds}"
-          },
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "parser": "jq-backend",
-          "refId": "B",
-          "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
-          "source": "url",
-          "type": "json",
-          "url": "/api/v1/status/tsdb",
-          "url_options": {
-            "data": "",
-            "method": "GET",
-            "params": [
-              {
-                "key": "topN",
-                "value": "$topn"
-              },
-              {
-                "key": "match[]",
-                "value": "{$match}"
-              },
-              {
-                "key": "date",
-                "value": "${__from:date:YYYY-MM-DD}"
-              },
-              {
-                "key": "focusLabel",
-                "value": "$focus"
+                "key": "limit",
+                "value": "1"
               }
             ]
           }
         }
       ],
-      "title": "Total Series",
+      "title": "Total metric names",
       "transformations": [
-        {
-          "id": "joinByField",
-          "options": {
-            "byField": "name",
-            "mode": "inner"
-          }
-        },
-        {
-          "disabled": true,
-          "id": "filterByValue",
-          "options": {
-            "filters": [
-              {
-                "config": {
-                  "id": "equal",
-                  "options": {
-                    "value": "seriesCountByMetricName"
-                  }
-                },
-                "fieldName": "type A"
-              },
-              {
-                "config": {
-                  "id": "equal",
-                  "options": {
-                    "value": "seriesCountByMetricName"
-                  }
-                },
-                "fieldName": "type B"
-              }
-            ],
-            "match": "any",
-            "type": "include"
-          }
-        },
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": [
-                "total A",
-                "total B"
-              ]
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "totalAB",
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "total A"
-                }
-              },
-              "operator": "-",
-              "right": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "total B"
-                }
-              }
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "totalAB"
-                }
-              },
-              "operator": "/",
-              "right": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "total B"
-                }
-              }
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
-              "total B": true,
-              "totalAB": true
+              "total": false
             },
             "includeByName": {},
             "indexByName": {
-              "total A": 0,
-              "total B": 2,
-              "totalAB": 3,
-              "totalAB / total B": 1
+              "since": 1,
+              "total": 0
             },
             "renameByName": {
-              "total A": "Today",
-              "totalAB / total B": "For last day"
+              "since": "Tracking since",
+              "total": "Metric names"
             }
           }
         }
       ],
+      "transparent": true,
       "type": "stat"
     },
     {
@@ -688,6 +510,10 @@
                     {
                       "color": "green",
                       "value": -1
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
                     }
                   ]
                 }
@@ -728,7 +554,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Share On Total"
+              "options": "Share Of Total"
             },
             "properties": [
               {
@@ -771,59 +597,13 @@
                 "value": 2
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "For last day"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "red",
-                      "value": 0
-                    },
-                    {
-                      "color": "text",
-                      "value": 0
-                    },
-                    {
-                      "color": "green",
-                      "value": 0.0001
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "custom.width",
-                "value": 120
-              }
-            ]
           }
         ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 21,
-        "x": 3,
+        "h": 10,
+        "w": 20,
+        "x": 4,
         "y": 2
       },
       "id": 22,
@@ -854,7 +634,7 @@
           "id": "joinByField",
           "options": {
             "byField": "name",
-            "mode": "inner"
+            "mode": "outer"
           }
         },
         {
@@ -869,15 +649,6 @@
                   }
                 },
                 "fieldName": "type A"
-              },
-              {
-                "config": {
-                  "id": "equal",
-                  "options": {
-                    "value": "seriesCountByMetricName"
-                  }
-                },
-                "fieldName": "type B"
               }
             ],
             "match": "any",
@@ -957,28 +728,6 @@
           }
         },
         {
-          "id": "calculateField",
-          "options": {
-            "alias": "SOT",
-            "binary": {
-              "left": {
-                "fixed": ""
-              },
-              "right": {
-                "fixed": ""
-              }
-            },
-            "mode": "reduceRow",
-            "reduce": {
-              "include": [
-                "shareOfTotal A",
-                "shareOfTotal B"
-              ],
-              "reducer": "diff"
-            }
-          }
-        },
-        {
           "id": "filterFieldsByName",
           "options": {
             "include": {
@@ -1029,7 +778,7 @@
               "name": "Metric name",
               "requestsCount": "Requests count",
               "requestsCount A": "Requests count",
-              "shareOfTotal A": "Share On Total",
+              "shareOfTotal A": "Share Of Total",
               "shareOnTotal": "Share On Total",
               "value": "Number of series",
               "value A": "Number of series"
@@ -1044,6 +793,7 @@
         "type": "yesoreyeram-infinity-datasource",
         "uid": "${ds}"
       },
+      "description": "Shows the total number of unique time series in selected and previous to it day.\n\nUsed as source of data for other panels.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1054,26 +804,102 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "text",
                 "value": 0
               }
             ]
-          },
-          "unit": "short"
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "For prev day"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.01
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "${__from:date:YYYY-MM-DD}"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1d %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "dark-green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 3,
-        "w": 3,
+        "h": 4,
+        "w": 4,
         "x": 0,
-        "y": 7
+        "y": 5
       },
-      "id": 4,
+      "id": 20,
       "options": {
-        "colorMode": "none",
+        "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto",
+        "justifyMode": "center",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
@@ -1084,7 +910,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "auto",
+        "textMode": "value_and_name",
         "wideLayout": true
       },
       "pluginVersion": "12.4.0",
@@ -1096,27 +922,144 @@
             "uid": "${ds}"
           },
           "filters": [],
-          "format": "dataframe",
+          "format": "table",
           "global_query_id": "",
           "parser": "jq-backend",
           "refId": "A",
-          "root_selector": ".statsCollectedRecordsTotal",
+          "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
           "source": "url",
           "type": "json",
-          "url": "/api/v1/status/metric_names_stats",
+          "url": "/api/v1/status/tsdb",
           "url_options": {
             "data": "",
             "method": "GET",
             "params": [
               {
-                "key": "limit",
-                "value": "1"
+                "key": "topN",
+                "value": "$topn"
+              },
+              {
+                "key": "match[]",
+                "value": "{$match}"
+              },
+              {
+                "key": "date",
+                "value": "${__to:date:YYYY-MM-DD}"
+              },
+              {
+                "key": "focusLabel",
+                "value": "$focus"
+              }
+            ]
+          }
+        },
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "${ds}"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "jq-backend",
+          "refId": "B",
+          "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
+          "source": "url",
+          "type": "json",
+          "url": "/api/v1/status/tsdb",
+          "url_options": {
+            "data": "",
+            "method": "GET",
+            "params": [
+              {
+                "key": "topN",
+                "value": "$topn"
+              },
+              {
+                "key": "match[]",
+                "value": "{$match}"
+              },
+              {
+                "key": "date",
+                "value": "${__from:date:YYYY-MM-DD}"
+              },
+              {
+                "key": "focusLabel",
+                "value": "$focus"
               }
             ]
           }
         }
       ],
-      "title": "Total metric names",
+      "title": "Total time series",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "name",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "total A",
+                "total B"
+              ]
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "change",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total A"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total B"
+                }
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "total B": true,
+              "totalAB": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "total A": 0,
+              "total B": 2,
+              "totalAB": 3,
+              "totalAB / total B": 1
+            },
+            "renameByName": {
+              "change": "1d %",
+              "total A": "${__to:date:YYYY-MM-DD}",
+              "totalAB / total B": "-1d %"
+            }
+          }
+        }
+      ],
+      "transparent": true,
       "type": "stat"
     },
     {
@@ -1371,7 +1314,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 10
+        "y": 12
       },
       "id": 5,
       "options": {
@@ -1401,7 +1344,7 @@
           "id": "joinByField",
           "options": {
             "byField": "name",
-            "mode": "inner"
+            "mode": "outer"
           }
         },
         {
@@ -1833,7 +1776,7 @@
         "h": 24,
         "w": 12,
         "x": 12,
-        "y": 10
+        "y": 12
       },
       "id": 16,
       "options": {
@@ -2333,7 +2276,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 20
       },
       "id": 6,
       "options": {
@@ -2389,7 +2332,7 @@
                 "fieldName": "type B"
               }
             ],
-            "match": "any",
+            "match": "all",
             "type": "include"
           }
         },
@@ -2694,7 +2637,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 28
       },
       "id": 27,
       "options": {
@@ -2724,7 +2667,7 @@
           "id": "joinByField",
           "options": {
             "byField": "name",
-            "mode": "inner"
+            "mode": "outer"
           }
         },
         {
@@ -2924,9 +2867,19 @@
             "selected": false,
             "text": "20",
             "value": "20"
+          },
+          {
+            "selected": false,
+            "text": "30",
+            "value": "30"
+          },
+          {
+            "selected": false,
+            "text": "40",
+            "value": "40"
           }
         ],
-        "query": "5,10,20",
+        "query": "5,10,20,30,40",
         "type": "custom",
         "valuesFormat": "csv"
       },
