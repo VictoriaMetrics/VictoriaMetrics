@@ -2904,19 +2904,19 @@
       {
         "allowCustomValue": true,
         "current": {
-          "text": "5",
-          "value": "5"
+          "text": "10",
+          "value": "10"
         },
         "label": "Limit entries",
         "name": "topn",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "5",
             "value": "5"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "10",
             "value": "10"
           },
