@@ -1812,20 +1812,6 @@
           }
         },
         {
-          "id": "calculateField",
-          "options": {
-            "alias": "SOT",
-            "mode": "reduceRow",
-            "reduce": {
-              "include": [
-                "shareOfTotal A",
-                "shareOfTotal B"
-              ],
-              "reducer": "diff"
-            }
-          }
-        },
-        {
           "id": "filterFieldsByName",
           "options": {
             "include": {
@@ -2266,28 +2252,6 @@
             "mode": "binary",
             "reduce": {
               "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "SOT",
-            "binary": {
-              "left": {
-                "fixed": ""
-              },
-              "right": {
-                "fixed": ""
-              }
-            },
-            "mode": "reduceRow",
-            "reduce": {
-              "include": [
-                "shareOfTotal A",
-                "shareOfTotal B"
-              ],
-              "reducer": "diff"
             }
           }
         },
@@ -2756,20 +2720,6 @@
             "mode": "binary",
             "reduce": {
               "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "SOT",
-            "mode": "reduceRow",
-            "reduce": {
-              "include": [
-                "shareOfTotal A",
-                "shareOfTotal B"
-              ],
-              "reducer": "diff"
             }
           }
         },
