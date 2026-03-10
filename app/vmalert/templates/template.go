@@ -402,6 +402,12 @@ func templateFuncs() textTpl.FuncMap {
 			return t, nil
 		},
 
+		// formatTime formats the given time.Time with the provided layout.
+		// For example: {{ now | toTime | formatTime "2006-01-02T15:04:05Z07:00" }}
+		"formatTime": func(layout string, t time.Time) string {
+			return t.Format(layout)
+		},
+
 		/* URLs */
 
 		// externalURL returns value of `external.url` flag
