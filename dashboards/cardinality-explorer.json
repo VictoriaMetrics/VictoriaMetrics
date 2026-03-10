@@ -290,7 +290,7 @@
           "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
           "source": "url",
           "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
+          "url": "/api/v1/status/tsdb",
           "url_options": {
             "data": "",
             "method": "GET",
@@ -328,7 +328,7 @@
           "root_selector": ".data as $root |\n[\n  ($root.seriesCountByMetricName       | map(. + {total: $root.totalSeries, lastRequest: (.lastRequestTimestamp * 1000), shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByMetricName\"     })),\n  ($root.seriesCountByLabelName        | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelName\"      })),\n  ($root.seriesCountByFocusLabelValue  | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByFocusLabelValue\"})),\n  ($root.seriesCountByLabelValuePair   | map((.name | split(\"=\")) as $splitName | . + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"seriesCountByLabelValuePair\", labelName: $splitName[0], labelValue: $splitName[1] })),\n  ($root.labelValueCountByLabelName    | map(. + {total: $root.totalSeries, shareOfTotal: (.value / $root.totalSeries), type: \"labelValueCountByLabelName\", }))\n]\n| add",
           "source": "url",
           "type": "json",
-          "url": "/prometheus/api/v1/status/tsdb",
+          "url": "/api/v1/status/tsdb",
           "url_options": {
             "data": "",
             "method": "GET",
@@ -1051,7 +1051,7 @@
           "root_selector": ".statsCollectedRecordsTotal",
           "source": "url",
           "type": "json",
-          "url": "/prometheus/api/v1/status/metric_names_stats",
+          "url": "/api/v1/status/metric_names_stats",
           "url_options": {
             "data": "",
             "method": "GET",
