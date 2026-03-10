@@ -163,7 +163,7 @@ func ParseJWKs(rawResp []byte) (*VerifierPool, error) {
 			}
 
 			if key.Alg != "" && key.Alg != string(alg) {
-				return nil, fmt.Errorf("jwk alg: %s does not match curve: %s", key.Alg, curve)
+				return nil, fmt.Errorf("jwk alg: %s does not match curve: %s", key.Alg, key.Crv)
 			}
 
 			x := big.NewInt(0).SetBytes(decX)
