@@ -828,7 +828,7 @@
                 "fieldName": "type B"
               }
             ],
-            "match": "all",
+            "match": "any",
             "type": "include"
           }
         },
@@ -1375,7 +1375,7 @@
                 "fieldName": "type B"
               }
             ],
-            "match": "all",
+            "match": "any",
             "type": "include"
           }
         },
@@ -2337,7 +2337,7 @@
                 "fieldName": "type B"
               }
             ],
-            "match": "all",
+            "match": "any",
             "type": "include"
           }
         },
@@ -2698,7 +2698,7 @@
                 "fieldName": "type B"
               }
             ],
-            "match": "all",
+            "match": "any",
             "type": "include"
           }
         },
