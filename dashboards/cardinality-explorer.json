@@ -352,7 +352,7 @@
         "type": "datasource",
         "uid": "-- Dashboard --"
       },
-      "description": "Shows metric names sorted by number of time series they contain.\n\nThe more time series metric has, the more expensive it is to store and query.\n\n* `Request count` and `Last request` columns help to identify how many times and when it was the last time metric was queried. See more about [metric usage tracking](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage). If metric wasn't used for a long time (e.g. >20d), it might not worth to store it anymore. \n* `1d` and `1d[%]` columns display the change in cardinality numbers between selected day and day before. Could help identifying rapidly growing metrics.\n* `Share Of Total` shows % of series this metrics has compared to the total number of series in selected day.\n* Click on the metric name to see details about its labels in tables below.\n",
+      "description": "Shows metric names sorted by number of time series they contain.\n\nThe more time series metric has, the more expensive it is to store and query.\n\n* `Request count` and `Last request` columns help to identify how many times and when it was the last time metric was queried. See more about [metric usage tracking](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage). If metric wasn't used for a long time (e.g. >20d), it might not worth to store it anymore. \n* `1d` and `1d[%]` columns display the difference in cardinality numbers between selected day and day before. Could help identifying rapidly growing metrics.\n* `Share Of Total` shows % of series this metrics has compared to the total number of series in selected day.\n* Click on the metric name to see details about its labels in tables below.\n",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -809,53 +809,10 @@
                 "value": 0
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "For prev day"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    },
-                    {
-                      "color": "red",
-                      "value": 0.01
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "${__from:date:YYYY-MM-DD}"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "short"
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byName",
