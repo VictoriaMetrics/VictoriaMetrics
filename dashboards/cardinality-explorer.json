@@ -104,7 +104,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer in vmui](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). In case of problems, it is better to use `vmui` directly.\r\n- Dashboard requires [Infinity datasource](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed and configured to have access to VM: `http://victoriametrics:8428` for vmsingle, `http://vmauth:8427/select/<tenant>/prometheus` for cluster.\r\n- Dashboard can display data only for a specific `day`. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day.\r\n- In tables, it automatically compares cardinality numbers with numbers 1d before. It should help to track changes in the number of series with time. \r\n",
+            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer in vmui](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). In case of problems, it is better to use `vmui` directly.\r\n- Dashboard requires [Infinity datasource](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed and configured to have access to VM: `http://victoriametrics:8428` for vmsingle, `http://vmaselect:8481/select/<tenant>/prometheus` for cluster.\r\n- Dashboard can display data only for a specific `day`. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day.\r\n- In tables, it automatically compares cardinality numbers with numbers 1d before. It should help to track changes in the number of series with time. \r\n",
             "mode": "markdown"
           },
           "pluginVersion": "12.4.0",
@@ -1025,6 +1025,7 @@
         "type": "datasource",
         "uid": "-- Dashboard --"
       },
+      "description": "Shows labels with the highest number of unique values\n\nClick on the label name to see its values on the table on right side.\n\n`1d` and `1d[%]` columns display the difference in cardinality numbers between selected day and day before. ",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1830,6 +1831,7 @@
         "type": "datasource",
         "uid": "-- Dashboard --"
       },
+      "description": "Shows labels with the highest number of series\n\nClick on the label name to see its values on the table on right side.\n\n`1d` and `1d[%]` columns display the difference in cardinality numbers between selected day and day before. ",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2274,6 +2276,7 @@
         "type": "datasource",
         "uid": "-- Dashboard --"
       },
+      "description": "Shows labels-value pairs with the highest number of unique series\n\nClick on the label pair to filter all metrics that have this pair.\n\n`1d` and `1d[%]` columns display the difference in cardinality numbers between selected day and day before. ",
       "fieldConfig": {
         "defaults": {
           "color": {
