@@ -274,7 +274,8 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo, tk
 		w = &responseWriterWithStatus{ResponseWriter: w}
 		defer func() {
 			rws := w.(*responseWriterWithStatus)
-			ui.logRequest(r, userName, rws.status)
+			duration := time.Since(startTime)
+			ui.logRequest(r, userName, rws.status, duration)
 		}()
 	}
 

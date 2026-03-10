@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -991,6 +994,41 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 	f("http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
 	f("http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:")
 
+}
+
+func TestLogRequest(t *testing.T) {
+	ui := &UserInfo{AccessLog: &AccessLog{}}
+
+	testOutput := &bytes.Buffer{}
+	logger.SetOutputForTests(testOutput)
+	defer logger.ResetOutputForTest()
+
+	req, err := http.NewRequest("GET", "http://localhost:8080/select/0/prometheus", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	f := func(user string, status int, duration time.Duration, expectedLog string) {
+		t.Helper()
+
+		testOutput.Reset()
+		ui.logRequest(req, user, status, duration)
+
+		got := testOutput.String()
+		if expectedLog == "" && got != "" {
+			t.Fatalf("expected empty log, got %q", got)
+		}
+		if !strings.Contains(got, expectedLog) {
+			t.Fatalf("output \n%q \nshould contain \n%q", testOutput.String(), expectedLog)
+		}
+	}
+
+	f("foo", 200, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=200 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
+	f("foo", 404, time.Second, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=1000 username="foo"`)
+
+	ui.AccessLog.Filters = &AccessLogFilters{SkipStatusCodes: []int{200}}
+	f("foo", 200, 10*time.Millisecond, ``)
+	f("foo", 404, 10*time.Millisecond, `access_log request_host="localhost:8080" request_uri="" status_code=404 remote_addr="" user_agent="" referer="" duration_ms=10 username="foo"`)
 }
 
 func getRegexs(paths []string) []*Regex {
