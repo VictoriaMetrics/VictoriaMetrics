@@ -52,7 +52,7 @@ func writeJSON(result any, w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("cannot marshal response to JSON: %w", err)
 	}
-	jsonp := r.FormValue("jsonp")
+	jsonp := sanitizeJSONP(r.FormValue("jsonp"))
 	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
 	if jsonp != "" {

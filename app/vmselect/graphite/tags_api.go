@@ -235,7 +235,7 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 		}
 	}
 
-	jsonp := r.FormValue("jsonp")
+	jsonp := sanitizeJSONP(r.FormValue("jsonp"))
 	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
@@ -318,7 +318,7 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 		}
 	}
 
-	jsonp := r.FormValue("jsonp")
+	jsonp := sanitizeJSONP(r.FormValue("jsonp"))
 	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)

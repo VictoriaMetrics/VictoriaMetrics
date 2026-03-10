@@ -65,7 +65,7 @@ func MetricsFindHandler(startTime time.Time, w http.ResponseWriter, r *http.Requ
 	if label == "__name__" {
 		label = ""
 	}
-	jsonp := r.FormValue("jsonp")
+	jsonp := sanitizeJSONP(r.FormValue("jsonp"))
 	from, err := httputil.GetTime(r, "from", 0)
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 	if len(delimiter) > 1 {
 		return fmt.Errorf("`delimiter` query arg must contain only a single char")
 	}
-	jsonp := r.FormValue("jsonp")
+	jsonp := sanitizeJSONP(r.FormValue("jsonp"))
 	from, err := httputil.GetTime(r, "from", 0)
 	if err != nil {
 		return err
@@ -202,7 +202,7 @@ func MetricsExpandHandler(startTime time.Time, w http.ResponseWriter, r *http.Re
 // See https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json
 func MetricsIndexHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
-	jsonp := r.FormValue("jsonp")
+	jsonp := sanitizeJSONP(r.FormValue("jsonp"))
 	sq := storage.NewSearchQuery(0, math.MaxInt64, nil, 0)
 	metricNames, err := netstorage.LabelValues(nil, "__name__", sq, 0, deadline)
 	if err != nil {
@@ -457,4 +457,17 @@ func getContentType(jsonp string) string {
 		return "application/json"
 	}
 	return "text/javascript; charset=utf-8"
+}
+
+// validJSONPCallback matches only safe JavaScript identifier characters,
+// preventing JSONP callback injection (XSS) on Graphite API endpoints.
+var validJSONPCallback = regexp.MustCompile(`^[a-zA-Z_$][a-zA-Z0-9_$.]*$`)
+
+// sanitizeJSONP returns the callback name unchanged if it is a valid JavaScript
+// identifier, or an empty string if it contains any disallowed characters.
+func sanitizeJSONP(jsonp string) string {
+	if jsonp == "" || validJSONPCallback.MatchString(jsonp) {
+		return jsonp
+	}
+	return ""
 }

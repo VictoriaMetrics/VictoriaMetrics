@@ -134,7 +134,7 @@ func RenderHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 		nextSeriess = append(nextSeriess, nextSeries)
 	}
 	f := nextSeriesGroup(nextSeriess, nil)
-	jsonp := r.FormValue("jsonp")
+	jsonp := sanitizeJSONP(r.FormValue("jsonp"))
 	contentType := getContentType(jsonp)
 	w.Header().Set("Content-Type", contentType)
 	bw := bufferedwriter.Get(w)
