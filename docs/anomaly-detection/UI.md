@@ -202,16 +202,32 @@ Copilot appears as a **chat popup** anchored to the bottom-right corner of the p
 
 ### Configuration
 
-AI Assistant is disabled by default; enable it with `VMANOMALY_COPILOT_ENABLED=true` ENV variable, then set up the provider and model you want to use (see details below). Once enabled and configured, Copilot will appear as a chat popup in the bottom-right corner of the UI.
+AI Assistant is disabled by default; enable it with `VMANOMALY_COPILOT_ENABLED=true`, then configure an LLM provider API key and, optionally, a model. Once enabled and configured, Copilot will appear as a chat popup in the bottom-right corner of the UI.
 
-**Required: LLM provider**
 
-Set one provider API key and select the matching model via `VMANOMALY_COPILOT_MODEL` ENV variable, supported options are:
+
+Supported providers and model formats:
 
 - **Anthropic** — set `ANTHROPIC_API_KEY`; model format: `anthropic:<model>`
-  - Supported models: `claude-haiku-4-5`, `claude-sonnet-4-6` etc., see [full list](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison)
+  - Examples: `claude-haiku-4-5`, `claude-sonnet-4-6`; see [full list](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison)
 - **OpenAI** — set `OPENAI_API_KEY`; model format: `openai:<model>`
-  - Supported models: `gpt-5-mini`, `gpt-5.2` etc., see [full list](https://platform.openai.com/docs/models)
+  - Examples: `gpt-5-mini`, `gpt-5.2`; see [full list](https://platform.openai.com/docs/models)
+
+Set exactly one provider key matching your selected model provider:
+
+```bash
+# Anthropic
+export ANTHROPIC_API_KEY=your_key_here
+
+# or OpenAI
+export OPENAI_API_KEY=your_key_here
+```
+
+Optionally override the default model:
+
+```bash
+export VMANOMALY_COPILOT_MODEL=openai:gpt-5-mini
+```
 
 ### MCP tools server
 
@@ -219,6 +235,14 @@ Connects Copilot to [mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmano
 
 > [!NOTE]
 > Only `http` [mode](https://github.com/VictoriaMetrics/mcp-vmanomaly?tab=readme-ov-file#modes) is supported. Set `VMANOMALY_MCP_SERVER_URL` to the MCP server HTTP endpoint. The server must be reachable from within the vmanomaly container.
+
+For example:
+
+```bash
+export VMANOMALY_MCP_SERVER_URL=http://localhost:8081/mcp
+```
+
+Use `localhost` only when the vmanomaly process can reach the MCP server on its own loopback interface (for example, both running on the host). If vmanomaly runs in a separate Docker container, use a reachable container or host address instead.
 
 **Example**: if using Docker, run `mcp-vmanomaly` and vmanomaly UI in the same Docker network so they can reach each other by container name:
 
@@ -238,36 +262,12 @@ docker run -it --rm \
   --network vmanomaly-network \
   -e VMANOMALY_COPILOT_ENABLED=true \
   -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-  -e VMANOMALY_COPILOT_MODEL=openai:gpt-4o \
+  -e VMANOMALY_COPILOT_MODEL=openai:gpt-5-mini \
   -e VMANOMALY_MCP_SERVER_URL=http://mcp-vmanomaly:8081/mcp \
   -p 8080:8080 \
   -p 8490:8490 \
   victoriametrics/vmanomaly:v1.29.0 \
   vmanomaly_config.yaml
-```
-
-### Required: LLM provider key
-
-Set exactly one provider key (matching your selected model provider):
-
-```bash
-# Anthropic
-export ANTHROPIC_API_KEY=your_key_here
-
-# OpenAI
-export OPENAI_API_KEY=your_key_here
-```
-
-### Optional settings
-
-To benefit from better response quality and tool access, set specific model and MCP server URL:
-
-```bash
-# Model (default: anthropic:claude-haiku-4-5)
-export VMANOMALY_COPILOT_MODEL=openai:gpt-5.2
-
-# MCP tools endpoint
-export VMANOMALY_MCP_SERVER_URL=http://localhost:8491/mcp
 ```
 
 
