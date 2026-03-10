@@ -273,9 +273,9 @@
           "exemplar": false,
           "expr": "count(sum by (job) (up == bool 1) > 0) or vector(0)",
           "format": "time_series",
-          "instant": false,
+          "instant": true,
           "legendFormat": "UP",
-          "range": true,
+          "range": false,
           "refId": "A"
         },
         {
@@ -287,9 +287,9 @@
           "exemplar": false,
           "expr": "count(sum by (job) (up == bool 0) > 0) or vector(0)",
           "format": "time_series",
-          "instant": false,
+          "instant": true,
           "legendFormat": "DOWN",
-          "range": true,
+          "range": false,
           "refId": "B"
         }
       ],
@@ -446,9 +446,9 @@
           "exemplar": false,
           "expr": "sum(up == bool 1) or vector(0)",
           "format": "time_series",
-          "instant": false,
+          "instant": true,
           "legendFormat": "UP",
-          "range": true,
+          "range": false,
           "refId": "A"
         },
         {
@@ -460,9 +460,9 @@
           "exemplar": false,
           "expr": "sum(up == bool 0) or vector(0)",
           "format": "time_series",
-          "instant": false,
+          "instant": true,
           "legendFormat": "DOWN",
-          "range": true,
+          "range": false,
           "refId": "B"
         }
       ],
@@ -1379,7 +1379,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 30
+            "y": 82
           },
           "id": 12,
           "options": {
@@ -1490,7 +1490,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 91
           },
           "id": 13,
           "options": {
@@ -1601,7 +1601,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 48
+            "y": 100
           },
           "id": 14,
           "options": {
@@ -1712,7 +1712,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 57
+            "y": 109
           },
           "id": 15,
           "options": {
@@ -1823,7 +1823,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 66
+            "y": 118
           },
           "id": 16,
           "options": {
@@ -1934,7 +1934,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 75
+            "y": 127
           },
           "id": 17,
           "options": {
@@ -2045,7 +2045,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 84
+            "y": 136
           },
           "id": 9,
           "options": {
