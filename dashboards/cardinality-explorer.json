@@ -1687,7 +1687,7 @@
           "id": "joinByField",
           "options": {
             "byField": "name",
-            "mode": "inner"
+            "mode": "outer"
           }
         },
         {
@@ -1713,7 +1713,7 @@
                 "fieldName": "type B"
               }
             ],
-            "match": "all",
+            "match": "any",
             "type": "include"
           }
         },
