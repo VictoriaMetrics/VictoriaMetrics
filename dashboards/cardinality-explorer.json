@@ -107,7 +107,7 @@
             "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer in vmui](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). In case of problems, it is better to use `vmui` directly.\r\n- Dashboard requires [Infinity datasource](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed and configured to have access to VM: `http://victoriametrics:8428` for vmsingle, `http://vmauth:8427/select/<tenant>/prometheus` for cluster.\r\n- Dashboard can display data only for a specific `day`. For example, if you want to view data for the 3rd day of the month, select the period from the 2nd to the 3rd day.\r\n- In tables, it automatically compares cardinality numbers with numbers 1d before. It should help to track changes in the number of series with time. \r\n",
             "mode": "markdown"
           },
-          "pluginVersion": "12.3.3",
+          "pluginVersion": "12.4.0",
           "title": "Information",
           "transparent": true,
           "type": "text"
@@ -118,62 +118,10 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 4,
+            "h": 7,
             "w": 12,
             "x": 0,
-            "y": 37
-          },
-          "id": 9,
-          "options": {
-            "code": {
-              "language": "plaintext",
-              "showLineNumbers": false,
-              "showMiniMap": false
-            },
-            "content": "- Identify and eliminate labels with frequently changed values to reduce their [cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)\r\n- Find unused time series and [drop entire metrics](https://docs.victoriametrics.com/victoriametrics/relabeling/)\r\n- Aggregate time series before they got ingested into the database via [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)",
-            "mode": "markdown"
-          },
-          "pluginVersion": "12.3.3",
-          "title": "Metrics with a high number of series",
-          "transparent": true,
-          "type": "text"
-        },
-        {
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 12,
-            "x": 12,
-            "y": 37
-          },
-          "id": 10,
-          "options": {
-            "code": {
-              "language": "plaintext",
-              "showLineNumbers": false,
-              "showMiniMap": false
-            },
-            "content": "- Decrease the number of unique label values to reduce cardinality\r\n- Drop the label entirely via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)\r\n- For volatile label values (such as URL path, user session, etc.) consider printing them to the log file instead of adding to time series",
-            "mode": "markdown"
-          },
-          "pluginVersion": "12.3.3",
-          "title": "Labels with a high number of unique values",
-          "transparent": true,
-          "type": "text"
-        },
-        {
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 12,
-            "x": 0,
-            "y": 41
+            "y": 5
           },
           "id": 28,
           "options": {
@@ -196,10 +144,10 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 6,
+            "h": 7,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 5
           },
           "id": 29,
           "options": {
@@ -213,6 +161,58 @@
           },
           "pluginVersion": "12.4.0",
           "title": "Details",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 0,
+            "y": 12
+          },
+          "id": 9,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "- Identify and eliminate labels with frequently changed values to reduce their [cardinality](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate)\r\n- Find unused time series and [drop entire metrics](https://docs.victoriametrics.com/victoriametrics/relabeling/)\r\n- Aggregate time series before they got ingested into the database via [streaming aggregation](https://docs.victoriametrics.com/victoriametrics/stream-aggregation/)",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.4.0",
+          "title": "Metrics with a high number of series",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 12,
+            "x": 12,
+            "y": 12
+          },
+          "id": 10,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "- Decrease the number of unique label values to reduce cardinality\r\n- Drop the label entirely via [relabeling](https://docs.victoriametrics.com/victoriametrics/relabeling/)\r\n- For volatile label values (such as URL path, user session, etc.) consider printing them to the log file instead of adding to time series",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.4.0",
+          "title": "Labels with a high number of unique values",
           "transparent": true,
           "type": "text"
         }
@@ -352,6 +352,7 @@
         "type": "datasource",
         "uid": "-- Dashboard --"
       },
+      "description": "Shows metric names sorted by number of time series they contain.\n\nThe more time series metric has, the more expensive it is to store and query.\n\n* `Request count` and `Last request` columns help to identify how many times and when it was the last time metric was queried. See more about [metric usage tracking](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage). If metric wasn't used for a long time (e.g. >20d), it might not worth to store it anymore. \n* `1d` and `1d[%]` columns display the change in cardinality numbers between selected day and day before. Could help identifying rapidly growing metrics.\n* `Share Of Total` shows % of series this metrics has compared to the total number of series in selected day.\n* Click on the metric name to see details about its labels in tables below.\n",
       "fieldConfig": {
         "defaults": {
           "color": {
