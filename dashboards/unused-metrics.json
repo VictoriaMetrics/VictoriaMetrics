@@ -62,7 +62,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
   "links": [
     {
       "asDropdown": false,
@@ -74,7 +73,7 @@
       "title": "RESET FILTERS",
       "tooltip": "",
       "type": "link",
-      "url": "/d/${__dashboard.uid}?var-limit=$limit&var-match_pattern=&var-focus=&var-ds=${ds}&var-metric="
+      "url": "/d/${__dashboard.uid}?var-limit=$limit&var-match_pattern={__name__!=\"\"}&var-focus=&var-ds=${ds}&var-metric="
     }
   ],
   "panels": [
@@ -95,8 +94,34 @@
           },
           "gridPos": {
             "h": 4,
-            "w": 13,
+            "w": 11,
             "x": 0,
+            "y": 1
+          },
+          "id": 17,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "- This dashboard mimics [VictoriaMetrics Cardinality Explorer in vmui](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). In case of problems, it is better to use `vmui` directly.\n- Dashboard requires [Infinity datasource](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed and configured to have access to VM: `http://victoriametrics:8428` for vmsingle, `http://vmaselect:8481/select/<tenant>/prometheus` for cluster.\n",
+            "mode": "markdown"
+          },
+          "pluginVersion": "12.2.0",
+          "title": "",
+          "transparent": true,
+          "type": "text"
+        },
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 11,
+            "x": 11,
             "y": 1
           },
           "id": 15,
@@ -109,7 +134,7 @@
             "content": "\nOn querying, VictoriaMetrics [tracks](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage) how many times the requested metric\n name was fetched from the database (`Requests count`) and when was the last \n time it happened (`Last request`). It helps to identify metric names that \n were **rarely** or **never** queried. \n\n _Note: prefer using [vmui Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) over this dashboard for better performance and user experience._",
             "mode": "markdown"
           },
-          "pluginVersion": "12.4.0",
+          "pluginVersion": "12.2.0",
           "title": "",
           "transparent": true,
           "type": "text"
@@ -158,7 +183,7 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 5,
+        "w": 4,
         "x": 0,
         "y": 2
       },
@@ -263,7 +288,7 @@
       "gridPos": {
         "h": 3,
         "w": 5,
-        "x": 5,
+        "x": 4,
         "y": 2
       },
       "id": 3,
@@ -354,8 +379,8 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 5,
-        "x": 10,
+        "w": 4,
+        "x": 9,
         "y": 2
       },
       "id": 4,
@@ -419,10 +444,32 @@
       "type": "stat"
     },
     {
+      "gridPos": {
+        "h": 3,
+        "w": 11,
+        "x": 13,
+        "y": 2
+      },
+      "id": 18,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Start by identifying unused metrics with the highest `Total time series` count. Removing these metrics from ingestion will have the greatest impact on reducing cardinality and storage usage.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "12.2.0",
+      "transparent": true,
+      "type": "text"
+    },
+    {
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
         "uid": "$ds"
       },
+      "description": "Shows metric names sorted by number of time series they contain.\n\nThe more time series metric has, the more expensive it is to store and query.\n\n* `Request count` and `Last request` columns help to identify how many times and when it was the last time metric was queried. See more about [metric usage tracking](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#track-ingested-metrics-usage). If metric wasn't used for a long time (e.g. >20d), it might not worth to store it anymore. \n* Click on the metric name to see details about its labels in tables below.\n",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -842,7 +889,7 @@
         ]
       },
       "gridPos": {
-        "h": 12,
+        "h": 13,
         "w": 12,
         "x": 12,
         "y": 18
@@ -1015,7 +1062,7 @@
           }
         ]
       },
-      "pluginVersion": "12.4.0",
+      "pluginVersion": "12.2.0",
       "targets": [
         {
           "columns": [],
@@ -1176,5 +1223,6 @@
   "title": "VictoriaMetrics - unused metrics",
   "uid": "adqm4hz",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "id": null
 }
