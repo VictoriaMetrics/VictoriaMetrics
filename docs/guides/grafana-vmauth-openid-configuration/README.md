@@ -443,7 +443,7 @@ While on VictoriaMetrics single `vmauth-single` must apply the `team=dev` label 
 ![Single dev](grafana-single-dev.webp)
 <figcaption style="text-align: center; font-style: italic;">Logged in as dev user to Grafana dashboard on VictoriaMetrics Single</figcaption>
 
-Let's log in as an admin user. Both data sources should return the same metrics, but differ from the previous user.
+Let's log in as an admin user. The `vmauth-single` data source should differ from the previous user, while `vmauth-cluster` should remain the same because both users use tenant `1:2`.
 
 The only difference is the filter: in the VictoriaMetrics cluster `vmauth-cluster`, the data source must restrict results by `tenant=1:2`.
 
