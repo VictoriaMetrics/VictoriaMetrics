@@ -361,7 +361,7 @@
           }
         }
       ],
-      "title": "Unique time series on ${__from:date:YYYY-MM-DD}",
+      "title": "Unique time series on ${__to:date:YYYY-MM-DD}",
       "transformations": [
         {
           "id": "joinByField",
