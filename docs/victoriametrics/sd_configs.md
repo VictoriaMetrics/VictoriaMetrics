@@ -2090,9 +2090,12 @@ and in the majority of [supported service discovery configs](#supported-service-
 
     # oauth2 is an optional OAuth 2.0 configuration.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+    # Additionally, `headers` field is supported for sending custom HTTP headers to `token_url`.
     #
     # oauth2:
     #   ...
+    #   headers:
+    #   - "X-Tenant-ID: my-tenant"
 
     # tls_config is an optional TLS configuration.
     # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config
