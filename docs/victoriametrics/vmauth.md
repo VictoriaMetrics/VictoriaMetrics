@@ -923,7 +923,7 @@ users:
       realm: no-realm
 ```
 
-Both `oidc.realms` and `oidc.default_realm` allow to disable signature verification using `skip_discovery: true` and with `public_keys`, `public_keys` and `jwks_url` not set.
+Both `oidc.realms` and `oidc.default_realm` allow to disable signature verification using `skip_discovery: true` and with `public_keys`, `public_key_files` and `jwks_url` not set.
 
 ```yaml
 oidc:
@@ -971,7 +971,7 @@ or with `vm_access` claim as string
   "aud": "test-client",
   "iss": "http://example.com/admin/org-1",
   "exp": 1617304574,
-  "vm_access": "{\"tenant_id\":{\"account_id\":1,\"project_id\":5},\"query_args\": {\"vm_extra_label\":[\"team=dev\",\"project=mobile\"],\"vm_extra_filters\": [\"{env=~\\\"prod|dev\\\",team!=\\\"test\\\"}\"]}"
+  "vm_access": "{\"tenant_id\":{\"account_id\":1,\"project_id\":5},\"query_args\": {\"vm_extra_label\":[\"team=dev\",\"project=mobile\"],\"vm_extra_filters\": [\"{env=~\\\"prod|dev\\\",team!=\\\"test\\\"}\"]}}"
 }
 ```
 
@@ -1009,8 +1009,8 @@ vmauth request to `/api/v1/write` JWT token with a given claim:
         ],
         "vm_extra_filters": [
           "{env=~\"prod|dev\",team!=\"test\"}"
-        ],
-      },
+        ]
+      }
   }
 }
 ```
@@ -1086,11 +1086,11 @@ users:
       - src_paths:
           - "/insert/.*"
         drop_src_path_prefix_parts: 1
-        url_prefix: "http://localhost:8480/insert/{{tenantID}}/prometheus/?extra_labels={{extra_labels}}
+        url_prefix: "http://localhost:8480/insert/{{tenantID}}/prometheus/?extra_labels={{extra_labels}}"
       - src_paths:
           - "/select/.*"
         drop_src_path_prefix_parts: 1
-        url_prefix: "http://localhost:8481/select/{{tenantID}}/prometheus/?extra_labels={{extra_labels}}&extra_filters={{extra_filters}}
+        url_prefix: "http://localhost:8481/select/{{tenantID}}/prometheus/?extra_labels={{extra_labels}}&extra_filters={{extra_filters}}"
 ```
 
 Also in configuration above ingestion and query URLs have additional `/insert` and `/select` path prefixes respectively.

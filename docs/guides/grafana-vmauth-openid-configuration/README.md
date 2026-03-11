@@ -124,17 +124,17 @@ Once Keycloak is available, follow the steps below to configure the OIDC client 
    Specify `test-dev` as `Username`.<br>
    Specify `test-dev@example.com` as `Email`.<br>
    Mark email verified.<br>
-   Specify `vm_acess` as `{"metrics_account_id": 1, "metrics_project_id": 2, "metrics_extra_labels": ["team=dev"]}`.<br>
+   Specify `vm_access` as `{"metrics_account_id": 1, "metrics_project_id": 2, "metrics_extra_labels": ["team=dev"]}`.<br>
    <br>
    ![User attributes](user-attributes.webp)
    Click `Save`.<br>
    Go to `Users` -> `test-dev` user -> `Credentials` tab.<br>
-   Set `New password` to `testpass` and click `Set password`.<brs
+   Set `New password` to `testpass` and click `Set password`.<br>
 
 1. Go to `Users` -> `admin` user.<br>
    Specify `admin@example.com` as `Email`.<br>
    Mark email verified.<br>
-   Specify `vm_acess` as `{"metrics_account_id": 1, "metrics_project_id": 2, "metrics_extra_labels": ["team=admin"]}`.<br>
+   Specify `vm_access` as `{"metrics_account_id": 1, "metrics_project_id": 2, "metrics_extra_labels": ["team=admin"]}`.<br>
    Click `Save`.
 
 ### Test identity provider

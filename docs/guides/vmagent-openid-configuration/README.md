@@ -162,11 +162,11 @@ services:
 
 ### Setup vmauth
 
-Create a vmauth configuration file `auth.yaml` that enables OIDC authorization using the identity provider.
+Create a vmauth configuration file `vm-auth.yaml` that enables OIDC authorization using the identity provider.
 The `{{.MetricsTenant}}` placeholder will route requests to the correct tenant based on JWT claims.
 
 ```yaml
-# auth.yaml
+# vm-auth.yaml
 
 users:
 - jwt:
