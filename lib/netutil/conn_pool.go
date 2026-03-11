@@ -135,7 +135,7 @@ func (cp *ConnPool) Addr() string {
 // Get returns free connection from the pool.
 func (cp *ConnPool) Get(dailNewConn bool) (*handshake.BufferedConn, error) {
 	if dailNewConn {
-		return cp.getConnSlow()
+		return cp.dialNewConnWithConcurrencyLimit()
 	}
 	bc, err := cp.tryGetConn()
 	if err != nil {
@@ -146,6 +146,13 @@ func (cp *ConnPool) Get(dailNewConn bool) (*handshake.BufferedConn, error) {
 		return bc, nil
 	}
 	return cp.getConnSlow()
+}
+
+func (cp *ConnPool) dialNewConnWithConcurrencyLimit() (*handshake.BufferedConn, error) {
+	cp.concurrentDialsCh <- struct{}{}
+	conn, err := cp.dialAndHandshake()
+	<-cp.concurrentDialsCh
+	return conn, err
 }
 
 func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
