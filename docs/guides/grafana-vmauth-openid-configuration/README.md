@@ -7,6 +7,7 @@ This guide walks through configuring Grafana with OIDC to query metrics from bot
 ## Prerequisites
 
 * [Docker](https://docs.docker.com/engine/install/) and [docker compose](https://docs.docker.com/compose/) must be installed.
+* [jq tool](https://jqlang.org/)
 * Add `grafana` and `keycloak` hosts to the `/etc/hosts` file, pointing to `127.0.0.1`.
 
 ```
@@ -119,7 +120,7 @@ Once Keycloak is available, follow the steps below to configure the OIDC client 
 ### Create users
 
 1. Go to `Realm settings` -> `User profile`.
-   - Click `Create attribute`.<br>
+   - Click `Create attribute`.
    - Specify `vm_access` as `Attribute [Name]`.
    ![User attributes](create-attribute.webp)
    - Click `Create`.
