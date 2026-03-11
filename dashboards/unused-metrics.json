@@ -521,7 +521,7 @@
                 "value": [
                   {
                     "title": "Filter by name",
-                    "url": "/d/${__dashboard.uid}/unused-metrics?var-limit=$limit&var-match_pattern=${match_pattern}&var-ds=$ds&var-metric=${__value.text}"
+                    "url": "/d/${__dashboard.uid}/victoriametrics-metrics-explorer?var-limit=$limit&var-match_pattern=${match_pattern}&var-ds=$ds&var-metric=${__value.text}"
                   }
                 ]
               }
