@@ -1461,7 +1461,7 @@ As an alternative, you can serve internal API routes on a different listen addre
 The following command-line flags must be set in order to enable automatic issuance of TLS certificates:
 
 * `-httpListenAddr` must be set to listen on TCP port `443`. For example, `-httpListenAddr=:443`. This port must be accessible by the [Let's Encrypt service](https://letsencrypt.org/).
-* `-tls` must be set to accept HTTPS requests at `-httpListenAddr`. Note that `-tlcCertFile` and `-tlsKeyFile` aren't needed when automatic TLS certificate issuing is enabled.
+* `-tls` must be set to accept HTTPS requests at `-httpListenAddr`. Note that `-tlsCertFile` and `-tlsKeyFile` aren't needed when automatic TLS certificate issuing is enabled.
 * `-tlsAutocertHosts` must be set to a comma-separated list of hosts, which can be reached via `-httpListenAddr`. TLS certificates are automatically issued for these hosts.
 * `-tlsAutocertEmail` must be set to the contact email for the issued TLS certificates.
 * `-tlsAutocertCacheDir` may be set to the directory path to persist the issued TLS certificates between `vmauth` restarts. If this flag isn't set, then TLS certificates are reissued on every restart.
