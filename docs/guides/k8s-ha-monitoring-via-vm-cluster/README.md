@@ -96,7 +96,7 @@ EOF
 ```
 
 
-Let's break down how high-availability is achieved:
+Let's break down how high availability is achieved:
 
 - `replicaCount: 3` creates three replicas of vmselect, vminsert, and vmstorage each.
 - `replicationFactor: 2` enables [replication](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#replication-and-data-safety) for `vminsert` and `vmselect`.
@@ -125,7 +125,7 @@ TEST SUITE: None
 NOTES:
 Write API:
 
-The Victoria Metrics write api can be accessed via port 8480 with the following DNS name from within your cluster:
+The VictoriaMetrics write api can be accessed via port 8480 with the following DNS name from within your cluster:
 vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.
 
 Get the Victoria Metrics insert service URL by running these commands in the same shell:
@@ -142,7 +142,7 @@ prometheus.yml
 for example -  inside the Kubernetes cluster:
 
     remote_write:
-      - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local.:8480/insert/0/prometheus/
+      - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
 Read API:
 
 The VictoriaMetrics read api can be accessed via port 8481 with the following DNS name from within your cluster:
@@ -196,9 +196,15 @@ Install `vmagent` with the following command:
 helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.com/guides/examples/guide-vmcluster-vmagent-values.yaml
 ```
 
-Here are the key settings in the chart values file `guide-vmcluster-vmagent-values.yaml`:
+You can obtain a copy of `guide-vmcluster-vmagent-values.yaml` to review with:
 
-- `remoteWrite` defines the vminsert endpoint that receives telemetry from vmagent. This value should match exactly the URL for the `remote_write` in the output of the VictoriaMetrics cluster installation in [Step 2](#id-2-install-victoriametrics-cluster-from-the-helm-chart).
+```sh
+wget https://docs.victoriametrics.com/guides/examples/guide-vmcluster-vmagent-values.yaml
+```
+
+Here are the key settings in the chart file that we used to install `vmagent` with Helm earlier:
+
+- `remoteWrite` defines the vminsert endpoint that receives telemetry from vmagent. This value should match exactly the URL for the `remote_write` in the output of the VictoriaMetrics cluster installation in [Step 2](https://docs.victoriametrics.com/guides/k8s-ha-monitoring-via-vm-cluster/#id-2-install-victoriametrics-cluster-from-the-helm-chart).
 
     ```yaml
     remoteWrite:
