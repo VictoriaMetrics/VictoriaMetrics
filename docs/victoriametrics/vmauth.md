@@ -329,7 +329,7 @@ Claim names support dot-notation for traversal of nested JSON objects
 Claim names must point to a **leaf value**. The only supported leaf values are string, integer, float and boolean. Any other leaf type
 is treated as not matched.
 All configured claims must match exactly.
-Claim match value uses regular expression syntax match by default.
+Claim match values use regular expression syntax and must fully match the claim value.
 
 For example, the following config routes requests based on the `role` claim in the JWT token:
 
@@ -409,7 +409,7 @@ users:
       -----END PUBLIC KEY-----
     match_claims:
       vm_access.metrics_account_id: "(0|1|2)"
-  url_prefix: "http://victoria-metrics-vmselect-1:8481/select/mutitenant?extra_filters={vm_account_id=\"(0|1|2)\"}"
+  url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(0|1|2)\"}"
 - jwt:
     public_keys:
     - |
@@ -418,7 +418,7 @@ users:
       -----END PUBLIC KEY-----
     match_claims:
       vm_access.metrics_account_id: "(3|4|5)"
-  url_prefix: "http://victoria-metrics-vmselect-1:8481/select/mutitenant?extra_filters={vm_account_id=\"(3|4|5)\"}"
+  url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(3|4|5)\"}"
 ```
 
 
