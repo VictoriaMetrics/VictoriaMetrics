@@ -145,7 +145,7 @@ users:
     public_keys:
     - %q
   url_prefix: http://foo.bar
-`, validRSAPublicKey, validECDSAPublicKey), `multiple users with JWT tokens are not supported; found 2 users`)
+`, validRSAPublicKey, validECDSAPublicKey), `duplicate match claims="" found for name="" at idx=1; the previous one is set for name=""`)
 
 	// public key file doesn't exist
 	f(`
@@ -267,6 +267,23 @@ users:
   url_prefix: http://foo.bar
 `,
 		"jwt with oidc cannot contain public keys or have skip_verify=true",
+	)
+	// duplicate claims
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+  name: user-1
+  url_prefix: http://foo.bar
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+  name: user-2
+  url_prefix: http://foo.bar`,
+		"duplicate match claims=\"team=ops\" found for name=\"user-2\" at idx=1; the previous one is set for name=\"user-1\"",
 	)
 }
 
@@ -454,4 +471,33 @@ users:
       issuer: ` + ipSrv.URL + `
   url_prefix: http://foo.bar
 `)
+	// multiple match claims
+	f(fmt.Sprintf(`
+users:
+- jwt:
+   match_claims:
+    role: ro
+    team: dev
+   public_keys:
+    - %q
+  url_prefix: http://foo.bar
+- jwt:
+   match_claims:
+      role: admin
+      team: dev
+   public_key_files:
+    - %q
+    - %q
+  url_prefix: http://foo.bar
+- jwt:
+   match_claims:
+     role: viewer
+     team: dev
+     department: ceo
+   skip_verify: true
+  url_prefix: http://foo.bar
+
+
+`, validRSAPublicKey, rsaKeyFile, ecdsaKeyFile))
+
 }

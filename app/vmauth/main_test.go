@@ -103,6 +103,35 @@ User-Agent: vmauth
 X-Forwarded-For: 12.34.56.78, 42.2.3.84`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// with default_url
+	cfgStr = `
+unauthorized_user:
+  default_url: {BACKEND}/default
+  url_map:
+  - src_paths:
+    - /empty
+    url_prefix: {BACKEND}/empty`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
+		var bb bytes.Buffer
+		if err := r.Header.Write(&bb); err != nil {
+			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
+		}
+		fmt.Fprintf(w, "requested_url=http://%s%s\n%s", r.Host, r.URL, bb.String())
+	}
+	responseExpected = `
+statusCode=200
+Foo: bar
+requested_url={BACKEND}/default?request_path=http%3A%2F%2Fsome-host.com%2Fabc%2Fdef%3Fsome_arg%3Dsome_value
+Pass-Header: abc
+User-Agent: vmauth
+X-Forwarded-For: 12.34.56.78, 42.2.3.84`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// routing of all failed to authorize requests to unauthorized_user (issue #7543)
 	cfgStr = `
 unauthorized_user:
@@ -1236,6 +1265,134 @@ users:
 		request,
 		responseExpected,
 	)
+	nestedToken := genToken(t, map[string]any{
+		"exp":  time.Now().Add(10 * time.Minute).Unix(),
+		"team": "dev",
+		"nested": map[string]any{
+			"department_id": 0,
+			"scopes":        []string{"metrics", "logs"},
+			"team_permissions": map[string]any{
+				"read":  0,
+				"write": 1,
+			},
+		},
+		"vm_access": map[string]any{
+			"metrics_account_id": 123,
+			"metrics_project_id": 234,
+			"metrics_extra_labels": []string{
+				"label1=value1",
+				"label2=value2",
+			},
+			"metrics_extra_filters": []string{
+				`{label3="value3"}`,
+				`{label4="value4"}`,
+			},
+			"logs_account_id": 345,
+			"logs_project_id": 456,
+			"logs_extra_filters": []string{
+				`{"namespace":"my-app","env":"prod"}`,
+			},
+			"logs_extra_stream_filters": []string{
+				`{"team":"dev"}`,
+			},
+		},
+	}, true)
+
+	// use claim for routing, must specific match wins
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /dev/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.scopes.1: "logs"
+     nested.department_id: "0"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/dev
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.scopes.1: "logs"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
+
+	// use claim for routing, most specific not matching
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /less_claims/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.scopes.1: "logs"
+     nested.department_id: "0"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/more_claims
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/less_claims
+`,
+		request,
+		responseExpected,
+	)
+
+	// use claim for routing, empty claim match
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /empty/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/empty
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
+
 }
 
 func TestOIDCRequestHandler(t *testing.T) {
