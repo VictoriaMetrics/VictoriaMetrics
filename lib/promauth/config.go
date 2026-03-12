@@ -148,6 +148,7 @@ type OAuth2Config struct {
 	EndpointParams   map[string]string `yaml:"endpoint_params,omitempty"`
 	TLSConfig        *TLSConfig        `yaml:"tls_config,omitempty"`
 	ProxyURL         string            `yaml:"proxy_url,omitempty"`
+	Headers          []string          `yaml:"headers,omitempty"`
 }
 
 func (o *OAuth2Config) validate() error {
@@ -177,13 +178,15 @@ type oauth2ConfigInternal struct {
 	proxyURL     string
 	proxyURLFunc func(*http.Request) (*url.URL, error)
 
+	tokenURLHeaders []keyValue
+
 	ctx         context.Context
 	tokenSource oauth2.TokenSource
 }
 
 func (oi *oauth2ConfigInternal) String() string {
-	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, scopes=%q, endpointParams=%q, tokenURL=%q, proxyURL=%q, tlsConfig={%s}",
-		oi.cfg.ClientID, oi.cfg.ClientSecret, oi.clientSecretFile, oi.cfg.Scopes, oi.cfg.EndpointParams, oi.cfg.TokenURL, oi.proxyURL, oi.ac.String())
+	return fmt.Sprintf("clientID=%q, clientSecret=%q, clientSecretFile=%q, scopes=%q, endpointParams=%q, tokenURL=%q, proxyURL=%q, tokenURLHeaders=%q, tlsConfig={%s}",
+		oi.cfg.ClientID, oi.cfg.ClientSecret, oi.clientSecretFile, oi.cfg.Scopes, oi.cfg.EndpointParams, oi.cfg.TokenURL, oi.proxyURL, oi.tokenURLHeaders, oi.ac.String())
 }
 
 func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInternal, error) {
@@ -221,6 +224,11 @@ func newOAuth2ConfigInternal(baseDir string, o *OAuth2Config) (*oauth2ConfigInte
 		oi.proxyURL = o.ProxyURL
 		oi.proxyURLFunc = http.ProxyURL(u)
 	}
+	tokenURLHeaders, err := parseHeaders(o.Headers)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse headers for token_url: %w", err)
+	}
+	oi.tokenURLHeaders = tokenURLHeaders
 	return oi, nil
 }
 
@@ -237,12 +245,54 @@ func (oi *oauth2ConfigInternal) initTokenSource() error {
 	if oi.proxyURLFunc != nil {
 		tr.Proxy = oi.proxyURLFunc
 	}
+	transport := oi.ac.NewRoundTripper(tr)
+	if len(oi.tokenURLHeaders) > 0 {
+		transport = newExtraHeadersTransport(oi.tokenURLHeaders, transport)
+	}
 	c := &http.Client{
-		Transport: oi.ac.NewRoundTripper(tr),
+		Transport: transport,
 	}
 	oi.ctx = context.WithValue(context.Background(), oauth2.HTTPClient, c)
 	oi.tokenSource = oi.cfg.TokenSource(oi.ctx)
 	return nil
+}
+
+// extraHeadersTransport injects a fixed set of headers into every request.
+type extraHeadersTransport struct {
+	extraHeaders http.Header
+	host         string
+	base         http.RoundTripper
+}
+
+func newExtraHeadersTransport(headers []keyValue, base http.RoundTripper) *extraHeadersTransport {
+	tr := &extraHeadersTransport{
+		base:         base,
+		extraHeaders: make(http.Header, len(headers)),
+	}
+	for _, h := range headers {
+		if h.key == "Host" {
+			tr.host = h.value
+			continue
+		}
+		tr.extraHeaders[h.key] = []string{h.value}
+	}
+	return tr
+}
+
+func (tr *extraHeadersTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	r := new(http.Request)
+	*r = *req
+	r.Header = make(http.Header, len(req.Header)+len(tr.extraHeaders))
+	for k, v := range req.Header {
+		r.Header[k] = v
+	}
+	for k, v := range tr.extraHeaders {
+		r.Header[k] = v
+	}
+	if tr.host != "" {
+		r.Host = tr.host
+	}
+	return tr.base.RoundTrip(r)
 }
 
 func (oi *oauth2ConfigInternal) getTokenSource() (oauth2.TokenSource, error) {
