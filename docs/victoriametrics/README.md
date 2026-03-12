@@ -1400,7 +1400,7 @@ Process will intentionally panic when this happens, so human operator can detect
 
 > VictoriaMetrics cannot fix the corrupted data parts on its own.
 > Data parts that fail to load on startup or during reads need to be deleted or restored from backups. 
-> It is recommended performing [refgular backups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#backups).
+> It is recommended performing [regular backups](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#backups).
 
 VictoriaMetrics doesn't use checksums for stored data blocks. See why in this [GitHub Issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
 
