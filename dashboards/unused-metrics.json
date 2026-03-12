@@ -723,13 +723,13 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "Metric name"
+                "value": "Label name"
               },
               {
                 "id": "links",
                 "value": [
                   {
-                    "title": "Filter by metric name",
+                    "title": "Filter by label name",
                     "url": "/d/${__dashboard.uid}?var-limit=$limit&var-match={\"${__value.raw}\"!=\"\"}&var-focus=${__value.raw}"
                   }
                 ]
