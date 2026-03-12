@@ -183,10 +183,9 @@ func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
 			rows[i].PrecisionBits = 64
 		}
 
-		pws = append(pws, &partWrapper{
-			mp: newTestInmemoryPart(rows),
-			p:  &part{},
-		})
+		mp := newTestInmemoryPart(rows)
+		pw := newPartWrapperFromInmemoryPart(mp, time.Time{})
+		pws = append(pws, pw)
 	}
 
 	pwsNew := pt.mustMergeInmemoryParts(pws)
