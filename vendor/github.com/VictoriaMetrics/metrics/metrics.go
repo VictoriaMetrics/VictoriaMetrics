@@ -13,6 +13,7 @@
 package metrics
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sort"
@@ -42,6 +43,11 @@ func init() {
 var (
 	registeredSets     = make(map[*Set]struct{})
 	registeredSetsLock sync.Mutex
+	bufPool            = sync.Pool{
+		New: func() any {
+			return bytes.NewBuffer(make([]byte, 0, 64*1024))
+		},
+	}
 )
 
 // RegisterSet registers the given set s for metrics export via global WritePrometheus() call.
@@ -245,6 +251,23 @@ func WritePrometheus(w io.Writer, exposeProcessMetrics bool) {
 func WriteProcessMetrics(w io.Writer) {
 	writeGoMetrics(w)
 	writeProcessMetrics(w)
+	writePushMetrics(w)
+}
+
+// WriteGoMetrics writes Go runtime metrics to w.
+// This includes runtime/metrics such as memory stats, GC stats, goroutine counts, etc.
+func WriteGoMetrics(w io.Writer) {
+	writeGoMetrics(w)
+}
+
+// WriteProcMetrics writes OS-level process metrics to w by reading
+// the /proc filesystem (CPU, memory, file descriptors, PSI, etc.).
+func WriteProcMetrics(w io.Writer) {
+	writeProcessMetrics(w)
+}
+
+// WritePushMetrics writes push-mode related metrics to w.
+func WritePushMetrics(w io.Writer) {
 	writePushMetrics(w)
 }
 
