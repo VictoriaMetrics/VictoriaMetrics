@@ -402,10 +402,22 @@ func templateFuncs() textTpl.FuncMap {
 			return t, nil
 		},
 
-		// formatTime formats the given time.Time with the provided layout.
-		// For example: {{ now | toTime | formatTime "2006-01-02T15:04:05Z07:00" }}
-		"formatTime": func(layout string, t time.Time) string {
-			return t.Format(layout)
+		// formatTime formats the given time with the provided layout.
+		// It accepts either a time.Time or a Unix timestamp (numeric type).
+		// For example: {{ now | formatTime "2006-01-02T15:04:05Z07:00" }}
+		"formatTime": func(layout string, i any) (string, error) {
+			if t, ok := i.(time.Time); ok {
+				return t.Format(layout), nil
+			}
+			v, err := toFloat64(i)
+			if err != nil {
+				return "", fmt.Errorf("formatTime: %w", err)
+			}
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				return "", fmt.Errorf("formatTime: cannot convert %v to time", v)
+			}
+			t := timeFromUnixTimestamp(v).Time().UTC()
+			return t.Format(layout), nil
 		},
 
 		/* URLs */
@@ -492,7 +504,7 @@ func templateFuncs() textTpl.FuncMap {
 		/* Helpers */
 
 		// now returns the Unix timestamp in seconds at the time of the template evaluation.
-		// For example: {{ (now | toTime).Sub $activeAt }} will return the duration the alert has been active.
+		// For example: {{ now | formatTime "2006-01-02T15:04:05Z07:00" }} will return the current time formatted.
 		"now": func() float64 {
 			return float64(time.Now().Unix())
 		},
