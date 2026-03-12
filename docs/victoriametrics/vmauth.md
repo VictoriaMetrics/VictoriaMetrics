@@ -1291,14 +1291,6 @@ users:
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
 
-  # Requests with the 'Authorization: Bearer XXXX.XXXX.XXX' header where 'XXXX.XXXX.XXX' is a JWT claim, that contains
-  # 'aud' claim equal to 'client-1', 'iss' claim that is equal to 'oidc.realms[*].issuer_url' of 'oidc.realms' item with name 'org-1'.
-  # request is authorized against 'oidc.default_realm' if it's defined and if 'client.realm' is omitted.
-- client:
-    client_id: client-1
-    realm: org-1
-  url_prefix: "http://localhost:9428"
-
   # Requests with the 'Authorization: Foo XXXX' header are proxied to http://localhosT:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - auth_token: "Foo XXXX"
