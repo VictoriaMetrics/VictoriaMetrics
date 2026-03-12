@@ -32,7 +32,7 @@ See how to request a free [trial license](https://victoriametrics.com/products/e
 
 ## Access Control
 
-> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead.
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead. See [migration](https://docs.victoriametrics.com/victoriametrics/vmgateway/#access-control-migration-to-vmauth) docs.
 
 ![vmgateway-ac](vmgateway-access-control.webp)
 
@@ -200,7 +200,7 @@ curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJ
 
 ## JWT signature verification
 
-> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead.
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead. See [migration](https://docs.victoriametrics.com/victoriametrics/vmgateway/#access-control-migration-to-vmauth) docs.
 
 `vmgateway` supports JWT signature verification.
 
@@ -240,7 +240,7 @@ This command will load 3 keys: 2 from files and 1 from the command line.
 
 ### Using OpenID discovery endpoint for JWT signature verification
 
-> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead. Read more about vmauth [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) in the docs.
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead. Read more about vmauth [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) in the docs. See [migration](https://docs.victoriametrics.com/victoriametrics/vmgateway/#access-control-migration-to-vmauth) docs.
 
 `vmgateway` supports using the OpenID discovery endpoint for JWKS keys discovery.
 
@@ -269,7 +269,7 @@ Example usage for tokens issued by Google:
 
 ### Using JWKS endpoint for JWT signature verification
 
-> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead.
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead. See [migration](https://docs.victoriametrics.com/victoriametrics/vmgateway/#access-control-migration-to-vmauth) docs.
 
 `vmgateway` supports using the JWKS endpoint for JWT signature verification.
 
@@ -294,6 +294,96 @@ Example usage for tokens issued by Google:
   -write.url=http://localhost:8480 \
   -read.url=http://localhost:8481 \
   -auth.jwksEndpoints=https://www.googleapis.com/oauth2/v3/certs
+```
+
+## Access Control migration to vmauth 
+
+For users who are still using vmgateway for OIDC authorization, it's preferable to migrate to vmauth, which provides a list of benefits:
+- [operator](https://docs.victoriametrics.com/operator/resources/vmauth/) support
+- [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery)
+- [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching)
+- [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating)
+
+vmgateway uses command-line arguments, which can be easily mapped to vmauth `oidc` configuration section:
+- `--auth.oidcDiscoveryEndpoints` -> `users[*].jwt.oidc.issuer`
+- `--auth.publicKeyFiles` -> `users[*].jwt.public_key_files`
+- `--auth.publicKeys` -> `users[*].jwt.public_keys`
+- `--auth.jwksEndpoints` -> Not supported.
+- `--auth.httpHeaderAllowWithoutPrefix` -> Not supported.
+
+> only issuer URL part of `--auth.oidcDiscoveryEndpoints` value should be moved into the `jwt.oidc.issuer` parameter (without `/.well-known/openid-configuration` suffix).
+
+Given the vmgateway command with arguments:
+
+```sh
+./bin/vmgateway \
+    -licenseFile=./vm-license.key
+    -enable.auth=true \
+    -clusterMode=true \
+    -write.url=http://localhost:8480 \
+    -read.url=http://localhost:8481
+    -auth.oidcDiscoveryEndpoints=http://localhost:3001/realms/master/.well-known/openid-configuration
+```
+
+can be converted into the vmauth configuration below:
+
+```yaml
+users:
+  - jwt:
+      oidc:
+        issuer: 'http://localhost:3001/realms/master'
+    url_map:
+      - src_paths:
+          - "/insert/.*"
+        drop_src_path_prefix_parts: 1
+        url_prefix: "http://localhost:8480/insert/{{.MetricsTenant}}/prometheus/?extra_label={{.MetricsExtraLabels}}"
+      - src_paths:
+          - "/select/.*"
+        drop_src_path_prefix_parts: 1
+        url_prefix: "http://localhost:8481/select/{{.MetricsTenant}}/prometheus/?extra_label={{.MetricsExtraLabels}}&extra_filters={{.MetricsExtraFilters}}"
+```
+
+The `vm_access.mode` claim should be translated into the corresponding `url_map` sections.
+`mode=0` should contain both `/select/.*` and `/insert/.*`, `mode=1` should contain only `/select/.*`, and mode=2 should contain only `/insert/.*`.
+
+The `vm_access` claim structure has to be updated as well. The claim like this:
+
+```json
+{
+  "exp": 1617304574,
+  "vm_access": {
+    "tenant_id": {
+      "account_id": 1,
+      "project_id": 5
+
+    },
+    "extra_labels": {
+      "team": "dev",
+      "project": "mobile"
+    },
+    "extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
+    "mode": 1
+  }
+}
+```
+
+will become:
+
+```json
+{
+  "exp": 1617304574,
+  "vm_access": {
+    "metrics_account_id": 1,
+    "metrics_project_id": 5,
+    "metrics_extra_labels": [
+      "team=dev",
+      "project=mobile"
+    ],
+    "metrics_extra_filters": [
+      "{env=~\"prod|dev\",team!=\"test\"}"
+    ]
+  }
+}
 ```
 
 ## Configuration
