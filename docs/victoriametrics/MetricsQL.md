@@ -1384,6 +1384,15 @@ It can be used for calculating the average over the given time range across mult
 For example, `histogram_avg(sum(histogram_over_time(response_time_duration_seconds[5m])) by (vmrange,job))` would return the average response time
 per each `job` over the last 5 minutes.
 
+#### histogram_fraction
+
+`histogram_fraction(lowerLe, upperLe, buckets)` is a [transform function](#transform-functions), which calculates the share (in the range `[0...1]`) for `buckets` that fall between `lowerLe` and `upperLe`.
+The result of `histogram_fraction(lowerLe, upperLe, buckets)` is equivalent to `histogram_share(upperLe, buckets) - histogram_share(lowerLe, buckets)`.
+
+This function is supported by PromQL.
+
+See also [histogram_share](#histogram_share).
+
 #### histogram_quantile
 
 `histogram_quantile(phi, buckets)` is a [transform function](#transform-functions), which calculates `phi`-[percentile](https://en.wikipedia.org/wiki/Percentile)

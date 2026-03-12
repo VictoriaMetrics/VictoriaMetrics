@@ -34,9 +34,9 @@ vmctl command-line tool is available as:
 
 Download and unpack vmctl:
 ```sh
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.136.0/vmutils-darwin-arm64-v1.136.0.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.137.0/vmutils-darwin-arm64-v1.137.0.tar.gz
 
-tar xzf vmutils-darwin-arm64-v1.136.0.tar.gz
+tar xzf vmutils-darwin-arm64-v1.137.0.tar.gz
 ```
 
 Once binary is unpacked, see the full list of supported modes by running the following command:
@@ -230,8 +230,8 @@ rate(vmctl_limiter_throttle_events_total[5m])
 # Data transfer speed in bytes per second (when rate limiting is enabled)
 rate(vmctl_limiter_bytes_processed_total[5m])
 
-# Data transfer speed in MB per second for vm-native mode
-rate(vmctl_vm_native_migration_bytes_transferred_total[5m]) / 1Mb
+# Data transfer speed in MiB per second for vm-native mode
+rate(vmctl_vm_native_migration_bytes_transferred_total[5m]) / 1Mi
 ```
 
 ## Verifying exported blocks from VictoriaMetrics

@@ -101,7 +101,7 @@ func StreamTargetsResponsePlain(qw422016 *qt422016.Writer, tsr *targetsStatusRes
 //line lib/promscrape/targetstatus.qtpl:27
 				qw422016.N().S(`originalLabels=`)
 //line lib/promscrape/targetstatus.qtpl:27
-				qw422016.N().S(ts.sw.Config.OriginalLabels.String())
+				qw422016.N().S(ts.sw.Config.OriginalLabels.labelsString())
 //line lib/promscrape/targetstatus.qtpl:27
 				qw422016.N().S(`,`)
 //line lib/promscrape/targetstatus.qtpl:27
@@ -591,7 +591,7 @@ func streamscrapeJobTargets(qw422016 *qt422016.Writer, num int, jts *jobTargetsS
 		originalLabels := ts.sw.Config.OriginalLabels
 
 		// The target is uniquely identified by a pointer to its original labels.
-		targetID := getLabelsID(originalLabels)
+		targetID := originalLabels.getTargetID()
 
 //line lib/promscrape/targetstatus.qtpl:237
 		qw422016.N().S(`<tr`)
@@ -672,7 +672,7 @@ func streamscrapeJobTargets(qw422016 *qt422016.Writer, num int, jts *jobTargetsS
 //line lib/promscrape/targetstatus.qtpl:266
 			qw422016.N().S(`">`)
 //line lib/promscrape/targetstatus.qtpl:267
-			streamformatLabels(qw422016, originalLabels)
+			streamformatLabels(qw422016, originalLabels.getLabels())
 //line lib/promscrape/targetstatus.qtpl:267
 			qw422016.N().S(`</div>`)
 //line lib/promscrape/targetstatus.qtpl:269
@@ -953,7 +953,7 @@ func streamdiscoveredJobTargets(qw422016 *qt422016.Writer, num int, tlj *targetL
 //line lib/promscrape/targetstatus.qtpl:368
 		qw422016.N().S(`</td><td class="labels">`)
 //line lib/promscrape/targetstatus.qtpl:371
-		streamformatLabels(qw422016, t.originalLabels)
+		streamformatLabels(qw422016, t.originalLabels.getLabels())
 //line lib/promscrape/targetstatus.qtpl:371
 		qw422016.N().S(`</td><td class="labels">`)
 //line lib/promscrape/targetstatus.qtpl:374
@@ -961,7 +961,7 @@ func streamdiscoveredJobTargets(qw422016 *qt422016.Writer, num int, tlj *targetL
 //line lib/promscrape/targetstatus.qtpl:374
 		qw422016.N().S(`</td><td>`)
 //line lib/promscrape/targetstatus.qtpl:377
-		targetID := getLabelsID(t.originalLabels)
+		targetID := t.originalLabels.getTargetID()
 
 //line lib/promscrape/targetstatus.qtpl:377
 		qw422016.N().S(`<a href="target-relabel-debug?id=`)

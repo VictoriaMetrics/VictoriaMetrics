@@ -250,7 +250,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 ### JWT Token auth proxy
 
-`vmauth` can authorize access to backends based on the [JWT token](https://www.jwt.io/) provided in the `Authorization` request header. 
+`vmauth` can authorize access{{% available_from "v1.137.0" %}} to backends depending on the provided [JWT token](https://www.jwt.io/) in `Authorization` request header. 
 JWT tokens are verified using RSA or ECDSA public keys. The following auth config proxies requests to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) if they contain a valid JWT token:
 
 ```yaml
@@ -264,26 +264,7 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
-JWT tokens must contain a `vm_access` claim with tenant information:
-```json
-{
-  "exp": 2770832322,
-  "vm_access": {
-    "tenant_id": {
-      "account_id": 0,
-      "project_id": 0
-    }
-  }
-}
-```
-
-The empty `vm_access` claim is also allowed and means access to Tenant `0:0` will be provided.
-```json
-{
-  "exp": 2770832322,
-  "vm_access": {}
-}
-```
+JWT tokens must contain a `"vm_access": {}` claim, more on that in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating)
 
 For testing, skip signature verification with `skip_verify: true` (not recommended for production).
 
@@ -295,6 +276,303 @@ users:
 ```
 
 JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
+
+
+#### OIDC Discovery
+
+Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "#" %}} 
+and rotate public keys from an [OpenID Connect (OIDC)](https://openid.net/connect/) provider via its [Discovery endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html).
+This is useful when integrating with identity providers such as Keycloak, Auth0, Okta, or Google.
+
+Set `oidc.issuer` to the base URL of the OIDC provider. `vmauth` will:
+1. Fetch `{issuer}/.well-known/openid-configuration` to discover the `jwks_uri`.
+2. Download the JSON Web Key Set (JWKS) from the `jwks_uri` to obtain the public keys used to verify JWT signatures.
+3. Automatically refresh the keys every 5 minutes to handle key rotation.
+
+JWT tokens must contain an `iss` claim that matches the configured `issuer` value exactly.
+
+```yaml
+users:
+- jwt:
+    oidc:
+      issuer: "https://your-identity-provider.example.com"
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+The `oidc` option cannot be combined with `public_keys`, `public_key_files`, or `skip_verify`.
+
+If the OIDC provider is temporarily unavailable during a key refresh, `vmauth` continues using the previously fetched keys until the next successful refresh.
+If no keys have been fetched yet (e.g., on startup when the provider is unreachable), the config section is skipped during authentication.
+
+
+#### JWT claim matching
+
+`vmauth` can route requests to different backends depending on the claims contained
+in the provided [JWT token](https://www.jwt.io/) based on `match_claims`{{% available_from "#" %}} field.
+
+This enables RBAC-style setups where tokens carrying different roles
+(e.g. `admin`, `viewer`, `writer`) are mapped to different users — each with its own
+`url_prefix` or `url_map` configuration — all authenticated against the same public key.
+
+Claim matching is configured via the `match_claims` field inside the `jwt` user section.
+A user is selected only if:
+
+1. All configured `match_claims` entries evaluate successfully (logical AND).
+2. The token signature is cryptographically valid.
+
+If `match_claims` is not set or is empty, the user matches any valid JWT token
+signed with the configured public key.
+
+Claim names support dot-notation for traversal of nested JSON objects
+(a simplified JSONPath-style approach), for example `vm_access.metrics_account_id` matches `{"vm_access": {"metrics_account_id": 1}}` and
+`security.permissions.0.read` matches `{"security": {"permissions": [{"read": 1}]}}.
+Claim names must point to a **leaf value**. The only supported leaf values are string, integer, float and boolean. Any other leaf type
+is treated as not matched.
+All configured claims must match exactly.
+
+For example, the following config routes requests based on the `role` claim in the JWT token:
+
+```yaml
+users:
+- jwt:
+    oidc:
+      issuer: "https://your-identity-provider.example.com"
+  url_prefix: "http://victoria-metrics:8428/"
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      role: admin
+  url_prefix: "http://victoria-metrics-admin:8428/"
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      role: viewer
+  url_prefix: "http://victoria-metrics-readonly:8428/"
+```
+
+The following config demonstrates matching on nested claims using dot-notation:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      vm_access.metrics_account_id: 1
+  url_prefix: "http://victoria-metrics-tenant-1:8428/"
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      foo.bar: baz
+  url_prefix: "http://victoria-metrics-tenant-2:8428/"
+```
+
+The following config matches any valid token (no claim filtering),
+equivalent to the behavior when `match_claims` is omitted:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims: {}
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+#### JWT claim matching. Conflict resolution
+
+When multiple users have `match_claims` entries that all match the incoming token,
+`vmauth` selects the user whose `match_claims` map contains the **greatest number of entries**.
+A more specific match (more claim constraints) always takes priority over a less specific one.
+
+For example, given the following config and a token containing both `role=admin` and `iss=foo`:
+
+```yaml
+users:
+- jwt:
+    match_claims:
+      iss: foo
+  url_prefix: "http://victoria-metrics-default:8428/"
+- jwt:
+    match_claims:
+      iss: foo
+      role: admin
+  url_prefix: "http://victoria-metrics-admin:8428/"
+```
+
+The second user is selected because it has two matching claim entries compared to one,
+and requests are proxied to `http://victoria-metrics-admin:8428/`.
+
+If two users match with the **same number** of `match_claims` entries,
+the selection becomes non-deterministic. To avoid ambiguity, ensure that
+claim match conditions across users with the same number of entries are mutually exclusive.
+
+For example, the following config is ambiguous when a token contains both `role=foo` and `team=platform`:
+
+```yaml
+users:
+- jwt:
+    match_claims:
+      role: foo
+  url_prefix: "http://backend-a:8428/"
+- jwt:
+    match_claims:
+      team: platform
+  url_prefix: "http://backend-b:8428/"
+```
+
+Both users have one claim entry each, so if the token satisfies both,
+neither takes priority. Resolve this by adding the same match claim keys to both users:
+
+```yaml
+users:
+- jwt:
+    match_claims:
+      team: ops
+      role: foo
+  url_prefix: "http://backend-a:8428/"
+- jwt:
+    match_claims:
+      team: platform
+      role: admin
+  url_prefix: "http://backend-b:8428/"
+
+```
+
+JWT claim-based matching can be combined with
+[JWT claim-based request templating](/victoriametrics/vmauth/#jwt-claim-based-request-templating)
+for dynamic URL rewriting based on `vm_access` claim fields.
+
+#### JWT claim-based request templating
+
+`vmauth` can dynamically rewrite{{% available_from "v1.137.0" %}} upstream URLs and request headers using values from the JWT `vm_access` claim. 
+This enables routing different users to different backends or tenants based solely on the JWT token, 
+without maintaining separate user configs per tenant.
+
+Example: minimal valid JWT. If vm_access is empty, tenant `0:0` is assumed and no additional filters are applied.
+```json
+{
+  "exp": 2770832322,
+  "vm_access": {}
+}
+```
+
+Example: complete JWT with `vm_access` claim defining explicit access rules for metrics and logs.
+
+```json
+{
+  "exp": 1771953418,
+  "vm_access": {
+    "metrics_account_id": 1,
+    "metrics_project_id": 2,
+    "metrics_extra_labels": ["dev=team","env=prod"],
+    "metrics_extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
+
+    "logs_account_id": 2,
+    "logs_project_id": 3,
+    "logs_extra_filters": ["{\"namespace\":\"my-app\",\"env\":\"prod\"}"],
+    "logs_extra_stream_filters": []
+  }
+}
+```
+
+Placeholders are written directly into `url_prefix` and `headers` values in the auth config. 
+At request time each placeholder is replaced with the corresponding value from the `vm_access` claim of the incoming JWT token.
+
+The following placeholders are supported:
+
+| Placeholder                   | JWT claim field                                                             |
+|-------------------------------|-----------------------------------------------------------------------------|
+| `{{.MetricsTenant}}` -> `0:0` | `metrics_account_id` int, <br/>`metrics_project_id` int |
+| `{{.MetricsExtraLabels}}`     | `metrics_extra_labels` string array                               |
+| `{{.MetricsExtraFilters}}`    | `metrics_extra_filters` string array                              |
+| `{{.LogsAccountID}}`          | `logs_account_id` int                                             |
+| `{{.LogsProjectID}}`          | `logs_project_id` int                                             |
+| `{{.LogsExtraFilters}}`       | `logs_extra_filters` string array                                 |
+| `{{.LogsExtraStreamFilters}}` | `logs_extra_stream_filters` string array                          |
+
+Placeholders are supported in the following locations:
+
+- **URL path** — only `{{.MetricsTenant}}`, `{{.LogsAccountID}}` and `{{.LogsProjectID}}` are allowed in path segments.
+- **URL query parameters** — any placeholder may be used as the full value of a query parameter (e.g. `?extra_filters={{.MetricsExtraFilters}}`).
+- **Request headers** — any placeholder may be used as the full value of a request header (e.g. `AccountID: {{.LogsAccountID}}`).
+
+Placeholders are **not** supported in response headers. 
+They are also only valid for JWT-authenticated users — using them in configs for `username`/`password` or `bearer_token` users causes a configuration error.
+
+Example: route requests to the VictoriaMetrics single-node:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_prefix: "http://vminsert:8480/prometheus/?extra_filters={{.MetricsExtraFilters}}&extra_label={{.MetricsExtraLabels}}"
+```
+
+Example: route requests to the VictoriaMetrics cluster:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+  url_map:
+  - src_paths:
+    - "/api/v1/write"
+    url_prefix: "http://vminsert:8480/insert/{{.MetricsTenant}}/prometheus/"
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    url_prefix: "http://vmselect:8481/select/{{.MetricsTenant}}/prometheus/"
+```
+
+Example: route requests to the VictoriaLogs cluster:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+      - |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+        -----END PUBLIC KEY-----
+  headers:
+  - "AccountID: {{.LogsAccountID}}"
+  - "ProjectID: {{.LogsProjectID}}"
+  url_map:
+  - src_paths:
+      - "/select/.*"
+    url_prefix:
+      - http://vlselect:9428
+  - src_paths:
+      - "/insert/.*"
+    url_prefix:
+      - http://vlinsert:9428
+```
 
 See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
@@ -1199,6 +1477,43 @@ unauthorized_user:
   - src_paths: ["/select/.+"]
     url_prefix: 'http://victoria-logs:9428/?extra_filters={env="prod"}'
 ```
+
+## Access log
+
+vmauth allows configuring access logs {{% available_from "#" %}} printing per-user:
+```yaml
+unauthorized_user:
+  url_prefix: 'http://localhost:8428/'
+  # Log all requests to this user
+  access_log: {}
+```
+
+Access logs contain limited information to prevent exposing sensitive data. See an example of the printed access log below:
+```bash
+2026-02-26T15:00:00.207Z        info    VictoriaMetrics/app/vmauth/auth_config.go:134   access_log request_host="localhost:8427" request_uri="/prometheus/api/v1/query_range?query=1&start=1772116199.897&end=1772117999.897&step=5s" status_code=200 remote_addr="127.0.0.1:63425" user_agent="Mozilla/5.0..." referer="http://localhost:8427/vmui/?" duration_ms=8 username="unauthorized"
+```
+
+The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
+`user_agent`, `referer`, `duration_ms` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
+analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs):
+```logsql
+access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log
+| stats by(username, request_host, status_code) count()
+```
+
+Access logs can skip logging requests with specified status codes:
+```yaml
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://localhost:8428/'
+  access_log:
+    filters:
+      # except requests with HTTP status codes below
+      skip_status_codes: [200, 202]
+```
+
+Access logs can be enabled or disabled per-user with [hot config reload](https://docs.victoriametrics.com/victoriametrics/vmauth/#config-reload).
 
 ## Auth config
 

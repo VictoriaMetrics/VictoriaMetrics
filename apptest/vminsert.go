@@ -298,13 +298,14 @@ func (app *Vminsert) String() string {
 func (app *Vminsert) sendBlocking(t *testing.T, numRecordsToSend int, send func()) {
 	t.Helper()
 
+	wantRowsSentCount := app.rpcRowsSentTotal(t) + numRecordsToSend
+
 	send()
 
 	const (
 		retries = 20
 		period  = 100 * time.Millisecond
 	)
-	wantRowsSentCount := app.rpcRowsSentTotal(t) + numRecordsToSend
 	for range retries {
 		d := app.rpcRowsSentTotal(t)
 		if d >= wantRowsSentCount {
