@@ -85,7 +85,7 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
+            "h": 6,
             "w": 24,
             "x": 0,
             "y": 1
@@ -97,7 +97,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "The dashboard uses the parameters from [automatically generated metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics) and [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).\nTo display and sort data by different vmagent, you need to set a label: `-remoteWrite.label=vmagent=<label>` or use `external_labels` in the scrape config\n\nCalculating metrics:\n- `Series Add` is calculated for the last `1h`. Thresholds: 500, 1000\n- `Series` ceiling is taken from `scrape_series_limit`. Thresholds: 50%, 80%\n- `Dropped` is calculated over the last `24h`\n- `Size` ceiling is taken from `-promscrape.maxScrapeSize` as example. Thresholds: 8mb, 16mb\n- `Duration` ceiling is taken from `scrape_timeout_seconds`. Thresholds: 50%, 80%\n- `Samples` Thresholds: 5000, 10000",
+            "content": "The dashboard uses the parameters from [automatically generated metrics](https://docs.victoriametrics.com/victoriametrics/vmagent/#automatically-generated-metrics) and [cardinality limiter](https://docs.victoriametrics.com/victoriametrics/vmagent/#cardinality-limiter).\nTo display and sort data by different vmagent, you need to set a label: `-remoteWrite.label=vmagent=<label>` or use `external_labels` in the scrape config\n\nCalculating metrics:\n- `Series Add` is calculated for the last `1h`. Thresholds: 2500, 5000\n- `Series` ceiling is taken from `scrape_series_limit`. Thresholds: 50%, 80%\n- `Dropped` is calculated over the last `24h`\n- `Size` ceiling is taken from `-promscrape.maxScrapeSize` as example. Thresholds: 8mb, 16mb\n- `Duration` ceiling is taken from `scrape_timeout_seconds`. Thresholds: 50%, 80%\n",
             "mode": "markdown"
           },
           "pluginVersion": "12.4.0",
@@ -106,7 +106,7 @@
           "type": "text"
         }
       ],
-      "title": "Tips",
+      "title": "Info",
       "type": "row"
     },
     {
@@ -839,11 +839,11 @@
                     },
                     {
                       "color": "yellow",
-                      "value": 500
+                      "value": 2500
                     },
                     {
                       "color": "red",
-                      "value": 1000
+                      "value": 5000
                     }
                   ]
                 }
@@ -887,32 +887,6 @@
               {
                 "id": "custom.width",
                 "value": 100
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    },
-                    {
-                      "color": "#EAB839",
-                      "value": 5000
-                    },
-                    {
-                      "color": "red",
-                      "value": 10000
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
               }
             ]
           }
@@ -1178,6 +1152,22 @@
               "job": "Job"
             }
           }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNotNull",
+                  "options": {}
+                },
+                "fieldName": "State"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
         }
       ],
       "type": "table"
@@ -1379,7 +1369,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 35
+            "y": 54
           },
           "id": 12,
           "options": {
@@ -1490,7 +1480,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 44
+            "y": 63
           },
           "id": 13,
           "options": {
@@ -1601,7 +1591,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 53
+            "y": 72
           },
           "id": 14,
           "options": {
@@ -1712,7 +1702,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 62
+            "y": 81
           },
           "id": 15,
           "options": {
@@ -1823,7 +1813,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 71
+            "y": 90
           },
           "id": 16,
           "options": {
@@ -1934,7 +1924,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 80
+            "y": 99
           },
           "id": 17,
           "options": {
@@ -2045,7 +2035,7 @@
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 89
+            "y": 108
           },
           "id": 9,
           "options": {
