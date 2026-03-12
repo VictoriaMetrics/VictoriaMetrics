@@ -43,6 +43,14 @@ func getFileContents(statName, sysfsPrefix, cgroupPath, cgroupGrepLine string) (
 	return string(data), nil
 }
 
+func readCgroupV2SubPath(cgroupPath string) (string, error) {
+	data, err := os.ReadFile(cgroupPath)
+	if err != nil {
+		return "", err
+	}
+	return grepFirstMatch(string(data), "", 2, ":")
+}
+
 // grepFirstMatch searches match line at data and returns item from it by index with given delimiter.
 func grepFirstMatch(data string, match string, index int, delimiter string) (string, error) {
 	lines := strings.Split(string(data), "\n")
