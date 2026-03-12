@@ -22,7 +22,7 @@ See how to request a free [trial license](https://victoriametrics.com/products/e
 `vmgateway` is a proxy for the VictoriaMetrics Time Series Database (TSDB). It provides the following features:
 
 * Rate Limiter
-  * Based on cluster tenant's utilization, it supports multiple time interval limits for both the ingestion and retrieval of metrics
+  * Based on the cluster tenant's utilization, it supports multiple time interval limits for both the ingestion and retrieval of metrics
 * Token Access Control
   * Supports additional per-label access control for both the Single and Cluster versions of the VictoriaMetrics TSDB
   * Provides access by tenantID in the Cluster version
@@ -36,52 +36,52 @@ See how to request a free [trial license](https://victoriametrics.com/products/e
 
 ![vmgateway-ac](vmgateway-access-control.webp)
 
-`vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
+`vmgateway` supports JWT-based authentication. With JWT, the payload can be configured to grant access to specific tenants and labels, as well as read/write access.
 
-jwt token must be in one of the following formats:
+The JWT token must be in one of the following formats:
 
-with `vm_access` claim as JSON object
+- with `vm_access` claim as JSON object
 
-```json
-{
-  "exp": 1617304574,
-  "vm_access": {
-      "tenant_id": {
-        "account_id": 1,
-        "project_id": 5
+    ```json
+    {
+      "exp": 1617304574,
+      "vm_access": {
+          "tenant_id": {
+            "account_id": 1,
+            "project_id": 5
 
-      },
-      "extra_labels": {
-         "team": "dev",
-         "project": "mobile"
-      },
-      "extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
-      "mode": 1
-  }
-}
-```
+          },
+          "extra_labels": {
+            "team": "dev",
+            "project": "mobile"
+          },
+          "extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
+          "mode": 1
+      }
+    }
+    ```
 
-or with `vm_access` claim as string
+- or with `vm_access` claim as string
 
-```json
-{
-  "exp": 1617304574,
-  "vm_access": "{\"tenant_id\":{\"account_id\":1,\"project_id\":5},\"extra_labels\":{\"team\":\"dev\",\"project\":\"mobile\"},\"extra_filters\": [\"{env=~\\\"prod|dev\\\",team!=\\\"test\\\"}\"],\"mode\":1}"
-}
-```
+    ```json
+    {
+      "exp": 1617304574,
+      "vm_access": "{\"tenant_id\":{\"account_id\":1,\"project_id\":5},\"extra_labels\":{\"team\":\"dev\",\"project\":\"mobile\"},\"extra_filters\": [\"{env=~\\\"prod|dev\\\",team!=\\\"test\\\"}\"],\"mode\":1}"
+    }
+    ```
 
 Where:
 
-* `exp` - required, expire time in unix_timestamp. If the token expires then `vmgateway` rejects the request.
+* `exp` - required, expiration time in unix_timestamp. If the token expires, then `vmgateway` rejects the request.
 * `vm_access` - required, dict with claim info, minimum form: `{"vm_access": {"tenant_id": {}}`
 * `tenant_id` - optional, for cluster mode, routes requests to the corresponding tenant.
-* `extra_labels` - optional, key-value pairs for label filters added to the ingested or selected metrics. Multiple filters are added with `and` operation. If defined, `extra_label` from original request removed.
-* `extra_filters` - optional, [series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) added to the select query requests. Multiple selectors are added with `or` operation. If defined, `extra_filter` from original request removed.
+* `extra_labels` - optional, key-value pairs for label filters added to the ingested or selected metrics. Multiple filters are added with the `and` operation. If defined, `extra_label` from the original request is removed.
+* `extra_filters` - optional, [series selectors](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) added to the select query requests. Multiple selectors are added with the `or` operation. If defined, `extra_filter` from the original request is removed.
 * `mode` - optional, access mode for api - read, write, or full. Supported values: 0 - full (default value), 1 - read, 2 - write.
 
 ## QuickStart
 
-Start the single version of VictoriaMetrics
+Start the single version of VictoriaMetrics:
 
 ```sh
 # single
@@ -89,13 +89,13 @@ Start the single version of VictoriaMetrics
 ./bin/victoria-metrics --selfScrapeInterval=10s
 ```
 
-Start vmgateway
+Start vmgateway:
 
 ```sh
 ./bin/vmgateway -licenseFile=/path/to/vm-license -enable.auth -read.url http://localhost:8428 --write.url http://localhost:8428
 ```
 
-Retrieve data from the database
+Retrieve data from the database:
 
 ```sh
 curl 'http://localhost:8431/api/v1/series/count' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2bV9hY2Nlc3MiOnsidGVuYW50X2lkIjp7fSwicm9sZSI6MX0sImV4cCI6MTkzOTM0NjIxMH0.5WUxEfdcV9hKo4CtQdtuZYOGpGXWwaqM9VuVivMMrVg'
@@ -115,12 +115,12 @@ Rate limiting only works for the [cluster version of VictoriaMetrics](https://do
 
 ![vmgateway-rl](vmgateway-rate-limiting.webp)
 
-`vmgateway` needs a datasource for rate limit queries. It can be either single-node or cluster version of `victoria-metrics`.
-The datasource needs to have metrics of the vmcluster that you want to rate limit.
+`vmgateway` needs a datasource for rate limit queries. It can be either a single-node or a cluster version of `victoria-metrics`.
+The datasource needs to include metrics for the vmcluster you want to rate limit.
 
 List of supported limit types:
 
-* `queries` - count of api requests made at tenant to read the api, such as `/api/v1/query`, `/api/v1/series` and others.
+* `queries` - count of api requests made at the tenant to read the api, such as `/api/v1/query`, `/api/v1/series`, and others.
 * `active_series` - count of current active series at any given tenant.
 * `new_series` - count of created series; aka churn rate
 * `rows_inserted` - count of inserted rows per tenant.
@@ -130,7 +130,7 @@ List of supported time windows:
 * `minute`
 * `hour`
 
-Limits can be specified per tenant or at a global level if you omit `project_id` and `account_id`.
+Limits can be specified per tenant or globally when you omit `project_id` and `account_id`.
 
 Example of configuration file:
 
@@ -166,7 +166,7 @@ EOF
 
 # start cluster
 
-# start vmstorage, vmselect and vminsert
+# start vmstorage, vmselect, and vminsert
 ./bin/vmstorage -licenseFile=/path/to/vm-license
 ./bin/vmselect -licenseFile=/path/to/vm-license -storageNode 127.0.0.1:8401
 ./bin/vminsert -licenseFile=/path/to/vm-license -storageNode 127.0.0.1:8400
@@ -207,13 +207,13 @@ curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJ
 Supported algorithms are `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512`, `PS256`, `PS384`, `PS512`.
 Tokens with unsupported algorithms will be rejected.
 
-In order to enable JWT signature verification, you need to specify keys for signature verification.
+To enable JWT signature verification, you need to specify keys for signature verification.
 The following flags are used to specify keys:
 
-* `-auth.publicKeyFiles` - allows to pass file path to file with public key.
-* `-auth.publicKeys` - allows to pass public key directly.
+* `-auth.publicKeyFiles` - allows to pass a file path to a file with a public key.
+* `-auth.publicKeys` - allows to pass the public key directly.
 
-Note that both flags support passing multiple keys and also can be used together.
+Note that both flags support passing multiple keys and can also be used together.
 
 Example usage:
 
@@ -236,16 +236,16 @@ mwIDAQAB
 `
 ```
 
-This command will result in 3 keys loaded: 2 keys from files and 1 from command line.
+This command will load 3 keys: 2 from files and 1 from the command line.
 
 ### Using OpenID discovery endpoint for JWT signature verification
 
-> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead. Read more about vmauth [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) in docs.
+> vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead. Read more about vmauth [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) in the docs.
 
-`vmgateway` supports using OpenID discovery endpoint for JWKS keys discovery.
+`vmgateway` supports using the OpenID discovery endpoint for JWKS keys discovery.
 
-In order to enable [OpenID discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) endpoint for JWT signature verification, you need to specify OpenID discovery endpoint URLs by using `auth.oidcDiscoveryEndpoints` flag.
-When `auth.oidcDiscoveryEndpoints` is specified `vmgateway` will fetch JWKS keys from the specified endpoint and use them for JWT signature verification.
+In order to enable [OpenID discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) endpoint for JWT signature verification, you need to specify OpenID discovery endpoint URLs by using the `auth.oidcDiscoveryEndpoints` flag.
+When `auth.oidcDiscoveryEndpoints` is specified, `vmgateway` will fetch JWKS keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
 
@@ -271,10 +271,10 @@ Example usage for tokens issued by Google:
 
 > vmgateway access control feature has been deprecated. Consider using vmauth as [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) instead.
 
-`vmgateway` supports using JWKS endpoint for JWT signature verification.
+`vmgateway` supports using the JWKS endpoint for JWT signature verification.
 
-In order to enable JWKS endpoint for JWT signature verification, you need to specify JWKS endpoint URL by using `auth.jwksEndpoints` flag.
-When `auth.jwksEndpoints` is specified `vmgateway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
+In order to enable the JWKS endpoint for JWT signature verification, you need to specify the JWKS endpoint URL by using the `auth.jwksEndpoints` flag.
+When `auth.jwksEndpoints` is specified, `vmgateway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
 
@@ -305,7 +305,7 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      HTTP header name to look for JWT authorization token (default "Authorization")
   -auth.jwksEndpoints array
      JWKS endpoints to fetch keys for JWT tokens signature verification
-     Supports an array of values separated by comma or specified via multiple flags.
+     Supports an array of values separated by a comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -auth.oidcDiscoveryEndpoints array
      OpenID Connect discovery endpoints to fetch keys for JWT tokens signature verification
@@ -566,13 +566,13 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      write access url address, example: http://vminsert:8480
 ```
 
-## TroubleShooting
+## Troubleshooting
 
 * Access control:
   * incorrect `jwt` format, try <https://jwt.io/#debugger-io> with our tokens
   * expired token, check `exp` field.
 * Rate Limiting:
-  * `scrape_interval` at datasource, reduce it to apply limits faster.
+  * `scrape_interval` at the datasource, reduce it to apply limits faster.
 
 ## Limitations
 
