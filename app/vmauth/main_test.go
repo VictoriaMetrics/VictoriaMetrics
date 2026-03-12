@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -97,6 +98,35 @@ unauthorized_user:
 statusCode=200
 Foo: bar
 requested_url={BACKEND}/foo/abc/def?bar=baz&some_arg=some_value
+Pass-Header: abc
+User-Agent: vmauth
+X-Forwarded-For: 12.34.56.78, 42.2.3.84`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// with default_url
+	cfgStr = `
+unauthorized_user:
+  default_url: {BACKEND}/default
+  url_map:
+  - src_paths:
+    - /empty
+    url_prefix: {BACKEND}/empty`
+	requestURL = "http://some-host.com/abc/def?some_arg=some_value"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Connection", "close")
+		h.Set("Foo", "bar")
+
+		var bb bytes.Buffer
+		if err := r.Header.Write(&bb); err != nil {
+			panic(fmt.Errorf("unexpected error when marshaling headers: %w", err))
+		}
+		fmt.Fprintf(w, "requested_url=http://%s%s\n%s", r.Host, r.URL, bb.String())
+	}
+	responseExpected = `
+statusCode=200
+Foo: bar
+requested_url={BACKEND}/default?request_path=http%3A%2F%2Fsome-host.com%2Fabc%2Fdef%3Fsome_arg%3Dsome_value
 Pass-Header: abc
 User-Agent: vmauth
 X-Forwarded-For: 12.34.56.78, 42.2.3.84`
@@ -1235,11 +1265,275 @@ users:
 		request,
 		responseExpected,
 	)
+	nestedToken := genToken(t, map[string]any{
+		"exp":  time.Now().Add(10 * time.Minute).Unix(),
+		"team": "dev",
+		"nested": map[string]any{
+			"department_id": 0,
+			"scopes":        []string{"metrics", "logs"},
+			"team_permissions": map[string]any{
+				"read":  0,
+				"write": 1,
+			},
+		},
+		"vm_access": map[string]any{
+			"metrics_account_id": 123,
+			"metrics_project_id": 234,
+			"metrics_extra_labels": []string{
+				"label1=value1",
+				"label2=value2",
+			},
+			"metrics_extra_filters": []string{
+				`{label3="value3"}`,
+				`{label4="value4"}`,
+			},
+			"logs_account_id": 345,
+			"logs_project_id": 456,
+			"logs_extra_filters": []string{
+				`{"namespace":"my-app","env":"prod"}`,
+			},
+			"logs_extra_stream_filters": []string{
+				`{"team":"dev"}`,
+			},
+		},
+	}, true)
+
+	// use claim for routing, must specific match wins
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /dev/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.scopes.1: "logs"
+     nested.department_id: "0"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/dev
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.scopes.1: "logs"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
+
+	// use claim for routing, most specific not matching
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /less_claims/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.scopes.1: "logs"
+     nested.department_id: "0"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/more_claims
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: dev
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/less_claims
+`,
+		request,
+		responseExpected,
+	)
+
+	// use claim for routing, empty claim match
+	request = httptest.NewRequest(`GET`, "http://some-host.com/route", nil)
+	request.Header.Set(`Authorization`, `Bearer `+nestedToken)
+	responseExpected = `
+statusCode=200
+path: /empty/route
+query:
+headers:
+`
+	f(`
+users:
+- jwt:
+    skip_verify: true
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/empty
+- jwt:
+    skip_verify: true
+    match_claims:
+     team: ops
+     nested.team_permissions.write: "1"
+  url_map:
+    - src_paths: ["/route"]
+      url_prefix: {BACKEND}/ops
+`,
+		request,
+		responseExpected,
+	)
 
 }
 
+func TestOIDCRequestHandler(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("cannot generate RSA key: %s", err)
+	}
+
+	var oidcSrv *httptest.Server
+	oidcRespOK := atomic.Bool{}
+	oidcRespOK.Store(true)
+
+	oidcSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(map[string]string{
+				"issuer":   oidcSrv.URL,
+				"jwks_uri": oidcSrv.URL + "/jwks",
+			}); err != nil {
+				panic(fmt.Errorf("cannot write openid-configuration response: %w", err))
+			}
+		case "/jwks":
+			if !oidcRespOK.Load() {
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			// Encode the RSA public key in JWK format (base64url, no padding)
+			nBytes := privateKey.N.Bytes()
+			eBytes := big.NewInt(int64(privateKey.E)).Bytes()
+			jwksBody := fmt.Sprintf(`{"keys":[{"kty":"RSA","kid":%q,"n":%q,"e":%q}]}`,
+				`test-key-id`,
+				base64.RawURLEncoding.EncodeToString(nBytes),
+				base64.RawURLEncoding.EncodeToString(eBytes),
+			)
+
+			w.Header().Set("Content-Type", "application/json")
+			if _, err := w.Write([]byte(jwksBody)); err != nil {
+				panic(fmt.Errorf("cannot write jwks response: %w", err))
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer oidcSrv.Close()
+
+	headerJSON, err := json.Marshal(map[string]any{
+		"alg": "RS256",
+		"typ": "JWT",
+		"iss": oidcSrv.URL,
+		"kid": `test-key-id`,
+	})
+	if err != nil {
+		t.Fatalf("cannot marshal JWT header: %s", err)
+	}
+	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
+
+	bodyJSON, err := json.Marshal(map[string]any{
+		"exp":       time.Now().Add(time.Minute).Unix(),
+		"iss":       oidcSrv.URL,
+		"vm_access": map[string]any{},
+	})
+	if err != nil {
+		t.Fatalf("cannot marshal JWT body: %s", err)
+	}
+	bodyB64 := base64.RawURLEncoding.EncodeToString(bodyJSON)
+
+	payload := headerB64 + "." + bodyB64
+
+	var signatureB64 string
+	hash := crypto.SHA256
+	h := hash.New()
+	h.Write([]byte(payload))
+	digest := h.Sum(nil)
+
+	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, digest)
+	if err != nil {
+		t.Fatalf("cannot sign JWT token: %s", err)
+	}
+	signatureB64 = base64.RawURLEncoding.EncodeToString(signature)
+
+	tkn := payload + "." + signatureB64
+
+	backSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backSrv.Close()
+
+	f := func(responseExpected string) {
+		t.Helper()
+
+		cfgStr := `
+users:
+- jwt:
+    oidc:
+      issuer: ` + oidcSrv.URL + `
+  url_prefix: ` + backSrv.URL + `/
+`
+
+		cfgOrigP := authConfigData.Load()
+		if _, err := reloadAuthConfigData([]byte(cfgStr)); err != nil {
+			t.Fatalf("cannot load config data: %s", err)
+		}
+		defer func() {
+			cfgOrig := []byte("unauthorized_user:\n  url_prefix: http://foo/bar")
+			if cfgOrigP != nil {
+				cfgOrig = *cfgOrigP
+			}
+			if _, err := reloadAuthConfigData(cfgOrig); err != nil {
+				t.Fatalf("cannot restore original config: %s", err)
+			}
+		}()
+
+		r := httptest.NewRequest("GET", "http://some-host.com/api/v1/query", nil)
+		r.Header.Set("Authorization", "Bearer "+tkn)
+
+		w := &fakeResponseWriter{}
+		if !requestHandlerWithInternalRoutes(w, r) {
+			t.Fatalf("unexpected false returned from requestHandler")
+		}
+
+		if response := w.getResponse(); response != responseExpected {
+			t.Fatalf("unexpected response\ngot\n%s\nwant\n%s", response, responseExpected)
+		}
+	}
+
+	// successful
+	f(`statusCode=200
+`)
+
+	oidcRespOK.Store(false)
+	// OIDC server error
+	f(`statusCode=401
+Unauthorized
+`)
+}
+
 type fakeResponseWriter struct {
-	h http.Header
+	statusCode int
+	h          http.Header
 
 	bb bytes.Buffer
 }
@@ -1265,6 +1559,7 @@ func (w *fakeResponseWriter) Write(p []byte) (int, error) {
 }
 
 func (w *fakeResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
 	fmt.Fprintf(&w.bb, "statusCode=%d\n", statusCode)
 	if w.h == nil {
 		return
@@ -1283,6 +1578,12 @@ func (w *fakeResponseWriter) WriteHeader(statusCode int) {
 // This is needed for net/http.ResponseController
 func (w *fakeResponseWriter) SetReadDeadline(deadline time.Time) error {
 	return nil
+}
+
+func (w *fakeResponseWriter) reset() {
+	w.bb.Reset()
+	w.statusCode = 0
+	clear(w.h)
 }
 
 func TestBufferRequestBody_Success(t *testing.T) {
