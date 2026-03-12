@@ -2,6 +2,7 @@ package fs
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -106,7 +107,8 @@ func IsPartiallyRemovedDir(dirPath string) bool {
 // Use MustRemoveDir for removing non-empty directories.
 func MustRemovePath(path string) {
 	if err := os.Remove(path); err != nil {
-		logger.Panicf("FATAL: cannot remove %q: %s", path, err)
+		dirFiles := collectExistFiles(path)
+		logger.Fatalf("FATAL: cannot remove %q: %s, exist files: %s", path, err, strings.Join(dirFiles, ","))
 	}
 }
 
@@ -155,7 +157,7 @@ func tryRemoveDir(dirPath string) bool {
 			if err := os.RemoveAll(dirEntryPath); err != nil {
 				mu.Lock()
 				if !isTemporaryNFSError(err) {
-					logger.Panicf("FATAL: cannot remove %q: %s", dirEntryPath, err)
+					logger.Fatalf("FATAL: cannot remove %q: %s", dirEntryPath, err)
 				}
 				if firstErr == nil {
 					firstErr = err
@@ -178,7 +180,7 @@ func tryRemoveDir(dirPath string) bool {
 	if err := os.Remove(deleteFilePath); err != nil && !os.IsNotExist(err) {
 		// At NFS filesystems, file deletion could fail for any reason and it should be retried
 		if !isTemporaryNFSError(err) {
-			logger.Panicf("FATAL: cannot remove %q: %s", deleteFilePath, err)
+			logger.Fatalf("FATAL: cannot remove %q: %s", deleteFilePath, err)
 		}
 		return false
 	}
@@ -245,4 +247,13 @@ func MustStopDirRemover() {
 	case <-time.After(maxWaitTime):
 		logger.Errorf("cannot stop dirRemover in %s; the remaining empty NFS directories should be automatically removed on the next startup", maxWaitTime)
 	}
+}
+
+func collectExistFiles(dirPath string) []string {
+	des := MustReadDir(dirPath)
+	var files []string
+	for _, de := range des {
+		files = append(files, fmt.Sprintf("name=%q,is_dir=%v", de.Name(), de.IsDir()))
+	}
+	return files
 }
