@@ -1422,54 +1422,6 @@ ip_filters:
   allow_list: ["1.2.3.0/24", "127.0.0.1"]
   deny_list:
   - 10.1.0.1
-
-# The Enterprise version of vmauth allows configuring OIDC authorization. `oidc` section is required to set up realms which are allowed to authorize against.
-oidc:
-  # realm represents a list of public keys set to validate client request signatures against.
-  realms:
-      # realm name is required for non-default realm, it's used for OIDC clients backend routing
-    - name: org-1
-      # realm issuer URL defines a value, which is compared against the incoming request JWT issuer claim to identify the realm to which the authorized user belongs
-      issuer_url: http://example.com/admin/org-1
-      # skip discovery disables JWKS endpoints discovery and uses keys defined either at `public_keys` or `public_key_files`
-      skip_discovery: true
-      # defines a list of plain text public keys, which are used to validate a signature of a request with a matching issuer or any issuer in case of a default realm
-      public_keys:
-        - |
-           -----BEGIN PUBLIC KEY-----
-           <public key 1 pem>
-           -----END PUBLIC KEY-----
-      # same as public_keys but defines a list of files to retrieve public keys from
-      public_key_files:
-        - /test/key
-      # JWKS endpoint to use for public keys downloading
-      jwks_url: http://custom.jwks.url/admin/jwks/endpoint
-    - name: org-2
-      skip_discovery: true
-      issuer_url: http://example.com/admin/org-2
-      jwks_url: http://custom.jwks.url/admin/jwks/endpoint
-    - name: org-3
-      skip_discovery: true
-      issuer_url: http://example.com/admin/org-3
-      public_keys:
-        - |
-           -----BEGIN PUBLIC KEY-----
-           <public key 1 pem>
-           -----END PUBLIC KEY-----
-        - |
-           -----BEGIN PUBLIC KEY-----
-           <public key 2 pem>
-           -----END PUBLIC KEY-----
-      public_key_files:
-        - /etc/public-key-1
-        - /etc/public-key-2
-  # by default, issuer is retrieved from `iss` and client ID from `aud` claims, but these values can be patched using `oidc.claims` section
-  claims:
-    client_id: azp
-    issuer: custom_issuer_claim
-  default_realm:
-    issuer_url: http://example.com/admin/org-2
-    jwks_url: http://custom.jwks.url/admin/jwks/endpoint
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
