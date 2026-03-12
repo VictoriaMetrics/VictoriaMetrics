@@ -344,27 +344,33 @@ func (t *Token) Reset() {
 
 // VMAccessClaim represent JWT claim object
 type VMAccessClaim struct {
-	// promql filters applied to each select query
-	ExtraFilters []string `json:"extra_filters,omitempty"`
-
 	MetricsExtraFilters    []string `json:"metrics_extra_filters,omitempty"`
 	MetricsExtraLabels     []string `json:"metrics_extra_labels,omitempty"`
 	LogsExtraFilters       []string `json:"logs_extra_filters,omitempty"`
 	LogsExtraStreamFilters []string `json:"logs_extra_stream_filters,omitempty"`
-
-	Labels []string `json:"extra_labels,omitempty"`
-	// labelsBuf holds allocated memory for Labels
-	labelsBuf []byte
-	Tenant    TenantID `json:"tenant_id"`
-	// role can be denied as 1 = read, 2 = write, 3 = read and write
-	// 0 = unconfigured - read and write
-	Mode int `json:"mode,omitempty"`
 
 	MetricsAccountID uint32 `json:"metrics_account_id,omitempty"`
 	MetricsProjectID uint32 `json:"metrics_project_id,omitempty"`
 
 	LogsAccountID uint32 `json:"logs_account_id,omitempty"`
 	LogsProjectID uint32 `json:"logs_project_id,omitempty"`
+
+	// Properties below are deprecated and retained only for compatibility with vmgateway, which is itself deprecated.
+
+	// promql filters applied to each select query
+	// Deprecated
+	ExtraFilters []string `json:"extra_filters,omitempty"`
+	// Deprecated
+	Tenant TenantID `json:"tenant_id"`
+	// role can be denied as 1 = read, 2 = write, 3 = read and write
+	// 0 = unconfigured - read and write
+	// Deprecated
+	Mode int `json:"mode,omitempty"`
+	// Deprecated
+	Labels []string `json:"extra_labels,omitempty"`
+	// labelsBuf holds allocated memory for Labels
+	// Deprecated
+	labelsBuf []byte
 }
 
 func (vac *VMAccessClaim) reset() {
@@ -482,6 +488,7 @@ func (vac *VMAccessClaim) parseFrom(jv *fastjson.Value) error {
 }
 
 // TenantID represents tenantID.
+// Deprecated
 type TenantID struct {
 	ProjectID int32 `json:"project_id"`
 	AccountID int32 `json:"account_id"`
