@@ -145,6 +145,14 @@ func tryRemoveDir(dirPath string) bool {
 		if name == deleteDirFilename {
 			continue
 		}
+		if strings.HasPrefix(name, ".nfs") {
+			mu.Lock()
+			if firstErr == nil {
+				firstErr = fmt.Errorf("dir: %q contains temporary nfs file: %q", dirPath, name)
+			}
+			mu.Unlock()
+			continue
+		}
 		dirEntryPath := filepath.Join(dirPath, name)
 
 		concurrencyCh <- struct{}{}
