@@ -58,6 +58,7 @@ and to [discover Prometheus-compatible targets and scrape metrics from them](#ho
 * Can write collected metrics to multiple tenants. See [these docs](#multitenancy).
 * Can read and write data from / to Kafka. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/kafka/).
 * Can read and write data from / to Google PubSub. See [these docs](https://docs.victoriametrics.com/victoriametrics/integrations/pubsub/).
+* Can scrape [ECS task metadata endpoint](#ecs-task-metadata) for container CPU, memory and network metrics.
 
 ## Quick Start
 
@@ -321,6 +322,54 @@ in addition to the pull-based Prometheus-compatible targets' scraping:
 * Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-native-format).
 * Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
 * Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-import-csv-data).
+
+## ECS task metadata
+
+`vmagent` can scrape [Amazon ECS task metadata endpoint v4](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html)
+and push the collected metrics to the configured `-remoteWrite.url`.
+This works with both Fargate and EC2 launch types.
+
+By default `vmagent` reads the metadata endpoint URL from the `ECS_CONTAINER_METADATA_URI_V4` environment variable,
+which is set by the [ECS agent](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html)
+inside every ECS task. The URL can be overridden with `-containerStats.url` command-line flag.
+If neither the flag nor the environment variable is set, ECS metadata collection is disabled.
+
+The following command-line flags are supported:
+
+* `-containerStats.url` - base URL of the ECS task metadata endpoint. Overrides `ECS_CONTAINER_METADATA_URI_V4`
+* `-containerStats.scrapeInterval` - scrape interval (default `15s`)
+* `-containerStats.scrapeTimeout` - request timeout (default `5s`)
+
+`vmagent` exposes the following metrics:
+
+**Task-level metrics:**
+
+| Metric | Description |
+| --- | --- |
+| `ecs_task_metadata_info` | Info metric with `availability_zone`, `cluster`, `desired_status`, `family`, `known_status`, `launch_type`, `revision`, `task_arn` labels. Always `1`. |
+| `ecs_task_cpu_limit_vcpus` | CPU limit in vCPUs. Fargate only. |
+| `ecs_task_memory_limit_bytes` | Memory limit in bytes. Fargate only. |
+| `ecs_task_ephemeral_storage_used_bytes` | Ephemeral storage used in bytes. Fargate only. |
+| `ecs_task_ephemeral_storage_allocated_bytes` | Ephemeral storage allocated in bytes. Fargate only. |
+
+**Container-level metrics** (emitted per running container with `container_name` label):
+
+| Metric | Description |
+| --- | --- |
+| `ecs_container_restarts_total` | Restart count. |
+| `ecs_container_cpu_usage_seconds_total` | CPU usage in seconds. |
+| `ecs_container_memory_usage_bytes` | Memory usage in bytes. |
+| `ecs_container_memory_limit_bytes` | Memory limit in bytes. |
+| `ecs_container_memory_page_cache_size_bytes` | Page cache size in bytes. |
+
+**Network metrics** (emitted per network interface with `interface` label, aggregated across containers):
+
+| Metric | Description |
+| --- | --- |
+| `ecs_network_receive_bytes_total` | Bytes received. |
+| `ecs_network_receive_errors_total` | Receive errors. |
+| `ecs_network_transmit_bytes_total` | Bytes transmitted. |
+| `ecs_network_transmit_errors_total` | Transmit errors. |
 
 ## How to collect metrics in Prometheus format
 
