@@ -73,7 +73,7 @@
       "title": "RESET FILTERS",
       "tooltip": "",
       "type": "link",
-      "url": "/d/${__dashboard.uid}?var-limit=$limit&var-match_pattern={__name__!=\"\"}&var-focus=&&var-metric="
+      "url": "/d/${__dashboard.uid}?var-limit=$limit&var-match_pattern={__name__!=\"\"}&var-focus=job&var-metric=up"
     }
   ],
   "panels": [
@@ -718,7 +718,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "name"
+              "options": "Label name"
             },
             "properties": [
               {
@@ -730,7 +730,7 @@
                 "value": [
                   {
                     "title": "Filter by metric name",
-                    "url": "/d/${__dashboard.uid}?var-limit=$limit&var-match={\"${__value.raw}\"!=\"\"}&var-match_pattern={\"${__value.raw}\"!=\"\"}&var-focus=${__value.raw}"
+                    "url": "/d/${__dashboard.uid}?var-limit=$limit&var-match={\"${__value.raw}\"!=\"\"}&var-focus=${__value.raw}"
                   }
                 ]
               }
@@ -901,7 +901,7 @@
           }
         }
       ],
-      "title": "Values for \"$focus\" label with the highest number of series",
+      "title": "Values for \"$metric:$focus\" label with the highest number of series",
       "transformations": [
         {
           "id": "organize",
