@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -2490,9 +2491,9 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	// Repeat the query in the hope the error was temporary.
 	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
-	// retry with new connection if the error is io.EOF, which is caused by broken connection.
+	// retry with new connection if the error is io.EOF or broken pipe, which is caused by broken connection.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314
-	retryOnNewConn := errors.Is(err, io.EOF)
+	retryOnNewConn := errors.Is(err, io.EOF) || errors.Is(err, syscall.EPIPE)
 	err = sn.execOnConn(qtRetry, funcName, f, deadline, retryOnNewConn)
 	qtRetry.Done()
 	return err
@@ -2511,7 +2512,13 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	if timeout <= 0 {
 		return fmt.Errorf("request timeout reached: %s", deadline.String())
 	}
-	bc, err := sn.connPool.Get(onNewConn)
+	var bc *handshake.BufferedConn
+	var err error
+	if onNewConn {
+		bc, err = sn.connPool.Dial()
+	} else {
+		bc, err = sn.connPool.Get()
+	}
 	if err != nil {
 		return fmt.Errorf("%w: %w", errCannotObtainConn, err)
 	}
