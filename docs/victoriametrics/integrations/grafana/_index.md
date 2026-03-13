@@ -62,7 +62,7 @@ If you don't see an option to create a data source - try contacting system admin
 ## Multi-tenant access with vmauth and OIDC
 
 [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) can proxy Grafana datasource requests and enforce
-per-user multi-tenant access using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) {{% available_from "#" %}} from an OIDC provider.
+per-user multi-tenant access using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) {{% available_from "v1.138.0" %}} from an OIDC provider.
 
 When Grafana is configured with OAuth, enable `Forward OAuth identity` on the datasource so Grafana forwards the user's
 JWT to vmauth with each query. vmauth validates the token and uses the `vm_access` claim to route requests to the
