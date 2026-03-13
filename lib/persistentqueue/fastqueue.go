@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -140,17 +141,22 @@ func (fq *FastQueue) flushInmemoryBlocksToFileIfNeededLocked() {
 	fq.flushInmemoryBlocksToFileLocked()
 }
 
-func (fq *FastQueue) flushInmemoryBlocksToFileLocked() {
+func (fq *FastQueue) flushInmemoryBlocksToFileLocked() bool {
 	// fq.mu must be locked by the caller.
 	for len(fq.ch) > 0 {
 		bb := <-fq.ch
-		fq.pq.MustWriteBlock(bb.B)
+		if !fq.writeBlockToPersistentQueue(bb.B) {
+			// Return the block back to the in-memory queue, so it isn't lost.
+			fq.ch <- bb
+			return false
+		}
 		fq.pendingInmemoryBytes -= uint64(len(bb.B))
 		fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
 		blockBufPool.Put(bb)
 	}
 	// Unblock all the potentially blocked readers, so they could proceed with reading file-based queue.
 	fq.cond.Broadcast()
+	return true
 }
 
 // GetPendingBytes returns the number of pending bytes in the fq.
@@ -174,9 +180,7 @@ func (fq *FastQueue) GetInmemoryQueueLen() int {
 //
 // This method allows persisting in-memory blocks during graceful shutdown, even if persistence is disabled.
 func (fq *FastQueue) MustWriteBlockIgnoreDisabledPQ(block []byte) {
-	if !fq.tryWriteBlock(block, true) {
-		logger.Panicf("BUG: tryWriteBlock must always write data even if persistence is disabled")
-	}
+	_ = fq.tryWriteBlock(block, true)
 }
 
 // TryWriteBlock tries writing block to fq.
@@ -204,17 +208,17 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 		if !isPQWriteAllowed {
 			return false
 		}
-		fq.pq.MustWriteBlock(block)
-		return true
+		return fq.writeBlockToPersistentQueue(block)
 	}
 	if len(fq.ch) == cap(fq.ch) {
 		// There is no space left in the in-memory queue. Put the data to file-based queue.
 		if !isPQWriteAllowed {
 			return false
 		}
-		fq.flushInmemoryBlocksToFileLocked()
-		fq.pq.MustWriteBlock(block)
-		return true
+		if !fq.flushInmemoryBlocksToFileLocked() {
+			return false
+		}
+		return fq.writeBlockToPersistentQueue(block)
 	}
 	// Fast path - put the block to in-memory queue.
 	bb := blockBufPool.Get()
@@ -226,6 +230,27 @@ func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/484 for the context.
 	fq.cond.Signal()
 	return true
+}
+
+func (fq *FastQueue) writeBlockToPersistentQueue(block []byte) bool {
+	if err := fq.pq.tryWriteBlock(block); err != nil {
+		return fq.handleWriteError(err)
+	}
+	return true
+}
+
+func (fq *FastQueue) handleWriteError(err error) bool {
+	if isDiskSpaceError(err) {
+		fq.logDiskSpaceError(err)
+		return false
+	}
+	logger.Panicf("FATAL: %s", err)
+	return false
+}
+
+func (fq *FastQueue) logDiskSpaceError(err error) {
+	throttlerName := fmt.Sprintf("persistentqueue-disk-space-%s", fq.pq.dir)
+	logger.WithThrottler(throttlerName, time.Second).Warnf("cannot persist data to %q: %s", fq.pq.dir, err)
 }
 
 // MustReadBlock reads the next block from fq to dst and returns it.
