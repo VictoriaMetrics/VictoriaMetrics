@@ -1,4 +1,4 @@
-Using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) with [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and OAuth authentication enables secure metric ingestion in multi-tenant environments, where vmagent authenticates to vmauth using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider. These tokens include tenant information so that metrics are written to the correct tenant.
+Using [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) with [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) and OAuth authentication{{% available_from "v1.138.0" %}} enables secure metric ingestion in multi-tenant environments, where vmagent authenticates to vmauth using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider. These tokens include tenant information so that metrics are written to the correct tenant.
 
 This guide walks through configuring vmagent to ingest metrics through vmauth with OIDC authorization enabled.
 
@@ -155,15 +155,15 @@ These services will store and query the metrics scraped by vmagent.
 # compose.yaml
 services:
   vmstorage:
-    image: victoriametrics/vmstorage:v1.137.0-cluster
+    image: victoriametrics/vmstorage:v1.138.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.137.0-cluster
+    image: victoriametrics/vminsert:v1.138.0-cluster
     command:
       - -storageNode=vmstorage:8400
 
   vmselect:
-    image: victoriametrics/vmselect:v1.137.0-cluster
+    image: victoriametrics/vmselect:v1.138.0-cluster
     command:
       - -storageNode=vmstorage:8401
     ports:
@@ -196,7 +196,7 @@ Add the vmauth service to `compose.yaml`:
 # compose.yaml
 services:
   vmauth:
-    image: victoriametrics/vmauth:v1.137.0-enterprise
+    image: victoriametrics/vmauth:v1.138.0-enterprise
     ports:
       - 8427:8427
     volumes:
@@ -251,7 +251,7 @@ Add the vmagent service to `compose.yaml` with OAuth2 configuration:
 # compose.yaml
 services:
   vmagent:
-    image: victoriametrics/vmagent:v1.137.0
+    image: victoriametrics/vmagent:v1.138.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
