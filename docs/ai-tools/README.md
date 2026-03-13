@@ -46,7 +46,7 @@ See more details at [VictoriaMetrics/mcp-victorialogs](https://github.com/Victor
 ## VictoriaTraces MCP Server
 
 [VictoriaTraces MCP Server](https://github.com/VictoriaMetrics/mcp-victoriatraces) provides access to VictoriaTraces instances,
-integration with [VictoriaTraces APIs](https://docs.victoriametrics.com/victoriatraces/querying/#http-api) and [documentation](https://docs.victoriametrics.com/victoriatraces/).
+integration with [VictoriaTraces APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) and [documentation](https://docs.victoriametrics.com/victorialogs/).
 
 It enables AI assistants and tools to interact with distributed tracing data for observability and debugging tasks.
 
