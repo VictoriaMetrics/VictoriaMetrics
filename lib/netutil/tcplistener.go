@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -22,6 +23,10 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 // See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Config) (*TCPListener, error) {
 	network := GetTCPNetwork()
+	if network == "tcp4" && isIPv6Addr(addr) {
+		logger.Warnf("listening address %q looks like IPv6, but IPv6 is disabled; the server will listen on IPv4 only. "+
+			"Pass -enableTCP6 command-line flag to enable IPv6 support", addr)
+	}
 	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
@@ -121,4 +126,15 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/29
 		return tls.Server(sc, ln.tlsConfig), nil
 	}
+}
+
+func isIPv6Addr(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	// IPv6 addresses in URLs are wrapped in brackets: [::], [::1]
+	host = strings.Trim(host, "[]")
+	ip := net.ParseIP(host)
+	return ip != nil && ip.To4() == nil
 }
