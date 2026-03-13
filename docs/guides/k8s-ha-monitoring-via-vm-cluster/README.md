@@ -270,19 +270,19 @@ vmcluster-victoria-metrics-cluster-vmstorage   ClusterIP   None            <none
 
 To verify that metrics are present in VictoriaMetrics, you can send a curl request to the `vmselect` service. Run the following command to make `vmselect`'s port accessible from the local machine:
 
-```shell
+```sh
 kubectl port-forward svc/vmcluster-victoria-metrics-cluster-vmselect 8481:8481
 ```
 
 Execute the following command to get metrics via `curl`:
 
 ```sh
-curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=count(up{kubernetes_pod_name=~".*vmselect.*"})&start=-10m&step=1m' | jq
+curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query?query=count(up{kubernetes_pod_name=~".*vmselect.*"})' | jq
 ```
 
 Let's break down the command:
 
-* The request to `http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range` uses the [VictoriaMetrics querying API](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) to fetch metric data
+* The request to `http://127.0.0.1:8481/select/0/prometheus/api/v1/query?query` uses the [VictoriaMetrics querying API](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#url-format) to fetch metric data
 * The argument `query=count(up{kubernetes_pod_name=~".*vmselect.*"})` specifies the query. Specifically, we want to count the number of `vmselect` pods.
 * The arguments `start=-10m&step=1m'` set the requested time range from -10 minutes (10 minutes ago) to now (default value if `end` argument is omitted), and step (the distance between returned data points) of 1 minute.
 * We pipe the output to `jq` to format the output in a more readable way.
@@ -294,23 +294,13 @@ You should see:
   "status": "success",
   "isPartial": false,
   "data": {
-    "resultType": "matrix",
+    "resultType": "vector",
     "result": [
       {
         "metric": {},
-        "values": [
-          [
-            1772456016.343,
-            "3"
-          ],
-          [
-            1772456076.343,
-            "3"
-          ],
-          [
-            1772456136.343,
-            "3"
-          ]
+        "value": [
+          1773419630,
+          "3"
         ]
       }
     ]
