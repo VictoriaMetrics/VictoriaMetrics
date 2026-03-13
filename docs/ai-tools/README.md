@@ -26,6 +26,8 @@ Capabilities include:
 - Debug your relabeling rules, downsampling and retention policy configurations
 - Integrate with [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/)
  
+> On YouTube: [How to Use an AI Assistant with Your Monitoring System – VictoriaMetrics MCP Server](https://www.youtube.com/watch?v=1k7xgbRi1k0).
+
 See more details at [VictoriaMetrics/mcp-victoriametrics](https://github.com/VictoriaMetrics/mcp-victoriametrics).
 
 ## VictoriaLogs MCP Server
