@@ -565,7 +565,7 @@
       "id": 5,
       "options": {
         "cellHeight": "sm",
-        "enablePagination": false,
+        "enablePagination": true,
         "showHeader": true,
         "sortBy": [
           {
@@ -751,7 +751,7 @@
         "sortBy": [
           {
             "desc": true,
-            "displayName": "Number of series"
+            "displayName": "Total time series"
           }
         ]
       },
@@ -859,7 +859,7 @@
         "sortBy": [
           {
             "desc": true,
-            "displayName": "Number of series"
+            "displayName": "Total time series"
           }
         ]
       },
@@ -1082,8 +1082,8 @@
       },
       {
         "current": {
-          "text": "1000",
-          "value": "1000"
+          "text": "500",
+          "value": "500"
         },
         "description": "Limit the amount of displayed metric names.",
         "label": "Limit",
@@ -1091,11 +1091,11 @@
         "options": [
           {
             "selected": true,
-            "text": "1000",
-            "value": "1000"
+            "text": "500",
+            "value": "500"
           }
         ],
-        "query": "1000",
+        "query": "500",
         "type": "textbox"
       },
       {
