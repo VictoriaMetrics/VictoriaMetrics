@@ -1,8 +1,10 @@
 package prometheus
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"runtime"
@@ -22,6 +24,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -42,6 +45,9 @@ var (
 	maxLookback = flag.Duration("search.maxLookback", 0, "Synonym to -query.lookback-delta from Prometheus. "+
 		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. "+
 		"See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons")
+	minStalenessInterval = flag.Duration("search.minStalenessInterval", 0, "The minimum interval for staleness calculations. "+
+		"This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. "+
+		"See also '-search.maxStalenessInterval'")
 	maxStalenessInterval = flag.Duration("search.maxStalenessInterval", 0, "The maximum interval for staleness calculations. "+
 		"By default, it is automatically calculated from the median interval between samples. This flag could be useful for tuning "+
 		"Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. "+
@@ -116,7 +122,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	if err != nil {
 		return err
 	}
-	lookbackDelta, err := getMaxLookback(r)
+	lookbackDelta, err := getMaxLookback(r, *maxStalenessInterval)
 	if err != nil {
 		return err
 	}
@@ -619,6 +625,55 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 
 var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/tsdb"}`)
 
+// ConfigData holds the current configuration values for search-related flags
+type ConfigData struct {
+	MinStalenessInterval string
+	MaxStalenessInterval string
+}
+
+// ConfigHandler processes /api/v1/config request.
+//
+// It returns the current configuration for search-related flags.
+func ConfigHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, _ *http.Request) error {
+	config := &ConfigData{
+		MinStalenessInterval: (*minStalenessInterval).String(),
+		MaxStalenessInterval: (*maxStalenessInterval).String(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteConfigResponse(bw, config, qt)
+	if err := bw.Flush(); err != nil {
+		return fmt.Errorf("cannot send config response to remote client: %w", err)
+	}
+	return nil
+}
+
+// ExtractMetricExprsHandler processes /extract-metric-exprs request.
+//
+// It extracts metric expressions from a given PromQL query.
+func ExtractMetricExprsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	query := r.FormValue("query")
+	if len(query) == 0 {
+		return fmt.Errorf("missing `query` arg")
+	}
+
+	metrics, err := promql.ExtractMetricsFromQuery(query)
+	if err != nil {
+		return fmt.Errorf("cannot extract metrics from query: %w", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteExtractMetricExprsResponse(bw, metrics)
+	if err := bw.Flush(); err != nil {
+		return fmt.Errorf("cannot send extract metric exprs response to remote client: %w", err)
+	}
+	return nil
+}
+
 // LabelsHandler processes /api/v1/labels request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
@@ -751,7 +806,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 
 	ct := startTime.UnixNano() / 1e6
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
-	mayCache := !httputil.GetBool(r, "nocache")
+	isDebug := httputil.GetBool(r, "debug")
+	noCache := httputil.GetBool(r, "nocache") || isDebug
 	query := r.FormValue("query")
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
@@ -760,7 +816,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	if err != nil {
 		return err
 	}
-	lookbackDelta, err := getMaxLookback(r)
+	lookbackDelta, err := getMaxLookback(r, *maxStalenessInterval)
 	if err != nil {
 		return err
 	}
@@ -847,23 +903,14 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	} else {
 		queryOffset = 0
 	}
-	ec := &promql.EvalConfig{
-		Start:               start,
-		End:                 start,
-		Step:                step,
-		MaxPointsPerSeries:  *maxPointsPerTimeseries,
-		MaxSeries:           GetMaxUniqueTimeSeries(),
-		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
-		Deadline:            deadline,
-		MayCache:            mayCache,
-		LookbackDelta:       lookbackDelta,
-		RoundDigits:         getRoundDigits(r),
-		EnforcedTagFilterss: etfs,
-		CacheTagFilters:     etfs,
-		GetRequestURI: func() string {
-			return httpserver.GetRequestURI(r)
-		},
+	ec := newEvalConfig(r, start, start, step, deadline, noCache, lookbackDelta, isDebug, etfs)
+	if isDebug {
+		if err := populateSimulatedData(r, nil, ec); err != nil {
+			_ = r.Body.Close()
+			return fmt.Errorf("cannot read simulated samples: %w", err)
+		}
 	}
+	_ = r.Body.Close()
 	qs := promql.NewQueryStats(query, nil, ec)
 	ec.QueryStats = qs
 
@@ -937,8 +984,9 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, query string,
 	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutil.GetDeadlineForQuery(r, startTime)
-	mayCache := !httputil.GetBool(r, "nocache")
-	lookbackDelta, err := getMaxLookback(r)
+	isDebug := httputil.GetBool(r, "debug")
+	noCache := httputil.GetBool(r, "nocache") || isDebug
+	lookbackDelta, err := getMaxLookback(r, *maxStalenessInterval)
 	if err != nil {
 		return err
 	}
@@ -954,27 +1002,19 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if err := promql.ValidateMaxPointsPerSeries(start, end, step, *maxPointsPerTimeseries); err != nil {
 		return fmt.Errorf("%w; (see -search.maxPointsPerTimeseries command-line flag)", err)
 	}
-	if mayCache {
+	if !noCache {
 		start, end = promql.AdjustStartEnd(start, end, step)
 	}
 
-	ec := &promql.EvalConfig{
-		Start:               start,
-		End:                 end,
-		Step:                step,
-		MaxPointsPerSeries:  *maxPointsPerTimeseries,
-		MaxSeries:           GetMaxUniqueTimeSeries(),
-		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
-		Deadline:            deadline,
-		MayCache:            mayCache,
-		LookbackDelta:       lookbackDelta,
-		RoundDigits:         getRoundDigits(r),
-		EnforcedTagFilterss: etfs,
-		CacheTagFilters:     etfs,
-		GetRequestURI: func() string {
-			return httpserver.GetRequestURI(r)
-		},
+	ec := newEvalConfig(r, start, end, step, deadline, noCache, lookbackDelta, isDebug, etfs)
+	if isDebug {
+		if err := populateSimulatedData(r, nil, ec); err != nil {
+			_ = r.Body.Close()
+			return fmt.Errorf("cannot read simulated samples: %w", err)
+		}
 	}
+	_ = r.Body.Close()
+
 	qs := promql.NewQueryStats(query, nil, ec)
 	ec.QueryStats = qs
 
@@ -1005,6 +1045,93 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	WriteQueryRangeResponse(bw, result, qt, qtDone, qs)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
+	}
+
+	return nil
+}
+
+func newEvalConfig(r *http.Request, start, end, step int64, deadline searchutil.Deadline, noCache bool, lookbackDelta int64, isDebug bool, etfs [][]storage.TagFilter) *promql.EvalConfig {
+	ec := &promql.EvalConfig{
+		Start:                start,
+		End:                  end,
+		Step:                 step,
+		MaxPointsPerSeries:   *maxPointsPerTimeseries,
+		MaxSeries:            GetMaxUniqueTimeSeries(),
+		MinStalenessInterval: *minStalenessInterval,
+		QuotedRemoteAddr:     httpserver.GetQuotedRemoteAddr(r),
+		Deadline:             deadline,
+		MayCache:             !noCache,
+		LookbackDelta:        lookbackDelta,
+		RoundDigits:          getRoundDigits(r),
+		EnforcedTagFilterss:  etfs,
+		CacheTagFilters:      etfs,
+		GetRequestURI: func() string {
+			return httpserver.GetRequestURI(r)
+		},
+	}
+
+	return ec
+}
+
+func populateSimulatedData(r *http.Request, at *auth.Token, evalConfig *promql.EvalConfig) error {
+	type jsonExportBlockInput struct {
+		Metric     map[string]string `json:"metric"`
+		Values     []float64         `json:"values"`
+		Timestamps []int64           `json:"timestamps"`
+	}
+
+	// --- Read and Parse Input Samples from r.Body ---
+	var simulatedSeries []*storage.SimulatedSamples
+	decoder := json.NewDecoder(r.Body)
+	lineNum := 0
+	for {
+		var jeb jsonExportBlockInput
+		if err := decoder.Decode(&jeb); err == io.EOF {
+			break
+		} else if err != nil {
+			return fmt.Errorf("error decoding input JSON on line %d: %w", lineNum, err)
+		}
+
+		// Validate that values and timestamps arrays have the same length
+		if len(jeb.Values) != len(jeb.Timestamps) {
+			return fmt.Errorf("mismatched values and timestamps arrays length in debug data on line %d: values=%d, timestamps=%d", lineNum, len(jeb.Values), len(jeb.Timestamps))
+		}
+
+		var mn = storage.GetMetricName()
+		defer storage.PutMetricName(mn)
+		for k, v := range jeb.Metric {
+			mn.AddTag(k, v)
+		}
+
+		ss := &storage.SimulatedSamples{
+			Value:      jeb.Values,
+			Timestamps: jeb.Timestamps,
+		}
+		ss.Name.CopyFrom(mn)
+		simulatedSeries = append(simulatedSeries, ss)
+		lineNum++
+	}
+
+	// It doesn't make sense to debug with empty samples
+	if len(simulatedSeries) == 0 {
+		return fmt.Errorf("no simulated samples found")
+	}
+
+	minStalenessInterval, err := httputil.GetDurationRaw(r, "min_staleness_interval", evalConfig.MinStalenessInterval)
+	if err != nil {
+		return fmt.Errorf("cannot parse `min_staleness_interval` arg: %w", err)
+	}
+
+	maxStalenessInterval, err := httputil.GetDurationRaw(r, "max_staleness_interval", *maxStalenessInterval)
+	if err != nil {
+		return fmt.Errorf("cannot parse `max_staleness_interval` arg: %w", err)
+	}
+
+	evalConfig.SimulatedSamples = simulatedSeries
+	evalConfig.MinStalenessInterval = minStalenessInterval
+	evalConfig.LookbackDelta, err = getMaxLookback(r, maxStalenessInterval)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -1078,7 +1205,7 @@ func adjustLastPoints(tss []netstorage.Result, start, end int64) []netstorage.Re
 	return tss
 }
 
-func getMaxLookback(r *http.Request) (int64, error) {
+func getMaxLookback(r *http.Request, maxStalenessInterval time.Duration) (int64, error) {
 	d := maxLookback.Milliseconds()
 	if d == 0 {
 		d = maxStalenessInterval.Milliseconds()

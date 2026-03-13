@@ -135,6 +135,10 @@ type EvalConfig struct {
 	// LookbackDelta is analog to `-query.lookback-delta` from Prometheus.
 	LookbackDelta int64
 
+	// MaxStalenessInterval corresponds to -search.maxStalenessInterval,
+	// but customized per query request.
+	MinStalenessInterval time.Duration
+
 	// How many decimal digits after the point to leave in response.
 	RoundDigits int
 
@@ -159,6 +163,9 @@ type EvalConfig struct {
 
 	timestamps     []int64
 	timestampsOnce sync.Once
+
+	// Simulated samples
+	SimulatedSamples []*storage.SimulatedSamples
 }
 
 // copyEvalConfig returns src copy.
@@ -177,6 +184,8 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.CacheTagFilters = src.CacheTagFilters
 	ec.GetRequestURI = src.GetRequestURI
 	ec.QueryStats = src.QueryStats
+	ec.MinStalenessInterval = src.MinStalenessInterval
+	ec.SimulatedSamples = src.SimulatedSamples
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
@@ -924,7 +933,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	}
 
 	ecSQ := copyEvalConfig(ec)
-	ecSQ.Start -= window + step + maxSilenceInterval()
+	ecSQ.Start -= window + step + maxSilenceInterval(ec.MinStalenessInterval)
 	ecSQ.End += step
 	ecSQ.Step = step
 	ecSQ.MaxPointsPerSeries = *maxPointsSubqueryPerTimeseries
@@ -941,7 +950,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.MinStalenessInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1689,7 +1698,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.MinStalenessInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -1699,7 +1708,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	tfss = searchutil.JoinTagFilterss(tfss, ec.EnforcedTagFilterss)
 	minTimestamp := ec.Start
 	if needSilenceIntervalForRollupFunc[funcName] {
-		minTimestamp -= maxSilenceInterval()
+		minTimestamp -= maxSilenceInterval(ec.MinStalenessInterval)
 	}
 	if window > ec.Step {
 		minTimestamp -= window
@@ -1707,6 +1716,8 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= ec.Step
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
+	sq.SimulatedSeries = ec.SimulatedSamples
+
 	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)
 	if err != nil {
 		return nil, err
@@ -1793,7 +1804,7 @@ func getRollupMemoryLimiter() *memoryLimiter {
 	return &rollupMemoryLimiter
 }
 
-func maxSilenceInterval() int64 {
+func maxSilenceInterval(minStalenessInterval time.Duration) int64 {
 	d := minStalenessInterval.Milliseconds()
 	if d <= 0 {
 		d = 5 * 60 * 1000
