@@ -26,6 +26,10 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
+
+Released at 2026-03-13
+
 * SECURITY: upgrade Go builder from Go1.26.0 to Go1.26.1. See [the list of issues addressed in Go1.26.1](https://github.com/golang/go/issues?q=milestone%3AGo1.26.1%20label%3ACherryPickApproved).
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `headers` field to `oauth2` scrape config for passing custom HTTP headers to `token_url`. Some services require different headers for the token endpoint and the scrape targets. See [#8939](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8939).
