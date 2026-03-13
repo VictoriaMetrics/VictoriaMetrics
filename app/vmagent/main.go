@@ -14,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadogsketches"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/ecsmetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadogv1"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/datadogv2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/graphite"
@@ -165,6 +166,7 @@ func main() {
 	}
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
+	ecsmetadata.Start()
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -185,6 +187,7 @@ func main() {
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
 	promscrape.Stop()
+	ecsmetadata.Stop()
 
 	if len(*influxListenAddr) > 0 {
 		influxServer.MustStop()
