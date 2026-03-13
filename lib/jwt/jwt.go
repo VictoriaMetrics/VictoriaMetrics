@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -294,7 +295,7 @@ func (t *Token) matchClaim(c *Claim) bool {
 	var gotV *fastjson.Value
 	if c.nestedKeys[0] == "scope" {
 		// special case, scope could be both string and []string
-		return c.value == t.body.Scope
+		return c.valueRe.MatchString(t.body.Scope)
 	}
 	keys := c.nestedKeys
 	if keys[0] == "vm_access" && t.body.vmAccessClaimObject != nil {
@@ -314,15 +315,15 @@ func (t *Token) matchClaim(c *Claim) bool {
 		return false
 	}
 	if gotV.Type() == fastjson.TypeString {
-		return bytesutil.ToUnsafeString(gotV.GetStringBytes()) == c.value
+		return c.valueRe.Match(gotV.GetStringBytes())
 	}
 	bb := claimValuePool.Get()
 	b := bb.B[:0]
 	b = gotV.MarshalTo(b)
 	bb.B = b
-	equal := string(b) == c.value
+	match := c.valueRe.Match(b)
 	claimValuePool.Put(bb)
-	return equal
+	return match
 }
 
 var claimValuePool bytesutil.ByteBufferPool
@@ -743,27 +744,31 @@ var decodeb64BufferPool bytesutil.ByteBufferPool
 // It supports dot-delimited nested key lookup within the token body JSON.
 type Claim struct {
 	nestedKeys []string
-	value      string
+	valueRe    *regexp.Regexp
 }
 
-// NewClaim constructs a JWT token claim from the given key and value.
+// NewClaim constructs a JWT token claim from the given key and value regular expression.
 // The key supports dot-delimited notation as a separator for nested key lookup.
 // To include a literal dot in a key segment, escape it with a backslash (e.g. "a\.b.c").
 //
 // For example, the key "audit.permissions.0" can be used to access a nested array element in:
 //
 // {"audit": {"permissions": [0, 1, 0]}}
-func NewClaim(key, value string) *Claim {
+func NewClaim(key, value string) (*Claim, error) {
 	var nestedKeys []string
 	if idx := strings.Index(key, "."); idx > 0 {
 		nestedKeys = splitNestedClaimKey(key)
 	} else {
 		nestedKeys = []string{key}
 	}
+	valueRe, err := regexp.Compile(value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse value match re=%q: %w", value, err)
+	}
 	return &Claim{
 		nestedKeys: nestedKeys,
-		value:      value,
-	}
+		valueRe:    valueRe,
+	}, nil
 }
 
 // splitNestedClaimKey splits a dot-delimited claim key into individual path segments.

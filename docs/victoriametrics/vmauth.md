@@ -280,7 +280,7 @@ JWT authentication cannot be combined with other auth methods (`bearer_token`, `
 
 #### OIDC Discovery
 
-Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "#" %}} 
+Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "v1.138.0" %}} 
 and rotate public keys from an [OpenID Connect (OIDC)](https://openid.net/connect/) provider via its [Discovery endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html).
 This is useful when integrating with identity providers such as Keycloak, Auth0, Okta, or Google.
 
@@ -308,7 +308,7 @@ If no keys have been fetched yet (e.g., on startup when the provider is unreacha
 #### JWT claim matching
 
 `vmauth` can route requests to different backends depending on the claims contained
-in the provided [JWT token](https://www.jwt.io/) based on `match_claims`{{% available_from "#" %}} field.
+in the provided [JWT token](https://www.jwt.io/) based on `match_claims`{{% available_from "v1.138.0" %}} field.
 
 This enables RBAC-style setups where tokens carrying different roles
 (e.g. `admin`, `viewer`, `writer`) are mapped to different users — each with its own
@@ -329,6 +329,7 @@ Claim names support dot-notation for traversal of nested JSON objects
 Claim names must point to a **leaf value**. The only supported leaf values are string, integer, float and boolean. Any other leaf type
 is treated as not matched.
 All configured claims must match exactly.
+Claim match values use regular expression syntax and must fully match the claim value.
 
 For example, the following config routes requests based on the `role` claim in the JWT token:
 
@@ -395,6 +396,31 @@ users:
     match_claims: {}
   url_prefix: "http://victoria-metrics:8428/"
 ```
+
+The following config demonstrates matching on nested claims using dot-notation and regex value match for multiple tenants access:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      vm_access.metrics_account_id: "(0|1|2)"
+  url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(0|1|2)\"}"
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      vm_access.metrics_account_id: "(3|4|5)"
+  url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(3|4|5)\"}"
+```
+
 
 #### JWT claim matching. Conflict resolution
 
@@ -1239,7 +1265,7 @@ unauthorized_user:
 
 ## Access log
 
-vmauth allows configuring access logs {{% available_from "#" %}} printing per-user:
+vmauth allows configuring access logs {{% available_from "v1.138.0" %}} printing per-user:
 ```yaml
 unauthorized_user:
   url_prefix: 'http://localhost:8428/'

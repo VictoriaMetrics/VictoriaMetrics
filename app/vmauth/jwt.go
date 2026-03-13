@@ -89,7 +89,11 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 		parsedClaims := make([]*jwt.Claim, 0, len(jwtToken.MatchClaims))
 		for ck, cv := range jwtToken.MatchClaims {
 			sortedClaims = append(sortedClaims, fmt.Sprintf("%s=%s", ck, cv))
-			parsedClaims = append(parsedClaims, jwt.NewClaim(ck, cv))
+			pc, err := jwt.NewClaim(ck, cv)
+			if err != nil {
+				return nil, nil, fmt.Errorf("incorrect match claim, key=%q, value regex=%q: %w", ck, cv, err)
+			}
+			parsedClaims = append(parsedClaims, pc)
 		}
 		ui.JWT.parsedMatchClaims = parsedClaims
 		sort.Strings(sortedClaims)
