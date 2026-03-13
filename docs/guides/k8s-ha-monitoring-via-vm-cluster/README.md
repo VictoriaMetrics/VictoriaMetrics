@@ -350,7 +350,7 @@ vmcluster-victoria-metrics-cluster-vmstorage-1   1/1     Running   0          3h
 You can confirm that there are two `vmstorage` pods with this query:
 
 ```sh
-curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=count(up{kubernetes_pod_name=~".*vmstorage.*"})&start=-10m&step=1m' | jq
+curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query?query=count(up{kubernetes_pod_name=~".*vmstorage.*"})' | jq
 ```
 
 This should output 2 nodes:
@@ -360,23 +360,13 @@ This should output 2 nodes:
   "status": "success",
   "isPartial": false,
   "data": {
-    "resultType": "matrix",
+    "resultType": "vector",
     "result": [
       {
         "metric": {},
-        "values": [
-          [
-            1772473447.471,
-            "2"
-          ],
-          [
-            1772473507.471,
-            "2"
-          ],
-          [
-            1772473567.471,
-            "2"
-          ]
+        "value": [
+          1773437033,
+          "2"
         ]
       }
     ]
@@ -397,7 +387,7 @@ You can also check if the query result is complete by examining the `isPartial` 
 Running other queries such as `count(up{kubernetes_pod_name=~".*vmselect.*"})` should still return 3.
 
 ```sh
-curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query_range?query=count(up{kubernetes_pod_name=~".*vmselect.*"})&start=-10m&step=1m' | jq
+curl -sg 'http://127.0.0.1:8481/select/0/prometheus/api/v1/query?query=count(up{kubernetes_pod_name=~".*vmselect.*"})' | jq
 ```
 
 This should print:
@@ -407,30 +397,20 @@ This should print:
   "status": "success",
   "isPartial": false,
   "data": {
-    "resultType": "matrix",
+    "resultType": "vector",
     "result": [
       {
         "metric": {},
-        "values": [
-          [
-            1772473984.49,
-            "3"
-          ],
-          [
-            1772474044.49,
-            "3"
-          ],
-          [
-            1772474104.49,
-            "3"
-          ]
+        "value": [
+          1773437137,
+          "3"
         ]
       }
     ]
   },
   "stats": {
     "seriesFetched": "3",
-    "executionTimeMsec": 12
+    "executionTimeMsec": 5
   }
 }
 ```
