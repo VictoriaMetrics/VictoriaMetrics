@@ -120,7 +120,7 @@ func TestConnPoolForceDailNewConn(t *testing.T) {
 		t.Fatalf("expecting 1 connection in the pool, but got %d", len(cp.conns))
 	}
 	// dail a new conn rather than getting one from pool.
-	conn, err = cp.Get()
+	conn, err = cp.Dial()
 	if err != nil {
 		t.Errorf("get conn from connection pool err:%v", err)
 		panic(err)
