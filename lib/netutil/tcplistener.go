@@ -24,8 +24,7 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Config) (*TCPListener, error) {
 	network := GetTCPNetwork()
 	if network == "tcp4" && isIPv6Addr(addr) {
-		logger.Warnf("listening address %q looks like IPv6, but IPv6 is disabled; the server will listen on IPv4 only. "+
-			"Pass -enableTCP6 command-line flag to enable IPv6 support", addr)
+		logger.Warnf("listening address %q looks like IPv6, but IPv6 is disabled; this address may fail to bind with IPv4-only mode. Pass -enableTCP6 or use an IPv4 listen address", addr)
 	}
 	ln, err := net.Listen(network, addr)
 	if err != nil {
