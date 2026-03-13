@@ -45,8 +45,9 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	errors  *vmalertutil.Counter
-	samples *vmalertutil.Gauge
+	errors        *vmalertutil.Counter
+	samples       *vmalertutil.Gauge
+	seriesFetched *vmalertutil.Gauge
 }
 
 func newRecordingRuleMetrics(set *metrics.Set, rr *RecordingRule) *recordingRuleMetrics {
@@ -59,6 +60,21 @@ func newRecordingRuleMetrics(set *metrics.Set, rr *RecordingRule) *recordingRule
 			e := rr.state.getLast()
 			return float64(e.Samples)
 		})
+	rmr.seriesFetched = vmalertutil.NewGauge(set, fmt.Sprintf(`vmalert_recording_rules_last_evaluation_series_fetched{%s}`, labels),
+		func() float64 {
+			e := rr.state.getLast()
+			if e.SeriesFetched == nil {
+				// means seriesFetched is unsupported
+				return -1
+			}
+			seriesFetched := float64(*e.SeriesFetched)
+			if seriesFetched == 0 && e.Samples > 0 {
+				// `alert: 0.95` will fetch no series
+				// but will get one time series in response.
+				seriesFetched = float64(e.Samples)
+			}
+			return seriesFetched
+		})
 
 	return rmr
 }
@@ -69,6 +85,7 @@ func (m *recordingRuleMetrics) close() {
 	}
 	m.errors.Unregister()
 	m.samples.Unregister()
+	m.seriesFetched.Unregister()
 }
 
 // String implements Stringer interface
