@@ -145,6 +145,13 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 	return cp.getConnSlow()
 }
 
+func (cp *ConnPool) Dial() (*handshake.BufferedConn, error) {
+	cp.concurrentDialsCh <- struct{}{}
+	conn, err := cp.dialAndHandshake()
+	<-cp.concurrentDialsCh
+	return conn, err
+}
+
 func (cp *ConnPool) getConnSlow() (*handshake.BufferedConn, error) {
 	for {
 		select {

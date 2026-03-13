@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -2470,7 +2471,7 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
-	err := sn.execOnConn(qtChild, funcName, f, deadline)
+	err := sn.execOnConn(qtChild, funcName, f, deadline, false)
 	defer qtChild.Done()
 	if err == nil {
 		return nil
@@ -2490,14 +2491,22 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	// Repeat the query in the hope the error was temporary.
 	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
-	err = sn.execOnConn(qtRetry, funcName, f, deadline)
+	// Retry with a new connection if the error is io.EOF, "broken pipe", or "reset by peer".
+	// These errors usually indicate that the connection was closed by vmstorage
+	// during a rolling restart but is still present in the
+	// connection pool. Reusing such stale connections may cause query failures
+	// or partial responses. Dialing a new connection allows the request to
+	// proceed without waiting for the broken connection to be evicted from the pool.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314
+	dialConn := errors.Is(err, io.EOF) || errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET)
+	err = sn.execOnConn(qtRetry, funcName, f, deadline, dialConn)
 	qtRetry.Done()
 	return err
 }
 
 var errCannotObtainConn = fmt.Errorf("cannot obtain connection from a pool")
 
-func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline) error {
+func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline, dialConn bool) error {
 	sn.concurrentQueries.Inc()
 	defer sn.concurrentQueries.Dec()
 
@@ -2508,7 +2517,13 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	if timeout <= 0 {
 		return fmt.Errorf("request timeout reached: %s", deadline.String())
 	}
-	bc, err := sn.connPool.Get()
+	var bc *handshake.BufferedConn
+	var err error
+	if dialConn {
+		bc, err = sn.connPool.Dial()
+	} else {
+		bc, err = sn.connPool.Get()
+	}
 	if err != nil {
 		return fmt.Errorf("%w: %w", errCannotObtainConn, err)
 	}
