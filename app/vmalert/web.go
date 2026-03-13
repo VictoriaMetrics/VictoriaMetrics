@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -102,7 +103,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		data := rh.groups(rf)
+		data, _ := rh.groups(rf)
 		WriteListGroups(w, r, data, rf.filter)
 		return true
 	case "/vmalert/notifiers":
@@ -120,7 +121,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		data = rh.groups(rf)
+		data, _ = rh.groups(rf)
 		WriteListGroups(w, r, data, rf.filter)
 		return true
 
@@ -272,7 +273,8 @@ func (rh *requestHandler) getAlert(r *http.Request) (*rule.ApiAlert, error) {
 type listGroupsResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		Groups []*rule.ApiGroup `json:"groups"`
+		Groups         []*rule.apiGroup `json:"groups"`
+		GroupNextToken string           `json:"groupNextToken,omitempty"`
 	} `json:"data"`
 }
 
@@ -285,6 +287,8 @@ type rulesFilter struct {
 	excludeAlerts bool
 	filter        string
 	dsType        config.Type
+	maxGroups     int
+	nextToken     string
 }
 
 func newRulesFilter(r *http.Request) (*rulesFilter, error) {
@@ -322,6 +326,22 @@ func newRulesFilter(r *http.Request) (*rulesFilter, error) {
 	rf.ruleNames = append([]string{}, r.Form["rule_name[]"]...)
 	rf.groupNames = append([]string{}, r.Form["rule_group[]"]...)
 	rf.files = append([]string{}, r.Form["file[]"]...)
+
+	rf.nextToken = r.URL.Query().Get("group_next_token")
+	maxGroups := r.URL.Query().Get("group_limit")
+	if rf.nextToken != "" && maxGroups == "" {
+		return nil, errors.New("group_limit needs to be present in order to paginate over the groups")
+	}
+	if maxGroups != "" {
+		mgs, err := strconv.ParseInt(maxGroups, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("group_limit needs to be a valid number: %w", err)
+		}
+		if mgs <= 0 {
+			return nil, errors.New("group_limit needs to be greater than 0")
+		}
+		rf.maxGroups = int(mgs)
+	}
 	return rf, nil
 }
 
@@ -338,12 +358,22 @@ func (rf *rulesFilter) matchesGroup(group *rule.Group) bool {
 	return true
 }
 
-func (rh *requestHandler) groups(rf *rulesFilter) []*rule.ApiGroup {
+func (rh *requestHandler) groups(rf *rulesFilter) ([]*rule.ApiGroup, string) {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
+	var (
+		foundToken   bool
+		grpNextToken string
+	)
 	groups := make([]*rule.ApiGroup, 0)
 	for _, group := range rh.m.groups {
+		if rf.maxGroups > 0 && rf.nextToken != "" && !foundToken {
+			if rf.nextToken != strconv.Itoa(int(group.GetID())) {
+				continue
+			}
+			foundToken = true
+		}
 		if !rf.matchesGroup(group) {
 			continue
 		}
@@ -374,6 +404,14 @@ func (rh *requestHandler) groups(rf *rulesFilter) []*rule.ApiGroup {
 			}
 			filteredRules = append(filteredRules, rule)
 		}
+		if len(groups) > 0 {
+			if len(groups) == rf.maxGroups {
+				// We've reached the capacity of our page plus one. That means that for sure there will be at least one
+				// rule group in a subsequent request. Therefore, a next token is required.
+				grpNextToken = strconv.Itoa(int(group.GetID()))
+				break
+			}
+		}
 		g.Rules = filteredRules
 		groups = append(groups, g)
 	}
@@ -384,12 +422,12 @@ func (rh *requestHandler) groups(rf *rulesFilter) []*rule.ApiGroup {
 		}
 		return strings.Compare(a.File, b.File)
 	})
-	return groups
+	return groups, grpNextToken
 }
 
 func (rh *requestHandler) listGroups(rf *rulesFilter) ([]byte, error) {
 	lr := listGroupsResponse{Status: "success"}
-	lr.Data.Groups = rh.groups(rf)
+	lr.Data.Groups, lr.Data.GroupNextToken = rh.groups(rf)
 	b, err := json.Marshal(lr)
 	if err != nil {
 		return nil, &httpserver.ErrorWithStatusCode{
