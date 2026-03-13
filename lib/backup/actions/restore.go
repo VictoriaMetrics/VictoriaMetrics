@@ -40,6 +40,10 @@ type Restore struct {
 	//
 	// This may be needed for restoring from old backups with missing `backup complete` file.
 	SkipBackupCompleteCheck bool
+
+	// DoNothingOnNoBackup may be set in order to do nothing (rather than failing) when there
+	// is no `backup complete` file and no parts in Src.
+	DoNothingOnNoBackup bool
 }
 
 // Run runs r with the provided settings.
@@ -58,14 +62,9 @@ func (r *Restore) Run(ctx context.Context) error {
 	src := r.Src
 	dst := r.Dst
 
-	if !r.SkipBackupCompleteCheck {
-		ok, err := src.HasFile(backupnames.BackupCompleteFilename)
-		if err != nil {
+	if !r.SkipBackupCompleteCheck && !r.DoNothingOnNoBackup {
+		if err := checkBackupComplete(src); err != nil {
 			return err
-		}
-		if !ok {
-			return fmt.Errorf("cannot find %s file in %s; this means either incomplete backup or old backup; "+
-				"pass -skipBackupCompleteCheck command-line flag if you still need restoring from this backup", backupnames.BackupCompleteFilename, src)
 		}
 	}
 
@@ -75,6 +74,16 @@ func (r *Restore) Run(ctx context.Context) error {
 	srcParts, err := src.ListParts()
 	if err != nil {
 		return fmt.Errorf("cannot list src parts: %w", err)
+	}
+	if r.DoNothingOnNoBackup {
+		if len(srcParts) == 0 {
+			logger.Infof("no backup present at %s, assuming first start", src)
+			removeRestoreLock(r.Dst.Dir)
+			return nil
+		}
+		if err := checkBackupComplete(src); err != nil {
+			return err
+		}
 	}
 	logger.Infof("obtaining list of parts at %s", dst)
 	dstParts, err := dst.ListParts()
@@ -236,4 +245,16 @@ func createRestoreLock(dstDir string) error {
 func removeRestoreLock(dstDir string) {
 	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	fs.MustRemovePath(lockF)
+}
+
+func checkBackupComplete(src common.RemoteFS) error {
+	ok, err := src.HasFile(backupnames.BackupCompleteFilename)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("cannot find %s file in %s; this means either incomplete backup or old backup; "+
+			"pass -skipBackupCompleteCheck command-line flag if you still need restoring from this backup", backupnames.BackupCompleteFilename, src)
+	}
+	return nil
 }
