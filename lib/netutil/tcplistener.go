@@ -134,6 +134,9 @@ func isIPv6Addr(addr string) bool {
 	}
 	// IPv6 addresses in URLs are wrapped in brackets: [::], [::1]
 	host = strings.Trim(host, "[]")
+	if i := strings.LastIndex(host, "%"); i >= 0 {
+		host = host[:i]
+	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.To4() == nil
 }
