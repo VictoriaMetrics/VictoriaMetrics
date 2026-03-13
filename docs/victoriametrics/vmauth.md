@@ -280,7 +280,7 @@ JWT authentication cannot be combined with other auth methods (`bearer_token`, `
 
 #### OIDC Discovery
 
-Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "#" %}} 
+Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "v1.138.0" %}} 
 and rotate public keys from an [OpenID Connect (OIDC)](https://openid.net/connect/) provider via its [Discovery endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html).
 This is useful when integrating with identity providers such as Keycloak, Auth0, Okta, or Google.
 
@@ -308,7 +308,7 @@ If no keys have been fetched yet (e.g., on startup when the provider is unreacha
 #### JWT claim matching
 
 `vmauth` can route requests to different backends depending on the claims contained
-in the provided [JWT token](https://www.jwt.io/) based on `match_claims`{{% available_from "#" %}} field.
+in the provided [JWT token](https://www.jwt.io/) based on `match_claims`{{% available_from "v1.138.0" %}} field.
 
 This enables RBAC-style setups where tokens carrying different roles
 (e.g. `admin`, `viewer`, `writer`) are mapped to different users — each with its own
@@ -1265,7 +1265,7 @@ unauthorized_user:
 
 ## Access log
 
-vmauth allows configuring access logs {{% available_from "#" %}} printing per-user:
+vmauth allows configuring access logs {{% available_from "v1.138.0" %}} printing per-user:
 ```yaml
 unauthorized_user:
   url_prefix: 'http://localhost:8428/'
