@@ -1,5 +1,5 @@
 Using [Grafana](https://grafana.com/) with [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is an effective way to provide [multi-tenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) access to your metrics, logs, and traces.
-vmauth provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
+vmauth provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) {{% available_from "#" %}} issued by an external identity provider.
 Those tokens can include information about the user and their tenant, which vmauth can use to restrict access so users only see metrics in their own tenant.
 
 This guide walks through configuring Grafana with OIDC to query metrics from both single-node and cluster deployments of VictoriaMetrics.
@@ -238,23 +238,23 @@ vmagent will write data into VictoriaMetrics single-node and cluster (with tenan
 # compose.yaml
 services:
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.136.0
+    image: victoriametrics/victoria-metrics:v1.138.0
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.136.0-cluster
+    image: victoriametrics/vmstorage:v1.138.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.136.0-cluster
+    image: victoriametrics/vminsert:v1.138.0-cluster
     command:
       - -storageNode=vmstorage:8400
 
   vmselect:
-    image: victoriametrics/vmselect:v1.136.0-cluster
+    image: victoriametrics/vmselect:v1.138.0-cluster
     command:
       - -storageNode=vmstorage:8401
 
   vmagent:
-    image: victoriametrics/vmagent:v1.136.0
+    image: victoriametrics/vmagent:v1.138.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -306,7 +306,7 @@ Now add the vmauth service to `compose.yaml`:
 # compose.yaml
 services:
   vmauth:
-    image: docker.io/victoriametrics/vmauth:heads-vmauth-jwt-oidc-0-g5b053c9bbb-dirty-c2e46287
+    image: docker.io/victoriametrics/vmauth:v1.138.0
     ports:
       - 8427:8427
     volumes:
