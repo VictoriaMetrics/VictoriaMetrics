@@ -58,6 +58,21 @@ Capabilities include:
 
 See more details at [VictoriaMetrics/mcp-victoriatraces](https://github.com/VictoriaMetrics/mcp-victoriatraces).
 
+## vmanomaly MCP Server
+
+[vmanomaly MCP Server](https://github.com/VictoriaMetrics/mcp-vmanomaly) provides seamless integration with vmanomaly
+REST API and documentation for AI-assisted anomaly detection, model management, and observability insights.
+
+Capabilities include:
+- Health Monitoring: Check `vmanomaly` server health and build information
+- Model Management: List, validate, and configure anomaly detection models (like `zscore_online`, `prophet`, and more)
+- Configuration Generation: Generate complete `vmanomaly` YAML configurations
+- Alert Rule Generation: Generate [`vmalert`](https://docs.victoriametrics.com/victoriametrics/vmalert/) [alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules) based on [anomaly score metrics](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) to simplify alerting setup
+- Documentation Search: Full-text search across embedded `vmanomaly` documentation with fuzzy matching
+
+See more details at [VictoriaMetrics/mcp-vmanomaly](https://github.com/VictoriaMetrics/mcp-vmanomaly).
+
+
 # Agent Skills
 
 [Agent skills](https://github.com/VictoriaMetrics/skills) help AI agents and automation tools understand, operate, 
