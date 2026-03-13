@@ -853,6 +853,9 @@ func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrappe
 	if err != nil {
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
 	}
+	for _, pw := range pws {
+		pw.decRef()
+	}
 
 	// The resulting part is empty, no need to create a part wrapper
 	if ph.BlocksCount == 0 {
