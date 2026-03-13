@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): allow specifying `basic_auth` in scrape configs without `username`. Previously this resulted in a config error. Now a warning is logged instead. See [#6956](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6956).
+
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
 Released at 2026-03-13
