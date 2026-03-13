@@ -2493,7 +2493,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
 	// retry with new connection if the error is io.EOF or broken pipe, which is caused by broken connection.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10314
-	retryOnNewConn := errors.Is(err, io.EOF) || errors.Is(err, syscall.EPIPE)
+	retryOnNewConn := errors.Is(err, io.EOF) || errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET)
 	err = sn.execOnConn(qtRetry, funcName, f, deadline, retryOnNewConn)
 	qtRetry.Done()
 	return err
