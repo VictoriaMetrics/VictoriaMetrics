@@ -823,6 +823,10 @@ func (actx *authContext) initFromBasicAuthConfig(baseDir string, ba *BasicAuthCo
 		password = ba.Password.S
 	}
 	passwordFile := ba.PasswordFile
+	if username == "" && usernameFile == "" && password == "" && passwordFile == "" {
+		return fmt.Errorf("missing `username`, `username_file`, `password` and `password_file` in `basic_auth` section; please specify at least one; " +
+			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
+	}
 	if username == "" && usernameFile == "" {
 		logger.Warnf("missing `username` and `username_file` in `basic_auth` section; " +
 			"see https://docs.victoriametrics.com/victoriametrics/sd_configs/#http-api-client-options")
