@@ -14,6 +14,24 @@ import (
 
 var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used")
 
+func isLonePort(s string) bool {
+	n := len(s)
+	if n < 2 || n > 6 || s[0] != ':' {
+		return false
+	}
+
+	var port uint32
+	for i := 1; i < n; i++ {
+		d := uint32(s[i]) - '0'
+		if d > 9 {
+			return false
+		}
+		port = port*10 + d
+	}
+
+	return port <= 65535
+}
+
 // NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
 //
 // name is used for metrics. Each listener in the program must have a distinct name.
@@ -22,6 +40,10 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 // See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Config) (*TCPListener, error) {
 	network := GetTCPNetwork()
+	if network == "tcp4" && !isLonePort(addr) && !isTCPv4Addr(addr) {
+		logger.Warnf("listening address %q looks like IPv6, but IPv6 is disabled; the server will listen on IPv4 only. "+
+			"Pass -enableTCP6 command-line flag to enable IPv6 support", addr)
+	}
 	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
