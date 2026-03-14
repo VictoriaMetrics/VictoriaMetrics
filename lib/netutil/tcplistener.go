@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"regexp"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -13,6 +14,8 @@ import (
 )
 
 var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used")
+
+var portOnlyMatcher = regexp.MustCompile(`^:[0-9]+$`)
 
 // NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
 //
@@ -22,7 +25,7 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 // See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
 func NewTCPListener(name, addr string, useProxyProtocol bool, tlsConfig *tls.Config) (*TCPListener, error) {
 	network := GetTCPNetwork()
-	if network == "tcp4" && !isTCPv4Addr(addr) {
+	if network == "tcp4" && !portOnlyMatcher.MatchString(addr) && !isTCPv4Addr(addr) {
 		logger.Warnf("listening address %q looks like IPv6, but IPv6 is disabled; the server will listen on IPv4 only. "+
 			"Pass -enableTCP6 command-line flag to enable IPv6 support", addr)
 	}
