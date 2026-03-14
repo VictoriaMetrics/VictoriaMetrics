@@ -20,8 +20,8 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -256,15 +256,15 @@ var (
 	httpClientsLock  sync.Mutex
 )
 
-func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
-	key := fmt.Sprintf("authConfig=%s, proxyURL=%s", ac.String(), proxyURL)
+func getHTTPClient(apiServer string, ac *promauth.Config, proxyURL *url.URL) *http.Client {
+	key := fmt.Sprintf("apiServer=%s, authConfig=%s, proxyURL=%s", apiServer, ac.String(), proxyURL)
 	httpClientsLock.Lock()
 	if c, ok := httpClientsCache[key]; ok {
 		httpClientsLock.Unlock()
 		return c
 	}
 
-	tr := newHTTPTransport(*useHTTP2Client)
+	tr := newHTTPTransport(*useHTTP2Client, apiServer)
 	if !*useHTTP2Client {
 		// Proxy is not supported for http2 client.
 		// See https://github.com/golang/go/issues/26479
@@ -281,8 +281,16 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 	return c
 }
 
-func newHTTPTransport(enableHTTP2 bool) *http.Transport {
-	tr := httputil.NewTransport(enableHTTP2, "vm_promscrape_discovery_kubernetes")
+func newHTTPTransport(enableHTTP2 bool, apiServer string) *http.Transport {
+	metricLabels := fmt.Sprintf(`{api_server=%q}`, apiServer)
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.DialContext = netutil.NewStatDialFuncWithLabels("vm_promscrape_discovery_kubernetes", metricLabels)
+	if !enableHTTP2 {
+		tr.ForceAttemptHTTP2 = false
+		tr.TLSNextProto = nil
+		tr.Protocols = nil
+		tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
+	}
 	tr.TLSHandshakeTimeout = 10 * time.Second
 	tr.IdleConnTimeout = *apiServerTimeout
 	tr.MaxIdleConnsPerHost = 100
@@ -290,7 +298,7 @@ func newHTTPTransport(enableHTTP2 bool) *http.Transport {
 }
 
 func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, attachNamespaceMetadata bool, proxyURL *url.URL) *groupWatcher {
-	client := getHTTPClient(ac, proxyURL)
+	client := getHTTPClient(apiServer, ac, proxyURL)
 	ctx, cancel := context.WithCancel(context.Background())
 	gw := &groupWatcher{
 		apiServer:               apiServer,
