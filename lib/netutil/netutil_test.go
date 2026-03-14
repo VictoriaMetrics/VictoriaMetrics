@@ -26,6 +26,43 @@ func TestIsErrMissingPort(t *testing.T) {
 	f("http://vmstorage-0.svc.cluster.local.:8080", false)
 }
 
+func TestIsLonePort(t *testing.T) {
+	f := func(s string, expected bool) {
+		t.Helper()
+		if isLonePort(s) != expected {
+			t.Fatalf("unexpected result for %q; got %v; want %v", s, !expected, expected)
+		}
+	}
+
+	f(":0", true)
+	f(":1", true)
+	f(":80", true)
+	f(":443", true)
+	f(":666", true)
+	f(":6969", true)
+	f(":8080", true)
+	f(":65535", true)
+
+	f(":65536", false)
+	f(":99999", false)
+
+	f("80", false)
+	f("8080", false)
+
+	f("", false)
+	f(":", false)
+
+	f(":123456", false)
+
+	f(":abc", false)
+	f(":80a", false)
+	f(":12.3", false)
+	f(":-1", false)
+
+	f("127.0.0.1:80", false)
+	f("[::1]:80", false)
+}
+
 func TestNormalizeAddrSuccess(t *testing.T) {
 	f := func(addr string, defaultPort int, expected string) {
 		t.Helper()
