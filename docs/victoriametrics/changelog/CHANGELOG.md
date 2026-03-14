@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `api_server` label to Kubernetes service discovery transport metrics like `vm_promscrape_discovery_kubernetes_dials_total` for distinguishing between Kubernetes API servers in multi-cluster setups. See [#10581](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10581).
+
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
 Released at 2026-03-13
