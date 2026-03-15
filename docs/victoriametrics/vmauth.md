@@ -232,6 +232,22 @@ users:
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
+It is also possible to use `password_hash` instead of `password` to avoid storing plaintext passwords in the config file.
+The `password_hash` field must contain a [bcrypt](https://en.wikipedia.org/wiki/Bcrypt) hash of the password:
+
+```yaml
+users:
+- username: foo
+  password_hash: "$2y$10$RBiIQjRvttPzcZbIauPile2ou8DpRAVOP/mtqrNQLCOABBN9Q3wsi"
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+A bcrypt hash can be generated with the `htpasswd` tool:
+
+```sh
+htpasswd -nbBC 10 "" "bar" | cut -d: -f2
+```
+
 See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
 
 ### Bearer Token auth proxy
@@ -1346,6 +1362,12 @@ users:
   password: "***"
   url_prefix: "http://localhost:8428"
   max_concurrent_requests: 10
+
+  # password_hash can be used instead of password to avoid storing plaintext passwords.
+  # It must contain a bcrypt hash. Generate with: htpasswd -nbBC 10 "" "password" | cut -d: -f2
+- username: "local-single-node-hashed"
+  password_hash: "$2y$10$xPsrxpMF1ub0QLHDoa8U0Oi61EjsCzGfciFpB2pg8OT//fNUkDP5i"
+  url_prefix: "http://localhost:8428"
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are proxied to http://localhost:8428 with extra_label=team=dev query arg.

@@ -78,8 +78,8 @@ func parseJWTUsers(ac *AuthConfig) ([]*UserInfo, *oidcDiscovererPool, error) {
 			continue
 		}
 
-		if ui.AuthToken != "" || ui.BearerToken != "" || ui.Username != "" || ui.Password != "" {
-			return nil, nil, fmt.Errorf("auth_token, bearer_token, username and password cannot be specified if jwt is set")
+		if ui.AuthToken != "" || ui.BearerToken != "" || ui.Username != "" || ui.Password != "" || ui.PasswordHash != "" {
+			return nil, nil, fmt.Errorf("auth_token, bearer_token, username, password and password_hash cannot be specified if jwt is set")
 		}
 		if len(jwtToken.PublicKeys) == 0 && len(jwtToken.PublicKeyFiles) == 0 && !jwtToken.SkipVerify && jwtToken.OIDC == nil {
 			return nil, nil, fmt.Errorf("jwt must contain at least a single public key, public_key_files, oidc or have skip_verify=true")

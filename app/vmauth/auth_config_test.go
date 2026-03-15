@@ -23,7 +23,7 @@ func TestParseAuthConfigFailure(t *testing.T) {
 		if err != nil {
 			return
 		}
-		users, err := parseAuthConfigUsers(ac)
+		users, _, err := parseAuthConfigUsers(ac)
 		if err == nil {
 			t.Fatalf("expecting non-nil error; got %v", users)
 		}
@@ -149,6 +149,39 @@ users:
 - username: foo
   password: bar
   url_prefix: https://sss.sss
+`)
+
+	// password and password_hash both set
+	f(`
+users:
+- username: foo
+  password: bar
+  password_hash: "$2a$10$something"
+  url_prefix: http://foo.bar
+`)
+
+	// password_hash without username
+	f(`
+users:
+- password_hash: "$2a$10$something"
+  url_prefix: http://foo.bar
+`)
+
+	// password_hash with bearer_token
+	f(`
+users:
+- username: foo
+  bearer_token: bar
+  password_hash: "$2a$10$something"
+  url_prefix: http://foo.bar
+`)
+
+	// invalid bcrypt hash
+	f(`
+users:
+- username: foo
+  password_hash: "not-a-bcrypt-hash"
+  url_prefix: http://foo.bar
 `)
 
 	// Duplicate bearer_tokens
@@ -333,7 +366,7 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		m, err := parseAuthConfigUsers(ac)
+		m, _, err := parseAuthConfigUsers(ac)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -711,6 +744,96 @@ users:
 
 }
 
+func TestParseAuthConfigPasswordHash(t *testing.T) {
+	// bcrypt hash of "bar" with MinCost
+	const barHash = "$2a$04$zvKeJkhOG1XpW4mp6/Wxzu5HWdViGI.yfQ2cJxu4GpcJnYWcB4YRW"
+	// bcrypt hash of "baz" with MinCost
+	const bazHash = "$2a$04$4jbS7SACiqRKQpiDsjaZ6uYVVUrGGp42DmxJxIm36XQevk7vR7T0a"
+
+	c := fmt.Sprintf(`
+users:
+- username: foo
+  password_hash: "%s"
+  url_prefix: http://foo-bar
+- username: foo
+  password_hash: "%s"
+  url_prefix: http://foo-baz
+- username: plain
+  password: pass
+  url_prefix: http://plain
+`, barHash, bazHash)
+
+	ac, err := parseAuthConfig([]byte(c))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	m, mh, err := parseAuthConfigUsers(ac)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	// plain user should be in the regular map
+	if m[getHTTPAuthBasicToken("plain", "pass")] == nil {
+		t.Fatalf("plain user not found in byAuthToken map")
+	}
+
+	// hashed users should NOT be in the regular map
+	if m[getHTTPAuthBasicToken("foo", "bar")] != nil {
+		t.Fatalf("hashed user should not be in byAuthToken map")
+	}
+
+	// hashed users should be in byPasswordHash map
+	candidates := mh["foo"]
+	if len(candidates) != 2 {
+		t.Fatalf("expected 2 candidates for username 'foo'; got %d", len(candidates))
+	}
+
+	// Test getUserInfoByPasswordHash with correct password
+	authUsers.Store(&m)
+	authUsersPasswordHash.Store(&mh)
+
+	// correct password "bar" should match the first user
+	ats := []string{getHTTPAuthBasicToken("foo", "bar")}
+	ui := getUserInfoByPasswordHash(ats)
+	if ui == nil {
+		t.Fatalf("expected to find user with password 'bar'")
+	}
+	if ui.PasswordHash != barHash {
+		t.Fatalf("expected user with barHash; got %q", ui.PasswordHash)
+	}
+
+	// correct password "baz" should match the second user
+	ats = []string{getHTTPAuthBasicToken("foo", "baz")}
+	ui = getUserInfoByPasswordHash(ats)
+	if ui == nil {
+		t.Fatalf("expected to find user with password 'baz'")
+	}
+	if ui.PasswordHash != bazHash {
+		t.Fatalf("expected user with bazHash; got %q", ui.PasswordHash)
+	}
+
+	// wrong password should not match
+	ats = []string{getHTTPAuthBasicToken("foo", "wrong")}
+	ui = getUserInfoByPasswordHash(ats)
+	if ui != nil {
+		t.Fatalf("expected nil for wrong password; got %v", ui)
+	}
+
+	// unknown username should not match
+	ats = []string{getHTTPAuthBasicToken("unknown", "bar")}
+	ui = getUserInfoByPasswordHash(ats)
+	if ui != nil {
+		t.Fatalf("expected nil for unknown username; got %v", ui)
+	}
+
+	// non-Basic auth token should not match
+	ats = []string{getHTTPAuthBearerToken("foo")}
+	ui = getUserInfoByPasswordHash(ats)
+	if ui != nil {
+		t.Fatalf("expected nil for bearer token; got %v", ui)
+	}
+}
+
 func TestParseAuthConfigPassesTLSVerificationConfig(t *testing.T) {
 	c := `
 users:
@@ -730,7 +853,7 @@ unauthorized_user:
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	m, err := parseAuthConfigUsers(ac)
+	m, _, err := parseAuthConfigUsers(ac)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

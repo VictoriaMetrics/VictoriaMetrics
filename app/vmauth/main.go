@@ -186,6 +186,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		processUserRequest(w, r, ui, nil)
 		return true
 	}
+	if ui := getUserInfoByPasswordHash(ats); ui != nil {
+		processUserRequest(w, r, ui, nil)
+		return true
+	}
 	if ui, tkn := getJWTUserInfo(ats); ui != nil {
 		if tkn == nil {
 			logger.Panicf("BUG: unexpected nil jwt token for user %q", ui.name())

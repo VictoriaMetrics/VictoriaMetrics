@@ -23,6 +23,7 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -67,11 +68,14 @@ type AuthConfig struct {
 type UserInfo struct {
 	Name string `yaml:"name,omitempty"`
 
-	BearerToken string     `yaml:"bearer_token,omitempty"`
-	JWT         *JWTConfig `yaml:"jwt,omitempty"`
-	AuthToken   string     `yaml:"auth_token,omitempty"`
-	Username    string     `yaml:"username,omitempty"`
-	Password    string     `yaml:"password,omitempty"`
+	BearerToken  string     `yaml:"bearer_token,omitempty"`
+	JWT          *JWTConfig `yaml:"jwt,omitempty"`
+	AuthToken    string     `yaml:"auth_token,omitempty"`
+	Username     string     `yaml:"username,omitempty"`
+	Password     string     `yaml:"password,omitempty"`
+	PasswordHash string     `yaml:"password_hash,omitempty"`
+
+	passwordHashBytes []byte
 
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
@@ -836,6 +840,8 @@ var (
 	// authUsers contains the currently loaded auth users
 	authUsers atomic.Pointer[map[string]*UserInfo]
 
+	authUsersPasswordHash atomic.Pointer[map[string][]*UserInfo]
+
 	// jwt authentication cache
 	jwtAuthCache atomic.Pointer[jwtCache]
 
@@ -862,7 +868,14 @@ func reloadAuthConfig() (bool, error) {
 	}
 
 	mp := authUsers.Load()
-	logger.Infof("loaded information about %d users from -auth.config=%q", len(*mp), *authConfigPath)
+	mph := authUsersPasswordHash.Load()
+	usersCount := len(*mp)
+	if mph != nil {
+		for _, uis := range *mph {
+			usersCount += len(uis)
+		}
+	}
+	logger.Infof("loaded information about %d users from -auth.config=%q", usersCount, *authConfigPath)
 	return true, nil
 }
 
@@ -888,7 +901,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 		oidcDP: oidcDP,
 	}
 
-	m, err := parseAuthConfigUsers(ac)
+	m, mh, err := parseAuthConfigUsers(ac)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse users from auth config: %w", err)
 	}
@@ -912,6 +925,7 @@ func reloadAuthConfigData(data []byte) (bool, error) {
 	authConfig.Store(ac)
 	authConfigData.Store(&data)
 	authUsers.Store(&m)
+	authUsersPasswordHash.Store(&mh)
 	jwtAuthCache.Store(jwtc)
 
 	return true, nil
@@ -933,6 +947,9 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 		}
 		if ui.Password != "" {
 			return nil, fmt.Errorf("field password can't be specified for unauthorized_user section")
+		}
+		if ui.PasswordHash != "" {
+			return nil, fmt.Errorf("field password_hash can't be specified for unauthorized_user section")
 		}
 		if ui.BearerToken != "" {
 			return nil, fmt.Errorf("field bearer_token can't be specified for unauthorized_user section")
@@ -980,12 +997,13 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	return ac, nil
 }
 
-func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
+func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, map[string][]*UserInfo, error) {
 	uis := ac.Users
 	byAuthToken := make(map[string]*UserInfo, len(uis))
+	byPasswordHash := make(map[string][]*UserInfo)
 	if len(uis) == 0 && ac.UnauthorizedUser == nil {
 		// fast path for empty configuration
-		return byAuthToken, nil
+		return byAuthToken, byPasswordHash, nil
 	}
 	for i := range uis {
 		ui := &uis[i]
@@ -995,28 +1013,50 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 			continue
 		}
 
-		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
-		if err != nil {
-			return nil, err
+		if ui.Password != "" && ui.PasswordHash != "" {
+			return nil, nil, fmt.Errorf("password and password_hash cannot both be set for username=%q", ui.Username)
 		}
 
-		for _, at := range ats {
-			if uiOld := byAuthToken[at]; uiOld != nil {
-				return nil, fmt.Errorf("duplicate auth token=%q found for username=%q, name=%q; the previous one is set for username=%q, name=%q",
-					at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
+		isHashedUser := ui.PasswordHash != ""
+		if isHashedUser {
+			if ui.Username == "" {
+				return nil, nil, fmt.Errorf("username must be set when password_hash is used")
+			}
+			if ui.BearerToken != "" || ui.AuthToken != "" {
+				return nil, nil, fmt.Errorf("bearer_token and auth_token cannot be set when password_hash is used for username=%q", ui.Username)
+			}
+			ui.passwordHashBytes = []byte(ui.PasswordHash)
+			if _, err := bcrypt.Cost(ui.passwordHashBytes); err != nil {
+				return nil, nil, fmt.Errorf("invalid bcrypt hash for password_hash at username=%q: %w", ui.Username, err)
+			}
+		}
+
+		var ats []string
+		if !isHashedUser {
+			var err error
+			ats, err = getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			for _, at := range ats {
+				if uiOld := byAuthToken[at]; uiOld != nil {
+					return nil, nil, fmt.Errorf("duplicate auth token=%q found for username=%q, name=%q; the previous one is set for username=%q, name=%q",
+						at, ui.Username, ui.Name, uiOld.Username, uiOld.Name)
+				}
 			}
 		}
 
 		if err := parseJWTPlaceholdersForUserInfo(ui, false); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := ui.initURLs(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		metricLabels, err := ui.getMetricLabels()
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse metric_labels: %w", err)
+			return nil, nil, fmt.Errorf("cannot parse metric_labels: %w", err)
 		}
 		ui.requests = ac.ms.GetOrCreateCounter(`vmauth_user_requests_total` + metricLabels)
 		ui.requestErrors = ac.ms.GetOrCreateCounter(`vmauth_user_request_errors_total` + metricLabels)
@@ -1035,15 +1075,19 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 
 		rt, err := newRoundTripper(ui.TLSCAFile, ui.TLSCertFile, ui.TLSKeyFile, ui.TLSServerName, ui.TLSInsecureSkipVerify)
 		if err != nil {
-			return nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
+			return nil, nil, fmt.Errorf("cannot initialize HTTP RoundTripper: %w", err)
 		}
 		ui.rt = rt
 
-		for _, at := range ats {
-			byAuthToken[at] = ui
+		if isHashedUser {
+			byPasswordHash[ui.Username] = append(byPasswordHash[ui.Username], ui)
+		} else {
+			for _, at := range ats {
+				byAuthToken[at] = ui
+			}
 		}
 	}
-	return byAuthToken, nil
+	return byAuthToken, byPasswordHash, nil
 }
 
 var labelNameRegexp = regexp.MustCompile("^[a-zA-Z_:.][a-zA-Z0-9_:.]*$")
@@ -1214,6 +1258,56 @@ func getHTTPAuthBasicToken(username, password string) string {
 	token := username + ":" + password
 	token64 := base64.StdEncoding.EncodeToString([]byte(token))
 	return "http_auth:Basic " + token64
+}
+
+var dummyBcryptHash = []byte("$2y$10$uN4L4Cd1dvT3jdqQA8TVeeIF4hqwnFckn084Jt8RI0Jhl.yj5OWym")
+
+func getUserInfoByPasswordHash(ats []string) *UserInfo {
+	mp := authUsersPasswordHash.Load()
+	if mp == nil {
+		return nil
+	}
+	m := *mp
+	if len(m) == 0 {
+		return nil
+	}
+
+	for _, at := range ats {
+		username, password, ok := extractBasicAuthFromToken(at)
+		if !ok {
+			continue
+		}
+		candidates := m[username]
+		if len(candidates) == 0 {
+			// perform a bcrypt comparison using a dummy hash to prevent timing-based attacks
+			_ = bcrypt.CompareHashAndPassword(dummyBcryptHash, []byte(password))
+			continue
+		}
+		for _, ui := range candidates {
+			if bcrypt.CompareHashAndPassword(ui.passwordHashBytes, []byte(password)) == nil {
+				return ui
+			}
+		}
+	}
+	return nil
+}
+
+// extractBasicAuthFromToken extracts username and password from an auth token of the form "http_auth:Basic <base64>".
+func extractBasicAuthFromToken(at string) (string, string, bool) {
+	const prefix = "http_auth:Basic "
+	if !strings.HasPrefix(at, prefix) {
+		return "", "", false
+	}
+	decoded, err := base64.StdEncoding.DecodeString(at[len(prefix):])
+	if err != nil {
+		return "", "", false
+	}
+	s := string(decoded)
+	n := strings.IndexByte(s, ':')
+	if n < 0 {
+		return "", "", false
+	}
+	return s[:n], s[n+1:], true
 }
 
 var defaultHeaderNames = []string{"Authorization"}
