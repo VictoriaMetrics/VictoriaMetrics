@@ -1260,6 +1260,8 @@ func getHTTPAuthBasicToken(username, password string) string {
 	return "http_auth:Basic " + token64
 }
 
+var dummyBcryptHash = []byte("$2y$10$uN4L4Cd1dvT3jdqQA8TVeeIF4hqwnFckn084Jt8RI0Jhl.yj5OWym")
+
 func getUserInfoByPasswordHash(ats []string) *UserInfo {
 	mp := authUsersPasswordHash.Load()
 	if mp == nil {
@@ -1276,6 +1278,11 @@ func getUserInfoByPasswordHash(ats []string) *UserInfo {
 			continue
 		}
 		candidates := m[username]
+		if len(candidates) == 0 {
+			// perform a bcrypt comparison using a dummy hash to prevent timing-based attacks
+			_ = bcrypt.CompareHashAndPassword(dummyBcryptHash, []byte(password))
+			continue
+		}
 		for _, ui := range candidates {
 			if bcrypt.CompareHashAndPassword(ui.passwordHashBytes, []byte(password)) == nil {
 				return ui

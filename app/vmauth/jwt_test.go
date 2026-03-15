@@ -64,21 +64,29 @@ users:
 - username: foo
   jwt: {skip_verify: true}
   url_prefix: http://foo.bar
-`, `auth_token, bearer_token, username and password cannot be specified if jwt is set`)
+`, `auth_token, bearer_token, username, password and password_hash cannot be specified if jwt is set`)
 	// bearer_token and jwt in a single config
 	f(`
 users:
 - bearer_token: foo
   jwt: {skip_verify: true}
   url_prefix: http://foo.bar
-`, `auth_token, bearer_token, username and password cannot be specified if jwt is set`)
+`, `auth_token, bearer_token, username, password and password_hash cannot be specified if jwt is set`)
 	// bearer_token and jwt in a single config
 	f(`
 users:
 - auth_token: "Foo token"
   jwt: {skip_verify: true}
   url_prefix: http://foo.bar
-`, `auth_token, bearer_token, username and password cannot be specified if jwt is set`)
+`, `auth_token, bearer_token, username, password and password_hash cannot be specified if jwt is set`)
+	// password_hash and jwt in a single config
+	f(`
+users:
+- username: foo
+  password_hash: "$2y$10$uN4L4Cd1dvT3jdqQA8TVeeIF4hqwnFckn084Jt8RI0Jhl.yj5OWym"
+  jwt: {skip_verify: true}
+  url_prefix: http://foo.bar
+`, `auth_token, bearer_token, username, password and password_hash cannot be specified if jwt is set`)
 
 	// jwt public_keys or skip_verify must be set, part 1
 	f(`

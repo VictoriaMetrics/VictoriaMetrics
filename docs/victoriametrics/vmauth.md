@@ -238,14 +238,14 @@ The `password_hash` field must contain a [bcrypt](https://en.wikipedia.org/wiki/
 ```yaml
 users:
 - username: foo
-  password_hash: "$2a$10$B5ynRBwRCwIq1bh2rl0l2OgrCCLVxiVp.fQOav5MYJmVNgySsKEhy"
+  password_hash: "$2y$10$RBiIQjRvttPzcZbIauPile2ou8DpRAVOP/mtqrNQLCOABBN9Q3wsi"
   url_prefix: "http://victoria-metrics:8428/"
 ```
 
 A bcrypt hash can be generated with the `htpasswd` tool:
 
 ```sh
-htpasswd -nbBC 10 "" "foobar" | cut -d: -f2
+htpasswd -nbBC 10 "" "bar" | cut -d: -f2
 ```
 
 See also [authorization](#authorization), [routing](#routing) and [load balancing](#load-balancing) docs.
@@ -1366,7 +1366,7 @@ users:
   # password_hash can be used instead of password to avoid storing plaintext passwords.
   # It must contain a bcrypt hash. Generate with: htpasswd -nbBC 10 "" "password" | cut -d: -f2
 - username: "local-single-node-hashed"
-  password_hash: "$2a$10$B5ynRBwRCwIq1bh2rl0l2OgrCCLVxiVp.fQOav5MYJmVNgySsKEhy"
+  password_hash: "$2y$10$xPsrxpMF1ub0QLHDoa8U0Oi61EjsCzGfciFpB2pg8OT//fNUkDP5i"
   url_prefix: "http://localhost:8428"
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
