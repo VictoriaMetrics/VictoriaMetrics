@@ -82,8 +82,7 @@ users:
 	// password_hash and jwt in a single config
 	f(`
 users:
-- username: foo
-  password_hash: "$2y$10$uN4L4Cd1dvT3jdqQA8TVeeIF4hqwnFckn084Jt8RI0Jhl.yj5OWym"
+- password_hash: "$2y$10$uN4L4Cd1dvT3jdqQA8TVeeIF4hqwnFckn084Jt8RI0Jhl.yj5OWym"
   jwt: {skip_verify: true}
   url_prefix: http://foo.bar
 `, `auth_token, bearer_token, username, password and password_hash cannot be specified if jwt is set`)
