@@ -94,9 +94,10 @@ func (cm *ConnsMap) CloseAll(shutdownDuration time.Duration) {
 	shutdownInterval := shutdownDuration / time.Duration(len(conns)-1)
 	startTime := time.Now()
 	logger.Infof("closing %d %s connections with %dms interval between them", len(conns), cm.clientName, shutdownInterval.Milliseconds())
-	for _, c := range conns {
-		c.closeAll()
+	conns[0].closeAll()
+	for _, c := range conns[1:] {
 		time.Sleep(shutdownInterval)
+		c.closeAll()
 	}
 	logger.Infof("closed %d %s connections in %s", len(conns), cm.clientName, time.Since(startTime))
 }

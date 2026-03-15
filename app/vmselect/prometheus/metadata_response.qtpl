@@ -1,6 +1,5 @@
 {% import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricsmetadata"
-  "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 ) %}
 
@@ -18,7 +17,7 @@ See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-metric-m
 		{% for _, row := range result %}
 			"{%s string(row.MetricFamilyName) %}": [
 					{
-						"type": {%q= prompb.MetricMetadataTypeToString(row.Type) %},
+						"type": {%q= row.Type.String() %},
             {% if len(row.Unit) > 0 -%}
 						"unit": {%q= string(row.Unit) %},
             {% endif -%}

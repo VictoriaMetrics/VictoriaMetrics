@@ -98,6 +98,10 @@ func (ps *pipeRunningStats) canReturnLastNResults() bool {
 	return false
 }
 
+func (ps *pipeRunningStats) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (ps *pipeRunningStats) updateNeededFields(pf *prefixfilter.Filter) {
 	pfOrig := pf.Clone()
 
@@ -173,7 +177,7 @@ func (shard *pipeRunningStatsProcessorShard) writeBlock(br *blockResult) {
 	}
 	shard.columnValues = columnValues
 
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		fields := make([]Field, len(cs))
 		shard.stateSizeBudget -= int(unsafe.Sizeof(fields[0])) * len(fields)
 

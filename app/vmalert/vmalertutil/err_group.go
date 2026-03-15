@@ -45,7 +45,7 @@ func (eg *ErrGroup) Error() string {
 		return ""
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "errors(%d): ", len(eg.errs))
+	fmt.Fprintf(&b, "errors(%d): \n", len(eg.errs))
 	for i, err := range eg.errs {
 		b.WriteString(err.Error())
 		if i != len(eg.errs)-1 {

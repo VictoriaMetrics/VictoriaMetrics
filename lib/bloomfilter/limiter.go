@@ -24,9 +24,7 @@ func NewLimiter(maxItems int, refreshInterval time.Duration) *Limiter {
 		stopCh:   make(chan struct{}),
 	}
 	l.v.Store(newLimiter(maxItems))
-	l.wg.Add(1)
-	go func() {
-		defer l.wg.Done()
+	l.wg.Go(func() {
 		t := time.NewTicker(refreshInterval)
 		defer t.Stop()
 		for {
@@ -37,7 +35,7 @@ func NewLimiter(maxItems int, refreshInterval time.Duration) *Limiter {
 				return
 			}
 		}
-	}()
+	})
 	return l
 }
 

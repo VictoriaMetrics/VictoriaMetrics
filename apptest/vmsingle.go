@@ -414,6 +414,37 @@ func (app *Vmsingle) GraphiteMetricsIndex(t *testing.T, _ QueryOpts) GraphiteMet
 	return index
 }
 
+// GraphiteTagsTagSeries is a test helper function that registers Graphite tags
+// for a single time series by sending a HTTP POST request to
+// /graphite/tags/tagSeries vmsingle endpoint.
+func (app *Vmsingle) GraphiteTagsTagSeries(t *testing.T, record string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/graphite/tags/tagSeries", app.httpListenAddr)
+	values := opts.asURLValues()
+	values.Add("path", record)
+
+	_, statusCode := app.cli.PostForm(t, url, values)
+	if got, want := statusCode, http.StatusNotImplemented; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d", got, want)
+	}
+}
+
+func (app *Vmsingle) GraphiteTagsTagMultiSeries(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/graphite/tags/tagMultiSeries", app.httpListenAddr)
+	values := opts.asURLValues()
+	for _, rec := range records {
+		values.Add("path", rec)
+	}
+
+	_, statusCode := app.cli.PostForm(t, url, values)
+	if got, want := statusCode, http.StatusNotImplemented; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d", got, want)
+	}
+}
+
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint
 // and returns the statistics response for given params.
 //
@@ -597,8 +628,27 @@ func (app *Vmsingle) APIV1StatusTSDB(t *testing.T, matchQuery string, date strin
 	return status
 }
 
-// HTTPAddr returns the address at which the vmstorage process is listening
-// for http connections.
+// ZabbixConnectorHistory is a test helper function that inserts a
+// collection of records in zabbixconnector  format by sending a HTTP
+// POST request to /zabbixconnector/api/v1/history vmsingle endpoint.
+func (app *Vmsingle) ZabbixConnectorHistory(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/zabbixconnector/api/v1/history", app.httpListenAddr)
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte(strings.Join(records, "\n"))
+	_, statusCode := app.cli.Post(t, url, "application/json", data)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
+}
+
+// HTTPAddr returns the address at which the vminsert process is
+// listening for incoming HTTP requests.
 func (app *Vmsingle) HTTPAddr() string {
 	return app.httpListenAddr
 }

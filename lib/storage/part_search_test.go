@@ -1160,7 +1160,7 @@ func testPartSearchMultiRowsOneTSID(t *testing.T, rowsCount int) {
 	var r rawRow
 	r.PrecisionBits = 24
 	r.TSID.MetricID = 1111
-	for i := 0; i < rowsCount; i++ {
+	for range rowsCount {
 		r.Timestamp = int64(rng.NormFloat64() * 1e6)
 		r.Value = float64(int(rng.NormFloat64() * 1e5))
 		rows = append(rows, r)
@@ -1196,7 +1196,7 @@ func testPartSearchMultiRowsMultiTSIDs(t *testing.T, rowsCount, tsidsCount int) 
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = 24
-	for i := 0; i < rowsCount; i++ {
+	for range rowsCount {
 		r.TSID.MetricID = uint64(rng.Intn(tsidsCount))
 		r.Timestamp = int64(rng.NormFloat64() * 1e6)
 		r.Value = float64(int(rng.NormFloat64() * 1e5))
@@ -1205,7 +1205,7 @@ func testPartSearchMultiRowsMultiTSIDs(t *testing.T, rowsCount, tsidsCount int) 
 
 	var tsids []TSID
 	var tsid TSID
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		tsid.MetricID = uint64(rng.Intn(tsidsCount * 3))
 		tsids = append(tsids, tsid)
 	}
@@ -1229,13 +1229,13 @@ func testPartSearch(t *testing.T, p *part, tsids []TSID, tr TimeRange, expectedR
 
 	// Run concurrent part search.
 	ch := make(chan error, 5)
-	for i := 0; i < cap(ch); i++ {
+	for range cap(ch) {
 		go func() {
 			err := testPartSearchSerial(p, tsids, tr, expectedRawBlocks)
 			ch <- err
 		}()
 	}
-	for i := 0; i < cap(ch); i++ {
+	for range cap(ch) {
 		select {
 		case err := <-ch:
 			if err != nil {

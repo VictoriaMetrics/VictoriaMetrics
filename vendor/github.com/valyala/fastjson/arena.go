@@ -8,10 +8,10 @@ import (
 //
 // Typical Arena lifecycle:
 //
-//     1) Construct Values via the Arena and Value.Set* calls.
-//     2) Marshal the constructed Values with Value.MarshalTo call.
-//     3) Reset all the constructed Values at once by Arena.Reset call.
-//     4) Go to 1 and re-use the Arena.
+//  1. Construct Values via the Arena and Value.Set* calls.
+//  2. Marshal the constructed Values with Value.MarshalTo call.
+//  3. Reset all the constructed Values at once by Arena.Reset call.
+//  4. Go to 1 and re-use the Arena.
 //
 // It is unsafe calling Arena methods from concurrent goroutines.
 // Use per-goroutine Arenas or ArenaPool instead.

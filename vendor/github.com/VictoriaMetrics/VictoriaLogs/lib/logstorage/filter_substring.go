@@ -46,6 +46,11 @@ func (fs *filterSubstring) initTokens() {
 	fs.tokensHashes = appendTokensHashes(nil, fs.tokens)
 }
 
+func (fs *filterSubstring) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fs.fieldName)
+	return matchSubstring(v, fs.substring)
+}
+
 func (fs *filterSubstring) applyToBlockResult(br *blockResult, bm *bitmap) {
 	applyToBlockResultGeneric(br, bm, fs.fieldName, fs.substring, matchSubstring)
 }

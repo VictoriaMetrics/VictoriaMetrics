@@ -1,6 +1,8 @@
 package promscrape
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"sort"
 	"strings"
@@ -29,14 +31,16 @@ func TestIsAutoMetric(t *testing.T) {
 	}
 	f("up", true)
 	f("scrape_duration_seconds", true)
-	f("scrape_samples_scraped", true)
-	f("scrape_samples_post_metric_relabeling", true)
-	f("scrape_series_added", true)
-	f("scrape_timeout_seconds", true)
+	f("scrape_response_size_bytes", true)
 	f("scrape_samples_limit", true)
+	f("scrape_samples_post_metric_relabeling", true)
+	f("scrape_samples_scraped", true)
+	f("scrape_series_added", true)
+	f("scrape_series_current", true)
 	f("scrape_series_limit_samples_dropped", true)
 	f("scrape_series_limit", true)
-	f("scrape_series_current", true)
+	f("scrape_labels_limit", true)
+	f("scrape_timeout_seconds", true)
 
 	f("foobar", false)
 	f("exported_up", false)
@@ -155,6 +159,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		timeseriesExpected := parseData(dataExpected)
 
 		var sw scrapeWork
+		cfg.MaxScrapeSize = maxScrapeSize.N
 		sw.Config = cfg
 
 		readDataCalls := 0
@@ -234,7 +239,7 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_timeout_seconds 42 123
 	`, []prompb.MetricMetadata{})
 	f(`
-	    # HELP foo This is test metric.
+		# HELP foo This is test metric.
 		# TYPE foo gauge
 		foo{bar="baz",empty_label=""} 34.45 3
 		abc -2
@@ -246,14 +251,14 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		abc -2 123
 		up 1 123
 		scrape_samples_scraped 2 123
-		scrape_response_size_bytes 107 123
+		scrape_response_size_bytes 104 123
 		scrape_duration_seconds 0 123
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_series_added 2 123
 		scrape_timeout_seconds 42 123
 	`, []prompb.MetricMetadata{
 		{
-			Type:             uint32(prompb.MetricMetadataGAUGE),
+			Type:             prompb.MetricTypeGauge,
 			MetricFamilyName: "foo",
 			Help:             "This is test metric.",
 		},
@@ -374,12 +379,12 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 		scrape_timeout_seconds{job="override"} 42 123
 	`, []prompb.MetricMetadata{
 		{
-			Type:             uint32(prompb.MetricMetadataCOUNTER),
+			Type:             prompb.MetricTypeCounter,
 			MetricFamilyName: "foo",
 			Help:             "This is test metric.",
 		},
 		{
-			Type:             uint32(prompb.MetricMetadataGAUGE),
+			Type:             prompb.MetricTypeGauge,
 			MetricFamilyName: "bar",
 			Help:             "This is another test metric.",
 		},
@@ -532,23 +537,23 @@ func testScrapeWorkScrapeInternalSuccess(t *testing.T, streamParse bool) {
 	`, []prompb.MetricMetadata{})
 	// Scrape failure because of the exceeded LabelLimit
 	f(`
-                foo{bar="baz"} 34.44
-                bar{a="b",c="d",e="f"} -3e4
-        `, &ScrapeWork{
+		foo{bar="baz"} 34.44
+		bar{a="b",c="d",e="f"} -3e4
+	`, &ScrapeWork{
 		StreamParse:   streamParse,
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
 		LabelLimit:    2,
 	}, `
-                up 0 123
-                scrape_samples_scraped 2 123
-                scrape_response_size_bytes 0 123
-                scrape_duration_seconds 0 123
-                scrape_samples_post_metric_relabeling 0 123
-                scrape_series_added 0 123
-                scrape_timeout_seconds 42 123
+		up 0 123
+		scrape_samples_scraped 2 123
+		scrape_response_size_bytes 0 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 0 123
+		scrape_series_added 0 123
+		scrape_timeout_seconds 42 123
 		scrape_labels_limit 2 123
-        `, []prompb.MetricMetadata{})
+	`, []prompb.MetricMetadata{})
 	// Scrape success with the given SeriesLimit.
 	f(`
 		foo{bar="baz"} 34.44
@@ -607,6 +612,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		t.Helper()
 
 		var sw scrapeWork
+		cfg.MaxScrapeSize = maxScrapeSize.N
 		sw.Config = cfg
 
 		readDataCalls := 0
@@ -662,7 +668,7 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 
 	generateScrape := func(n int) string {
 		w := strings.Builder{}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			w.WriteString(fmt.Sprintf("fooooo_%d 1\n", i))
 			if i%100 == 0 {
 				w.WriteString(fmt.Sprintf("# HELP fooooo_%d This is a test\n", i))
@@ -695,6 +701,52 @@ func TestScrapeWorkScrapeInternalStreamConcurrency(t *testing.T) {
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   4000,
 	}, 3, 4015, 2, 50)
+}
+
+func TestScrapeWorkScrapeInternalWithMaxScrapeSize(t *testing.T) {
+	originData := `
+		up 0 123
+		scrape_samples_scraped 0 123
+		scrape_response_size_bytes 0 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 0 123
+		scrape_series_added 0 123
+		scrape_timeout_seconds 42 123
+`
+	var compressedData bytes.Buffer
+	gz := gzip.NewWriter(&compressedData)
+
+	_, _ = gz.Write([]byte(originData))
+	_ = gz.Close()
+
+	var sw scrapeWork
+	sw.PushData = func(_ *auth.Token, wr *prompb.WriteRequest) {}
+	timestamp := int64(123000)
+	sw.Config = &ScrapeWork{}
+	tsmGlobal.Register(&sw)
+
+	// case 1: The size of origin data exceeds MaxScrapeSize
+	// The MaxScrapeSize check should be applied to the origin data size rather than compressed data size. So this scrape should fail.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9481 for more details.
+	sw.Config.MaxScrapeSize = int64(len(originData) - 1)
+	sw.ReadData = func(buf *chunkedbuffer.Buffer) (bool, error) {
+		_, _ = buf.Write(compressedData.Bytes())
+		return true, nil
+	}
+	err := sw.scrapeInternal(timestamp, timestamp)
+	if err == nil {
+		t.Fatalf("expecting unsuccess scrape due to exceed MaxScrapeSize")
+	}
+	if !strings.Contains(err.Error(), "exceeds -promscrape.maxScrapeSize") {
+		t.Fatalf("expecting exceed MaxScrapeSize error, but got: %s", err)
+	}
+
+	// case 2: The size of origin data doesn't exceed MaxScrapeSize
+	sw.Config.MaxScrapeSize = int64(len(originData) + 1)
+	if err := sw.scrapeInternal(timestamp, timestamp); err != nil {
+		t.Fatalf("expecting success scrape; got %s", err)
+	}
+	tsmGlobal.Unregister(&sw)
 }
 
 func TestWriteRequestCtx_AddRowNoRelabeling(t *testing.T) {
@@ -954,7 +1006,7 @@ func TestSendStaleSeries(t *testing.T) {
 	}
 	generateScrape := func(n int) string {
 		w := strings.Builder{}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			w.WriteString(fmt.Sprintf("foo_%d 1\n", i))
 		}
 		return w.String()

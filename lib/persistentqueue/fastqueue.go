@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -61,6 +62,18 @@ func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes
 		n := fq.pq.GetPendingBytes()
 		fq.mu.Unlock()
 		return float64(n)
+	})
+
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_free_disk_space_bytes{path=%q}`, path), func() float64 {
+		freeSpaceBytes := fs.MustGetFreeSpace(path)
+		// Limited by disk space if remoteWrite.maxDiskUsagePerURL wasn't set
+		if maxPendingBytes == 0 {
+			return float64(freeSpaceBytes)
+		}
+		fq.mu.Lock()
+		curPendingBytes := fq.pq.GetPendingBytes()
+		fq.mu.Unlock()
+		return min(float64(maxPendingBytes)-float64(curPendingBytes), float64(freeSpaceBytes))
 	})
 
 	pendingBytes := fq.GetPendingBytes()

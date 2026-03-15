@@ -3,20 +3,9 @@ import "./constants/dayjsPlugins";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import "./styles/style.scss";
-import { APP_TYPE, AppType } from "./constants/appType";
-import AppAnomaly from "./AppAnomaly";
-
-const getAppComponent = () => {
-  switch (APP_TYPE) {
-    case AppType.vmanomaly:
-      return <AppAnomaly/>;
-    default:
-      return <App/>;
-  }
-};
 
 const root = document.getElementById("root");
-if (root) render(getAppComponent(), root);
+if (root) render(<App/>, root);
 
 
 // If you want to start measuring performance in your app, pass a function

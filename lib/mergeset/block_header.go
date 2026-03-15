@@ -162,7 +162,7 @@ func unmarshalBlockHeadersNoCopy(dst []blockHeader, src []byte, blockHeadersCoun
 	}
 	dstLen := len(dst)
 	dst = slicesutil.SetLength(dst, dstLen+blockHeadersCount)
-	for i := 0; i < blockHeadersCount; i++ {
+	for i := range blockHeadersCount {
 		tail, err := dst[dstLen+i].UnmarshalNoCopy(src)
 		if err != nil {
 			return dst, fmt.Errorf("cannot unmarshal block header #%d out of %d: %w", i, blockHeadersCount, err)

@@ -133,7 +133,7 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 			continue
 		}
 		wordNew := word
-		for j := 0; j < 64; j++ {
+		for j := range 64 {
 			mask := uint64(1) << j
 			if (word & mask) == 0 {
 				continue
@@ -156,7 +156,7 @@ func (bm *bitmap) forEachSetBit(f func(idx int) bool) {
 func (bm *bitmap) forEachSetBitReadonly(f func(idx int)) {
 	if bm.areAllBitsSet() {
 		n := bm.bitsLen
-		for i := 0; i < n; i++ {
+		for i := range n {
 			f(i)
 		}
 		return
@@ -168,7 +168,7 @@ func (bm *bitmap) forEachSetBitReadonly(f func(idx int)) {
 		if word == 0 {
 			continue
 		}
-		for j := 0; j < 64; j++ {
+		for j := range 64 {
 			mask := uint64(1) << j
 			if (word & mask) == 0 {
 				continue

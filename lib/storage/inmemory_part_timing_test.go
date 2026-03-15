@@ -29,7 +29,7 @@ var benchRawRowsWorstCase = func() []rawRow {
 	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
-	for i := 0; i < 1e5; i++ {
+	for i := range int(1e5) {
 		r.TSID.MetricID = uint64(i)
 		r.Timestamp = rng.Int63()
 		r.Value = rng.NormFloat64()
@@ -45,7 +45,7 @@ var benchRawRowsBestCase = func() []rawRow {
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = defaultPrecisionBits
-	for i := 0; i < 1e5; i++ {
+	for range int(1e5) {
 		r.Timestamp += 30e3
 		rows = append(rows, r)
 	}

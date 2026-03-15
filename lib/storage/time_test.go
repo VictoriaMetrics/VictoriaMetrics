@@ -7,7 +7,7 @@ import (
 )
 
 func TestTimeRangeFromPartition(t *testing.T) {
-	for i := 0; i < 24*30*365; i++ {
+	for i := range 24 * 30 * 365 {
 		testTimeRangeFromPartition(t, time.Now().Add(time.Hour*time.Duration(i)))
 	}
 }
@@ -138,6 +138,16 @@ func TestTimeRangeDateRange(t *testing.T) {
 	// the same as min date.
 	tr = TimeRange{2*msecPerDay + 654, 1*msecPerDay + 321}
 	f(tr, 2, 2)
+
+	// MaxTimestamp is the last millisecond of the day.
+	// Max date should be the next date
+	tr = TimeRange{1*msecPerDay + 123, 2 * msecPerDay}
+	f(tr, 1, 2)
+
+	// MaxTimestamp is the first millisecond of the day.
+	// Max date should be the next date
+	tr = TimeRange{1*msecPerDay + 123, 2*msecPerDay + 1}
+	f(tr, 1, 2)
 }
 
 func TestDateToString(t *testing.T) {

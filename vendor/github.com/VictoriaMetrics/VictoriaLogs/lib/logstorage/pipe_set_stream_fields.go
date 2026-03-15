@@ -41,6 +41,10 @@ func (ps *pipeSetStreamFields) canReturnLastNResults() bool {
 	return true
 }
 
+func (ps *pipeSetStreamFields) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (ps *pipeSetStreamFields) updateNeededFields(f *prefixfilter.Filter) {
 	if !f.MatchString("_stream") {
 		return
@@ -117,7 +121,7 @@ func (psp *pipeSetStreamFieldsProcessor) writeBlock(workerID uint, br *blockResu
 
 	streamColumn := br.getColumnByName("_stream")
 	streamIDColumn := br.getColumnByName("_stream_id")
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	for rowIdx := range br.rowsLen {
 		stream := ""
 		streamID := ""
 		if ps.iff == nil || bm.isSetBit(rowIdx) {
@@ -159,6 +163,7 @@ func (shard *pipeSetStreamFieldsProcessorShard) setLogStreamFields(ps *pipeSetSt
 	bLen := len(shard.a.b)
 	sort.Sort(st)
 	shard.a.b = st.marshalString(shard.a.b)
+
 	PutStreamTags(st)
 
 	return bytesutil.ToUnsafeString(shard.a.b[bLen:])

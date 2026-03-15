@@ -321,19 +321,23 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/tags/tagSeries":
 		graphiteTagsTagSeriesRequests.Inc()
-		if err := graphite.TagsTagSeriesHandler(startTime, w, r); err != nil {
-			graphiteTagsTagSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
+		err := &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("graphite tag registration has been disabled and is planned to be removed in future. " +
+				"See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544"),
+			StatusCode: http.StatusNotImplemented,
 		}
+		graphiteTagsTagSeriesErrors.Inc()
+		httpserver.Errorf(w, r, "%s", err)
 		return true
 	case "/tags/tagMultiSeries":
 		graphiteTagsTagMultiSeriesRequests.Inc()
-		if err := graphite.TagsTagMultiSeriesHandler(startTime, w, r); err != nil {
-			graphiteTagsTagMultiSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
+		err := &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("graphite tag registration has been disabled and is planned to be removed in future. " +
+				"See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544"),
+			StatusCode: http.StatusNotImplemented,
 		}
+		graphiteTagsTagMultiSeriesErrors.Inc()
+		httpserver.Errorf(w, r, "%s", err)
 		return true
 	case "/tags":
 		graphiteTagsRequests.Inc()
@@ -520,7 +524,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 			fmt.Fprintf(w, "%s", `{"status":"error","msg":"for accessing vmalert flag '-vmalert.proxyURL' must be configured"}`)
 			return true
 		}
-		proxyVMAlertRequests(w, r)
+		proxyVMAlertRequests(w, r, path)
 		return true
 	}
 
@@ -558,7 +562,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r)
+			proxyVMAlertRequests(w, r, path)
 			return true
 		}
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#rules
@@ -568,7 +572,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "/api/v1/alerts", "/alerts":
 		alertsRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r)
+			proxyVMAlertRequests(w, r, path)
 			return true
 		}
 		// Return dumb placeholder for https://prometheus.io/docs/prometheus/latest/querying/api/#alerts
@@ -578,7 +582,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	case "/api/v1/notifiers", "/notifiers":
 		notifiersRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
-			proxyVMAlertRequests(w, r)
+			proxyVMAlertRequests(w, r, path)
 			return true
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -725,7 +729,7 @@ var (
 	metricNamesStatsResetErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/admin/status/metric_names_stats/reset"}`)
 )
 
-func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
+func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request, path string) {
 	defer func() {
 		err := recover()
 		if err == nil || err == http.ErrAbortHandler {
@@ -736,8 +740,10 @@ func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	r.Host = vmalertProxyHost
-	vmalertProxy.ServeHTTP(w, r)
+	req := r.Clone(r.Context())
+	req.URL.Path = strings.TrimPrefix(path, "prometheus")
+	req.Host = vmalertProxyHost
+	vmalertProxy.ServeHTTP(w, req)
 }
 
 var (

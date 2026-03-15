@@ -46,6 +46,11 @@ func (fe *filterExact) initTokens() {
 	fe.tokensHashes = appendTokensHashes(nil, fe.tokens)
 }
 
+func (fe *filterExact) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fe.fieldName)
+	return v == fe.value
+}
+
 func (fe *filterExact) applyToBlockResult(br *blockResult, bm *bitmap) {
 	value := fe.value
 

@@ -28,7 +28,7 @@ func AppendLowercase(dst []byte, s string) []byte {
 
 	// Try fast path at first by assuming that s contains only ASCII chars.
 	hasUnicodeChars := false
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if c >= utf8.RuneSelf {
 			hasUnicodeChars = true

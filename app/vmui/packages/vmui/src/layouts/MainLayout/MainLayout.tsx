@@ -12,6 +12,8 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsMainLayout from "./ControlsMainLayout";
 import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
 import useFetchAppConfig from "../../hooks/useFetchAppConfig";
+import WebStorageCheck from "../../components/WebStorageCheck/WebStorageCheck";
+import { migrateStorageToPrefixedKeys } from "../../utils/storage";
 
 const MainLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -45,6 +47,13 @@ const MainLayout: FC = () => {
   useEffect(setDocumentTitle, [pathname]);
   useEffect(redirectSearchToHashParams, []);
 
+  useEffect(() => {
+    const migrateStorage = migrateStorageToPrefixedKeys();
+    if (migrateStorage.removed.length || migrateStorage.migrated.length) {
+      console.info(migrateStorage);
+    }
+  }, []);
+
   return <section className="vm-container">
     <Header controlsComponent={ControlsMainLayout}/>
     <div
@@ -57,6 +66,8 @@ const MainLayout: FC = () => {
       <Outlet/>
     </div>
     {!appModeEnable && <Footer/>}
+
+    <WebStorageCheck/>
   </section>;
 };
 

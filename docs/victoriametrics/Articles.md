@@ -105,6 +105,8 @@ See also [case studies](https://docs.victoriametrics.com/victoriametrics/casestu
 * [How We Eliminated $10K+/Year in AWS Cross-Zone Data Transfer Costs with Zone-Aware Kubernetes Monitoring](https://medium.com/@vijayrauniyar1818/how-we-eliminated-10k-year-in-aws-cross-zone-data-transfer-costs-with-zone-aware-kubernetes-09fff0c2435b)
 * [Why I Switched to VictoriaMetrics: Scaling from Small Business to Enterprise](https://blackmetalz.github.io/why-i-switched-to-victoriametrics-scaling-from-small-business-to-enterprise.html)
 * [Backing up VictoriaMetrics Data: A Complete Guide](https://medium.com/@kanakaraju896/backing-up-victoriametrics-data-a-complete-guide-24473c74450f)
+* [Unlocking the Power of VictoriaMetrics: A Prometheus Alternative](https://developer-friendly.blog/blog/2024/06/17/unlocking-the-power-of-victoriametrics-a-prometheus-alternative/)
+* [How to Master Kubernetes Observability: Multi-Cluster Monitoring with VictoriaMetrics, Loki, and Grafana](https://www.keyvalue.systems/blog/kubernetes-observability-with-victoriametrics-loki-grafana/)
 
 ## Third-party articles and slides about VictoriaLogs
 

@@ -9,6 +9,7 @@
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
+    "github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 ) %}
 
 {% func Controls(prefix, currentIcon, currentText string, icons, filters map[string]string, search bool) %}
@@ -78,6 +79,8 @@
 {% func Welcome(r *http.Request) %}
     {%= tpl.Header(r, navItems, "vmalert", getLastConfigError()) %}
     <p>
+        Version {%s buildinfo.Version %} <br>
+
         API:<br>
         {% for _, p := range apiLinks  %}
             {%code p, doc := p[0], p[1] %}

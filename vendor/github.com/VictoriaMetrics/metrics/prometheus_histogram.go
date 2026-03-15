@@ -188,7 +188,7 @@ func ValidateBuckets(upperBounds []float64) error {
 	if len(upperBounds) == 0 {
 		return fmt.Errorf("upperBounds can't be empty")
 	}
-	for i := 0; i < len(upperBounds)-1; i++ {
+	for i := range len(upperBounds) - 1 {
 		if upperBounds[i] >= upperBounds[i+1] {
 			return fmt.Errorf("upper bounds for the buckets must be strictly increasing")
 		}

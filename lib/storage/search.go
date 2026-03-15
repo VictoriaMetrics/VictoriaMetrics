@@ -151,10 +151,8 @@ func (s *Search) reset() {
 //
 // Init returns the upper bound on the number of found time series.
 func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
-	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
+	qt = qt.NewChild("init series search: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
-
-	dataTR := tr
 
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
@@ -162,7 +160,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
-	s.mns = getMetricNameSearch(storage, false)
+	s.mns = getMetricNameSearch(storage, tr, false)
 	s.retentionDeadline = retentionDeadline
 	s.metricsTracker = storage.metricsTracker
 	s.tr = tr
@@ -175,7 +173,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
 	// on Search.MustClose otherwise.
-	s.ts.Init(storage.tb, tsids, dataTR)
+	s.ts.Init(storage.tb, tsids, tr)
 	qt.Printf("search for parts with data for %d series", len(tsids))
 	if err != nil {
 		s.err = err
@@ -437,7 +435,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	src = src[nSize:]
 	sq.TagFilterss = slicesutil.SetLength(sq.TagFilterss, int(tfssCount))
 
-	for i := 0; i < int(tfssCount); i++ {
+	for i := range int(tfssCount) {
 		tfsCount, nSize := encoding.UnmarshalVarUint64(src)
 		if nSize <= 0 {
 			return src, fmt.Errorf("cannot unmarshal the count of TagFilters from uvarint")
@@ -446,7 +444,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 
 		tagFilters := sq.TagFilterss[i]
 		tagFilters = slicesutil.SetLength(tagFilters, int(tfsCount))
-		for j := 0; j < int(tfsCount); j++ {
+		for j := range int(tfsCount) {
 			tail, err := tagFilters[j].Unmarshal(src)
 			if err != nil {
 				return tail, fmt.Errorf("cannot unmarshal TagFilter #%d: %w", j, err)

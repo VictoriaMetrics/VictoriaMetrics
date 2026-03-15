@@ -12,7 +12,7 @@ import {
   getMinMaxBuffer,
   getTimeSeries,
 } from "../../../utils/uplot";
-import { TimeParams, SeriesItem, LegendItemType } from "../../../types";
+import { TimeParams, LegendItemType } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import { getMathStats } from "../../../utils/math";
 import classNames from "classnames";
@@ -23,8 +23,6 @@ import { promValueToNumber } from "../../../utils/metric";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useElementSize from "../../../hooks/useElementSize";
 import { ChartTooltipProps } from "../../Chart/ChartTooltip/ChartTooltip";
-import LegendAnomaly from "../../Chart/Line/LegendAnomaly/LegendAnomaly";
-import { groupByMultipleKeys } from "../../../utils/array";
 import { useGraphDispatch } from "../../../state/graph/GraphStateContext";
 import { sameTs } from "../../../utils/time";
 import { useLocation } from "react-router-dom";
@@ -44,7 +42,6 @@ export interface GraphViewProps {
   fullWidth?: boolean;
   height?: number;
   isHistogram?: boolean;
-  isAnomalyView?: boolean;
   isPredefinedPanel?: boolean;
   spanGaps?: boolean;
   showAllPoints?: boolean;
@@ -64,7 +61,6 @@ const GraphView: FC<GraphViewProps> = ({
   fullWidth = true,
   height,
   isHistogram,
-  isAnomalyView,
   isPredefinedPanel,
   spanGaps,
   showAllPoints
@@ -89,8 +85,8 @@ const GraphView: FC<GraphViewProps> = ({
   const [legendValue, setLegendValue] = useState<ChartTooltipProps | null>(null);
 
   const getSeriesItem = useMemo(() => {
-    return getSeriesItemContext(data, hideSeries, alias, showAllPoints, isAnomalyView, isRawQuery);
-  }, [data, hideSeries, alias, showAllPoints, isAnomalyView, isRawQuery]);
+    return getSeriesItemContext(data, hideSeries, alias, showAllPoints, isRawQuery);
+  }, [data, hideSeries, alias, showAllPoints, isRawQuery]);
 
   const setLimitsYaxis = (minVal: number, maxVal: number) => {
     let min = Number.isFinite(minVal) ? minVal : 0;
@@ -102,7 +98,7 @@ const GraphView: FC<GraphViewProps> = ({
   };
 
   const onChangeLegend = (legend: LegendItemType, metaKey: boolean) => {
-    setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series, isAnomalyView }));
+    setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series }));
   };
 
   const prepareHistogramData = (data: (number | null)[][]) => {
@@ -127,20 +123,6 @@ const GraphView: FC<GraphViewProps> = ({
     return [null, [xs, ys, counts]];
   };
 
-  const prepareAnomalyLegend = (legend: LegendItemType[]): LegendItemType[] => {
-    if (!isAnomalyView) return legend;
-
-    // For vmanomaly: Only select the first series per group (due to API specs) and clear __name__ in freeFormFields.
-    const grouped = groupByMultipleKeys(legend, ["group", "label"]);
-    return grouped.map((group) => {
-      const firstEl = group.values[0];
-      return {
-        ...firstEl,
-        freeFormFields: { ...firstEl.freeFormFields, __name__: "" }
-      };
-    });
-  };
-
   useEffect(() => {
     const dLen = data.length;
 
@@ -155,7 +137,7 @@ const GraphView: FC<GraphViewProps> = ({
 
     for (let i = 0; i < dLen; i++) {
       const d = data[i];
-      const seriesItem = getSeriesItem(d, i);
+      const seriesItem = getSeriesItem(d);
       tempSeries[i + 1] = seriesItem;
       tempLegend[i] = getLegendItem(seriesItem, d.group);
 
@@ -206,7 +188,7 @@ const GraphView: FC<GraphViewProps> = ({
       const avg = Math.abs(Number(avgRaw));
       const range = getMinMaxBuffer(min, max);
       const rangeStep = Math.abs(range[1] - range[0]);
-      const needStabilize = (avg > rangeStep * 1e10) && !isAnomalyView;
+      const needStabilize = (avg > rangeStep * 1e10);
 
       return needStabilize ? results.fill(avg) : results;
     });
@@ -214,13 +196,11 @@ const GraphView: FC<GraphViewProps> = ({
     timeDataSeries.unshift(timeSeries);
 
     const result = isHistogram ? prepareHistogramData(timeDataSeries) : timeDataSeries;
-    const legend = prepareAnomalyLegend(tempLegend);
 
     setLimitsYaxis(minVal, maxVal);
     setDataChart(result as uPlotData);
     setSeries(tempSeries);
-    setLegend(legend);
-    isAnomalyView && setHideSeries(legend.map(s => s.label || "").slice(1));
+    setLegend(tempLegend);
   }, [data, timezone, isHistogram, currentStep, isRawQuery]);
 
   useEffect(() => {
@@ -232,13 +212,13 @@ const GraphView: FC<GraphViewProps> = ({
 
     for (let i = 0; i < dLen; i++) {
       const d = data[i];
-      const seriesItem = getSeriesItem(d, i);
+      const seriesItem = getSeriesItem(d);
       tempSeries[i + 1] = seriesItem;
       tempLegend[i] = getLegendItem(seriesItem, d.group);
     }
 
     setSeries(tempSeries);
-    setLegend(prepareAnomalyLegend(tempLegend));
+    setLegend(tempLegend);
   }, [hideSeries]);
 
   const hasTimeData = dataChart[0]?.length > 0;
@@ -281,7 +261,6 @@ const GraphView: FC<GraphViewProps> = ({
           setPeriod={setPeriod}
           layoutSize={containerSize}
           height={height}
-          isAnomalyView={isAnomalyView}
           spanGaps={spanGaps}
           showAllPoints={isRawQuery ? true : showAllPoints}
         />
@@ -298,12 +277,10 @@ const GraphView: FC<GraphViewProps> = ({
           onChangeLegend={setLegendValue}
         />
       )}
-      {isAnomalyView && showLegend && (<LegendAnomaly series={series as SeriesItem[]}/>)}
       {!isHistogram && showLegend && (
         <Legend
           labels={legend}
           query={query}
-          isAnomalyView={isAnomalyView}
           onChange={onChangeLegend}
           isPredefinedPanel={isPredefinedPanel}
         />

@@ -59,6 +59,18 @@
           "type": "dashboard"
         },
         "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "victoriametrics-metrics-datasource",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(job)",
+        "hide": false,
+        "iconColor": "dark-yellow",
+        "name": "restarts",
+        "textFormat": "{{job}} restarted"
       }
     ]
   },
@@ -67,7 +79,36 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "icon": "doc",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Docs",
+      "type": "link",
+      "url": "https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Community support",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/community-support/"
+    },
+    {
+      "asDropdown": false,
+      "icon": "bolt",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Enterprise support",
+      "tooltip": "",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/enterprise-support/"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
@@ -424,7 +465,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"}[1h]))",
+          "expr": "sum(increase(vm_backup_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -577,7 +618,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"}[1h]))",
+          "expr": "sum(increase(vm_retention_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__range]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"

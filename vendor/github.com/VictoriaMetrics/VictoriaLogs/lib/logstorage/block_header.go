@@ -324,7 +324,7 @@ func unmarshalColumnHeadersRefsInplace(dst []columnHeaderRef, src []byte) ([]col
 	}
 	src = src[nSize:]
 
-	for i := uint64(0); i < n; i++ {
+	for i := range n {
 		columnNameID, nSize := encoding.UnmarshalVarUint64(src)
 		if nSize <= 0 {
 			return dst, srcOrig, fmt.Errorf("cannot unmarshal column name ID number %d out of %d", i, n)
@@ -988,8 +988,8 @@ func (th *timestampsHeader) copyFrom(src *timestampsHeader) {
 
 func (th *timestampsHeader) subTimeOffset(timeOffset int64) {
 	if timeOffset != 0 {
-		th.minTimestamp = subNoOverflowInt64(th.minTimestamp, timeOffset)
-		th.maxTimestamp = subNoOverflowInt64(th.maxTimestamp, timeOffset)
+		th.minTimestamp = SubInt64NoOverflow(th.minTimestamp, timeOffset)
+		th.maxTimestamp = SubInt64NoOverflow(th.maxTimestamp, timeOffset)
 	}
 }
 

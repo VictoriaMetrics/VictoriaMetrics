@@ -59,16 +59,12 @@ func MustRemoveDir(dirPath string) {
 		dirEntryPath := filepath.Join(dirPath, name)
 
 		concurrencyCh <- struct{}{}
-		wg.Add(1)
-		go func(dirEntryPath string) {
-			defer func() {
-				wg.Done()
-				<-concurrencyCh
-			}()
+		wg.Go(func() {
 			if err := os.RemoveAll(dirEntryPath); err != nil {
 				logger.Panicf("FATAL: cannot remove %q: %s", dirEntryPath, err)
 			}
-		}(dirEntryPath)
+			<-concurrencyCh
+		})
 	}
 	wg.Wait()
 
@@ -104,13 +100,12 @@ func IsPartiallyRemovedDir(dirPath string) bool {
 		return true
 	}
 
-	deleteFilePath := filepath.Join(dirPath, deleteDirFilename)
 	for _, de := range des {
 		if de.IsDir() {
 			continue
 		}
 		name := de.Name()
-		if name == deleteFilePath {
+		if name == deleteDirFilename {
 			// The directory contains the deleteDirFilename. This means it is partially deleted.
 			return true
 		}

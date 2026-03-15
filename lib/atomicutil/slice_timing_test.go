@@ -19,7 +19,7 @@ func BenchmarkSlice(b *testing.B) {
 		workerID := uint(workerIDSource.Add(1) - 1)
 		for pb.Next() {
 			p := s.Get(workerID)
-			for i := 0; i < loops; i++ {
+			for i := range loops {
 				*p += i
 			}
 		}
@@ -51,7 +51,7 @@ func BenchmarkStandardSlice_Prealloc(b *testing.B) {
 		workerID := uint(workerIDSource.Add(1) - 1)
 		for pb.Next() {
 			p := s[workerID]
-			for i := 0; i < loops; i++ {
+			for i := range loops {
 				*p += i
 			}
 		}
@@ -79,7 +79,7 @@ func BenchmarkStandardSlice_PerCPUAlloc(b *testing.B) {
 		s[workerID] = new(int)
 		for pb.Next() {
 			p := s[workerID]
-			for i := 0; i < loops; i++ {
+			for i := range loops {
 				*p += i
 			}
 		}

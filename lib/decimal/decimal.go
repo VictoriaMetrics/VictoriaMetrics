@@ -452,10 +452,7 @@ func FromFloat(f float64) (int64, int16) {
 		return v, e
 	}
 	v, e := positiveFloatToDecimal(-f)
-	v = -v
-	if v < vMin {
-		v = vMin
-	}
+	v = max(-v, vMin)
 	return v, e
 }
 

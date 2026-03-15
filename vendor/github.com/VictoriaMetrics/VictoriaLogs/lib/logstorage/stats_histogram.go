@@ -47,7 +47,7 @@ func (shp *statsHistogramProcessor) updateStatsForAllRows(sf statsFunc, br *bloc
 		v := c.valuesEncoded[0]
 		f, ok := tryParseNumber(v)
 		if ok {
-			for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+			for range br.rowsLen {
 				shp.h.Update(f)
 			}
 		}
@@ -202,7 +202,7 @@ func (shp *statsHistogramProcessor) importState(src []byte, _ <-chan struct{}) (
 
 	stateSizeIncrease := 0
 	m := make(map[string]uint64, bucketsLen)
-	for i := uint64(0); i < bucketsLen; i++ {
+	for range bucketsLen {
 		v, n := encoding.UnmarshalBytes(src)
 		if n <= 0 {
 			return 0, fmt.Errorf("cannot unmarshal vmrange")
@@ -234,6 +234,10 @@ func (shp *statsHistogramProcessor) importState(src []byte, _ <-chan struct{}) (
 
 func (shp *statsHistogramProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	m := shp.getCompleteBucketsMap()
+
+	if len(m) == 0 {
+		return append(dst, "[]"...)
+	}
 
 	vmranges := make([]string, 0, len(m))
 	for vmrange := range m {

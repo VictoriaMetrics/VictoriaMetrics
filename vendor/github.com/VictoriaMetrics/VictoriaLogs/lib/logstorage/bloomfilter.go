@@ -134,7 +134,7 @@ func appendTokensHashes(dst []uint64, tokens []string) []uint64 {
 	hp := (*uint64)(unsafe.Pointer(&buf[0]))
 	for _, token := range tokens {
 		*hp = xxhash.Sum64(bytesutil.ToUnsafeBytes(token))
-		for i := 0; i < bloomFilterHashesCount; i++ {
+		for range bloomFilterHashesCount {
 			h := xxhash.Sum64(buf[:])
 			(*hp)++
 			dst = append(dst, h)
@@ -160,7 +160,7 @@ func appendHashesHashes(dst, hashes []uint64) []uint64 {
 	hp := (*uint64)(unsafe.Pointer(&buf[0]))
 	for _, h := range hashes {
 		*hp = h
-		for i := 0; i < bloomFilterHashesCount; i++ {
+		for range bloomFilterHashesCount {
 			h := xxhash.Sum64(buf[:])
 			(*hp)++
 			dst = append(dst, h)

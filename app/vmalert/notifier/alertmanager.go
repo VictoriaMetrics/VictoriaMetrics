@@ -14,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/vmalertutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -172,11 +171,6 @@ const alertManagerPath = "/api/v2/alerts"
 func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg promauth.HTTPClientConfig,
 	relabelCfg *promrelabel.ParsedConfigs, timeout time.Duration,
 ) (*AlertManager, error) {
-
-	if err := httputil.CheckURL(alertManagerURL); err != nil {
-		return nil, fmt.Errorf("invalid alertmanager URL: %w", err)
-	}
-
 	tls := &promauth.TLSConfig{}
 	if authCfg.TLSConfig != nil {
 		tls = authCfg.TLSConfig

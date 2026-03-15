@@ -490,7 +490,10 @@ type StaticWebsite struct {
 }
 
 type StorageError struct {
-	Message *string
+	CopySourceErrorCode    *string
+	CopySourceErrorMessage *string
+	CopySourceStatusCode   *int32
+	Message                *string
 }
 
 // StorageServiceProperties - Storage Service Properties.

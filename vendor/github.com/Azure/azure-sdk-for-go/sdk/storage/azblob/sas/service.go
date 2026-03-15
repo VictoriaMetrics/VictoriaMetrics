@@ -1,6 +1,3 @@
-//go:build go1.18
-// +build go1.18
-
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -20,27 +17,28 @@ import (
 // For more information on creating service sas, see https://docs.microsoft.com/rest/api/storageservices/constructing-a-service-sas
 // For more information on creating user delegation sas, see https://docs.microsoft.com/rest/api/storageservices/create-user-delegation-sas
 type BlobSignatureValues struct {
-	Version              string    `param:"sv"`  // If not specified, this defaults to Version
-	Protocol             Protocol  `param:"spr"` // See the Protocol* constants
-	StartTime            time.Time `param:"st"`  // Not specified if IsZero
-	ExpiryTime           time.Time `param:"se"`  // Not specified if IsZero
-	SnapshotTime         time.Time
-	Permissions          string  `param:"sp"` // Create by initializing ContainerPermissions or BlobPermissions and then call String()
-	IPRange              IPRange `param:"sip"`
-	Identifier           string  `param:"si"`
-	ContainerName        string
-	BlobName             string // Use "" to create a Container SAS
-	Directory            string // Not nil for a directory SAS (ie sr=d)
-	CacheControl         string // rscc
-	ContentDisposition   string // rscd
-	ContentEncoding      string // rsce
-	ContentLanguage      string // rscl
-	ContentType          string // rsct
-	BlobVersion          string // sr=bv
-	AuthorizedObjectID   string // saoid
-	UnauthorizedObjectID string // suoid
-	CorrelationID        string // scid
-	EncryptionScope      string `param:"ses"`
+	Version                     string    `param:"sv"`  // If not specified, this defaults to Version
+	Protocol                    Protocol  `param:"spr"` // See the Protocol* constants
+	StartTime                   time.Time `param:"st"`  // Not specified if IsZero
+	ExpiryTime                  time.Time `param:"se"`  // Not specified if IsZero
+	SnapshotTime                time.Time
+	Permissions                 string  `param:"sp"` // Create by initializing ContainerPermissions or BlobPermissions and then call String()
+	IPRange                     IPRange `param:"sip"`
+	Identifier                  string  `param:"si"`
+	ContainerName               string
+	BlobName                    string // Use "" to create a Container SAS
+	Directory                   string // Not nil for a directory SAS (ie sr=d)
+	CacheControl                string // rscc
+	ContentDisposition          string // rscd
+	ContentEncoding             string // rsce
+	ContentLanguage             string // rscl
+	ContentType                 string // rsct
+	BlobVersion                 string // sr=bv
+	AuthorizedObjectID          string // saoid
+	UnauthorizedObjectID        string // suoid
+	CorrelationID               string // scid
+	EncryptionScope             string `param:"ses"`
+	SignedDelegatedUserObjectID string // sduoid
 }
 
 func getDirectoryDepth(path string) string {
@@ -210,8 +208,8 @@ func (v BlobSignatureValues) SignWithUserDelegation(userDelegationCredential *Us
 		v.AuthorizedObjectID,
 		v.UnauthorizedObjectID,
 		v.CorrelationID,
-		"", // Placeholder for SignedKeyDelegatedUserTenantId (future field)
-		"", // Placeholder for SignedDelegatedUserObjectId (future field)
+		"",                            // Placeholder for SignedKeyDelegatedUserTenantId (future field)
+		v.SignedDelegatedUserObjectID, // Placeholder for SignedDelegatedUserObjectID (future field)
 		v.IPRange.String(),
 		string(v.Protocol),
 		v.Version,
@@ -241,18 +239,19 @@ func (v BlobSignatureValues) SignWithUserDelegation(userDelegationCredential *Us
 		encryptionScope: v.EncryptionScope,
 
 		// Container/Blob-specific SAS parameters
-		resource:             resource,
-		identifier:           v.Identifier,
-		cacheControl:         v.CacheControl,
-		contentDisposition:   v.ContentDisposition,
-		contentEncoding:      v.ContentEncoding,
-		contentLanguage:      v.ContentLanguage,
-		contentType:          v.ContentType,
-		snapshotTime:         v.SnapshotTime,
-		signedDirectoryDepth: getDirectoryDepth(v.Directory),
-		authorizedObjectID:   v.AuthorizedObjectID,
-		unauthorizedObjectID: v.UnauthorizedObjectID,
-		correlationID:        v.CorrelationID,
+		resource:                    resource,
+		identifier:                  v.Identifier,
+		cacheControl:                v.CacheControl,
+		contentDisposition:          v.ContentDisposition,
+		contentEncoding:             v.ContentEncoding,
+		contentLanguage:             v.ContentLanguage,
+		contentType:                 v.ContentType,
+		snapshotTime:                v.SnapshotTime,
+		signedDirectoryDepth:        getDirectoryDepth(v.Directory),
+		authorizedObjectID:          v.AuthorizedObjectID,
+		unauthorizedObjectID:        v.UnauthorizedObjectID,
+		correlationID:               v.CorrelationID,
+		signedDelegatedUserObjectID: v.SignedDelegatedUserObjectID,
 		// Calculated SAS signature
 		signature: signature,
 	}

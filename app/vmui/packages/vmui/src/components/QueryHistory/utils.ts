@@ -1,4 +1,8 @@
-import { getFromStorage, removeFromStorage, saveToStorage, StorageKeys } from "../../utils/storage";
+import {
+  getFromStorage,
+  saveToStorage,
+  StorageKeys,
+} from "../../utils/storage";
 import { QueryHistoryType } from "../../state/query/reducer";
 import { MAX_QUERIES_HISTORY, MAX_QUERY_FIELDS } from "../../constants/graph";
 
@@ -73,17 +77,3 @@ export const getUpdatedHistory = (query: string, queryHistory?: QueryHistoryType
     values: newValues
   };
 };
-
-const migrateMetricsQueryHistoryToHistoryByKey = () => {
-  const migrateHistory = (type: HistoryType) => {
-    const queryList = getFromStorage(type) as string;
-    if (queryList) {
-      const queryHistory: string[][] = JSON.parse(queryList);
-      saveHistoryToStorage("METRICS_QUERY_HISTORY", type, queryHistory);
-      removeFromStorage([type]);
-    }
-  };
-  migrateHistory("QUERY_HISTORY");
-  migrateHistory("QUERY_FAVORITES");
-};
-migrateMetricsQueryHistoryToHistoryByKey();

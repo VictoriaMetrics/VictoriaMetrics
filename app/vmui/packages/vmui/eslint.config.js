@@ -46,7 +46,7 @@ export default [...compat.extends(
   settings: {
     react: {
       pragma: "React",
-      version: "detect",
+      version: "19.0",
     },
 
     linkComponents: ["Hyperlink", {
@@ -69,10 +69,11 @@ export default [...compat.extends(
       "varsIgnorePattern": "^_",
       "ignoreRestSiblings": true
     }],
-    
+
     "unused-imports/no-unused-imports": "error",
 
     "react/jsx-closing-bracket-location": [1, "line-aligned"],
+    "object-curly-spacing": [2, "always"],
 
     "react/jsx-max-props-per-line": [1, {
       maximum: 1,
@@ -81,13 +82,23 @@ export default [...compat.extends(
     "react/jsx-first-prop-new-line": [1, "multiline"],
 
     // Disable core indent rule due to recursion issues in ESLint 9; use JSX-specific rules instead
-    indent: "off",
+    indent: ["error", 2, {
+      SwitchCase: 1,
+      ignoredNodes: [
+        "JSXElement",
+        "JSXElement *",
+        "JSXFragment",
+        "JSXFragment *",
+      ],
+    }],
     "react/jsx-indent": ["error", 2],
     "react/jsx-indent-props": ["error", 2],
 
+    "linebreak-style": ["error", "unix"],
+    quotes: ["error", "double"],
+    semi: ["error", "always"],
     // Formatting rules moved out of ESLint core; omit here to avoid deprecation noise
     "react/prop-types": 0,
     "react/react-in-jsx-scope": "off",
-
   },
 }];

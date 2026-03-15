@@ -151,7 +151,7 @@ func unmarshalUint64Set(dst *map[uint64]struct{}, src []byte, stopCh <-chan stru
 		return src, 0, fmt.Errorf("cannot unmarshal %d uint64 values from %d bytes; need %d bytes", entriesLen, len(src), 8*entriesLen)
 	}
 	m := make(map[uint64]struct{}, entriesLen)
-	for i := uint64(0); i < entriesLen; i++ {
+	for range entriesLen {
 		u64 := encoding.UnmarshalUint64(src)
 		src = src[8:]
 
@@ -195,7 +195,7 @@ func unmarshalStringSet(a *chunkedAllocator, dst *map[string]struct{}, src []byt
 	stateSize := 0
 
 	m := make(map[string]struct{}, entriesLen)
-	for i := uint64(0); i < entriesLen; i++ {
+	for range entriesLen {
 		v, n := encoding.UnmarshalBytes(src)
 		if n <= 0 {
 			return src, 0, fmt.Errorf("cannot unmarshal string entry")
@@ -346,7 +346,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(sf statsFunc, br *bloc
 	sup.columnValues = columnValues
 
 	keyBuf := sup.keyBuf[:0]
-	for i := 0; i < br.rowsLen; i++ {
+	for i := range br.rowsLen {
 		seenKey := true
 		for _, values := range columnValues {
 			if i == 0 || values[i-1] != values[i] {
@@ -719,18 +719,15 @@ func (sup *statsCountUniqProcessor) mergeShardssParallel(stopCh <-chan struct{})
 
 	result := make([]statsCountUniqSet, len(shardss[0]))
 	var wg sync.WaitGroup
-	for i := range result {
-		wg.Add(1)
-		go func(cpuIdx int) {
-			defer wg.Done()
-
+	for cpuIdx := range result {
+		wg.Go(func() {
 			sus := &shardss[0][cpuIdx]
 			for _, perCPU := range shardss[1:] {
 				sus.mergeState(&perCPU[cpuIdx], stopCh)
 				perCPU[cpuIdx].reset()
 			}
 			result[cpuIdx] = *sus
-		}(i)
+		})
 	}
 	wg.Wait()
 

@@ -255,6 +255,28 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	})
 }
 
+// ZabbixConnectorHistory is a test helper function that inserts a
+// collection of records in zabbixconnector  format by sending a HTTP
+// POST request to /zabbixconnector/api/v1/history vmsingle endpoint.
+func (app *Vminsert) ZabbixConnectorHistory(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/zabbixconnector/api/v1/history", app.httpListenAddr, opts.getTenant())
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
+	data := []byte(strings.Join(records, "\n"))
+	app.sendBlocking(t, len(records), func() {
+		_, statusCode := app.cli.Post(t, url, "application/json", data)
+		if statusCode != http.StatusOK {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+		}
+	})
+
+}
+
 // String returns the string representation of the vminsert app state.
 func (app *Vminsert) String() string {
 	return fmt.Sprintf("{app: %s httpListenAddr: %q}", app.app, app.httpListenAddr)
@@ -276,13 +298,14 @@ func (app *Vminsert) String() string {
 func (app *Vminsert) sendBlocking(t *testing.T, numRecordsToSend int, send func()) {
 	t.Helper()
 
+	wantRowsSentCount := app.rpcRowsSentTotal(t) + numRecordsToSend
+
 	send()
 
 	const (
 		retries = 20
 		period  = 100 * time.Millisecond
 	)
-	wantRowsSentCount := app.rpcRowsSentTotal(t) + numRecordsToSend
 	for range retries {
 		d := app.rpcRowsSentTotal(t)
 		if d >= wantRowsSentCount {

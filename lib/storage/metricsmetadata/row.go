@@ -5,6 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 )
 
 // Row represents time series metadata record
@@ -18,7 +19,8 @@ type Row struct {
 
 	AccountID uint32
 	ProjectID uint32
-	Type      uint32
+
+	Type prompb.MetricType
 }
 
 // MarshalTo serializes Row into provided buffer and returns result
@@ -34,7 +36,7 @@ func (mr *Row) MarshalTo(dst []byte) []byte {
 
 	dst = encoding.MarshalUint32(dst, mr.AccountID)
 	dst = encoding.MarshalUint32(dst, mr.ProjectID)
-	dst = encoding.MarshalUint32(dst, mr.Type)
+	dst = encoding.MarshalUint32(dst, uint32(mr.Type))
 	dst = marshalBytesFast(dst, mr.MetricFamilyName)
 	dst = marshalBytesFast(dst, mr.Help)
 	dst = marshalBytesFast(dst, mr.Unit)
@@ -54,7 +56,8 @@ func (mr *Row) Unmarshal(data []byte) ([]byte, error) {
 	mr.AccountID = accountID
 	mr.ProjectID = projectID
 
-	mr.Type = encoding.UnmarshalUint32(data)
+	typ := encoding.UnmarshalUint32(data)
+	mr.Type = prompb.MetricType(typ)
 	data = data[4:]
 
 	nextString := func() ([]byte, error) {

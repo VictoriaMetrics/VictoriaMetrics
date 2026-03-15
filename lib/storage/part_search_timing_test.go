@@ -16,7 +16,7 @@ func BenchmarkPartSearch(b *testing.B) {
 func benchmarkPartSearchWithSparseness(b *testing.B, sparseness int) {
 	blocksCount := 100000
 	rows := make([]rawRow, blocksCount)
-	for i := 0; i < blocksCount; i++ {
+	for i := range blocksCount {
 		r := &rows[i]
 		r.PrecisionBits = defaultPrecisionBits
 		r.TSID.MetricID = uint64(i * sparseness)
@@ -31,7 +31,7 @@ func benchmarkPartSearchWithSparseness(b *testing.B, sparseness int) {
 	for _, tsidsCount := range []int{100, 1000, 10000, 100000} {
 		b.Run(fmt.Sprintf("tsids-%d", tsidsCount), func(b *testing.B) {
 			tsids := make([]TSID, tsidsCount)
-			for i := 0; i < tsidsCount; i++ {
+			for i := range tsidsCount {
 				tsids[i].MetricID = uint64(i)
 			}
 			benchmarkPartSearch(b, p, tsids, tr, sparseness)

@@ -53,6 +53,7 @@ func testSpecialQueryRegression(tc *apptest.TestCase, sut apptest.PrometheusWrit
 	testMatchSeries(tc, sut)
 	testNegativeIncrease(tc, sut)
 	testInstantQueryWithOffsetUsingCache(tc, sut)
+	testQueryRangeEndAtFirstMillisecondOfDate(tc, sut)
 
 	// graphite
 	testComparisonNotInfNotNan(tc, sut)
@@ -76,10 +77,12 @@ func testCaseSensitiveRegex(tc *apptest.TestCase, sut apptest.PrometheusWriteQue
 	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/export response",
 		Got: func() any {
-			return sut.PrometheusAPIV1Export(t, `{label=~'(?i)sensitiveregex'}`, apptest.QueryOpts{
+			resp := sut.PrometheusAPIV1Export(t, `{label=~'(?i)sensitiveregex'}`, apptest.QueryOpts{
 				Start: "2024-02-05T08:50:00.700Z",
 				End:   "2024-02-05T09:00:00.700Z",
 			})
+			resp.Sort()
+			return resp
 		},
 		Want: &apptest.PrometheusAPIV1QueryResponse{
 			Status: "success",
@@ -325,6 +328,48 @@ func testInstantQueryWithOffsetUsingCache(tc *apptest.TestCase, sut apptest.Prom
 					{
 						Metric: map[string]string{},
 						Sample: &apptest.Sample{Timestamp: 1758369601000, Value: 5.5},
+					},
+				},
+			},
+		},
+	})
+}
+
+func testQueryRangeEndAtFirstMillisecondOfDate(tc *apptest.TestCase, sut apptest.PrometheusWriteQuerier) {
+	t := tc.T()
+
+	// unexpected /api/v1/query_range response
+	// when the sample is at the last millisecond of a day, e.g. `2025-12-12 00:00:00`
+	// query_range with `End` at the last millisecond of that day may cause the time point to be missed.
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9804
+
+	// `End` should be inclusive according to https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
+
+	sut.PrometheusAPIV1ImportPrometheus(t, []string{
+		`foo_bar 7 1765497600000`, // 2025-12-12 00:00:00
+	}, apptest.QueryOpts{})
+	sut.ForceFlush(t)
+
+	tc.Assert(&apptest.AssertOptions{
+		Msg:        "unexpected /api/v1/query response",
+		DoNotRetry: true,
+		Got: func() any {
+			return sut.PrometheusAPIV1QueryRange(t, `foo_bar`, apptest.QueryOpts{
+				Start: "2025-12-11T20:00:00.000Z",
+				End:   "2025-12-12T00:00:00.000Z",
+				Step:  "1h",
+			})
+		},
+		Want: &apptest.PrometheusAPIV1QueryResponse{
+			Status: "success",
+			Data: &apptest.QueryData{
+				ResultType: "matrix",
+				Result: []*apptest.QueryResult{
+					{
+						Metric: map[string]string{"__name__": "foo_bar"},
+						Samples: []*apptest.Sample{
+							{Timestamp: 1765497600000, Value: 7},
+						},
 					},
 				},
 			},

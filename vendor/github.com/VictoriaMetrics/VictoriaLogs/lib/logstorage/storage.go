@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/contextutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
@@ -82,6 +84,17 @@ type StorageConfig struct {
 	// Log entries with timestamps bigger than now+FutureRetention are ignored.
 	FutureRetention time.Duration
 
+	// MaxBackfillAge is the maximum allowed age for the backfilled logs.
+	//
+	// Log entries with timestamps older than now-MaxBackfillAge are ignored.
+	MaxBackfillAge time.Duration
+
+	// SnapshotsMaxAge is the maximum age for the created partition snapshots.
+	//
+	// Snapshots are automatically dropped after that duration.
+	// See https://docs.victoriametrics.com/victorialogs/#partitions-lifecycle
+	SnapshotsMaxAge time.Duration
+
 	// MinFreeDiskSpaceBytes is the minimum free disk space at storage path after which the storage stops accepting new data
 	// and enters read-only mode.
 	MinFreeDiskSpaceBytes int64
@@ -130,11 +143,19 @@ type Storage struct {
 	// futureRetention is the maximum allowed interval to write data into the future
 	futureRetention time.Duration
 
+	// maxBackfillAge is the maximum age of logs with historical timestamps to accept
+	maxBackfillAge time.Duration
+
+	// snapshotsMaxAge is the maximum age for the created partition snapshots.
+	//
+	// Older snapshots are automatically deleted. See https://docs.victoriametrics.com/victorialogs/#partitions-lifecycle
+	snapshotsMaxAge time.Duration
+
 	// minFreeDiskSpaceBytes is the minimum free disk space at path after which the storage stops accepting new data
 	minFreeDiskSpaceBytes uint64
 
 	// logNewStreams instructs to log new streams if it is set to true
-	logNewStreams bool
+	logNewStreams atomic.Bool
 
 	// logIngestedRows instructs to log all the ingested log entries if it is set to true
 	logIngestedRows bool
@@ -180,6 +201,12 @@ type Storage struct {
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
 	filterStreamCache *cache
+
+	// deleteTasksLock protects deleteTasks
+	deleteTasksLock sync.Mutex
+
+	// deleteTasks contains a list of active and pending delete tasks
+	deleteTasks []*DeleteTask
 }
 
 // PartitionAttach attaches the partition with the given name to s.
@@ -279,48 +306,47 @@ func (s *Storage) PartitionList() []string {
 	return ptNames
 }
 
-// PartitionSnapshotCreate creates a snapshot for the partition with the given name
+// PartitionSnapshotMustCreate creates snapshots for partitions with the given partitionPrefix
 //
-// The snaphsot name must have YYYYMMDD format.
+// The partitionPrefix must match one of the following formats:
+// - YYYYMMDD - matches partitions for the given day
+// - YYYYMM - matches partitions for the given month
+// - YYYY - matches partitions for the given year
+// - an empty string - matches all the partitions
 //
-// The function returns an absolute path to the created snapshot on success.
-func (s *Storage) PartitionSnapshotCreate(name string) (string, error) {
-	ptw := func() *partitionWrapper {
-		s.partitionsLock.Lock()
-		defer s.partitionsLock.Unlock()
-
-		for _, ptw := range s.partitions {
-			if ptw.pt.name == name {
-				ptw.incRef()
-				return ptw
-			}
-		}
-		return nil
-	}()
-
-	if ptw == nil {
-		return "", fmt.Errorf("cannot create snapshot from partition %q, because it is missing", name)
-	}
-
-	snapshotPath := ptw.pt.mustCreateSnapshot()
-	ptw.decRef()
-
-	return snapshotPath, nil
-}
-
-// PartitionSnapshotList returns a list of absolute paths to all the snapshots across active partitions.
-func (s *Storage) PartitionSnapshotList() []string {
-	s.partitionsLock.Lock()
-	ptws := append([]*partitionWrapper{}, s.partitions...)
-	for _, ptw := range ptws {
-		ptw.incRef()
-	}
-	s.partitionsLock.Unlock()
+// The function returns paths to created snapshots
+func (s *Storage) PartitionSnapshotMustCreate(partitionPrefix string) []string {
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
 
 	var snapshotPaths []string
+
 	for _, ptw := range ptws {
-		ptPath := ptw.pt.path
-		snapshotsPath := filepath.Join(ptPath, snapshotsDirname)
+		if strings.HasPrefix(ptw.pt.name, partitionPrefix) {
+			snapshotPath := ptw.pt.mustCreateSnapshot()
+			snapshotPaths = append(snapshotPaths, snapshotPath)
+		}
+	}
+
+	return snapshotPaths
+}
+
+// PartitionSnapshotList returns a list of paths to all the snapshots across active partitions.
+func (s *Storage) PartitionSnapshotList() []string {
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
+
+	snapshotPaths := getSnapshotPaths(ptws)
+	sort.Strings(snapshotPaths)
+
+	return snapshotPaths
+}
+
+func getSnapshotPaths(ptws []*partitionWrapper) []string {
+	var snapshotPaths []string
+
+	for _, ptw := range ptws {
+		snapshotsPath := filepath.Join(ptw.pt.path, snapshotsDirname)
 		if !fs.IsPathExist(snapshotsPath) {
 			continue
 		}
@@ -329,24 +355,184 @@ func (s *Storage) PartitionSnapshotList() []string {
 		for _, de := range des {
 			name := de.Name()
 			if err := snapshotutil.Validate(name); err != nil {
-				logger.Warnf("unsupported snapshot name %q at %q: %s", name, snapshotsPath)
+				logger.Warnf("unsupported snapshot name %q at %q: %s", name, snapshotsPath, err)
 				continue
 			}
 
-			path := filepath.Join(snapshotsPath, name)
-			snapshotPath, err := filepath.Abs(path)
-			if err != nil {
-				logger.Panicf("FATAL: cannot obtain absolute path for %q: %s", path, err)
-			}
+			snapshotPath := filepath.Join(snapshotsPath, name)
 			snapshotPaths = append(snapshotPaths, snapshotPath)
 		}
 	}
 
-	for _, ptw := range ptws {
-		ptw.decRef()
+	return snapshotPaths
+}
+
+// PartitionSnapshotDelete removes the snapshot located at the given snapshotPath if it belongs to an active partition.
+func (s *Storage) PartitionSnapshotDelete(snapshotPath string) error {
+	snapshotName := filepath.Base(snapshotPath)
+	if err := snapshotutil.Validate(snapshotName); err != nil {
+		return fmt.Errorf("unsupported snapshot name %q at %q: %s", snapshotName, snapshotPath, err)
 	}
 
-	return snapshotPaths
+	snapshotDir := filepath.Dir(snapshotPath)
+	if filepath.Base(snapshotDir) != snapshotsDirname {
+		return fmt.Errorf("snapshot path %q must point to a directory inside %q", snapshotPath, snapshotsDirname)
+	}
+	partitionPath := filepath.Dir(snapshotDir)
+
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
+
+	ptw := func() *partitionWrapper {
+		for _, ptw := range ptws {
+			if ptw.pt.path == partitionPath {
+				return ptw
+			}
+		}
+		return nil
+	}()
+
+	if ptw == nil {
+		return fmt.Errorf("partition path %q cannot be found across active partitions", partitionPath)
+	}
+
+	return ptw.pt.deleteSnapshot(snapshotName)
+}
+
+// MustDeleteStalePartitionSnapshots deletes snapshots older than maxAge.
+//
+// The list of paths to deleted snapshots is returned from this function.
+func (s *Storage) MustDeleteStalePartitionSnapshots(maxAge time.Duration) []string {
+	var deletedSnapshotPaths []string
+
+	currentTime := time.Now()
+
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
+
+	snapshotPaths := getSnapshotPaths(ptws)
+	for _, snapshotPath := range snapshotPaths {
+		fi, err := os.Stat(snapshotPath)
+		if err != nil {
+			logger.Warnf("skipping snapshot at %s since cannot access it: %s", snapshotPath, err)
+			continue
+		}
+
+		creationTime := fi.ModTime()
+		if currentTime.Sub(creationTime) > maxAge {
+			logger.Infof("deleting snapshot at %s because it became older than maxAge=%s (snapshot creation time: %s)", snapshotPath, maxAge, creationTime)
+			fs.MustRemoveDir(snapshotPath)
+			deletedSnapshotPaths = append(deletedSnapshotPaths, snapshotPath)
+			logger.Infof("deleted snapshot at %s", snapshotPath)
+		}
+	}
+
+	return deletedSnapshotPaths
+}
+
+// DeleteRunTask starts deletion of logs according to the given filter f for the given tenantIDs.
+//
+// The taskID must contain an unique id of the task. It is used for tracking the task at the list returned by DeleteActiveTasks().
+// The timestamp must contain the timestamp in seconds when the task is started.
+func (s *Storage) DeleteRunTask(_ context.Context, taskID string, timestamp int64, tenantIDs []TenantID, f *Filter) error {
+	// Register the task in the list of active delete tasks, so it survives application restarts and crashes.
+	dt := newDeleteTask(taskID, tenantIDs, f.String(), timestamp)
+
+	s.deleteTasksLock.Lock()
+	defer s.deleteTasksLock.Unlock()
+
+	// Verify that the task with the given taskID doesn't exist yet
+	for _, dt := range s.deleteTasks {
+		if dt.TaskID == taskID {
+			return fmt.Errorf("the delete task with task_id=%q is already registered", taskID)
+		}
+	}
+
+	// Register the task and persist it to the file.
+	s.deleteTasks = append(s.deleteTasks, dt)
+	s.mustSaveDeleteTasksLocked()
+
+	return nil
+}
+
+// mustSaveDeleteTasksLocked saves s.deleteTasks to file
+//
+// The s.deleteTaskLock must be locked while calling this function.
+func (s *Storage) mustSaveDeleteTasksLocked() {
+	deleteTasksPath := filepath.Join(s.path, deleteTasksFilename)
+	mustWriteDeleteTasksToFile(deleteTasksPath, s.deleteTasks)
+}
+
+// DeleteStopTask stops the delete task with the given taskID.
+//
+// It waits until the task is stopped before returning.
+// If there is no a task with the given taskID, then the function returns immediately.
+func (s *Storage) DeleteStopTask(ctx context.Context, taskID string) error {
+	var doneCh <-chan struct{}
+
+	s.deleteTasksLock.Lock()
+
+	for i, dt := range s.deleteTasks {
+		if dt.TaskID != taskID {
+			continue
+		}
+
+		if dt.cancel != nil {
+			// Cancel the currently executed task. The task executor will remove this task from s.deleteTasks
+			dt.cancel()
+			doneCh = dt.doneCh
+		} else {
+			// The task is waiting to be executed. Drop it.
+			s.deleteTasks = append(s.deleteTasks[:i], s.deleteTasks[i+1:]...)
+			s.mustSaveDeleteTasksLocked()
+		}
+		break
+	}
+
+	s.deleteTasksLock.Unlock()
+
+	if doneCh == nil {
+		return nil
+	}
+
+	// Wait until the task is canceled.
+	select {
+	case <-doneCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// DeleteActiveTasks returns currently running active delete tasks, which were started via DeleteRunTask().
+func (s *Storage) DeleteActiveTasks(_ context.Context) ([]*DeleteTask, error) {
+	s.deleteTasksLock.Lock()
+	dts := append([]*DeleteTask{}, s.deleteTasks...)
+	s.deleteTasksLock.Unlock()
+
+	return dts, nil
+}
+
+// EnableLogNewStreams enables logging newly ingested streams during the given number of seconds
+func (s *Storage) EnableLogNewStreams(seconds int) {
+	if seconds <= 0 {
+		// Do nothing.
+		return
+	}
+
+	vPrev := s.logNewStreams.Swap(true)
+	if vPrev {
+		logger.Infof("logging of new streams is already enabled")
+		return
+	}
+
+	logger.Infof("enabled logging of new streams for %d seconds", seconds)
+
+	d := time.Second * time.Duration(seconds)
+	time.AfterFunc(d, func() {
+		s.logNewStreams.Swap(false)
+		logger.Infof("disabled logging of new streams")
+	})
 }
 
 type partitionWrapper struct {
@@ -430,19 +616,15 @@ func mustCreateStorage(path string) {
 //
 // MustClose must be called on the returned Storage when it is no longer needed.
 func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
-	flushInterval := cfg.FlushInterval
-	if flushInterval < time.Second {
-		flushInterval = time.Second
-	}
+	flushInterval := max(cfg.FlushInterval, time.Second)
 
-	retention := cfg.Retention
-	if retention < 24*time.Hour {
-		retention = 24 * time.Hour
-	}
+	retention := max(cfg.Retention, 24*time.Hour)
 
-	futureRetention := cfg.FutureRetention
-	if futureRetention < 24*time.Hour {
-		futureRetention = 24 * time.Hour
+	futureRetention := max(cfg.FutureRetention, 24*time.Hour)
+
+	maxBackfillAge := cfg.MaxBackfillAge
+	if maxBackfillAge <= 0 || maxBackfillAge > retention {
+		maxBackfillAge = retention
 	}
 
 	var minFreeDiskSpaceBytes uint64
@@ -460,6 +642,10 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	streamIDCache := newCache()
 	filterStreamCache := newCache()
 
+	// Load delete tasks which may be left since the previous restart
+	deleteTasksPath := filepath.Join(path, deleteTasksFilename)
+	deleteTasks := mustReadDeleteTasksFromFile(deleteTasksPath)
+
 	s := &Storage{
 		path:                   path,
 		retention:              retention,
@@ -468,15 +654,19 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		maxDiskUsagePercent:    cfg.MaxDiskUsagePercent,
 		flushInterval:          flushInterval,
 		futureRetention:        futureRetention,
+		maxBackfillAge:         maxBackfillAge,
+		snapshotsMaxAge:        cfg.SnapshotsMaxAge,
 		minFreeDiskSpaceBytes:  minFreeDiskSpaceBytes,
-		logNewStreams:          cfg.LogNewStreams,
 		logIngestedRows:        cfg.LogIngestedRows,
 		flockF:                 flockF,
 		stopCh:                 make(chan struct{}),
 
 		streamIDCache:     streamIDCache,
 		filterStreamCache: filterStreamCache,
+
+		deleteTasks: deleteTasks,
 	}
+	s.logNewStreams.Store(cfg.LogNewStreams)
 
 	partitionsPath := filepath.Join(path, partitionsDirname)
 	fs.MustMkdirIfNotExist(partitionsPath)
@@ -489,7 +679,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	// when it opens many partitions.
 	var wg sync.WaitGroup
 	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
-	for i, de := range des {
+	for idx, de := range des {
 		fname := de.Name()
 
 		partitionDir := filepath.Join(partitionsPath, fname)
@@ -499,14 +689,8 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 			continue
 		}
 
-		wg.Add(1)
 		concurrencyLimiterCh <- struct{}{}
-		go func(idx int) {
-			defer func() {
-				<-concurrencyLimiterCh
-				wg.Done()
-			}()
-
+		wg.Go(func() {
 			day, err := getPartitionDayFromName(fname)
 			if err != nil {
 				logger.Panicf("FATAL: cannot parse partition filename %q at %q: %s", fname, partitionsPath, err)
@@ -515,14 +699,17 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 			partitionPath := filepath.Join(partitionsPath, fname)
 			pt := mustOpenPartition(s, partitionPath)
 			ptws[idx] = newPartitionWrapper(pt, day)
-		}(i)
+
+			<-concurrencyLimiterCh
+		})
 	}
 	wg.Wait()
 
 	sortPartitions(ptws)
 
 	// Delete partitions from the future if needed
-	maxAllowedDay := s.getMaxAllowedDay()
+	now := time.Now().UnixNano()
+	maxAllowedDay := s.getMaxAllowedDay(now)
 	j := len(ptws) - 1
 	for j >= 0 {
 		ptw := ptws[j]
@@ -543,6 +730,8 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	s.partitions = ptws
 	s.runRetentionWatcher()
 	s.runMaxDiskSpaceUsageWatcher()
+	s.runDeleteTasksWatcher()
+	s.runSnapshotsMaxAgeWatcher()
 	return s
 }
 
@@ -553,22 +742,22 @@ func sortPartitions(ptws []*partitionWrapper) {
 }
 
 func (s *Storage) runRetentionWatcher() {
-	s.wg.Add(1)
-	go func() {
-		s.watchRetention()
-		s.wg.Done()
-	}()
+	s.wg.Go(s.watchRetention)
 }
 
 func (s *Storage) runMaxDiskSpaceUsageWatcher() {
 	if s.maxDiskSpaceUsageBytes <= 0 && s.maxDiskUsagePercent <= 0 {
 		return // nothing to watch
 	}
-	s.wg.Add(1)
-	go func() {
-		s.watchMaxDiskSpaceUsage()
-		s.wg.Done()
-	}()
+	s.wg.Go(s.watchMaxDiskSpaceUsage)
+}
+
+func (s *Storage) runDeleteTasksWatcher() {
+	s.wg.Go(s.watchDeleteTasks)
+}
+
+func (s *Storage) runSnapshotsMaxAgeWatcher() {
+	s.wg.Go(s.watchSnapshotsMaxAge)
 }
 
 func (s *Storage) watchRetention() {
@@ -577,7 +766,8 @@ func (s *Storage) watchRetention() {
 	defer ticker.Stop()
 	for {
 		var ptwsToDelete []*partitionWrapper
-		minAllowedDay := s.getMinAllowedDay()
+		now := time.Now().UnixNano()
+		minAllowedDay := s.getMinAllowedDay(now)
 
 		s.partitionsLock.Lock()
 
@@ -608,7 +798,6 @@ func (s *Storage) watchRetention() {
 			logger.Infof("the partition %s is scheduled to be deleted because it is outside the -retentionPeriod=%dd", ptw.pt.path, durationToDays(s.retention))
 			ptw.mustDrop.Store(true)
 			ptw.decRef()
-
 			ptwsToDelete[i] = nil
 		}
 
@@ -699,6 +888,162 @@ func (s *Storage) watchMaxDiskSpaceUsage() {
 	}
 }
 
+func (s *Storage) watchSnapshotsMaxAge() {
+	if s.snapshotsMaxAge <= 0 {
+		return
+	}
+
+	d := timeutil.AddJitterToDuration(time.Minute)
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-ticker.C:
+		}
+
+		s.MustDeleteStalePartitionSnapshots(s.snapshotsMaxAge)
+	}
+}
+
+func (s *Storage) watchDeleteTasks() {
+	d := timeutil.AddJitterToDuration(time.Second)
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-ticker.C:
+		}
+
+		var dt *DeleteTask
+
+		s.deleteTasksLock.Lock()
+		if len(s.deleteTasks) > 0 {
+			dt = s.deleteTasks[0]
+
+			// initialize dt.ctx and dt.cancel under the lock in order to avoid races
+			// with canceling the task at Storage.DeleteStopTask()
+			dt.ctx, dt.cancel = contextutil.NewStopChanContext(s.stopCh)
+			dt.doneCh = make(chan struct{})
+		}
+		s.deleteTasksLock.Unlock()
+
+		if dt == nil {
+			// There are no delete tasks.
+			continue
+		}
+
+		// Process delete tasks sequentially in order to limit resource usage needed for the logs' deletion.
+
+		ok := s.processDeleteTask(dt.ctx, dt)
+		close(dt.doneCh)
+		dt.cancel()
+
+		s.deleteTasksLock.Lock()
+
+		// Set dt.ctx and dt.cancel to nil under the lock in order to avoid races
+		// with canceling the task at Storage.DeleteStopTask().
+		dt.ctx = nil
+		dt.cancel = nil
+		dt.doneCh = nil
+
+		s.deleteTasks = s.deleteTasks[1:]
+		if !ok {
+			// The delete task coudn't be completed now. Try it later.
+			s.deleteTasks = append(s.deleteTasks, dt)
+		}
+		s.mustSaveDeleteTasksLocked()
+
+		s.deleteTasksLock.Unlock()
+	}
+}
+
+// processDeleteTask processes dt.
+//
+// true is returned on successfully processed dt or on explicitly canceled dt.
+// false is returned if dt couldn't be processed at the moment, so it must be processed later.
+func (s *Storage) processDeleteTask(ctx context.Context, dt *DeleteTask) bool {
+	logger.Infof("started processing delete task %s", dt)
+	startTime := time.Now()
+
+	f, err := ParseFilter(dt.Filter)
+	if err != nil {
+		logger.Panicf("BUG: cannot parse filter from delete task: [%s]", dt.Filter)
+	}
+
+	q := &Query{
+		f:         f.f,
+		timestamp: dt.StartTime.UnixNano(),
+	}
+
+	// Add time filter ending at the delete task start time.
+	// This avoids deleting logs from the future.
+	start := int64(math.MinInt64)
+	end := dt.StartTime.UnixNano()
+	q.AddTimeFilter(start, end)
+
+	var qs QueryStats
+	qctx := NewQueryContext(ctx, &qs, dt.TenantIDs, q, false, nil)
+
+	// Initialize subqueries
+	qNew, err := initSubqueries(qctx, s.runQuery, true)
+	if err != nil {
+		logger.Errorf("cannot process delete task with task_id=%q while initializing subqueries: %s; retrying later", dt.TaskID, err)
+		return false
+	}
+	q = qNew
+
+	sso := s.getSearchOptions(dt.TenantIDs, q, qctx.HiddenFieldsFilters)
+
+	// reset fieldsFilter in order to avoid loading all the log fields
+	// during search for parts which contain rows to delete, since these fields aren't needed.
+	sso.fieldsFilter.Reset()
+
+	// delete rows matching q.f
+	stopCh := ctx.Done()
+	if !s.deleteRows(sso, stopCh) {
+		if needStop(s.stopCh) {
+			logger.Infof("the storage is stopped while executing the delete task with task_id=%q; postponing the task for later execution", dt.TaskID)
+			return false
+		}
+
+		if needStop(stopCh) {
+			// The task has been canceled explicitly. Return true, so it isn't re-scheduled for later execution.
+			logger.Infof("the delete task with task_id=%q is explicitly canceled after %.3f seconds", dt.TaskID, time.Since(startTime).Seconds())
+			return true
+		}
+
+		// The task couldn't be processed at the moment
+		logger.Warnf("cannot proceeed with the delete task with task_id=%q in %.3f seconds; retrying it later", dt.TaskID, time.Since(startTime).Seconds())
+		return false
+	}
+
+	logger.Infof("finished processing delete task %s in %.3f seconds", dt, time.Since(startTime).Seconds())
+	return true
+}
+
+func (s *Storage) deleteRows(sso *storageSearchOptions, stopCh <-chan struct{}) bool {
+	ptws, ptwsDecRef := s.getPartitionsForTimeRange(sso.minTimestamp, sso.maxTimestamp)
+	defer ptwsDecRef()
+
+	// Delete rows sequentially in every partition in order to limit resource usage needed for the logs' deletion.
+	ok := true
+	for _, ptw := range ptws {
+		if !ptw.pt.deleteRows(sso, stopCh) {
+			// Return false if at least a single deletion was unsuccessful.
+			// Continue deletion of rows at other partitions, since they may be successful.
+			ok = false
+		}
+	}
+
+	return ok
+}
+
 func (s *Storage) updateDeletedPartitionsLocked(ptwsToDelete []*partitionWrapper) {
 	for _, ptw := range ptwsToDelete {
 		if !slices.Contains(s.deletedPartitions, ptw.day) {
@@ -707,12 +1052,12 @@ func (s *Storage) updateDeletedPartitionsLocked(ptwsToDelete []*partitionWrapper
 	}
 }
 
-func (s *Storage) getMinAllowedDay() int64 {
-	return time.Now().UTC().Add(-s.retention).UnixNano() / nsecsPerDay
+func (s *Storage) getMinAllowedDay(now int64) int64 {
+	return (now - s.retention.Nanoseconds()) / nsecsPerDay
 }
 
-func (s *Storage) getMaxAllowedDay() int64 {
-	return time.Now().UTC().Add(s.futureRetention).UnixNano() / nsecsPerDay
+func (s *Storage) getMaxAllowedDay(now int64) int64 {
+	return (now + s.futureRetention.Nanoseconds()) / nsecsPerDay
 }
 
 // MustClose closes s.
@@ -753,29 +1098,24 @@ func (s *Storage) MustClose() {
 	s.path = ""
 }
 
-// MustForceMerge force-merges parts in s partitions with names starting from the given partitionNamePrefix.
+// MustForceMerge force-merges parts in s partitions with names starting from the given partitionPrefix.
 //
 // Partitions are merged sequentially in order to reduce load on the system.
-func (s *Storage) MustForceMerge(partitionNamePrefix string) {
-	var ptws []*partitionWrapper
-
-	s.partitionsLock.Lock()
-	for _, ptw := range s.partitions {
-		if strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {
-			ptw.incRef()
-			ptws = append(ptws, ptw)
-		}
-	}
-	s.partitionsLock.Unlock()
+func (s *Storage) MustForceMerge(partitionPrefix string) {
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
 
 	s.wg.Add(1)
 	defer s.wg.Done()
 
 	for _, ptw := range ptws {
+		if !strings.HasPrefix(ptw.pt.name, partitionPrefix) {
+			continue
+		}
+
 		logger.Infof("started force merge for partition %s", ptw.pt.name)
 		startTime := time.Now()
 		ptw.pt.mustForceMerge()
-		ptw.decRef()
 		logger.Infof("finished force merge for partition %s in %.3fs", ptw.pt.name, time.Since(startTime).Seconds())
 	}
 }
@@ -786,7 +1126,7 @@ func (s *Storage) MustForceMerge(partitionNamePrefix string) {
 // before calling MustAddRows.
 //
 // The added rows become visible for search after small duration of time.
-// Call DebugFlush if the added rows must be queried immediately (for example, it tests).
+// Call DebugFlush if the added rows must be queried immediately (for example, in tests).
 func (s *Storage) MustAddRows(lr *LogRows) {
 	// Fast path - try adding all the rows to the hot partition
 	s.partitionsLock.Lock()
@@ -806,8 +1146,11 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 	}
 
 	// Slow path - rows cannot be added to the hot partition, so split rows among available partitions
-	minAllowedDay := s.getMinAllowedDay()
-	maxAllowedDay := s.getMaxAllowedDay()
+	now := time.Now().UnixNano()
+	minAllowedDay := s.getMinAllowedDay(now)
+	maxAllowedDay := s.getMaxAllowedDay(now)
+	minAllowedTimestamp := now - s.maxBackfillAge.Nanoseconds()
+
 	m := make(map[int64]*LogRows)
 	for i, ts := range lr.timestamps {
 		day := ts / nsecsPerDay
@@ -831,6 +1174,17 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 			s.rowsDroppedTooBigTimestamp.Add(1)
 			continue
 		}
+		if ts < minAllowedTimestamp {
+			line := MarshalFieldsToJSON(nil, lr.rows[i])
+			tsf := TimeFormatter(ts)
+			minAllowedTsf := TimeFormatter(minAllowedTimestamp)
+			tooSmallTimestampLogger.Warnf("skipping log entry with too small timestamp=%s; it must be bigger than %s according "+
+				"to the configured -maxBackfillAge=%s. See https://docs.victoriametrics.com/victorialogs/#backfilling ; "+
+				"log entry: %s", &tsf, &minAllowedTsf, s.maxBackfillAge, line)
+			s.rowsDroppedTooSmallTimestamp.Add(1)
+			continue
+		}
+
 		lrPart := m[day]
 		if lrPart == nil {
 			lrPart = GetLogRows(nil, nil, nil, nil, "")
@@ -969,6 +1323,15 @@ func (s *Storage) IsReadOnly() bool {
 //
 // This function is for debugging and testing purposes only, since it is slow.
 func (s *Storage) DebugFlush() {
+	ptws := s.getPartitions()
+	defer s.putPartitions(ptws)
+
+	for _, ptw := range ptws {
+		ptw.pt.debugFlush()
+	}
+}
+
+func (s *Storage) getPartitions() []*partitionWrapper {
 	s.partitionsLock.Lock()
 	ptws := append([]*partitionWrapper{}, s.partitions...)
 	for _, ptw := range ptws {
@@ -976,8 +1339,11 @@ func (s *Storage) DebugFlush() {
 	}
 	s.partitionsLock.Unlock()
 
+	return ptws
+}
+
+func (s *Storage) putPartitions(ptws []*partitionWrapper) {
 	for _, ptw := range ptws {
-		ptw.pt.debugFlush()
 		ptw.decRef()
 	}
 }

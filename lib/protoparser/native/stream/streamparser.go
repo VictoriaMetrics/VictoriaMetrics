@@ -20,15 +20,17 @@ import (
 //
 // callback shouldn't hold block after returning.
 func Parse(r io.Reader, contentEncoding string, callback func(block *Block) error) error {
-	reader, err := protoparserutil.GetUncompressedReader(r, contentEncoding)
+	wcr, err := writeconcurrencylimiter.GetReader(r)
+	if err != nil {
+		return err
+	}
+	defer writeconcurrencylimiter.PutReader(wcr)
+
+	reader, err := protoparserutil.GetUncompressedReader(wcr, contentEncoding)
 	if err != nil {
 		return fmt.Errorf("cannot decode vmimport data: %w", err)
 	}
 	defer protoparserutil.PutUncompressedReader(reader)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	reader = wcr
 
 	br := getBufferedReader(reader)
 	defer putBufferedReader(br)
@@ -104,7 +106,6 @@ func Parse(r io.Reader, contentEncoding string, callback func(block *Block) erro
 
 		ctx.wg.Add(1)
 		protoparserutil.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
 	}
 }
 

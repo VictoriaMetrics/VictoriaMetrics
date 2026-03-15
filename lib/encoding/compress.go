@@ -7,8 +7,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// CompressZSTDLevel appends compressed src to dst and returns
-// the appended dst.
+// CompressZSTDLevel appends compressed src to dst and returns the appended dst.
 //
 // The given compressLevel is used for the compression.
 func CompressZSTDLevel(dst, src []byte, compressLevel int) []byte {
@@ -20,15 +19,27 @@ func CompressZSTDLevel(dst, src []byte, compressLevel int) []byte {
 	return dst
 }
 
-// DecompressZSTD decompresses src, appends the result to dst and returns
-// the appended dst.
+// DecompressZSTD decompresses src, appends the result to dst and returns the appended dst.
 //
 // This function must be called only for the trusted src.
+// Use DecompressZSTDLimited for untrusted src.
 func DecompressZSTD(dst, src []byte) ([]byte, error) {
 	decompressCalls.Inc()
 	b, err := zstd.Decompress(dst, src)
 	if err != nil {
-		return b, fmt.Errorf("cannot decompress zstd block with len=%d to a buffer with len=%d: %w; block data (hex): %X", len(src), len(dst), err, src)
+		return b, fmt.Errorf("cannot decompress zstd block with len=%d: %w; block data (hex): %X", len(src), err, src)
+	}
+	return b, nil
+}
+
+// DecompressZSTDLimited decompresses src, appends the result to dst and returns the appended dst.
+//
+// If the decompressed result exceeds maxDataSizeBytes, then error is returned.
+func DecompressZSTDLimited(dst, src []byte, maxDataSizeBytes int) ([]byte, error) {
+	decompressCalls.Inc()
+	b, err := zstd.DecompressLimited(dst, src, maxDataSizeBytes)
+	if err != nil {
+		return b, fmt.Errorf("cannot decompress zstd block with len=%d and maxDataSizeBytes=%d: %w", len(src), maxDataSizeBytes, err)
 	}
 	return b, nil
 }

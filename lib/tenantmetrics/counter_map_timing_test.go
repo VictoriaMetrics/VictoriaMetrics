@@ -12,17 +12,15 @@ func BenchmarkCounterMapGrowth(b *testing.B) {
 	f := func(b *testing.B, numTenants uint32, nProcs int) {
 		b.Helper()
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			cm := NewCounterMap("foobar")
 			var wg sync.WaitGroup
 			for range nProcs {
-				wg.Add(1)
-				go func() {
+				wg.Go(func() {
 					for i := range numTenants {
 						cm.Get(&auth.Token{AccountID: i, ProjectID: i}).Inc()
 					}
-					wg.Done()
-				}()
+				})
 			}
 			wg.Wait()
 		}

@@ -71,10 +71,8 @@ func TestLabelsCompressorConcurrent(t *testing.T) {
 	var expectCompressedKeys sync.Map
 
 	var wg sync.WaitGroup
-	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for i := range concurrency {
+		wg.Go(func() {
 			series := newTestSeries(100, 20)
 			for n, labels := range series {
 				sExpected := labelsToString(labels)
@@ -90,7 +88,7 @@ func TestLabelsCompressorConcurrent(t *testing.T) {
 					panic(fmt.Errorf("unexpected result on iteration %d; got %s; want %s", i, sResult, sExpected))
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -111,9 +109,9 @@ func labelsToString(labels []prompb.Label) string {
 
 func newTestSeries(seriesCount, labelsPerSeries int) [][]prompb.Label {
 	series := make([][]prompb.Label, seriesCount)
-	for i := 0; i < seriesCount; i++ {
+	for i := range seriesCount {
 		labels := make([]prompb.Label, labelsPerSeries)
-		for j := 0; j < labelsPerSeries; j++ {
+		for j := range labelsPerSeries {
 			labels[j] = prompb.Label{
 				Name:  fmt.Sprintf("label_%d", j),
 				Value: fmt.Sprintf("value_%d_%d", i, j),

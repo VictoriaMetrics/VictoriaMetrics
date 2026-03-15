@@ -76,6 +76,11 @@ func skipLastToken(s string) string {
 	}
 }
 
+func (fr *filterRegexp) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fr.fieldName)
+	return fr.re.MatchString(v)
+}
+
 func (fr *filterRegexp) applyToBlockResult(br *blockResult, bm *bitmap) {
 	re := fr.re
 	applyToBlockResultGeneric(br, bm, fr.fieldName, "", func(v, _ string) bool {

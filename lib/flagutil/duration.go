@@ -15,7 +15,7 @@ import (
 //
 // DefaultValue is in months.
 func NewRetentionDuration(name string, defaultValue string, description string) *RetentionDuration {
-	description += "\nThe following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). " +
+	description += "\nThe following optional suffixes are supported: s (second), h (hour), d (day), w (week), M (month), y (year). " +
 		"If suffix isn't set, then the duration is counted in months"
 	d := &RetentionDuration{}
 	if err := d.Set(defaultValue); err != nil {
@@ -76,7 +76,28 @@ func (d *RetentionDuration) Set(value string) error {
 		d.valueString = ""
 		return nil
 	}
-	// An attempt to parse value in months.
+
+	// An attempt to parse value as months with unit M(onth).
+	if cutValue, found := strings.CutSuffix(value, "M"); found {
+		months, err := strconv.ParseFloat(cutValue, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse months from %q: %w", value, err)
+		}
+
+		if months > maxMonths {
+			return fmt.Errorf("duration months must be smaller than %d; got %g", maxMonths, months)
+		}
+		if months < 0 {
+			return fmt.Errorf("duration months cannot be negative; got %g", months)
+		}
+		d.msecs = int64(months * msecsPer31Days)
+		d.valueString = value
+		return nil
+	}
+
+	// An attempt to parse value as a numeric month (without unit).
+	// Such values should be treated as months for BC and historical reasons.
+	// The format is deprecated, value with unit M should be used instead.
 	months, err := strconv.ParseFloat(value, 64)
 	if err == nil {
 		if months > maxMonths {
@@ -89,10 +110,11 @@ func (d *RetentionDuration) Set(value string) error {
 		d.valueString = value
 		return nil
 	}
+
 	// Parse duration.
 	value = strings.ToLower(value)
 	if strings.HasSuffix(value, "m") {
-		return fmt.Errorf("duration in months must be set without `m` suffix due to ambiguity with duration in minutes; got %s", value)
+		return fmt.Errorf("duration in months must be set with capital `M` suffix, lower case `m` means minutes and not allowed; got %s", value)
 	}
 	msecs, err := metricsql.PositiveDurationValue(value, 0)
 	if err != nil {

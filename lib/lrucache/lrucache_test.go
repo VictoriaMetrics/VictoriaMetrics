@@ -128,18 +128,16 @@ func TestCacheConcurrentAccess(_ *testing.T) {
 
 	workers := 5
 	var wg sync.WaitGroup
-	wg.Add(workers)
-	for i := 0; i < workers; i++ {
-		go func(worker int) {
-			defer wg.Done()
+	for worker := range workers {
+		wg.Go(func() {
 			testCacheSetGet(c, worker)
-		}(i)
+		})
 	}
 	wg.Wait()
 }
 
 func testCacheSetGet(c *Cache, worker int) {
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		e := testEntry{}
 		k := fmt.Sprintf("key_%d_%d", worker, i)
 		c.PutEntry(k, &e)

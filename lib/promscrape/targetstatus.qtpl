@@ -24,7 +24,7 @@
 		state={% if ts.up %}up{% else %}down{% endif %},{% space %}
 		endpoint={%s= ts.sw.Config.ScrapeURL %},{% space %}
 		labels={%s= ts.sw.Config.Labels.String() %},{% space %}
-		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.String() %},{% space %}{% endif %}
+		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.labelsString() %},{% space %}{% endif %}
 		scrapes_total={%d ts.scrapesTotal %},{% space %}
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
 		last_scrape={%s= ts.getDurationFromLastScrape() %},{% space %}
@@ -179,6 +179,11 @@
 {% endfunc %}
 
 {% func scrapeTargets(tsr *targetsStatusResult) %}
+    {% if !tsr.hasOriginalLabels %}
+        <div class="alert alert-warning" role="alert">
+            Some debugging information is not available, set <b>-promscrape.dropOriginalLabels=false</b> command-line flag to enable it
+        </div>
+    {% endif %}
     <div class="row mt-4">
         <div class="col-12">
             {% for i, jts := range tsr.jobTargetsStatuses %}
@@ -211,9 +216,7 @@
                             <th scope="col">Endpoint</th>
                             <th scope="col">State</th>
                             <th scope="col" title="target labels">Labels</th>
-                            {% if hasOriginalLabels %}
-                              <th scope="col" title="debug relabeling">Debug relabeling</th>
-                            {% endif %}
+                            <th scope="col" title="debug relabeling">Debug relabeling</th>
                             <th scope="col" title="total scrapes">Scrapes</th>
                             <th scope="col" title="total scrape errors">Errors</th>
                             <th scope="col" title="the time of the last scrape">Last Scrape</th>
@@ -230,7 +233,7 @@
                         originalLabels := ts.sw.Config.OriginalLabels
 
                         // The target is uniquely identified by a pointer to its original labels.
-                        targetID := getLabelsID(originalLabels)
+                        targetID := originalLabels.getTargetID()
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
                             <td class="endpoint">
@@ -239,6 +242,8 @@
                                   {% space %}
                                   (<a href="target_response?id={%s targetID %}" target="_blank"
                                     title="click to fetch target response on behalf of the scraper">response</a>)
+                                {% else %}
+                                  {% space %}(N/A)
                                 {% endif %}
                             </td>
                             <td>
@@ -259,16 +264,18 @@
                               </div>
                               {% if hasOriginalLabels %}
                                 <div style="display:none" id="original-labels-{%s targetID %}">
-                                  {%= formatLabels(originalLabels) %}
+                                  {%= formatLabels(originalLabels.getLabels()) %}
                                 </div>
                               {% endif %}
                             </td>
+                            <td>
                             {% if hasOriginalLabels %}
-                              <td>
-                                <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
-                                <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
-                              </td>
+                              <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
+                              <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
+                            {% else %}
+                              N/A
                             {% endif %}
+                            </td>
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>
                             <td>{%s ts.getDurationFromLastScrape() %}</td>
@@ -361,13 +368,13 @@
                         {% endif %}
                     </td>
                     <td class="labels">
-                        {%= formatLabels(t.originalLabels) %}
+                        {%= formatLabels(t.originalLabels.getLabels()) %}
                     </td>
                     <td class="labels">
                         {%= formatLabels(t.labels) %}
                     </td>
                     <td>
-                        {% code targetID := getLabelsID(t.originalLabels) %}
+                        {% code targetID := t.originalLabels.getTargetID() %}
                         <a href="target-relabel-debug?id={%s targetID %}" target="_blank">debug</a>
                     </td>
                 </tr>

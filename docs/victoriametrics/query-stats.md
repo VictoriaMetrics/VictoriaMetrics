@@ -26,7 +26,7 @@ Here's how `<duration>` works:
 
 * `-search.logSlowQueryStats=5s` logs statistics for queries that take longer than `5s`;
 * `-search.logSlowQueryStats=1us` logs statistics for **all queries**;
-* `-search.logSlowQueryStats=0` turns off query stats logging (this is the default).
+* `-search.logSlowQueryStats=0` turns off query stats logging.
 
 **Example of a query statistics log:**
 

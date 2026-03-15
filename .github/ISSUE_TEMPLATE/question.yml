@@ -5,7 +5,7 @@ body:
   - type: textarea
     id: describe-the-component
     attributes:
-      label: Is your question request related to a specific component?
+      label: Is your question related to a specific component?
       placeholder: |
         VictoriaMetrics, vmagent, vmalert, vmui, etc...
     validations:

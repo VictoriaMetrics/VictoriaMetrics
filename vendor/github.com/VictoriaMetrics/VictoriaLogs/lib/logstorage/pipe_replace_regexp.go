@@ -58,6 +58,10 @@ func (pr *pipeReplaceRegexp) canReturnLastNResults() bool {
 	return true
 }
 
+func (pr *pipeReplaceRegexp) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pr *pipeReplaceRegexp) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForUpdatePipe(pf, pr.field, pr.iff)
 }

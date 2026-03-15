@@ -336,6 +336,19 @@ func (ib *inmemoryBlock) marshalData(sb *storageBlock, firstItemDst, commonPrefi
 	return firstItemDst, commonPrefixDst, uint32(len(ib.items)), marshalTypeZSTD
 }
 
+func (ib *inmemoryBlock) unmarshalSingleItem(commonPrefix, firstItem []byte, mt marshalType) {
+	if mt != marshalTypePlain {
+		logger.Panicf("BUG: single item block must be always encoded with TypePlain")
+	}
+	ib.commonPrefix = append(ib.commonPrefix[:0], commonPrefix...)
+	ib.items = slicesutil.SetLength(ib.items, 1)
+	ib.data = bytesutil.ResizeNoCopyNoOverallocate(ib.data, len(firstItem))
+	ib.data = append(ib.data[:0], firstItem...)
+	item := &ib.items[0]
+	item.Start = 0
+	item.End = uint32(len(ib.data))
+}
+
 // UnmarshalData decodes itemsCount items from sb and firstItem and stores them to ib.
 func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix []byte, itemsCount uint32, mt marshalType) error {
 	ib.Reset()

@@ -28,7 +28,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	timestamp := startTimestamp
 	value := float64(100)
 	rng := rand.New(rand.NewSource(1))
-	for i := 0; i < rowsPerInsert; i++ {
+	for i := range rowsPerInsert {
 		r := &rows[i]
 		r.PrecisionBits = defaultPrecisionBits
 		r.TSID.MetricID = uint64(rng.Intn(tsidsCount) + 1)
@@ -47,11 +47,11 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	b.SetBytes(int64(rowsCountExpected))
 	tablePath := "benchmarkTableAddRows"
 	strg := newTestStorage()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		tb := mustOpenTable(tablePath, strg)
 
 		workCh := make(chan struct{}, insertsCount)
-		for j := 0; j < insertsCount; j++ {
+		for range insertsCount {
 			workCh <- struct{}{}
 		}
 		close(workCh)
@@ -59,7 +59,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 		doneCh := make(chan struct{})
 		gomaxprocs := cgroup.AvailableCPUs()
 
-		for j := 0; j < gomaxprocs; j++ {
+		for j := range gomaxprocs {
 			go func(goroutineID int) {
 				// Make per-goroutine rows copy with distinct timestamps.
 				rowsCopy := append([]rawRow{}, rows...)
@@ -84,7 +84,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 			}(j)
 		}
 
-		for j := 0; j < gomaxprocs; j++ {
+		for range gomaxprocs {
 			<-doneCh
 		}
 

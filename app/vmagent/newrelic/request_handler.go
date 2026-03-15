@@ -78,7 +78,7 @@ func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompb.Label)
 	if !remotewrite.TryPush(at, &ctx.WriteRequest) {
 		return remotewrite.ErrQueueFullHTTPRetry
 	}
-	rowsInserted.Add(len(rows))
+	rowsInserted.Add(samplesCount)
 	if at != nil {
 		rowsTenantInserted.Get(at).Add(samplesCount)
 	}

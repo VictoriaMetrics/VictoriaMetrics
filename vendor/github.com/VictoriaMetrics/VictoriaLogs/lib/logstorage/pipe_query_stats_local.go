@@ -27,6 +27,10 @@ func (ps *pipeQueryStatsLocal) canReturnLastNResults() bool {
 	return false
 }
 
+func (ps *pipeQueryStatsLocal) isFixedOutputFieldsOrder() bool {
+	return true
+}
+
 func (ps *pipeQueryStatsLocal) updateNeededFields(_ *prefixfilter.Filter) {
 	// Nothing to do
 }

@@ -9,19 +9,18 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/VictoriaMetrics/metrics"
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"go.yaml.in/yaml/v3"
-
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	unparsedLabelsGlobal = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
-		"Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage")
+	unparsedLabelsGlobal    = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to all -remoteWrite.url.")
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabeling configs, which are applied "+
 		"to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. "+
 		"The path can point either to local file or to http url. "+
@@ -39,7 +38,7 @@ var (
 	labelsGlobal []prompb.Label
 
 	remoteWriteRelabelConfigData    atomic.Pointer[[]byte]
-	remoteWriteURLRelabelConfigData atomic.Pointer[[]interface{}]
+	remoteWriteURLRelabelConfigData atomic.Pointer[[]any]
 
 	relabelConfigReloads      *metrics.Counter
 	relabelConfigReloadErrors *metrics.Counter
@@ -91,8 +90,8 @@ func WriteURLRelabelConfigData(w io.Writer) {
 		return
 	}
 	type urlRelabelCfg struct {
-		Url           string      `yaml:"url"`
-		RelabelConfig interface{} `yaml:"relabel_config"`
+		Url           string `yaml:"url"`
+		RelabelConfig any    `yaml:"relabel_config"`
 	}
 	var cs []urlRelabelCfg
 	for i, url := range *remoteWriteURLs {
@@ -139,12 +138,13 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		remoteWriteRelabelConfigData.Store(&rawCfg)
 		rcs.global = global
 	}
+
 	if len(*relabelConfigPaths) > len(*remoteWriteURLs) {
 		return nil, fmt.Errorf("too many -remoteWrite.urlRelabelConfig args: %d; it mustn't exceed the number of -remoteWrite.url args: %d",
 			len(*relabelConfigPaths), (len(*remoteWriteURLs)))
 	}
 
-	var urlRelabelCfgs []interface{}
+	var urlRelabelCfgs []any
 	rcs.perURL = make([]*promrelabel.ParsedConfigs, len(*remoteWriteURLs))
 	for i, path := range *relabelConfigPaths {
 		if len(path) == 0 {
@@ -157,7 +157,7 @@ func loadRelabelConfigs() (*relabelConfigs, error) {
 		}
 		rcs.perURL[i] = prc
 
-		var parsedCfg interface{}
+		var parsedCfg any
 		_ = yaml.Unmarshal(rawCfg, &parsedCfg)
 		urlRelabelCfgs = append(urlRelabelCfgs, parsedCfg)
 	}
@@ -176,19 +176,9 @@ type relabelConfigs struct {
 	perURL []*promrelabel.ParsedConfigs
 }
 
+// isSet indicates whether (global or per-URL) command-line flags is set
 func (rcs *relabelConfigs) isSet() bool {
-	if rcs == nil {
-		return false
-	}
-	if rcs.global.Len() > 0 {
-		return true
-	}
-	for _, pc := range rcs.perURL {
-		if pc.Len() > 0 {
-			return true
-		}
-	}
-	return false
+	return *relabelConfigPathGlobal != "" || len(*relabelConfigPaths) > 0
 }
 
 // initLabelsGlobal must be called after parsing command-line flags.

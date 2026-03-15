@@ -8,6 +8,8 @@ export const DEFAULT_MAX_SERIES = {
   code: 1000,
 };
 
+export const LEGEND_COLLAPSE_SERIES_LIMIT = 100;
+
 export const GRAPH_SIZES: GraphSize[] = [
   {
     id: "small",

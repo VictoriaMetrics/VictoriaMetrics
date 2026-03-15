@@ -38,6 +38,12 @@ func (fe *filterEqField) initPrefixFilter() {
 	fe.prefixFilter.AddAllowFilters([]string{fe.fieldName, fe.otherFieldName})
 }
 
+func (fe *filterEqField) matchRow(fields []Field) bool {
+	v := getFieldValueByName(fields, fe.fieldName)
+	vOther := getFieldValueByName(fields, fe.otherFieldName)
+	return v == vOther
+}
+
 func (fe *filterEqField) applyToBlockResult(br *blockResult, bm *bitmap) {
 	if fe.fieldName == fe.otherFieldName {
 		return

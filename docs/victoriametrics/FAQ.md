@@ -286,7 +286,8 @@ Source code for Victoriametrics can be found in the following locations:
 VictoriaMetrics is able to handle data from hundreds of millions of IoT sensors and industrial sensors.
 It supports [high cardinality data](https://medium.com/@valyala/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b),
 perfectly [scales up on a single node](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
-and scales horizontally to multiple nodes.
+and scales horizontally to multiple nodes in [cluster setup](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
+It also supports an option for reducing the index size for IoT data - see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#index-tuning-for-low-churn-rate).
 
 ## What is the difference between single-node and cluster versions of VictoriaMetrics?
 
@@ -487,7 +488,7 @@ The query engine may behave differently for some functions. Please see [this art
 
 ## If downsampling and deduplication are enabled how will this work?
 
-[Deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling
+[Deduplication](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) is a special case of zero-offset [downsampling](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#downsampling). So, if both downsampling and deduplication are enabled, then deduplication is replaced by zero-offset downsampling.
 
 ## How to upgrade or downgrade VictoriaMetrics without downtime?
 
@@ -556,8 +557,8 @@ and proportionally to the total length of all the labels seen across all the reg
 
 Typical monitoring in Kubernetes generates moderate-to-high churn rate for time series because every restart of the `pod` creates a new set of time series
 for all the [metrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#what-is-a-metric) exposed by that pod, with a new `pod` label.
-The number of labels and the summary length of `label=value` pairs per every time series in Kubernetes is quite large
-(~30-40 labels with ~1KB summary length of `label=value` pairs per time series). This contributes to quick growth of the `indexdb` over time,
+The number of labels and the total length of `label=value` pairs per every time series in Kubernetes is quite large
+(~30-40 labels with ~1KB total length of `label=value` pairs per time series). This contributes to quick growth of the `indexdb` over time,
 so its' size may exceed the size of the `data` folder by up to 2x in typical production cases.
 
 There are the following workarounds, which can reduce the growth rate of the `indexdb`:

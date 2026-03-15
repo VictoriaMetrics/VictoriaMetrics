@@ -4,13 +4,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prommetadata"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rowsInserted  = metrics.NewCounter(`vm_rows_inserted_total{type="promscrape"}`)
-	rowsPerInsert = metrics.NewHistogram(`vm_rows_per_insert{type="promscrape"}`)
+	rowsInserted         = metrics.NewCounter(`vm_rows_inserted_total{type="promscrape"}`)
+	rowsPerInsert        = metrics.NewHistogram(`vm_rows_per_insert{type="promscrape"}`)
+	metadataRowsInserted = metrics.NewCounter(`vm_metadata_rows_inserted_total{type="promscrape"}`)
 )
 
 const maxRowsPerBlock = 10000
@@ -40,6 +42,13 @@ func Push(wr *prompb.WriteRequest) {
 			tss = nil
 		}
 		push(ctx, tssBlock)
+	}
+	if prommetadata.IsEnabled() {
+		if err := ctx.WriteMetadata(wr.Metadata); err != nil {
+			logger.Errorf("cannot write promscrape metrics metadata to storage: %s", err)
+		} else {
+			metadataRowsInserted.Add(len(wr.Metadata))
+		}
 	}
 }
 

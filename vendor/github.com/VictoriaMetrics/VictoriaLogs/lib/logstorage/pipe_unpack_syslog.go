@@ -60,6 +60,10 @@ func (pu *pipeUnpackSyslog) canReturnLastNResults() bool {
 	return true
 }
 
+func (pu *pipeUnpackSyslog) isFixedOutputFieldsOrder() bool {
+	return false
+}
+
 func (pu *pipeUnpackSyslog) updateNeededFields(pf *prefixfilter.Filter) {
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.resultPrefix, nil, pu.keepOriginalFields, false, pu.iff, pf)
 }

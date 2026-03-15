@@ -92,6 +92,7 @@ export interface TopQuery {
   query: string;
   timeRangeSeconds: number;
   sumDurationSeconds: number;
+  avgMemoryBytes: number;
   timeRange: string;
   url?: string;
 }
@@ -107,6 +108,7 @@ export interface TopQueriesData extends TopQueryStats {
   topByAvgDuration: TopQuery[];
   topByCount: TopQuery[];
   topBySumDuration: TopQuery[];
+  topByAvgMemoryUsage: TopQuery[];
   error?: string;
 }
 

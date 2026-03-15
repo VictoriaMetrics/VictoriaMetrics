@@ -52,7 +52,7 @@ func TestCounterMap(t *testing.T) {
 func TestCounterMapConcurrent(t *testing.T) {
 	cm := NewCounterMap(`aaa{bb="cc"}`)
 	f := func() error {
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			cm.Get(&auth.Token{AccountID: 1, ProjectID: 2}).Inc()
 			if n := cm.Get(&auth.Token{AccountID: 3, ProjectID: 4}).Get(); n != 0 {
 				return fmt.Errorf("unexpected counter value; got %d; want %d", n, 0)
@@ -64,13 +64,13 @@ func TestCounterMapConcurrent(t *testing.T) {
 
 	const concurrency = 5
 	ch := make(chan error, concurrency)
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		go func() {
 			ch <- f()
 		}()
 	}
 
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		select {
 		case err := <-ch:
 			if err != nil {

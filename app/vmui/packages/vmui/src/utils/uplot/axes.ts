@@ -44,7 +44,7 @@ export const getTimeSeries = (
   const tStart = roundToThousandths(period.start);
   const tEnd = roundToThousandths(period.end);
   const baseStep = getSecondsFromDuration(stepDuration) || 0.001;
-  const step = Math.max(0.001, roundToThousandths(baseStep))
+  const step = Math.max(0.001, roundToThousandths(baseStep));
 
   const anchor = roundToThousandths(tsAnchor ?? tStart);
 

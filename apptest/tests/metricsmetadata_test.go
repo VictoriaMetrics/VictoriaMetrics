@@ -19,7 +19,6 @@ func TestSingleMetricsMetadata(t *testing.T) {
 	sut := tc.MustStartVmsingle("vmsingle", []string{
 		"-storageDataPath=" + tc.Dir(),
 		"-retentionPeriod=100y",
-		"-enableMetadata",
 	})
 	// verify empty stats
 	resp := sut.PrometheusAPIV1Metadata(t, "", 0, apptest.QueryOpts{})
@@ -48,9 +47,9 @@ func TestSingleMetricsMetadata(t *testing.T) {
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_6"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 		},
 		Metadata: []prompb.MetricMetadata{
-			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: uint32(prompb.MetricMetadataSUMMARY)},
-			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: uint32(prompb.MetricMetadataSUMMARY)},
-			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: uint32(prompb.MetricMetadataSTATESET)},
+			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary},
+			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
+			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 
@@ -120,15 +119,12 @@ func TestClusterMetricsMetadata(t *testing.T) {
 
 	vminsert1 := tc.MustStartVminsert("vminsert1", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
-		"-enableMetadata",
 	})
 	vminsert2 := tc.MustStartVminsert("vminsert-2", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VminsertAddr(), vmstorage2.VminsertAddr()),
-		"-enableMetadata",
 	})
 	vminsertGlobal := tc.MustStartVminsert("vminsert-global", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vminsert1.ClusternativeListenAddr(), vminsert2.ClusternativeListenAddr()),
-		"-enableMetadata",
 	})
 	vmselect := tc.MustStartVmselect("vmselect", []string{
 		fmt.Sprintf("-storageNode=%s,%s", vmstorage1.VmselectAddr(), vmstorage2.VmselectAddr()),
@@ -160,9 +156,9 @@ func TestClusterMetricsMetadata(t *testing.T) {
 			{Labels: []prompb.Label{{Name: "__name__", Value: "metric_name_6"}}, Samples: []prompb.Sample{{Value: 40, Timestamp: ingestTimestamp}}},
 		},
 		Metadata: []prompb.MetricMetadata{
-			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: uint32(prompb.MetricMetadataSUMMARY)},
-			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: uint32(prompb.MetricMetadataSUMMARY)},
-			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: uint32(prompb.MetricMetadataSTATESET)},
+			{MetricFamilyName: "metric_name_4", Help: "some help message", Type: prompb.MetricTypeSummary},
+			{MetricFamilyName: "metric_name_5", Help: "some help message", Type: prompb.MetricTypeSummary},
+			{MetricFamilyName: "metric_name_6", Help: "some help message", Type: prompb.MetricTypeStateset},
 		},
 	}
 

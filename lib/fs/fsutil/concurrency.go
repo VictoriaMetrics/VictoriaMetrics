@@ -11,10 +11,7 @@ var maxConcurrency = flag.Int("fs.maxConcurrency", getDefaultConcurrency(), "The
 	"on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph")
 
 func getDefaultConcurrency() int {
-	n := 16 * cgroup.AvailableCPUs()
-	if n > 265 {
-		n = 265
-	}
+	n := min(16*cgroup.AvailableCPUs(), 256)
 	return n
 }
 

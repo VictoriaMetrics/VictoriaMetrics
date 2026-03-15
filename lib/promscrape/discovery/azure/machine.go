@@ -16,7 +16,7 @@ type virtualMachine struct {
 	Name       string                   `json:"name,omitempty"`
 	Type       string                   `json:"type,omitempty"`
 	Location   string                   `json:"location,omitempty"`
-	Properties virtualMachineProperties `json:"properties,omitempty"`
+	Properties virtualMachineProperties `json:"properties"`
 	Tags       map[string]string        `json:"tags,omitempty"`
 	// enriched during service discovery
 	scaleSet    string
@@ -29,10 +29,10 @@ type vmIPAddress struct {
 }
 
 type virtualMachineProperties struct {
-	NetworkProfile  networkProfile  `json:"networkProfile,omitempty"`
-	OsProfile       osProfile       `json:"osProfile,omitempty"`
-	StorageProfile  storageProfile  `json:"storageProfile,omitempty"`
-	HardwareProfile hardwareProfile `json:"hardwareProfile,omitempty"`
+	NetworkProfile  networkProfile  `json:"networkProfile"`
+	OsProfile       osProfile       `json:"osProfile"`
+	StorageProfile  storageProfile  `json:"storageProfile"`
+	HardwareProfile hardwareProfile `json:"hardwareProfile"`
 }
 
 type hardwareProfile struct {
@@ -40,7 +40,7 @@ type hardwareProfile struct {
 }
 
 type storageProfile struct {
-	OsDisk osDisk `json:"osDisk,omitempty"`
+	OsDisk osDisk `json:"osDisk"`
 }
 
 type osDisk struct {
@@ -133,24 +133,20 @@ func enrichVirtualMachinesNetworkInterfaces(ac *apiConfig, vms []virtualMachine)
 	workCh := make(chan *virtualMachine, concurrency)
 	resultCh := make(chan error, concurrency)
 	var wg sync.WaitGroup
-	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range concurrency {
+		wg.Go(func() {
 			for vm := range workCh {
 				err := enrichVMNetworkInterfaces(ac, vm)
 				resultCh <- err
 			}
-		}()
+		})
 	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for i := range vms {
 			workCh <- &vms[i]
 		}
 		close(workCh)
-	}()
+	})
 	var firstErr error
 	for range vms {
 		err := <-resultCh

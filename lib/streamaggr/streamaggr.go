@@ -374,14 +374,12 @@ func (a *Aggregators) Push(tss []prompb.TimeSeries, matchIdxs []uint32) []uint32
 	var wg sync.WaitGroup
 	concurrencyChan := make(chan struct{}, cgroup.AvailableCPUs())
 
-	wg.Add(len(a.as))
 	for _, aggr := range a.as {
 		concurrencyChan <- struct{}{}
-		go func(aggr *aggregator) {
+		wg.Go(func() {
 			aggr.Push(tss, matchIdxs)
-			wg.Done()
 			<-concurrencyChan
-		}(aggr)
+		})
 	}
 
 	wg.Wait()
@@ -718,11 +716,9 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 	a.cs.Store(cs)
 
-	a.wg.Add(1)
-	go func() {
+	a.wg.Go(func() {
 		a.runFlusher(pushFunc, alignFlushToInterval, skipFlushOnShutdown, ignoreFirstIntervals)
-		a.wg.Done()
-	}()
+	})
 
 	return a, nil
 }

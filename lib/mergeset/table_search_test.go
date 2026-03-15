@@ -81,12 +81,12 @@ func TestTableSearchConcurrent(t *testing.T) {
 func testTableSearchConcurrent(tb *Table, items []string) error {
 	const goroutines = 5
 	ch := make(chan error, goroutines)
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			ch <- testTableSearchSerial(tb, items)
 		}()
 	}
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		select {
 		case err := <-ch:
 			if err != nil {
@@ -146,7 +146,7 @@ func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, 
 	var isReadOnly atomic.Bool
 	tb := MustOpenTable(path, 0, flushCallback, nil, &isReadOnly)
 	items := make([]string, itemsCount)
-	for i := 0; i < itemsCount; i++ {
+	for i := range itemsCount {
 		item := fmt.Sprintf("%d:%d", r.Intn(1e9), i)
 		tb.AddItems([][]byte{[]byte(item)})
 		items[i] = item

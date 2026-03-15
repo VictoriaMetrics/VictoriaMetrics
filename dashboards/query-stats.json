@@ -19,7 +19,36 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 861,
-  "links": [],
+  "links": [
+    {
+      "icon": "doc",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Docs",
+      "type": "link",
+      "url": "https://docs.victoriametrics.com/victoriametrics/query-stats/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Community support",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/community-support/"
+    },
+    {
+      "asDropdown": false,
+      "icon": "bolt",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Enterprise support",
+      "tooltip": "",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/enterprise-support/"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,

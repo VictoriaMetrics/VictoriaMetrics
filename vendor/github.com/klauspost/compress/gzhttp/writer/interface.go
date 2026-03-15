@@ -1,3 +1,6 @@
+// Package writer provides interfaces for pluggable compression implementations
+// used by gzhttp. Custom gzip and zstd encoders can be provided by implementing
+// the GzipWriter/ZstdWriter interfaces and corresponding factory types.
 package writer
 
 import (
@@ -38,4 +41,21 @@ type GzipWriterFactory struct {
 	// New must return a new GzipWriter.
 	// level will always be within the return limits above.
 	New func(writer io.Writer, level int) GzipWriter
+}
+
+// ZstdWriter implements the functions needed for zstd compression.
+type ZstdWriter interface {
+	Write(p []byte) (int, error)
+	Close() error
+	Flush() error
+}
+
+// ZstdWriterFactory contains the information needed for custom zstd implementations.
+type ZstdWriterFactory struct {
+	// Must return the minimum and maximum supported level.
+	Levels func() (min, max int)
+
+	// New must return a new ZstdWriter.
+	// level will always be within the return limits above.
+	New func(writer io.Writer, level int) ZstdWriter
 }

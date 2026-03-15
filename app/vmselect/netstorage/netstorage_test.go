@@ -1,8 +1,11 @@
 package netstorage
 
 import (
+	"math"
 	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
 
 func TestMergeSortBlocks(t *testing.T) {
@@ -193,4 +196,112 @@ func TestMergeSortBlocks(t *testing.T) {
 		Timestamps: []int64{5, 10, 12},
 		Values:     []float64{7, 24, 26},
 	})
+}
+
+func TestEqualSamplesPrefix(t *testing.T) {
+	f := func(a, b *sortBlock, expected int) {
+		t.Helper()
+
+		actual := equalSamplesPrefix(a, b)
+		if actual != expected {
+			t.Fatalf("unexpected result: got %d, want %d", actual, expected)
+		}
+	}
+
+	// Empty blocks
+	f(&sortBlock{}, &sortBlock{}, 0)
+
+	// Identical blocks
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 6, 7, 8},
+	}, &sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 6, 7, 8},
+	}, 4)
+
+	// Non-zero NextIdx
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 6, 7, 8},
+		NextIdx:    2,
+	}, &sortBlock{
+		Timestamps: []int64{10, 20, 3, 4},
+		Values:     []float64{50, 60, 7, 8},
+		NextIdx:    2,
+	}, 2)
+
+	// Non-zero NextIdx with mismatch
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 6, 7, 8},
+		NextIdx:    1,
+	}, &sortBlock{
+		Timestamps: []int64{10, 2, 3, 4},
+		Values:     []float64{50, 6, 7, 80},
+		NextIdx:    1,
+	}, 2)
+
+	// Different lengths
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 6, 7, 8},
+	}, &sortBlock{
+		Timestamps: []int64{1, 2, 3},
+		Values:     []float64{5, 6, 7},
+	}, 3)
+
+	// Timestamps diverge
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 6, 7, 8},
+	}, &sortBlock{
+		Timestamps: []int64{1, 2, 30, 4},
+		Values:     []float64{5, 6, 7, 8},
+	}, 2)
+
+	// Values diverge
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 6, 7, 8},
+	}, &sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 60, 7, 8},
+	}, 1)
+
+	// Zero matches
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, 6, 7, 8},
+	}, &sortBlock{
+		Timestamps: []int64{5, 6, 7, 8},
+		Values:     []float64{1, 2, 3, 4},
+	}, 0)
+
+	// Compare staleness markers, matching
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, decimal.StaleNaN, 7, 8},
+	}, &sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{5, decimal.StaleNaN, 7, 8},
+	}, 4)
+
+	// Special float values: +Inf, -Inf, 0, -0
+	f(&sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{math.Inf(1), math.Inf(-1), math.Copysign(0, +1), math.Copysign(0, -1)},
+	}, &sortBlock{
+		Timestamps: []int64{1, 2, 3, 4},
+		Values:     []float64{math.Inf(1), math.Inf(-1), math.Copysign(0, +1), math.Copysign(0, -1)},
+	}, 4)
+
+	// Positive zero vs negative zero (bitwise different)
+	f(&sortBlock{
+		Timestamps: []int64{1, 2},
+		Values:     []float64{5, math.Copysign(0, +1)},
+	}, &sortBlock{
+		Timestamps: []int64{1, 2},
+		Values:     []float64{5, math.Copysign(0, -1)},
+	}, 1)
 }

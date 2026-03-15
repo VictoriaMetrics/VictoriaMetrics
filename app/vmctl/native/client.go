@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 )
 
@@ -36,12 +38,15 @@ type Response struct {
 
 // Explore finds metric names by provided filter from api/v1/label/__name__/values
 func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, end time.Time) ([]string, error) {
+	startTime := time.Now()
+	exploreRequestsTotal.Inc()
 	url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
 	if tenantID != "" {
 		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
+		exploreRequestsErrorsTotal.Inc()
 		return nil, fmt.Errorf("cannot create request to %q: %s", url, err)
 	}
 
@@ -53,37 +58,53 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string, start, 
 
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
+		exploreRequestsErrorsTotal.Inc()
+		exploreDuration.UpdateDuration(startTime)
 		return nil, fmt.Errorf("series request failed: %s", err)
 	}
 
 	var response Response
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		exploreRequestsErrorsTotal.Inc()
+		exploreDuration.UpdateDuration(startTime)
 		return nil, fmt.Errorf("cannot decode series response: %s", err)
 	}
+	exploreDuration.UpdateDuration(startTime)
 	return response.MetricNames, resp.Body.Close()
 }
 
 // ImportPipe uses pipe reader in request to process data
 func (c *Client) ImportPipe(ctx context.Context, dstURL string, pr *io.PipeReader) error {
+	startTime := time.Now()
+	importRequestsTotal.Inc()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, dstURL, pr)
 	if err != nil {
+		importRequestsErrorsTotal.Inc()
 		return fmt.Errorf("cannot create import request to %q: %s", c.Addr, err)
 	}
 
 	importResp, err := c.do(req, http.StatusNoContent)
 	if err != nil {
+		importRequestsErrorsTotal.Inc()
+		importDuration.UpdateDuration(startTime)
 		return fmt.Errorf("import request failed: %s", err)
 	}
 	if err := importResp.Body.Close(); err != nil {
+		importRequestsErrorsTotal.Inc()
+		importDuration.UpdateDuration(startTime)
 		return fmt.Errorf("cannot close import response body: %s", err)
 	}
+	importDuration.UpdateDuration(startTime)
 	return nil
 }
 
 // ExportPipe makes request by provided filter and return io.ReadCloser which can be used to get data
 func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadCloser, error) {
+	startTime := time.Now()
+	exportRequestsTotal.Inc()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
+		exportRequestsErrorsTotal.Inc()
 		return nil, fmt.Errorf("cannot create request to %q: %s", c.Addr, err)
 	}
 
@@ -102,8 +123,11 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
+		exportRequestsErrorsTotal.Inc()
+		exportDuration.UpdateDuration(startTime)
 		return nil, fmt.Errorf("export request failed: %w", err)
 	}
+	exportDuration.UpdateDuration(startTime)
 	return resp.Body, nil
 }
 
@@ -162,3 +186,16 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	}
 	return resp, err
 }
+
+var (
+	importRequestsTotal        = metrics.NewCounter(`vmctl_vm_native_requests_total{type="import"}`)
+	exportRequestsTotal        = metrics.NewCounter(`vmctl_vm_native_requests_total{type="export"}`)
+	exploreRequestsTotal       = metrics.NewCounter(`vmctl_vm_native_requests_total{type="explore"}`)
+	importRequestsErrorsTotal  = metrics.NewCounter(`vmctl_vm_native_request_errors_total{type="import"}`)
+	exportRequestsErrorsTotal  = metrics.NewCounter(`vmctl_vm_native_request_errors_total{type="export"}`)
+	exploreRequestsErrorsTotal = metrics.NewCounter(`vmctl_vm_native_request_errors_total{type="explore"}`)
+
+	importDuration  = metrics.NewHistogram(`vmctl_vm_native_import_duration_seconds`)
+	exportDuration  = metrics.NewHistogram(`vmctl_vm_native_export_duration_seconds`)
+	exploreDuration = metrics.NewHistogram(`vmctl_vm_native_explore_duration_seconds`)
+)

@@ -53,40 +53,52 @@
   "id": 3,
   "links": [
     {
-      "asDropdown": false,
-      "icon": "external link",
-      "includeVars": false,
-      "keepTime": false,
+      "icon": "doc",
       "tags": [],
       "targetBlank": true,
-      "title": "vmalert docs",
-      "tooltip": "",
+      "title": "Docs",
       "type": "link",
       "url": "https://docs.victoriametrics.com/victoriametrics/vmalert/"
     },
     {
       "asDropdown": false,
-      "icon": "external link",
+      "icon": "question",
       "includeVars": false,
       "keepTime": false,
       "tags": [],
       "targetBlank": true,
-      "title": "Found a bug?",
+      "title": "Troubleshooting",
       "tooltip": "",
       "type": "link",
-      "url": " https://github.com/VictoriaMetrics/VictoriaMetrics/issues"
+      "url": "https://docs.victoriametrics.com/victoriametrics/vmalert/#troubleshooting"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Community support",
+      "type": "link",
+      "url": "https://victoriametrics.com/support/community-support/"
     },
     {
       "asDropdown": false,
-      "icon": "external link",
+      "icon": "bolt",
       "includeVars": false,
       "keepTime": false,
       "tags": [],
       "targetBlank": true,
-      "title": "New releases",
+      "title": "Enterprise support",
       "tooltip": "",
       "type": "link",
-      "url": " https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
+      "url": "https://victoriametrics.com/support/enterprise-support/"
+    },
+    {
+      "icon": "info",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Releases",
+      "type": "link",
+      "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }
   ],
   "panels": [

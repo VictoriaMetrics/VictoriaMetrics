@@ -32,6 +32,14 @@
         }
       }
 
+      &__warning {
+        flex-grow: 1;
+        text-align: right;
+        padding-right: calc($padding-large * 2);
+        font-size: $font-size-small;
+        color: $color-warning;
+      }
+
       &-labels {
         display: flex;
         flex-wrap: wrap;

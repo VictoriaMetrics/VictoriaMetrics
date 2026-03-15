@@ -30,6 +30,7 @@ type FetchQueryArguments = {
   metric: string;
   label: string;
   context: QueryContextType
+  labelMatchers: string[];
 }
 
 const icons = {
@@ -38,7 +39,7 @@ const icons = {
   [TypeData.labelValue]: <ValueIcon/>,
 };
 
-export const useFetchQueryOptions = ({ valueByContext, metric, label, context }: FetchQueryArguments) => {
+export const useFetchQueryOptions = ({ valueByContext, metric, label, context, labelMatchers }: FetchQueryArguments) => {
   const { serverUrl } = useAppState();
   const { period: { start, end } } = useTimeState();
   const { autocompleteCache } = useQueryState();
@@ -143,17 +144,19 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     setLabels([]);
 
     const metricEscaped = escapeDoubleQuotes(metric);
+    const matchMetric = metric ? `__name__="${metricEscaped}"` : "";
+    const matchValue = [matchMetric, ...labelMatchers].filter(Boolean).join(",");
 
     fetchData({
       value,
       urlSuffix: "labels",
       setter: setLabels,
       type: TypeData.label,
-      params: getQueryParams(metric ? { "match[]": `{__name__="${metricEscaped}"}` } : undefined)
+      params: getQueryParams({ "match[]": `{${matchValue}}` })
     });
 
     return () => abortControllerRef.current?.abort();
-  }, [serverUrl, value, context, metric]);
+  }, [serverUrl, value, context, metric, labelMatchers]);
 
   // fetch labelValues
   useEffect(() => {
@@ -166,7 +169,7 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     const valueReEscaped = escapeDoubleQuotes(escapeRegexp(value));
     const matchMetric = metric ? `__name__="${metricEscaped}"` : "";
     const matchLabel = `${label}=~".*${valueReEscaped}.*"`;
-    const matchValue = [matchMetric, matchLabel].filter(Boolean).join(",");
+    const matchValue = [matchMetric, ...labelMatchers, matchLabel].filter(Boolean).join(",");
 
     fetchData({
       value,
@@ -177,7 +180,7 @@ export const useFetchQueryOptions = ({ valueByContext, metric, label, context }:
     });
 
     return () => abortControllerRef.current?.abort();
-  }, [serverUrl, value, context, metric, label]);
+  }, [serverUrl, value, context, metric, label, labelMatchers]);
 
   return {
     metrics,

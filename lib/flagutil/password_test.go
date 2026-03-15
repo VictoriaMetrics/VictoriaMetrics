@@ -21,7 +21,7 @@ func TestPassword(t *testing.T) {
 	if err := p.Set(expectedPassword); err != nil {
 		t.Fatalf("cannot set password: %s", err)
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if s := p.Get(); s != expectedPassword {
 			t.Fatalf("unexpected password; got %q; want %q", s, expectedPassword)
 		}
@@ -37,7 +37,7 @@ func TestPassword(t *testing.T) {
 	if err := p.Set(path); err != nil {
 		t.Fatalf("cannot set password to file: %s", err)
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if s := p.Get(); s != expectedPassword {
 			t.Fatalf("unexpected password; got %q; want %q", s, expectedPassword)
 		}
@@ -57,7 +57,7 @@ func TestPassword(t *testing.T) {
 	if err := p.Set(path); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if s := p.Get(); s != expectedPassword {
 			t.Fatalf("unexpected password; got %q; want %q", s, expectedPassword)
 		}
@@ -70,7 +70,7 @@ func TestPassword(t *testing.T) {
 	if err := p.Set("http://127.0.0.1:56283/aaa/bb?cc=dd"); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if s := p.Get(); len(s) != 64 {
 			t.Fatalf("unexpected password obtained: %q; must be random 64-byte password", s)
 		}

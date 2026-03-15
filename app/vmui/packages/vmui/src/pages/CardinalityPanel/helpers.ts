@@ -1,4 +1,5 @@
 import { QueryUpdater } from "./types";
+import { escapeLabelName } from "../../utils/metric";
 
 export const queryUpdater: QueryUpdater = {
   seriesCountByMetricName: ({ query }): string => {
@@ -28,5 +29,5 @@ const getSeriesSelector = (label: string | null, value: string): string => {
   if (!label) {
     return "";
   }
-  return "{" + label + "=" + JSON.stringify(value) + "}";
+  return "{" + escapeLabelName(label) + "=" + JSON.stringify(value) + "}";
 };
