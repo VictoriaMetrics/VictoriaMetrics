@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `password_hash` option for storing [bcrypt](https://en.wikipedia.org/wiki/Bcrypt)-hashed passwords in the auth config instead of plaintext. See [Basic Auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#basic-auth-proxy) docs and [#5766](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5766).
+
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
 Released at 2026-03-13
