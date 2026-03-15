@@ -1,4 +1,4 @@
-package prometheus
+package thanos
 
 import (
 	"context"
@@ -10,18 +10,14 @@ import (
 	"github.com/prometheus/prometheus/tsdb"
 )
 
-// Config contains a list of params needed
-// for reading Prometheus snapshots
+// Config contains parameters for reading Thanos snapshots.
 type Config struct {
-	// Path to snapshot directory
-	Snapshot string
-
-	Filter       Filter
+	Snapshot     string
 	TemporaryDir string
+	Filter       Filter
 }
 
-// Filter contains configuration for filtering
-// the timeseries
+// Filter contains configuration for filtering the timeseries.
 type Filter struct {
 	TimeMin    string
 	TimeMax    string
@@ -29,10 +25,11 @@ type Filter struct {
 	LabelValue string
 }
 
-// Client is a wrapper over Prometheus tsdb.DBReader
+// Client reads Thanos snapshot blocks, including downsampled blocks with AggrChunk encoding.
 type Client struct {
-	*tsdb.DBReadOnly
-	filter filter
+	snapshotPath string
+	filter       filter
+	statsPrinted bool
 }
 
 type filter struct {
@@ -52,73 +49,83 @@ func (f filter) inRange(minV, maxV int64) bool {
 	return minV <= fmax && fmin <= maxV
 }
 
-// NewClient creates and validates new Client
-// with given Config
+// BlockWithInfo wraps a BlockReader with resolution information.
+type BlockWithInfo struct {
+	Block      tsdb.BlockReader
+	Resolution ResolutionLevel
+}
+
+// NewClient creates a new Thanos snapshot client.
 func NewClient(cfg Config) (*Client, error) {
-	db, err := tsdb.OpenDBReadOnly(cfg.Snapshot, cfg.TemporaryDir, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
-	}
-	c := &Client{DBReadOnly: db}
 	minTime, maxTime, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse time in filter: %s", err)
 	}
-	c.filter = filter{
-		min:        minTime,
-		max:        maxTime,
-		label:      cfg.Filter.Label,
-		labelValue: cfg.Filter.LabelValue,
-	}
-	return c, nil
+	return &Client{
+		snapshotPath: cfg.Snapshot,
+		filter: filter{
+			min:        minTime,
+			max:        maxTime,
+			label:      cfg.Filter.Label,
+			labelValue: cfg.Filter.LabelValue,
+		},
+	}, nil
 }
 
-// Explore fetches all available blocks from a snapshot
-// and collects the Meta() data from each block.
-// Explore does initial filtering by time-range
-// for snapshot blocks but does not take into account
-// label filters.
-func (c *Client) Explore() ([]tsdb.BlockReader, error) {
-	blocks, err := c.Blocks()
+// Explore fetches all available blocks from the snapshot with support for
+// Thanos AggrChunk (downsampled blocks). It opens blocks with a custom pool
+// that can decode AggrChunk encoding (0xff).
+func (c *Client) Explore(aggrType AggrType) ([]BlockWithInfo, error) {
+	blockInfos, err := OpenBlocksWithInfo(c.snapshotPath, aggrType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch blocks: %s", err)
+		return nil, fmt.Errorf("failed to open blocks: %w", err)
 	}
+
 	s := &Stats{
 		Filtered: c.filter.min != 0 || c.filter.max != 0 || c.filter.label != "",
-		Blocks:   len(blocks),
+		Blocks:   len(blockInfos),
 	}
-	var blocksToImport []tsdb.BlockReader
-	for _, block := range blocks {
-		meta := block.Meta()
-		if !c.filter.inRange(meta.MinTime, meta.MaxTime) {
-			s.SkippedBlocks++
-			continue
-		}
+
+	var blocksToImport []BlockWithInfo
+	for _, bi := range blockInfos {
+		meta := bi.Block.Meta()
+
 		if s.MinTime == 0 || meta.MinTime < s.MinTime {
 			s.MinTime = meta.MinTime
 		}
 		if s.MaxTime == 0 || meta.MaxTime > s.MaxTime {
 			s.MaxTime = meta.MaxTime
 		}
+
+		if !c.filter.inRange(meta.MinTime, meta.MaxTime) {
+			s.SkippedBlocks++
+			continue
+		}
+
 		s.Samples += meta.Stats.NumSamples
 		s.Series += meta.Stats.NumSeries
-		blocksToImport = append(blocksToImport, block)
+		blocksToImport = append(blocksToImport, BlockWithInfo{
+			Block:      bi.Block,
+			Resolution: bi.Resolution,
+		})
 	}
-	fmt.Println(s)
+	if !c.statsPrinted {
+		fmt.Println(s)
+		c.statsPrinted = true
+	}
 	return blocksToImport, nil
 }
 
-// Read reads the given BlockReader according to configured
-// time and label filters.
-func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
-	minTime, maxTime := block.Meta().MinTime, block.Meta().MaxTime
+// Read reads the given BlockWithInfo according to configured time and label filters.
+func (c *Client) Read(bi BlockWithInfo) (storage.SeriesSet, error) {
+	minTime, maxTime := bi.Block.Meta().MinTime, bi.Block.Meta().MaxTime
 	if c.filter.min != 0 {
 		minTime = c.filter.min
 	}
 	if c.filter.max != 0 {
 		maxTime = c.filter.max
 	}
-	q, err := tsdb.NewBlockQuerier(block, minTime, maxTime)
+	q, err := tsdb.NewBlockQuerier(bi.Block, minTime, maxTime)
 	if err != nil {
 		return nil, err
 	}

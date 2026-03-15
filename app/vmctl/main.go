@@ -287,7 +287,48 @@ func main() {
 						return fmt.Errorf("failed to create prometheus client: %s", err)
 					}
 
-					// Parse aggregate types for Thanos downsampled blocks
+					pp := prometheusProcessor{
+						cl:        cl,
+						im:        importer,
+						cc:        c.Int(promConcurrency),
+						isVerbose: c.Bool(globalVerbose),
+					}
+					return pp.run(ctx)
+				},
+			},
+			{
+				Name:   "thanos",
+				Usage:  "Migrate time series from Thanos blocks (supports raw and downsampled data)",
+				Flags:  mergeFlags(globalFlags, thanosFlags, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("Thanos import mode")
+
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
+
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					thanosCfg := thanos.Config{
+						Snapshot:     c.String(promSnapshot),
+						TemporaryDir: c.String(promTemporaryDirPath),
+						Filter: thanos.Filter{
+							TimeMin:    c.String(promFilterTimeStart),
+							TimeMax:    c.String(promFilterTimeEnd),
+							Label:      c.String(promFilterLabel),
+							LabelValue: c.String(promFilterLabelValue),
+						},
+					}
+					cl, err := thanos.NewClient(thanosCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create thanos client: %s", err)
+					}
+
 					var aggrTypes []thanos.AggrType
 					if aggrTypesStr := c.StringSlice(promAggrTypes); len(aggrTypesStr) > 0 {
 						for _, typeStr := range aggrTypesStr {
@@ -299,14 +340,14 @@ func main() {
 						}
 					}
 
-					pp := prometheusProcessor{
+					tp := thanosProcessor{
 						cl:        cl,
 						im:        importer,
 						cc:        c.Int(promConcurrency),
 						isVerbose: c.Bool(globalVerbose),
 						aggrTypes: aggrTypes,
 					}
-					return pp.run(ctx)
+					return tp.run(ctx)
 				},
 			},
 			{

@@ -25,6 +25,9 @@ const (
 	AggrCounter
 )
 
+// AllAggrTypes contains all supported aggregation types.
+var AllAggrTypes = []AggrType{AggrCount, AggrSum, AggrMin, AggrMax, AggrCounter}
+
 func (t AggrType) String() string {
 	switch t {
 	case AggrCount:
