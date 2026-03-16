@@ -87,8 +87,10 @@ func (c AggrChunk) Get(t AggrType) (chunkenc.Chunk, error) {
 		if n < 1 {
 			return nil, errors.New("invalid size: failed to read uvarint")
 		}
-		if len(b[n:]) < int(l)+1 && l > 0 {
-			return nil, errors.New("invalid size: not enough bytes")
+		if l > uint64(len(b[n:])) || l+1 > uint64(len(b[n:])) {
+			if l > 0 {
+				return nil, errors.New("invalid size: not enough bytes")
+			}
 		}
 		b = b[n:]
 		// If length is set to zero explicitly, that means the aggregate is unset.
@@ -98,8 +100,9 @@ func (c AggrChunk) Get(t AggrType) (chunkenc.Chunk, error) {
 			}
 			continue
 		}
-		x = b[:int(l)+1]
-		b = b[int(l)+1:]
+		chunkLen := int(l) + 1
+		x = b[:chunkLen]
+		b = b[chunkLen:]
 	}
 	if len(x) == 0 {
 		return nil, ErrAggrNotExist

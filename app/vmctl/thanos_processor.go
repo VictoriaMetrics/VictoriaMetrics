@@ -43,7 +43,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 	}
 
 	// Separate blocks into raw (resolution=0) and downsampled (resolution>0)
-	var rawBlocks, downsampledBlocks []thanos.BlockWithInfo
+	var rawBlocks, downsampledBlocks []thanos.BlockInfo
 	for _, block := range blocks {
 		if block.Resolution == thanos.ResolutionRaw {
 			rawBlocks = append(rawBlocks, block)
@@ -93,6 +93,10 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 		})
 	}
 
+	// Close blocks from the initial Explore. The querierSeriesSet wrapper
+	// has already released all querier read references, so Close won't hang.
+	thanos.CloseBlocks(blocks)
+
 	// Process downsampled blocks for each aggregate type.
 	// Each type needs its own AggrChunkPool, so we reopen blocks per type.
 	for _, aggrType := range tp.aggrTypes {
@@ -107,7 +111,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 			return fmt.Errorf("explore failed for aggr type %s: %s", aggrType, err)
 		}
 
-		var downsampledOnly []thanos.BlockWithInfo
+		var downsampledOnly []thanos.BlockInfo
 		for _, block := range aggrBlocks {
 			if block.Resolution != thanos.ResolutionRaw {
 				downsampledOnly = append(downsampledOnly, block)
@@ -116,11 +120,13 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 
 		if len(downsampledOnly) < 1 {
 			log.Printf("No downsampled blocks found for aggregate type %s, skipping", aggrType)
+			thanos.CloseBlocks(aggrBlocks)
 			continue
 		}
 
 		log.Printf("Processing %d blocks for aggregate type: %s", len(downsampledOnly), aggrType)
 		stats, err := tp.processBlocks(downsampledOnly, aggrType, bar)
+		thanos.CloseBlocks(aggrBlocks)
 		if err != nil {
 			return fmt.Errorf("migration failed for aggr type %s: %s", aggrType, err)
 		}
@@ -163,8 +169,8 @@ type processBlocksStats struct {
 	samples uint64
 }
 
-func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockWithInfo, aggrType thanos.AggrType, bar barpool.Bar) (processBlocksStats, error) {
-	blockReadersCh := make(chan thanos.BlockWithInfo)
+func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockInfo, aggrType thanos.AggrType, bar barpool.Bar) (processBlocksStats, error) {
+	blockReadersCh := make(chan thanos.BlockInfo)
 	errCh := make(chan error, tp.cc)
 
 	var processedBlocks, totalSeries, totalSamples uint64
@@ -202,9 +208,11 @@ func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockWithInfo, aggrType
 		select {
 		case thanosErr := <-errCh:
 			close(blockReadersCh)
+			wg.Wait()
 			return processBlocksStats{}, fmt.Errorf("thanos error: %s", thanosErr)
 		case vmErr := <-tp.im.Errors():
 			close(blockReadersCh)
+			wg.Wait()
 			thanosErrorsTotal.Inc()
 			return processBlocksStats{}, fmt.Errorf("import process failed: %s", wrapErr(vmErr, tp.isVerbose))
 		case blockReadersCh <- bi:
@@ -225,11 +233,12 @@ func (tp *thanosProcessor) processBlocks(blocks []thanos.BlockWithInfo, aggrType
 	}, nil
 }
 
-func (tp *thanosProcessor) do(bi thanos.BlockWithInfo, aggrType thanos.AggrType) (uint64, uint64, error) {
+func (tp *thanosProcessor) do(bi thanos.BlockInfo, aggrType thanos.AggrType) (uint64, uint64, error) {
 	ss, err := tp.cl.Read(bi)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to read block: %s", err)
 	}
+	defer ss.Close() // Ensure querier is closed even on early returns
 
 	var it chunkenc.Iterator
 	var seriesCount, samplesCount uint64

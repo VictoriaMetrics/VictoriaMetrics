@@ -2,6 +2,7 @@ package thanos
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -14,6 +15,9 @@ type BlockInfo struct {
 	Block      tsdb.BlockReader
 	Resolution ResolutionLevel
 	IsThanos   bool
+	// Closer releases the block's resources (file descriptors, mmap).
+	// Must be called only after all queriers on this block have been closed.
+	Closer io.Closer
 }
 
 // OpenBlocksWithInfo opens all blocks and returns them with their metadata.
@@ -38,20 +42,10 @@ func OpenBlocksWithInfo(snapshotDir string, aggrType AggrType) ([]BlockInfo, err
 			continue
 		}
 
-		// Read Thanos metadata to determine resolution
 		meta, err := ReadBlockMeta(blockDir)
 		if err != nil {
-			// If we can't read Thanos meta, treat as raw Prometheus block
-			block, err := tsdb.OpenBlock(nil, blockDir, nil, nil)
-			if err != nil {
-				return nil, fmt.Errorf("failed to open block %s: %w", blockDir, err)
-			}
-			blocks = append(blocks, BlockInfo{
-				Block:      block,
-				Resolution: ResolutionRaw,
-				IsThanos:   false,
-			})
-			continue
+			CloseBlocks(blocks)
+			return nil, fmt.Errorf("failed to read Thanos metadata for block %s: %w", blockDir, err)
 		}
 
 		var pool chunkenc.Pool
@@ -62,6 +56,8 @@ func OpenBlocksWithInfo(snapshotDir string, aggrType AggrType) ([]BlockInfo, err
 
 		block, err := tsdb.OpenBlock(nil, blockDir, pool, nil)
 		if err != nil {
+			// Close previously opened blocks before returning error
+			CloseBlocks(blocks)
 			return nil, fmt.Errorf("failed to open block %s: %w", blockDir, err)
 		}
 
@@ -69,8 +65,19 @@ func OpenBlocksWithInfo(snapshotDir string, aggrType AggrType) ([]BlockInfo, err
 			Block:      block,
 			Resolution: meta.Resolution(),
 			IsThanos:   true,
+			Closer:     block,
 		})
 	}
 
 	return blocks, nil
+}
+
+// CloseBlocks closes all blocks in the slice.
+// Must be called only after all queriers on these blocks have been closed.
+func CloseBlocks(blocks []BlockInfo) {
+	for _, bi := range blocks {
+		if bi.Closer != nil {
+			_ = bi.Closer.Close()
+		}
+	}
 }
