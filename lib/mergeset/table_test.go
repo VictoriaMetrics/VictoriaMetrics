@@ -302,7 +302,7 @@ func testReopenTable(t *testing.T, path string, itemsCount int) {
 	}
 }
 
-func TestTableMustMergeInmemoryPartsFinal_refCount(t *testing.T) {
+func TestTableMustMergeInmemoryPartsFinal_pwsRefCount(t *testing.T) {
 	path := t.Name()
 	fs.MustRemoveDir(path)
 	defer fs.MustRemoveDir(path)
@@ -311,20 +311,19 @@ func TestTableMustMergeInmemoryPartsFinal_refCount(t *testing.T) {
 	tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
 	defer tb.MustClose()
 
-	const numParts = 100
-	pws := make([]*partWrapper, numParts)
-	for i := range numParts {
-		var ib inmemoryBlock
-		items := bytes.Repeat([]byte{byte(i)}, 1024)
-		ib.Add(items)
-		pw := tb.createInmemoryPart([]*inmemoryBlock{&ib})
-		if got, want := pw.refCount.Load(), int32(1); got != want {
-			t.Fatalf("unexpected inmemory part wrapper ref count: got %d, want %d", got, want)
+	generatePartWrappers := func(n int) []*partWrapper {
+		pws := make([]*partWrapper, n)
+		for i := range n {
+			var ib inmemoryBlock
+			items := bytes.Repeat([]byte{byte(i)}, 1024)
+			ib.Add(items)
+			pw := tb.createInmemoryPart([]*inmemoryBlock{&ib})
+			pws[i] = pw
 		}
-		pws[i] = pw
+		return pws
 	}
 
-	assertRefCount := func(want int32) {
+	assertRefCount := func(pws []*partWrapper, want int32) {
 		t.Helper()
 		for _, pw := range pws {
 			if got := pw.refCount.Load(); got != want {
@@ -333,7 +332,22 @@ func TestTableMustMergeInmemoryPartsFinal_refCount(t *testing.T) {
 		}
 	}
 
-	assertRefCount(1)
-	_ = tb.mustMergeInmemoryPartsFinal(pws)
-	assertRefCount(0)
+	var (
+		pwsSrc  []*partWrapper
+		pwFinal *partWrapper
+	)
+
+	// single source part wrapper
+	pwsSrc = generatePartWrappers(1)
+	assertRefCount(pwsSrc, 1)
+	pwFinal = tb.mustMergeInmemoryPartsFinal(pwsSrc)
+	assertRefCount(pwsSrc, 1)
+	assertRefCount([]*partWrapper{pwFinal}, 1)
+
+	// many source part wrappers
+	pwsSrc = generatePartWrappers(100)
+	assertRefCount(pwsSrc, 1)
+	pwFinal = tb.mustMergeInmemoryPartsFinal(pwsSrc)
+	assertRefCount(pwsSrc, 0)
+	assertRefCount([]*partWrapper{pwFinal}, 1)
 }

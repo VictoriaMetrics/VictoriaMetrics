@@ -953,9 +953,9 @@ func (tb *Table) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 // into a single new in-memory part wrapper.
 //
 // It panics if the input slice pws is empty (though the caller should prevent
-// this).
-//
-// The ref count of the source in-memory part wrappers is decremented when len(pws) > 1.
+// this). If the pws contains only one element, it is returned as is. Finally,
+// when len(pws) > 1, the source pws are merged, and their ref count is
+// decremented.
 func (tb *Table) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: pws must contain at least a single item")

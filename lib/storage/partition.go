@@ -803,12 +803,17 @@ func (pt *partition) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 	return pwsResult
 }
 
-// mustMergeInmemoryPartsFinal merges the given in-memory part wrappers (pws) into a single new in-memory part wrapper.
-// It panics if the input slice pws is empty (though the caller should prevent this).
-// Returns nil if the merge results in an empty part (e.g., due to retention filters removing all data).
-// Otherwise, returns the wrapper for the merged part.
+// mustMergeInmemoryPartsFinal merges the given in-memory part wrappers (pws)
+// into a single new in-memory part wrapper.
 //
-// The ref count of the source in-memory part wrappers is decremented when a merge occurs; if len(pws)==1, the input wrapper is returned as-is.
+// It panics if the input slice pws is empty (though the caller should prevent
+// this). If the pws contains only one element, it is returned as is. Finally,
+// when len(pws) > 1, the source pws are merged, and their ref count is
+// decremented.
+//
+// Returns nil if the merge results in an empty part (e.g., due to retention
+// filters removing all data). Otherwise, returns the wrapper for the merged
+// part.
 func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: pws must contain at least a single item")

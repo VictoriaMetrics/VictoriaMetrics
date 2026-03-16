@@ -194,28 +194,31 @@ func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
 	}
 }
 
-func TestMergeInMemoryPartsFinal_refCount(t *testing.T) {
+func TestMergeInMemoryPartsFinal_pwsRefCount(t *testing.T) {
 	defer testRemoveAll(t)
 
-	var pws []*partWrapper
-	for range 100 {
-		var rows []rawRow
-		for i := range 10 {
-			row := rawRow{
-				TSID:          TSID{MetricID: uint64(i)},
-				Value:         float64(i),
-				Timestamp:     time.Now().UnixMilli() + int64(i),
-				PrecisionBits: 64,
+	generatePartWrappers := func(n int) []*partWrapper {
+		var pws []*partWrapper
+		for range n {
+			var rows []rawRow
+			for i := range 10 {
+				row := rawRow{
+					TSID:          TSID{MetricID: uint64(i)},
+					Value:         float64(i),
+					Timestamp:     time.Now().UnixMilli() + int64(i),
+					PrecisionBits: 64,
+				}
+				rows = append(rows, row)
 			}
-			rows = append(rows, row)
+			var mp inmemoryPart
+			mp.InitFromRows(rows)
+			pw := newPartWrapperFromInmemoryPart(&mp, time.Time{})
+			pws = append(pws, pw)
 		}
-		var mp inmemoryPart
-		mp.InitFromRows(rows)
-		pw := newPartWrapperFromInmemoryPart(&mp, time.Time{})
-		pws = append(pws, pw)
+		return pws
 	}
 
-	assertRefCount := func(want int32) {
+	assertRefCount := func(pws []*partWrapper, want int32) {
 		t.Helper()
 		for _, pw := range pws {
 			if got := pw.refCount.Load(); got != want {
@@ -230,9 +233,24 @@ func TestMergeInMemoryPartsFinal_refCount(t *testing.T) {
 	defer s.tb.PutPartition(ptw)
 	pt := ptw.pt
 
-	assertRefCount(1)
-	_ = pt.mustMergeInmemoryPartsFinal(pws)
-	assertRefCount(0)
+	var (
+		pwsSrc  []*partWrapper
+		pwFinal *partWrapper
+	)
+
+	// single source part wrapper
+	pwsSrc = generatePartWrappers(1)
+	assertRefCount(pwsSrc, 1)
+	pwFinal = pt.mustMergeInmemoryPartsFinal(pwsSrc)
+	assertRefCount(pwsSrc, 1)
+	assertRefCount([]*partWrapper{pwFinal}, 1)
+
+	// many source part wrappers
+	pwsSrc = generatePartWrappers(100)
+	assertRefCount(pwsSrc, 1)
+	pwFinal = pt.mustMergeInmemoryPartsFinal(pwsSrc)
+	assertRefCount(pwsSrc, 0)
+	assertRefCount([]*partWrapper{pwFinal}, 1)
 }
 
 func testCreatePartition(t *testing.T, timestamp int64, s *Storage) *partition {
