@@ -26,6 +26,13 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show `seriesCountByMetricName` table when a label is in focus in the [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). See [#10630](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10630). Thanks to @Roshan1299 for the contribution.
+* FEATURE: [dashboards/unused-metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/unused-metrics.json): add a new dashboard for exploring stored metrics based on [Caridnality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) and [ingested metrics usage API](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage). The dashboard requires [Infinity Grafana plugin](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed. See [#10617](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10617) for details.
+
+## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
+
+Released at 2026-03-13
+
 * SECURITY: upgrade Go builder from Go1.26.0 to Go1.26.1. See [the list of issues addressed in Go1.26.1](https://github.com/golang/go/issues?q=milestone%3AGo1.26.1%20label%3ACherryPickApproved).
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `headers` field to `oauth2` scrape config for passing custom HTTP headers to `token_url`. Some services require different headers for the token endpoint and the scrape targets. See [#8939](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8939).
@@ -42,6 +49,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 * BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use `increase_pure` instead of `rate` for histogram heatmaps in Explore Metrics to correctly display the first observation in each new bucket. See [#10365](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10365). Thanks to @ab0utbla-k for the contribution.
 * BUGFIX: [dashboards/vmauth](https://grafana.com/grafana/dashboards/21394): fix `requested from system` and `heap inuse` expressions in the memory usage panel. See [#10574](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10574).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): do not enable ACL when uploading backups to S3-compatible endpoints by default. ACL is not always supported by S3-compatible endpoints and it is not recommended to use ACLs to limit access to objects. See [#10539](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10539) for more details.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): overwrite s3 object metadata while syncing latest backups with other backup types. See [#10639](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10639).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly attach `host` label to the time series ingested via [/datadog/api/beta/sketches](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/#) API. See [#10557](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10557).
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix inaccurate `vm_filestream_write_duration_seconds_total` due to duplicate counting . After the fix, `vm_filestream_write_duration_seconds_total` will track the duration spent on calling the `write(2)` system call properly. See [#10564](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10564).
 

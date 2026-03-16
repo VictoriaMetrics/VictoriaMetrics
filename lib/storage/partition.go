@@ -216,7 +216,7 @@ func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath
 
 	// Create parts.json file. Since we are creating a new partition, there
 	// will be no parts, i.e. the smallPartsPath and bigPartPath dirs will be
-	// empty. This is guaranteed by the code above: if eirher directory exists,
+	// empty. This is guaranteed by the code above: if either directory exists,
 	// there will be panic.
 	mustWritePartNames(nil, nil, smallPartsPath)
 
