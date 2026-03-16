@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show `seriesCountByMetricName` table when a label is in focus in the [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). See [#10630](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10630). Thanks to @Roshan1299 for the contribution.
+
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
 Released at 2026-03-13
