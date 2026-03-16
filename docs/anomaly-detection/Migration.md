@@ -39,7 +39,7 @@ This section outlines the compatibility of different `vmanomaly` versions with v
 
 > Used if `settings.restore_state` is set to `true`. See argument details in the [configuration documentation](https://docs.victoriametrics.com/anomaly-detection/components/settings/#state-restoration).
 
-There are 2 types of compatibilitity to consider when migrating in stateful mode:
+There are 2 types of compatibility to consider when migrating in stateful mode:
 - **Global (in)compatibility**: The new version can seamlessly read and utilize the existing state without any modifications or data loss. Or, in case of incompatibility, the existing state must be dropped completely to proceed with the migration.
 - **Component (in)compatibility**: The new version may introduce changes that affect specific components (e.g., specific models, data formats) but can still operate with the existing state with some adjustments or drop of incompatible on disk artifacts.
 
