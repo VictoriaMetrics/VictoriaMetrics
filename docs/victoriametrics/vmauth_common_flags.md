@@ -176,7 +176,7 @@ See the docs at https://docs.victoriametrics.com/victoriametrics/vmauth/ .
   -removeXFFHTTPHeaderValue
      Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. Recommended when vmauth is exposed to the internet.
   -requestBufferSize size
-     The size of the buffer for reading the request body before proxying the request to backends. This allows reducing the comsumption of backend resources when processing requests from clients connected via slow networks. Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering
+     The size of the buffer for reading the request body before proxying the request to backends. This allows reducing the consumption of backend resources when processing requests from clients connected via slow networks. Set to 0 to disable request buffering. See https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 32768)
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)
