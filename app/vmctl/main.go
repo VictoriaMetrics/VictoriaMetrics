@@ -315,8 +315,7 @@ func main() {
 					}
 
 					thanosCfg := thanos.Config{
-						Snapshot:     c.String(thanosSnapshot),
-						TemporaryDir: c.String(thanosTemporaryDirPath),
+						Snapshot: c.String(thanosSnapshot),
 						Filter: thanos.Filter{
 							TimeMin:    c.String(thanosFilterTimeStart),
 							TimeMax:    c.String(thanosFilterTimeEnd),

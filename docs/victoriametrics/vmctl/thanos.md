@@ -194,7 +194,6 @@ vmctl thanos --thanos-snapshot thanos-data --vm-addr http://victoria-metrics:842
 | `--thanos-filter-time-end` | Time filter to select timeseries with timestamp equal or lower than provided value (RFC3339 format) | |
 | `--thanos-filter-label` | Label name to filter timeseries by | |
 | `--thanos-filter-label-value` | Regular expression to filter label values | `.*` |
-| `--thanos-tmp-dir-path` | Path to directory for temporary files | system temp dir |
 | `--thanos-aggr-types` | Aggregate types to import from downsampled blocks (count, sum, min, max, counter). Can be specified multiple times. If not set, all types are imported | |
 
 ## Remote read protocol

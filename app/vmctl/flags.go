@@ -414,7 +414,6 @@ const (
 	promFilterLabel      = "prom-filter-label"
 	promFilterLabelValue = "prom-filter-label-value"
 	promTemporaryDirPath = "prom-tmp-dir-path"
-	promAggrTypes        = "prom-aggr-types"
 )
 
 const (
@@ -424,7 +423,6 @@ const (
 	thanosFilterTimeEnd    = "thanos-filter-time-end"
 	thanosFilterLabel      = "thanos-filter-label"
 	thanosFilterLabelValue = "thanos-filter-label-value"
-	thanosTemporaryDirPath = "thanos-tmp-dir-path"
 	thanosAggrTypes        = "thanos-aggr-types"
 )
 
@@ -491,11 +489,6 @@ var (
 			Name:  thanosFilterLabelValue,
 			Usage: fmt.Sprintf("Thanos regular expression to filter label from %q flag.", thanosFilterLabel),
 			Value: ".*",
-		},
-		&cli.StringFlag{
-			Name:  thanosTemporaryDirPath,
-			Usage: "Path to directory to be used for temporary files.",
-			Value: os.TempDir(),
 		},
 		&cli.StringSliceFlag{
 			Name: thanosAggrTypes,

@@ -82,7 +82,7 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 	// Process raw blocks first (no aggregate suffix)
 	if len(rawBlocks) > 0 {
 		log.Println("Processing raw blocks (resolution=0)...")
-		stats, err := tp.processBlocks(rawBlocks, thanos.AggrType(255), bar)
+		stats, err := tp.processBlocks(rawBlocks, thanos.AggrTypeNone, bar)
 		if err != nil {
 			return fmt.Errorf("migration failed for raw blocks: %s", err)
 		}
@@ -93,7 +93,8 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 		})
 	}
 
-	// Process downsampled blocks for each aggregate type
+	// Process downsampled blocks for each aggregate type.
+	// Each type needs its own AggrChunkPool, so we reopen blocks per type.
 	for _, aggrType := range tp.aggrTypes {
 		if len(downsampledBlocks) < 1 {
 			break
@@ -101,14 +102,13 @@ func (tp *thanosProcessor) run(ctx context.Context) error {
 
 		log.Printf("Processing downsampled blocks with aggregate type: %s", aggrType)
 
-		// Reopen blocks with the appropriate chunk pool for this aggregate type
-		blocks, err := tp.cl.Explore(aggrType)
+		aggrBlocks, err := tp.cl.Explore(aggrType)
 		if err != nil {
 			return fmt.Errorf("explore failed for aggr type %s: %s", aggrType, err)
 		}
 
 		var downsampledOnly []thanos.BlockWithInfo
-		for _, block := range blocks {
+		for _, block := range aggrBlocks {
 			if block.Resolution != thanos.ResolutionRaw {
 				downsampledOnly = append(downsampledOnly, block)
 			}
@@ -254,7 +254,7 @@ func (tp *thanosProcessor) do(bi thanos.BlockWithInfo, aggrType thanos.AggrType)
 		}
 
 		// Add resolution and aggregate type suffix to metric name for downsampled blocks
-		if bi.Resolution != thanos.ResolutionRaw && aggrType != 255 {
+		if bi.Resolution != thanos.ResolutionRaw && aggrType != thanos.AggrTypeNone {
 			name = fmt.Sprintf("%s:%s:%s", name, bi.Resolution.String(), aggrType.String())
 		}
 

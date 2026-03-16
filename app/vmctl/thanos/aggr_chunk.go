@@ -15,6 +15,10 @@ const ChunkEncAggr = chunkenc.Encoding(0xff)
 // AggrType represents an aggregation type in Thanos downsampled blocks.
 type AggrType uint8
 
+// AggrTypeNone indicates raw blocks with no aggregation.
+// It is used as a sentinel to distinguish raw block processing from downsampled.
+const AggrTypeNone AggrType = 255
+
 // Valid aggregation types matching Thanos definitions.
 const (
 	AggrCount AggrType = iota
@@ -108,16 +112,34 @@ func (c AggrChunk) Encoding() chunkenc.Encoding {
 	return ChunkEncAggr
 }
 
+// errIterator wraps a nop iterator but reports an error via Err().
+// It embeds chunkenc.Iterator to inherit all methods (including Seek)
+// which avoids go vet stdmethods warning about Seek signature.
+type errIterator struct {
+	chunkenc.Iterator
+	err error
+}
+
+// Err returns the underlying error.
+func (it *errIterator) Err() error {
+	return it.err
+}
+
 // newAggrChunkIterator creates a new iterator for the specified aggregate type.
-// If there's an error getting the sub-chunk, it returns an iterator that will
-// report the error via Err() method.
+// If the aggregate is not present in the chunk (ErrAggrNotExist), a nop iterator
+// is returned without error — the caller will simply see zero samples.
+// Real decoding/corruption errors are reported via the iterator's Err() method.
 func newAggrChunkIterator(data []byte, aggrType AggrType) chunkenc.Iterator {
 	chunk := AggrChunk(data)
 	subChunk, err := chunk.Get(aggrType)
 	if err != nil {
-		// Return a nop iterator - the error will be detected when the caller
-		// checks that no samples were returned
-		return chunkenc.NewNopIterator()
+		if errors.Is(err, ErrAggrNotExist) {
+			return chunkenc.NewNopIterator()
+		}
+		return &errIterator{
+			Iterator: chunkenc.NewNopIterator(),
+			err:      err,
+		}
 	}
 	return subChunk.Iterator(nil)
 }

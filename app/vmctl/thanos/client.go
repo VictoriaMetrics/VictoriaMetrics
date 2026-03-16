@@ -12,9 +12,8 @@ import (
 
 // Config contains parameters for reading Thanos snapshots.
 type Config struct {
-	Snapshot     string
-	TemporaryDir string
-	Filter       Filter
+	Snapshot string
+	Filter   Filter
 }
 
 // Filter contains configuration for filtering the timeseries.
