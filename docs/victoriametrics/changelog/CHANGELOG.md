@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 ## tip
 
 * FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): show `seriesCountByMetricName` table when a label is in focus in the [Cardinality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer). See [#10630](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10630). Thanks to @Roshan1299 for the contribution.
+* FEATURE: [dashboards/unused-metrics](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/unused-metrics.json): add a new dashboard for exploring stored metrics based on [Caridnality Explorer](https://docs.victoriametrics.com/victoriametrics/#cardinality-explorer) and [ingested metrics usage API](https://docs.victoriametrics.com/victoriametrics/#track-ingested-metrics-usage). The dashboard requires [Infinity Grafana plugin](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) to be installed. See [#10617](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10617) for details.
 
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
