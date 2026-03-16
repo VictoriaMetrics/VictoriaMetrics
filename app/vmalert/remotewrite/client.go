@@ -186,6 +186,11 @@ func (c *Client) run(ctx context.Context) {
 				return
 			case <-ticker.C:
 				c.flush(ctx, wr)
+				// drain the potential stale tick to avoid small or empty flushes after a slow flush.
+				select {
+				case <-ticker.C:
+				default:
+				}
 			case ts, ok := <-c.input:
 				if !ok {
 					continue

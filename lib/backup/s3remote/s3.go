@@ -357,6 +357,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		Metadata:          fs.Metadata,
 		MetadataDirective: s3types.MetadataDirectiveReplace,
 		Tagging:           fs.tags,
+		TaggingDirective:  s3types.TaggingDirectiveReplace,
 		ACL:               fs.ACL,
 	}
 	if len(fs.SSEKMSKeyId) > 0 {
