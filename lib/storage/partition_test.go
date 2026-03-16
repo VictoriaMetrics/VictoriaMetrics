@@ -194,6 +194,47 @@ func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
 	}
 }
 
+func TestMergeInMemoryPartsFinal_refCount(t *testing.T) {
+	defer testRemoveAll(t)
+
+	var pws []*partWrapper
+	for range 100 {
+		var rows []rawRow
+		for i := range 10 {
+			row := rawRow{
+				TSID:          TSID{MetricID: uint64(i)},
+				Value:         float64(i),
+				Timestamp:     time.Now().UnixMilli() + int64(i),
+				PrecisionBits: 64,
+			}
+			rows = append(rows, row)
+		}
+		var mp inmemoryPart
+		mp.InitFromRows(rows)
+		pw := newPartWrapperFromInmemoryPart(&mp, time.Time{})
+		pws = append(pws, pw)
+	}
+
+	assertRefCount := func(want int32) {
+		t.Helper()
+		for _, pw := range pws {
+			if got := pw.refCount.Load(); got != want {
+				t.Fatalf("unexpected inmemory part wrapper ref count: got %d, want %d", got, want)
+			}
+		}
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	ptw := s.tb.MustGetPartition(time.Now().UnixMilli())
+	defer s.tb.PutPartition(ptw)
+	pt := ptw.pt
+
+	assertRefCount(1)
+	_ = pt.mustMergeInmemoryPartsFinal(pws)
+	assertRefCount(0)
+}
+
 func testCreatePartition(t *testing.T, timestamp int64, s *Storage) *partition {
 	t.Helper()
 	small := filepath.Join(t.Name(), smallDirname)

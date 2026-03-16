@@ -301,3 +301,39 @@ func testReopenTable(t *testing.T, path string, itemsCount int) {
 		tb.MustClose()
 	}
 }
+
+func TestTableMustMergeInmemoryPartsFinal_refCount(t *testing.T) {
+	path := t.Name()
+	fs.MustRemoveDir(path)
+	defer fs.MustRemoveDir(path)
+
+	var isReadOnly atomic.Bool
+	tb := MustOpenTable(path, 0, nil, nil, &isReadOnly)
+	defer tb.MustClose()
+
+	const numParts = 100
+	pws := make([]*partWrapper, numParts)
+	for i := range numParts {
+		var ib inmemoryBlock
+		items := bytes.Repeat([]byte{byte(i)}, 1024)
+		ib.Add(items)
+		pw := tb.createInmemoryPart([]*inmemoryBlock{&ib})
+		if got, want := pw.refCount.Load(), int32(1); got != want {
+			t.Fatalf("unexpected inmemory part wrapper ref count: got %d, want %d", got, want)
+		}
+		pws[i] = pw
+	}
+
+	assertRefCount := func(want int32) {
+		t.Helper()
+		for _, pw := range pws {
+			if got := pw.refCount.Load(); got != want {
+				t.Fatalf("unexpected inmemory part wrapper ref count: got %d, want %d", got, want)
+			}
+		}
+	}
+
+	assertRefCount(1)
+	_ = tb.mustMergeInmemoryPartsFinal(pws)
+	assertRefCount(0)
+}
