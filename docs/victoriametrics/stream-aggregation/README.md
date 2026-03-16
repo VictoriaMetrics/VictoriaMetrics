@@ -369,7 +369,7 @@ It is possible to drop the given labels before applying the de-duplication. See 
 
 The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#deduplication) at VictoriaMetrics.
 
-De-deduplication is applied before stream aggregation rules and can drop samples before they get matched for aggregation.
+De-duplication is applied before stream aggregation rules and can drop samples before they get matched for aggregation.
 
 # Relabeling
 
