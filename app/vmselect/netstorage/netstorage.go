@@ -2506,7 +2506,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 
 var errCannotObtainConn = fmt.Errorf("cannot obtain connection from a pool")
 
-func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline, dialConn bool) error {
+func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutil.Deadline, forceNew bool) error {
 	sn.concurrentQueries.Inc()
 	defer sn.concurrentQueries.Dec()
 
@@ -2519,7 +2519,7 @@ func (sn *storageNode) execOnConn(qt *querytracer.Tracer, funcName string, f fun
 	}
 	var bc *handshake.BufferedConn
 	var err error
-	if dialConn {
+	if forceNew {
 		bc, err = sn.connPool.Dial()
 	} else {
 		bc, err = sn.connPool.Get()
