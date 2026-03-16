@@ -242,6 +242,9 @@ func TestMergeInMemoryPartsFinal_pwsRefCount(t *testing.T) {
 	pwsSrc = generatePartWrappers(1)
 	assertRefCount(pwsSrc, 1)
 	pwFinal = pt.mustMergeInmemoryPartsFinal(pwsSrc)
+	if pwFinal != pwsSrc[0] {
+		t.Fatalf("mustMergeInmemoryPartsFinal must return the original wrapper for a single source part")
+	}
 	assertRefCount(pwsSrc, 1)
 	assertRefCount([]*partWrapper{pwFinal}, 1)
 
