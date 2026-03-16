@@ -69,7 +69,7 @@ jobs:
           VMUI_SKIP_INSTALL: true
 
       - name: Annotate Code Linting Results
-        uses: ataylorme/eslint-annotate-action@v3
+        uses: ataylorme/eslint-annotate-action@v4
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           report-json: app/vmui/packages/vmui/vmui-lint-report.json
