@@ -147,7 +147,7 @@ func (ui *UserInfo) beginConcurrencyLimit(ctx context.Context) error {
 	case ui.concurrencyLimitCh <- struct{}{}:
 		return nil
 	default:
-		// The number of concurrently executed requests for the given user equals the limt.
+		// The number of concurrently executed requests for the given user equals the limit.
 		// Wait until some of the currently executed requests are finished, so the current request could be executed.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10078
 		select {
@@ -635,7 +635,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 		// The Load() in front of CompareAndSwap() avoids CAS overhead for items with values bigger than 0.
 		if bu.concurrentRequests.Load() == 0 && bu.concurrentRequests.CompareAndSwap(0, 1) {
 			atomicCounter.CompareAndSwap(n+1, idx+1)
-			// There is no need in the call bu.get(), because we already incremented bu.concrrentRequests above.
+			// There is no need in the call bu.get(), because we already incremented bu.concurrentRequests above.
 			return bu
 		}
 	}

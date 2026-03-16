@@ -65,7 +65,7 @@ type Cache struct {
 func newWithAutoCleanup(maxBytes int) *fastcache.Cache {
 	c := fastcache.New(maxBytes)
 
-	// Reset the cache after it is no longer reacheable since the cache
+	// Reset the cache after it is no longer reachable since the cache
 	// could remain in use at Set or Get methods after the rotation.
 	runtime.SetFinalizer(c, func(c *fastcache.Cache) {
 		c.Reset()

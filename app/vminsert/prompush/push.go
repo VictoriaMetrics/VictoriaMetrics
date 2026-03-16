@@ -77,7 +77,7 @@ func push(ctx *common.InsertCtx, tss []prompb.TimeSeries) {
 			r := &ts.Samples[i]
 			metricNameRaw, err = ctx.WriteDataPointExt(metricNameRaw, ctx.Labels, r.Timestamp, r.Value)
 			if err != nil {
-				logger.Errorf("cannot write promscape data to storage: %s", err)
+				logger.Errorf("cannot write promscrape data to storage: %s", err)
 				return
 			}
 		}
