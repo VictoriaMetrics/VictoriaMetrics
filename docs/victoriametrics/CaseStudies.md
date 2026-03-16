@@ -581,7 +581,7 @@ who relied on the observability provided by Heroic. Here are some quotes from th
 
 > I'm loving the new Grafana. Feels faster and more up-to-date on features.
 
-> This graph is the most beatiful thing I've seen in a long while. It's been literally years since I've seen something like that!
+> This graph is the most beautiful thing I've seen in a long while. It's been literally years since I've seen something like that!
 
 Migration results:
 
