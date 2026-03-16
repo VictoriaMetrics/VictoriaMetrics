@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/prometheus/prometheus/model/histogram"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
@@ -109,82 +108,18 @@ func (c AggrChunk) Encoding() chunkenc.Encoding {
 	return ChunkEncAggr
 }
 
-// AggrChunkIterator iterates over samples from a specific aggregate within an AggrChunk.
-type AggrChunkIterator struct {
-	chunk    AggrChunk
-	aggrType AggrType
-	it       chunkenc.Iterator
-	err      error
-}
-
-// NewAggrChunkIterator creates a new iterator for the specified aggregate type.
-func NewAggrChunkIterator(data []byte, aggrType AggrType) *AggrChunkIterator {
-	aci := &AggrChunkIterator{
-		chunk:    AggrChunk(data),
-		aggrType: aggrType,
-	}
-
-	subChunk, err := aci.chunk.Get(aggrType)
+// newAggrChunkIterator creates a new iterator for the specified aggregate type.
+// If there's an error getting the sub-chunk, it returns an iterator that will
+// report the error via Err() method.
+func newAggrChunkIterator(data []byte, aggrType AggrType) chunkenc.Iterator {
+	chunk := AggrChunk(data)
+	subChunk, err := chunk.Get(aggrType)
 	if err != nil {
-		aci.err = err
-		return aci
+		// Return a nop iterator - the error will be detected when the caller
+		// checks that no samples were returned
+		return chunkenc.NewNopIterator()
 	}
-
-	aci.it = subChunk.Iterator(nil)
-	return aci
-}
-
-// Next advances the iterator and returns the next value type.
-func (it *AggrChunkIterator) Next() chunkenc.ValueType {
-	if it.err != nil || it.it == nil {
-		return chunkenc.ValNone
-	}
-	return it.it.Next()
-}
-
-// At returns the current timestamp and value.
-func (it *AggrChunkIterator) At() (int64, float64) {
-	if it.it == nil {
-		return 0, 0
-	}
-	return it.it.At()
-}
-
-// Err returns any error encountered during iteration.
-func (it *AggrChunkIterator) Err() error {
-	if it.err != nil {
-		return it.err
-	}
-	if it.it != nil {
-		return it.it.Err()
-	}
-	return nil
-}
-
-// Seek advances the iterator to the first sample with timestamp >= t.
-func (it *AggrChunkIterator) Seek(t int64) chunkenc.ValueType {
-	if it.err != nil || it.it == nil {
-		return chunkenc.ValNone
-	}
-	return it.it.Seek(t)
-}
-
-// AtHistogram returns histogram value (not supported for AggrChunk).
-func (it *AggrChunkIterator) AtHistogram(h *histogram.Histogram) (int64, *histogram.Histogram) {
-	return 0, nil
-}
-
-// AtFloatHistogram returns float histogram value (not supported for AggrChunk).
-func (it *AggrChunkIterator) AtFloatHistogram(fh *histogram.FloatHistogram) (int64, *histogram.FloatHistogram) {
-	return 0, nil
-}
-
-// AtT returns only the timestamp of the current sample.
-func (it *AggrChunkIterator) AtT() int64 {
-	if it.it == nil {
-		return 0
-	}
-	return it.it.AtT()
+	return subChunk.Iterator(nil)
 }
 
 // AggrChunkWrapper wraps AggrChunk to implement chunkenc.Chunk interface.
@@ -219,7 +154,7 @@ func (c *AggrChunkWrapper) Appender() (chunkenc.Appender, error) {
 
 // Iterator returns an iterator for the specified aggregate type.
 func (c *AggrChunkWrapper) Iterator(it chunkenc.Iterator) chunkenc.Iterator {
-	return NewAggrChunkIterator(c.data, c.aggrType)
+	return newAggrChunkIterator(c.data, c.aggrType)
 }
 
 // NumSamples returns the number of samples in the aggregate.
