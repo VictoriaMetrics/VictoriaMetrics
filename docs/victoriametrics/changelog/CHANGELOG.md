@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmctl](https://docs.victoriametrics.com/victoriametrics/vmctl/): add dedicated `thanos` mode for [migrating data from Thanos](https://docs.victoriametrics.com/victoriametrics/vmctl/thanos/). This mode supports both raw and downsampled Thanos blocks, including all aggregate types (count, sum, min, max, counter). Each aggregate is imported as a separate metric with resolution and aggregate type suffixes (e.g., `metric_name:5m:count`). The new mode uses `--thanos-*` prefixed flags: `--thanos-snapshot`, `--thanos-concurrency`, `--thanos-filter-time-start`, `--thanos-filter-time-end`, `--thanos-filter-label`, `--thanos-filter-label-value`, `--thanos-tmp-dir-path`, and `--thanos-aggr-types`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9262).
+
 ## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
 
 Released at 2026-03-13

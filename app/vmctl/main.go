@@ -315,13 +315,13 @@ func main() {
 					}
 
 					thanosCfg := thanos.Config{
-						Snapshot:     c.String(promSnapshot),
-						TemporaryDir: c.String(promTemporaryDirPath),
+						Snapshot:     c.String(thanosSnapshot),
+						TemporaryDir: c.String(thanosTemporaryDirPath),
 						Filter: thanos.Filter{
-							TimeMin:    c.String(promFilterTimeStart),
-							TimeMax:    c.String(promFilterTimeEnd),
-							Label:      c.String(promFilterLabel),
-							LabelValue: c.String(promFilterLabelValue),
+							TimeMin:    c.String(thanosFilterTimeStart),
+							TimeMax:    c.String(thanosFilterTimeEnd),
+							Label:      c.String(thanosFilterLabel),
+							LabelValue: c.String(thanosFilterLabelValue),
 						},
 					}
 					cl, err := thanos.NewClient(thanosCfg)
@@ -330,7 +330,7 @@ func main() {
 					}
 
 					var aggrTypes []thanos.AggrType
-					if aggrTypesStr := c.StringSlice(promAggrTypes); len(aggrTypesStr) > 0 {
+					if aggrTypesStr := c.StringSlice(thanosAggrTypes); len(aggrTypesStr) > 0 {
 						for _, typeStr := range aggrTypesStr {
 							aggrType, err := thanos.ParseAggrType(typeStr)
 							if err != nil {
@@ -343,7 +343,7 @@ func main() {
 					tp := thanosProcessor{
 						cl:        cl,
 						im:        importer,
-						cc:        c.Int(promConcurrency),
+						cc:        c.Int(thanosConcurrency),
 						isVerbose: c.Bool(globalVerbose),
 						aggrTypes: aggrTypes,
 					}

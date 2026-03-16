@@ -20,11 +20,11 @@ const (
 	thanosSnapshot = "./testdata/thanos-snapshot"
 
 	// thanosExpectedAllAggrResponse is the expected response when all aggregate types are imported
-	// (default behavior without --prom-aggr-types flag).
+	// (default behavior without --thanos-aggr-types flag).
 	thanosExpectedAllAggrResponse = "./testdata/thanos-snapshot/expected_all_aggr_response.json"
 
 	// thanosExpectedFilteredAggrResponse is the expected response when only specific aggregate
-	// types are imported via --prom-aggr-types flag.
+	// types are imported via --thanos-aggr-types flag.
 	thanosExpectedFilteredAggrResponse = "./testdata/thanos-snapshot/expected_filtered_aggr_response.json"
 
 	// thanosQueryFilter is the PromQL query to select the test metrics.
@@ -36,7 +36,7 @@ const (
 )
 
 // TestSingleVmctlThanosMigrationAllAggr tests migration of Thanos blocks without
-// --prom-aggr-types flag. All aggregate types should be imported by default.
+// --thanos-aggr-types flag. All aggregate types should be imported by default.
 func TestSingleVmctlThanosMigrationAllAggr(t *testing.T) {
 	fs.MustRemoveDir(t.Name())
 
@@ -47,7 +47,7 @@ func TestSingleVmctlThanosMigrationAllAggr(t *testing.T) {
 	vmAddr := fmt.Sprintf("http://%s/", vmsingleDst.HTTPAddr())
 	vmctlFlags := []string{
 		`thanos`,
-		`--prom-snapshot=` + thanosSnapshot,
+		`--thanos-snapshot=` + thanosSnapshot,
 		`--vm-addr=` + vmAddr,
 		`--disable-progress-bar=true`,
 	}
@@ -56,7 +56,7 @@ func TestSingleVmctlThanosMigrationAllAggr(t *testing.T) {
 }
 
 // TestClusterVmctlThanosMigrationAllAggr tests migration of Thanos blocks to cluster
-// without --prom-aggr-types flag. All aggregate types should be imported by default.
+// without --thanos-aggr-types flag. All aggregate types should be imported by default.
 func TestClusterVmctlThanosMigrationAllAggr(t *testing.T) {
 	fs.MustRemoveDir(t.Name())
 
@@ -67,7 +67,7 @@ func TestClusterVmctlThanosMigrationAllAggr(t *testing.T) {
 	vmAddr := fmt.Sprintf("http://%s/", cluster.Vminsert.HTTPAddr())
 	vmctlFlags := []string{
 		`thanos`,
-		`--prom-snapshot=` + thanosSnapshot,
+		`--thanos-snapshot=` + thanosSnapshot,
 		`--vm-addr=` + vmAddr,
 		`--disable-progress-bar=true`,
 		`--vm-account-id=0`,
@@ -77,7 +77,7 @@ func TestClusterVmctlThanosMigrationAllAggr(t *testing.T) {
 }
 
 // TestSingleVmctlThanosMigrationFilteredAggr tests migration of Thanos blocks with
-// --prom-aggr-types flag set to specific types (e.g., count,sum).
+// --thanos-aggr-types flag set to specific types (e.g., count,sum).
 func TestSingleVmctlThanosMigrationFilteredAggr(t *testing.T) {
 	fs.MustRemoveDir(t.Name())
 
@@ -88,18 +88,18 @@ func TestSingleVmctlThanosMigrationFilteredAggr(t *testing.T) {
 	vmAddr := fmt.Sprintf("http://%s/", vmsingleDst.HTTPAddr())
 	vmctlFlags := []string{
 		`thanos`,
-		`--prom-snapshot=` + thanosSnapshot,
+		`--thanos-snapshot=` + thanosSnapshot,
 		`--vm-addr=` + vmAddr,
 		`--disable-progress-bar=true`,
-		`--prom-aggr-types=count`,
-		`--prom-aggr-types=sum`,
+		`--thanos-aggr-types=count`,
+		`--thanos-aggr-types=sum`,
 	}
 
 	testThanosMigration(tc, vmsingleDst, vmctlFlags, thanosExpectedFilteredAggrResponse)
 }
 
 // TestClusterVmctlThanosMigrationFilteredAggr tests migration of Thanos blocks to cluster
-// with --prom-aggr-types flag set to specific types (e.g., count,sum).
+// with --thanos-aggr-types flag set to specific types (e.g., count,sum).
 func TestClusterVmctlThanosMigrationFilteredAggr(t *testing.T) {
 	fs.MustRemoveDir(t.Name())
 
@@ -110,12 +110,12 @@ func TestClusterVmctlThanosMigrationFilteredAggr(t *testing.T) {
 	vmAddr := fmt.Sprintf("http://%s/", cluster.Vminsert.HTTPAddr())
 	vmctlFlags := []string{
 		`thanos`,
-		`--prom-snapshot=` + thanosSnapshot,
+		`--thanos-snapshot=` + thanosSnapshot,
 		`--vm-addr=` + vmAddr,
 		`--disable-progress-bar=true`,
 		`--vm-account-id=0`,
-		`--prom-aggr-types=count`,
-		`--prom-aggr-types=sum`,
+		`--thanos-aggr-types=count`,
+		`--thanos-aggr-types=sum`,
 	}
 
 	testThanosMigration(tc, cluster, vmctlFlags, thanosExpectedFilteredAggrResponse)
