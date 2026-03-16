@@ -138,19 +138,23 @@ func tryRemoveDir(dirPath string) bool {
 	des := MustReadDir(dirPath)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	var firstErr error
-	concurrencyCh := make(chan struct{}, min(32, len(des)-1))
+	var firstNFSErr error
+	recordNFSErr := func(err error) {
+		mu.Lock()
+		if firstNFSErr == nil {
+			firstNFSErr = err
+		}
+		mu.Unlock()
+	}
+	workerCount := max(1, min(32, len(des)))
+	concurrencyCh := make(chan struct{}, workerCount)
 	for _, de := range des {
 		name := de.Name()
 		if name == deleteDirFilename {
 			continue
 		}
 		if strings.HasPrefix(name, ".nfs") {
-			mu.Lock()
-			if firstErr == nil {
-				firstErr = fmt.Errorf("dir: %q contains temporary nfs file: %q", dirPath, name)
-			}
-			mu.Unlock()
+			recordNFSErr(fmt.Errorf("dir: %q contains stale NFS file: %q", dirPath, name))
 			continue
 		}
 		dirEntryPath := filepath.Join(dirPath, name)
@@ -163,25 +167,28 @@ func tryRemoveDir(dirPath string) bool {
 				<-concurrencyCh
 			}()
 			if err := os.RemoveAll(dirEntryPath); err != nil {
-				mu.Lock()
 				if !isTemporaryNFSError(err) {
 					logger.Fatalf("FATAL: cannot remove %q: %s", dirEntryPath, err)
 				}
-				if firstErr == nil {
-					firstErr = err
-				}
-				mu.Unlock()
+				recordNFSErr(fmt.Errorf("cannot remove dirEntryPath: %q: %w", dirEntryPath, err))
 			}
 		}(dirEntryPath)
 	}
 	wg.Wait()
-	if firstErr != nil {
+	if firstNFSErr != nil {
+		logger.Warnf("cannot removeDir due to NFS error: %s", firstNFSErr)
 		nfsDirRemoveFailedAttempts.Inc()
 		return false
 	}
 	// Make sure the deleted names are properly synced to the dirPath,
 	// so they are no longer visible after unclean shutdown.
 	MustSyncPath(dirPath)
+
+	// New stale NFS files may have appeared since the loop
+	if hasStaleNFSFiles(dirPath) {
+		nfsDirRemoveFailedAttempts.Inc()
+		return false
+	}
 
 	deleteFilePath := filepath.Join(dirPath, deleteDirFilename)
 	// Remove the deleteDirFilename file, since there are no other entries left in the directory.
@@ -236,6 +243,18 @@ func isTemporaryNFSError(err error) bool {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 for details.
 	errStr := err.Error()
 	return strings.Contains(errStr, "directory not empty") || strings.Contains(errStr, "device or resource busy")
+}
+
+func hasStaleNFSFiles(dirPath string) bool {
+	des := MustReadDir(dirPath)
+	for _, de := range des {
+		name := de.Name()
+		if strings.HasPrefix(name, ".nfs") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // MustStopDirRemover must be called in the end of graceful shutdown
