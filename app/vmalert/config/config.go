@@ -81,12 +81,9 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 	if g.Interval.Duration() < 0 {
 		return fmt.Errorf("interval shouldn't be lower than 0")
 	}
-	if g.EvalOffset.Duration() < 0 {
-		return fmt.Errorf("eval_offset shouldn't be lower than 0")
-	}
-	// if `eval_offset` is set, interval won't use global evaluationInterval flag and must bigger than offset.
-	if g.EvalOffset.Duration() > g.Interval.Duration() {
-		return fmt.Errorf("eval_offset should be smaller than interval; now eval_offset: %v, interval: %v", g.EvalOffset.Duration(), g.Interval.Duration())
+	// if `eval_offset` is set, the group interval must be specified explicitly(instead of inherited from global evaluationInterval flag) and must bigger than offset.
+	if g.EvalOffset.Duration().Abs() > g.Interval.Duration() {
+		return fmt.Errorf("the abs value of eval_offset should be smaller than interval; now eval_offset: %v, interval: %v", g.EvalOffset.Duration(), g.Interval.Duration())
 	}
 	if g.EvalOffset != nil && g.EvalDelay != nil {
 		return fmt.Errorf("eval_offset cannot be used with eval_delay")

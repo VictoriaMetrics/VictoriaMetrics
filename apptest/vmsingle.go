@@ -414,6 +414,37 @@ func (app *Vmsingle) GraphiteMetricsIndex(t *testing.T, _ QueryOpts) GraphiteMet
 	return index
 }
 
+// GraphiteTagsTagSeries is a test helper function that registers Graphite tags
+// for a single time series by sending a HTTP POST request to
+// /graphite/tags/tagSeries vmsingle endpoint.
+func (app *Vmsingle) GraphiteTagsTagSeries(t *testing.T, record string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/graphite/tags/tagSeries", app.httpListenAddr)
+	values := opts.asURLValues()
+	values.Add("path", record)
+
+	_, statusCode := app.cli.PostForm(t, url, values)
+	if got, want := statusCode, http.StatusNotImplemented; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d", got, want)
+	}
+}
+
+func (app *Vmsingle) GraphiteTagsTagMultiSeries(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/graphite/tags/tagMultiSeries", app.httpListenAddr)
+	values := opts.asURLValues()
+	for _, rec := range records {
+		values.Add("path", rec)
+	}
+
+	_, statusCode := app.cli.PostForm(t, url, values)
+	if got, want := statusCode, http.StatusNotImplemented; got != want {
+		t.Fatalf("unexpected status code: got %d, want %d", got, want)
+	}
+}
+
 // APIV1StatusMetricNamesStats sends a query to a /api/v1/status/metric_names_stats endpoint
 // and returns the statistics response for given params.
 //

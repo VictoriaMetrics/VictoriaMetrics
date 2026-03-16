@@ -321,19 +321,23 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/tags/tagSeries":
 		graphiteTagsTagSeriesRequests.Inc()
-		if err := graphite.TagsTagSeriesHandler(startTime, w, r); err != nil {
-			graphiteTagsTagSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
+		err := &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("graphite tag registration has been disabled and is planned to be removed in future. " +
+				"See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544"),
+			StatusCode: http.StatusNotImplemented,
 		}
+		graphiteTagsTagSeriesErrors.Inc()
+		httpserver.Errorf(w, r, "%s", err)
 		return true
 	case "/tags/tagMultiSeries":
 		graphiteTagsTagMultiSeriesRequests.Inc()
-		if err := graphite.TagsTagMultiSeriesHandler(startTime, w, r); err != nil {
-			graphiteTagsTagMultiSeriesErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
+		err := &httpserver.ErrorWithStatusCode{
+			Err: fmt.Errorf("graphite tag registration has been disabled and is planned to be removed in future. " +
+				"See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544"),
+			StatusCode: http.StatusNotImplemented,
 		}
+		graphiteTagsTagMultiSeriesErrors.Inc()
+		httpserver.Errorf(w, r, "%s", err)
 		return true
 	case "/tags":
 		graphiteTagsRequests.Inc()

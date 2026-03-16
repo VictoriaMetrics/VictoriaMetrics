@@ -12,30 +12,29 @@ aliases:
   - /vmauth/index.html
   - /vmauth/
 ---
-`vmauth` is an HTTP proxy, which can [authorize](https://docs.victoriametrics.com/victoriametrics/vmauth/#authorization), [route](https://docs.victoriametrics.com/victoriametrics/vmauth/#routing) and [load balance](https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing) requests across [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) components or any other HTTP backends.
+`vmauth` is an HTTP proxy, which can [authorize](https://docs.victoriametrics.com/victoriametrics/vmauth/#authorization), [route](https://docs.victoriametrics.com/victoriametrics/vmauth/#routing), and [load balance](https://docs.victoriametrics.com/victoriametrics/vmauth/#load-balancing) requests across [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) components or any other HTTP backends.
 
 ## Quick start
 
-Just download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), unpack it
-and pass the following flag to `vmauth` binary in order to start authorizing and proxying requests:
+Just download the `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), unpack it, and pass the following flag to the `vmauth` binary in order to start authorizing and proxying requests:
 
 ```sh
 /path/to/vmauth -auth.config=/path/to/auth/config.yml
 ```
 
-The `-auth.config` command-line flag must point to valid [config](#auth-config). See [use cases](#use-cases) with typical `-auth.config` examples.
+The `-auth.config` command-line flag must point to a valid [config](#auth-config). See [use cases](#use-cases) with typical `-auth.config` examples.
 
 `vmauth` accepts HTTP requests on port `8427` and proxies them according to the provided [-auth.config](#auth-config).
-The port can be modified via `-httpListenAddr` command-line flag.
+The port can be modified via the `-httpListenAddr` command-line flag.
 
 See [how to reload config without restart](#config-reload).
 
 Docker images for `vmauth` are available at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmauth/tags) and [Quay](https://quay.io/repository/victoriametrics/vmauth?tab=tags).
-See how `vmauth` is used in [docker-compose env](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/README.md#victoriametrics-cluster).
+See how `vmauth` is used in [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/README.md#victoriametrics-cluster).
 
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
 
-Feel free to [contact us](mailto:info@victoriametrics.com) if you need customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML, accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
+Feel free to [contact us](mailto:info@victoriametrics.com) if you need a customized auth proxy for VictoriaMetrics with the support of LDAP, SSO, RBAC, SAML, accounting, and rate limiting, such as [vmgateway](https://docs.victoriametrics.com/victoriametrics/vmgateway/).
 
 ## Use cases
 
@@ -52,6 +51,7 @@ Feel free to [contact us](mailto:info@victoriametrics.com) if you need customize
 * [Per-tenant authorization](#per-tenant-authorization)
 * [mTLS-based request routing](#mtls-based-request-routing)
 * [Enforcing query args](#enforcing-query-args)
+* [OIDC authorization](#oidc-authorization)
 
 ### Simple HTTP proxy
 
@@ -69,7 +69,7 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 ### Generic HTTP proxy for different backends
 
-`vmauth` can proxy requests to different backends depending on the requested path, [query args](https://en.wikipedia.org/wiki/Query_string) and any HTTP request header.
+`vmauth` can proxy requests to different backends depending on the requested path, [query args](https://en.wikipedia.org/wiki/Query_string), and any HTTP request header.
 
 For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to make the following:
 
@@ -93,9 +93,9 @@ unauthorized_user:
   url_prefix: "http://default-backed/"
 ```
 
-Sometimes it is needed to proxy all the requests, which do not match `url_map`, to a special `404` page, which could count invalid requests.
+Sometimes it is necessary to proxy all requests that do not match `url_map` to a special `404` page, which could count as invalid requests.
 Use `default_url` for this case. For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to send all the requests,
-which do not match `url_map`, to the `http://some-backend/404-page.html` page. The requested path is passed via `request_path` query arg.
+which do not match `url_map`, to the `http://some-backend/404-page.html` page. The requested path is passed via the `request_path` query arg.
 For example, the request to `http://vmauth:8427/foo/bar?baz=qwe` is proxied to `http://some-backend/404-page.html?request_path=%2Ffoo%2Fbar%3Fbaz%3Dqwe`.
 
 ```yaml
@@ -118,7 +118,7 @@ See also [authorization](#authorization) and [load balancing](#load-balancing) d
 
 ### Generic HTTP load balancer
 
-`vmauth` can balance load among multiple HTTP backends in least-loaded round-robin mode.
+`vmauth` can balance load across multiple HTTP backends using least-loaded round-robin.
 For example, the following [`-auth.config`](#auth-config) instructs `vmauth` to spread load among multiple application instances:
 
 ```yaml
@@ -184,10 +184,10 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 ### High availability
 
-`vmauth` automatically switches from temporarily unavailable backend to other hot standby backends listed in `url_prefix`
-if it runs with `-loadBalancingPolicy=first_available` command-line flag. The load balancing policy can be overridden at `user` and `url_map` sections of [`-auth.config`](#auth-config) via `load_balancing_policy` option. For example, the following config instructs `vmauth` to proxy requests to `http://victoria-metrics-main:8428/` backend.
+`vmauth` automatically switches from a temporarily unavailable backend to other hot standby backends listed in `url_prefix`
+if it runs with the `-loadBalancingPolicy=first_available` command-line flag. The load balancing policy can be overridden at `user` and `url_map` sections of [`-auth.config`](#auth-config) via `load_balancing_policy` option. For example, the following config instructs `vmauth` to proxy requests to `http://victoria-metrics-main:8428/` backend.
 If this backend becomes unavailable, then `vmauth` starts proxying requests to `http://victoria-metrics-standby1:8428/`.
-If this backend becomes also unavailable, then requests are proxied to the last specified backend - `http://victoria-metrics-standby2:8428/`:
+If this backend also becomes unavailable, then requests are proxied to the last specified backend - `http://victoria-metrics-standby2:8428/`:
 
 ```yaml
 unauthorized_user:
@@ -212,8 +212,8 @@ See also [authorization](#authorization) and [routing](#routing) docs.
 
 * `-httpListenAddr` sets the address to listen for incoming HTTPS requests
 * `-tls` enables accepting TLS connections at `-httpListenAddr`
-* `-tlsKeyFile` sets the path to TLS certificate key file
-* `-tlsCertFile` sets the path to TLS certificate file
+* `-tlsKeyFile` sets the path to the TLS certificate key file
+* `-tlsCertFile` sets the path to the TLS certificate file
 
 See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates).
 
@@ -277,7 +277,214 @@ users:
 
 JWT authentication cannot be combined with other auth methods (`bearer_token`, `username`, `password`) in the same `users` config.
 
-Only one user with JWT authentication method is allowed at the moment. 
+
+#### OIDC Discovery
+
+Instead of specifying public keys manually, `vmauth` can automatically fetch{{% available_from "v1.138.0" %}} 
+and rotate public keys from an [OpenID Connect (OIDC)](https://openid.net/connect/) provider via its [Discovery endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html).
+This is useful when integrating with identity providers such as Keycloak, Auth0, Okta, or Google.
+
+Set `oidc.issuer` to the base URL of the OIDC provider. `vmauth` will:
+1. Fetch `{issuer}/.well-known/openid-configuration` to discover the `jwks_uri`.
+2. Download the JSON Web Key Set (JWKS) from the `jwks_uri` to obtain the public keys used to verify JWT signatures.
+3. Automatically refresh the keys every 5 minutes to handle key rotation.
+
+JWT tokens must contain an `iss` claim that matches the configured `issuer` value exactly.
+
+```yaml
+users:
+- jwt:
+    oidc:
+      issuer: "https://your-identity-provider.example.com"
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+The `oidc` option cannot be combined with `public_keys`, `public_key_files`, or `skip_verify`.
+
+If the OIDC provider is temporarily unavailable during a key refresh, `vmauth` continues using the previously fetched keys until the next successful refresh.
+If no keys have been fetched yet (e.g., on startup when the provider is unreachable), the config section is skipped during authentication.
+
+
+#### JWT claim matching
+
+`vmauth` can route requests to different backends depending on the claims contained
+in the provided [JWT token](https://www.jwt.io/) based on `match_claims`{{% available_from "v1.138.0" %}} field.
+
+This enables RBAC-style setups where tokens carrying different roles
+(e.g. `admin`, `viewer`, `writer`) are mapped to different users — each with its own
+`url_prefix` or `url_map` configuration — all authenticated against the same public key.
+
+Claim matching is configured via the `match_claims` field inside the `jwt` user section.
+A user is selected only if:
+
+1. All configured `match_claims` entries evaluate successfully (logical AND).
+2. The token signature is cryptographically valid.
+
+If `match_claims` is not set or is empty, the user matches any valid JWT token
+signed with the configured public key.
+
+Claim names support dot-notation for traversal of nested JSON objects
+(a simplified JSONPath-style approach), for example `vm_access.metrics_account_id` matches `{"vm_access": {"metrics_account_id": 1}}` and
+`security.permissions.0.read` matches `{"security": {"permissions": [{"read": 1}]}}.
+Claim names must point to a **leaf value**. The only supported leaf values are string, integer, float and boolean. Any other leaf type
+is treated as not matched.
+All configured claims must match exactly.
+Claim match values use regular expression syntax and must fully match the claim value.
+
+For example, the following config routes requests based on the `role` claim in the JWT token:
+
+```yaml
+users:
+- jwt:
+    oidc:
+      issuer: "https://your-identity-provider.example.com"
+  url_prefix: "http://victoria-metrics:8428/"
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      role: admin
+  url_prefix: "http://victoria-metrics-admin:8428/"
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      role: viewer
+  url_prefix: "http://victoria-metrics-readonly:8428/"
+```
+
+The following config demonstrates matching on nested claims using dot-notation:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      vm_access.metrics_account_id: 1
+  url_prefix: "http://victoria-metrics-tenant-1:8428/"
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      foo.bar: baz
+  url_prefix: "http://victoria-metrics-tenant-2:8428/"
+```
+
+The following config matches any valid token (no claim filtering),
+equivalent to the behavior when `match_claims` is omitted:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims: {}
+  url_prefix: "http://victoria-metrics:8428/"
+```
+
+The following config demonstrates matching on nested claims using dot-notation and regex value match for multiple tenants access:
+
+```yaml
+users:
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      vm_access.metrics_account_id: "(0|1|2)"
+  url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(0|1|2)\"}"
+- jwt:
+    public_keys:
+    - |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+      -----END PUBLIC KEY-----
+    match_claims:
+      vm_access.metrics_account_id: "(3|4|5)"
+  url_prefix: "http://victoria-metrics-vmselect-1:8481/select/multitenant?extra_filters={vm_account_id=~\"(3|4|5)\"}"
+```
+
+
+#### JWT claim matching. Conflict resolution
+
+When multiple users have `match_claims` entries that all match the incoming token,
+`vmauth` selects the user whose `match_claims` map contains the **greatest number of entries**.
+A more specific match (more claim constraints) always takes priority over a less specific one.
+
+For example, given the following config and a token containing both `role=admin` and `iss=foo`:
+
+```yaml
+users:
+- jwt:
+    match_claims:
+      iss: foo
+  url_prefix: "http://victoria-metrics-default:8428/"
+- jwt:
+    match_claims:
+      iss: foo
+      role: admin
+  url_prefix: "http://victoria-metrics-admin:8428/"
+```
+
+The second user is selected because it has two matching claim entries compared to one,
+and requests are proxied to `http://victoria-metrics-admin:8428/`.
+
+If two users match with the **same number** of `match_claims` entries,
+the selection becomes non-deterministic. To avoid ambiguity, ensure that
+claim match conditions across users with the same number of entries are mutually exclusive.
+
+For example, the following config is ambiguous when a token contains both `role=foo` and `team=platform`:
+
+```yaml
+users:
+- jwt:
+    match_claims:
+      role: foo
+  url_prefix: "http://backend-a:8428/"
+- jwt:
+    match_claims:
+      team: platform
+  url_prefix: "http://backend-b:8428/"
+```
+
+Both users have one claim entry each, so if the token satisfies both,
+neither takes priority. Resolve this by adding the same match claim keys to both users:
+
+```yaml
+users:
+- jwt:
+    match_claims:
+      team: ops
+      role: foo
+  url_prefix: "http://backend-a:8428/"
+- jwt:
+    match_claims:
+      team: platform
+      role: admin
+  url_prefix: "http://backend-b:8428/"
+
+```
+
+JWT claim-based matching can be combined with
+[JWT claim-based request templating](/victoriametrics/vmauth/#jwt-claim-based-request-templating)
+for dynamic URL rewriting based on `vm_access` claim fields.
 
 #### JWT claim-based request templating
 
@@ -458,7 +665,7 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 ### Enforcing query args
 
-`vmauth` can be configured for adding some mandatory query args before proxying requests to backends.
+`vmauth` can be configured to add mandatory query arguments before proxying requests to backends.
 For example, the following [config](#auth-config) adds [`extra_label`](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#prometheus-querying-api-enhancements) to all the requests, which are proxied to [single-node VictoriaMetrics](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/):
 
 ```yaml
@@ -470,8 +677,8 @@ See also [authorization](#authorization), [routing](#routing) and [load balancin
 
 ## Dropping request path prefix
 
-By default, `vmauth` doesn't drop the path prefix from the original request when proxying the request to the matching backend.
-Sometimes it is needed to drop path prefix before proxying the request to the backend. This can be done by specifying the number of `/`-delimited prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level or [`-auth.config`](#auth-config).
+By default, `vmauth` doesn't strip the path prefix from the original request when proxying it to the matching backend.
+Sometimes it is needed to drop the path prefix before proxying the request to the backend. This can be done by specifying the number of `/`-delimited prefix parts to drop from the request path via `drop_src_path_prefix_parts` option at `url_map` level or at `user` level or [`-auth.config`](#auth-config).
 
 For example, if you need to serve requests to [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) at `/vmalert/` path prefix, while serving requests to [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) at `/vmagent/` path prefix,
 then the following [-auth.config](#auth-config) can be used:
@@ -480,7 +687,7 @@ then the following [-auth.config](#auth-config) can be used:
 unauthorized_user:
   url_map:
 
-    # proxy all the requests, which start with `/vmagent/`, to vmagent backend
+    # proxy all the requests, which start with `/vmagent/`, to the vmagent backend
   - src_paths:
     - "/vmagent/.*"
 
@@ -488,7 +695,7 @@ unauthorized_user:
     drop_src_path_prefix_parts: 1
     url_prefix: "http://vmagent-backend:8429/"
 
-    # proxy all the requests, which start with `/vmalert`, to vmalert backend
+    # proxy all the requests, which start with `/vmalert`, to the vmalert backend
   - src_paths:
     - "/vmalert/.*"
 
@@ -512,7 +719,7 @@ See also [security docs](#security), [routing docs](#routing) and [load balancin
 
 ## Routing
 
-`vmauth` can proxy requests to different backends depending on the following parts of HTTP request:
+`vmauth` can proxy requests to different backends depending on the following parts of the HTTP request:
 
 * [Request path](#routing-by-path)
 * [Request host](#routing-by-host)
@@ -521,14 +728,14 @@ See also [security docs](#security), [routing docs](#routing) and [load balancin
 * [Multiple parts](#routing-by-multiple-parts)
 
 See also [authorization](#authorization) and [load balancing](#load-balancing).
-For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "v1.107.0" %}} on user level. Please note, such logging may expose sensitive info and is recommended to use only for debugging.
+For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "v1.107.0" %}} on the user level. Please note that such logging may expose sensitive information and should be used only for debugging.
 
 ### Routing by path
 
 `src_paths` option can be specified inside `url_map` in order to route requests by path.
 
 The following [`-auth.config`](#auth-config) routes requests to paths starting with `/app1/` to `http://app1-backend`,
-while requests with paths starting with `/app2` are routed to `http://app2-backend`, and the rest of requests
+while requests with paths starting with `/app2` are routed to `http://app2-backend`, and the rest of the requests
 are routed to `http://some-backend/404-page.html`:
 
 ```yaml
@@ -551,7 +758,7 @@ See also [how to drop request path prefix](#dropping-request-path-prefix).
 
 `src_hosts` option can be specified inside `url_map` in order to route requests by host header.
 
-The following [`-auth.config`](#auth-config) routes requests to `app1.my-host.com` host to `http://app1-backend`, while routing requests to `app2.my-host.com` host to `http://app2-backend`, and the rest of requests are routed to `http://some-backend/404-page.html`:
+The following [`-auth.config`](#auth-config) routes requests to `app1.my-host.com` host to `http://app1-backend`, while routing requests to `app2.my-host.com` host to `http://app2-backend`, and the rest of the requests are routed to `http://some-backend/404-page.html`:
 
 ```yaml
 unauthorized_user:
@@ -571,7 +778,7 @@ unauthorized_user:
 
 `src_query_args` option can be specified inside `url_map` in order to route requests by the given [query arg](https://en.wikipedia.org/wiki/Query_string).
 
-For example, the following [`-auth.config`](#auth-config) routes requests to `http://app1-backend/` if `db=foo` query arg is present in the request, while routing requests with `db` query arg starting with `bar` to `http://app2-backend`, and the rest of requests are routed to `http://some-backend/404-page.html`:
+For example, the following [`-auth.config`](#auth-config) routes requests to `http://app1-backend/` if `db=foo` query arg is present in the request, while routing requests with `db` query arg starting with `bar` to `http://app2-backend`, and the rest of the requests are routed to `http://some-backend/404-page.html`:
 
 ```yaml
 unauthorized_user:
@@ -592,7 +799,7 @@ If at least a single query arg in the request matches at least one `src_query_ar
 
 `src_headers` option can be specified inside `url_map` in order to route requests by the given HTTP request header.
 
-For example, the following [`-auth.config`](#auth-config) routes requests to `http://app1-backend` if `TenantID` request header equals to `42`, while routing requests to `http://app2-backend` if `TenantID` request header equals to `123:456`, and the rest of requests are routed to `http://some-backend/404-page.html`:
+For example, the following [`-auth.config`](#auth-config) routes requests to `http://app1-backend` if `TenantID` request header equals to `42`, while routing requests to `http://app2-backend` if `TenantID` request header equals to `123:456`, and the rest of the requests are routed to `http://some-backend/404-page.html`:
 
 ```yaml
 unauthorized_user:
@@ -608,14 +815,14 @@ If `src_headers` contains multiple entries, then it is enough to match only a si
 
 ### Routing by multiple parts
 
-Any subset of [`src_paths`](#routing-by-path), [`src_hosts`](#routing-by-host), [`src_query_args`](#routing-by-query-arg) and [`src_headers`](#routing-by-header) options can be specified simultaneously in a single `url_map` entry. In this case the request is routed to the given `url_prefix` if the request matches all the provided configs **simultaneously**.
+Any subset of [`src_paths`](#routing-by-path), [`src_hosts`](#routing-by-host), [`src_query_args`](#routing-by-query-arg) and [`src_headers`](#routing-by-header) options can be specified simultaneously in a single `url_map` entry. In this case, the request is routed to the given `url_prefix` if the request matches all the provided configs **simultaneously**.
 
 For example, the following [`-auth.config`](#auth-config) routes requests to `http://app1-backend` if all the conditions mentioned below are simultaneously met:
 
 * the request path starts with `/app/`
 * the requested hostname ends with `.bar.baz`
 * the request contains `db=abc` query arg
-* the `TenantID` request header equals to `42`
+* the `TenantID` request header equals `42`
 
 ```yaml
 unauthorized_user:
@@ -631,16 +838,16 @@ unauthorized_user:
 
 Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the following forms:
 
-* A single url. For example:
+* A single URL. For example:
 
   ```yaml
   unauthorized_user:
     url_prefix: 'http://vminsert:8480/insert/0/prometheus/`
   ```
 
-  In this case `vmauth` proxies requests to the specified url.
+  In this case, `vmauth` proxies requests to the specified URL.
 
-* A list of urls. For example:
+* A list of URLs. For example:
 
   ```yaml
   unauthorized_user:
@@ -650,16 +857,16 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
     - 'http://vminsert-3:8480/insert/0/prometheus/'
   ```
 
-  In this case `vmauth` spreads requests among the specified urls using least-loaded round-robin policy.
+  In this case, `vmauth` spreads requests among the specified URLs using the least-loaded round-robin policy.
   This guarantees that incoming load is shared uniformly among the specified backends.
   See also [discovering backend IPs](#discovering-backend-ips).
 
   `vmauth` automatically detects temporarily unavailable backends and spreads incoming queries among the remaining available backends.
-  This allows restarting the backends and performing maintenance tasks on the backends without the need to remove them from the `url_prefix` list.
+  This allows restarting and performing maintenance on backends without removing them from the `url_prefix` list.
 
-  By default, `vmauth` returns backend responses with all the http status codes to the client. It is possible to configure automatic retry of requests at other backends if the backend responds with status code specified in the `-retryStatusCodes` command-line flag.
-  It is possible to customize the list of http response status codes to retry via `retry_status_codes` list at `user` and `url_map` level of [`-auth.config`](#auth-config).
-  For example, the following config re-tries requests on other backends if the current backend returns response with `500` or `502` HTTP status code:
+  By default, `vmauth` returns backend responses with all the HTTP status codes to the client. It is possible to configure automatic retry of requests at other backends if the backend responds with a status code specified in the `-retryStatusCodes` command-line flag.
+  It is possible to customize the list of HTTP response status codes to retry via the `retry_status_codes` list at the `user` and `url_map` level of [`-auth.config`](#auth-config).
+  For example, the following config retries requests on other backends if the current backend returns a response with `500` or `502` HTTP status code:
 
   ```yaml
   unauthorized_user:
@@ -670,10 +877,10 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
     retry_status_codes: [500, 502]
   ```
 
-  By default, `vmauth` uses `least_loaded` policy to spread the incoming requests among available backends.
-  The policy can be changed to `first_available` via `-loadBalancingPolicy` command-line flag. In this case `vmauth` sends all the requests to the first specified backend while it is available. `vmauth` starts sending requests to the next specified backend when the first backend is temporarily unavailable.
-  It is possible to customize the load balancing policy at the `user` and `url_map` level.
-  For example, the following config specifies `first_available` load balancing policy for unauthorized requests:
+  By default, `vmauth` uses the `least_loaded` policy to distribute incoming requests across available backends.
+  The policy can be changed to `first_available` via the `-loadBalancingPolicy` command-line flag. In this case, `vmauth` sends all the requests to the first specified backend while it is available. `vmauth` starts sending requests to the next specified backend when the first backend is temporarily unavailable.
+  It is possible to customize the load-balancing policy at the `user` and `url_map` levels.
+  For example, the following config specifies a `first_available` load balancing policy for unauthorized requests:
 
   ```yaml
   unauthorized_user:
@@ -683,10 +890,10 @@ Each `url_prefix` in the [-auth.config](#auth-config) can be specified in the fo
     load_balancing_policy: first_available
   ```
 
-Load balancing feature can be used in the following cases:
+The load balancing feature can be used in the following cases:
 
 * Balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/).
-  The following [`-auth.config`](#auth-config) can be used to spread incoming requests among 3 vmselect nodes and re-trying failed requests or requests with 500 and 502 response status codes:
+  The following [`-auth.config`](#auth-config) can be used to spread incoming requests among 3 vmselect nodes and retrying failed requests or requests with 500 and 502 response status codes:
 
   ```yaml
   unauthorized_user:
@@ -699,7 +906,7 @@ Load balancing feature can be used in the following cases:
 
 * Sending select queries to the closest availability zone (AZ), while falling back to other AZs with identical data if the closest AZ is unavailable.
   For example, the following [`-auth.config`](#auth-config) sends select queries to `https://vmselect-az1/` and uses the `https://vmselect-az2/` as a fallback when `https://vmselect-az1/` is temporarily unavailable or cannot return full responses.
-  See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-availability) for details about `deny_partial_response` query arg, which is added to requests before they are proxied to backends.
+  See [these docs](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#cluster-availability) for details about the `deny_partial_response` query arg, which is added to requests before they are proxied to backends.
 
   ```yaml
   unauthorized_user:
@@ -710,16 +917,16 @@ Load balancing feature can be used in the following cases:
     load_balancing_policy: first_available
   ```
 
-Load balancing can be configured independently per each `user` entry and per each `url_map` entry. See [auth config docs](#auth-config) for more details.
+Load balancing can be configured independently for each `user` entry and for each `url_map` entry. See [auth config docs](#auth-config) for more details.
 
 See also [discovering backend IPs](#discovering-backend-ips), [authorization](#authorization) and [routing](#routing).
 
 ## Discovering backend IPs
 
-By default, `vmauth` spreads load among the listed backends at `url_prefix` as described in [load balancing docs](#load-balancing).
+By default, `vmauth` distributes load across the backends listed under `url_prefix`, as described in the [load balancing docs](#load-balancing).
 Sometimes multiple backend instances can be hidden behind a single hostname. For example, `vmselect-service` hostname
 may point to a cluster of `vmselect` instances in [VictoriaMetrics cluster setup](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#architecture-overview).
-So the following config may fail to spread load among available `vmselect` instances, since `vmauth` will send all the requests to the same url, which may end up to a single backend instance:
+So the following config may fail to spread load among available `vmselect` instances, since `vmauth` will send all the requests to the same URL, which may end up with a single backend instance:
 
 ```yaml
 unauthorized_user:
@@ -738,7 +945,7 @@ There are the following solutions for this issue:
     - http://vmselect-3:8481/select/0/prometheus/
   ```
 
-  This scheme works great, but it needs manual updating of the [`-auth.config`](#auth-config) every time `vmselect` services are restarted, downscaled or upscaled.
+  This scheme works great, but it requires manual updating of the [`-auth.config`](#auth-config) whenever `vmselect` services are restarted, downscaled, or upscaled.
 
 * To set `discover_backend_ips: true` option, so `vmauth` automatically discovers IPs behind the given hostname and then spreads load among the discovered IPs:
 
@@ -748,7 +955,7 @@ There are the following solutions for this issue:
     discover_backend_ips: true
   ```
 
-  If the `url_prefix` contains hostname with `srv+` prefix, then the hostname without `srv+` prefix is automatically resolved via [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) to the list of hostnames with TCP ports, and `vmauth` balances load among the discovered TCP addresses:
+  If the `url_prefix` contains a hostname with `srv+` prefix, then the hostname without `srv+` prefix is automatically resolved via [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) to the list of hostnames with TCP ports, and `vmauth` balances load among the discovered TCP addresses:
 
   ```yaml
   unauthorized_user:
@@ -756,26 +963,26 @@ There are the following solutions for this issue:
     discover_backend_ips: true
   ```
 
-  This functionality is useful for balancing load among backend instances, which run on different TCP ports, since DNS SRV records contain TCP ports.
+  This functionality is useful for balancing load across backend instances running on different TCP ports, since DNS SRV records include TCP ports.
 
-  The `discover_backend_ips` option can be specified at `user` and `url_map` level in the [`-auth.config`](#auth-config). It can also be enabled globally via `-discoverBackendIPs` command-line flag.
+  The `discover_backend_ips` option can be specified at `user` and `url_map` level in the [`-auth.config`](#auth-config). It can also be enabled globally via the `-discoverBackendIPs` command-line flag.
 
 See also [load balancing docs](#load-balancing).
 
-## SRV urls
+## SRV URLs
 
-If `url_prefix` contains url with the hostname starting with `srv+` prefix, then `vmauth` uses [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) lookup for the hostname without the `srv+` prefix and selects random TCP address (e.g. hostname plus TCP port) form the resolved results.
+If `url_prefix` contains a URL with the hostname starting with `srv+` prefix, then `vmauth` uses [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) lookup for the hostname without the `srv+` prefix and selects a random TCP address (e.g., hostname plus TCP port) from the resolved results.
 
 For example, if `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) record contains `some-host:12345` TCP address,
 then `url_prefix: http://srv+some-addr/some/path` is automatically resolved into `url_prefix: http://some-host:12345/some/path`.
-The DNS SRV resolution is performed every time new connection to the `url_prefix` backend is established.
+DNS SRV resolution is performed whenever a new connection to the `url_prefix` backend is established.
 
 See also [discovering backend addresses](#discovering-backend-ips).
 
 ## Modifying HTTP headers
 
-`vmauth` supports the ability to set and remove HTTP request headers before sending the requests to backends.
-This is done via `headers` option. For example, the following [`-auth.config`](#auth-config) sets `TenantID: foobar` header to requests proxied to `http://backend:1234/`. It also overrides `X-Forwarded-For` request header with an empty value. This effectively removes the `X-Forwarded-For` header from requests proxied to `http://backend:1234/`:
+`vmauth` supports setting and removing HTTP request headers before sending requests to backends.
+This is done via the `headers` option. For example, the following [`-auth.config`](#auth-config) sets `TenantID: foobar` header to requests proxied to `http://backend:1234/`. It also overrides the `X-Forwarded-For` request header with an empty value. This effectively removes the `X-Forwarded-For` header from requests proxied to `http://backend:1234/`:
 
 ```yaml
 unauthorized_user:
@@ -798,9 +1005,9 @@ users:
           - "http://backend:9428/"
 ```
 
-`vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
-This is done via `response_headers` option. For example, the following [`-auth.config`](#auth-config) sets `Foo: bar` response header
-and removes `Server` response header before returning the response to client:
+`vmauth` also supports setting and removing HTTP response headers before returning the response from the backend to the client.
+This is done via the `response_headers` option. For example, the following [`-auth.config`](#auth-config) sets `Foo: bar` response header
+and removes the `Server` response header before returning the response to the client:
 
 ```yaml
 unauthorized_user:
@@ -816,7 +1023,7 @@ See also [`Host` header docs](#host-http-header).
 
 By default, `vmauth` sets the `Host` HTTP header to the backend hostname when proxying requests to the corresponding backend.
 Sometimes it is needed to keep the original `Host` header from the client request sent to `vmauth`. For example, if backends use host-based routing.
-In this case set `keep_original_host: true`. For example, the following config instructs to use the original `Host` header from client requests when proxying requests to the `backend:1234`:
+In this case, set `keep_original_host: true`. For example, the following config instructs to use the original `Host` header from client requests when proxying requests to the `backend:1234`:
 
 ```yaml
 unauthorized_user:
@@ -824,7 +1031,7 @@ unauthorized_user:
   keep_original_host: true
 ```
 
-It is also possible to set the `Host` header to arbitrary value when proxying the request to the configured backend, via [`headers` option](#modifying-http-headers):
+It is also possible to set the `Host` header to an arbitrary value when proxying the request to the configured backend, via [`headers` option](#modifying-http-headers):
 
 ```yaml
 unauthorized_user:
@@ -844,7 +1051,7 @@ unauthorized_user:
   ```
 
 * By querying `/-/reload` endpoint. It is recommended to protect it with `-reloadAuthKey`. See [security docs](#security) for details.
-* By passing the interval for config check to `-configCheckInterval` command-line flag.
+* By passing the interval for config check to the `-configCheckInterval` command-line flag.
 
 ## Concurrency limiting
 
@@ -853,7 +1060,7 @@ unauthorized_user:
 * `-maxConcurrentRequests` limits the global number of concurrent requests `vmauth` can serve across all the configured users.
 * `-maxConcurrentPerUserRequests` limits the number of concurrent requests `vmauth` can serve per each configured user.
 
-It is also possible to set individual limits on the number of concurrent requests per each user with the `max_concurrent_requests` option.
+It is also possible to set individual limits on the number of concurrent requests per user with the `max_concurrent_requests` option.
 For example, the following [`-auth.config`](#auth-config) limits the number of concurrent requests from the user `foo` to 10:
 
 ```yaml
@@ -870,29 +1077,29 @@ exceeding the `-maxQueueDuration` command-line flag value.
 The following [metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring) related to concurrency limits are exposed by `vmauth`:
 
 * `vmauth_concurrent_requests_capacity` - the global limit on the number of concurrent requests `vmauth` can serve.
-  It is set via `-maxConcurrentRequests` command-line flag.
+  It is set via the `-maxConcurrentRequests` command-line flag.
 * `vmauth_concurrent_requests_current` - the current number of concurrent requests `vmauth` processes.
 * `vmauth_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
-  because of the global concurrency limit has been reached.
+  because the global concurrency limit has been reached.
 * `vmauth_user_concurrent_requests_capacity{username="..."}` - the limit on the number of concurrent requests for the given `username`.
 * `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
 * `vmauth_user_concurrent_requests_limit_reached_total{username="..."}` - the number of requests rejected with `429 Too Many Requests` error
-  because of the concurrency limit has been reached for the given `username`.
+  because the concurrency limit has been reached for the given `username`.
 * `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
 * `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
 * `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
-  because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
+  because the concurrency limit has been reached for unauthorized users (if the `unauthorized_user` section is used).
 
 See also [request body buffering](https://docs.victoriametrics.com/victoriametrics/vmauth/#request-body-buffering).
 
 ## Request body buffering
 
-`vmauth` can buffer request bodies {{% available_from "v1.135.0" %}} before proxying the requests to backends. This prevent slow-writing clients from occupying connections to backends.
+`vmauth` can buffer request bodies {{% available_from "v1.135.0" %}} before proxying the requests to backends. This prevents slow-writing clients from occupying backend connections.
 This is especially important when clients send requests over unreliable or low-bandwidth networks (for example, [IoT](https://en.wikipedia.org/wiki/Internet_of_things) devices over EDGE networks),
 where slow uploads can exhaust concurrency limits, increase latency, reduce ingestion rate, and trigger `429 Too Many Requests` responses even when backend resources are not saturated.
 
 Request body buffering can be configured with the `-requestBufferSize` command-line flag, which defines the maximum number of bytes to buffer from the request body
-before proxying the request to the backend. If buffering takes longer than the duration specified via `-maxQueueDuration` command-line flag, then the request is rejected.
+before proxying the request to the backend. If buffering exceeds the duration specified by the `-maxQueueDuration` command-line flag, the request is rejected.
 
 Request bodies are buffered before applying per-user [concurrency limits](https://docs.victoriametrics.com/victoriametrics/vmauth/#concurrency-limiting).
 
@@ -906,10 +1113,10 @@ See also [concurrency limits](https://docs.victoriametrics.com/victoriametrics/v
 
 ## Backend TLS setup
 
-By default, `vmauth` uses system settings when performing requests to HTTPS backends specified via `url_prefix` option in the [`-auth.config`](#auth-config). These settings can be overridden with the following command-line flags:
+By default, `vmauth` uses system settings when performing requests to HTTPS backends specified via the `url_prefix` option in the [`-auth.config`](#auth-config). These settings can be overridden with the following command-line flags:
 
 * `-backend.tlsInsecureSkipVerify` allows skipping TLS verification when connecting to HTTPS backends.
-  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config) via `tls_insecure_skip_verify` option. For example:
+  This global setting can be overridden at the per-user level inside [`-auth.config`](#auth-config) via the `tls_insecure_skip_verify` option. For example:
 
   ```yaml
   - username: "foo"
@@ -917,8 +1124,8 @@ By default, `vmauth` uses system settings when performing requests to HTTPS back
     tls_insecure_skip_verify: true
   ```
 
-* `-backend.tlsCAFile` allows specifying the path to TLS Root CA for verifying backend TLS certificates.
-  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config) via `tls_ca_file` option.
+* `-backend.tlsCAFile` allows specifying the path to the TLS Root CA for verifying backend TLS certificates.
+  This global setting can be overridden at the per-user level inside [`-auth.config`](#auth-config) via the `tls_ca_file` option.
   For example:
 
   ```yaml
@@ -927,9 +1134,9 @@ By default, `vmauth` uses system settings when performing requests to HTTPS back
     tls_ca_file: "/path/to/tls/root/ca"
   ```
 
-* `-backend.tlsCertFile` and `-backend.tlsKeyFile` allows specifying client TLS certificate for passing in requests to HTTPS backends,
-  so these certificate could be verified at the backend side (aka [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)).
-  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config) via `tls_cert_file` and `tls_key_file` options. For example:
+* `-backend.tlsCertFile` and `-backend.tlsKeyFile` allow specifying a client TLS certificate for passing in requests to HTTPS backends,
+  so these certificates could be verified on the backend side (aka [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)).
+  This global setting can be overridden at the per-user level inside [`-auth.config`](#auth-config) via `tls_cert_file` and `tls_key_file` options. For example:
 
   ```yaml
   - username: "foo"
@@ -939,7 +1146,7 @@ By default, `vmauth` uses system settings when performing requests to HTTPS back
   ```
 
 * `-backend.tlsServerName` allows specifying optional [TLS ServerName](https://en.wikipedia.org/wiki/Server_Name_Indication) for passing in requests to HTTPS backends.
-  This global setting can be overridden at per-user level inside [`-auth.config`](#auth-config) via `tls_server_name` option. For example:
+  This global setting can be overridden at the per-user level inside [`-auth.config`](#auth-config) via the `tls_server_name` option. For example:
 
   ```yaml
   - username: "foo"
@@ -947,12 +1154,12 @@ By default, `vmauth` uses system settings when performing requests to HTTPS back
     tls_server_name: "foo.bar.com"
   ```
 
-The `-backend.tlsCAFile`, `-backend.tlsCertFile`, `-backend.tlsKeyFile`, `tls_ca_file`, `tls_cert_file` and `tls_key_file` may point either to local file or to `http` / `https` url.
+The `-backend.tlsCAFile`, `-backend.tlsCertFile`, `-backend.tlsKeyFile`, `tls_ca_file`, `tls_cert_file`, and `tls_key_file` may point either to a local file or to a `http` / `https` URL.
 The file is checked for modifications every second and is automatically re-read when it is updated.
 
 ## IP filters
 
-[Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
+The [Enterprise version](https://docs.victoriametrics.com/victoriametrics/enterprise/) of `vmauth` can be configured to allow/deny incoming requests via global and per-user IP filters.
 
 For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
 
@@ -989,13 +1196,13 @@ By default, the client's TCP address is utilized for IP filtering. In scenarios 
 
 * Dropping `X-Forwarded-For` headers at the internet-facing reverse proxy (e.g., before traffic reaches `vmauth`).
 * Do not use `-httpRealIPHeader` at internet-facing `vmauth`.
-* Add `removeXFFHTTPHeaderValue` for the internet-facing `vmauth`. It instructs `vmauth` to replace value of `X-Forwarded-For` HTTP header with `remoteAddr` of the client.
+* Add `removeXFFHTTPHeaderValue` for the internet-facing `vmauth`. It instructs `vmauth` to replace the value of `X-Forwarded-For` HTTP header with `remoteAddr` of the client.
 
 See additional recommendations for [security and privacy concerns](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#security_and_privacy_concerns)
 
 ### Per-User Configuration
 
-The values of `httpRealIPHeader` {{% available_from "v1.107.0" %}} can be changed on a per-user basis within the user-specific configuration.
+The values of `httpRealIPHeader` {{% available_from "v1.107.0" %}} can be changed on a per-user basis in the user-specific configuration.
 
 ```yaml
 users:
@@ -1013,13 +1220,13 @@ users:
     real_ip_header: CF-Connecting-IP
 ```
 
-See config example of using [IP filters](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
+See the config example of using [IP filters](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
 
 ## Reading auth tokens from other HTTP headers
 
-`vmauth` reads `username`, `password` and `bearer_token` [config values](#auth-config) from `Authorization` request header.
-It is possible to read these auth tokens from any other request header by specifying it via `-httpAuthHeader` command-line flag.
-For example, the following command instructs `vmauth` to read auth token from `X-Amz-Firehose-Access-Key` header:
+`vmauth` reads `username`, `password`, and `bearer_token` [config values](#auth-config) from the `Authorization` request header.
+It is possible to read these auth tokens from any other request header by specifying it via the `-httpAuthHeader` command-line flag.
+For example, the following command instructs `vmauth` to read the auth token from the `X-Amz-Firehose-Access-Key` header:
 
 ```sh
 ./vmauth -httpAuthHeader='X-Amz-Firehose-Access-Key'
@@ -1036,11 +1243,11 @@ See also [authorization docs](#authorization) and [security docs](#security).
 
 ## Query args handling
 
-By default, `vmauth` sends all the query args specified in the `url_prefix` to the backend. It also proxies query args from client requests if they do not clash with the args specified in the `url_prefix`. This is needed for security, e.g. it disallows the client overriding security-sensitive query args specified at the `url_prefix` such as `tenant_id`, `password`, `auth_key`, `extra_filters`, etc.
+By default, `vmauth` sends all query arguments specified in `url_prefix` to the backend. It also proxies query args from client requests if they do not clash with the args specified in the `url_prefix`. This is needed for security; e.g., it prevents the client from overriding security-sensitive query args specified at `url_prefix`, such as `tenant_id`, `password`, `auth_key`, `extra_filters`, etc.
 
-`vmauth` provides the ability to specify a list of query args, which can be proxied from the client request to the backend if they clash with the args specified in the `url_prefix`. In this case the client query args are added to the args from the `url_prefix` before being proxied to the backend. This can be done via the following options:
+`vmauth` provides the ability to specify a list of query args, which can be proxied from the client request to the backend if they clash with the args specified in the `url_prefix`. In this case, the client query args are added to the `url_prefix` args before being proxied to the backend. This can be done via the following options:
 
-* Via `-mergeQueryArgs` command-line flag. This flag may contain comma-separated list of client query arg names, which are allowed
+* Via `-mergeQueryArgs` command-line flag. This flag may contain a comma-separated list of client query arg names, which are allowed
   to merge with the `url_prefix` query args when sending the request to the backend. This option is applied globally to all the configured backends.
 
 * Via `merge_query_args` option at the `user` and `url_map` level. These values override the `-mergeQueryArgs` command-line flag.
@@ -1056,18 +1263,55 @@ unauthorized_user:
     url_prefix: 'http://victoria-logs:9428/?extra_filters={env="prod"}'
 ```
 
+## Access log
+
+vmauth allows configuring access logs {{% available_from "v1.138.0" %}} printing per-user:
+```yaml
+unauthorized_user:
+  url_prefix: 'http://localhost:8428/'
+  # Log all requests to this user
+  access_log: {}
+```
+
+Access logs contain limited information to prevent exposing sensitive data. See an example of the printed access log below:
+```bash
+2026-02-26T15:00:00.207Z        info    VictoriaMetrics/app/vmauth/auth_config.go:134   access_log request_host="localhost:8427" request_uri="/prometheus/api/v1/query_range?query=1&start=1772116199.897&end=1772117999.897&step=5s" status_code=200 remote_addr="127.0.0.1:63425" user_agent="Mozilla/5.0..." referer="http://localhost:8427/vmui/?" duration_ms=8 username="unauthorized"
+```
+
+The printed log starts with `access_log` prefix and is followed with `request_host`, `request_uri`, `status_code`, `remote_addr`,
+`user_agent`, `referer`, `duration_ms` and `username` fields in [logfmt](https://brandur.org/logfmt) format. Such logs can be later
+analyzed in [VictoriaLogs](https://docs.victoriametrics.com/victorialogs):
+```logsql
+access_log | extract 'access_log <access_log>' | unpack_logfmt from access_log
+| stats by(username, request_host, status_code) count()
+```
+
+Access logs can skip logging requests with specified status codes:
+```yaml
+users:
+- username: foo
+  password: bar
+  url_prefix: 'http://localhost:8428/'
+  access_log:
+    filters:
+      # except requests with HTTP status codes below
+      skip_status_codes: [200, 202]
+```
+
+Access logs can be enabled or disabled per-user with [hot config reload](https://docs.victoriametrics.com/victoriametrics/vmauth/#config-reload).
+
 ## Auth config
 
 `-auth.config` is represented in the following `yml` format:
 
 ```yaml
-# Arbitrary number of usernames may be put here.
+# An arbitrary number of usernames may be put here.
 # It is possible to set multiple identical usernames with different passwords.
-# Such usernames can be differentiated by `name` option.
+# Such usernames can be differentiated by the `name` option.
 
 users:
   # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
-  # header are proxied to http://localhost:8428 .
+  # headers are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
 - bearer_token: "XXXX"
@@ -1079,7 +1323,7 @@ users:
   url_prefix: "http://localhost:8428"
 
   # Requests with the 'Authorization: Bearer YYY' header are proxied to http://localhost:8428 ,
-  # The `X-Scope-OrgID: foobar` http header is added to every proxied request.
+  # The `X-Scope-OrgID: foobar` HTTP header is added to every proxied request.
   # The `X-Server-Hostname` http header is removed from the proxied response.
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
 - bearer_token: "YYY"
@@ -1095,7 +1339,7 @@ users:
   # are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
   #
-  # The given user can send maximum 10 concurrent requests according to the provided max_concurrent_requests.
+  # The given user can send a maximum of 10 concurrent requests according to the provided max_concurrent_requests.
   # Excess concurrent requests are rejected with 429 HTTP status code.
   # See also -maxConcurrentPerUserRequests and -maxConcurrentRequests command-line flags.
 - username: "local-single-node"
@@ -1121,7 +1365,7 @@ users:
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
-  # For example, http://vmauth:8427/api/v1/query is proxied to the following urls in a round-robin manner:
+  # For example, http://vmauth:8427/api/v1/query is proxied to the following URLs in a round-robin manner:
   #   - http://vmselect1:8481/select/123/prometheus/api/v1/select
   #   - http://vmselect2:8481/select/123/prometheus/api/v1/select
 - username: "cluster-select-account-123"
@@ -1132,7 +1376,7 @@ users:
 
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
   # are load-balanced between http://vminsert1:8480/insert/42/prometheus and http://vminsert2:8480/insert/42/prometheus
-  # For example, http://vmauth:8427/api/v1/write is proxied to the following urls in a round-robin manner:
+  # For example, http://vmauth:8427/api/v1/write is proxied to the following URLs in a round-robin manner:
   #   - http://vminsert1:8480/insert/42/prometheus/api/v1/write
   #   - http://vminsert2:8480/insert/42/prometheus/api/v1/write
 - username: "cluster-insert-account-42"
@@ -1144,16 +1388,16 @@ users:
   # A single user for querying and inserting data:
   #
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
-  #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
+  #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following URLs in a round-robin manner:
   #     - http://vmselect1:8481/select/42/prometheus
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
-  #   Requests are re-tried at other url_prefix backends if response status codes match 500 or 502.
+  #   Requests are retried at other url_prefix backends if response status codes match 500 or 502.
   #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
-  #   The "X-Scope-OrgID: abc" http header is added to these requests.
-  #   The "X-Server-Hostname" http header is removed from the proxied response.
+  #   The "X-Scope-OrgID: abc" HTTP header is added to these requests.
+  #   The "X-Server-Hostname" HTTP header is removed from the proxied response.
   #
   # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
   # in a round-robin manner. The original request path is passed in `request_path` query arg.
@@ -1188,10 +1432,10 @@ users:
   - "http://default1:8888/unsupported_url_handler"
   - "http://default2:8888/unsupported_url_handler"
 
-# Requests without Authorization header are proxied according to `unauthorized_user` section.
+# Requests without an Authorization header are proxied according to the `unauthorized_user` section.
 # Requests are proxied in round-robin fashion between `url_prefix` backends.
 # The deny_partial_response query arg is added to all the proxied requests.
-# The requests are re-tried if url_prefix backends send 500 or 503 response status codes.
+# The requests are retried if url_prefix backends send 500 or 503 response status codes.
 # Note that the unauthorized_user section takes precedence when processing a route without credentials,
 # even if such a route also exists in the users section (see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5236).
 unauthorized_user:
@@ -1211,15 +1455,15 @@ This may be useful for passing secrets to the config.
 
 ## mTLS protection
 
-By default, `vmauth` accepts http requests at `8427` port (this port can be changed via `-httpListenAddr` command-line flags).
-[Enterprise version of vmauth](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmauth`, which accepts only mTLS requests at port `8427`:
+By default, `vmauth` accepts HTTP requests at the `8427` port (this port can be changed via the `-httpListenAddr` command-line flag).
+The [Enterprise version of vmauth](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `vmauth`, which accepts only mTLS requests at port `8427`:
 
 ```sh
 ./vmauth -tls -mtls -auth.config=...
 ```
 
-By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used to verify client certificates, if `-mtls` command-line flag is specified.
-It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used to verify client certificates if the `-mtls` command-line flag is specified.
+It is possible to specify a custom TLS Root CA via the `-mtlsCAFile` command-line flag.
 
 See also [automatic issuing of TLS certificates](#automatic-issuing-of-tls-certificates) and [mTLS-based request routing](#mtls-based-request-routing).
 
@@ -1251,20 +1495,20 @@ It is recommended to protect the following endpoints with authKeys:
 * `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](https://docs.victoriametrics.com/victoriametrics/vmauth/#monitoring).
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
 
-As an alternative, it's possible to serve internal API routes at the different listen address with command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "v1.111.0" %}}
+As an alternative, you can serve internal API routes on a different listen address using the command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "v1.111.0" %}}
 
-`vmauth` also supports the ability to restrict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
+`vmauth` also supports restricting access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
 ## Automatic issuing of TLS certificates
 
 `vmauth` [Enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/) supports automatic issuing of TLS certificates via [Let's Encrypt service](https://letsencrypt.org/).
-The following command-line flags must be set in order to enable automatic issuing of TLS certificates:
+The following command-line flags must be set in order to enable automatic issuance of TLS certificates:
 
 * `-httpListenAddr` must be set to listen on TCP port `443`. For example, `-httpListenAddr=:443`. This port must be accessible by the [Let's Encrypt service](https://letsencrypt.org/).
-* `-tls` must be set in order to accept HTTPS requests at `-httpListenAddr`. Note that `-tlcCertFile` and `-tlsKeyFile` aren't needed when automatic TLS certificate issuing is enabled.
-* `-tlsAutocertHosts` must be set to comma-separated list of hosts, which can be reached via `-httpListenAddr`. TLS certificates are automatically issued for these hosts.
-* `-tlsAutocertEmail` must be set to contact email for the issued TLS certificates.
-* `-tlsAutocertCacheDir` may be set to the directory path to persist the issued TLS certificates between `vmauth` restarts. If this flag isn't set, then TLS certificates are re-issued on every restart.
+* `-tls` must be set to accept HTTPS requests at `-httpListenAddr`. Note that `-tlsCertFile` and `-tlsKeyFile` aren't needed when automatic TLS certificate issuing is enabled.
+* `-tlsAutocertHosts` must be set to a comma-separated list of hosts, which can be reached via `-httpListenAddr`. TLS certificates are automatically issued for these hosts.
+* `-tlsAutocertEmail` must be set to the contact email for the issued TLS certificates.
+* `-tlsAutocertCacheDir` may be set to the directory path to persist the issued TLS certificates between `vmauth` restarts. If this flag isn't set, then TLS certificates are reissued on every restart.
 
 This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/victoriametrics/enterprise/).
 
@@ -1272,14 +1516,14 @@ See also [security recommendations](#security).
 
 ## Monitoring
 
-`vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended to set up regular scraping of this page either via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or via Prometheus-compatible scraper, so the exported metrics could be analyzed later.
+`vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended to set up regular scraping of this page either via [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/) or via a Prometheus-compatible scraper, so the exported metrics can be analyzed later.
 Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/21394) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmauth.yml) for `vmauth` monitoring.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`
-command-line to them, so they add `TYPE` and `HELP` comments per each exposed metric at `/metrics` page.
+command-line to them, so they add `TYPE` and `HELP` comments for each exposed metric on the `/metrics` page.
 See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/troubleshooting#missing-metric-type) for details.
 
-`vmauth` exports the following metrics per each defined user in [`-auth.config`](#auth-config):
+`vmauth` exports the following metrics for each defined user in [`-auth.config`](#auth-config):
 
 * `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of requests served for the given `username`
 * `vmauth_user_request_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of request errors for the given `username`
@@ -1293,8 +1537,8 @@ See [these docs](https://cloud.google.com/stackdriver/docs/managed-prometheus/tr
 * `vmauth_user_concurrent_requests_current` [gauge](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#gauge) - the current number of [concurrent requests](#concurrency-limiting)
   for the given `username`
 
-By default, per-user metrics contain only `username` label. This label is set to `username` field value at the corresponding user section in the [`-auth.config`](#auth-config) file.
-It is possible to override the `username` label value by specifying `name` field additionally to `username` field.
+By default, per-user metrics contain only the `username` label. This label is set to the `username` field value at the corresponding user section in the [`-auth.config`](#auth-config) file.
+It is possible to override the `username` label value by specifying the `name` field in addition to the `username` field.
 For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` instead of `vmauth_user_requests_total{username="secret_user"}`:
 
 ```yaml
@@ -1304,7 +1548,7 @@ users:
   # other config options here
 ```
 
-Additional labels for per-user metrics can be specified via `metric_labels` section. For example, the following config defines `{dc="eu",team="dev"}` labels additionally to `username="foobar"` label:
+Additional labels for per-user metrics can be specified via the `metric_labels` section. For example, the following config defines `{dc="eu",team="dev"}` labels additionally to `username="foobar"` label:
 
 ```yaml
 users:
@@ -1315,7 +1559,7 @@ users:
   # other config options here
 ```
 
-`vmauth` exports the following metrics if `unauthorized_user` section is defined in [`-auth.config`](#auth-config):
+`vmauth` exports the following metrics if the `unauthorized_user` section is defined in [`-auth.config`](#auth-config):
 
 * `vmauth_unauthorized_user_requests_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of requests served for unauthorized user
 * `vmauth_unauthorized_user_request_errors_total` [counter](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#counter) - the number of request errors for unauthorized user
@@ -1334,21 +1578,21 @@ It is recommended to use [binary releases](https://github.com/VictoriaMetrics/Vi
 
 1. [Install Go](https://golang.org/doc/install).
 1. Run `make vmauth` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmauth` binary and puts it into the `bin` folder.
+   It builds the `vmauth` binary and puts it into the `bin` folder.
 
 ### Production build
 
-1. [Install docker](https://docs.docker.com/install/).
+1. [Install Docker](https://docs.docker.com/install/).
 1. Run `make vmauth-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
-   It builds `vmauth-prod` binary and puts it into the `bin` folder.
+   It builds the `vmauth-prod` binary and puts it into the `bin` folder.
 
-### Building docker images
+### Building Docker images
 
 Run `make package-vmauth`. It builds `victoriametrics/vmauth:<PKG_TAG>` docker image locally.
-`<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
+`<PKG_TAG>` is an auto-generated image tag, which depends on the source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-vmauth`.
 
-The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image by setting it via `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
+The base Docker image is [alpine](https://hub.docker.com/_/alpine), but you can use any other base image by setting it via the `<ROOT_IMAGE>` environment variable. For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
 ```sh
 ROOT_IMAGE=scratch make package-vmauth
@@ -1370,10 +1614,10 @@ curl http://0.0.0.0:8427/debug/pprof/heap > mem.pprof
 curl http://0.0.0.0:8427/debug/pprof/profile > cpu.pprof
 ```
 
-The command for collecting CPU profile waits for 30 seconds before returning.
+The command for collecting CPU profiles waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
-It is safe to share the collected profiles from security point of view, since they do not contain sensitive information.
+It is safe to share the collected profiles from a security perspective, as they do not contain sensitive information.
 
 ## Advanced usage
 

@@ -557,8 +557,8 @@ and proportionally to the total length of all the labels seen across all the reg
 
 Typical monitoring in Kubernetes generates moderate-to-high churn rate for time series because every restart of the `pod` creates a new set of time series
 for all the [metrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#what-is-a-metric) exposed by that pod, with a new `pod` label.
-The number of labels and the summary length of `label=value` pairs per every time series in Kubernetes is quite large
-(~30-40 labels with ~1KB summary length of `label=value` pairs per time series). This contributes to quick growth of the `indexdb` over time,
+The number of labels and the total length of `label=value` pairs per every time series in Kubernetes is quite large
+(~30-40 labels with ~1KB total length of `label=value` pairs per time series). This contributes to quick growth of the `indexdb` over time,
 so its' size may exceed the size of the `data` folder by up to 2x in typical production cases.
 
 There are the following workarounds, which can reduce the growth rate of the `indexdb`:

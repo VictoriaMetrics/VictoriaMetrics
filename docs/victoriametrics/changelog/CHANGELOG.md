@@ -26,6 +26,30 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+## [v1.138.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.138.0)
+
+Released at 2026-03-13
+
+* SECURITY: upgrade Go builder from Go1.26.0 to Go1.26.1. See [the list of issues addressed in Go1.26.1](https://github.com/golang/go/issues?q=milestone%3AGo1.26.1%20label%3ACherryPickApproved).
+
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/): add `headers` field to `oauth2` scrape config for passing custom HTTP headers to `token_url`. Some services require different headers for the token endpoint and the scrape targets. See [#8939](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8939).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add [OIDC Discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) support for JWT authentication. `vmauth` can now automatically fetch and rotate public keys from an OpenID Connect provider, eliminating the need to specify public keys manually. See [OIDC Discovery](https://docs.victoriametrics.com/victoriametrics/vmauth/#oidc-discovery) docs. See [#10585](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10585).
+* FEATURE: all VictoriaMetrics components: implement proper CORS preflight handling by responding 204 No Content to HTTP OPTIONS requests. See [#5563](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5563).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add `access_log` configuration option for each user that will log requests to stdout, and support filtering by HTTP status codes. See more in [docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#access-log). See [#5936](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5936).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add JWT token `match_claims` for requests routing. Read more about configuration in [JWT claim matching](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-matching) documentation. See [#10584](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10584).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): support negative values for the group `eval_offset` option, which allows starting group evaluation at `groupInterval-abs(eval_offset)` within `[0...groupInterval]`. See [#10424](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10424).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): Disable `/graphite/tags/tagSeries` and `/graphite/tags/tagMultiSeries` for Graphite tag registration since it is unlikely it is used in context of VictoriaMetrics. See [10544](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10544).
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): rename debug tools buttons for clarity. See [#10453](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10453).
+
+* BUGFIX: all VictoriaMetrics components: replace `histogram` with `untyped` metric metadata type for [VictoriaMetrics histograms](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#histogram) when `-metrics.exposeMetadata` is set. See [#82](https://github.com/VictoriaMetrics/metrics/issues/82).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): properly route requests to `default_url`. Previously, `request_path` query arg could be set incorrectly during concurrent requests. See [#10626](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10626).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): use `increase_pure` instead of `rate` for histogram heatmaps in Explore Metrics to correctly display the first observation in each new bucket. See [#10365](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10365). Thanks to @ab0utbla-k for the contribution.
+* BUGFIX: [dashboards/vmauth](https://grafana.com/grafana/dashboards/21394): fix `requested from system` and `heap inuse` expressions in the memory usage panel. See [#10574](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10574).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): do not enable ACL when uploading backups to S3-compatible endpoints by default. ACL is not always supported by S3-compatible endpoints and it is not recommended to use ACLs to limit access to objects. See [#10539](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10539) for more details.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/victoriametrics/vmbackupmanager/): overwrite s3 object metadata while syncing latest backups with other backup types. See [#10639](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10639).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/), `vminsert` and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly attach `host` label to the time series ingested via [/datadog/api/beta/sketches](https://docs.victoriametrics.com/victoriametrics/integrations/datadog/#) API. See [#10557](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10557).
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): fix inaccurate `vm_filestream_write_duration_seconds_total` due to duplicate counting . After the fix, `vm_filestream_write_duration_seconds_total` will track the duration spent on calling the `write(2)` system call properly. See [#10564](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10564).
+
 ## [v1.137.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.137.0)
 
 Released at 2026-02-27
@@ -35,7 +59,7 @@ It enables back `Discovered targets` debug UI by default.
 
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/): can now copy backups between different storage backends, such as from s3 to local disk or gcs to s3. See [#10401](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10401). Thanks to @BenNF for the contribution.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): add JWT token authentication support with signature verification based on provided `public_keys`. Read more about configuration in [JWT Token auth proxy](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-token-auth-proxy) documentation. See [#10445](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10445).
-* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/):  support dynamic rewriting of upstream URLs and request headers using placeholders populated from JWT `vm_access` claim fields. This allows routing requests to the correct tenant backend without maintaining a separate user config entry per tenant. Read more in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) documentation. See [#10492](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10492).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/): support dynamic rewriting of upstream URLs and request headers using placeholders populated from JWT `vm_access` claim fields. This allows routing requests to the correct tenant backend without maintaining a separate user config entry per tenant. Read more in [JWT claim-based request templating](https://docs.victoriametrics.com/victoriametrics/vmauth/#jwt-claim-based-request-templating) documentation. See [#10492](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10492).
 * FEATURE: all VictoriaMetrics components: expose `process_cpu_seconds_total`, `process_resident_memory_bytes`, and other process-level metrics when running on macOS. See [metrics#75](https://github.com/VictoriaMetrics/metrics/issues/75).
 * FEATURE: [dashboards/vmauth](https://grafana.com/grafana/dashboards/21394): add `Request body buffering duration` panel to the `Troubleshooting` section. This panel shows the time spent buffering incoming client request bodies, helping identify slow client uploads and potential concurrency issues. The panel is only available when `-requestBufferSize` is non-zero. See [#10309](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10309).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): reduce CPU and memory usage when `-promscrape.dropOriginalLabels` command-line flag is set. See [#9952](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9952).
@@ -56,6 +80,22 @@ It enables back `Discovered targets` debug UI by default.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly search tenants for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) query request. See [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422).
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
+
+## [v1.136.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.1)
+
+Released at 2026-03-02
+
+**v1.136.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.136.x line will be supported for at least 12 months since [v1.136.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11360) release**
+
+* BUGFIX: all VictoriaMetrics components: return gzip-compressed response instead of zstd-compressed response to the client if `Accept-Encoding` request header contains both `gzip` and `zstd`. This is needed because some clients and proxies improperly handle zstd-compressed responses. See [#10535](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10535).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/): properly check expired client certificate during mTLS requests. See [#10393](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10393).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent panic `error parsing regexp: expression nests too deeply` triggered by large repetition ranges in regex. See [VictoriaLogs#1112](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1112).
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly search tenants for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) query request. See [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422).
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): revert the use of rollup result cache for [instant queries](https://docs.victoriametrics.com/keyConcepts.html#instant-query) that contain [`rate`](https://docs.victoriametrics.com/MetricsQL.html#rate) function with a lookbehind window larger than `-search.minWindowForInstantRollupOptimization`. The cache usage was removed since [v1.132.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.132.0). See [#10098](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10098#issuecomment-3895011084) for more details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix escaping for label names with special characters. See [#10485](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10485).
 
 ## [v1.136.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.136.0)
 
@@ -209,6 +249,19 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11230)
 
+## [v1.122.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.16)
+
+Released at 2026-02-27
+
+**v1.122.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.122.x line will be supported for at least 12 months since [v1.122.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11220) release**
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): prevent panic `error parsing regexp: expression nests too deeply` triggered by large repetition ranges in regex, for example `{"__name__"=~"a{0,1000}"}`. See [VictoriaLogs#1112](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1112).
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly search tenants for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) query request. See [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422).
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly apply `extra_filters[]` filter when querying `vm_account_id` or `vm_project_id` labels via [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) request for `/api/v1/label/…/values` API. Before, `extra_filters` was ignored. See [#10503](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/10503).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#vmui): fix escaping for label names with special characters. See [#10485](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10485).
+
 ## [v1.122.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.122.15)
 
 Released at 2026-02-13
@@ -360,6 +413,16 @@ See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/ch
 ## [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0)
 
 See changes [here](https://docs.victoriametrics.com/victoriametrics/changelog/changelog_2025/#v11110)
+
+## [v1.110.31](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.31)
+
+Released at 2026-02-27
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/victoriametrics/enterprise/).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/victoriametrics/changelog/#v11100) release**
+
+* BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/): properly search tenants for [multitenant](https://docs.victoriametrics.com/victoriametrics/cluster-victoriametrics/#multitenancy) query request. See [#10422](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10422).
 
 ## [v1.110.30](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.30)
 
