@@ -145,6 +145,7 @@ func (cp *ConnPool) Get() (*handshake.BufferedConn, error) {
 	return cp.getConnSlow()
 }
 
+// Dial returns a newly established connection.
 func (cp *ConnPool) Dial() (*handshake.BufferedConn, error) {
 	cp.concurrentDialsCh <- struct{}{}
 	conn, err := cp.dialAndHandshake()
