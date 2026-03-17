@@ -1226,6 +1226,7 @@ type ExponentialHistogramDataPoint struct {
 	Scale         int32
 	ZeroCount     uint64
 	Positive      *Buckets
+	Negative      *Buckets
 	Flags         uint32
 	Min           *float64
 	Max           *float64
@@ -1245,6 +1246,9 @@ func (dp *ExponentialHistogramDataPoint) marshalProtobuf(mm *easyproto.MessageMa
 	mm.AppendFixed64(7, dp.ZeroCount)
 	if dp.Positive != nil {
 		dp.Positive.marshalProtobuf(mm.AppendMessage(8))
+	}
+	if dp.Negative != nil {
+		dp.Negative.marshalProtobuf(mm.AppendMessage(9))
 	}
 	mm.AppendUint32(10, dp.Flags)
 	if dp.Min != nil {
@@ -1325,6 +1329,14 @@ func (dctx *decoderContext) decodeExponentialHistogramDataPoint(src []byte) (err
 			if err := ehctx.positive.decodeBuckets(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Positive: %w", err)
 			}
+		case 9:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read Negative buckets")
+			}
+			if err := ehctx.negative.decodeBuckets(data); err != nil {
+				return fmt.Errorf("cannot unmarshal Negative: %w", err)
+			}
 		case 10:
 			ehctx.flags, ok = fc.Uint32()
 			if !ok {
@@ -1360,6 +1372,7 @@ type exponentialHistogramDataPointContext struct {
 	scale         int32
 	zeroCount     uint64
 	positive      buckets
+	negative      buckets
 	flags         uint32
 	min           float64
 	max           float64
@@ -1373,6 +1386,7 @@ func (ehctx *exponentialHistogramDataPointContext) reset() {
 	ehctx.scale = 0
 	ehctx.zeroCount = 0
 	ehctx.positive.reset()
+	ehctx.negative.reset()
 	ehctx.flags = 0
 	ehctx.min = 0
 	ehctx.max = 0
@@ -1403,15 +1417,26 @@ func (ehctx *exponentialHistogramDataPointContext) pushSamples(dctx *decoderCont
 
 	ratio := math.Pow(2, -float64(ehctx.scale))
 	base := math.Pow(2, ratio)
-	bound := math.Pow(2, float64(ehctx.positive.offset)*ratio)
+	positiveBound := math.Pow(2, float64(ehctx.positive.offset)*ratio)
 	for i, count := range ehctx.positive.bucketCounts {
 		if count <= 0 {
 			continue
 		}
 
-		lowerBound := bound * math.Pow(base, float64(i))
+		lowerBound := positiveBound * math.Pow(base, float64(i))
 		upperBound := lowerBound * base
 		*vmrangeValueP = dctx.fb.formatVmrange(lowerBound, upperBound)
+		dctx.mp.PushSample(&dctx.mm, "_bucket", &dctx.ls, ehctx.timestamp, float64(count), ehctx.flags)
+	}
+	negativeBound := math.Pow(2, float64(ehctx.negative.offset)*ratio)
+	for i, count := range ehctx.negative.bucketCounts {
+		if count <= 0 {
+			continue
+		}
+
+		lowerBound := negativeBound * math.Pow(base, float64(i))
+		upperBound := lowerBound * base
+		*vmrangeValueP = dctx.fb.formatVmrange(-upperBound, -lowerBound)
 		dctx.mp.PushSample(&dctx.mm, "_bucket", &dctx.ls, ehctx.timestamp, float64(count), ehctx.flags)
 	}
 }

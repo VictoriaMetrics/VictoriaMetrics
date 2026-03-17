@@ -342,11 +342,19 @@ func TestParseStream(t *testing.T) {
 			generateExpHistogram("test-histogram", "m/s"),
 		},
 		[]prompb.TimeSeries{
-			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.061e+00...1.067e+00")),
-			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 10.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.067e+00...1.073e+00")),
-			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.085e+00...1.091e+00")),
-			newTimeSeries("test_histogram_meters_per_second_count", 15000, 20.0, jobLabelValue, kvLabel("label1", "value1")),
-			newTimeSeries("test_histogram_meters_per_second_sum", 15000, 4578.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "6.400e+01...1.280e+02")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "4.000e+00...8.000e+00")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 2.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "8.000e+00...1.600e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 3.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.600e+01...3.200e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 4.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "3.200e+01...6.400e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "5.120e+02...1.024e+03")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-8.000e+00...-4.000e+00")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 2.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-1.600e+01...-8.000e+00")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 3.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-3.200e+01...-1.600e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 4.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-6.400e+01...-3.200e+01")),
+			newTimeSeries("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "-1.280e+02...-6.400e+01")),
+			newTimeSeries("test_histogram_meters_per_second_count", 15000, 31.0, jobLabelValue, kvLabel("label1", "value1")),
+			newTimeSeries("test_histogram_meters_per_second_sum", 15000, 588.0, jobLabelValue, kvLabel("label1", "value1")),
 		},
 		[]prompb.MetricMetadata{
 			{
@@ -560,7 +568,7 @@ func stringAttributeFromKV(k, v string) *pb.KeyValue {
 }
 
 func generateExpHistogram(name, unit string, extraAttributes ...*pb.KeyValue) *pb.Metric {
-	sum := float64(4578)
+	sum := float64(588)
 	m := &pb.Metric{
 		Name: name,
 		Unit: unit,
@@ -569,12 +577,16 @@ func generateExpHistogram(name, unit string, extraAttributes ...*pb.KeyValue) *p
 				{
 					Attributes:   attributesFromKV("label1", "value1"),
 					TimeUnixNano: uint64(15 * time.Second),
-					Count:        20,
+					Count:        31,
 					Sum:          &sum,
-					Scale:        7,
+					Scale:        0,
 					Positive: &pb.Buckets{
-						Offset:       7,
-						BucketCounts: []uint64{0, 0, 0, 0, 5, 10, 0, 0, 1},
+						Offset:       2,
+						BucketCounts: []uint64{1, 2, 3, 4, 5, 0, 0, 1},
+					},
+					Negative: &pb.Buckets{
+						Offset:       2,
+						BucketCounts: []uint64{1, 2, 3, 4, 5},
 					},
 				},
 			},
