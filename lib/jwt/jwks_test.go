@@ -173,6 +173,9 @@ func TestParseJWKs_SigWithUnsupportedAlg(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for use=sig with unsupported alg, got nil")
 	}
+	if err.Error() != "jwks key with use=sig has unsupported alg RS1; supported [RS256 RS384 RS512], [PS256 PS384 PS512]" {
+		t.Fatalf("expected error for use=sig with unsupported alg, got %v", err)
+	}
 }
 
 func TestParseMultipleKeys(t *testing.T) {
