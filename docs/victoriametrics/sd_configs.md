@@ -1803,6 +1803,13 @@ scrape_configs:
     #
     # api_endpoint: "https://api.cloud.yandex.net"
 
+    # folder_ids is an optional list of folder IDs for direct discovery.
+    # If set, only the given folders are queried and the folder enumeration
+    # step is skipped.
+    #
+    # folder_ids:
+    #   - "b1gxxxxxxxxxxxxxxxxx"
+
     # yandex_passport_oauth_token is an optional OAuth token
     # for querying yandexcloud API. See https://cloud.yandex.com/en-ru/docs/iam/concepts/authorization/oauth-token
     #
