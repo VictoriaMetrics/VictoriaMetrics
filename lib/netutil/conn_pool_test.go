@@ -105,6 +105,31 @@ func TestGetPutDialConnectionPool(t *testing.T) {
 	wg.Wait()
 }
 
+func TestConnPoolGetExistingOrDialNewConn(t *testing.T) {
+	mockSvr := newMockServer()
+	addr, _ := url.Parse(mockSvr.URL)
+	cp := NewConnPool(metrics.NewSet(), "test-pool", addr.Host, mockHandshake, 1, 5*time.Second, 0)
+
+	conn, err := cp.Get()
+	if err != nil {
+		t.Fatalf("could not get conn from connection pool: %v", err)
+	}
+	cp.Put(conn)
+	if len(cp.conns) != 1 {
+		t.Fatalf("expecting 1 connection in the pool, but got %d", len(cp.conns))
+	}
+	// dail a new conn rather than getting one from pool.
+	conn, err = cp.Dial()
+	if err != nil {
+		t.Fatalf("could not create new conn: %v", err)
+	}
+	cp.Put(conn)
+	if len(cp.conns) != 2 {
+		t.Fatalf("expecting 2 connection in the pool, but got %d", len(cp.conns))
+	}
+
+}
+
 // mockServer does nothing. It only acts as a tcp server for connection test.
 type mockServer struct {
 	*httptest.Server
