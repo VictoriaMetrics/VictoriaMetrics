@@ -137,9 +137,9 @@ container_ulimits_soft{container="kube-scheduler",id="/kubelet/kubepods/burstabl
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			diff := GetRowsDiff(s2, s1)
-			if diff != "foo 0\n" {
-				panic(fmt.Errorf("unexpected diff; got %q; want %q", diff, "foo 0\n"))
+			added, _ := GetRowsDiff(s2, s1)
+			if added != "foo 0\n" {
+				panic(fmt.Errorf("unexpected diff; got %q; want %q", added, "foo 0\n"))
 			}
 		}
 	})

@@ -598,7 +598,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   The limit can be set via `label_limit` option at [scrape_configs](https://docs.victoriametrics.com/victoriametrics/sd_configs/#scrape_configs).
   This metric is exposed only if the `label_limit` is set.
 
-* `scrape_series_added` - **an approximate** number of new [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target generates during the current scrape.
+* `scrape_series_added` - **an approximate** number of exposed [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target changes during the current scrape.
   This metric allows detecting targets (identified by `instance` label),
   which lead to [high churn rate](https://docs.victoriametrics.com/victoriametrics/faq/#what-is-high-churn-rate).
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/victoriametrics/metricsql/) returns targets,
@@ -611,6 +611,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line flag
   or when it scrapes target with `no_stale_markers: true` option, e.g. when [staleness markers](#prometheus-staleness-markers) are disabled.
 
+  When `vmagent` starts, the `scrape_series_added` for all targets will be increased because all series are newly added for a newly started `vmagent`.
 * `scrape_series_limit` - the limit on the number of unique [series](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#time-series) the given target can expose according to [these docs](#cardinality-limiter).
   This metric is exposed only if the series limit is set.
 

@@ -577,7 +577,8 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = getSeriesAdded(lastScrapeStr, bodyString)
+		// The value can be negative if the number of exposed series decreased or the scrape failed.
+		seriesAdded = getSeriesDiff(lastScrapeStr, bodyString)
 	}
 	samplesDropped := 0
 	if sw.seriesLimitExceeded.Load() || !areIdenticalSeries {
@@ -688,7 +689,8 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 		// The returned value for seriesAdded may be bigger than the real number of added series
 		// if some series were removed during relabeling.
 		// This is a trade-off between performance and accuracy.
-		seriesAdded = getSeriesAdded(lastScrapeStr, bodyString)
+		// The value can be negative if the number of exposed series decreased or the scrape failed.
+		seriesAdded = getSeriesDiff(lastScrapeStr, bodyString)
 	}
 	responseSize := len(bodyString)
 
@@ -813,12 +815,9 @@ func (wc *writeRequestCtx) reset() {
 
 var writeRequestCtxPool leveledWriteRequestCtxPool
 
-func getSeriesAdded(lastScrape, currScrape string) int {
-	if currScrape == "" {
-		return 0
-	}
-	bodyString := parser.GetRowsDiff(currScrape, lastScrape)
-	return strings.Count(bodyString, "\n")
+func getSeriesDiff(lastScrape, currScrape string) int {
+	added, deleted := parser.GetRowsDiff(currScrape, lastScrape)
+	return strings.Count(added, "\n") - strings.Count(deleted, "\n")
 }
 
 func (sw *scrapeWork) initSeriesLimiter() {
@@ -876,7 +875,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	}
 	bodyString := lastScrape
 	if currScrape != "" {
-		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
+		bodyString, _ = parser.GetRowsDiff(lastScrape, currScrape)
 	}
 	if bodyString != "" {
 		// Send stale markers in streaming mode in order to reduce memory usage

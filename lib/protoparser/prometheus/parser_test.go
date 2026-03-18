@@ -7,21 +7,24 @@ import (
 )
 
 func TestGetRowsDiff(t *testing.T) {
-	f := func(s1, s2, resultExpected string) {
+	f := func(s1, s2, addedExpected, deletedExpected string) {
 		t.Helper()
-		result := GetRowsDiff(s1, s2)
-		if result != resultExpected {
-			t.Fatalf("unexpected result for GetRowsDiff(%q, %q); got %q; want %q", s1, s2, result, resultExpected)
+		added, deleted := GetRowsDiff(s1, s2)
+		if added != addedExpected {
+			t.Fatalf("unexpected added result for GetRowsDiff(%q, %q); got %q; want %q", s1, s2, added, addedExpected)
+		}
+		if deleted != deletedExpected {
+			t.Fatalf("unexpected deleted result for GetRowsDiff(%q, %q); got %q; want %q", s1, s2, deleted, deletedExpected)
 		}
 	}
-	f("", "", "")
-	f("", "foo 1", "")
-	f("  ", "foo 1", "")
-	f("foo 123", "", "foo 0\n")
-	f("foo 123", "bar 3", "foo 0\n")
-	f("foo 123", "bar 3\nfoo 344", "")
-	f("foo{x=\"y\", z=\"a a a\"} 123", "bar 3\nfoo{x=\"y\", z=\"b b b\"} 344", "foo{x=\"y\",z=\"a a a\"} 0\n")
-	f("foo{bar=\"baz\"} 123\nx 3.4 5\ny 5 6", "x 34 342", "foo{bar=\"baz\"} 0\ny 0\n")
+	f("", "", "", "")
+	f("", "foo 1", "", "foo 0\n")
+	f("  ", "foo 1", "", "foo 0\n")
+	f("foo 123", "", "foo 0\n", "")
+	f("foo 123", "bar 3", "foo 0\n", "bar 0\n")
+	f("foo 123", "bar 3\nfoo 344", "", "bar 0\n")
+	f("foo{x=\"y\", z=\"a a a\"} 123", "bar 3\nfoo{x=\"y\", z=\"b b b\"} 344", "foo{x=\"y\",z=\"a a a\"} 0\n", "bar 0\nfoo{x=\"y\",z=\"b b b\"} 0\n")
+	f("foo{bar=\"baz\"} 123\nx 3.4 5\ny 5 6", "x 34 342", "foo{bar=\"baz\"} 0\ny 0\n", "")
 }
 
 func TestAreIdenticalSeriesFast(t *testing.T) {

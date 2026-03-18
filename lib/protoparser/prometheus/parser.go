@@ -485,10 +485,11 @@ func prevBackslashesCount(s string) int {
 	return n
 }
 
-// GetRowsDiff returns rows from s1, which are missing in s2.
-//
+// GetRowsDiff
+// The first returned string contains rows from s1, which are missing in s2.
+// The second returned string contains rows from s2, which are missing in s1.
 // The returned rows have default value 0 and have no timestamps.
-func GetRowsDiff(s1, s2 string) string {
+func GetRowsDiff(s1, s2 string) (string, string) {
 	li1 := getLinesIterator()
 	li2 := getLinesIterator()
 	defer func() {
@@ -497,33 +498,48 @@ func GetRowsDiff(s1, s2 string) string {
 	}()
 	li1.Init(s1)
 	li2.Init(s2)
-	if !li1.NextKey() {
-		return ""
+
+	var diff1, diff2 []byte
+
+	has1 := li1.NextKey()
+	has2 := li2.NextKey()
+	if !has1 && !has2 {
+		return "", ""
 	}
-	var diff []byte
-	if !li2.NextKey() {
-		diff = appendKeys(diff, li1)
-		return string(diff)
+	if !has1 {
+		diff2 = appendKeys(diff2, li2)
+		return "", string(diff2)
 	}
+	if !has2 {
+		diff1 = appendKeys(diff1, li1)
+		return string(diff1), ""
+	}
+
 	for {
 		switch bytes.Compare(li1.Key, li2.Key) {
 		case -1:
-			diff = appendKey(diff, li1.Key)
+			diff1 = appendKey(diff1, li1.Key)
 			if !li1.NextKey() {
-				return string(diff)
+				diff2 = appendKeys(diff2, li2)
+				return string(diff1), string(diff2)
+			}
+		case 1:
+			diff2 = appendKey(diff2, li2.Key)
+			if !li2.NextKey() {
+				diff1 = appendKeys(diff1, li1)
+				return string(diff1), string(diff2)
 			}
 		case 0:
 			if !li1.NextKey() {
-				return string(diff)
+				if !li2.NextKey() {
+					return string(diff1), string(diff2)
+				}
+				diff2 = appendKeys(diff2, li2)
+				return string(diff1), string(diff2)
 			}
 			if !li2.NextKey() {
-				diff = appendKeys(diff, li1)
-				return string(diff)
-			}
-		case 1:
-			if !li2.NextKey() {
-				diff = appendKeys(diff, li1)
-				return string(diff)
+				diff1 = appendKeys(diff1, li1)
+				return string(diff1), string(diff2)
 			}
 		}
 	}
